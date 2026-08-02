@@ -1,0 +1,70 @@
+:root {
+  /* Colors */
+  --ink: #0B1A12;
+  --forest: #173326;
+  --sidebar: #0F2417;
+  --sidebar-deep: #0F2417;
+  --canvas: #FDF8EC;
+  --panel: #FBF8F2;
+  --surface: #FFFFFF;
+  --body: #43514D;
+  --muted: #7E9B93;
+  --mint: #DCE7DE;
+  --mist: #EEF3EE;
+  --track: #EDF2ED;
+  --sand: #EDE3D0;
+  --success: #2F7D4A;
+  --success-deep: #1C5230;
+  --alert: #8E2E0A;
+  --alert-alt: #B8410F;
+  --amber: #D2822E;
+  --amber-deep: #93520F;
+  --amber-light: #FBE9AE;
+  --gold: #D9B94F;
+  --teal: #2F6F68;
+  --teal-light: #D6E8E5;
+  --border: rgba(20, 8, 31, 0.06);
+  --border-strong: rgba(20, 8, 31, 0.12);
+  --shadow-pop: 0 12px 30px rgba(11, 26, 18, 0.16);
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque', serif;
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--canvas);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}

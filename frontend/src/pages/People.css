@@ -1,0 +1,74 @@
+.people-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.people-header {
+  display: flex;
+  align-items: center;
+}
+.people-count {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 10px;
+}
+.person-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  cursor: pointer;
+}
+.person-card:hover {
+  border-color: var(--border-strong);
+}
+.person-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.person-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.person-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+.person-role {
+  font-size: 11px;
+  color: var(--body);
+}
+.person-company {
+  font-size: 10px;
+  color: var(--muted);
+}
+.person-projects {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.person-project-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--mist);
+  color: var(--forest);
+}

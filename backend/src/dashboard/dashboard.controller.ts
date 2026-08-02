@@ -1,0 +1,32 @@
+import { Controller, Get } from '@nestjs/common';
+import { DashboardService } from './dashboard.service';
+
+@Controller('dashboard')
+export class DashboardController {
+  constructor(private readonly dashboardService: DashboardService) {}
+
+  @Get('kpis')
+  getKpis() {
+    return this.dashboardService.getKpis();
+  }
+
+  @Get('budget-vs-spend')
+  getBudgetVsSpend() {
+    return this.dashboardService.getBudgetVsSpend();
+  }
+
+  @Get('revenue-by-month')
+  getRevenueByMonth() {
+    return this.dashboardService.getRevenueByMonth();
+  }
+
+  @Get('lead-funnel')
+  getLeadFunnel() {
+    return this.dashboardService.getLeadFunnel();
+  }
+
+  @Get('workload')
+  getWorkload() {
+    return this.dashboardService.getWorkload();
+  }
+}
