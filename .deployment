@@ -1,0 +1,5 @@
+[config]
+# Force Azure (Kudu/Oryx) to install dependencies and run the build
+# (npm install + npm run build) on every git push, since node_modules and
+# the build output are no longer committed to the repo.
+SCM_DO_BUILD_DURING_DEPLOYMENT=true
