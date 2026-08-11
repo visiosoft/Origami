@@ -2,11 +2,16 @@
   "name": "origami-platform",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run start:dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "install:all": "cd backend && npm install --legacy-peer-deps && cd ../frontend && npm install"
+    "install:all": "cd backend && npm install --legacy-peer-deps && cd ../frontend && npm install",
+    "build": "npm --prefix frontend install --include=dev --legacy-peer-deps && npm --prefix frontend run build && npm --prefix backend install --include=dev --legacy-peer-deps && npm --prefix backend run build && node scripts/copy-client.mjs",
+    "start": "node backend/dist/main.js"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
