@@ -130,15 +130,15 @@ export function People() {
 
   const cols = '1.5fr 92px 1.3fr 1.4fr 132px 84px';
   const tableView = (
-    <div style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(20,8,31,0.06)', fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+    <div style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(20,8,31,0.06)', fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 720 }}>
         <span>Person / Company</span><span>Kind</span><span>Projects</span><span>Contact</span><span>Compliance</span><span>Tier</span>
       </div>
       {shown.map((p) => {
         const ks = KIND_STYLE[p.kind];
         const ts = TIER_STYLE[p.tier];
         return (
-          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer' }}>
+          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', minWidth: 720 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 999, background: ks.c, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(p.name)}</div>
               <div style={{ minWidth: 0 }}>
@@ -252,7 +252,7 @@ export function People() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {stats.map((st) => (
           <div key={st.label} style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', padding: '15px 16px' }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{st.label}</div>

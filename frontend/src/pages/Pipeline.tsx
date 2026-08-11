@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { DEALS, STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
+import { useWindowWidth } from '../useWindowWidth';
 
 const BG = "'Bricolage Grotesque', serif";
 
 type Override = Partial<Pick<Deal, 'stage' | 'stageIdx' | 'daysInStage' | 'status'>>;
 
 export function Pipeline() {
+  const width = useWindowWidth();
+  const isMobile = width <= 640;
   const [roleFilter, setRoleFilter] = useState<'all' | 'pc' | 'pm'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -55,12 +58,12 @@ export function Pipeline() {
   ];
 
   return (
-    <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 64px - 56px)', margin: '-28px -32px', animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: 20 }}>
+    <div style={{ display: 'flex', gap: 0, height: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 64px - 56px)', margin: isMobile ? '-16px -14px' : '-28px -32px', animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: isMobile ? 12 : 20, minWidth: 0 }}>
         {/* Stats bar */}
-        <div style={{ display: 'flex', gap: 10, padding: '0 20px 12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: 10, padding: isMobile ? '0 14px 12px' : '0 20px 12px', flexShrink: 0 }}>
           {stats.map((st) => (
-            <div key={st.label} style={{ flex: 1, padding: '12px 14px', background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.06)' }}>
+            <div key={st.label} style={{ flex: isMobile ? '1 1 calc(50% - 5px)' : 1, padding: '12px 14px', background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.06)' }}>
               <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>{st.label}</div>
               <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: st.color, marginTop: 2 }}>{st.value}</div>
             </div>
@@ -68,7 +71,7 @@ export function Pipeline() {
         </div>
 
         {/* Role filter + legend */}
-        <div style={{ display: 'flex', gap: 6, padding: '0 20px 12px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 6, padding: isMobile ? '0 14px 12px' : '0 20px 12px', flexShrink: 0, flexWrap: 'wrap' }}>
           {roleTabs.map(({ r, label }) => {
             const active = roleFilter === r;
             return (
@@ -86,7 +89,7 @@ export function Pipeline() {
         </div>
 
         {/* Kanban */}
-        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', padding: '0 20px 20px' }}>
+        <div style={{ flex: 1, overflowX: 'auto', overflowY: 'hidden', padding: isMobile ? '0 14px 16px' : '0 20px 20px' }}>
           <div style={{ display: 'flex', gap: 10, height: '100%', minWidth: 'max-content' }}>
             {STAGES.filter((st) => roleFilter === 'all' || (roleFilter === 'pc' ? st.owner === 'PC' : st.owner === 'PM')).map((stage) => {
               const cards = filtered.filter((d) => d.stage === stage.key);
@@ -135,7 +138,9 @@ export function Pipeline() {
 
       {/* Detail panel */}
       {selected && selectedStage && (
-        <div style={{ width: 380, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }}>
+        <div style={isMobile
+          ? { position: 'fixed', inset: 0, zIndex: 120, background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }
+          : { width: 380, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }}>
           <div style={{ padding: 20, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>

@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Icon } from '../icons';
+import { Logo, LogoMark } from './Logo';
 import { useApp, type ViewMode } from '../AppContext';
 import './AppShell.css';
 
@@ -113,11 +114,8 @@ export function AppShell() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">◈</div>
-          <div className="brand-text">
-            <span className="brand-name">Origami</span>
-            <span className="brand-sub">Design + Build</span>
-          </div>
+          <div className="brand-full"><Logo markSize={30} /></div>
+          <div className="brand-mark-only"><LogoMark size={28} /></div>
         </div>
 
         <nav className="nav om-nav-scroll">

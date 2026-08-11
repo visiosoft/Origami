@@ -25,16 +25,11 @@
   min-height: 62px;
 }
 
-.brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--sidebar);
-  color: var(--amber);
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  flex-shrink: 0;
+.brand-full {
+  display: flex;
+}
+.brand-mark-only {
+  display: none;
 }
 
 .brand-text {
@@ -423,16 +418,59 @@
   .sidebar {
     width: 72px;
   }
-  .brand-text,
+  .brand-full,
   .nav-group-label,
   .nav-group-chevron,
   .nav-item-label,
   .nav-item-note,
   .nav-item-badge,
-  .user-info {
+  .user-info,
+  .user-signout {
     display: none;
+  }
+  .brand-mark-only {
+    display: block;
   }
   .nav-item {
     justify-content: center;
+  }
+  .brand {
+    padding: 14px 0;
+    justify-content: center;
+  }
+  .user-chip {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 16px 14px;
+  }
+  .content-inner {
+    min-width: 0;
+  }
+  .topbar {
+    padding: 8px 14px;
+    gap: 10px;
+  }
+  .view-switch-label {
+    display: none;
+  }
+  .search-box {
+    flex-basis: 140px;
+  }
+  .page-title {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 56px;
+  }
+  /* Hide the View-as switcher on very small screens to keep the topbar usable */
+  .view-switch {
+    display: none;
   }
 }

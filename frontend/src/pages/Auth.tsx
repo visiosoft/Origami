@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useWindowWidth } from '../useWindowWidth';
+import { Logo } from '../components/Logo';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -13,6 +15,8 @@ const AUTH_ROLES = ['Principal', 'Project Manager', 'Designer', 'Estimator', 'Si
 
 export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const navigate = useNavigate();
+  const width = useWindowWidth();
+  const showBrand = width > 760;
   const isLogin = mode === 'login';
   const isSignup = mode === 'signup';
 
@@ -56,13 +60,9 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', background: '#FBF8F2', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", overflow: 'hidden' }}>
       {/* Brand panel */}
-      <div style={{ width: '42%', minWidth: 340, background: '#0F2417', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 44px', flexShrink: 0 }}>
-        <div style={{ background: '#FBF8F2', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, width: 190 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: '#0F2417', color: '#D2822E', display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0 }}>◈</div>
-          <div style={{ lineHeight: 1.1 }}>
-            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em', color: '#173326' }}>Origami</div>
-            <div style={{ fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93' }}>Design + Build</div>
-          </div>
+      <div style={{ width: '42%', minWidth: 340, background: '#0F2417', display: showBrand ? 'flex' : 'none', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 44px', flexShrink: 0 }}>
+        <div style={{ background: '#FBF8F2', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '14px 18px', display: 'inline-flex', width: 'fit-content' }}>
+          <Logo markSize={30} />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 400 }}>

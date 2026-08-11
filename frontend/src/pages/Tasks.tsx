@@ -64,8 +64,8 @@ export function Tasks() {
       </div>
 
       {/* Table */}
-      <div style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '12px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', gap: 10, fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <div style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', overflowX: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '12px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', gap: 10, fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 760 }}>
           <span>Task #</span><span>Type</span><span>Description</span><span>Status</span><span>Assigned To</span><span>Date</span><span>Due</span>
         </div>
         {tasks.length === 0 ? (
@@ -77,7 +77,7 @@ export function Tasks() {
             const inits = initials(t.assignedTo);
             const desc = t.description.length > 80 ? t.description.slice(0, 80) + '…' : t.description;
             return (
-              <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', gap: 10 }}>
+              <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', gap: 10, minWidth: 760 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#7E9B93', fontVariantNumeric: 'tabular-nums' }}>{t.id}</span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
                 <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
@@ -120,7 +120,7 @@ export function Tasks() {
 
             {/* Meta */}
             <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
                 <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Assigned To</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -137,7 +137,7 @@ export function Tasks() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#173326' }}>{sel.project}</div>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 12 }}>
                 {([['Due Date', sel.dueDate || '—'], ['Date Closed', sel.dateClosed || '—'], ['Days Open', sel.daysOpen > 0 ? sel.daysOpen + ' days' : '—'], ['Originator', sel.originator || '—']] as [string, string][]).map((r) => (
                   <div key={r[0]} style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
                     <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
