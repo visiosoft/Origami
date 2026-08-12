@@ -1,88 +1,92 @@
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { FinanceEntity, InvoiceEntity, DealEntity, TaskEntity } from '../database/entities';
 
 @Injectable()
 export class DashboardService {
-  getKpis() {
+  constructor(
+    @InjectRepository(FinanceEntity) private readonly finance: Repository<FinanceEntity>,
+    @InjectRepository(InvoiceEntity) private readonly invoices: Repository<InvoiceEntity>,
+    @InjectRepository(DealEntity) private readonly deals: Repository<DealEntity>,
+    @InjectRepository(TaskEntity) private readonly tasks: Repository<TaskEntity>,
+  ) {}
+
+  async getKpis() {
+    const fin = await this.finance.find();
+    const active = fin.filter((f) => f.phase !== 'Leads');
+    const contractValue = active.reduce((t, f) => t + f.base + f.co + f.reimb, 0);
+    const internal = await this.invoices.findBy({ kind: 'internal' });
+    const outstandingInvoices = internal.reduce((t, i) => t + (i.amount - i.paid), 0);
+    const deals = await this.deals.find();
+    const lost = deals.filter((d) => d.stage === 'rejected').length;
     return {
-      activeProjects: 6,
-      leadPipeline: { total: 9, won: 3, lost: 1, live: 5 },
-      contractValue: 4_820_000,
-      outstandingInvoices: 312_450,
+      activeProjects: active.length,
+      leadPipeline: { total: deals.length, won: 0, lost, live: deals.length - lost },
+      contractValue,
+      outstandingInvoices,
     };
   }
 
-  getBudgetVsSpend() {
-    return [
-      {
-        name: 'Meridian Residence',
-        exec: 'DB',
-        contractType: 'Fixed',
-        phase: 'Construction',
-        base: 1_200_000,
-        co: 85_000,
-        reimb: 42_000,
-        baseUsed: 890_000,
-        coUsed: 62_000,
-        reimbUsed: 38_000,
-        timePct: 72,
-      },
-      {
-        name: 'Civic Center Renovation',
-        exec: 'DBB',
-        contractType: 'T&M',
-        phase: 'Design',
-        base: 3_100_000,
-        co: 210_000,
-        reimb: 95_000,
-        baseUsed: 2_950_000,
-        coUsed: 195_000,
-        reimbUsed: 88_000,
-        timePct: 85,
-      },
-      {
-        name: 'Harbor Office Build',
-        exec: 'D',
-        contractType: 'Cost+',
-        phase: 'Preconstruction',
-        base: 520_000,
-        co: 0,
-        reimb: 15_000,
-        baseUsed: 180_000,
-        coUsed: 0,
-        reimbUsed: 5_000,
-        timePct: 30,
-      },
-    ];
+  async getBudgetVsSpend() {
+    const fin = await this.finance.find();
+    return fin.map((f) => ({
+      name: f.name,
+      exec: f.exec,
+      contractType: f.contract,
+      phase: f.phase,
+      base: f.base,
+      co: f.co,
+      reimb: f.reimb,
+      baseUsed: f.baseUsed,
+      coUsed: f.coUsed,
+      reimbUsed: f.reimbUsed,
+      timePct: f.timePct,
+    }));
   }
 
-  getRevenueByMonth() {
-    return [
-      { month: '2026-01', collected: 320_000, outstanding: 45_000 },
-      { month: '2026-02', collected: 410_000, outstanding: 62_000 },
-      { month: '2026-03', collected: 380_000, outstanding: 28_000 },
-      { month: '2026-04', collected: 295_000, outstanding: 91_000 },
-      { month: '2026-05', collected: 450_000, outstanding: 33_000 },
-      { month: '2026-06', collected: 370_000, outstanding: 53_450 },
-    ];
+  async getRevenueByMonth() {
+    const internal = await this.invoices.findBy({ kind: 'internal' });
+    const byMonth = new Map<string, { collected: number; outstanding: number; issued: string }>();
+    for (const inv of internal) {
+      const m = byMonth.get(inv.month) ?? { collected: 0, outstanding: 0, issued: inv.issued };
+      m.collected += inv.paid;
+      m.outstanding += inv.amount - inv.paid;
+      if (inv.issued < m.issued) m.issued = inv.issued;
+      byMonth.set(inv.month, m);
+    }
+    return [...byMonth.entries()]
+      .sort((a, b) => a[1].issued.localeCompare(b[1].issued))
+      .map(([month, v]) => ({ month, collected: v.collected, outstanding: v.outstanding }));
   }
 
-  getLeadFunnel() {
-    return [
-      { stage: 'Inquiry', count: 24, conversionPct: 100 },
-      { stage: 'Qualified', count: 18, conversionPct: 75 },
-      { stage: 'Proposal', count: 12, conversionPct: 50 },
-      { stage: 'Negotiation', count: 7, conversionPct: 29 },
-      { stage: 'Won', count: 3, conversionPct: 13 },
+  async getLeadFunnel() {
+    const total = await this.deals.count();
+    const base = total || 24;
+    const steps = [
+      { stage: 'Inbound leads', factor: 1 },
+      { stage: 'Qualified', factor: 0.67 },
+      { stage: 'Face to face held', factor: 0.46 },
+      { stage: 'Proposal sent', factor: 0.29 },
+      { stage: 'Client approval', factor: 0.17 },
+      { stage: 'Contract signed', factor: 0.13 },
     ];
+    return steps.map((s) => ({
+      stage: s.stage,
+      count: Math.round(base * s.factor),
+      conversionPct: Math.round(s.factor * 100),
+    }));
   }
 
-  getWorkload() {
-    return [
-      { name: 'Sarah Chen', tasks: 5 },
-      { name: 'Marcus Rivera', tasks: 8 },
-      { name: 'James Park', tasks: 12 },
-      { name: 'Emily Nguyen', tasks: 4 },
-      { name: 'David Kim', tasks: 9 },
-    ];
+  async getWorkload() {
+    const tasks = await this.tasks.find();
+    const counts = new Map<string, number>();
+    for (const t of tasks) {
+      if (!t.assignedTo) continue;
+      counts.set(t.assignedTo, (counts.get(t.assignedTo) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([name, n]) => ({ name, tasks: n }))
+      .sort((a, b) => b.tasks - a.tasks);
   }
 }
