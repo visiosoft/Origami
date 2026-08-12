@@ -1,5 +1,4 @@
 [config]
-# Force Azure (Kudu/Oryx) to install dependencies and run the build
-# (npm install + npm run build) on every git push, since node_modules and
-# the build output are no longer committed to the repo.
-SCM_DO_BUILD_DURING_DEPLOYMENT=true
+# The GitHub Actions workflow (main_dev.yml) already runs npm install + build
+# before deploying, so Kudu/Oryx should NOT rebuild the uploaded package again.
+SCM_DO_BUILD_DURING_DEPLOYMENT=false

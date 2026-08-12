@@ -1,24 +1,41 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FinanceEntity, InvoiceEntity, DealEntity, TaskEntity } from '../database/entities';
+import { FINANCE, INVOICES } from '../seed-data/dashboard';
+import { DEALS } from '../seed-data/pipeline';
+import { ALL_TASKS } from '../seed-data/tasks';
 
 @Injectable()
 export class DashboardService {
   constructor(
-    @InjectRepository(FinanceEntity) private readonly finance: Repository<FinanceEntity>,
-    @InjectRepository(InvoiceEntity) private readonly invoices: Repository<InvoiceEntity>,
-    @InjectRepository(DealEntity) private readonly deals: Repository<DealEntity>,
-    @InjectRepository(TaskEntity) private readonly tasks: Repository<TaskEntity>,
+    @Optional() @InjectRepository(FinanceEntity) private readonly finance?: Repository<FinanceEntity>,
+    @Optional() @InjectRepository(InvoiceEntity) private readonly invoices?: Repository<InvoiceEntity>,
+    @Optional() @InjectRepository(DealEntity) private readonly deals?: Repository<DealEntity>,
+    @Optional() @InjectRepository(TaskEntity) private readonly tasks?: Repository<TaskEntity>,
   ) {}
 
+  private async finRows(): Promise<any[]> {
+    return this.finance ? this.finance.find() : (FINANCE as any[]);
+  }
+  private async internalInvoices(): Promise<any[]> {
+    return this.invoices ? this.invoices.findBy({ kind: 'internal' }) : (INVOICES.internal as any[]);
+  }
+  private async dealRows(): Promise<any[]> {
+    return this.deals ? this.deals.find() : (DEALS as any[]);
+  }
+  private async taskRows(): Promise<any[]> {
+    if (this.tasks) return this.tasks.find();
+    return [...ALL_TASKS.internal, ...ALL_TASKS.owner, ...ALL_TASKS.subcontractor];
+  }
+
   async getKpis() {
-    const fin = await this.finance.find();
+    const fin = await this.finRows();
     const active = fin.filter((f) => f.phase !== 'Leads');
     const contractValue = active.reduce((t, f) => t + f.base + f.co + f.reimb, 0);
-    const internal = await this.invoices.findBy({ kind: 'internal' });
+    const internal = await this.internalInvoices();
     const outstandingInvoices = internal.reduce((t, i) => t + (i.amount - i.paid), 0);
-    const deals = await this.deals.find();
+    const deals = await this.dealRows();
     const lost = deals.filter((d) => d.stage === 'rejected').length;
     return {
       activeProjects: active.length,
@@ -29,24 +46,16 @@ export class DashboardService {
   }
 
   async getBudgetVsSpend() {
-    const fin = await this.finance.find();
+    const fin = await this.finRows();
     return fin.map((f) => ({
-      name: f.name,
-      exec: f.exec,
-      contractType: f.contract,
-      phase: f.phase,
-      base: f.base,
-      co: f.co,
-      reimb: f.reimb,
-      baseUsed: f.baseUsed,
-      coUsed: f.coUsed,
-      reimbUsed: f.reimbUsed,
-      timePct: f.timePct,
+      name: f.name, exec: f.exec, contractType: f.contract, phase: f.phase,
+      base: f.base, co: f.co, reimb: f.reimb,
+      baseUsed: f.baseUsed, coUsed: f.coUsed, reimbUsed: f.reimbUsed, timePct: f.timePct,
     }));
   }
 
   async getRevenueByMonth() {
-    const internal = await this.invoices.findBy({ kind: 'internal' });
+    const internal = await this.internalInvoices();
     const byMonth = new Map<string, { collected: number; outstanding: number; issued: string }>();
     for (const inv of internal) {
       const m = byMonth.get(inv.month) ?? { collected: 0, outstanding: 0, issued: inv.issued };
@@ -61,8 +70,8 @@ export class DashboardService {
   }
 
   async getLeadFunnel() {
-    const total = await this.deals.count();
-    const base = total || 24;
+    const deals = await this.dealRows();
+    const base = deals.length || 24;
     const steps = [
       { stage: 'Inbound leads', factor: 1 },
       { stage: 'Qualified', factor: 0.67 },
@@ -71,22 +80,16 @@ export class DashboardService {
       { stage: 'Client approval', factor: 0.17 },
       { stage: 'Contract signed', factor: 0.13 },
     ];
-    return steps.map((s) => ({
-      stage: s.stage,
-      count: Math.round(base * s.factor),
-      conversionPct: Math.round(s.factor * 100),
-    }));
+    return steps.map((s) => ({ stage: s.stage, count: Math.round(base * s.factor), conversionPct: Math.round(s.factor * 100) }));
   }
 
   async getWorkload() {
-    const tasks = await this.tasks.find();
+    const tasks = await this.taskRows();
     const counts = new Map<string, number>();
     for (const t of tasks) {
       if (!t.assignedTo) continue;
       counts.set(t.assignedTo, (counts.get(t.assignedTo) ?? 0) + 1);
     }
-    return [...counts.entries()]
-      .map(([name, n]) => ({ name, tasks: n }))
-      .sort((a, b) => b.tasks - a.tasks);
+    return [...counts.entries()].map(([name, n]) => ({ name, tasks: n })).sort((a, b) => b.tasks - a.tasks);
   }
 }

@@ -1,13 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DealEntity } from '../database/entities';
-import { STAGES } from '../seed-data/pipeline';
+import { STAGES, DEALS } from '../seed-data/pipeline';
 
 @Injectable()
 export class PipelineService {
+  private mem: any[] = [...DEALS];
+
   constructor(
-    @InjectRepository(DealEntity) private readonly repo: Repository<DealEntity>,
+    @Optional() @InjectRepository(DealEntity) private readonly repo?: Repository<DealEntity>,
   ) {}
 
   getStages() {
@@ -15,22 +17,30 @@ export class PipelineService {
   }
 
   findAll() {
-    return this.repo.find();
+    return this.repo ? this.repo.find() : this.mem;
   }
 
   async findOne(id: string) {
-    const deal = await this.repo.findOneBy({ id });
+    const deal = this.repo ? await this.repo.findOneBy({ id }) : this.mem.find((d) => d.id === id);
     if (!deal) throw new NotFoundException(`Deal ${id} not found`);
     return deal;
   }
 
   create(dto: any) {
-    return this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+    if (this.repo) return this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+    this.mem = [dto, ...this.mem];
+    return dto;
   }
 
   async updateStage(id: string, stage: string) {
-    const deal = await this.findOne(id);
+    if (this.repo) {
+      const deal = await this.findOne(id);
+      deal.stage = stage;
+      return this.repo.save(deal);
+    }
+    const deal = this.mem.find((d) => d.id === id);
+    if (!deal) throw new NotFoundException(`Deal ${id} not found`);
     deal.stage = stage;
-    return this.repo.save(deal);
+    return deal;
   }
 }
