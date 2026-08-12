@@ -293,13 +293,13 @@ export function Pipeline() {
         </div>
       )}
 
-      {/* New Lead modal */}
+      {/* New Lead Intake drawer */}
       {showNew && (
-        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.6)', zIndex: 200, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, width: 600, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(20,8,31,0.25)', animation: 'scaleIn 0.2s ease' }}>
-            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, background: 'white', width: 560, maxWidth: '92vw', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
+            <div style={{ position: 'sticky', top: 0, background: 'white', zIndex: 1, padding: '24px 28px 20px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>New Lead</div>
+                <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>New Lead Intake</div>
                 <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>Enters the board at “New Lead” (stage 1 of 11).</div>
               </div>
               <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 16 }}>×</div>
