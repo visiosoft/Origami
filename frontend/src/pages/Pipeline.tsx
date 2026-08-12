@@ -1,21 +1,66 @@
 import { useState } from 'react';
 import { DEALS, STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { useWindowWidth } from '../useWindowWidth';
+import { useApp } from '../AppContext';
+import { api } from '../api';
 
 const BG = "'Bricolage Grotesque', serif";
 
 type Override = Partial<Pick<Deal, 'stage' | 'stageIdx' | 'daysInStage' | 'status'>>;
 
+const initials = (n: string) => n.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+interface NewLead {
+  name: string; client: string; value: string; type: 'Residential' | 'Commercial' | 'Fit-out';
+  assignee: string; source: string; phone: string; email: string; notes: string;
+}
+const BLANK_LEAD: NewLead = { name: '', client: '', value: '', type: 'Residential', assignee: '', source: 'Website', phone: '', email: '', notes: '' };
+
 export function Pipeline() {
   const width = useWindowWidth();
   const isMobile = width <= 640;
+  const { toast } = useApp();
   const [roleFilter, setRoleFilter] = useState<'all' | 'pc' | 'pm'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
+  const [added, setAdded] = useState<Deal[]>([]);
+  const [showNew, setShowNew] = useState(false);
+  const [nl, setNl] = useState<NewLead>(BLANK_LEAD);
 
-  const data: Deal[] = DEALS.map((d) => (overrides[d.id] ? { ...d, ...overrides[d.id] } : d));
+  const data: Deal[] = [...added, ...DEALS].map((d) => (overrides[d.id] ? { ...d, ...overrides[d.id] } : d));
+
+  const createLead = () => {
+    if (nl.name.trim().length < 2 || nl.client.trim().length < 1) return;
+    const deal: Deal = {
+      id: 'PL-' + String(1000 + added.length + 1),
+      name: nl.name.trim(),
+      client: nl.client.trim(),
+      value: nl.value.trim() || '$0',
+      stage: 'new_lead',
+      stageIdx: 0,
+      assignedRole: 'PC',
+      assignee: nl.assignee.trim() || 'Unassigned',
+      assigneeInit: nl.assignee.trim() ? initials(nl.assignee) : '?',
+      daysInStage: 0,
+      nextAction: 'Assign & make first contact',
+      nextDue: '—',
+      source: nl.source,
+      status: 'in_progress',
+      phone: nl.phone.trim(),
+      email: nl.email.trim(),
+      timeline: [{ date: 'Today', action: `New ${nl.type} lead created`, role: 'System', type: 'auto' }],
+      notes: nl.notes.trim(),
+    };
+    setAdded((a) => [deal, ...a]);
+    setShowNew(false);
+    setNl(BLANK_LEAD);
+    setSelectedId(deal.id);
+    toast(`${deal.name} added to the pipeline`);
+    // Best-effort persist to the DB-backed API (no-op if the API/DB isn't up yet)
+    void api.pipeline.create(deal).catch(() => undefined);
+  };
 
   const applyOverride = (id: string, o: Override) => setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
 
@@ -85,6 +130,9 @@ export function Pipeline() {
                 <span style={{ fontSize: 10, color: '#7E9B93', fontWeight: 500 }}>{l}</span>
               </div>
             ))}
+            <div onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New Lead
+            </div>
           </div>
         </div>
 
@@ -242,6 +290,63 @@ export function Pipeline() {
               <div onClick={() => applyOverride(selected.id, { stage: 'rejected', stageIdx: 11, daysInStage: 0, status: 'overdue' })} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Lost</div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* New Lead modal */}
+      {showNew && (
+        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.6)', zIndex: 200, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, width: 600, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(20,8,31,0.25)', animation: 'scaleIn 0.2s ease' }}>
+            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>New Lead</div>
+                <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>Enters the board at “New Lead” (stage 1 of 11).</div>
+              </div>
+              <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 16 }}>×</div>
+            </div>
+            <div style={{ padding: '22px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {([
+                ['Deal / project name', 'name', 'e.g. Palm Jumeirah Villa Renovation', '1 / -1', true],
+                ['Client / company', 'client', 'e.g. Al Futtaim Group', '1 / -1', true],
+                ['Contact person', 'assignee', 'e.g. Sara R.', 'auto', false],
+                ['Estimated value', 'value', 'e.g. $850K', 'auto', false],
+                ['Phone', 'phone', '+971 50 000 0000', 'auto', false],
+                ['Email', 'email', 'name@company.com', 'auto', false],
+              ] as [string, keyof NewLead, string, string, boolean][]).map(([label, key, ph, span, req]) => (
+                <div key={key} style={{ gridColumn: span }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label} {req && <span style={{ color: '#8E2E0A' }}>*</span>}</div>
+                  <input value={nl[key] as string} placeholder={ph} onChange={(e) => setNl({ ...nl, [key]: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13.5, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' }} />
+                </div>
+              ))}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Type</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(['Residential', 'Commercial', 'Fit-out'] as const).map((t) => {
+                    const on = nl.type === t;
+                    return <div key={t} onClick={() => setNl({ ...nl, type: t })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: on ? '#173326' : 'white', color: on ? 'white' : '#7E9B93', border: '1px solid ' + (on ? '#173326' : 'rgba(20,8,31,0.12)') }}>{t}</div>;
+                  })}
+                </div>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Source</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {['Referral', 'Website', 'Phone', 'In Person'].map((s) => {
+                    const on = nl.source === s;
+                    return <div key={s} onClick={() => setNl({ ...nl, source: s })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: on ? '#173326' : 'white', color: on ? 'white' : '#7E9B93', border: '1px solid ' + (on ? '#173326' : 'rgba(20,8,31,0.12)') }}>{s}</div>;
+                  })}
+                </div>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Notes</div>
+                <textarea value={nl.notes} placeholder="Any initial context…" onChange={(e) => setNl({ ...nl, notes: e.target.value })} rows={3} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13.5, fontFamily: 'inherit', color: '#0B1A12', outline: 'none', resize: 'vertical' }} />
+              </div>
+            </div>
+            <div style={{ padding: '16px 28px 22px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+              <span style={{ marginRight: 'auto', fontSize: 11, color: '#7E9B93' }}>{nl.name.trim().length >= 2 && nl.client.trim() ? 'Ready to add' : 'Name and client are required'}</span>
+              <div onClick={() => setShowNew(false)} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
+              <div onClick={createLead} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: nl.name.trim().length >= 2 && nl.client.trim() ? 'pointer' : 'not-allowed', background: nl.name.trim().length >= 2 && nl.client.trim() ? '#173326' : '#D6DED8', color: nl.name.trim().length >= 2 && nl.client.trim() ? 'white' : '#9AA39D', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Create Lead</div>
+            </div>
+          </div>
         </div>
       )}
     </div>
