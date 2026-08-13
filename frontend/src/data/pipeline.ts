@@ -37,8 +37,8 @@ export interface Stage {
 export const STAGES: Stage[] = [
   { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
   { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'contact_made', name: 'Contact Made', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'initial_questions', name: 'Initial Questions', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
+  { key: 'initial_questions', name: 'Initial Questions', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
+  { key: 'virtual_ff', name: 'Virtual F & F meeting', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
   { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isDecision: true },
   { key: 'site_visit', name: 'Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
   { key: 'f2f', name: 'F2F Meet & Greet', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
@@ -49,7 +49,7 @@ export const STAGES: Stage[] = [
   { key: 'rejected', name: 'Lost / Rejected', idx: 11, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true },
 ];
 
-export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'contact_made', 'initial_questions', 'project_fit', 'site_visit', 'f2f', 'zoning', 'proposal', 'client_approval', 'rfp'];
+export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'initial_questions', 'virtual_ff', 'project_fit', 'site_visit', 'f2f', 'zoning', 'proposal', 'client_approval', 'rfp'];
 
 export const STATUS_STYLES: Record<string, { label: string; bg: string; color: string; dot: string }> = {
   overdue: { label: 'Overdue', bg: '#F2DFD4', color: '#8E2E0A', dot: '#B8410F' },
@@ -91,7 +91,7 @@ export const DEALS: Deal[] = [
       { date: 'Jul 21', action: 'Site visit scheduled for Jul 25', role: 'PC', type: 'pc' },
     ],
     notes: 'Corporate fit-out. Procurement team is organized but slow on approvals. Need to prepare scope document before site visit.' },
-  { id: 'PL-003', name: 'Silicon Oasis Villa', client: 'Private Client', value: '$450K', stage: 'initial_questions', stageIdx: 3, assignedRole: 'PC', assignee: 'Noor K.', assigneeInit: 'NK', daysInStage: 5, nextAction: 'Complete budget assessment', nextDue: 'Jul 22', source: 'Phone', status: 'overdue', phone: '+971 52 456 7890', email: 'villa.owner@gmail.com',
+  { id: 'PL-003', name: 'Silicon Oasis Villa', client: 'Private Client', value: '$450K', stage: 'initial_questions', stageIdx: 2, assignedRole: 'PC', assignee: 'Noor K.', assigneeInit: 'NK', daysInStage: 5, nextAction: 'Complete budget assessment', nextDue: 'Jul 22', source: 'Phone', status: 'overdue', phone: '+971 52 456 7890', email: 'villa.owner@gmail.com',
     timeline: [
       { date: 'Jul 14', action: 'Phone inquiry received', role: 'System', type: 'auto' },
       { date: 'Jul 14', action: 'Assigned to Noor K. (PC)', role: 'System', type: 'auto' },

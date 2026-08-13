@@ -10,6 +10,9 @@ const OPT = LEAD_DROPDOWN_OPTIONS;
 
 type Override = Partial<Pick<Deal, 'stage' | 'stageIdx' | 'daysInStage' | 'status'>>;
 
+interface LeadNote { id: string; text: string; stageName: string; date: string }
+const DOT = '·';
+
 
 
 interface NewLead {
@@ -32,6 +35,56 @@ const BLANK_LEAD: NewLead = {
   projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
   desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
+
+const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
+
+type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills';
+interface FieldSpec { key: keyof NewLead; label: string; kind: FieldKind; optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string }
+const LEAD_SECTIONS: { title: string; fields: FieldSpec[] }[] = [
+  { title: '1. Contact', fields: [
+    { key: 'leadName', label: 'Lead Name *', kind: 'text', ph: 'Full name' },
+    { key: 'namePronunciation', label: 'Name Pronunciation', kind: 'text', ph: 'e.g. Mah-REE-ah' },
+    { key: 'phone', label: 'Phone *', kind: 'tel', ph: '(555) 123-4567' },
+    { key: 'email', label: 'Email', kind: 'email', ph: 'email@example.com' },
+    { key: 'primaryPointOfContact', label: 'Primary Point of Contact', kind: 'select', optKey: 'primaryPointOfContact' },
+  ] },
+  { title: '2. Second Contact', fields: [
+    { key: 'secondPointOfContact', label: 'Second Point of Contact?', kind: 'select', optKey: 'secondPointOfContact' },
+    { key: 'nameOfSecondContact', label: 'Name of Second Contact', kind: 'text', ph: 'Full name' },
+    { key: 'phoneOfSecondContact', label: 'Phone of Second Contact', kind: 'tel', ph: '(555) 123-4567' },
+    { key: 'emailOfSecondContact', label: 'Email of Second Contact', kind: 'email', ph: 'email@example.com' },
+    { key: 'relationshipOfSecondContact', label: 'Relationship', kind: 'select', optKey: 'relationshipOfSecondContact' },
+  ] },
+  { title: '3. Communication', fields: [
+    { key: 'decisionMakers', label: 'Decision Makers', kind: 'select', optKey: 'decisionMakers' },
+    { key: 'preferredContactMethod', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
+    { key: 'leadSource', label: 'Lead Source', kind: 'select', optKey: 'leadSource' },
+  ] },
+  { title: '4. Location', fields: [
+    { key: 'projectStreetAddress', label: 'Project Street Address', kind: 'text', ph: 'Street number' },
+    { key: 'projectStreetName', label: 'Project Street Name', kind: 'text', ph: 'Street name' },
+    { key: 'projectCity', label: 'Project City', kind: 'select', optKey: 'projectCity' },
+    { key: 'projectZipCode', label: 'Project ZIP Code', kind: 'text', ph: '5-digit ZIP' },
+    { key: 'countyLocation', label: 'County Location', kind: 'select', optKey: 'countyLocation' },
+  ] },
+  { title: '5. Project', fields: [
+    { key: 'propertyType', label: 'Property Type', kind: 'select', optKey: 'propertyType' },
+    { key: 'potentialProjectType', label: 'Potential Project Type', kind: 'select', optKey: 'potentialProjectType' },
+    { key: 'homeworkCompleted', label: 'Homework Completed', kind: 'pills', optKey: 'homeworkCompleted' },
+    { key: 'projectVision', label: 'Project Vision / Scope', kind: 'textarea', ph: 'Describe what the client wants to accomplish…' },
+  ] },
+  { title: '6. Budget & Timeline', fields: [
+    { key: 'reasonForProject', label: 'Reason for Project', kind: 'select', optKey: 'reasonForProject' },
+    { key: 'budgetPosition', label: 'Budget Position', kind: 'select', optKey: 'budgetPosition' },
+    { key: 'fundingStatus', label: 'Funding Status', kind: 'select', optKey: 'fundingStatus' },
+    { key: 'desiredStart', label: 'Desired Start', kind: 'select', optKey: 'desiredStart' },
+    { key: 'expectedDuration', label: 'Expected Duration', kind: 'select', optKey: 'expectedDuration' },
+    { key: 'expectedLengthOfOwnership', label: 'Expected Length of Ownership', kind: 'select', optKey: 'expectedLengthOfOwnership' },
+  ] },
+  { title: '7. Client Profile', fields: [
+    { key: 'clientPersonality', label: 'Client Personality', kind: 'select', optKey: 'clientPersonality' },
+  ] },
+];
 
 const TABS = [
   { id: 1, label: '1. Contact Info' },
@@ -57,6 +110,13 @@ export function Pipeline() {
   const [nl, setNl] = useState<NewLead>({ ...BLANK_LEAD });
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<'overview' | 'details'>('overview');
+  const [leadDetails, setLeadDetails] = useState<Record<string, NewLead>>({});
+  const [notesByDeal, setNotesByDeal] = useState<Record<string, LeadNote[]>>({});
+  const [noteDraft, setNoteDraft] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [meetByDeal, setMeetByDeal] = useState<Record<string, { when: string }>>({});
+  const [meetWhen, setMeetWhen] = useState('');
 
   useEffect(() => {
     api.pipeline.list().then((res) => { if (Array.isArray(res) && res.length > 0) setDeals(res as Deal[]); }).catch(() => { });
@@ -68,7 +128,8 @@ export function Pipeline() {
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
 
   const openEdit = (deal: Deal) => {
-    setNl({ leadName: deal.name, namePronunciation: '', phone: deal.phone, email: deal.email, primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '', phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '', decisionMakers: '', preferredContactMethod: '', leadSource: deal.source || '', projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '', countyLocation: '', propertyType: '', potentialProjectType: '', homeworkCompleted: [], projectVision: deal.notes || '', reasonForProject: '', budgetPosition: '', fundingStatus: '', desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '' });
+    const existing = leadDetails[deal.id];
+    setNl(existing ? { ...existing } : { ...BLANK_LEAD, leadName: deal.name, phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
     setEditingId(deal.id);
     setFormTab(1);
     setShowNew(true);
@@ -77,7 +138,10 @@ export function Pipeline() {
   const saveLead = () => {
     if (nl.leadName.trim().length < 2 || !nl.phone.trim()) return;
     if (editingId) {
-      api.leads.update(editingId, nl).then(() => toast('Lead updated')).catch(() => toast('⚠ Failed to update'));
+      const id = editingId;
+      setLeadDetails((prev) => ({ ...prev, [id]: { ...nl } }));
+      setDeals((prev) => prev.map((d) => d.id === id ? { ...d, name: nl.leadName.trim(), client: nl.leadName.trim(), phone: nl.phone.trim(), email: nl.email.trim(), source: nl.leadSource || d.source, notes: nl.projectVision.trim() } : d));
+      api.leads.update(id, nl).then(() => toast('Lead updated')).catch(() => toast('⚠ Failed to update'));
       setShowNew(false);
       setEditingId(null);
       setNl({ ...BLANK_LEAD });
@@ -119,16 +183,54 @@ export function Pipeline() {
       notes: nl.projectVision.trim(),
     };
     setDeals((prev) => [deal, ...prev]);
+    setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...nl } }));
     setShowNew(false);
     setNl({ ...BLANK_LEAD });
     setFormTab(1);
     setSelectedId(deal.id);
+    setDetailTab('overview');
     toast(`${deal.name} added to the pipeline`);
     api.leads.create(nl).catch((err) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
     void api.pipeline.create(deal).catch(() => undefined);
   };
 
   const applyOverride = (id: string, o: Override) => setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
+
+  const submitNote = (dealId: string, stageName: string) => {
+    const text = noteDraft.trim();
+    if (!text) return;
+    if (editingNoteId) {
+      setNotesByDeal((p) => ({ ...p, [dealId]: (p[dealId] || []).map((n) => (n.id === editingNoteId ? { ...n, text } : n)) }));
+      setEditingNoteId(null);
+      toast('Note updated');
+    } else {
+      const note: LeadNote = { id: String(Date.now()), text, stageName, date: 'Today' };
+      setNotesByDeal((p) => ({ ...p, [dealId]: [...(p[dealId] || []), note] }));
+      toast('Note added');
+    }
+    setNoteDraft('');
+  };
+  const editNote = (n: LeadNote) => { setEditingNoteId(n.id); setNoteDraft(n.text); };
+  const deleteNote = (dealId: string, nid: string) => {
+    setNotesByDeal((p) => ({ ...p, [dealId]: (p[dealId] || []).filter((n) => n.id !== nid) }));
+    if (editingNoteId === nid) { setEditingNoteId(null); setNoteDraft(''); }
+  };
+
+  const scheduleMeet = (deal: Deal, stageName: string) => {
+    if (!meetWhen) return;
+    const start = new Date(meetWhen);
+    const end = new Date(start.getTime() + 30 * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const text = encodeURIComponent(`Virtual F&F Meeting — ${deal.name}`);
+    const details = encodeURIComponent('Virtual Friends & Family meeting via Origami CRM. Turn on "Add Google Meet video conferencing" in the event to generate the Meet link.');
+    const guests = deal.email ? `&add=${encodeURIComponent(deal.email)}` : '';
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}${guests}&details=${details}`;
+    window.open(url, '_blank', 'noopener');
+    setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Google Meet scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
+    toast('Google Meet invite opened in Google Calendar');
+    setMeetWhen('');
+  };
 
   const filtered = roleFilter === 'all' ? data : data.filter((d) => {
     const st = STAGES.find((s) => s.key === d.stage);
@@ -224,7 +326,7 @@ export function Pipeline() {
                       const isSelected = selectedId === d.id;
                       const isDraggingCard = dragging === d.id;
                       return (
-                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => setSelectedId(d.id)} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -255,40 +357,20 @@ export function Pipeline() {
         <div style={isMobile
           ? { position: 'fixed', inset: 0, zIndex: 120, background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }
           : { width: 380, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }}>
-          <div style={{ padding: 20, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', marginBottom: 4 }}>{selected.id} Â· {selected.source}</div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: '#0B1A12', lineHeight: 1.3 }}>{selected.name}</div>
-              </div>
-              <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
-              </div>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#43514D', marginBottom: 8 }}>{selected.client}</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.ownerBg, color: selectedStage.ownerColor }}>{selectedStage.owner}: {selectedStage.name}</span>
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1, padding: '8px 10px', borderRadius: 8, background: '#FBF8F2', fontSize: 11 }}>
-                <div style={{ fontWeight: 600, color: '#7E9B93', marginBottom: 2 }}>Phone</div>
-                <div style={{ fontWeight: 500, color: '#0B1A12' }}>{selected.phone}</div>
-              </div>
-              <div style={{ flex: 1, padding: '8px 10px', borderRadius: 8, background: '#FBF8F2', fontSize: 11, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: '#7E9B93', marginBottom: 2 }}>Email</div>
-                <div style={{ fontWeight: 500, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selected.email}</div>
-              </div>
+          {/* Top bar */}
+          <div style={{ padding: '14px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{selected.id} {DOT} {selected.source}</div>
+            <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
             </div>
           </div>
 
-          {/* Pipeline progress */}
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 10 }}>Pipeline Progress</div>
+          {/* Pipeline progress — above name */}
+          <div style={{ padding: '10px 20px 14px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Pipeline Progress</div>
             <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
-              {STAGES.map((st, i) => (
-                <div key={st.key} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? (st.owner === 'PC' ? '#2F7D4A' : '#173326') : '#D6E0D7' }} />
+              {STAGES.map((s, i) => (
+                <div key={s.key} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? (s.owner === 'PC' ? '#2F7D4A' : '#173326') : '#D6E0D7' }} />
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#7E9B93' }}>
@@ -298,47 +380,183 @@ export function Pipeline() {
             </div>
           </div>
 
-          {/* Next action */}
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: selected.status === 'overdue' ? '#FAF1EC' : '#FEF6DC' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={selected.status === 'overdue' ? '#B8410F' : '#D2822E'} strokeWidth={2}><circle cx={12} cy={12} r={10} /><polyline points="12 6 12 12 16 14" /></svg>
-              <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: selected.status === 'overdue' ? '#8E2E0A' : '#93520F' }}>Next Action</span>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{selected.nextAction}</div>
-            <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 2 }}>Due: {selected.nextDue} Â· {selected.daysInStage} days in stage</div>
-          </div>
-
-          {/* Notes */}
+          {/* Name + client + pills */}
           <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Notes</div>
-            <div style={{ fontSize: 12, lineHeight: 1.6, color: '#43514D' }}>{selected.notes}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#0B1A12', lineHeight: 1.3 }}>{selected.name}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#43514D', margin: '4px 0 10px' }}>{selected.client}</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.ownerBg, color: selectedStage.ownerColor }}>{selectedStage.owner}: {selectedStage.name}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
+            </div>
           </div>
 
-          {/* Timeline */}
-          <div style={{ padding: '14px 20px' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 12 }}>Activity Timeline</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {selected.timeline.slice().reverse().map((t, i) => {
-                const tc: Record<string, string> = { pc: '#2F7D4A', pm: '#173326', auto: '#D9B94F' };
-                const tb: Record<string, string> = { pc: '#D2EAD3', pm: '#DCE7DE', auto: '#FBE9AE' };
-                return (
-                  <div key={i} style={{ display: 'flex', gap: 10, paddingBottom: 12 }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 999, background: tb[t.type], border: '2px solid ' + tc[t.type], flexShrink: 0 }} />
-                      {i < selected.timeline.length - 1 && <div style={{ width: 1, flex: 1, background: '#D6E0D7', marginTop: 3 }} />}
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
+            {(['overview', 'details'] as const).map((t) => (
+              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : 'Full Details'}</div>
+            ))}
+          </div>
+
+          {detailTab === 'overview' ? (
+            <>
+              {selected.stage === 'initial_questions' ? (
+                (() => {
+                  const ld = leadDetails[selected.id] || baseLead(selected);
+                  const up = (k: keyof NewLead, v: string | string[]) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), [k]: v } }));
+                  return (
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 4 }}>Initial Questions — Lead Intake</div>
+                      <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 12 }}>Complete these while on the call — saved to the lead record and visible in Full Details.</div>
+                      {LEAD_SECTIONS.map((sec) => (
+                        <div key={sec.title} style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>{sec.title}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {sec.fields.map((f) => (
+                              <div key={f.key}>
+                                <div style={{ fontSize: 10.5, fontWeight: 600, color: '#7E9B93', marginBottom: 4 }}>{f.label}</div>
+                                {f.kind === 'select' ? (
+                                  <select value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} style={inputStyle}><option value="">Select…</option>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => <option key={o}>{o}</option>)}</select>
+                                ) : f.kind === 'textarea' ? (
+                                  <textarea value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                                ) : f.kind === 'pills' ? (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => { const arr = (ld[f.key] as string[]) || []; const on = arr.includes(o); return <div key={o} onClick={() => up(f.key, on ? arr.filter((x) => x !== o) : [...arr, o])} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#0B1A12', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}</div>
+                                ) : (
+                                  <input type={f.kind} value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} placeholder={f.ph} style={inputStyle} />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <div onClick={() => { const cur = leadDetails[selected.id] || baseLead(selected); setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision } : d)); api.leads.update(selected.id, cur).catch(() => { }); toast('Lead details saved'); }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>Save Lead Details</div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{t.date}</span>
-                        <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: tb[t.type], color: tc[t.type] }}>{t.role}</span>
+                  );
+                })()
+              ) : selected.stage === 'virtual_ff' ? (
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x={1} y={5} width={15} height={14} rx={2} ry={2} /></svg>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Virtual F &amp; F — Schedule Google Meet</span>
+                  </div>
+                  <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10 }}>PC schedules the virtual meeting. Full lead details are in the “Full Details” tab.</div>
+                  {meetByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(meetByDeal[selected.id].when).toLocaleString()}</div>}
+                  <input type="datetime-local" value={meetWhen} onChange={(e) => setMeetWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div onClick={() => scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#173326' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>Create Google Meet invite</div>
+                    <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>Start instant Meet</a>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited — enable "Add Google Meet" to attach the video link. Logged to Activity.</div>
+                </div>
+              ) : (
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Client</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {(() => {
+                      const ld = leadDetails[selected.id];
+                      const vv = (x?: string) => (x && x.trim() ? x : '—');
+                      const fields: [string, string][] = [
+                        ['Phone', vv(selected.phone)], ['Email', vv(selected.email)],
+                        ['Lead Source', vv(ld?.leadSource || selected.source)], ['Preferred Contact', vv(ld?.preferredContactMethod)],
+                        ['Primary Contact', vv(ld?.primaryPointOfContact)], ['Decision Makers', vv(ld?.decisionMakers)],
+                        ['Budget Position', vv(ld?.budgetPosition)], ['Funding Status', vv(ld?.fundingStatus)],
+                        ['Desired Start', vv(ld?.desiredStart)], ['Property Type', vv(ld?.propertyType)],
+                      ];
+                      return fields.map(([label, value]) => (
+                        <div key={label} style={{ padding: '8px 10px', borderRadius: 8, background: '#FBF8F2', minWidth: 0 }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 600, color: '#7E9B93', marginBottom: 2 }}>{label}</div>
+                          <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes — add / edit / delete */}
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Notes</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(notesByDeal[selected.id] || []).length === 0 && <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No notes yet.</div>}
+                  {(notesByDeal[selected.id] || []).map((n) => (
+                    <div key={n.id} style={{ background: '#FBF8F2', borderRadius: 8, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#2F7D4A', background: '#D2EAD3', padding: '1px 6px', borderRadius: 999 }}>{n.stageName}</span>
+                        <span style={{ fontSize: 10, color: '#7E9B93' }}>{n.date}</span>
+                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+                          <span onClick={() => editNote(n)} style={{ fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
+                          <span onClick={() => deleteNote(selected.id, n.id)} style={{ fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>
+                        </span>
                       </div>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: '#0B1A12', lineHeight: 1.4 }}>{t.action}</div>
+                      <div style={{ fontSize: 12, color: '#43514D', lineHeight: 1.5 }}>{n.text}</div>
+                    </div>
+                  ))}
+                </div>
+                <textarea value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={editingNoteId ? 'Edit note…' : 'Add a note for this stage…'} rows={2} style={{ ...inputStyle, marginTop: 10, resize: 'vertical' }} />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <div onClick={() => submitNote(selected.id, selectedStage.name)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteDraft.trim() ? 'pointer' : 'not-allowed', background: noteDraft.trim() ? '#173326' : '#D6DED8', color: noteDraft.trim() ? 'white' : '#9AA39D' }}>{editingNoteId ? 'Save Note' : 'Add Note'}</div>
+                  {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)' }}>Cancel</div>}
+                </div>
+              </div>
+
+              {/* Activity (timeline + notes) */}
+              <div style={{ padding: '14px 20px' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 12 }}>Activity Timeline</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {(() => {
+                    const noteList = notesByDeal[selected.id] || [];
+                    const combined = [...selected.timeline, ...noteList.map((n) => ({ date: n.date, action: `Note (${n.stageName}): ${n.text}`, role: 'Note', type: 'pc' as const }))];
+                    const tc: Record<string, string> = { pc: '#2F7D4A', pm: '#173326', auto: '#D9B94F' };
+                    const tb: Record<string, string> = { pc: '#D2EAD3', pm: '#DCE7DE', auto: '#FBE9AE' };
+                    return combined.slice().reverse().map((t, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 10, paddingBottom: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
+                          <div style={{ width: 10, height: 10, borderRadius: 999, background: tb[t.type] || '#EEE', border: '2px solid ' + (tc[t.type] || '#7E9B93'), flexShrink: 0 }} />
+                          {i < combined.length - 1 && <div style={{ width: 1, flex: 1, background: '#D6E0D7', marginTop: 3 }} />}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{t.date}</span>
+                            <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: tb[t.type] || '#EEE', color: tc[t.type] || '#7E9B93' }}>{t.role}</span>
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 500, color: '#0B1A12', lineHeight: 1.4 }}>{t.action}</div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '14px 20px' }}>
+              {(() => {
+                const ld = leadDetails[selected.id];
+                const sections: { title: string; rows: [string, string][] }[] = [
+                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || '']] },
+                  { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || '']] },
+                  { title: '3. Communication', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Preferred Method', ld?.preferredContactMethod || ''], ['Lead Source', ld?.leadSource || selected.source || '']] },
+                  { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || '']] },
+                  { title: '5. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
+                  { title: '6. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
+                  { title: '7. Client Profile', rows: [['Client Personality', ld?.clientPersonality || '']] },
+                ].map((s) => ({ title: s.title, rows: s.rows.filter(([, val]) => val && String(val).trim()) as [string, string][] })).filter((s) => s.rows.length > 0);
+                if (sections.length === 0) return <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
+                return sections.map((s) => (
+                  <div key={s.title} style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#173326', marginBottom: 8 }}>{s.title}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {s.rows.map(([label, value]) => (
+                        <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8 }}>
+                          <span style={{ fontSize: 11, color: '#7E9B93', fontWeight: 600, flex: '0 0 44%' }}>{label}</span>
+                          <span style={{ fontSize: 12, color: '#0B1A12', flex: 1, wordBreak: 'break-word' }}>{value}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+                ));
+              })()}
             </div>
-          </div>
+          )}
 
           {/* Actions */}
           {selectedStage.isDecision ? (
@@ -350,11 +568,10 @@ export function Pipeline() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', gap: 8, position: 'sticky', bottom: 0, background: 'white' }}>
-              <div onClick={() => { const idx = selected.stageIdx; if (idx < 10) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < 10 ? 'Advance to Stage ' + (selected.stageIdx + 2) : '✓ Complete'}</div>
-              <div onClick={() => openEdit(selected)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>Edit Lead</div>
-              <div onClick={() => deleteLead(selected.id)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Delete</div>
-              <div onClick={() => applyOverride(selected.id, { stage: 'rejected', stageIdx: 11, daysInStage: 0, status: 'overdue' })} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Lost</div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, position: 'sticky', bottom: 0, background: 'white' }}>
+              <div onClick={() => { const idx = selected.stageIdx; if (idx < 10) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < 10 ? 'Advance to Stage ' + (selected.stageIdx + 2) : '✓ Complete'}</div>
+              <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>Edit Lead</div>
+              <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Delete</div>
             </div>
           )}
         </div>
