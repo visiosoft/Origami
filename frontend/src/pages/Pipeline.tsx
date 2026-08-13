@@ -138,7 +138,7 @@ export function Pipeline() {
   const selected = selectedId ? data.find((d) => d.id === selectedId) : null;
   const selectedStage = selected ? STAGES.find((st) => st.key === selected.stage) : null;
 
-  const totalValue = data.reduce((s, d) => s + parseFloat(d.value.replace(/[^0-9.]/g, '')) * 1000, 0);
+  const totalValue = data.reduce((s, d) => s + parseFloat(String(d.value).replace(/[^0-9.]/g, '') || '0') * 1000, 0);
   const overdueCount = data.filter((d) => d.status === 'overdue').length;
   const avgDays = Math.round(data.reduce((s, d) => s + d.daysInStage, 0) / data.length);
 
