@@ -22,10 +22,10 @@ const dbImports = DB_ENABLED
         password: cfg.get<string>('DB_PASS'),
         database: cfg.get<string>('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: true, // dev/demo: auto-create tables from entities
+        synchronize: cfg.get<string>('DB_SYNC') === 'true',
         options: { encrypt: true, trustServerCertificate: false },
-        retryAttempts: 10,
-        retryDelay: 4000,
+        retryAttempts: 3,
+        retryDelay: 3000,
       }),
     }),
     SeedModule,
