@@ -10,7 +10,6 @@
     "dev:backend": "cd backend && npm run start:dev",
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "cd backend && npm install --legacy-peer-deps && cd ../frontend && npm install",
-    "postinstall": "cd backend && npm install --legacy-peer-deps --omit=dev || true",
     "build": "npm --prefix frontend install --include=dev --legacy-peer-deps && npm --prefix frontend run build && npm --prefix backend install --include=dev --legacy-peer-deps && npm --prefix backend run build && node scripts/copy-client.mjs",
     "start": "node backend/dist/main.js"
   },

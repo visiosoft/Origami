@@ -1,2 +1,2 @@
-// DB is enabled only when DB_HOST is set AND DB_SKIP is not 'true'
-export const DB_ENABLED = !!process.env.DB_HOST && process.env.DB_SKIP !== 'true';
+// DB requires explicit opt-in via DB_ENABLED=true env var
+export const DB_ENABLED = process.env.DB_ENABLED === 'true';
