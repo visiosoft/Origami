@@ -110,12 +110,12 @@ export function Pipeline() {
       assigneeInit: '?',
       daysInStage: 0,
       nextAction: 'Assign & make first contact',
-      nextDue: 'â€”',
+      nextDue: '—',
       source: nl.leadSource || 'Website',
       status: 'in_progress',
       phone: nl.phone.trim(),
       email: nl.email.trim(),
-      timeline: [{ date: 'Today', action: `New lead created â€“ ${nl.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
+      timeline: [{ date: 'Today', action: `New lead created — ${nl.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
       notes: nl.projectVision.trim(),
     };
     setDeals((prev) => [deal, ...prev]);
@@ -164,8 +164,8 @@ export function Pipeline() {
 
   const roleTabs: { r: 'all' | 'pc' | 'pm'; label: string }[] = [
     { r: 'all', label: 'All Stages' },
-    { r: 'pc', label: 'PC â€” Client Coordinator' },
-    { r: 'pm', label: 'PM â€” Project Manager' },
+    { r: 'pc', label: 'PC — Client Coordinator' },
+    { r: 'pm', label: 'PM — Project Manager' },
   ];
 
   return (
@@ -196,7 +196,7 @@ export function Pipeline() {
                 <span style={{ fontSize: 10, color: '#7E9B93', fontWeight: 500 }}>{l}</span>
               </div>
             ))}
-            <div onClick={() => setShowNew(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
+            <div onClick={() => { setNl({ ...BLANK_LEAD }); setEditingId(null); setFormTab(1); setShowNew(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
               <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New Lead
             </div>
           </div>
@@ -343,15 +343,15 @@ export function Pipeline() {
           {/* Actions */}
           {selectedStage.isDecision ? (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', position: 'sticky', bottom: 0, background: 'white' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>PM Decision â€” Does this project fit?</div>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: 5, daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>âœ“ Approve â€” Good Fit</div>
-                <div onClick={() => { applyOverride(selected.id, { stage: 'rejected', stageIdx: 11, daysInStage: 0, status: 'overdue' }); setSelectedId(null); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>âœ— Reject â€” Not a Fit</div>
+                <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: 5, daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>✓ Approve — Good Fit</div>
+                <div onClick={() => { applyOverride(selected.id, { stage: 'rejected', stageIdx: 11, daysInStage: 0, status: 'overdue' }); setSelectedId(null); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
               </div>
             </div>
           ) : (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', gap: 8, position: 'sticky', bottom: 0, background: 'white' }}>
-              <div onClick={() => { const idx = selected.stageIdx; if (idx < 10) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < 10 ? 'Advance to Stage ' + (selected.stageIdx + 2) : 'âœ“ Complete'}</div>
+              <div onClick={() => { const idx = selected.stageIdx; if (idx < 10) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < 10 ? 'Advance to Stage ' + (selected.stageIdx + 2) : '✓ Complete'}</div>
               <div onClick={() => openEdit(selected)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Delete</div>
               <div onClick={() => applyOverride(selected.id, { stage: 'rejected', stageIdx: 11, daysInStage: 0, status: 'overdue' })} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Lost</div>
