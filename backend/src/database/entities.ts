@@ -28,7 +28,7 @@ export class PersonEntity {
   @Column() name!: string;
   @Column() role!: string;
   @Column() company!: string;
-  @Column({ nullable: true }) contact!: string | null;
+  @Column({ type: 'nvarchar', length: 255, nullable: true }) contact!: string | null;
   @Column() kind!: string;
   @Column() tier!: string;
   @Column() phone!: string;
@@ -107,4 +107,39 @@ export class FinanceEntity {
   @Column('int') coUsed!: number;
   @Column('int') reimbUsed!: number;
   @Column('int') timePct!: number;
+}
+
+@Entity('leads')
+export class LeadEntity {
+  @PrimaryColumn() id!: string;
+  @Column() leadName!: string;
+  @Column({ nullable: true }) namePronunciation!: string;
+  @Column() phone!: string;
+  @Column({ nullable: true }) email!: string;
+  @Column({ nullable: true }) primaryPointOfContact!: string;
+  @Column({ nullable: true }) secondPointOfContact!: string;
+  @Column({ nullable: true }) nameOfSecondContact!: string;
+  @Column({ nullable: true }) phoneOfSecondContact!: string;
+  @Column({ nullable: true }) emailOfSecondContact!: string;
+  @Column({ nullable: true }) relationshipOfSecondContact!: string;
+  @Column({ nullable: true }) decisionMakers!: string;
+  @Column({ nullable: true }) preferredContactMethod!: string;
+  @Column({ nullable: true }) leadSource!: string;
+  @Column({ nullable: true }) projectStreetAddress!: string;
+  @Column({ nullable: true }) projectStreetName!: string;
+  @Column({ nullable: true }) projectCity!: string;
+  @Column({ nullable: true }) projectZipCode!: string;
+  @Column({ nullable: true }) countyLocation!: string;
+  @Column({ nullable: true }) propertyType!: string;
+  @Column({ nullable: true }) potentialProjectType!: string;
+  @Column({ type: 'simple-json', nullable: true }) homeworkCompleted!: string[];
+  @Column({ ...TEXT, nullable: true }) projectVision!: string;
+  @Column({ nullable: true }) reasonForProject!: string;
+  @Column({ nullable: true }) budgetPosition!: string;
+  @Column({ nullable: true }) fundingStatus!: string;
+  @Column({ nullable: true }) desiredStart!: string;
+  @Column({ nullable: true }) expectedDuration!: string;
+  @Column({ nullable: true }) expectedLengthOfOwnership!: string;
+  @Column({ nullable: true }) clientPersonality!: string;
+  @Column() createdAt!: string;
 }

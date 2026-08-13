@@ -1,0 +1,33 @@
+import { IsString, IsOptional, IsArray, Allow } from 'class-validator';
+
+export class CreateLeadDto {
+    @IsString() leadName: string;
+    @IsString() @IsOptional() namePronunciation?: string;
+    @IsString() phone: string;
+    @IsString() @IsOptional() email?: string;
+    @IsString() @IsOptional() primaryPointOfContact?: string;
+    @IsString() @IsOptional() secondPointOfContact?: string;
+    @IsString() @IsOptional() nameOfSecondContact?: string;
+    @IsString() @IsOptional() phoneOfSecondContact?: string;
+    @IsString() @IsOptional() emailOfSecondContact?: string;
+    @IsString() @IsOptional() relationshipOfSecondContact?: string;
+    @IsString() @IsOptional() decisionMakers?: string;
+    @IsString() @IsOptional() preferredContactMethod?: string;
+    @IsString() @IsOptional() leadSource?: string;
+    @IsString() @IsOptional() projectStreetAddress?: string;
+    @IsString() @IsOptional() projectStreetName?: string;
+    @IsString() @IsOptional() projectCity?: string;
+    @IsString() @IsOptional() projectZipCode?: string;
+    @IsString() @IsOptional() countyLocation?: string;
+    @IsString() @IsOptional() propertyType?: string;
+    @IsString() @IsOptional() potentialProjectType?: string;
+    @IsArray() @IsOptional() homeworkCompleted?: string[];
+    @IsString() @IsOptional() projectVision?: string;
+    @IsString() @IsOptional() reasonForProject?: string;
+    @IsString() @IsOptional() budgetPosition?: string;
+    @IsString() @IsOptional() fundingStatus?: string;
+    @IsString() @IsOptional() desiredStart?: string;
+    @IsString() @IsOptional() expectedDuration?: string;
+    @IsString() @IsOptional() expectedLengthOfOwnership?: string;
+    @IsString() @IsOptional() clientPersonality?: string;
+}

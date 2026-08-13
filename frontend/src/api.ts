@@ -46,4 +46,12 @@ export const api = {
     create: (data: unknown) => request('/pipeline', { method: 'POST', body: JSON.stringify(data) }),
     updateStage: (id: string, stage: string) => request(`/pipeline/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage }) }),
   },
+  leads: {
+    list: () => request('/leads'),
+    options: () => request('/leads/options'),
+    get: (id: string) => request(`/leads/${id}`),
+    create: (data: unknown) => request('/leads', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/leads/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request(`/leads/${id}`, { method: 'DELETE' }),
+  },
 };
