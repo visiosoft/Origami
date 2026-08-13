@@ -10,7 +10,7 @@ const OPT = LEAD_DROPDOWN_OPTIONS;
 
 type Override = Partial<Pick<Deal, 'stage' | 'stageIdx' | 'daysInStage' | 'status'>>;
 
-const initials = (n: string) => n.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
 
 interface NewLead {
   leadName: string; namePronunciation: string; phone: string; email: string;
@@ -59,7 +59,7 @@ export function Pipeline() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    api.pipeline.list().then((res) => { if (Array.isArray(res) && res.length > 0) setDeals(res as Deal[]); }).catch(() => {});
+    api.pipeline.list().then((res) => { if (Array.isArray(res) && res.length > 0) setDeals(res as Deal[]); }).catch(() => { });
   }, []);
 
   const data: Deal[] = deals.map((d) => (overrides[d.id] ? { ...d, ...overrides[d.id] } : d));
@@ -93,13 +93,13 @@ export function Pipeline() {
     setSelectedId(null);
     toast('Lead deleted');
     api.leads.delete(id).catch(() => toast('⚠ Failed to delete from database'));
-    api.pipeline.list().then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => {});
+    api.pipeline.list().then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
   };
 
   const createLead = () => {
     if (nl.leadName.trim().length < 2 || !nl.phone.trim()) return;
     const deal: Deal = {
-      id: 'PL-' + String(1000 + added.length + 1),
+      id: 'PL-' + String(1000 + deals.length + 1),
       name: nl.leadName.trim(),
       client: nl.leadName.trim(),
       value: '$0',
