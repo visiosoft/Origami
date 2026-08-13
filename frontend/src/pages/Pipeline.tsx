@@ -220,7 +220,7 @@ export function Pipeline() {
                   </div>
                   <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {cards.map((d) => {
-                      const ss = STATUS_STYLES[d.status];
+                      const ss = STATUS_STYLES[d.status] || { label: d.status || 'Active', bg: '#E8E8E8', color: '#555', dot: '#999' };
                       const isSelected = selectedId === d.id;
                       const isDraggingCard = dragging === d.id;
                       return (
@@ -267,7 +267,7 @@ export function Pipeline() {
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#43514D', marginBottom: 8 }}>{selected.client}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: STATUS_STYLES[selected.status].bg, color: STATUS_STYLES[selected.status].color }}>{STATUS_STYLES[selected.status].label}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.ownerBg, color: selectedStage.ownerColor }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
             </div>
