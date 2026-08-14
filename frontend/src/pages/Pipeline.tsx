@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { DEALS, STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { LEAD_DROPDOWN_OPTIONS } from '../data/leads';
+import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -119,9 +120,31 @@ export function Pipeline() {
   const [meetWhen, setMeetWhen] = useState('');
   const [visitByDeal, setVisitByDeal] = useState<Record<string, { when: string }>>({});
   const [visitWhen, setVisitWhen] = useState('');
+  const [scoringTemplate, setScoringTemplate] = useState<ScoringCriterion[]>([]);
+  const [fitByDeal, setFitByDeal] = useState<Record<string, Record<string, string>>>({});
 
   useEffect(() => {
     api.pipeline.list().then((res) => { if (Array.isArray(res) && res.length > 0) setDeals(res as Deal[]); }).catch(() => { });
+    // Rehydrate the rich intake details (Full Details) from the leads table,
+    // keyed by id (new leads share their deal's id), so they survive refresh.
+    api.leads.list().then((res) => {
+      if (!Array.isArray(res)) return;
+      const map: Record<string, NewLead> = {};
+      const meets: Record<string, { when: string }> = {};
+      const visits: Record<string, { when: string }> = {};
+      const fits: Record<string, Record<string, string>> = {};
+      for (const l of res as Array<Partial<NewLead> & { id: string; virtualMeetingAt?: string; siteVisitAt?: string; fitSelections?: Record<string, string> }>) {
+        map[l.id] = { ...BLANK_LEAD, ...l } as NewLead;
+        if (l.virtualMeetingAt) meets[l.id] = { when: l.virtualMeetingAt };
+        if (l.siteVisitAt) visits[l.id] = { when: l.siteVisitAt };
+        if (l.fitSelections) fits[l.id] = l.fitSelections;
+      }
+      setLeadDetails((prev) => ({ ...map, ...prev }));
+      setMeetByDeal((prev) => ({ ...meets, ...prev }));
+      setVisitByDeal((prev) => ({ ...visits, ...prev }));
+      setFitByDeal((prev) => ({ ...fits, ...prev }));
+    }).catch(() => { });
+    api.scoring.getTemplate().then((res) => { if (Array.isArray(res)) setScoringTemplate(res as ScoringCriterion[]); }).catch(() => { });
   }, []);
 
   const data: Deal[] = deals.map((d) => (overrides[d.id] ? { ...d, ...overrides[d.id] } : d));
@@ -193,11 +216,22 @@ export function Pipeline() {
     setSelectedId(deal.id);
     setDetailTab('overview');
     toast(`${deal.name} added to the pipeline`);
-    api.leads.create(nl).catch((err) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
+    api.leads.create({ ...nl, id: deal.id }).catch((err) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
     void api.pipeline.create(deal).catch(() => undefined);
   };
 
-  const applyOverride = (id: string, o: Override) => setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
+  const applyOverride = (id: string, o: Override) => {
+    setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
+    // Persist stage moves (drag-drop, Advance, Approve/Reject) so the board
+    // shows each lead in its correct stage after a refresh, and log the move to
+    // the activity timeline with a timestamp (server appends its own copy too).
+    if (o.stage) {
+      const stageName = STAGES.find((s) => s.key === o.stage)?.name || o.stage;
+      const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      setDeals((prev) => prev.map((d) => d.id === id ? { ...d, timeline: [...(d.timeline || []), { date: when, action: `Moved to ${stageName}`, role: 'System', type: 'auto' as const }] } : d));
+      api.pipeline.updateStage(id, o.stage).catch(() => { });
+    }
+  };
 
   const submitNote = (dealId: string, stageName: string) => {
     const text = noteDraft.trim();
@@ -231,7 +265,8 @@ export function Pipeline() {
     window.open(url, '_blank', 'noopener');
     setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Google Meet scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
-    toast('Google Meet invite opened in Google Calendar');
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen }).catch(() => { });
+    toast('Google Meet invite opened & saved');
     setMeetWhen('');
   };
 
@@ -250,8 +285,34 @@ export function Pipeline() {
     window.open(url, '_blank', 'noopener');
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: 'Today' }] }));
-    toast('Site visit invite opened in Google Calendar');
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }).catch(() => { });
+    toast('Site visit invite opened & saved');
     setVisitWhen('');
+  };
+
+  // Persist the chosen time to the DB without opening Google Calendar.
+  const saveMeet = (deal: Deal, stageName: string) => {
+    if (!meetWhen) return;
+    setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Virtual F&F meeting saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen }).catch(() => { });
+    toast('Meeting time saved');
+  };
+  const saveVisit = (deal: Deal, stageName: string) => {
+    if (!visitWhen) return;
+    setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }).catch(() => { });
+    toast('Site visit time saved');
+  };
+
+  const setFit = (dealId: string, key: string, label: string) =>
+    setFitByDeal((p) => ({ ...p, [dealId]: { ...(p[dealId] || {}), [key]: label } }));
+  const saveFit = (deal: Deal) => {
+    const selections = fitByDeal[deal.id] || {};
+    const score = scoreFor(scoringTemplate, selections);
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', fitScore: score, fitSelections: selections }).catch(() => { });
+    toast(`Fit score saved: ${score} / ${totalPossible(scoringTemplate)}`);
   };
 
   const filtered = roleFilter === 'all' ? data : data.filter((d) => {
@@ -467,7 +528,8 @@ export function Pipeline() {
                   {meetByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(meetByDeal[selected.id].when).toLocaleString()}</div>}
                   <input type="datetime-local" value={meetWhen} onChange={(e) => setMeetWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <div onClick={() => scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#173326' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>Create Google Meet invite</div>
+                    <div onClick={() => saveMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#2F7D4A' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>Save schedule</div>
+                    <div onClick={() => scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#173326' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>Save &amp; create Google Meet</div>
                     <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>Start instant Meet</a>
                   </div>
                   <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited — enable "Add Google Meet" to attach the video link. Logged to Activity.</div>
@@ -486,8 +548,46 @@ export function Pipeline() {
                       <div style={{ fontSize: 11, fontWeight: 600, color: addr ? '#173326' : '#9AA39D', marginBottom: 8 }}>{addr ? `Location: ${addr}` : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
                       {visitByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(visitByDeal[selected.id].when).toLocaleString()}</div>}
                       <input type="datetime-local" value={visitWhen} onChange={(e) => setVisitWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
-                      <div onClick={() => scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? '#173326' : '#D6DED8', color: visitWhen ? 'white' : '#9AA39D', display: 'inline-block' }}>Create site-visit invite</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <div onClick={() => saveVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? '#2F7D4A' : '#D6DED8', color: visitWhen ? 'white' : '#9AA39D' }}>Save schedule</div>
+                        <div onClick={() => scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? '#173326' : '#D6DED8', color: visitWhen ? 'white' : '#9AA39D' }}>Save &amp; create invite</div>
+                      </div>
                       <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited and the project address as the location. Logged to Activity.</div>
+                    </div>
+                  );
+                })()
+              ) : selected.stage === 'project_fit' ? (
+                (() => {
+                  const sel = fitByDeal[selected.id] || {};
+                  const score = scoreFor(scoringTemplate, sel);
+                  const maxTotal = totalPossible(scoringTemplate);
+                  return (
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Project Fit — Qualification Score</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#5C7169', marginBottom: 10 }}>Score the lead against the checklist. Edit the template in Settings.</div>
+                      {scoringTemplate.length === 0 ? (
+                        <div style={{ fontSize: 12, color: '#8E2E0A', fontStyle: 'italic' }}>No scoring template found. Configure it in Settings → Lead Scoring Template.</div>
+                      ) : (
+                        <>
+                          {scoringTemplate.map((c) => (
+                            <div key={c.key} style={{ marginBottom: 10 }}>
+                              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#173326', marginBottom: 4 }}>{c.order}. {c.name} <span style={{ color: '#7E9B93', fontWeight: 500 }}>· {c.subCriteria} · max {c.maxPoints}</span></div>
+                              <select value={sel[c.key] || ''} onChange={(e) => setFit(selected.id, c.key, e.target.value)} style={inputStyle}>
+                                <option value="">Select…</option>
+                                {c.options.map((o) => <option key={o.label} value={o.label}>{o.label} ({o.points >= 0 ? '+' : ''}{o.points})</option>)}
+                              </select>
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: '10px 14px', background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.08)' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93' }}>Total Score</span>
+                            <span style={{ fontFamily: BG, fontWeight: 800, fontSize: 22, color: '#173326' }}>{score} <span style={{ fontSize: 13, color: '#7E9B93', fontWeight: 600 }}>/ {maxTotal}</span></span>
+                          </div>
+                          <div onClick={() => saveFit(selected)} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>Save Fit Score</div>
+                        </>
+                      )}
                     </div>
                   );
                 })()

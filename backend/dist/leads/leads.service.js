@@ -39,7 +39,8 @@ let LeadsService = class LeadsService {
         return lead;
     }
     create(dto) {
-        const lead = { id: 'LD-' + String(1000 + Date.now() % 10000), ...dto, createdAt: new Date().toISOString().slice(0, 10) };
+        const id = dto.id || 'LD-' + String(1000 + Date.now() % 10000);
+        const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10) };
         if (!this.repo)
             return lead;
         return this.repo.save(this.repo.create(lead));
@@ -47,8 +48,13 @@ let LeadsService = class LeadsService {
     async update(id, dto) {
         if (!this.repo)
             return { id, ...dto };
-        const lead = await this.findOne(id);
-        Object.assign(lead, dto);
+        let lead = await this.repo.findOneBy({ id });
+        if (!lead) {
+            lead = this.repo.create({ ...dto, id, createdAt: new Date().toISOString().slice(0, 10) });
+        }
+        else {
+            Object.assign(lead, dto);
+        }
         return this.repo.save(lead);
     }
     async remove(id) {

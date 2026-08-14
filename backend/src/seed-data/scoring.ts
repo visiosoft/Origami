@@ -1,0 +1,119 @@
+// Default "Client Qualification Checklist & Point System" template.
+// Editable in Settings; used on the Project Fit Review stage to score a lead.
+// Total Points Possible is the sum of each criterion's maxPoints.
+
+export interface ScoringOption {
+  label: string;
+  points: number;
+}
+
+export interface ScoringCriterion {
+  key: string;
+  order: number;
+  name: string;
+  subCriteria: string;
+  maxPoints: number;
+  options: ScoringOption[];
+}
+
+export const DEFAULT_SCORING: ScoringCriterion[] = [
+  {
+    key: 'location',
+    order: 1,
+    name: 'Location',
+    subCriteria: 'Specific Location',
+    maxPoints: 15,
+    options: [
+      { label: 'Alameda', points: 3 },
+      { label: 'Atherton', points: 19 },
+      { label: 'Belmont', points: 3 },
+      { label: 'Berkeley', points: 3 },
+      { label: 'Blackhawk', points: 19 },
+      { label: 'Boulder Creek', points: 3 },
+      { label: 'Brisbane', points: 3 },
+      { label: 'Burlingame', points: 15 },
+      { label: 'Capitola', points: 3 },
+      { label: 'Campbell', points: 7 },
+      { label: 'Colma', points: 3 },
+      { label: 'Conrad', points: 3 },
+      { label: 'Cupertino', points: 15 },
+      { label: 'Daly City', points: 3 },
+      { label: 'Danville', points: 3 },
+      { label: 'East Palo Alto', points: 3 },
+      { label: 'Foster City', points: 3 },
+      { label: 'Fremont', points: 9 },
+      { label: 'Gilroy', points: 3 },
+      { label: 'Half Moon Bay', points: 3 },
+      { label: 'Hayword', points: 5 },
+      { label: 'Hillsborough', points: 3 },
+      { label: 'Livermore', points: 3 },
+      { label: 'Los Altos', points: 12 },
+      { label: 'Los Gatos', points: 12 },
+      { label: 'Menlo Park', points: 19 },
+      { label: 'Millbrae', points: 3 },
+      { label: 'Milpitas', points: 12 },
+      { label: 'Monte Sereno', points: 3 },
+      { label: 'Morgan Hill', points: 3 },
+      { label: 'Mountain View', points: 10 },
+      { label: 'Newark', points: 3 },
+      { label: 'Oakland', points: 3 },
+      { label: 'Orinda', points: 3 },
+      { label: 'Pacifica', points: 3 },
+      { label: 'Palo Alto', points: 15 },
+      { label: 'Portola Valley', points: 3 },
+      { label: 'Redwood City', points: 3 },
+      { label: 'San Bruno', points: 3 },
+      { label: 'San Carlos', points: 3 },
+      { label: 'San Francisco', points: 3 },
+      { label: 'San Jose', points: 11 },
+      { label: 'San Leandro', points: 3 },
+      { label: 'San Mateo', points: 3 },
+      { label: 'Saratoga', points: 15 },
+      { label: 'Santa Clara', points: 3 },
+      { label: 'Scotts Valley', points: 3 },
+      { label: 'Santa Cruz', points: 3 },
+      { label: 'South San Francisco', points: 3 },
+      { label: 'Sunnyvale', points: 12 },
+      { label: 'Union City', points: 3 },
+      { label: 'Watsonville', points: 3 },
+      { label: 'Woodside', points: 13 },
+    ],
+  },
+  {
+    key: 'municipality',
+    order: 2,
+    name: 'Municipality',
+    subCriteria: 'Difficulty',
+    maxPoints: 5,
+    options: [
+      { label: 'Easy', points: 5 },
+      { label: 'Standard', points: 3 },
+      { label: 'Unknown', points: 2 },
+      { label: 'Difficult', points: 0 },
+      { label: 'Extremely Difficult', points: -5 },
+    ],
+  },
+  {
+    key: 'project_scope',
+    order: 3,
+    name: 'Project Scope',
+    subCriteria: 'Type (SF, MF, CM, MU, TI)',
+    maxPoints: 30,
+    options: [
+      { label: 'SINGLE FAMILY - Condo/Apartment one unit remodel', points: 12 },
+      { label: 'SINGLE FAMILY - Kitchen and Bath Remodel', points: 15 },
+      { label: 'SINGLE FAMILY - Remodel (facelift)', points: 15 },
+      { label: 'SINGLE FAMILY - Addition Only', points: 18 },
+      { label: 'SINGLE FAMILY - Addition and minor remodel', points: 15 },
+      { label: 'SINGLE FAMILY - Gut Remodel (defacto new home)', points: 20 },
+      { label: 'SINGLE FAMILY - Gut Remodel and Addition (include attached ADU)', points: 20 },
+      { label: 'SINGLE FAMILY - ADU only', points: 18 },
+      { label: 'SINGLE FAMILY - Ground Up (Demo and Construct)', points: 28 },
+      { label: 'SINGLE FAMILY - Ground Up (Raw Land - No existing structure)', points: 23 },
+      { label: 'Multi-Family - Ground Up', points: 30 },
+      { label: 'Mixed Use - Ground Up', points: 30 },
+      { label: 'Commercial - Commercial Tenant Improvement', points: 30 },
+      { label: 'Commercial - Ground Up', points: 25 },
+    ],
+  },
+];

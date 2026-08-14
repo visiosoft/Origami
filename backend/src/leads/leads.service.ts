@@ -27,17 +27,26 @@ export class LeadsService {
     }
 
     create(dto: any) {
-        const lead = { id: 'LD-' + String(1000 + Date.now() % 10000), ...dto, createdAt: new Date().toISOString().slice(0, 10) };
+        // Prefer a caller-supplied id so a lead links 1:1 with its pipeline deal
+        // (PL-…). Fall back to an LD- id only for standalone leads.
+        const id = dto.id || 'LD-' + String(1000 + Date.now() % 10000);
+        const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10) };
         // No DB configured: return the record without persisting (the UI keeps
         // its own copy), so lead capture still works in in-memory mode.
         if (!this.repo) return lead;
         return this.repo.save(this.repo.create(lead as Partial<LeadEntity>));
     }
 
+    // Upsert: "Save Lead Details" targets the deal id, which may not have a
+    // leads row yet — create it in that case instead of 404-ing.
     async update(id: string, dto: any) {
         if (!this.repo) return { id, ...dto };
-        const lead = await this.findOne(id);
-        Object.assign(lead, dto);
+        let lead = await this.repo.findOneBy({ id });
+        if (!lead) {
+            lead = this.repo.create({ ...dto, id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<LeadEntity>);
+        } else {
+            Object.assign(lead, dto);
+        }
         return this.repo.save(lead);
     }
 

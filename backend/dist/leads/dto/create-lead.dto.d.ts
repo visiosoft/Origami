@@ -1,4 +1,5 @@
 export declare class CreateLeadDto {
+    id?: string;
     leadName: string;
     namePronunciation?: string;
     phone: string;
@@ -28,4 +29,8 @@ export declare class CreateLeadDto {
     expectedDuration?: string;
     expectedLengthOfOwnership?: string;
     clientPersonality?: string;
+    virtualMeetingAt?: string;
+    siteVisitAt?: string;
+    fitScore?: number;
+    fitSelections?: Record<string, string>;
 }

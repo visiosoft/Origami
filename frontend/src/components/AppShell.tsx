@@ -77,6 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
     key: 'admin',
     label: 'Admin',
     items: [
+      { label: 'Settings', route: 'settings', icon: 'key' },
       { label: 'User Access & Roles', route: 'users', icon: 'key' },
       { label: 'Help & Support', route: 'help', icon: 'life' },
     ],

@@ -42,15 +42,25 @@ let PipelineService = class PipelineService {
         return dto;
     }
     async updateStage(id, stage) {
+        const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);
+        const stageName = idx >= 0 ? pipeline_1.STAGES[idx].name : stage;
+        const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const entry = { date: when, action: `Moved to ${stageName}`, role: 'System', type: 'auto' };
         if (this.repo) {
             const deal = await this.findOne(id);
             deal.stage = stage;
+            if (idx >= 0)
+                deal.stageIdx = idx;
+            deal.timeline = [...(deal.timeline || []), entry];
             return this.repo.save(deal);
         }
         const deal = this.mem.find((d) => d.id === id);
         if (!deal)
             throw new common_1.NotFoundException(`Deal ${id} not found`);
         deal.stage = stage;
+        if (idx >= 0)
+            deal.stageIdx = idx;
+        deal.timeline = [...(deal.timeline || []), entry];
         return deal;
     }
     async remove(id) {

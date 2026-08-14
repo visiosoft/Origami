@@ -6,6 +6,7 @@ import { PeopleModule } from './people/people.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PipelineModule } from './pipeline/pipeline.module';
 import { LeadsModule } from './leads/leads.module';
+import { ScoringModule } from './scoring/scoring.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
 import { DB_ENABLED } from './database/db.config';
@@ -42,6 +43,7 @@ const dbImports = DB_ENABLED
     TasksModule,
     PipelineModule,
     LeadsModule,
+    ScoringModule,
     DashboardModule,
   ],
 })

@@ -141,5 +141,19 @@ export class LeadEntity {
   @Column({ nullable: true }) expectedDuration!: string;
   @Column({ nullable: true }) expectedLengthOfOwnership!: string;
   @Column({ nullable: true }) clientPersonality!: string;
+  @Column({ nullable: true }) virtualMeetingAt!: string;
+  @Column({ nullable: true }) siteVisitAt!: string;
+  @Column({ type: 'int', nullable: true }) fitScore!: number;
+  @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
   @Column() createdAt!: string;
+}
+
+@Entity('scoring_criteria')
+export class ScoringCriterionEntity {
+  @PrimaryColumn() key!: string;
+  @Column('int') order!: number;
+  @Column() name!: string;
+  @Column({ nullable: true }) subCriteria!: string;
+  @Column('int') maxPoints!: number;
+  @Column('simple-json') options!: { label: string; points: number }[];
 }

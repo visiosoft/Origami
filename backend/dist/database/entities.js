@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -504,10 +504,56 @@ __decorate([
     __metadata("design:type", String)
 ], LeadEntity.prototype, "clientPersonality", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "virtualMeetingAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "siteVisitAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], LeadEntity.prototype, "fitScore", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadEntity.prototype, "fitSelections", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "createdAt", void 0);
 exports.LeadEntity = LeadEntity = __decorate([
     (0, typeorm_1.Entity)('leads')
 ], LeadEntity);
+let ScoringCriterionEntity = class ScoringCriterionEntity {
+};
+exports.ScoringCriterionEntity = ScoringCriterionEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], ScoringCriterionEntity.prototype, "key", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], ScoringCriterionEntity.prototype, "order", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ScoringCriterionEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ScoringCriterionEntity.prototype, "subCriteria", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], ScoringCriterionEntity.prototype, "maxPoints", void 0);
+__decorate([
+    (0, typeorm_1.Column)('simple-json'),
+    __metadata("design:type", Array)
+], ScoringCriterionEntity.prototype, "options", void 0);
+exports.ScoringCriterionEntity = ScoringCriterionEntity = __decorate([
+    (0, typeorm_1.Entity)('scoring_criteria')
+], ScoringCriterionEntity);
 //# sourceMappingURL=entities.js.map

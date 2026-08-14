@@ -124,5 +124,20 @@ export declare class LeadEntity {
     expectedDuration: string;
     expectedLengthOfOwnership: string;
     clientPersonality: string;
+    virtualMeetingAt: string;
+    siteVisitAt: string;
+    fitScore: number;
+    fitSelections: Record<string, string>;
     createdAt: string;
+}
+export declare class ScoringCriterionEntity {
+    key: string;
+    order: number;
+    name: string;
+    subCriteria: string;
+    maxPoints: number;
+    options: {
+        label: string;
+        points: number;
+    }[];
 }

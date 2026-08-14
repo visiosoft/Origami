@@ -16,6 +16,11 @@ class CreateLeadDto {
 exports.CreateLeadDto = CreateLeadDto;
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateLeadDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateLeadDto.prototype, "leadName", void 0);
 __decorate([
@@ -157,4 +162,24 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateLeadDto.prototype, "clientPersonality", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateLeadDto.prototype, "virtualMeetingAt", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateLeadDto.prototype, "siteVisitAt", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateLeadDto.prototype, "fitScore", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateLeadDto.prototype, "fitSelections", void 0);
 //# sourceMappingURL=create-lead.dto.js.map

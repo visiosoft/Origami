@@ -15,6 +15,7 @@ const people_module_1 = require("./people/people.module");
 const tasks_module_1 = require("./tasks/tasks.module");
 const pipeline_module_1 = require("./pipeline/pipeline.module");
 const leads_module_1 = require("./leads/leads.module");
+const scoring_module_1 = require("./scoring/scoring.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
 const seed_module_1 = require("./database/seed.module");
 const db_config_1 = require("./database/db.config");
@@ -53,6 +54,7 @@ exports.AppModule = AppModule = __decorate([
             tasks_module_1.TasksModule,
             pipeline_module_1.PipelineModule,
             leads_module_1.LeadsModule,
+            scoring_module_1.ScoringModule,
             dashboard_module_1.DashboardModule,
         ],
     })

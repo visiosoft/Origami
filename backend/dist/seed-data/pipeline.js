@@ -4,8 +4,8 @@ exports.DEALS = exports.STATUS_STYLES = exports.STAGE_KEYS = exports.STAGES = vo
 exports.STAGES = [
     { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
     { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-    { key: 'contact_made', name: 'Contact Made', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-    { key: 'initial_questions', name: 'Initial Questions', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
+    { key: 'initial_questions', name: 'Initial Questions', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
+    { key: 'virtual_ff', name: 'Virtual F & F meeting', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
     { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isDecision: true },
     { key: 'site_visit', name: 'Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
     { key: 'f2f', name: 'F2F Meet & Greet', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },

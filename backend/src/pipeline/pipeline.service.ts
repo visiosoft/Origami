@@ -33,14 +33,24 @@ export class PipelineService {
   }
 
   async updateStage(id: string, stage: string) {
+    // Keep stageIdx in sync with the canonical stage order so the progress bar
+    // and "Advance" logic stay correct after a reload.
+    const idx = STAGES.findIndex((s) => s.key === stage);
+    const stageName = idx >= 0 ? STAGES[idx].name : stage;
+    const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const entry = { date: when, action: `Moved to ${stageName}`, role: 'System', type: 'auto' };
     if (this.repo) {
       const deal = await this.findOne(id);
       deal.stage = stage;
+      if (idx >= 0) deal.stageIdx = idx;
+      deal.timeline = [...((deal.timeline as unknown[]) || []), entry];
       return this.repo.save(deal);
     }
     const deal = this.mem.find((d) => d.id === id);
     if (!deal) throw new NotFoundException(`Deal ${id} not found`);
     deal.stage = stage;
+    if (idx >= 0) deal.stageIdx = idx;
+    deal.timeline = [...(deal.timeline || []), entry];
     return deal;
   }
 

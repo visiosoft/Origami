@@ -55,4 +55,8 @@ export const api = {
     update: (id: string, data: unknown) => request(`/leads/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/leads/${id}`, { method: 'DELETE' }),
   },
+  scoring: {
+    getTemplate: () => request('/scoring/template'),
+    saveTemplate: (criteria: unknown) => request('/scoring/template', { method: 'PUT', body: JSON.stringify({ criteria }) }),
+  },
 };

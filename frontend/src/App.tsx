@@ -6,6 +6,7 @@ import { Projects } from './pages/Projects';
 import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { ModuleSpec } from './pages/ModuleSpec';
+import { Settings } from './pages/Settings';
 import { Auth } from './pages/Auth';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />
         <Route path="/tasks" element={<Tasks />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

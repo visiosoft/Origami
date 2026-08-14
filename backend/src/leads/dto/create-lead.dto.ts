@@ -1,6 +1,7 @@
-import { IsString, IsOptional, IsArray, Allow } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNumber, IsObject, Allow } from 'class-validator';
 
 export class CreateLeadDto {
+    @IsString() @IsOptional() id?: string;
     @IsString() leadName: string;
     @IsString() @IsOptional() namePronunciation?: string;
     @IsString() phone: string;
@@ -30,4 +31,8 @@ export class CreateLeadDto {
     @IsString() @IsOptional() expectedDuration?: string;
     @IsString() @IsOptional() expectedLengthOfOwnership?: string;
     @IsString() @IsOptional() clientPersonality?: string;
+    @IsString() @IsOptional() virtualMeetingAt?: string;
+    @IsString() @IsOptional() siteVisitAt?: string;
+    @IsNumber() @IsOptional() fitScore?: number;
+    @IsObject() @IsOptional() fitSelections?: Record<string, string>;
 }
