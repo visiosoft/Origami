@@ -3,6 +3,9 @@ import { api } from '../api';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
+import { useWindowWidth } from '../useWindowWidth';
+
+const BG = "'Bricolage Grotesque', serif";
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -10,7 +13,46 @@ const inputStyle: React.CSSProperties = {
   fontSize: 13, color: '#0B1A12', outline: 'none',
 };
 
+// Settings sections and their sub-links. Extend this as more settings are added.
+const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
+  { group: 'Templates', items: [{ key: 'lead-scoring', label: 'Lead Qualification Scoring Template' }] },
+];
+
 export function Settings() {
+  const isMobile = useWindowWidth() < 768;
+  const [active, setActive] = useState('lead-scoring');
+
+  const nav = (
+    <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>
+      {SECTIONS.map((sec) => (
+        <div key={sec.group} style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', padding: '0 12px 8px' }}>{sec.group}</div>
+          {sec.items.map((it) => {
+            const on = active === it.key;
+            return (
+              <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? '#0B1A12' : '#43514D', background: on ? '#E7F0E8' : 'transparent', borderLeft: '3px solid ' + (on ? '#2F7D4A' : 'transparent'), marginBottom: 2, lineHeight: 1.3 }}>{it.label}</div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12', marginBottom: 4 }}>Settings</div>
+      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 20 }}>Manage templates and configuration for the workspace.</div>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
+        {nav}
+        <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
+          {active === 'lead-scoring' && <ScoringTemplateEditor />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScoringTemplateEditor() {
   const { toast } = useApp();
   const [criteria, setCriteria] = useState<ScoringCriterion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,18 +96,18 @@ export function Settings() {
   const total = totalPossible(criteria);
 
   return (
-    <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
+    <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: "'Bricolage Grotesque', serif", fontWeight: 700, fontSize: 22, color: '#0B1A12' }}>Lead Scoring Template</div>
-          <div style={{ fontSize: 13, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Lead Qualification Scoring Template</div>
+          <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
             Client Qualification Checklist &amp; Point System. Used on the <strong>Project Fit Review</strong> stage to score each lead. Edit criteria, options and points below.
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>Total Points Possible</div>
-            <div style={{ fontFamily: "'Bricolage Grotesque', serif", fontWeight: 800, fontSize: 26, color: '#173326', lineHeight: 1 }}>{total}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>Total Possible</div>
+            <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 24, color: '#173326', lineHeight: 1 }}>{total}</div>
           </div>
           <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white', whiteSpace: 'nowrap' }}>{saving ? 'Saving…' : 'Save Template'}</div>
         </div>
