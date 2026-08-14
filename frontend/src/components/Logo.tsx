@@ -1,6 +1,8 @@
-// Self-contained Origami brand mark (folded-paper crane) + wordmark lockup.
-// Replaces the design's external assets/origami-logo.png with an inline SVG so
-// there is no missing-asset dependency.
+// Origami brand lockup. Prefers the supplied raster logo at /origami-logo.webp
+// (place the file in frontend/public/). If that asset is missing it falls back
+// to a self-contained inline SVG lockup so the UI never renders broken.
+
+import { useState } from 'react';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -16,8 +18,7 @@ export function LogoMark({ size = 34 }: { size?: number }) {
   );
 }
 
-/** Full lockup: mark + "Origami" wordmark + "Design + Build" subtitle. */
-export function Logo({ markSize = 30 }: { markSize?: number }) {
+function FallbackLockup({ markSize = 30 }: { markSize?: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <LogoMark size={markSize} />
@@ -26,5 +27,19 @@ export function Logo({ markSize = 30 }: { markSize?: number }) {
         <div style={{ fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#7E9B93' }}>Design + Build</div>
       </div>
     </div>
+  );
+}
+
+/** Full lockup: the supplied raster logo, or the inline SVG fallback. */
+export function Logo({ markSize = 30 }: { markSize?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <FallbackLockup markSize={markSize} />;
+  return (
+    <img
+      src="/origami-logo.webp"
+      alt="Origami Design + Build"
+      onError={() => setFailed(true)}
+      style={{ height: Math.round(markSize * 1.5), width: 'auto', maxWidth: '100%', display: 'block', objectFit: 'contain' }}
+    />
   );
 }

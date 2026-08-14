@@ -43,4 +43,16 @@ export class PipelineService {
     deal.stage = stage;
     return deal;
   }
+
+  // Idempotent: succeeds even if the deal is already gone, so best-effort
+  // deletes from the UI never surface a 404.
+  async remove(id: string) {
+    if (this.repo) {
+      const deal = this.repo ? await this.repo.findOneBy({ id }) : null;
+      if (deal) await this.repo.remove(deal);
+      return { id, deleted: true };
+    }
+    this.mem = this.mem.filter((d) => d.id !== id);
+    return { id, deleted: true };
+  }
 }

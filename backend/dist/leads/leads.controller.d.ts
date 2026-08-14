@@ -25,7 +25,10 @@ export declare class LeadsController {
         clientPersonality: string[];
     };
     findOne(id: string): Promise<import("../database/entities").LeadEntity>;
-    create(dto: CreateLeadDto): Promise<import("../database/entities").LeadEntity>;
-    update(id: string, dto: Partial<CreateLeadDto>): Promise<import("../database/entities").LeadEntity>;
-    remove(id: string): Promise<import("../database/entities").LeadEntity>;
+    create(dto: CreateLeadDto): any;
+    update(id: string, dto: Partial<CreateLeadDto>): Promise<any>;
+    remove(id: string): Promise<{
+        id: string;
+        deleted: boolean;
+    }>;
 }

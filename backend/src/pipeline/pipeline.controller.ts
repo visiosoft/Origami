@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
 import { PipelineService } from './pipeline.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 
@@ -29,5 +29,10 @@ export class PipelineController {
   @Put(':id/stage')
   updateStage(@Param('id') id: string, @Body('stage') stage: string) {
     return this.pipelineService.updateStage(id, stage);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.pipelineService.remove(id);
   }
 }

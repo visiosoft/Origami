@@ -45,6 +45,7 @@ export const api = {
     get: (id: string) => request(`/pipeline/${id}`),
     create: (data: unknown) => request('/pipeline', { method: 'POST', body: JSON.stringify(data) }),
     updateStage: (id: string, stage: string) => request(`/pipeline/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage }) }),
+    remove: (id: string) => request(`/pipeline/${id}`, { method: 'DELETE' }),
   },
   leads: {
     list: () => request('/leads'),

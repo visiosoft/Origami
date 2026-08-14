@@ -39,23 +39,25 @@ let LeadsService = class LeadsService {
         return lead;
     }
     create(dto) {
-        if (!this.repo)
-            throw new Error('Database not configured');
         const lead = { id: 'LD-' + String(1000 + Date.now() % 10000), ...dto, createdAt: new Date().toISOString().slice(0, 10) };
+        if (!this.repo)
+            return lead;
         return this.repo.save(this.repo.create(lead));
     }
     async update(id, dto) {
         if (!this.repo)
-            throw new Error('Database not configured');
+            return { id, ...dto };
         const lead = await this.findOne(id);
         Object.assign(lead, dto);
         return this.repo.save(lead);
     }
     async remove(id) {
         if (!this.repo)
-            throw new Error('Database not configured');
-        const lead = await this.findOne(id);
-        return this.repo.remove(lead);
+            return { id, deleted: true };
+        const lead = await this.repo.findOneBy({ id });
+        if (lead)
+            await this.repo.remove(lead);
+        return { id, deleted: true };
     }
 };
 exports.LeadsService = LeadsService;

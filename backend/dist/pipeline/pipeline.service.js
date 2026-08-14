@@ -53,6 +53,16 @@ let PipelineService = class PipelineService {
         deal.stage = stage;
         return deal;
     }
+    async remove(id) {
+        if (this.repo) {
+            const deal = this.repo ? await this.repo.findOneBy({ id }) : null;
+            if (deal)
+                await this.repo.remove(deal);
+            return { id, deleted: true };
+        }
+        this.mem = this.mem.filter((d) => d.id !== id);
+        return { id, deleted: true };
+    }
 };
 exports.PipelineService = PipelineService;
 exports.PipelineService = PipelineService = __decorate([

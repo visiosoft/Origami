@@ -25,7 +25,10 @@ export declare class LeadsService {
     };
     findAll(): never[] | Promise<LeadEntity[]>;
     findOne(id: string): Promise<LeadEntity>;
-    create(dto: any): Promise<LeadEntity>;
-    update(id: string, dto: any): Promise<LeadEntity>;
-    remove(id: string): Promise<LeadEntity>;
+    create(dto: any): any;
+    update(id: string, dto: any): Promise<any>;
+    remove(id: string): Promise<{
+        id: string;
+        deleted: boolean;
+    }>;
 }

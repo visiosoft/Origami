@@ -117,6 +117,8 @@ export function Pipeline() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [meetByDeal, setMeetByDeal] = useState<Record<string, { when: string }>>({});
   const [meetWhen, setMeetWhen] = useState('');
+  const [visitByDeal, setVisitByDeal] = useState<Record<string, { when: string }>>({});
+  const [visitWhen, setVisitWhen] = useState('');
 
   useEffect(() => {
     api.pipeline.list().then((res) => { if (Array.isArray(res) && res.length > 0) setDeals(res as Deal[]); }).catch(() => { });
@@ -156,8 +158,9 @@ export function Pipeline() {
     setDeals((prev) => prev.filter((d) => d.id !== id));
     setSelectedId(null);
     toast('Lead deleted');
-    api.leads.delete(id).catch(() => toast('⚠ Failed to delete from database'));
-    api.pipeline.list().then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
+    // Board items are pipeline deals, so delete against the pipeline store
+    // (the leads store is a separate, DB-only collection keyed by LD- ids).
+    api.pipeline.remove(id).catch(() => { });
   };
 
   const createLead = () => {
@@ -230,6 +233,25 @@ export function Pipeline() {
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Google Meet scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
     toast('Google Meet invite opened in Google Calendar');
     setMeetWhen('');
+  };
+
+  const scheduleSiteVisit = (deal: Deal, stageName: string) => {
+    if (!visitWhen) return;
+    const ld = leadDetails[deal.id];
+    const addr = [ld?.projectStreetAddress, ld?.projectStreetName, ld?.projectCity, ld?.projectZipCode].filter(Boolean).join(', ');
+    const start = new Date(visitWhen);
+    const end = new Date(start.getTime() + 60 * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const text = encodeURIComponent(`Site Visit — ${deal.name}`);
+    const details = encodeURIComponent('On-site visit scheduled via Origami CRM.');
+    const location = addr ? `&location=${encodeURIComponent(addr)}` : '';
+    const guests = deal.email ? `&add=${encodeURIComponent(deal.email)}` : '';
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}${location}${guests}&details=${details}`;
+    window.open(url, '_blank', 'noopener');
+    setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: 'Today' }] }));
+    toast('Site visit invite opened in Google Calendar');
+    setVisitWhen('');
   };
 
   const filtered = roleFilter === 'all' ? data : data.filter((d) => {
@@ -326,7 +348,7 @@ export function Pipeline() {
                       const isSelected = selectedId === d.id;
                       const isDraggingCard = dragging === d.id;
                       return (
-                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(''); setVisitWhen(''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -355,8 +377,10 @@ export function Pipeline() {
       {/* Detail panel */}
       {selected && selectedStage && (
         <div style={isMobile
-          ? { position: 'fixed', inset: 0, zIndex: 120, background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }
-          : { width: 380, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', overflowY: 'auto', animation: 'fadeIn 0.2s ease' }}>
+          ? { position: 'fixed', inset: 0, zIndex: 120, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }
+          : { width: 380, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }}>
+          {/* Scrollable content region */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {/* Top bar */}
           <div style={{ padding: '14px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{selected.id} {DOT} {selected.source}</div>
@@ -448,6 +472,25 @@ export function Pipeline() {
                   </div>
                   <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited — enable "Add Google Meet" to attach the video link. Logged to Activity.</div>
                 </div>
+              ) : selected.stage === 'site_visit' ? (
+                (() => {
+                  const ld = leadDetails[selected.id];
+                  const addr = [ld?.projectStreetAddress, ld?.projectStreetName, ld?.projectCity, ld?.projectZipCode].filter(Boolean).join(', ');
+                  return (
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx={12} cy={10} r={3} /></svg>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Site Visit — Schedule On-Site</span>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10 }}>PC schedules the on-site visit. Full lead details are in the “Full Details” tab.</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: addr ? '#173326' : '#9AA39D', marginBottom: 8 }}>{addr ? `Location: ${addr}` : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
+                      {visitByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(visitByDeal[selected.id].when).toLocaleString()}</div>}
+                      <input type="datetime-local" value={visitWhen} onChange={(e) => setVisitWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+                      <div onClick={() => scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? '#173326' : '#D6DED8', color: visitWhen ? 'white' : '#9AA39D', display: 'inline-block' }}>Create site-visit invite</div>
+                      <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited and the project address as the location. Logged to Activity.</div>
+                    </div>
+                  );
+                })()
               ) : (
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                   <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Client</div>
@@ -557,10 +600,12 @@ export function Pipeline() {
               })()}
             </div>
           )}
+          </div>
+          {/* End scrollable content region */}
 
           {/* Actions */}
           {selectedStage.isDecision ? (
-            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', position: 'sticky', bottom: 0, background: 'white' }}>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', flexShrink: 0, background: 'white' }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: 5, daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>✓ Approve — Good Fit</div>
@@ -568,7 +613,7 @@ export function Pipeline() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, position: 'sticky', bottom: 0, background: 'white' }}>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'white' }}>
               <div onClick={() => { const idx = selected.stageIdx; if (idx < 10) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < 10 ? 'Advance to Stage ' + (selected.stageIdx + 2) : '✓ Complete'}</div>
               <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Delete</div>

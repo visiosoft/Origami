@@ -9,4 +9,8 @@ export declare class PipelineService {
     findOne(id: string): Promise<any>;
     create(dto: any): any;
     updateStage(id: string, stage: string): Promise<any>;
+    remove(id: string): Promise<{
+        id: string;
+        deleted: boolean;
+    }>;
 }
