@@ -38,9 +38,15 @@ let UsersService = class UsersService {
         }
     }
     async findAll() {
-        if (!this.repo)
-            return this.mem.slice();
-        return this.repo.find({ order: { createdAt: 'DESC' } });
+        if (this.repo) {
+            try {
+                return await this.repo.find({ order: { createdAt: 'DESC' } });
+            }
+            catch (err) {
+                this.log.error('users.find failed, using seed: ' + err.message);
+            }
+        }
+        return this.mem.slice();
     }
     create(dto) {
         const id = dto.id || 'U-' + String(1000 + (Date.now() % 9000));

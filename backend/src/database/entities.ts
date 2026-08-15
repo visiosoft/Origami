@@ -165,7 +165,7 @@ export class RoleEntity {
   @Column({ nullable: true }) description!: string;
   @Column() tier!: string; // internal | client | consultant
   @Column('int') order!: number;
-  @Column({ type: 'bit', default: false }) isSystem!: boolean;
+  @Column({ default: false }) isSystem!: boolean;
   // moduleKey -> { view, manage }
   @Column('simple-json') permissions!: Record<string, { view: boolean; manage: boolean }>;
 }

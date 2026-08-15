@@ -38,9 +38,15 @@ let RolesService = class RolesService {
         }
     }
     async findAll() {
-        if (!this.repo)
-            return this.mem.slice().sort((a, b) => a.order - b.order);
-        return this.repo.find({ order: { order: 'ASC' } });
+        if (this.repo) {
+            try {
+                return await this.repo.find({ order: { order: 'ASC' } });
+            }
+            catch (err) {
+                this.log.error('roles.find failed, using seed: ' + err.message);
+            }
+        }
+        return this.mem.slice().sort((a, b) => a.order - b.order);
     }
     create(dto) {
         const key = dto.key || 'role_' + Date.now();
