@@ -1,12 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/AppShell';
-import { Dashboard } from './pages/Dashboard';
+import { DashboardRouter } from './pages/DashboardRouter';
 import { Pipeline } from './pages/Pipeline';
 import { Projects } from './pages/Projects';
 import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { ModuleSpec } from './pages/ModuleSpec';
 import { Settings } from './pages/Settings';
+import { Admin } from './pages/Admin';
 import { Auth } from './pages/Auth';
 
 export default function App() {
@@ -16,12 +17,13 @@ export default function App() {
       <Route path="/signup" element={<Auth mode="signup" />} />
       <Route element={<AppShell />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/users" element={<Admin />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

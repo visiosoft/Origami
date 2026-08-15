@@ -141,3 +141,25 @@ export declare class ScoringCriterionEntity {
         points: number;
     }[];
 }
+export declare class RoleEntity {
+    key: string;
+    name: string;
+    description: string;
+    tier: string;
+    order: number;
+    isSystem: boolean;
+    permissions: Record<string, {
+        view: boolean;
+        manage: boolean;
+    }>;
+}
+export declare class UserEntity {
+    id: string;
+    name: string;
+    email: string;
+    tier: string;
+    roleKey: string;
+    status: string;
+    lastLogin: string;
+    createdAt: string;
+}

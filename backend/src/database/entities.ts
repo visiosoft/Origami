@@ -157,3 +157,27 @@ export class ScoringCriterionEntity {
   @Column('int') maxPoints!: number;
   @Column('simple-json') options!: { label: string; points: number }[];
 }
+
+@Entity('roles')
+export class RoleEntity {
+  @PrimaryColumn() key!: string;
+  @Column() name!: string;
+  @Column({ nullable: true }) description!: string;
+  @Column() tier!: string; // internal | client | consultant
+  @Column('int') order!: number;
+  @Column({ type: 'bit', default: false }) isSystem!: boolean;
+  // moduleKey -> { view, manage }
+  @Column('simple-json') permissions!: Record<string, { view: boolean; manage: boolean }>;
+}
+
+@Entity('users')
+export class UserEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column() email!: string;
+  @Column() tier!: string; // internal | client | consultant
+  @Column() roleKey!: string;
+  @Column() status!: string; // pending | active | suspended
+  @Column({ nullable: true }) lastLogin!: string;
+  @Column() createdAt!: string;
+}

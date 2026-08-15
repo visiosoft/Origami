@@ -25,10 +25,39 @@ export class PeopleService {
     return person;
   }
 
-  create(dto: any) {
-    if (this.repo) return this.repo.save(this.repo.create(dto as Partial<PersonEntity>));
-    const person = { id: this.mem.length + 1, projects: [], ...dto };
+  private async nextId(): Promise<number> {
+    const rows = this.repo ? await this.repo.find() : this.mem;
+    return rows.reduce((m: number, p: any) => Math.max(m, Number(p.id) || 0), 0) + 1;
+  }
+
+  async create(dto: any) {
+    const id = Number(dto.id) || (await this.nextId());
+    const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
+    if (this.repo) return this.repo.save(this.repo.create(person as Partial<PersonEntity>));
     this.mem = [person, ...this.mem];
     return person;
+  }
+
+  async update(id: string, dto: any) {
+    const numId = Number(id);
+    if (!this.repo) {
+      this.mem = this.mem.map((p) => (Number(p.id) === numId ? { ...p, ...dto, id: numId } : p));
+      return this.mem.find((p) => Number(p.id) === numId);
+    }
+    const person = await this.repo.findOneBy({ id: numId });
+    if (!person) throw new NotFoundException(`Person ${id} not found`);
+    Object.assign(person, dto, { id: numId });
+    return this.repo.save(person);
+  }
+
+  async remove(id: string) {
+    const numId = Number(id);
+    if (!this.repo) {
+      this.mem = this.mem.filter((p) => Number(p.id) !== numId);
+      return { id: numId, deleted: true };
+    }
+    const person = await this.repo.findOneBy({ id: numId });
+    if (person) await this.repo.remove(person);
+    return { id: numId, deleted: true };
   }
 }

@@ -5,5 +5,10 @@ export declare class PeopleController {
     constructor(peopleService: PeopleService);
     findAll(project?: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
-    create(dto: CreatePersonDto): any;
+    create(dto: CreatePersonDto): Promise<any>;
+    update(id: string, dto: Partial<CreatePersonDto>): Promise<any>;
+    remove(id: string): Promise<{
+        id: number;
+        deleted: boolean;
+    }>;
 }

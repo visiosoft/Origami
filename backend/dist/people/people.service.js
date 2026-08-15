@@ -35,12 +35,40 @@ let PeopleService = class PeopleService {
             throw new common_1.NotFoundException(`Person ${id} not found`);
         return person;
     }
-    create(dto) {
+    async nextId() {
+        const rows = this.repo ? await this.repo.find() : this.mem;
+        return rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
+    }
+    async create(dto) {
+        const id = Number(dto.id) || (await this.nextId());
+        const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
         if (this.repo)
-            return this.repo.save(this.repo.create(dto));
-        const person = { id: this.mem.length + 1, projects: [], ...dto };
+            return this.repo.save(this.repo.create(person));
         this.mem = [person, ...this.mem];
         return person;
+    }
+    async update(id, dto) {
+        const numId = Number(id);
+        if (!this.repo) {
+            this.mem = this.mem.map((p) => (Number(p.id) === numId ? { ...p, ...dto, id: numId } : p));
+            return this.mem.find((p) => Number(p.id) === numId);
+        }
+        const person = await this.repo.findOneBy({ id: numId });
+        if (!person)
+            throw new common_1.NotFoundException(`Person ${id} not found`);
+        Object.assign(person, dto, { id: numId });
+        return this.repo.save(person);
+    }
+    async remove(id) {
+        const numId = Number(id);
+        if (!this.repo) {
+            this.mem = this.mem.filter((p) => Number(p.id) !== numId);
+            return { id: numId, deleted: true };
+        }
+        const person = await this.repo.findOneBy({ id: numId });
+        if (person)
+            await this.repo.remove(person);
+        return { id: numId, deleted: true };
     }
 };
 exports.PeopleService = PeopleService;

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { api } from '../api';
 import {
   PEOPLE, KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, initials, type Person, type Comply,
 } from '../data/people';
@@ -37,8 +38,10 @@ function ProjChips({ p, max }: { p: Person; max: number }) {
 
 export function People() {
   const navigate = useNavigate();
-  const { toast } = useApp();
-  const [added, setAdded] = useState<Person[]>([]);
+  const { toast, can } = useApp();
+  const canManage = can('people', 'manage');
+  const [people, setPeople] = useState<Person[]>(PEOPLE);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [kf, setKf] = useState('All');
   const [pf, setPf] = useState('All projects');
   const [view, setView] = useState<'cards' | 'table' | 'company'>('cards');
@@ -55,7 +58,10 @@ export function People() {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
-  const all: Person[] = [...added, ...PEOPLE];
+  const reload = () => { api.people.list().then((r) => { if (Array.isArray(r) && r.length) setPeople(r as Person[]); }).catch(() => { }); };
+  useEffect(() => { reload(); }, []);
+
+  const all: Person[] = people;
   const projectNames: string[] = [];
   all.forEach((p) => p.projects.forEach((pr) => { if (!projectNames.includes(pr)) projectNames.push(pr); }));
 
@@ -75,11 +81,29 @@ export function People() {
     <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? '#173326' : 'white', color: active ? 'white' : '#7E9B93', border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.1)') }}>{label}</div>
   );
 
+  const openNew = () => { setNp(BLANK); setEditingId(null); setShowNew(true); };
+  const openEdit = (p: Person) => {
+    setNp({
+      name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '',
+      phone: p.phone === '—' ? '' : p.phone, email: p.email === '—' ? '' : p.email, tier: p.tier,
+      projects: [...p.projects], complyDate: p.comply?.date || '', complyRef: p.comply?.extra || '',
+    });
+    setEditingId(p.id);
+    setSelectedId(null);
+    setShowNew(true);
+  };
+  const del = (p: Person) => {
+    if (!confirm(`Remove ${p.name} from People?`)) return;
+    setPeople((prev) => prev.filter((x) => x.id !== p.id));
+    setSelectedId(null);
+    api.people.remove(p.id).then(() => reload()).catch(() => toast('⚠ Failed to delete'));
+    toast(`${p.name} removed`);
+  };
+
   const save = () => {
     if (np.name.trim().length <= 1) return;
     const needsComplyLocal = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
-    const person: Person = {
-      id: 1000 + added.length,
+    const payload: Record<string, unknown> = {
       name: np.name.trim(),
       role: np.role.trim() || np.kind,
       company: np.company.trim() || np.name.trim(),
@@ -89,17 +113,14 @@ export function People() {
       phone: np.phone.trim() || '—',
       email: np.email.trim() || '—',
       projects: [...np.projects],
-      openTasks: 0,
-      since: 'Added today',
       comply: needsComplyLocal && np.complyDate.trim() ? { label: 'Insurance', date: np.complyDate.trim(), ok: true, extra: np.complyRef.trim() || 'No reference on file' } : null,
-      last: 'Just added',
     };
-    setAdded((a) => [person, ...a]);
-    setShowNew(false);
-    setNp(BLANK);
-    setKf('All');
-    setPf('All projects');
-    toast(person.name + ' added to the People directory');
+    const done = (verb: string) => { setShowNew(false); setNp(BLANK); setEditingId(null); reload(); toast(`${payload.name} ${verb}`); };
+    if (editingId != null) {
+      api.people.update(editingId, payload).then(() => done('updated')).catch(() => toast('⚠ Failed to save'));
+    } else {
+      api.people.create(payload).then(() => done('added to the People directory')).catch(() => toast('⚠ Failed to save'));
+    }
   };
 
   const cardsView = (
@@ -297,9 +318,11 @@ export function People() {
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ fontSize: 11.5, color: '#7E9B93' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
-        <div onClick={() => setShowNew(true)} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
-          <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New person or company
-        </div>
+        {canManage && (
+          <div onClick={openNew} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New person or company
+          </div>
+        )}
       </div>
 
       {view === 'company' ? addressBook : view === 'table' ? tableView : cardsView}
@@ -349,8 +372,8 @@ export function People() {
             )}
             <div style={{ padding: '18px 24px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div onClick={() => { setSelectedId(null); navigate('/tasks'); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>View their tasks</div>
-              <div style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Send message</div>
-              <div style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Edit record</div>
+              {canManage && <div onClick={() => openEdit(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#2F7D4A' }}>Edit record</div>}
+              {canManage && <div onClick={() => del(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(142,46,10,0.25)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#8E2E0A' }}>Delete</div>}
             </div>
             <div style={{ padding: '0 24px 24px', fontSize: 10.5, color: '#7E9B93', lineHeight: 1.55 }}>Access tier controls what this person sees. Consultants and subs only see the projects listed above; clients see their own project only.</div>
           </div>
@@ -363,7 +386,7 @@ export function People() {
           <div onClick={(e) => e.stopPropagation()} style={{ width: 620, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'white', borderRadius: 18, boxShadow: '0 24px 60px rgba(20,8,31,0.24)', animation: 'scaleIn 0.18s ease' }}>
             <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div>
-                <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>Add to People</div>
+                <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{editingId != null ? 'Edit person or company' : 'Add to People'}</div>
                 <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>One record serves the directory, the address book and access control.</div>
               </div>
               <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 15, flexShrink: 0 }}>×</div>
@@ -407,7 +430,7 @@ export function People() {
               <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 11, color: '#43514D', lineHeight: 1.55 }}>{np.tier === 'Internal' ? 'Internal tier sees every project, every task and all financials.' : np.tier === 'Client' ? 'Client tier sees only the projects selected above — no internal tasks, costs or margins.' : 'Consultant tier sees only the projects selected above, and only the tasks and files shared with them.'}</div>
             </div>
             <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'center', gap: 9 }}>
-              <div onClick={save} style={{ padding: '11px 20px', borderRadius: 999, background: valid ? '#173326' : '#D6DED8', color: valid ? 'white' : '#9AA39D', fontSize: 13, fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed' }}>Save to directory</div>
+              <div onClick={save} style={{ padding: '11px 20px', borderRadius: 999, background: valid ? '#173326' : '#D6DED8', color: valid ? 'white' : '#9AA39D', fontSize: 13, fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed' }}>{editingId != null ? 'Save changes' : 'Save to directory'}</div>
               <div onClick={() => setShowNew(false)} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
               <div style={{ marginLeft: 'auto', fontSize: 11, color: '#7E9B93' }}>{valid ? 'Ready to save' : 'Name is required'}</div>
             </div>

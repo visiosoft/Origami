@@ -29,6 +29,12 @@ let PeopleController = class PeopleController {
     create(dto) {
         return this.peopleService.create(dto);
     }
+    update(id, dto) {
+        return this.peopleService.update(id, dto);
+    }
+    remove(id) {
+        return this.peopleService.remove(id);
+    }
 };
 exports.PeopleController = PeopleController;
 __decorate([
@@ -52,6 +58,21 @@ __decorate([
     __metadata("design:paramtypes", [create_person_dto_1.CreatePersonDto]),
     __metadata("design:returntype", void 0)
 ], PeopleController.prototype, "create", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "remove", null);
 exports.PeopleController = PeopleController = __decorate([
     (0, common_1.Controller)('people'),
     __metadata("design:paramtypes", [people_service_1.PeopleService])

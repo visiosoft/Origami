@@ -6,5 +6,11 @@ export declare class PeopleService {
     constructor(repo?: Repository<PersonEntity> | undefined);
     findAll(project?: string): Promise<any[]>;
     findOne(id: string): Promise<any>;
-    create(dto: any): any;
+    private nextId;
+    create(dto: any): Promise<any>;
+    update(id: string, dto: any): Promise<any>;
+    remove(id: string): Promise<{
+        id: number;
+        deleted: boolean;
+    }>;
 }

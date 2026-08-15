@@ -1,17 +1,16 @@
-export declare enum PersonKind {
-    Internal = "Internal",
-    Client = "Client",
-    Consultant = "Consultant",
-    Subcontractor = "Subcontractor",
-    Vendor = "Vendor"
-}
 export declare class CreatePersonDto {
+    id?: number;
     name: string;
-    kind: PersonKind;
-    role: string;
+    role?: string;
     company?: string;
+    contact?: string;
+    kind?: string;
+    tier?: string;
     phone?: string;
     email?: string;
     projects?: string[];
-    complianceDate?: string;
+    openTasks?: number;
+    since?: string;
+    last?: string;
+    comply?: unknown;
 }

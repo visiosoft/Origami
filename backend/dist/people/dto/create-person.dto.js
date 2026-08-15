@@ -9,29 +9,23 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreatePersonDto = exports.PersonKind = void 0;
+exports.CreatePersonDto = void 0;
 const class_validator_1 = require("class-validator");
-var PersonKind;
-(function (PersonKind) {
-    PersonKind["Internal"] = "Internal";
-    PersonKind["Client"] = "Client";
-    PersonKind["Consultant"] = "Consultant";
-    PersonKind["Subcontractor"] = "Subcontractor";
-    PersonKind["Vendor"] = "Vendor";
-})(PersonKind || (exports.PersonKind = PersonKind = {}));
 class CreatePersonDto {
 }
 exports.CreatePersonDto = CreatePersonDto;
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreatePersonDto.prototype, "id", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePersonDto.prototype, "name", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(PersonKind),
-    __metadata("design:type", String)
-], CreatePersonDto.prototype, "kind", void 0);
-__decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreatePersonDto.prototype, "role", void 0);
 __decorate([
@@ -39,6 +33,21 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreatePersonDto.prototype, "company", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "contact", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "kind", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "tier", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
@@ -55,8 +64,23 @@ __decorate([
     __metadata("design:type", Array)
 ], CreatePersonDto.prototype, "projects", void 0);
 __decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreatePersonDto.prototype, "openTasks", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
-], CreatePersonDto.prototype, "complianceDate", void 0);
+], CreatePersonDto.prototype, "since", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "last", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreatePersonDto.prototype, "comply", void 0);
 //# sourceMappingURL=create-person.dto.js.map

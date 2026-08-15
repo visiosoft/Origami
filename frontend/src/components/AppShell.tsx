@@ -1,98 +1,37 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { useApp, type ViewMode } from '../AppContext';
+import { NAV_GROUPS } from '../data/nav';
+import { TIER_STYLE } from '../data/users';
 import './AppShell.css';
 
-interface NavItem {
-  label: string;
-  route: string;
-  icon: string;
-  badge?: string;
-  note?: string;
-}
-
-interface NavGroup {
-  key: string;
-  label: string;
-  items: NavItem[];
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  { key: 'main', label: 'Main', items: [{ label: 'Dashboard', route: 'dashboard', icon: 'dash' }] },
-  {
-    key: 'crm',
-    label: 'Projects & CRM',
-    items: [
-      { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', badge: '9' },
-      { label: 'Projects', route: 'projects', icon: 'folder' },
-      { label: 'People', route: 'people', icon: 'people' },
-      { label: 'Tasks', route: 'tasks', icon: 'check', badge: '32' },
-    ],
-  },
-  {
-    key: 'precon',
-    label: 'Design & Preconstruction',
-    items: [
-      { label: 'Design', route: 'design', icon: 'pen', note: 'Board' },
-      { label: 'Selections & Specifications', route: 'selections', icon: 'list' },
-      { label: 'Estimating', route: 'estimating', icon: 'calc' },
-      { label: 'Plan & File Room', route: 'planroom', icon: 'files' },
-      { label: 'Manpower & Resources', route: 'manpower_pre', icon: 'crew' },
-      { label: 'Consultant & Sub Prequalifying', route: 'prequal', icon: 'shieldc' },
-    ],
-  },
-  {
-    key: 'construction',
-    label: 'Construction',
-    items: [
-      { label: 'Project Management', route: 'pm', icon: 'clip', note: 'Board' },
-      { label: 'Quality & Safety', route: 'quality', icon: 'shielda' },
-      { label: 'Schedule', route: 'schedule', icon: 'cal' },
-      { label: 'RFIs', route: 'rfis', icon: 'q' },
-      { label: 'Change Orders', route: 'changeorders', icon: 'swap' },
-      { label: 'Reimbursement', route: 'reimbursement', icon: 'receipt' },
-      { label: 'Manpower & Resources', route: 'manpower_con', icon: 'crew' },
-    ],
-  },
-  {
-    key: 'financial',
-    label: 'Financial',
-    items: [
-      { label: 'Business', route: 'fin_business', icon: 'bank' },
-      { label: 'Project', route: 'fin_project', icon: 'dollar' },
-      { label: 'Resources', route: 'fin_resources', icon: 'db' },
-    ],
-  },
-  {
-    key: 'insight',
-    label: 'Insight & Documents',
-    items: [
-      { label: 'Reports & Analytics', route: 'reports', icon: 'chart' },
-      { label: 'Document & Template Library', route: 'library', icon: 'book' },
-    ],
-  },
-  {
-    key: 'admin',
-    label: 'Admin',
-    items: [
-      { label: 'Settings', route: 'settings', icon: 'key' },
-      { label: 'User Access & Roles', route: 'users', icon: 'key' },
-      { label: 'Help & Support', route: 'help', icon: 'life' },
-    ],
-  },
-];
-
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
+
+const initialsOf = (name: string) =>
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { viewMode, setViewMode, toastMsg } = useApp();
+  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, users, setCurrentUserId } = useApp();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const slug = location.pathname.slice(1) || 'dashboard';
+
+  // Route guard: if the current user's role can't view this module, bounce to dashboard.
+  useEffect(() => {
+    if (loadingAccess) return;
+    if (slug === 'dashboard' || slug === 'help' || slug === 'login') return;
+    if (!can(slug, 'view')) navigate('/dashboard', { replace: true });
+  }, [slug, loadingAccess, can, navigate]);
+
+  // Only show nav items the current role can view; drop groups left empty.
+  const visibleGroups = NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((it) => can(it.route, 'view')) }))
+    .filter((g) => g.items.length > 0);
 
   const activeItem = (() => {
     for (const group of NAV_GROUPS) {
@@ -111,6 +50,9 @@ export function AppShell() {
 
   const isOpen = (key: string) => openGroups[key] !== false;
 
+  const userName = currentUser?.name ?? 'Edward M.';
+  const userRoleName = currentRole?.name ?? 'Admin';
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -120,7 +62,7 @@ export function AppShell() {
         </div>
 
         <nav className="nav om-nav-scroll">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.key} className="nav-group">
               <div className="nav-group-header" onClick={() => toggleGroup(group.key)}>
                 <span className="nav-group-label">{group.label}</span>
@@ -151,11 +93,30 @@ export function AppShell() {
           ))}
         </nav>
 
-        <div className="user-chip">
-          <div className="user-avatar">EM</div>
-          <div className="user-info">
-            <span className="user-name">Edward M.</span>
-            <span className="user-role">Admin</span>
+        <div className="user-chip" style={{ position: 'relative' }}>
+          {userMenuOpen && (
+            <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 10, right: 10, background: 'white', borderRadius: 12, boxShadow: '0 8px 30px rgba(11,26,18,0.28)', padding: 6, maxHeight: 320, overflowY: 'auto', zIndex: 50 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', padding: '6px 10px 4px' }}>Switch acting user</div>
+              {users.map((u) => {
+                const on = u.id === currentUser?.id;
+                const ts = TIER_STYLE[u.tier];
+                return (
+                  <div key={u.id} onClick={() => { setCurrentUserId(u.id); setUserMenuOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: on ? '#EEF3EE' : 'transparent' }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 999, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initialsOf(u.name)}</div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
+                      <div style={{ fontSize: 10, color: '#7E9B93' }}>{u.roleKey}</div>
+                    </div>
+                    <span style={{ fontSize: 8.5, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: ts.bg, color: ts.color, flexShrink: 0 }}>{ts.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="user-avatar" onClick={() => setUserMenuOpen((o) => !o)} style={{ cursor: 'pointer' }}>{initialsOf(userName)}</div>
+          <div className="user-info" onClick={() => setUserMenuOpen((o) => !o)} style={{ cursor: 'pointer' }}>
+            <span className="user-name">{userName}</span>
+            <span className="user-role">{userRoleName}</span>
           </div>
           <div className="user-signout" title="Sign out" onClick={() => navigate('/login')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
@@ -175,20 +136,22 @@ export function AppShell() {
             {pageBadge && <span className="page-badge">{pageBadge}</span>}
           </div>
 
-          <div className="view-switch">
-            <span className="view-switch-label">View as:</span>
-            <div className="view-switch-track">
-              {VIEW_MODES.map((m) => (
-                <div
-                  key={m}
-                  className={`view-switch-pill ${viewMode === m ? 'active' : ''}`}
-                  onClick={() => setViewMode(m)}
-                >
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
-                </div>
-              ))}
+          {tier === 'internal' && (
+            <div className="view-switch">
+              <span className="view-switch-label">View as:</span>
+              <div className="view-switch-track">
+                {VIEW_MODES.map((m) => (
+                  <div
+                    key={m}
+                    className={`view-switch-pill ${viewMode === m ? 'active' : ''}`}
+                    onClick={() => setViewMode(m)}
+                  >
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="search-box">
             <Icon name="search" size={16} stroke="#7E9B93" strokeWidth={2} />
