@@ -121,16 +121,20 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   if (loading) return <div style={{ fontSize: 13, color: '#7E9B93', padding: 20 }}>Loading tasks…</div>;
 
   // ---- task card ----
-  const TaskCard = ({ t }: { t: ProjectTask }) => {
+  // Card JSX is inlined (not a nested component) so a re-render during drag
+  // reconciles the same DOM node instead of remounting it — which would cancel
+  // the native HTML5 drag. Keep this inline.
+  const renderCard = (t: ProjectTask) => {
     const subs = subtasksOf(tasks, t.id);
     const doneSubs = subs.filter((s) => s.completed).length;
     return (
       <div
+        key={t.id}
         draggable={canManage}
-        onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); setDragId(t.id); }}
+        onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); e.dataTransfer.effectAllowed = 'move'; setDragId(t.id); }}
         onDragEnd={() => { setDragId(null); setDragOver(null); }}
         onClick={() => setSelectedId(t.id)}
-        style={{ background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.06)', padding: 11, cursor: 'pointer', opacity: dragId === t.id ? 0.4 : 1, boxShadow: '0 1px 2px rgba(20,8,31,0.04)' }}
+        style={{ background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.06)', padding: 11, cursor: canManage ? 'grab' : 'pointer', opacity: dragId === t.id ? 0.4 : 1, boxShadow: '0 1px 2px rgba(20,8,31,0.04)' }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
@@ -168,7 +172,7 @@ export function TaskBoard({ projectId }: { projectId: number }) {
               {canManage && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
             </div>
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
-              {secTasks.map((t) => <TaskCard key={t.id} t={t} />)}
+              {secTasks.map((t) => renderCard(t))}
               {addingIn === sec.id ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <textarea autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)} placeholder="Task title…" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(sec.id, addDraft); setAddDraft(''); } }} />
