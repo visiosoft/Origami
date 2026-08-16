@@ -25,6 +25,7 @@ interface NewLead {
   countyLocation: string; propertyType: string; potentialProjectType: string; homeworkCompleted: string[];
   projectVision: string; reasonForProject: string; budgetPosition: string; fundingStatus: string;
   desiredStart: string; expectedDuration: string; expectedLengthOfOwnership: string; clientPersonality: string;
+  zoningImages?: string; // JSON string of [{name,dataUrl}]
 }
 const BLANK_LEAD: NewLead = {
   leadName: '', namePronunciation: '', phone: '', email: '',
@@ -303,6 +304,24 @@ export function Pipeline() {
     api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }).catch(() => { });
     toast('Site visit time saved');
   };
+
+  // ---- Zoning Analysis image uploads (stored as data URLs on the lead) ----
+  const parseImgs = (s?: string): { name: string; dataUrl: string }[] => { try { return s ? JSON.parse(s) : []; } catch { return []; } };
+  const saveZoningImages = (deal: Deal, imgs: { name: string; dataUrl: string }[]) => {
+    const json = JSON.stringify(imgs);
+    setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || BLANK_LEAD), zoningImages: json } }));
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningImages: json }).catch(() => { });
+  };
+  const addZoningFiles = (deal: Deal, files: FileList | null) => {
+    if (!files || !files.length) return;
+    const list = Array.from(files).filter((f) => f.type.startsWith('image/'));
+    if (list.some((f) => f.size > 2_000_000)) toast('Images over 2MB were skipped');
+    const use = list.filter((f) => f.size <= 2_000_000).slice(0, 8);
+    if (!use.length) return;
+    Promise.all(use.map((f) => new Promise<{ name: string; dataUrl: string }>((res) => { const r = new FileReader(); r.onload = () => res({ name: f.name, dataUrl: String(r.result) }); r.readAsDataURL(f); })))
+      .then((imgs) => { saveZoningImages(deal, [...parseImgs(leadDetails[deal.id]?.zoningImages), ...imgs]); toast(`${imgs.length} image(s) added`); });
+  };
+  const removeZoningImage = (deal: Deal, idx: number) => { saveZoningImages(deal, parseImgs(leadDetails[deal.id]?.zoningImages).filter((_, i) => i !== idx)); };
 
   const setFit = (dealId: string, key: string, label: string) =>
     setFitByDeal((p) => ({ ...p, [dealId]: { ...(p[dealId] || {}), [key]: label } }));
@@ -620,6 +639,31 @@ export function Pipeline() {
                   </div>
                 </div>
               )}
+
+              {/* Zoning Analysis — image uploads */}
+              {selected.stage === 'zoning' && (() => {
+                const imgs = parseImgs(leadDetails[selected.id]?.zoningImages);
+                return (
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 8 }}>Zoning Images ({imgs.length})</div>
+                    <label style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>
+                      + Upload images
+                      <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => { addZoningFiles(selected, e.target.files); e.currentTarget.value = ''; }} />
+                    </label>
+                    <span style={{ fontSize: 10, color: '#7E9B93', marginLeft: 10 }}>Up to 2MB each · saved to the lead.</span>
+                    {imgs.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginTop: 10 }}>
+                        {imgs.map((im, i) => (
+                          <div key={i} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(20,8,31,0.08)' }}>
+                            <a href={im.dataUrl} target="_blank" rel="noopener noreferrer"><img src={im.dataUrl} alt={im.name} style={{ width: '100%', height: 70, objectFit: 'cover', display: 'block' }} /></a>
+                            <div onClick={() => removeZoningImage(selected, i)} title="Remove" style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 999, background: 'rgba(0,0,0,0.6)', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, cursor: 'pointer' }}>×</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Notes — add / edit / delete */}
               <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>

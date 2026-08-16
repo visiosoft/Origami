@@ -145,6 +145,7 @@ export class LeadEntity {
   @Column({ nullable: true }) siteVisitAt!: string;
   @Column({ type: 'int', nullable: true }) fitScore!: number;
   @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
+  @Column({ ...TEXT, nullable: true }) zoningImages!: string; // JSON string of [{name,dataUrl}] (data URLs)
   @Column() createdAt!: string;
 }
 

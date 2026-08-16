@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { MyTasks } from '../components/MyTasks';
 import { PROJECTS } from '../data/projects';
 
 const BG = "'Bricolage Grotesque', serif";
@@ -37,6 +38,8 @@ export function ConsultantDashboard() {
         <Stat label="Open RFIs" value="2" accent="#D2822E" />
         <Stat label="Deliverables Due" value="3" accent="#8E2E0A" />
       </div>
+
+      <MyTasks />
 
       <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18, marginBottom: 14 }}>
         <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 12 }}>My Queue</div>

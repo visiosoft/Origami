@@ -128,6 +128,7 @@ export declare class LeadEntity {
     siteVisitAt: string;
     fitScore: number;
     fitSelections: Record<string, string>;
+    zoningImages: string;
     createdAt: string;
 }
 export declare class ScoringCriterionEntity {

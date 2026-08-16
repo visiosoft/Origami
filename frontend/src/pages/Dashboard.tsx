@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { MyTasks } from '../components/MyTasks';
 import {
   FINANCE, INVOICES, REVENUE_BASE, FUNNEL, TEAM, DEADLINES, ACTIVITY, HELP_CONTENT,
   enrichInvoices, money, type EnrichedInvoice,
@@ -223,6 +224,7 @@ export function Dashboard() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <MyTasks />
       {bandLabel(isClient ? 'Your project at a glance' : 'Filter the dashboard')}
 
       {/* KPI row */}

@@ -35,4 +35,5 @@ export class CreateLeadDto {
     @IsString() @IsOptional() siteVisitAt?: string;
     @IsNumber() @IsOptional() fitScore?: number;
     @IsObject() @IsOptional() fitSelections?: Record<string, string>;
+    @IsString() @IsOptional() zoningImages?: string; // JSON string of [{name,dataUrl}]
 }

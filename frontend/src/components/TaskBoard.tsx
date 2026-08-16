@@ -51,7 +51,8 @@ export function TaskBoard({ projectId }: { projectId: number }) {
       .finally(() => setLoading(false));
   };
   useEffect(() => { setLoading(true); loadedProject.current = projectId; load(); /* eslint-disable-next-line */ }, [projectId]);
-  useEffect(() => { api.people.list().then((r: any) => { if (Array.isArray(r)) setPeople(r.map((p) => p.name)); }).catch(() => { }); }, []);
+  // Assignees are users (accounts) so an assigned task shows on that person's dashboard.
+  useEffect(() => { api.users.list().then((r: any) => { if (Array.isArray(r)) setPeople(r.map((u) => u.name)); }).catch(() => { }); }, []);
 
   const selected = tasks.find((t) => t.id === selectedId) || null;
 

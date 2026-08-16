@@ -33,4 +33,5 @@ export declare class CreateLeadDto {
     siteVisitAt?: string;
     fitScore?: number;
     fitSelections?: Record<string, string>;
+    zoningImages?: string;
 }

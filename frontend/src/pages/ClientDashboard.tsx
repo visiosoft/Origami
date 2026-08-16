@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { MyTasks } from '../components/MyTasks';
 import { PROJECTS, PR_COLORS } from '../data/projects';
 
 const BG = "'Bricolage Grotesque', serif";
@@ -35,6 +36,8 @@ export function ClientDashboard() {
         <Stat label="In Construction" value={String(inConstruction)} accent="#D2822E" />
         <Stat label="Avg Progress" value={`${avg}%`} accent="#2F7D4A" />
       </div>
+
+      <MyTasks />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
         {projects.map((p) => {
