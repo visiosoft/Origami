@@ -1,15 +1,20 @@
-// Default workflows + items. Editable via the Workflows page; item structure
-// will be refined later per requirements.
+// Default workflows + items. Workflows with projectId=null act as reusable
+// templates; cloning one to a project creates a project-specific instance.
 
 export type WorkflowStatus = 'Active' | 'Draft' | 'Archived';
 export type WorkflowItemStatus = 'Open' | 'In Progress' | 'Done';
 
 export interface Workflow {
   id: string;
+  projectId?: number | null;
   name: string;
   description?: string;
   status: WorkflowStatus;
   owner?: string;
+  estimatedDays?: number | null;
+  plannedStart?: string;
+  plannedEnd?: string;
+  completedAt?: string;
   createdAt: string;
 }
 
@@ -20,17 +25,21 @@ export interface WorkflowItem {
   status: WorkflowItemStatus;
   notes?: string;
   order: number;
+  estimatedDays?: number | null;
+  plannedStart?: string;
+  plannedEnd?: string;
+  completedAt?: string;
   createdAt: string;
 }
 
 export const DEFAULT_WORKFLOWS: Workflow[] = [
-  { id: 'W-1001', name: 'New Client Onboarding', description: 'Standard intake-to-kickoff process for new design + build clients.', status: 'Active', owner: 'Sara R.', createdAt: '2026-06-01' },
-  { id: 'W-1002', name: 'Permit & Approvals', description: 'City/county submission and approval tracking.', status: 'Draft', owner: 'Noah K.', createdAt: '2026-07-12' },
+  { id: 'W-1001', projectId: null, name: 'New Client Onboarding', description: 'Standard intake-to-kickoff process for new design + build clients.', status: 'Active', owner: 'Sara R.', estimatedDays: 14, plannedStart: '2026-06-01', plannedEnd: '2026-06-15', createdAt: '2026-06-01' },
+  { id: 'W-1002', projectId: null, name: 'Permit & Approvals', description: 'City/county submission and approval tracking.', status: 'Draft', owner: 'Noah K.', estimatedDays: 45, plannedStart: '2026-07-12', plannedEnd: '2026-08-26', createdAt: '2026-07-12' },
 ];
 
 export const DEFAULT_WORKFLOW_ITEMS: WorkflowItem[] = [
-  { id: 'WI-1', workflowId: 'W-1001', title: 'Send welcome packet', status: 'Done', notes: 'Includes contract + schedule overview.', order: 0, createdAt: '2026-06-01' },
-  { id: 'WI-2', workflowId: 'W-1001', title: 'Collect site details', status: 'In Progress', notes: '', order: 1, createdAt: '2026-06-02' },
-  { id: 'WI-3', workflowId: 'W-1001', title: 'Schedule kickoff meeting', status: 'Open', notes: '', order: 2, createdAt: '2026-06-03' },
-  { id: 'WI-4', workflowId: 'W-1002', title: 'Prepare submission set', status: 'Open', notes: '', order: 0, createdAt: '2026-07-12' },
+  { id: 'WI-1', workflowId: 'W-1001', title: 'Send welcome packet', status: 'Done', notes: 'Includes contract + schedule overview.', order: 0, estimatedDays: 1, plannedStart: '2026-06-01', plannedEnd: '2026-06-02', completedAt: '2026-06-02', createdAt: '2026-06-01' },
+  { id: 'WI-2', workflowId: 'W-1001', title: 'Collect site details', status: 'In Progress', notes: '', order: 1, estimatedDays: 3, plannedStart: '2026-06-02', plannedEnd: '2026-06-05', createdAt: '2026-06-02' },
+  { id: 'WI-3', workflowId: 'W-1001', title: 'Schedule kickoff meeting', status: 'Open', notes: '', order: 2, estimatedDays: 2, plannedStart: '2026-06-05', plannedEnd: '2026-06-07', createdAt: '2026-06-03' },
+  { id: 'WI-4', workflowId: 'W-1002', title: 'Prepare submission set', status: 'Open', notes: '', order: 0, estimatedDays: 10, plannedStart: '2026-07-12', plannedEnd: '2026-07-22', createdAt: '2026-07-12' },
 ];

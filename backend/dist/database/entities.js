@@ -666,6 +666,10 @@ __decorate([
     __metadata("design:type", String)
 ], WorkflowEntity.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], WorkflowEntity.prototype, "projectId", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], WorkflowEntity.prototype, "name", void 0);
@@ -681,6 +685,22 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], WorkflowEntity.prototype, "owner", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], WorkflowEntity.prototype, "estimatedDays", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "plannedStart", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "plannedEnd", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "completedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
@@ -715,6 +735,22 @@ __decorate([
     (0, typeorm_1.Column)('int'),
     __metadata("design:type", Number)
 ], WorkflowItemEntity.prototype, "order", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], WorkflowItemEntity.prototype, "estimatedDays", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "plannedStart", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "plannedEnd", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "completedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)

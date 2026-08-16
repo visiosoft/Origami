@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/common';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowItemsService } from './workflow-items.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
@@ -11,8 +11,16 @@ export class WorkflowsController {
   ) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(@Query('projectId') projectId?: string) {
+    return this.service.findAll(projectId);
+  }
+
+  // Clone a template workflow (+ its items) into a project.
+  @Post('apply')
+  async apply(@Body() body: { templateId: string; projectId: number }) {
+    const wf = await this.service.applyTemplate(body.templateId, Number(body.projectId));
+    await this.items.cloneForWorkflow(body.templateId, wf.id);
+    return wf;
   }
 
   @Post()
@@ -27,7 +35,6 @@ export class WorkflowsController {
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    // Cascade: remove the workflow's items so none orphan.
     await this.items.deleteByWorkflow(id);
     return this.service.remove(id);
   }

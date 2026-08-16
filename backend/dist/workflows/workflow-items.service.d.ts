@@ -14,4 +14,5 @@ export declare class WorkflowItemsService implements OnApplicationBootstrap {
         deleted: boolean;
     }>;
     deleteByWorkflow(workflowId: string): Promise<void>;
+    cloneForWorkflow(fromWorkflowId: string, toWorkflowId: string): Promise<void>;
 }

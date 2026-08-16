@@ -88,10 +88,11 @@ export const api = {
     remove: (id: string) => request(`/project-sections/${id}`, { method: 'DELETE' }),
   },
   workflows: {
-    list: () => request('/workflows'),
+    list: (projectId?: number | 'none') => request(`/workflows${projectId !== undefined ? `?projectId=${projectId}` : ''}`),
     create: (data: unknown) => request('/workflows', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/workflows/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/workflows/${id}`, { method: 'DELETE' }),
+    apply: (templateId: string, projectId: number) => request('/workflows/apply', { method: 'POST', body: JSON.stringify({ templateId, projectId }) }),
   },
   workflowItems: {
     list: (workflowId: string) => request(`/workflow-items?workflowId=${workflowId}`),

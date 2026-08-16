@@ -6,11 +6,13 @@ export declare class WorkflowsService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<WorkflowEntity>);
     onApplicationBootstrap(): Promise<void>;
-    findAll(): Promise<WorkflowEntity[]>;
+    findAll(projectId?: string): Promise<WorkflowEntity[]>;
+    findOne(id: string): Promise<WorkflowEntity | null>;
     create(dto: any): Promise<WorkflowEntity>;
     update(id: string, dto: any): Promise<WorkflowEntity>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;
     }>;
+    applyTemplate(templateId: string, projectId: number): Promise<WorkflowEntity>;
 }

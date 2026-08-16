@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
+import { WorkflowsView } from '../components/WorkflowsView';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import {
-  STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS,
-  type Project,
-} from '../data/projects';
+import { STAGE_CONFIG, PR_COLORS, type Project } from '../data/projects';
 
 const BG = "'Bricolage Grotesque', serif";
-const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const STAGES = ['Leads', 'Design', 'Construction', 'Closeout'];
@@ -29,7 +26,6 @@ export function Projects() {
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
-  const workflow = computeWorkflow();
 
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); };
   const openNew = () => { setNp(BLANK); setEditingId(null); setShowForm(true); };
@@ -207,94 +203,8 @@ export function Projects() {
                 <TaskBoard projectId={sel.id} />
               </div>
             ) : (
-              <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>
-                {/* Wizard step indicator */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 16, padding: '0 4px' }}>
-                  {workflow.map((step) => (
-                    <div key={step.id} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{ width: 22, height: 22, borderRadius: 999, background: step.statusBg, border: '2px solid ' + step.statusC, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                          {step.isComplete && <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={step.statusC} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-                          {step.isLocked && <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#9AA39D" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={11} width={18} height={11} rx={2} ry={2} /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
-                        </div>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: step.statusC, whiteSpace: 'nowrap' }}>{step.name}</span>
-                      </div>
-                      <div style={{ flex: 1, height: 2, background: step.statusBg, margin: '0 6px', minWidth: 8 }} />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Phase columns */}
-                <div style={{ display: 'flex', gap: 12, minWidth: 'max-content' }}>
-                  {workflow.map((phase) => (
-                    <div key={phase.id} style={{ width: 220, flexShrink: 0, background: '#FBF8F2', borderRadius: 12, border: '1px solid rgba(20,8,31,0.04)', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 340px)', opacity: phase.headerOpacity }}>
-                      <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: 3, background: phase.color, flexShrink: 0 }} />
-                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0B1A12', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phase.name}</div>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ flex: 1, height: 4, background: 'rgba(20,8,31,0.06)', borderRadius: 999, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, background: phase.color, width: phase.progress + '%', transition: 'width 0.3s' }} /></div>
-                          <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
-                        </div>
-                      </div>
-                      {phase.isLocked ? (
-                        <div style={{ padding: '40px 16px', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                          <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#D5D3CC" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={11} width={18} height={11} rx={2} ry={2} /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#9AA39D' }}>Complete previous phase to unlock</div>
-                        </div>
-                      ) : (
-                        <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          {phase.tasks.map((pt) => {
-                            const sc = WF_ST_COLORS[pt.status];
-                            const done = pt.status === 'Done';
-                            if (phase.isComplete && done) {
-                              return (
-                                <div key={pt.title} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D', textDecoration: 'line-through' }}>{pt.title}</span>
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return (
-                              <div key={pt.title} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)' }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.4, marginBottom: 6 }}>{pt.title}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
-                                  <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
-                                  {pt.auto && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 999, background: '#FBE9AE', border: '1px solid rgba(245,158,11,0.2)' }}>
-                                      <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#D2822E" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
-                                      <span style={{ fontSize: 7, fontWeight: 700, color: '#93520F' }}>AUTO</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                                  <span style={{ padding: '2px 7px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: sc.bg, color: sc.c }}>{pt.status}</span>
-                                  {pt.start && (
-                                    <span style={{ fontSize: 9, color: '#7E9B93', display: 'flex', alignItems: 'center', gap: 2 }}>
-                                      <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={4} width={18} height={18} rx={2} ry={2} /><line x1={16} y1={2} x2={16} y2={6} /><line x1={8} y1={2} x2={8} y2={6} /><line x1={3} y1={10} x2={21} y2={10} /></svg>
-                                      {pt.start} – {pt.end}
-                                    </span>
-                                  )}
-                                  <span style={{ fontSize: 9, color: '#7E9B93', marginLeft: 'auto', fontWeight: 600 }}>{pt.dur}</span>
-                                </div>
-                                {pt.assignee && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 5 }}>
-                                    <div style={{ width: 16, height: 16, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 7, fontWeight: 700, color: 'white' }}>{initials(pt.assignee)}</div>
-                                    <span style={{ fontSize: 9, color: '#7E9B93' }}>{pt.assignee}</span>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                <WorkflowsView projectId={sel.id} />
               </div>
             )}
           </div>

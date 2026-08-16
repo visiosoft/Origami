@@ -5,7 +5,11 @@ export declare class WorkflowsController {
     private readonly service;
     private readonly items;
     constructor(service: WorkflowsService, items: WorkflowItemsService);
-    findAll(): Promise<import("../database/entities").WorkflowEntity[]>;
+    findAll(projectId?: string): Promise<import("../database/entities").WorkflowEntity[]>;
+    apply(body: {
+        templateId: string;
+        projectId: number;
+    }): Promise<import("../database/entities").WorkflowEntity>;
     create(dto: CreateWorkflowDto): Promise<import("../database/entities").WorkflowEntity>;
     update(id: string, dto: Partial<CreateWorkflowDto>): Promise<import("../database/entities").WorkflowEntity>;
     remove(id: string): Promise<{

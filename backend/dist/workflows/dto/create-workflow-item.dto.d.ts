@@ -5,4 +5,8 @@ export declare class CreateWorkflowItemDto {
     status?: string;
     notes?: string;
     order?: number;
+    estimatedDays?: number | null;
+    plannedStart?: string;
+    plannedEnd?: string;
+    completedAt?: string;
 }

@@ -195,10 +195,15 @@ export class FaqEntity {
 @Entity('workflows')
 export class WorkflowEntity {
   @PrimaryColumn() id!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number; // null = template / unassigned
   @Column() name!: string;
   @Column({ ...TEXT, nullable: true }) description!: string;
   @Column() status!: string; // Active | Draft | Archived
   @Column({ nullable: true }) owner!: string;
+  @Column({ type: 'int', nullable: true }) estimatedDays!: number; // estimated time
+  @Column({ nullable: true }) plannedStart!: string; // plan time
+  @Column({ nullable: true }) plannedEnd!: string;   // plan time
+  @Column({ nullable: true }) completedAt!: string;  // completed time
   @Column() createdAt!: string;
 }
 
@@ -210,6 +215,10 @@ export class WorkflowItemEntity {
   @Column() status!: string; // Open | In Progress | Done
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column('int') order!: number;
+  @Column({ type: 'int', nullable: true }) estimatedDays!: number; // estimated time
+  @Column({ nullable: true }) plannedStart!: string; // plan time
+  @Column({ nullable: true }) plannedEnd!: string;   // plan time
+  @Column({ nullable: true }) completedAt!: string;  // completed time
   @Column() createdAt!: string;
 }
 

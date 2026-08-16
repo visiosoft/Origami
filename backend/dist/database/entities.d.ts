@@ -173,10 +173,15 @@ export declare class FaqEntity {
 }
 export declare class WorkflowEntity {
     id: string;
+    projectId: number;
     name: string;
     description: string;
     status: string;
     owner: string;
+    estimatedDays: number;
+    plannedStart: string;
+    plannedEnd: string;
+    completedAt: string;
     createdAt: string;
 }
 export declare class WorkflowItemEntity {
@@ -186,6 +191,10 @@ export declare class WorkflowItemEntity {
     status: string;
     notes: string;
     order: number;
+    estimatedDays: number;
+    plannedStart: string;
+    plannedEnd: string;
+    completedAt: string;
     createdAt: string;
 }
 export declare class ProjectSectionEntity {

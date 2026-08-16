@@ -42,4 +42,24 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateWorkflowItemDto.prototype, "order", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateWorkflowItemDto.prototype, "estimatedDays", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWorkflowItemDto.prototype, "plannedStart", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWorkflowItemDto.prototype, "plannedEnd", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWorkflowItemDto.prototype, "completedAt", void 0);
 //# sourceMappingURL=create-workflow-item.dto.js.map

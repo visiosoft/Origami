@@ -20,6 +20,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateWorkflowDto.prototype, "id", void 0);
 __decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateWorkflowDto.prototype, "projectId", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateWorkflowDto.prototype, "name", void 0);
@@ -38,4 +43,24 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateWorkflowDto.prototype, "owner", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateWorkflowDto.prototype, "estimatedDays", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWorkflowDto.prototype, "plannedStart", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWorkflowDto.prototype, "plannedEnd", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateWorkflowDto.prototype, "completedAt", void 0);
 //# sourceMappingURL=create-workflow.dto.js.map

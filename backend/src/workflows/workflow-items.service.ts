@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { WorkflowItemEntity } from '../database/entities';
 import { DEFAULT_WORKFLOW_ITEMS } from '../seed-data/workflows';
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 @Injectable()
 export class WorkflowItemsService implements OnApplicationBootstrap {
   private readonly log = new Logger('WorkflowItemsService');
@@ -30,13 +32,19 @@ export class WorkflowItemsService implements OnApplicationBootstrap {
 
   create(dto: any) {
     const id = dto.id || 'WI-' + String(Date.now());
-    const item = { status: 'Open', order: 0, notes: '', createdAt: new Date().toISOString().slice(0, 10), ...dto, id };
+    const item: any = { status: 'Open', order: 0, notes: '', createdAt: today(), ...dto, id };
+    if (item.status === 'Done' && !item.completedAt) item.completedAt = today();
     return this.repo.save(this.repo.create(item as Partial<WorkflowItemEntity>));
   }
 
   async update(id: string, dto: any) {
     let item = await this.repo.findOneBy({ id });
-    if (!item) item = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<WorkflowItemEntity>);
+    if (!item) item = this.repo.create({ id, createdAt: today() } as Partial<WorkflowItemEntity>);
+    // Auto-manage "completed time" from status.
+    if (typeof dto.status === 'string') {
+      if (dto.status === 'Done' && !dto.completedAt && !item.completedAt) dto = { ...dto, completedAt: today() };
+      if (dto.status !== 'Done') dto = { ...dto, completedAt: null };
+    }
     Object.assign(item, dto, { id });
     return this.repo.save(item);
   }
@@ -49,5 +57,24 @@ export class WorkflowItemsService implements OnApplicationBootstrap {
 
   async deleteByWorkflow(workflowId: string) {
     await this.repo.delete({ workflowId });
+  }
+
+  // Copy a template workflow's items to a new workflow (used by apply-template).
+  async cloneForWorkflow(fromWorkflowId: string, toWorkflowId: string) {
+    const src = await this.repo.find({ where: { workflowId: fromWorkflowId }, order: { order: 'ASC' } });
+    const clones = src.map((s, i) => ({
+      id: 'WI-' + Date.now() + '-' + i,
+      workflowId: toWorkflowId,
+      title: s.title,
+      status: 'Open',
+      notes: s.notes,
+      order: s.order,
+      estimatedDays: s.estimatedDays,
+      plannedStart: s.plannedStart,
+      plannedEnd: s.plannedEnd,
+      completedAt: null as any,
+      createdAt: today(),
+    }));
+    if (clones.length) await this.repo.save(clones as unknown as WorkflowItemEntity[]);
   }
 }

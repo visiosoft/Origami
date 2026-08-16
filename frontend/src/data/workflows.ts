@@ -5,10 +5,15 @@ export type WorkflowItemStatus = 'Open' | 'In Progress' | 'Done';
 
 export interface Workflow {
   id: string;
+  projectId?: number | null;
   name: string;
   description?: string;
   status: WorkflowStatus;
   owner?: string;
+  estimatedDays?: number | null;
+  plannedStart?: string;
+  plannedEnd?: string;
+  completedAt?: string;
   createdAt: string;
 }
 
@@ -19,7 +24,20 @@ export interface WorkflowItem {
   status: WorkflowItemStatus;
   notes?: string;
   order: number;
+  estimatedDays?: number | null;
+  plannedStart?: string;
+  plannedEnd?: string;
+  completedAt?: string;
   createdAt: string;
+}
+
+// Actual elapsed days between planned start and completion (when both known).
+export function actualDays(o: { plannedStart?: string; completedAt?: string }): number | null {
+  if (!o.plannedStart || !o.completedAt) return null;
+  const a = new Date(o.plannedStart).getTime();
+  const b = new Date(o.completedAt).getTime();
+  if (isNaN(a) || isNaN(b)) return null;
+  return Math.max(0, Math.round((b - a) / 86400000));
 }
 
 export const WF_STATUSES: WorkflowStatus[] = ['Active', 'Draft', 'Archived'];

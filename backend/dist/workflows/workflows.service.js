@@ -18,6 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const workflows_1 = require("../seed-data/workflows");
+const today = () => new Date().toISOString().slice(0, 10);
 let WorkflowsService = class WorkflowsService {
     constructor(repo) {
         this.repo = repo;
@@ -34,18 +35,33 @@ let WorkflowsService = class WorkflowsService {
             this.log.error('Workflow seed failed: ' + err.message);
         }
     }
-    findAll() {
-        return this.repo.find({ order: { createdAt: 'DESC' } });
+    async findAll(projectId) {
+        const rows = await this.repo.find({ order: { createdAt: 'DESC' } });
+        if (projectId === undefined)
+            return rows;
+        if (projectId === 'none' || projectId === 'null')
+            return rows.filter((w) => w.projectId == null);
+        const pid = Number(projectId);
+        return rows.filter((w) => Number(w.projectId) === pid);
+    }
+    findOne(id) {
+        return this.repo.findOneBy({ id });
     }
     create(dto) {
         const id = dto.id || 'W-' + String(Date.now());
-        const wf = { status: 'Draft', description: '', createdAt: new Date().toISOString().slice(0, 10), ...dto, id };
+        const wf = { status: 'Draft', description: '', createdAt: today(), ...dto, id };
+        if (wf.status === 'Done' && !wf.completedAt)
+            wf.completedAt = today();
         return this.repo.save(this.repo.create(wf));
     }
     async update(id, dto) {
         let wf = await this.repo.findOneBy({ id });
         if (!wf)
-            wf = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) });
+            wf = this.repo.create({ id, createdAt: today() });
+        if (typeof dto.status === 'string') {
+            if (dto.status === 'Archived' && !dto.completedAt && !wf.completedAt)
+                dto = { ...dto, completedAt: today() };
+        }
         Object.assign(wf, dto, { id });
         return this.repo.save(wf);
     }
@@ -54,6 +70,18 @@ let WorkflowsService = class WorkflowsService {
         if (wf)
             await this.repo.remove(wf);
         return { id, deleted: true };
+    }
+    async applyTemplate(templateId, projectId) {
+        const tpl = await this.repo.findOneBy({ id: templateId });
+        if (!tpl)
+            throw new common_1.NotFoundException(`Template ${templateId} not found`);
+        const id = 'W-' + String(Date.now());
+        const wf = this.repo.create({
+            id, projectId, name: tpl.name, description: tpl.description, status: 'Active',
+            owner: tpl.owner, estimatedDays: tpl.estimatedDays, plannedStart: tpl.plannedStart,
+            plannedEnd: tpl.plannedEnd, completedAt: undefined, createdAt: today(),
+        });
+        return this.repo.save(wf);
     }
 };
 exports.WorkflowsService = WorkflowsService;

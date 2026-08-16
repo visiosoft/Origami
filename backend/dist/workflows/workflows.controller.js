@@ -22,8 +22,13 @@ let WorkflowsController = class WorkflowsController {
         this.service = service;
         this.items = items;
     }
-    findAll() {
-        return this.service.findAll();
+    findAll(projectId) {
+        return this.service.findAll(projectId);
+    }
+    async apply(body) {
+        const wf = await this.service.applyTemplate(body.templateId, Number(body.projectId));
+        await this.items.cloneForWorkflow(body.templateId, wf.id);
+        return wf;
     }
     create(dto) {
         return this.service.create(dto);
@@ -39,10 +44,18 @@ let WorkflowsController = class WorkflowsController {
 exports.WorkflowsController = WorkflowsController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], WorkflowsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Post)('apply'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], WorkflowsController.prototype, "apply", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
