@@ -27,7 +27,9 @@ import { SeedModule } from './database/seed.module';
         password: cfg.get<string>('DB_PASS'),
         database: cfg.get<string>('DB_NAME'),
         autoLoadEntities: true,
-        synchronize: cfg.get<string>('DB_SYNC') === 'true',
+        // Schema is managed by TypeORM synchronize (no migrations in this app),
+        // so it stays on to create new tables/columns. (Consider migrations later.)
+        synchronize: true,
         options: { encrypt: true, trustServerCertificate: false },
         retryAttempts: 5,
         retryDelay: 3000,

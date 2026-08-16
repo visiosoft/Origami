@@ -37,7 +37,7 @@ exports.AppModule = AppModule = __decorate([
                     password: cfg.get('DB_PASS'),
                     database: cfg.get('DB_NAME'),
                     autoLoadEntities: true,
-                    synchronize: cfg.get('DB_SYNC') === 'true',
+                    synchronize: true,
                     options: { encrypt: true, trustServerCertificate: false },
                     retryAttempts: 5,
                     retryDelay: 3000,
