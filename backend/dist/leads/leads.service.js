@@ -26,13 +26,9 @@ let LeadsService = class LeadsService {
         return leads_1.LEAD_DROPDOWN_OPTIONS;
     }
     findAll() {
-        if (!this.repo)
-            return [];
         return this.repo.find({ order: { createdAt: 'DESC' } });
     }
     async findOne(id) {
-        if (!this.repo)
-            throw new common_1.NotFoundException(`Lead ${id} not found`);
         const lead = await this.repo.findOneBy({ id });
         if (!lead)
             throw new common_1.NotFoundException(`Lead ${id} not found`);
@@ -41,13 +37,9 @@ let LeadsService = class LeadsService {
     create(dto) {
         const id = dto.id || 'LD-' + String(1000 + Date.now() % 10000);
         const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10) };
-        if (!this.repo)
-            return lead;
         return this.repo.save(this.repo.create(lead));
     }
     async update(id, dto) {
-        if (!this.repo)
-            return { id, ...dto };
         let lead = await this.repo.findOneBy({ id });
         if (!lead) {
             lead = this.repo.create({ ...dto, id, createdAt: new Date().toISOString().slice(0, 10) });
@@ -58,8 +50,6 @@ let LeadsService = class LeadsService {
         return this.repo.save(lead);
     }
     async remove(id) {
-        if (!this.repo)
-            return { id, deleted: true };
         const lead = await this.repo.findOneBy({ id });
         if (lead)
             await this.repo.remove(lead);
@@ -69,7 +59,6 @@ let LeadsService = class LeadsService {
 exports.LeadsService = LeadsService;
 exports.LeadsService = LeadsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], LeadsService);

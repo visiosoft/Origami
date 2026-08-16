@@ -17,37 +17,20 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
-const tasks_1 = require("../seed-data/tasks");
-function flatSeed() {
-    const rows = [];
-    ['internal', 'owner', 'subcontractor'].forEach((tab) => {
-        tasks_1.ALL_TASKS[tab].forEach((t) => rows.push({ ...t, tab }));
-    });
-    return rows;
-}
 let TasksService = class TasksService {
     constructor(repo) {
         this.repo = repo;
-        this.mem = flatSeed();
     }
     findAll(tab, project) {
-        if (this.repo) {
-            const where = {};
-            if (tab)
-                where.tab = tab;
-            if (project)
-                where.project = project;
-            return this.repo.find({ where });
-        }
-        let rows = this.mem;
+        const where = {};
         if (tab)
-            rows = rows.filter((t) => t.tab === tab);
+            where.tab = tab;
         if (project)
-            rows = rows.filter((t) => t.project === project);
-        return rows;
+            where.project = project;
+        return this.repo.find({ where });
     }
     async findOne(id) {
-        const task = this.repo ? await this.repo.findOneBy({ id }) : this.mem.find((t) => t.id === id);
+        const task = await this.repo.findOneBy({ id });
         if (!task)
             throw new common_1.NotFoundException(`Task ${id} not found`);
         return task;
@@ -57,16 +40,12 @@ let TasksService = class TasksService {
         const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
         const id = dto.id || `${dateStr}-${String(now.getTime()).slice(-2)}`;
         const task = { tab: 'internal', daysOpen: 0, ...dto, id };
-        if (this.repo)
-            return this.repo.save(this.repo.create(task));
-        this.mem = [task, ...this.mem];
-        return task;
+        return this.repo.save(this.repo.create(task));
     }
 };
 exports.TasksService = TasksService;
 exports.TasksService = TasksService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.TaskEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], TasksService);

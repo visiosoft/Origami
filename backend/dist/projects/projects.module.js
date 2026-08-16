@@ -12,13 +12,12 @@ const typeorm_1 = require("@nestjs/typeorm");
 const projects_controller_1 = require("./projects.controller");
 const projects_service_1 = require("./projects.service");
 const entities_1 = require("../database/entities");
-const db_config_1 = require("../database/db.config");
 let ProjectsModule = class ProjectsModule {
 };
 exports.ProjectsModule = ProjectsModule;
 exports.ProjectsModule = ProjectsModule = __decorate([
     (0, common_1.Module)({
-        imports: db_config_1.DB_ENABLED ? [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectEntity])] : [],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectEntity])],
         controllers: [projects_controller_1.ProjectsController],
         providers: [projects_service_1.ProjectsService],
         exports: [projects_service_1.ProjectsService],

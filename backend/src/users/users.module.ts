@@ -5,10 +5,9 @@ import { UsersController } from './users.controller';
 import { RolesController } from './roles.controller';
 import { UsersService } from './users.service';
 import { RolesService } from './roles.service';
-import { DB_ENABLED } from '../database/db.config';
 
 @Module({
-  imports: DB_ENABLED ? [TypeOrmModule.forFeature([UserEntity, RoleEntity])] : [],
+  imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity])],
   controllers: [UsersController, RolesController],
   providers: [UsersService, RolesService],
 })

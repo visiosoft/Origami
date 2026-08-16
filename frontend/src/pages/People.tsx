@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import {
-  PEOPLE, KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, initials, type Person, type Comply,
+  KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, initials, type Person, type Comply,
 } from '../data/people';
 
 const BG = "'Bricolage Grotesque', serif";
@@ -40,7 +40,7 @@ export function People() {
   const navigate = useNavigate();
   const { toast, can } = useApp();
   const canManage = can('people', 'manage');
-  const [people, setPeople] = useState<Person[]>(PEOPLE);
+  const [people, setPeople] = useState<Person[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [kf, setKf] = useState('All');
   const [pf, setPf] = useState('All projects');
@@ -58,7 +58,7 @@ export function People() {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
-  const reload = () => { api.people.list().then((r) => { if (Array.isArray(r) && r.length) setPeople(r as Person[]); }).catch(() => { }); };
+  const reload = () => { api.people.list().then((r) => { if (Array.isArray(r)) setPeople(r as Person[]); }).catch(() => { }); };
   useEffect(() => { reload(); }, []);
 
   const all: Person[] = people;

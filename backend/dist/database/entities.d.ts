@@ -153,6 +153,36 @@ export declare class RoleEntity {
         manage: boolean;
     }>;
 }
+export declare class ProjectSectionEntity {
+    id: string;
+    projectId: number;
+    name: string;
+    order: number;
+}
+export declare class ProjectTaskEntity {
+    id: string;
+    projectId: number;
+    sectionId: string;
+    title: string;
+    description: string;
+    assignee: string;
+    dueDate: string;
+    priority: string;
+    order: number;
+    completed: boolean;
+    parentId: string;
+    attachments: {
+        name: string;
+        url: string;
+    }[];
+    comments: {
+        id: string;
+        author: string;
+        text: string;
+        date: string;
+    }[];
+    createdAt: string;
+}
 export declare class UserEntity {
     id: string;
     name: string;

@@ -22,11 +22,8 @@ let UsersService = class UsersService {
     constructor(repo) {
         this.repo = repo;
         this.log = new common_1.Logger('UsersService');
-        this.mem = users_1.DEFAULT_USERS.map((u) => ({ ...u }));
     }
     async onApplicationBootstrap() {
-        if (!this.repo)
-            return;
         try {
             if ((await this.repo.count()) === 0) {
                 await this.repo.save(users_1.DEFAULT_USERS);
@@ -37,31 +34,15 @@ let UsersService = class UsersService {
             this.log.error('Users seed failed: ' + err.message);
         }
     }
-    async findAll() {
-        if (this.repo) {
-            try {
-                return await this.repo.find({ order: { createdAt: 'DESC' } });
-            }
-            catch (err) {
-                this.log.error('users.find failed, using seed: ' + err.message);
-            }
-        }
-        return this.mem.slice();
+    findAll() {
+        return this.repo.find({ order: { createdAt: 'DESC' } });
     }
     create(dto) {
         const id = dto.id || 'U-' + String(1000 + (Date.now() % 9000));
         const user = { status: 'active', tier: 'internal', createdAt: new Date().toISOString().slice(0, 10), ...dto, id };
-        if (!this.repo) {
-            this.mem = [user, ...this.mem];
-            return user;
-        }
         return this.repo.save(this.repo.create(user));
     }
     async update(id, dto) {
-        if (!this.repo) {
-            this.mem = this.mem.map((u) => (u.id === id ? { ...u, ...dto, id } : u));
-            return this.mem.find((u) => u.id === id);
-        }
         let user = await this.repo.findOneBy({ id });
         if (!user)
             user = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) });
@@ -69,10 +50,6 @@ let UsersService = class UsersService {
         return this.repo.save(user);
     }
     async remove(id) {
-        if (!this.repo) {
-            this.mem = this.mem.filter((u) => u.id !== id);
-            return { id, deleted: true };
-        }
         const user = await this.repo.findOneBy({ id });
         if (user)
             await this.repo.remove(user);
@@ -82,7 +59,6 @@ let UsersService = class UsersService {
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], UsersService);

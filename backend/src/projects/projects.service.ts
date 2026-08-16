@@ -1,44 +1,32 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity } from '../database/entities';
-import { PROJECTS } from '../seed-data/projects';
 
 @Injectable()
 export class ProjectsService {
-  private mem: any[] = [...PROJECTS];
-
   constructor(
-    @Optional() @InjectRepository(ProjectEntity) private readonly repo?: Repository<ProjectEntity>,
+    @InjectRepository(ProjectEntity) private readonly repo: Repository<ProjectEntity>,
   ) {}
 
   findAll() {
-    return this.repo ? this.repo.find({ order: { id: 'ASC' } }) : this.mem;
+    return this.repo.find({ order: { id: 'ASC' } });
   }
 
   async findOne(id: string) {
-    const project = this.repo
-      ? await this.repo.findOneBy({ id: Number(id) })
-      : this.mem.find((p) => String(p.id) === String(id));
+    const project = await this.repo.findOneBy({ id: Number(id) });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
     return project;
   }
 
-  create(dto: any) {
-    if (this.repo) return this.repo.save(this.repo.create(dto as Partial<ProjectEntity>));
-    const project = { id: this.mem.length + 1, ...dto };
-    this.mem = [project, ...this.mem];
-    return project;
+  async create(dto: any) {
+    const rows = await this.repo.find();
+    const id = Number(dto.id) || rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
+    return this.repo.save(this.repo.create({ ...dto, id } as Partial<ProjectEntity>));
   }
 
   async update(id: string, dto: any) {
-    if (this.repo) {
-      await this.repo.update({ id: Number(id) }, dto as Partial<ProjectEntity>);
-      return this.findOne(id);
-    }
-    const i = this.mem.findIndex((p) => String(p.id) === String(id));
-    if (i === -1) throw new NotFoundException(`Project ${id} not found`);
-    this.mem[i] = { ...this.mem[i], ...dto };
-    return this.mem[i];
+    await this.repo.update({ id: Number(id) }, dto as Partial<ProjectEntity>);
+    return this.findOne(id);
   }
 }

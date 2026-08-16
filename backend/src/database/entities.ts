@@ -170,6 +170,32 @@ export class RoleEntity {
   @Column('simple-json') permissions!: Record<string, { view: boolean; manage: boolean }>;
 }
 
+@Entity('project_sections')
+export class ProjectSectionEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() name!: string;
+  @Column('int') order!: number;
+}
+
+@Entity('project_tasks')
+export class ProjectTaskEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() sectionId!: string;
+  @Column() title!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  @Column({ nullable: true }) assignee!: string;
+  @Column({ nullable: true }) dueDate!: string;
+  @Column({ nullable: true }) priority!: string; // Low | Medium | High | Urgent
+  @Column('int') order!: number;
+  @Column({ default: false }) completed!: boolean;
+  @Column({ nullable: true }) parentId!: string; // subtask -> parent task id
+  @Column({ type: 'simple-json', nullable: true }) attachments!: { name: string; url: string }[];
+  @Column({ type: 'simple-json', nullable: true }) comments!: { id: string; author: string; text: string; date: string }[];
+  @Column() createdAt!: string;
+}
+
 @Entity('users')
 export class UserEntity {
   @PrimaryColumn() id!: string;

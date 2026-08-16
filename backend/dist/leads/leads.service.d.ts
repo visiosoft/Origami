@@ -1,8 +1,8 @@
 import { Repository } from 'typeorm';
 import { LeadEntity } from '../database/entities';
 export declare class LeadsService {
-    private readonly repo?;
-    constructor(repo?: Repository<LeadEntity> | undefined);
+    private readonly repo;
+    constructor(repo: Repository<LeadEntity>);
     getOptions(): {
         primaryPointOfContact: string[];
         secondPointOfContact: string[];
@@ -23,10 +23,10 @@ export declare class LeadsService {
         expectedLengthOfOwnership: string[];
         clientPersonality: string[];
     };
-    findAll(): never[] | Promise<LeadEntity[]>;
+    findAll(): Promise<LeadEntity[]>;
     findOne(id: string): Promise<LeadEntity>;
-    create(dto: any): any;
-    update(id: string, dto: any): Promise<any>;
+    create(dto: any): Promise<LeadEntity>;
+    update(id: string, dto: any): Promise<LeadEntity>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

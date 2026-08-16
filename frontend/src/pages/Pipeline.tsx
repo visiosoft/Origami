@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { DEALS, STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { LEAD_DROPDOWN_OPTIONS } from '../data/leads';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
@@ -106,7 +106,7 @@ export function Pipeline() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
-  const [deals, setDeals] = useState<Deal[]>(DEALS);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [nl, setNl] = useState<NewLead>({ ...BLANK_LEAD });
   const [formTab, setFormTab] = useState(1);
@@ -124,7 +124,7 @@ export function Pipeline() {
   const [fitByDeal, setFitByDeal] = useState<Record<string, Record<string, string>>>({});
 
   useEffect(() => {
-    api.pipeline.list().then((res) => { if (Array.isArray(res) && res.length > 0) setDeals(res as Deal[]); }).catch(() => { });
+    api.pipeline.list().then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
     // Rehydrate the rich intake details (Full Details) from the leads table,
     // keyed by id (new leads share their deal's id), so they survive refresh.
     api.leads.list().then((res) => {

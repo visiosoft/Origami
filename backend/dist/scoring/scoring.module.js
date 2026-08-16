@@ -12,13 +12,12 @@ const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
 const scoring_controller_1 = require("./scoring.controller");
 const scoring_service_1 = require("./scoring.service");
-const db_config_1 = require("../database/db.config");
 let ScoringModule = class ScoringModule {
 };
 exports.ScoringModule = ScoringModule;
 exports.ScoringModule = ScoringModule = __decorate([
     (0, common_1.Module)({
-        imports: db_config_1.DB_ENABLED ? [typeorm_1.TypeOrmModule.forFeature([entities_1.ScoringCriterionEntity])] : [],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ScoringCriterionEntity])],
         controllers: [scoring_controller_1.ScoringController],
         providers: [scoring_service_1.ScoringService],
     })

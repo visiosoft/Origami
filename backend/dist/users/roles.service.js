@@ -22,11 +22,8 @@ let RolesService = class RolesService {
     constructor(repo) {
         this.repo = repo;
         this.log = new common_1.Logger('RolesService');
-        this.mem = users_1.DEFAULT_ROLES.map((r) => ({ ...r }));
     }
     async onApplicationBootstrap() {
-        if (!this.repo)
-            return;
         try {
             if ((await this.repo.count()) === 0) {
                 await this.repo.save(users_1.DEFAULT_ROLES);
@@ -37,31 +34,15 @@ let RolesService = class RolesService {
             this.log.error('Roles seed failed: ' + err.message);
         }
     }
-    async findAll() {
-        if (this.repo) {
-            try {
-                return await this.repo.find({ order: { order: 'ASC' } });
-            }
-            catch (err) {
-                this.log.error('roles.find failed, using seed: ' + err.message);
-            }
-        }
-        return this.mem.slice().sort((a, b) => a.order - b.order);
+    findAll() {
+        return this.repo.find({ order: { order: 'ASC' } });
     }
     create(dto) {
         const key = dto.key || 'role_' + Date.now();
         const role = { order: 999, isSystem: false, description: '', permissions: {}, ...dto, key };
-        if (!this.repo) {
-            this.mem = [...this.mem, role];
-            return role;
-        }
         return this.repo.save(this.repo.create(role));
     }
     async update(key, dto) {
-        if (!this.repo) {
-            this.mem = this.mem.map((r) => (r.key === key ? { ...r, ...dto, key } : r));
-            return this.mem.find((r) => r.key === key);
-        }
         let role = await this.repo.findOneBy({ key });
         if (!role)
             role = this.repo.create({ key });
@@ -69,15 +50,10 @@ let RolesService = class RolesService {
         return this.repo.save(role);
     }
     async remove(key) {
-        if (!this.repo) {
-            const role = this.mem.find((r) => r.key === key);
-            if (role?.isSystem)
-                throw new common_1.NotFoundException(`Role ${key} is protected`);
-            this.mem = this.mem.filter((r) => r.key !== key);
-            return { key, deleted: true };
-        }
         const role = await this.repo.findOneBy({ key });
-        if (role && !role.isSystem)
+        if (role?.isSystem)
+            throw new common_1.NotFoundException(`Role ${key} is protected`);
+        if (role)
             await this.repo.remove(role);
         return { key, deleted: true };
     }
@@ -85,7 +61,6 @@ let RolesService = class RolesService {
 exports.RolesService = RolesService;
 exports.RolesService = RolesService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], RolesService);

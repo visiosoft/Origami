@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../AppContext';
+import { api } from '../api';
+import { TaskBoard } from '../components/TaskBoard';
 import {
   ALL_TASKS, ST_COLORS, TT_COLORS, MT_COLORS, NEW_TASK_FIELDS, getLeadTime, type Task, type TaskTab,
 } from '../data/tasks';
@@ -18,6 +20,15 @@ export function Tasks() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const swallow = useRef(false);
+  const [mode, setMode] = useState<'board' | 'log'>('board');
+  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const [boardProjectId, setBoardProjectId] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.projects.list().then((r: any) => {
+      if (Array.isArray(r) && r.length) { setProjects(r.map((p) => ({ id: p.id, name: p.name }))); setBoardProjectId((cur) => cur ?? r[0].id); }
+    }).catch(() => { });
+  }, []);
 
   useEffect(() => {
     const onDoc = () => { if (swallow.current) { swallow.current = false; return; } setProjOpen(false); };
@@ -38,6 +49,27 @@ export function Tasks() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
+      {/* Mode toggle: Asana-style board vs the request log */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+          {([['board', 'Task Board'], ['log', 'Request Log']] as [typeof mode, string][]).map((m) => (
+            <div key={m[0]} onClick={() => setMode(m[0])} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: mode === m[0] ? 'white' : 'transparent', color: mode === m[0] ? '#0B1A12' : '#7E9B93', boxShadow: mode === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
+          ))}
+        </div>
+        {mode === 'board' && (
+          <>
+            <span style={{ fontSize: 12, color: '#7E9B93', marginLeft: 4 }}>Project:</span>
+            <select value={boardProjectId ?? ''} onChange={(e) => setBoardProjectId(Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit', fontSize: 13, color: '#0B1A12', outline: 'none', maxWidth: 320 }}>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </>
+        )}
+      </div>
+
+      {mode === 'board' ? (
+        boardProjectId != null ? <TaskBoard projectId={boardProjectId} /> : <div style={{ fontSize: 13, color: '#7E9B93' }}>No projects yet.</div>
+      ) : (
+      <>
       {/* Tabs + filter + new */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center', flexWrap: 'wrap' }}>
         {TABS.map((t) => (
@@ -236,6 +268,8 @@ export function Tasks() {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

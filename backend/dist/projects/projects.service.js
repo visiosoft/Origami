@@ -17,46 +17,32 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
-const projects_1 = require("../seed-data/projects");
 let ProjectsService = class ProjectsService {
     constructor(repo) {
         this.repo = repo;
-        this.mem = [...projects_1.PROJECTS];
     }
     findAll() {
-        return this.repo ? this.repo.find({ order: { id: 'ASC' } }) : this.mem;
+        return this.repo.find({ order: { id: 'ASC' } });
     }
     async findOne(id) {
-        const project = this.repo
-            ? await this.repo.findOneBy({ id: Number(id) })
-            : this.mem.find((p) => String(p.id) === String(id));
+        const project = await this.repo.findOneBy({ id: Number(id) });
         if (!project)
             throw new common_1.NotFoundException(`Project ${id} not found`);
         return project;
     }
-    create(dto) {
-        if (this.repo)
-            return this.repo.save(this.repo.create(dto));
-        const project = { id: this.mem.length + 1, ...dto };
-        this.mem = [project, ...this.mem];
-        return project;
+    async create(dto) {
+        const rows = await this.repo.find();
+        const id = Number(dto.id) || rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
+        return this.repo.save(this.repo.create({ ...dto, id }));
     }
     async update(id, dto) {
-        if (this.repo) {
-            await this.repo.update({ id: Number(id) }, dto);
-            return this.findOne(id);
-        }
-        const i = this.mem.findIndex((p) => String(p.id) === String(id));
-        if (i === -1)
-            throw new common_1.NotFoundException(`Project ${id} not found`);
-        this.mem[i] = { ...this.mem[i], ...dto };
-        return this.mem[i];
+        await this.repo.update({ id: Number(id) }, dto);
+        return this.findOne(id);
     }
 };
 exports.ProjectsService = ProjectsService;
 exports.ProjectsService = ProjectsService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], ProjectsService);

@@ -12,13 +12,12 @@ const typeorm_1 = require("@nestjs/typeorm");
 const pipeline_controller_1 = require("./pipeline.controller");
 const pipeline_service_1 = require("./pipeline.service");
 const entities_1 = require("../database/entities");
-const db_config_1 = require("../database/db.config");
 let PipelineModule = class PipelineModule {
 };
 exports.PipelineModule = PipelineModule;
 exports.PipelineModule = PipelineModule = __decorate([
     (0, common_1.Module)({
-        imports: db_config_1.DB_ENABLED ? [typeorm_1.TypeOrmModule.forFeature([entities_1.DealEntity])] : [],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.DealEntity])],
         controllers: [pipeline_controller_1.PipelineController],
         providers: [pipeline_service_1.PipelineService],
         exports: [pipeline_service_1.PipelineService],

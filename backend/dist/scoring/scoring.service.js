@@ -22,11 +22,8 @@ let ScoringService = class ScoringService {
     constructor(repo) {
         this.repo = repo;
         this.log = new common_1.Logger('ScoringService');
-        this.mem = scoring_1.DEFAULT_SCORING.map((c) => ({ ...c }));
     }
     async onApplicationBootstrap() {
-        if (!this.repo)
-            return;
         try {
             if ((await this.repo.count()) === 0) {
                 await this.repo.save(scoring_1.DEFAULT_SCORING);
@@ -38,10 +35,8 @@ let ScoringService = class ScoringService {
         }
     }
     async getTemplate() {
-        if (!this.repo)
-            return this.mem.slice().sort((a, b) => a.order - b.order);
         const rows = await this.repo.find({ order: { order: 'ASC' } });
-        return rows.length ? rows : scoring_1.DEFAULT_SCORING;
+        return rows;
     }
     async saveTemplate(criteria) {
         const clean = (criteria || []).map((c, i) => ({
@@ -52,10 +47,6 @@ let ScoringService = class ScoringService {
             maxPoints: Number(c.maxPoints) || 0,
             options: (c.options || []).map((o) => ({ label: o.label || '', points: Number(o.points) || 0 })),
         }));
-        if (!this.repo) {
-            this.mem = clean;
-            return this.mem;
-        }
         await this.repo.clear();
         await this.repo.save(clean);
         return this.getTemplate();
@@ -64,7 +55,6 @@ let ScoringService = class ScoringService {
 exports.ScoringService = ScoringService;
 exports.ScoringService = ScoringService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ScoringCriterionEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], ScoringService);

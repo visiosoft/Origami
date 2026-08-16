@@ -14,13 +14,12 @@ const users_controller_1 = require("./users.controller");
 const roles_controller_1 = require("./roles.controller");
 const users_service_1 = require("./users.service");
 const roles_service_1 = require("./roles.service");
-const db_config_1 = require("../database/db.config");
 let UsersModule = class UsersModule {
 };
 exports.UsersModule = UsersModule;
 exports.UsersModule = UsersModule = __decorate([
     (0, common_1.Module)({
-        imports: db_config_1.DB_ENABLED ? [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity])] : [],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity])],
         controllers: [users_controller_1.UsersController, roles_controller_1.RolesController],
         providers: [users_service_1.UsersService, roles_service_1.RolesService],
     })

@@ -21,63 +21,44 @@ const pipeline_1 = require("../seed-data/pipeline");
 let PipelineService = class PipelineService {
     constructor(repo) {
         this.repo = repo;
-        this.mem = [...pipeline_1.DEALS];
     }
     getStages() {
         return pipeline_1.STAGES;
     }
     findAll() {
-        return this.repo ? this.repo.find() : this.mem;
+        return this.repo.find();
     }
     async findOne(id) {
-        const deal = this.repo ? await this.repo.findOneBy({ id }) : this.mem.find((d) => d.id === id);
+        const deal = await this.repo.findOneBy({ id });
         if (!deal)
             throw new common_1.NotFoundException(`Deal ${id} not found`);
         return deal;
     }
     create(dto) {
-        if (this.repo)
-            return this.repo.save(this.repo.create(dto));
-        this.mem = [dto, ...this.mem];
-        return dto;
+        return this.repo.save(this.repo.create(dto));
     }
     async updateStage(id, stage) {
         const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);
         const stageName = idx >= 0 ? pipeline_1.STAGES[idx].name : stage;
         const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         const entry = { date: when, action: `Moved to ${stageName}`, role: 'System', type: 'auto' };
-        if (this.repo) {
-            const deal = await this.findOne(id);
-            deal.stage = stage;
-            if (idx >= 0)
-                deal.stageIdx = idx;
-            deal.timeline = [...(deal.timeline || []), entry];
-            return this.repo.save(deal);
-        }
-        const deal = this.mem.find((d) => d.id === id);
-        if (!deal)
-            throw new common_1.NotFoundException(`Deal ${id} not found`);
+        const deal = await this.findOne(id);
         deal.stage = stage;
         if (idx >= 0)
             deal.stageIdx = idx;
         deal.timeline = [...(deal.timeline || []), entry];
-        return deal;
+        return this.repo.save(deal);
     }
     async remove(id) {
-        if (this.repo) {
-            const deal = this.repo ? await this.repo.findOneBy({ id }) : null;
-            if (deal)
-                await this.repo.remove(deal);
-            return { id, deleted: true };
-        }
-        this.mem = this.mem.filter((d) => d.id !== id);
+        const deal = await this.repo.findOneBy({ id });
+        if (deal)
+            await this.repo.remove(deal);
         return { id, deleted: true };
     }
 };
 exports.PipelineService = PipelineService;
 exports.PipelineService = PipelineService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], PipelineService);

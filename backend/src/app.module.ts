@@ -8,12 +8,15 @@ import { PipelineModule } from './pipeline/pipeline.module';
 import { LeadsModule } from './leads/leads.module';
 import { ScoringModule } from './scoring/scoring.module';
 import { UsersModule } from './users/users.module';
+import { ProjectTasksModule } from './project-tasks/project-tasks.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
-import { DB_ENABLED } from './database/db.config';
 
-const dbImports = DB_ENABLED
-  ? [
+// SQL is the single source of truth — TypeORM is always on (no in-memory
+// fallback). The app requires a reachable SQL database to run.
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
@@ -26,19 +29,12 @@ const dbImports = DB_ENABLED
         autoLoadEntities: true,
         synchronize: cfg.get<string>('DB_SYNC') === 'true',
         options: { encrypt: true, trustServerCertificate: false },
-        retryAttempts: 2,
-        retryDelay: 2000,
-        extra: { connectTimeout: 10000 },
+        retryAttempts: 5,
+        retryDelay: 3000,
+        extra: { connectTimeout: 30000 },
       }),
     }),
     SeedModule,
-  ]
-  : [];
-
-@Module({
-  imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    ...dbImports,
     ProjectsModule,
     PeopleModule,
     TasksModule,
@@ -46,6 +42,7 @@ const dbImports = DB_ENABLED
     LeadsModule,
     ScoringModule,
     UsersModule,
+    ProjectTasksModule,
     DashboardModule,
   ],
 })

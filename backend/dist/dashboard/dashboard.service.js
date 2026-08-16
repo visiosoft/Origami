@@ -17,9 +17,6 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
-const dashboard_1 = require("../seed-data/dashboard");
-const pipeline_1 = require("../seed-data/pipeline");
-const tasks_1 = require("../seed-data/tasks");
 let DashboardService = class DashboardService {
     constructor(finance, invoices, deals, tasks) {
         this.finance = finance;
@@ -27,19 +24,17 @@ let DashboardService = class DashboardService {
         this.deals = deals;
         this.tasks = tasks;
     }
-    async finRows() {
-        return this.finance ? this.finance.find() : dashboard_1.FINANCE;
+    finRows() {
+        return this.finance.find();
     }
-    async internalInvoices() {
-        return this.invoices ? this.invoices.findBy({ kind: 'internal' }) : dashboard_1.INVOICES.internal;
+    internalInvoices() {
+        return this.invoices.findBy({ kind: 'internal' });
     }
-    async dealRows() {
-        return this.deals ? this.deals.find() : pipeline_1.DEALS;
+    dealRows() {
+        return this.deals.find();
     }
-    async taskRows() {
-        if (this.tasks)
-            return this.tasks.find();
-        return [...tasks_1.ALL_TASKS.internal, ...tasks_1.ALL_TASKS.owner, ...tasks_1.ALL_TASKS.subcontractor];
+    taskRows() {
+        return this.tasks.find();
     }
     async getKpis() {
         const fin = await this.finRows();
@@ -106,13 +101,9 @@ let DashboardService = class DashboardService {
 exports.DashboardService = DashboardService;
 exports.DashboardService = DashboardService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.FinanceEntity)),
-    __param(1, (0, common_1.Optional)()),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.InvoiceEntity)),
-    __param(2, (0, common_1.Optional)()),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
-    __param(3, (0, common_1.Optional)()),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.TaskEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,

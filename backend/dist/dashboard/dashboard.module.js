@@ -12,13 +12,12 @@ const typeorm_1 = require("@nestjs/typeorm");
 const dashboard_controller_1 = require("./dashboard.controller");
 const dashboard_service_1 = require("./dashboard.service");
 const entities_1 = require("../database/entities");
-const db_config_1 = require("../database/db.config");
 let DashboardModule = class DashboardModule {
 };
 exports.DashboardModule = DashboardModule;
 exports.DashboardModule = DashboardModule = __decorate([
     (0, common_1.Module)({
-        imports: db_config_1.DB_ENABLED ? [typeorm_1.TypeOrmModule.forFeature([entities_1.FinanceEntity, entities_1.InvoiceEntity, entities_1.DealEntity, entities_1.TaskEntity])] : [],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.FinanceEntity, entities_1.InvoiceEntity, entities_1.DealEntity, entities_1.TaskEntity])],
         controllers: [dashboard_controller_1.DashboardController],
         providers: [dashboard_service_1.DashboardService],
     })

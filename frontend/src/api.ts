@@ -73,4 +73,17 @@ export const api = {
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
   },
+  projectTasks: {
+    board: (projectId: number) => request(`/project-tasks/board?projectId=${projectId}`),
+    list: (projectId?: number) => request(`/project-tasks${projectId ? `?projectId=${projectId}` : ''}`),
+    create: (data: unknown) => request('/project-tasks', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/project-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/project-tasks/${id}`, { method: 'DELETE' }),
+  },
+  projectSections: {
+    list: (projectId: number) => request(`/project-sections?projectId=${projectId}`),
+    create: (data: unknown) => request('/project-sections', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/project-sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/project-sections/${id}`, { method: 'DELETE' }),
+  },
 };

@@ -1,11 +1,11 @@
 import { Repository } from 'typeorm';
 import { FinanceEntity, InvoiceEntity, DealEntity, TaskEntity } from '../database/entities';
 export declare class DashboardService {
-    private readonly finance?;
-    private readonly invoices?;
-    private readonly deals?;
-    private readonly tasks?;
-    constructor(finance?: Repository<FinanceEntity> | undefined, invoices?: Repository<InvoiceEntity> | undefined, deals?: Repository<DealEntity> | undefined, tasks?: Repository<TaskEntity> | undefined);
+    private readonly finance;
+    private readonly invoices;
+    private readonly deals;
+    private readonly tasks;
+    constructor(finance: Repository<FinanceEntity>, invoices: Repository<InvoiceEntity>, deals: Repository<DealEntity>, tasks: Repository<TaskEntity>);
     private finRows;
     private internalInvoices;
     private dealRows;

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TaskBoard } from '../components/TaskBoard';
 import {
   PROJECTS, STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS,
   type Project,
@@ -9,7 +10,7 @@ const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slic
 
 export function Projects() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'workflow'>('overview');
+  const [tab, setTab] = useState<'overview' | 'workflow' | 'tasks'>('overview');
 
   const sel = selectedId ? PROJECTS.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
@@ -96,7 +97,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'workflow' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'workflow' || tab === 'tasks' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header image */}
             <div style={{ height: 150, background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={18} height={18} rx={2} ry={2} /><circle cx={8.5} cy={8.5} r={1.5} /><polyline points="21 15 16 10 5 21" /></svg>
@@ -128,6 +129,12 @@ export function Projects() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={7} height={7} /><rect x={14} y={3} width={7} height={7} /><rect x={3} y={14} width={7} height={7} /><rect x={14} y={14} width={7} height={7} /></svg>
                   Workflow Board
+                </span>
+              </div>
+              <div onClick={() => setTab('tasks')} style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
+                  Tasks
                 </span>
               </div>
             </div>
@@ -163,6 +170,10 @@ export function Projects() {
                   <div onClick={() => setTab('workflow')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}>Open Workflow Board</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Archive</div>
                 </div>
+              </div>
+            ) : tab === 'tasks' ? (
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                <TaskBoard projectId={sel.id} />
               </div>
             ) : (
               <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>

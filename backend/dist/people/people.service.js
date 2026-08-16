@@ -17,42 +17,31 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
-const people_1 = require("../seed-data/people");
 let PeopleService = class PeopleService {
     constructor(repo) {
         this.repo = repo;
-        this.mem = [...people_1.PEOPLE];
     }
     async findAll(project) {
-        const all = this.repo ? await this.repo.find({ order: { id: 'ASC' } }) : this.mem;
+        const all = await this.repo.find({ order: { id: 'ASC' } });
         return project ? all.filter((p) => (p.projects ?? []).includes(project)) : all;
     }
     async findOne(id) {
-        const person = this.repo
-            ? await this.repo.findOneBy({ id: Number(id) })
-            : this.mem.find((p) => String(p.id) === String(id));
+        const person = await this.repo.findOneBy({ id: Number(id) });
         if (!person)
             throw new common_1.NotFoundException(`Person ${id} not found`);
         return person;
     }
     async nextId() {
-        const rows = this.repo ? await this.repo.find() : this.mem;
+        const rows = await this.repo.find();
         return rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
     }
     async create(dto) {
         const id = Number(dto.id) || (await this.nextId());
         const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
-        if (this.repo)
-            return this.repo.save(this.repo.create(person));
-        this.mem = [person, ...this.mem];
-        return person;
+        return this.repo.save(this.repo.create(person));
     }
     async update(id, dto) {
         const numId = Number(id);
-        if (!this.repo) {
-            this.mem = this.mem.map((p) => (Number(p.id) === numId ? { ...p, ...dto, id: numId } : p));
-            return this.mem.find((p) => Number(p.id) === numId);
-        }
         const person = await this.repo.findOneBy({ id: numId });
         if (!person)
             throw new common_1.NotFoundException(`Person ${id} not found`);
@@ -61,10 +50,6 @@ let PeopleService = class PeopleService {
     }
     async remove(id) {
         const numId = Number(id);
-        if (!this.repo) {
-            this.mem = this.mem.filter((p) => Number(p.id) !== numId);
-            return { id: numId, deleted: true };
-        }
         const person = await this.repo.findOneBy({ id: numId });
         if (person)
             await this.repo.remove(person);
@@ -74,7 +59,6 @@ let PeopleService = class PeopleService {
 exports.PeopleService = PeopleService;
 exports.PeopleService = PeopleService = __decorate([
     (0, common_1.Injectable)(),
-    __param(0, (0, common_1.Optional)()),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.PersonEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], PeopleService);

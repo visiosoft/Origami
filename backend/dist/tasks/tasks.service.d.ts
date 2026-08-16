@@ -1,10 +1,9 @@
 import { Repository } from 'typeorm';
 import { TaskEntity } from '../database/entities';
 export declare class TasksService {
-    private readonly repo?;
-    private mem;
-    constructor(repo?: Repository<TaskEntity> | undefined);
-    findAll(tab?: string, project?: string): any[] | Promise<TaskEntity[]>;
-    findOne(id: string): Promise<any>;
-    create(dto: any): any;
+    private readonly repo;
+    constructor(repo: Repository<TaskEntity>);
+    findAll(tab?: string, project?: string): Promise<TaskEntity[]>;
+    findOne(id: string): Promise<TaskEntity>;
+    create(dto: any): Promise<TaskEntity>;
 }

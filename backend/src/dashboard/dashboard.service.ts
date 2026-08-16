@@ -1,32 +1,28 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FinanceEntity, InvoiceEntity, DealEntity, TaskEntity } from '../database/entities';
-import { FINANCE, INVOICES } from '../seed-data/dashboard';
-import { DEALS } from '../seed-data/pipeline';
-import { ALL_TASKS } from '../seed-data/tasks';
 
 @Injectable()
 export class DashboardService {
   constructor(
-    @Optional() @InjectRepository(FinanceEntity) private readonly finance?: Repository<FinanceEntity>,
-    @Optional() @InjectRepository(InvoiceEntity) private readonly invoices?: Repository<InvoiceEntity>,
-    @Optional() @InjectRepository(DealEntity) private readonly deals?: Repository<DealEntity>,
-    @Optional() @InjectRepository(TaskEntity) private readonly tasks?: Repository<TaskEntity>,
+    @InjectRepository(FinanceEntity) private readonly finance: Repository<FinanceEntity>,
+    @InjectRepository(InvoiceEntity) private readonly invoices: Repository<InvoiceEntity>,
+    @InjectRepository(DealEntity) private readonly deals: Repository<DealEntity>,
+    @InjectRepository(TaskEntity) private readonly tasks: Repository<TaskEntity>,
   ) {}
 
-  private async finRows(): Promise<any[]> {
-    return this.finance ? this.finance.find() : (FINANCE as any[]);
+  private finRows(): Promise<any[]> {
+    return this.finance.find();
   }
-  private async internalInvoices(): Promise<any[]> {
-    return this.invoices ? this.invoices.findBy({ kind: 'internal' }) : (INVOICES.internal as any[]);
+  private internalInvoices(): Promise<any[]> {
+    return this.invoices.findBy({ kind: 'internal' });
   }
-  private async dealRows(): Promise<any[]> {
-    return this.deals ? this.deals.find() : (DEALS as any[]);
+  private dealRows(): Promise<any[]> {
+    return this.deals.find();
   }
-  private async taskRows(): Promise<any[]> {
-    if (this.tasks) return this.tasks.find();
-    return [...ALL_TASKS.internal, ...ALL_TASKS.owner, ...ALL_TASKS.subcontractor];
+  private taskRows(): Promise<any[]> {
+    return this.tasks.find();
   }
 
   async getKpis() {
