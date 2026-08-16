@@ -1,21 +1,14 @@
-export declare enum TaskStatus {
-    Open = "Open",
-    InProgress = "In Progress",
-    Closed = "Closed"
-}
-export declare enum TaskCategory {
-    Internal = "internal",
-    Owner = "owner",
-    Subcontractor = "subcontractor"
-}
 export declare class CreateTaskDto {
-    description: string;
-    assignedTo: string;
-    originator: string;
+    id?: string;
+    tab?: string;
     meetingType?: string;
     meetingDate?: string;
-    status?: TaskStatus;
-    category: TaskCategory;
-    project: string;
+    assignedTo?: string;
+    status?: string;
+    originator?: string;
     topicType?: string;
+    description: string;
+    dueDate?: string;
+    linkedFile?: string;
+    project?: string;
 }

@@ -267,7 +267,6 @@ export function Pipeline() {
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Google Meet scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
     api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen }).catch(() => { });
     toast('Google Meet invite opened & saved');
-    setMeetWhen('');
   };
 
   const scheduleSiteVisit = (deal: Deal, stageName: string) => {
@@ -287,7 +286,6 @@ export function Pipeline() {
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: 'Today' }] }));
     api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }).catch(() => { });
     toast('Site visit invite opened & saved');
-    setVisitWhen('');
   };
 
   // Persist the chosen time to the DB without opening Google Calendar.
@@ -409,7 +407,7 @@ export function Pipeline() {
                       const isSelected = selectedId === d.id;
                       const isDraggingCard = dragging === d.id;
                       return (
-                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(''); setVisitWhen(''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -514,7 +512,14 @@ export function Pipeline() {
                           </div>
                         </div>
                       ))}
-                      <div onClick={() => { const cur = leadDetails[selected.id] || baseLead(selected); setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision } : d)); api.leads.update(selected.id, cur).catch(() => { }); toast('Lead details saved'); }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>Save Lead Details</div>
+                      <div onClick={() => {
+                        const cur = leadDetails[selected.id] || baseLead(selected);
+                        const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const entry = { date: when, action: `${selectedStage.name} completed — lead details saved`, role: 'System', type: 'auto' as const };
+                        setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));
+                        api.leads.update(selected.id, cur).catch(() => { });
+                        toast('Lead details saved');
+                      }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>Save Lead Details</div>
                     </div>
                   );
                 })()

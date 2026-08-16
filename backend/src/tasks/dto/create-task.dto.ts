@@ -1,46 +1,17 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional } from 'class-validator';
 
-export enum TaskStatus {
-  Open = 'Open',
-  InProgress = 'In Progress',
-  Closed = 'Closed',
-}
-
-export enum TaskCategory {
-  Internal = 'internal',
-  Owner = 'owner',
-  Subcontractor = 'subcontractor',
-}
-
+// Matches the Request-Log task record (frontend data/tasks.ts Task).
 export class CreateTaskDto {
-  @IsString()
-  description: string;
-
-  @IsString()
-  assignedTo: string;
-
-  @IsString()
-  originator: string;
-
-  @IsString()
-  @IsOptional()
-  meetingType?: string;
-
-  @IsString()
-  @IsOptional()
-  meetingDate?: string;
-
-  @IsEnum(TaskStatus)
-  @IsOptional()
-  status?: TaskStatus;
-
-  @IsEnum(TaskCategory)
-  category: TaskCategory;
-
-  @IsString()
-  project: string;
-
-  @IsString()
-  @IsOptional()
-  topicType?: string;
+  @IsString() @IsOptional() id?: string;
+  @IsString() @IsOptional() tab?: string; // internal | owner | subcontractor
+  @IsString() @IsOptional() meetingType?: string;
+  @IsString() @IsOptional() meetingDate?: string;
+  @IsString() @IsOptional() assignedTo?: string;
+  @IsString() @IsOptional() status?: string;
+  @IsString() @IsOptional() originator?: string;
+  @IsString() @IsOptional() topicType?: string;
+  @IsString() description: string;
+  @IsString() @IsOptional() dueDate?: string;
+  @IsString() @IsOptional() linkedFile?: string;
+  @IsString() @IsOptional() project?: string;
 }

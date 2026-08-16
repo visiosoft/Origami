@@ -2,18 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { TaskBoard } from '../components/TaskBoard';
-import {
-  ALL_TASKS, ST_COLORS, TT_COLORS, MT_COLORS, NEW_TASK_FIELDS, getLeadTime, type Task, type TaskTab,
-} from '../data/tasks';
+import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab } from '../data/tasks';
 
 const BG = "'Bricolage Grotesque', serif";
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
+const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
+
+interface NewTask { tab: TaskTab; meetingType: string; meetingDate: string; assignedTo: string; originator: string; topicType: string; status: string; dueDate: string; project: string; description: string; linkedFile: string }
+const blankTask = (tab: TaskTab): NewTask => ({ tab, meetingType: 'Internal', meetingDate: '', assignedTo: '', originator: '', topicType: 'Task', status: 'Open', dueDate: '', project: '', description: '', linkedFile: '' });
 
 export function Tasks() {
-  const { toast } = useApp();
+  const { toast, can } = useApp();
+  const canManage = can('tasks', 'manage');
   const [tab, setTab] = useState<TaskTab>('internal');
   const [pf, setPf] = useState('All projects');
   const [projOpen, setProjOpen] = useState(false);
@@ -23,11 +26,17 @@ export function Tasks() {
   const [mode, setMode] = useState<'board' | 'log'>('board');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [boardProjectId, setBoardProjectId] = useState<number | null>(null);
+  const [logTasks, setLogTasks] = useState<Task[]>([]);
+  const [people, setPeople] = useState<string[]>([]);
+  const [nt, setNt] = useState<NewTask>(blankTask('internal'));
 
+  const reloadLog = () => { api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
   useEffect(() => {
     api.projects.list().then((r: any) => {
       if (Array.isArray(r) && r.length) { setProjects(r.map((p) => ({ id: p.id, name: p.name }))); setBoardProjectId((cur) => cur ?? r[0].id); }
     }).catch(() => { });
+    api.people.list().then((r: any) => { if (Array.isArray(r)) setPeople(r.map((p) => p.name)); }).catch(() => { });
+    reloadLog();
   }, []);
 
   useEffect(() => {
@@ -36,15 +45,20 @@ export function Tasks() {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
+  const openNew = () => { setNt(blankTask(tab)); setShowNew(true); };
+  const createTask = () => {
+    if (nt.description.trim().length < 3) { toast('Add a task description'); return; }
+    api.tasks.create({ ...nt }).then(() => { toast('Task created'); setShowNew(false); reloadLog(); }).catch(() => toast('⚠ Failed to create task'));
+  };
+
   const taskProjects: string[] = [];
-  TABS.forEach((t) => ALL_TASKS[t].forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); }));
+  logTasks.forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); });
   const byProject = (list: Task[]) => (pf === 'All projects' ? list : list.filter((x) => x.project === pf));
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
-  TABS.forEach((t) => { tabCounts[t] = byProject(ALL_TASKS[t]).length; });
-  const tasks = byProject(ALL_TASKS[tab]);
+  TABS.forEach((t) => { tabCounts[t] = byProject(logTasks.filter((x) => (x as any).tab === t)).length; });
+  const tasks = byProject(logTasks.filter((x) => (x as any).tab === tab));
 
-  const allFlat = [...ALL_TASKS.internal, ...ALL_TASKS.owner, ...ALL_TASKS.subcontractor];
-  const sel = selectedId ? allFlat.find((x) => x.id === selectedId) || null : null;
+  const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
   const lt = sel ? getLeadTime(sel) : null;
 
   return (
@@ -92,7 +106,7 @@ export function Tasks() {
             </div>
           )}
         </div>
-        <div onClick={() => setShowNew(true)} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>+ New Task</div>
+        {canManage && <div onClick={openNew} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>+ New Task</div>}
       </div>
 
       {/* Table */}
@@ -238,39 +252,46 @@ export function Tasks() {
         </div>
       )}
 
-      {/* New task modal */}
+      {/* New task — right-side drawer */}
       {showNew && (
-        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.6)', zIndex: 200, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 18, width: 600, maxWidth: '94vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 60px rgba(20,8,31,0.25)', animation: 'scaleIn 0.2s ease' }}>
-            <div style={{ padding: '24px 28px 20px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: 460, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.18)', animation: 'scaleIn 0.2s ease', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>New Task</div>
-              <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
+              <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
               </div>
             </div>
-            <div style={{ padding: '24px 28px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                {NEW_TASK_FIELDS.map((f) => (
-                  <div key={f.label} style={{ gridColumn: f.span }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{f.label} {f.required && <span style={{ color: '#8E2E0A' }}>*</span>}</div>
-                    <div style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', fontSize: 14, background: 'white', color: f.valColor }}>{f.value}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 16, padding: 20, border: '2px dashed rgba(20,8,31,0.1)', borderRadius: 12, textAlign: 'center', cursor: 'pointer' }}>
-                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 6px' }}><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#7E9B93' }}>Drop files here or click to attach</div>
-              </div>
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
-                <div onClick={() => setShowNew(false)} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-                <div onClick={() => { setShowNew(false); toast('Task created'); }} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Create Task</div>
-              </div>
+            <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, flex: 1 }}>
+              <Fld label="Meeting Type"><select value={nt.meetingType} onChange={(e) => setNt({ ...nt, meetingType: e.target.value })} style={inputStyle}>{['Internal', 'Owner', 'Subcontractor'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
+              <Fld label="Meeting Date"><input type="date" value={nt.meetingDate} onChange={(e) => setNt({ ...nt, meetingDate: e.target.value })} style={inputStyle} /></Fld>
+              <Fld label="Assigned To"><select value={nt.assignedTo} onChange={(e) => setNt({ ...nt, assignedTo: e.target.value })} style={inputStyle}><option value="">Select person…</option>{people.map((p) => <option key={p}>{p}</option>)}</select></Fld>
+              <Fld label="Originator"><select value={nt.originator} onChange={(e) => setNt({ ...nt, originator: e.target.value })} style={inputStyle}><option value="">Select person…</option>{people.map((p) => <option key={p}>{p}</option>)}</select></Fld>
+              <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
+              <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{['Open', 'In Progress', 'Closed'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
+              <Fld label="Due Date"><input type="date" value={nt.dueDate} onChange={(e) => setNt({ ...nt, dueDate: e.target.value })} style={inputStyle} /></Fld>
+              <Fld label="Project"><select value={nt.project} onChange={(e) => setNt({ ...nt, project: e.target.value })} style={inputStyle}><option value="">Select project…</option>{projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Fld>
+              <Fld label="Description *" span><textarea value={nt.description} onChange={(e) => setNt({ ...nt, description: e.target.value })} rows={4} placeholder="Describe the task…" style={{ ...inputStyle, resize: 'vertical' }} /></Fld>
+              <Fld label="Link to File" span><input value={nt.linkedFile} onChange={(e) => setNt({ ...nt, linkedFile: e.target.value })} placeholder="Attach or paste link" style={inputStyle} /></Fld>
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', gap: 12, justifyContent: 'flex-end', flexShrink: 0 }}>
+              <div onClick={() => setShowNew(false)} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
+              <div onClick={createTask} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Create Task</div>
             </div>
           </div>
         </div>
       )}
       </>
       )}
+    </div>
+  );
+}
+
+function Fld({ label, span, children }: { label: string; span?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={span ? { gridColumn: '1 / -1' } : undefined}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
+      {children}
     </div>
   );
 }
