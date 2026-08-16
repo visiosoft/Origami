@@ -170,6 +170,49 @@ export class RoleEntity {
   @Column('simple-json') permissions!: Record<string, { view: boolean; manage: boolean }>;
 }
 
+@Entity('tickets')
+export class TicketEntity {
+  @PrimaryColumn() id!: string;
+  @Column() subject!: string;
+  @Column({ nullable: true }) category!: string;
+  @Column({ nullable: true }) priority!: string; // Low | Medium | High | Urgent
+  @Column(TEXT) message!: string;
+  @Column({ nullable: true }) requesterName!: string;
+  @Column({ nullable: true }) requesterEmail!: string;
+  @Column() status!: string; // Open | In Progress | Resolved
+  @Column() createdAt!: string;
+}
+
+@Entity('faqs')
+export class FaqEntity {
+  @PrimaryColumn() id!: string;
+  @Column() question!: string;
+  @Column(TEXT) answer!: string;
+  @Column({ nullable: true }) category!: string;
+  @Column('int') order!: number;
+}
+
+@Entity('workflows')
+export class WorkflowEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  @Column() status!: string; // Active | Draft | Archived
+  @Column({ nullable: true }) owner!: string;
+  @Column() createdAt!: string;
+}
+
+@Entity('workflow_items')
+export class WorkflowItemEntity {
+  @PrimaryColumn() id!: string;
+  @Column() workflowId!: string;
+  @Column() title!: string;
+  @Column() status!: string; // Open | In Progress | Done
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column('int') order!: number;
+  @Column() createdAt!: string;
+}
+
 @Entity('project_sections')
 export class ProjectSectionEntity {
   @PrimaryColumn() id!: string;

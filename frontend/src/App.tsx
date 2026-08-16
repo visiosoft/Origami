@@ -8,6 +8,8 @@ import { Tasks } from './pages/Tasks';
 import { ModuleSpec } from './pages/ModuleSpec';
 import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
+import { Workflows } from './pages/Workflows';
+import { Help } from './pages/Help';
 import { Auth } from './pages/Auth';
 
 export default function App() {
@@ -20,10 +22,12 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/workflows" element={<Workflows />} />
         <Route path="/people" element={<People />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Admin />} />
+        <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

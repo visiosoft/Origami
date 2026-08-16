@@ -153,6 +153,41 @@ export declare class RoleEntity {
         manage: boolean;
     }>;
 }
+export declare class TicketEntity {
+    id: string;
+    subject: string;
+    category: string;
+    priority: string;
+    message: string;
+    requesterName: string;
+    requesterEmail: string;
+    status: string;
+    createdAt: string;
+}
+export declare class FaqEntity {
+    id: string;
+    question: string;
+    answer: string;
+    category: string;
+    order: number;
+}
+export declare class WorkflowEntity {
+    id: string;
+    name: string;
+    description: string;
+    status: string;
+    owner: string;
+    createdAt: string;
+}
+export declare class WorkflowItemEntity {
+    id: string;
+    workflowId: string;
+    title: string;
+    status: string;
+    notes: string;
+    order: number;
+    createdAt: string;
+}
 export declare class ProjectSectionEntity {
     id: string;
     projectId: number;

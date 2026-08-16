@@ -1,14 +1,18 @@
-export declare enum ProjectPhase {
-    Design = "Design",
-    Preconstruction = "Preconstruction",
-    Construction = "Construction",
-    Closeout = "Closeout"
-}
 export declare class CreateProjectDto {
+    id?: number;
     name: string;
-    client: string;
-    phase: ProjectPhase;
-    contractValue: number;
-    exec?: string;
+    priority?: string;
+    location?: string;
+    typeOfWork?: string;
     contractType?: string;
+    contractAmt?: string;
+    estStart?: string;
+    duration?: string;
+    scope?: string;
+    stage?: string;
+    progress?: number;
+    referral?: string;
+    contactedBy?: string;
+    imgColor?: string;
+    img?: string;
 }

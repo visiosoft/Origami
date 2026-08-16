@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.UserEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -590,6 +590,138 @@ __decorate([
 exports.RoleEntity = RoleEntity = __decorate([
     (0, typeorm_1.Entity)('roles')
 ], RoleEntity);
+let TicketEntity = class TicketEntity {
+};
+exports.TicketEntity = TicketEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "subject", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "priority", void 0);
+__decorate([
+    (0, typeorm_1.Column)(TEXT),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "message", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "requesterName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "requesterEmail", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TicketEntity.prototype, "createdAt", void 0);
+exports.TicketEntity = TicketEntity = __decorate([
+    (0, typeorm_1.Entity)('tickets')
+], TicketEntity);
+let FaqEntity = class FaqEntity {
+};
+exports.FaqEntity = FaqEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], FaqEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], FaqEntity.prototype, "question", void 0);
+__decorate([
+    (0, typeorm_1.Column)(TEXT),
+    __metadata("design:type", String)
+], FaqEntity.prototype, "answer", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FaqEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], FaqEntity.prototype, "order", void 0);
+exports.FaqEntity = FaqEntity = __decorate([
+    (0, typeorm_1.Entity)('faqs')
+], FaqEntity);
+let WorkflowEntity = class WorkflowEntity {
+};
+exports.WorkflowEntity = WorkflowEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "owner", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowEntity.prototype, "createdAt", void 0);
+exports.WorkflowEntity = WorkflowEntity = __decorate([
+    (0, typeorm_1.Entity)('workflows')
+], WorkflowEntity);
+let WorkflowItemEntity = class WorkflowItemEntity {
+};
+exports.WorkflowItemEntity = WorkflowItemEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "workflowId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], WorkflowItemEntity.prototype, "order", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], WorkflowItemEntity.prototype, "createdAt", void 0);
+exports.WorkflowItemEntity = WorkflowItemEntity = __decorate([
+    (0, typeorm_1.Entity)('workflow_items')
+], WorkflowItemEntity);
 let ProjectSectionEntity = class ProjectSectionEntity {
 };
 exports.ProjectSectionEntity = ProjectSectionEntity;

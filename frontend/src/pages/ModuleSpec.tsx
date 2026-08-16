@@ -20,7 +20,6 @@ const MODULE_SPECS: Record<string, { title: string; purpose: string; screens: st
   fin_resources: { title: 'Resource Finance', purpose: 'Track resource costs, utilization billing, and rate cards.', screens: ['Rate Card Manager', 'Utilization Report', 'Cost Allocation'], fields: ['person', 'role', 'bill_rate', 'cost_rate', 'hours', 'project', 'period'] },
   reports: { title: 'Reports & Analytics', purpose: 'Configurable reports and dashboards for project and business intelligence.', screens: ['Report Builder', 'Saved Reports', 'Executive Dashboard'], fields: ['report_name', 'type', 'filters', 'schedule', 'recipients'] },
   library: { title: 'Document & Template Library', purpose: 'Shared templates, standard documents, and company knowledge base.', screens: ['Template Browser', 'Document Editor', 'Category Manager'], fields: ['template_name', 'category', 'version', 'last_updated', 'author'] },
-  help: { title: 'Help & Support', purpose: 'In-app help documentation and support ticket system.', screens: ['Help Center', 'Submit Ticket', 'FAQ'], fields: ['article_title', 'category', 'content', 'related_module'] },
 };
 
 export function ModuleSpec() {

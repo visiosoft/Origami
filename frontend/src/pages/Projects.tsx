@@ -1,22 +1,53 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
+import { api } from '../api';
+import { useApp } from '../AppContext';
 import {
-  PROJECTS, STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS,
+  STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS,
   type Project,
 } from '../data/projects';
 
 const BG = "'Bricolage Grotesque', serif";
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
+const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
+const PRIORITIES = ['High', 'Medium', 'Low'];
+const STAGES = ['Leads', 'Design', 'Construction', 'Closeout'];
+const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Leads', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
 
 export function Projects() {
+  const { can, toast } = useApp();
+  const canManage = can('projects', 'manage');
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tab, setTab] = useState<'overview' | 'workflow' | 'tasks'>('overview');
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [np, setNp] = useState<Partial<Project>>(BLANK);
 
-  const sel = selectedId ? PROJECTS.find((p) => p.id === selectedId) || null : null;
+  const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
+  useEffect(() => { reload(); }, []);
+
+  const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
   const workflow = computeWorkflow();
 
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); };
+  const openNew = () => { setNp(BLANK); setEditingId(null); setShowForm(true); };
+  const openEdit = (p: Project) => { setNp({ ...p }); setEditingId(p.id); setSelectedId(null); setShowForm(true); };
+  const saveProject = () => {
+    if (!np.name || np.name.trim().length < 2) { toast('Project name is required'); return; }
+    const payload = { ...np, progress: Number(np.progress) || 0 };
+    const done = (v: string) => { setShowForm(false); setEditingId(null); setNp(BLANK); reload(); toast(`${np.name} ${v}`); };
+    if (editingId != null) api.projects.update(editingId, payload).then(() => done('updated')).catch(() => toast('⚠ Failed to save'));
+    else api.projects.create(payload).then(() => done('created')).catch(() => toast('⚠ Failed to save'));
+  };
+  const deleteProject = (p: Project) => {
+    if (!confirm(`Delete project "${p.name}"?`)) return;
+    setProjects((prev) => prev.filter((x) => x.id !== p.id));
+    setSelectedId(null);
+    api.projects.remove(p.id).then(() => reload()).catch(() => toast('⚠ Failed to delete'));
+    toast(`${p.name} deleted`);
+  };
 
   const card = (p: Project, stCol: string) => (
     <div key={p.id} onClick={() => openProject(p.id)} style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: 'pointer' }}>
@@ -71,13 +102,13 @@ export function Projects() {
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>+ New Project</div>
+        {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>+ New Project</div>}
       </div>
 
       {/* Pipeline columns */}
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
         {STAGE_CONFIG.map((st) => {
-          const stageProjects = PROJECTS.filter((p) => p.stage === st.name);
+          const stageProjects = projects.filter((p) => p.stage === st.name);
           return (
             <div key={st.name} style={{ flex: '0 0 280px' }}>
               <div style={{ height: 4, borderRadius: 999, background: st.color, margin: '0 4px 8px' }} />
@@ -166,9 +197,9 @@ export function Projects() {
                   </div>
                 )}
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>
+                  {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
                   <div onClick={() => setTab('workflow')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}>Open Workflow Board</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Archive</div>
+                  {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Delete</div>}
                 </div>
               </div>
             ) : tab === 'tasks' ? (
@@ -266,6 +297,52 @@ export function Projects() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* New / Edit Project form */}
+      {showForm && (
+        <div onClick={() => setShowForm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: 16, boxShadow: '0 24px 60px rgba(20,8,31,0.24)', animation: 'scaleIn 0.18s ease' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700 }}>{editingId != null ? 'Edit project' : 'New project'}</div>
+              <div onClick={() => setShowForm(false)} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>×</div>
+            </div>
+            <div style={{ padding: '18px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                ['Project name', 'name', 'text', '1 / -1'],
+                ['Priority', 'priority', 'select-priority'],
+                ['Stage', 'stage', 'select-stage'],
+                ['Location', 'location', 'text'],
+                ['Type of work', 'typeOfWork', 'text'],
+                ['Contract type', 'contractType', 'text'],
+                ['Contract amount', 'contractAmt', 'text'],
+                ['Est. start', 'estStart', 'text'],
+                ['Duration', 'duration', 'text'],
+                ['Referral', 'referral', 'text'],
+                ['Contacted by', 'contactedBy', 'text'],
+                ['Progress %', 'progress', 'number'],
+                ['Scope of work', 'scope', 'textarea', '1 / -1'],
+              ].map(([label, key, kind, span]) => (
+                <div key={key as string} style={{ gridColumn: (span as string) || 'auto' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
+                  {kind === 'select-priority' ? (
+                    <select value={(np as any)[key as string] || 'Medium'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{PRIORITIES.map((o) => <option key={o}>{o}</option>)}</select>
+                  ) : kind === 'select-stage' ? (
+                    <select value={(np as any)[key as string] || 'Leads'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{STAGES.map((o) => <option key={o}>{o}</option>)}</select>
+                  ) : kind === 'textarea' ? (
+                    <textarea value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                  ) : (
+                    <input type={kind === 'number' ? 'number' : 'text'} value={(np as any)[key as string] ?? ''} onChange={(e) => setNp({ ...np, [key as string]: kind === 'number' ? Number(e.target.value) : e.target.value })} style={inputStyle} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', gap: 9 }}>
+              <div onClick={saveProject} style={{ padding: '11px 22px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{editingId != null ? 'Save changes' : 'Create project'}</div>
+              <div onClick={() => setShowForm(false)} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
+            </div>
           </div>
         </div>
       )}

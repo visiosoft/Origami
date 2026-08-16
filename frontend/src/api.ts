@@ -21,7 +21,8 @@ export const api = {
     list: () => request('/projects'),
     get: (id: string) => request(`/projects/${id}`),
     create: (data: unknown) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: unknown) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    update: (id: string | number, data: unknown) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string | number) => request(`/projects/${id}`, { method: 'DELETE' }),
   },
   people: {
     list: (project?: string) => request(`/people${project ? `?project=${encodeURIComponent(project)}` : ''}`),
@@ -85,5 +86,29 @@ export const api = {
     create: (data: unknown) => request('/project-sections', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-sections/${id}`, { method: 'DELETE' }),
+  },
+  workflows: {
+    list: () => request('/workflows'),
+    create: (data: unknown) => request('/workflows', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/workflows/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/workflows/${id}`, { method: 'DELETE' }),
+  },
+  workflowItems: {
+    list: (workflowId: string) => request(`/workflow-items?workflowId=${workflowId}`),
+    create: (data: unknown) => request('/workflow-items', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/workflow-items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/workflow-items/${id}`, { method: 'DELETE' }),
+  },
+  tickets: {
+    list: () => request('/tickets'),
+    create: (data: unknown) => request('/tickets', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/tickets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/tickets/${id}`, { method: 'DELETE' }),
+  },
+  faqs: {
+    list: () => request('/faqs'),
+    create: (data: unknown) => request('/faqs', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/faqs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/faqs/${id}`, { method: 'DELETE' }),
   },
 };

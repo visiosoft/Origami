@@ -9,6 +9,8 @@ import { LeadsModule } from './leads/leads.module';
 import { ScoringModule } from './scoring/scoring.module';
 import { UsersModule } from './users/users.module';
 import { ProjectTasksModule } from './project-tasks/project-tasks.module';
+import { WorkflowsModule } from './workflows/workflows.module';
+import { SupportModule } from './support/support.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
 
@@ -45,6 +47,8 @@ import { SeedModule } from './database/seed.module';
     ScoringModule,
     UsersModule,
     ProjectTasksModule,
+    WorkflowsModule,
+    SupportModule,
     DashboardModule,
   ],
 })
