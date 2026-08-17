@@ -279,7 +279,7 @@ export function Projects() {
                                 <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D', textDecoration: 'line-through' }}>{pt.title}</span>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D' }}>{pt.title}</span>
                                   </div>
                                 </div>
                               );
