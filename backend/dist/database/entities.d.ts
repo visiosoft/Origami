@@ -15,6 +15,7 @@ export declare class ProjectEntity {
     contactedBy: string;
     imgColor: string;
     img: string;
+    leadId: string;
 }
 export declare class PersonEntity {
     id: number;

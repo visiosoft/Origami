@@ -79,6 +79,10 @@ __decorate([
     (0, typeorm_1.Column)(TEXT),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "img", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "leadId", void 0);
 exports.ProjectEntity = ProjectEntity = __decorate([
     (0, typeorm_1.Entity)('projects')
 ], ProjectEntity);

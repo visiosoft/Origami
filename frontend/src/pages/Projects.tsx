@@ -24,9 +24,10 @@ export function Projects() {
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
+  const [leads, setLeads] = useState<any[]>([]);
 
   const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); api.leads.list().then((r: any) => { if (Array.isArray(r)) setLeads(r); }).catch(() => { }); }, []);
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
@@ -340,6 +341,18 @@ export function Projects() {
             <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{value}</div>
           </div>
         );
+        // The intake task surfaces the full initial-question detail captured in Leads.
+        const isIntake = pt.title === 'Press Release & Project Info';
+        const lead = isIntake && sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
+        const intakeSections: { title: string; rows: [string, string][] }[] = lead ? [
+          { title: '1. Contact', rows: [['Lead Name', lead.leadName], ['Pronunciation', lead.namePronunciation], ['Phone', lead.phone], ['Email', lead.email], ['Primary Point of Contact', lead.primaryPointOfContact]] },
+          { title: '2. Second Contact', rows: [['Has second contact', lead.secondPointOfContact], ['Name', lead.nameOfSecondContact], ['Phone', lead.phoneOfSecondContact], ['Email', lead.emailOfSecondContact], ['Relationship', lead.relationshipOfSecondContact]] },
+          { title: '3. Communication', rows: [['Decision Makers', lead.decisionMakers], ['Preferred Method', lead.preferredContactMethod], ['Lead Source', lead.leadSource]] },
+          { title: '4. Location', rows: [['Street Address', lead.projectStreetAddress], ['Street Name', lead.projectStreetName], ['City', lead.projectCity], ['ZIP', lead.projectZipCode], ['County', lead.countyLocation]] },
+          { title: '5. Project', rows: [['Property Type', lead.propertyType], ['Potential Project Type', lead.potentialProjectType], ['Homework Completed', (lead.homeworkCompleted || []).join(', ')], ['Vision / Scope', lead.projectVision]] },
+          { title: '6. Budget & Timeline', rows: [['Reason for Project', lead.reasonForProject], ['Budget Position', lead.budgetPosition], ['Funding Status', lead.fundingStatus], ['Desired Start', lead.desiredStart], ['Expected Duration', lead.expectedDuration], ['Length of Ownership', lead.expectedLengthOfOwnership]] },
+          { title: '7. Client Profile', rows: [['Client Personality', lead.clientPersonality]] },
+        ].map((s) => ({ title: s.title, rows: s.rows.filter(([, v]) => v && String(v).trim()) as [string, string][] })).filter((s) => s.rows.length > 0) : [];
         return (
           <div onClick={() => setSelPt(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(440px, 96vw)', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
@@ -389,6 +402,41 @@ export function Projects() {
                   </div>
                 </div>
               )}
+
+              {/* Intake questionnaire captured in Leads (shown on the Press Release & Project Info task) */}
+              {isIntake && (
+                <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px' }}>
+                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
+                    <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }}>Initial Question Intake</div>
+                  </div>
+                  {!sel?.leadId ? (
+                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>
+                      No lead linked to this project. Use <b style={{ color: '#173326' }}>Edit project → Linked lead</b> to connect the Leads intake captured during the initial questions.
+                    </div>
+                  ) : !lead ? (
+                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93' }}>Linked lead not found.</div>
+                  ) : intakeSections.length === 0 ? (
+                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93' }}>No intake details captured yet for <b style={{ color: '#173326' }}>{lead.leadName}</b>.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {intakeSections.map((s) => (
+                        <div key={s.title}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#173326', marginBottom: 8 }}>{s.title}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {s.rows.map(([label, value]) => (
+                              <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 12px', background: '#FBF8F2', borderRadius: 8 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', flex: '0 0 40%' }}>{label}</div>
+                                <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', flex: 1, minWidth: 0, lineHeight: 1.45 }}>{value}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -416,6 +464,7 @@ export function Projects() {
                 ['Referral', 'referral', 'text'],
                 ['Contacted by', 'contactedBy', 'text'],
                 ['Progress %', 'progress', 'number'],
+                ['Linked lead (intake)', 'leadId', 'select-lead', '1 / -1'],
                 ['Scope of work', 'scope', 'textarea', '1 / -1'],
               ].map(([label, key, kind, span]) => (
                 <div key={key as string} style={{ gridColumn: (span as string) || 'auto' }}>
@@ -424,6 +473,11 @@ export function Projects() {
                     <select value={(np as any)[key as string] || 'Medium'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{PRIORITIES.map((o) => <option key={o}>{o}</option>)}</select>
                   ) : kind === 'select-stage' ? (
                     <select value={(np as any)[key as string] || 'Leads'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{STAGES.map((o) => <option key={o}>{o}</option>)}</select>
+                  ) : kind === 'select-lead' ? (
+                    <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>
+                      <option value="">— None —</option>
+                      {leads.map((l) => <option key={l.id} value={l.id}>{l.leadName}{l.projectCity ? ` · ${l.projectCity}` : ''}</option>)}
+                    </select>
                   ) : kind === 'textarea' ? (
                     <textarea value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
                   ) : (

@@ -15,4 +15,5 @@ export declare class CreateProjectDto {
     contactedBy?: string;
     imgColor?: string;
     img?: string;
+    leadId?: string;
 }

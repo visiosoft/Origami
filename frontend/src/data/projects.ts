@@ -17,6 +17,7 @@ export interface Project {
   contactedBy: string;
   imgColor: string;
   img: string;
+  leadId?: string; // originating lead (intake questionnaire) shown on the Press Release & Project Info task
 }
 
 export const PROJECTS: Project[] = [

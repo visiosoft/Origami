@@ -20,6 +20,7 @@ export class ProjectEntity {
   @Column() contactedBy!: string;
   @Column() imgColor!: string;
   @Column(TEXT) img!: string;
+  @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
 }
 
 @Entity('people')

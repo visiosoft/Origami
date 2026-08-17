@@ -18,4 +18,5 @@ export class CreateProjectDto {
   @IsString() @IsOptional() contactedBy?: string;
   @IsString() @IsOptional() imgColor?: string;
   @IsString() @IsOptional() img?: string;
+  @IsString() @IsOptional() leadId?: string;
 }
