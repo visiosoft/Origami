@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.UserEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -666,6 +666,44 @@ __decorate([
 exports.FaqEntity = FaqEntity = __decorate([
     (0, typeorm_1.Entity)('faqs')
 ], FaqEntity);
+let EmailTemplateEntity = class EmailTemplateEntity {
+};
+exports.EmailTemplateEntity = EmailTemplateEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "key", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "subject", void 0);
+__decorate([
+    (0, typeorm_1.Column)(TEXT),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "body", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "kind", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmailTemplateEntity.prototype, "updatedAt", void 0);
+exports.EmailTemplateEntity = EmailTemplateEntity = __decorate([
+    (0, typeorm_1.Entity)('email_templates')
+], EmailTemplateEntity);
 let WorkflowEntity = class WorkflowEntity {
 };
 exports.WorkflowEntity = WorkflowEntity;

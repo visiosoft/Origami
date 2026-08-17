@@ -15,7 +15,10 @@ const inputStyle: React.CSSProperties = {
 
 // Settings sections and their sub-links. Extend this as more settings are added.
 const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
-  { group: 'Templates', items: [{ key: 'lead-scoring', label: 'Lead Qualification Scoring Template' }] },
+  { group: 'Templates', items: [
+    { key: 'lead-scoring', label: 'Lead Qualification Scoring Template' },
+    { key: 'email-templates', label: 'Email & Document Templates' },
+  ] },
 ];
 
 export function Settings() {
@@ -46,6 +49,7 @@ export function Settings() {
         {nav}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
           {active === 'lead-scoring' && <ScoringTemplateEditor />}
+          {active === 'email-templates' && <EmailTemplatesEditor />}
         </div>
       </div>
     </div>
@@ -151,6 +155,110 @@ function ScoringTemplateEditor() {
 
           <div onClick={addCriterion} style={{ display: 'inline-block', padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#D2EAD3', color: '#173326' }}>+ Add criterion</div>
         </>
+      )}
+    </div>
+  );
+}
+
+interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }
+const BLANK_TEMPLATE: EmailTemplate = { id: '', name: 'New Template', subject: '', body: '', kind: 'email', category: '' };
+
+function EmailTemplatesEditor() {
+  const { toast, can } = useApp();
+  const canManage = can('settings', 'manage');
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<EmailTemplate | null>(null);
+  const [isNew, setIsNew] = useState(false);
+
+  const reload = (selectId?: string) => {
+    api.emailTemplates.list()
+      .then((r: any) => { if (Array.isArray(r)) { setTemplates(r as EmailTemplate[]); if (selectId) { const t = r.find((x: EmailTemplate) => x.id === selectId); if (t) setDraft({ ...t }); } } })
+      .catch(() => { })
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { reload(); }, []);
+
+  const openTemplate = (t: EmailTemplate) => { setDraft({ ...t }); setIsNew(false); };
+  const openNew = () => { setDraft({ ...BLANK_TEMPLATE }); setIsNew(true); };
+  const closeEditor = () => { setDraft(null); setIsNew(false); };
+
+  const save = () => {
+    if (!draft || !draft.name.trim() || !draft.body.trim()) { toast('Name and body are required'); return; }
+    setSaving(true);
+    const req = isNew
+      ? api.emailTemplates.create({ name: draft.name, subject: draft.subject, body: draft.body, kind: draft.kind || 'email', category: draft.category })
+      : api.emailTemplates.update(draft.id, { name: draft.name, subject: draft.subject, body: draft.body, kind: draft.kind, category: draft.category });
+    req.then((res: any) => { toast('Template saved'); setIsNew(false); reload(res?.id || draft.id); })
+      .catch(() => toast('⚠ Failed to save template'))
+      .finally(() => setSaving(false));
+  };
+
+  const del = () => {
+    if (!draft || isNew) { closeEditor(); return; }
+    if (!confirm(`Delete template "${draft.name}"?`)) return;
+    api.emailTemplates.delete(draft.id).then(() => { toast('Template deleted'); closeEditor(); reload(); }).catch(() => toast('⚠ Failed to delete'));
+  };
+
+  const firstLine = (s: string) => (s || '').replace(/\{\{[^}]+\}\}/g, '…').split('\n').find((l) => l.trim()) || '';
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+        <div>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Email &amp; Document Templates</div>
+          <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
+            Reusable client emails and documents (e.g. the <strong>Introduction Letter</strong>). Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{clientPhone}}'}</code>, <code>{'{{projectTitle}}'}</code>, <code>{'{{projectScope}}'}</code>, <code>{'{{date}}'}</code> — they fill in from the linked lead &amp; project when the template is used.
+          </div>
+        </div>
+        {canManage && <div onClick={openNew} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>+ New Template</div>}
+      </div>
+
+      {loading ? (
+        <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading templates…</div>
+      ) : draft ? (
+        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#0B1A12' }}>{isNew ? 'New template' : 'Edit template'}</div>
+            <div onClick={closeEditor} style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>← Back to list</div>
+          </div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Template name</div>
+              <input value={draft.name} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
+              <input value={draft.subject || ''} disabled={!canManage} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Body</div>
+              <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
+            </div>
+          </div>
+          {canManage && (
+            <div style={{ display: 'flex', gap: 9, marginTop: 16 }}>
+              <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>{saving ? 'Saving…' : (isNew ? 'Create template' : 'Save changes')}</div>
+              {!isNew && <div onClick={del} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete</div>}
+            </div>
+          )}
+        </div>
+      ) : templates.length === 0 ? (
+        <div style={{ fontSize: 13, color: '#9AA39D', fontStyle: 'italic', padding: '20px 0' }}>No templates yet. Click “+ New Template” to create one.</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+          {templates.map((t) => (
+            <div key={t.id} onClick={() => openTemplate(t)} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 16, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1A12', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#E7F0E8', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>
+              </div>
+              {t.subject && <div style={{ fontSize: 11.5, color: '#43514D', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
+              <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body)}</div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

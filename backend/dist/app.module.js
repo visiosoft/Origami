@@ -20,6 +20,7 @@ const users_module_1 = require("./users/users.module");
 const project_tasks_module_1 = require("./project-tasks/project-tasks.module");
 const workflows_module_1 = require("./workflows/workflows.module");
 const support_module_1 = require("./support/support.module");
+const email_templates_module_1 = require("./email-templates/email-templates.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
 const seed_module_1 = require("./database/seed.module");
 let AppModule = class AppModule {
@@ -57,6 +58,7 @@ exports.AppModule = AppModule = __decorate([
             project_tasks_module_1.ProjectTasksModule,
             workflows_module_1.WorkflowsModule,
             support_module_1.SupportModule,
+            email_templates_module_1.EmailTemplatesModule,
             dashboard_module_1.DashboardModule,
         ],
     })

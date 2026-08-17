@@ -173,6 +173,16 @@ export declare class FaqEntity {
     category: string;
     order: number;
 }
+export declare class EmailTemplateEntity {
+    id: string;
+    key: string;
+    name: string;
+    subject: string;
+    body: string;
+    kind: string;
+    category: string;
+    updatedAt: string;
+}
 export declare class WorkflowEntity {
     id: string;
     projectId: number;

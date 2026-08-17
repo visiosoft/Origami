@@ -194,6 +194,18 @@ export class FaqEntity {
   @Column('int') order!: number;
 }
 
+@Entity('email_templates')
+export class EmailTemplateEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ nullable: true }) key!: string;       // stable slug, e.g. introduction_letter
+  @Column() name!: string;
+  @Column({ ...TEXT, nullable: true }) subject!: string;
+  @Column(TEXT) body!: string;                     // may contain {{token}} merge fields
+  @Column({ nullable: true }) kind!: string;       // email | document
+  @Column({ nullable: true }) category!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
 @Entity('workflows')
 export class WorkflowEntity {
   @PrimaryColumn() id!: string;

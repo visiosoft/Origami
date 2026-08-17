@@ -62,6 +62,13 @@ export const api = {
     getTemplate: () => request('/scoring/template'),
     saveTemplate: (criteria: unknown) => request('/scoring/template', { method: 'PUT', body: JSON.stringify({ criteria }) }),
   },
+  emailTemplates: {
+    list: () => request('/email-templates'),
+    get: (id: string) => request(`/email-templates/${id}`),
+    create: (data: unknown) => request('/email-templates', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/email-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request(`/email-templates/${id}`, { method: 'DELETE' }),
+  },
   users: {
     list: () => request('/users'),
     create: (data: unknown) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
