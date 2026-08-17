@@ -23,6 +23,7 @@ export function Projects() {
   const [np, setNp] = useState<Partial<Project>>(BLANK);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
 
   const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
   useEffect(() => { reload(); }, []);
@@ -150,46 +151,43 @@ export function Projects() {
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'workflow' || tab === 'tasks' || tab === 'phases' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
-            {/* Header image */}
-            <div style={{ height: 150, background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={18} height={18} rx={2} ry={2} /><circle cx={8.5} cy={8.5} r={1.5} /><polyline points="21 15 16 10 5 21" /></svg>
-              <div style={{ position: 'absolute', top: 14, right: 14 }}>
-                <div onClick={() => setSelectedId(null)} style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
-                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
+            {/* Header — compact bar (stage color) with title, location & amount inline */}
+            <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(0,0,0,0.45)', color: 'white' }}>{sel.stage}</span>
+                <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(255,255,255,0.92)', color: PR_COLORS[sel.priority].c }}>{sel.priority}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', color: 'white', lineHeight: 1.15 }}>{sel.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 3 }}>
+                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
+                    {sel.location}
+                  </div>
                 </div>
+                <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, letterSpacing: '-0.02em', color: 'white' }}>{sel.contractAmt}</div>
               </div>
-              <div style={{ position: 'absolute', bottom: 12, left: 16, display: 'flex', gap: 8 }}>
-                <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: 'rgba(0,0,0,0.5)', color: 'white' }}>{sel.stage}</span>
-                <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,0.9)', color: PR_COLORS[sel.priority].c }}>{sel.priority}</span>
+              <div onClick={() => setSelectedId(null)} style={{ position: 'absolute', top: 12, right: 12, width: 30, height: 30, borderRadius: 9, background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
               </div>
-            </div>
-
-            {/* Title */}
-            <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)', flexShrink: 0 }}>
-              <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, letterSpacing: '-0.02em' }}>{sel.name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#7E9B93', marginTop: 4 }}>
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
-                {sel.location}
-              </div>
-              <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 28, letterSpacing: '-0.02em', marginTop: 14, color: '#173326' }}>{sel.contractAmt}</div>
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 28px', flexShrink: 0 }}>
-              <div onClick={() => setTab('overview')} style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'overview' ? '#173326' : 'transparent'), color: tab === 'overview' ? '#0B1A12' : '#7E9B93' }}>Overview</div>
-              <div onClick={() => setTab('phases')} style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'phases' ? '#173326' : 'transparent'), color: tab === 'phases' ? '#0B1A12' : '#7E9B93' }}>
+            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px', flexShrink: 0 }}>
+              <div onClick={() => setTab('overview')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'overview' ? '#173326' : 'transparent'), color: tab === 'overview' ? '#0B1A12' : '#7E9B93' }}>Overview</div>
+              <div onClick={() => setTab('phases')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'phases' ? '#173326' : 'transparent'), color: tab === 'phases' ? '#0B1A12' : '#7E9B93' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={7} height={7} /><rect x={14} y={3} width={7} height={7} /><rect x={3} y={14} width={7} height={7} /><rect x={14} y={14} width={7} height={7} /></svg>
                   Phase Board
                 </span>
               </div>
-              <div onClick={() => setTab('workflow')} style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'workflow' ? '#173326' : 'transparent'), color: tab === 'workflow' ? '#0B1A12' : '#7E9B93' }}>
+              <div onClick={() => setTab('workflow')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'workflow' ? '#173326' : 'transparent'), color: tab === 'workflow' ? '#0B1A12' : '#7E9B93' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
                   Workflows
                 </span>
               </div>
-              <div onClick={() => setTab('tasks')} style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
+              <div onClick={() => setTab('tasks')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
                   Tasks
@@ -278,7 +276,7 @@ export function Projects() {
                             const done = pt.status === 'Done';
                             if (phase.isComplete && done) {
                               return (
-                                <div key={pt.title} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)' }}>
+                                <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                     <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D', textDecoration: 'line-through' }}>{pt.title}</span>
@@ -287,7 +285,7 @@ export function Projects() {
                               );
                             }
                             return (
-                              <div key={pt.title} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)' }}>
+                              <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)', cursor: 'pointer' }}>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.4, marginBottom: 6 }}>{pt.title}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
                                   <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
@@ -331,6 +329,70 @@ export function Projects() {
           </div>
         </div>
       )}
+
+      {/* Phase-task detail panel */}
+      {selPt && (() => {
+        const { pt, phaseName, phaseColor } = selPt;
+        const sc = WF_ST_COLORS[pt.status] || { bg: '#EFEDE8', c: '#7E9B93' };
+        const row = (label: string, value: React.ReactNode) => (
+          <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{value}</div>
+          </div>
+        );
+        return (
+          <div onClick={() => setSelPt(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(440px, 96vw)', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
+              <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
+                  <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#0B1A12', lineHeight: 1.3 }}>{pt.title}</div>
+                </div>
+                <div onClick={() => setSelPt(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
+              </div>
+
+              <div style={{ padding: '16px 22px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.c }}>{pt.status}</span>
+                <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
+                {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE9AE', color: '#93520F' }}>⚡ AUTO</span>}
+              </div>
+
+              <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {row('Assignee', pt.assignee ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 999, background: '#0F2417', color: 'white', display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 700 }}>{initials(pt.assignee)}</span>
+                    {pt.assignee}
+                  </span>
+                ) : <span style={{ color: '#9AA39D' }}>Unassigned</span>)}
+                {row('Duration', pt.dur || '—')}
+                {row('Start', pt.start || '—')}
+                {row('End', pt.end || '—')}
+              </div>
+
+              {pt.autoLabel && (
+                <div style={{ padding: '0 22px 16px' }}>
+                  {row('Automation', pt.autoLabel)}
+                </div>
+              )}
+
+              {Array.isArray(pt.deps) && pt.deps.length > 0 && (
+                <div style={{ padding: '0 22px 20px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Depends on</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {pt.deps.map((d: string) => (
+                      <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8, fontSize: 12, color: '#43514D' }}>
+                        <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* New / Edit Project form */}
       {showForm && (
