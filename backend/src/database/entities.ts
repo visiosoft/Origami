@@ -21,6 +21,7 @@ export class ProjectEntity {
   @Column() imgColor!: string;
   @Column(TEXT) img!: string;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
+  @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
 }
 
 @Entity('people')

@@ -18,6 +18,7 @@ export interface Project {
   imgColor: string;
   img: string;
   leadId?: string; // originating lead (intake questionnaire) shown on the Press Release & Project Info task
+  introLetterSentAt?: string; // ISO timestamp when the Introduction Letter was sent (marks that step complete)
 }
 
 export const PROJECTS: Project[] = [

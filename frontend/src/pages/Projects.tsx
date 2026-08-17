@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
 import { WorkflowsView } from '../components/WorkflowsView';
 import { api } from '../api';
@@ -25,13 +25,71 @@ export function Projects() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  // Introduction Letter compose state (populated when that phase task is opened).
+  const [tplId, setTplId] = useState('');
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const introInitFor = useRef<string | null>(null);
 
   const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
-  useEffect(() => { reload(); api.leads.list().then((r: any) => { if (Array.isArray(r)) setLeads(r); }).catch(() => { }); }, []);
+  useEffect(() => {
+    reload();
+    api.leads.list().then((r: any) => { if (Array.isArray(r)) setLeads(r); }).catch(() => { });
+    api.emailTemplates.list().then((r: any) => { if (Array.isArray(r)) setTemplates(r); }).catch(() => { });
+  }, []);
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
   const workflow = computeWorkflow();
+
+  // ---- Introduction Letter email compose (on its Phase Board task) ----
+  const introLead = sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
+  const mergeIntro = (text: string) => {
+    const map: Record<string, string> = {
+      clientName: introLead?.leadName || '',
+      clientEmail: introLead?.email || '',
+      clientPhone: introLead?.phone || '',
+      projectTitle: sel?.name || '',
+      projectScope: sel?.scope || introLead?.projectVision || '',
+      date: new Date().toLocaleDateString(),
+    };
+    return (text || '').replace(/\{\{(\w+)\}\}/g, (m, k) => (k in map ? map[k] : m));
+  };
+  const applyTemplate = (id: string) => {
+    const t = templates.find((x) => x.id === id);
+    setTplId(id);
+    setEmailSubject(mergeIntro(t?.subject || ''));
+    setEmailBody(mergeIntro(t?.body || ''));
+  };
+  // Populate the compose fields once when the Introduction Letter task opens for a project.
+  useEffect(() => {
+    if (selPt?.pt?.title === 'Introduction Letter' && sel && templates.length) {
+      const keyId = String(sel.id);
+      if (introInitFor.current !== keyId) {
+        introInitFor.current = keyId;
+        const t = templates.find((x) => x.key === 'introduction_letter') || templates[0];
+        setEmailTo(introLead?.email || '');
+        if (t) { setTplId(t.id); setEmailSubject(mergeIntro(t.subject || '')); setEmailBody(mergeIntro(t.body || '')); }
+      }
+    } else if (!selPt) {
+      introInitFor.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selPt, templates, leads, sel]);
+
+  const sendIntroLetter = () => {
+    if (!sel) return;
+    window.location.href = 'mailto:' + encodeURIComponent(emailTo) + '?subject=' + encodeURIComponent(emailSubject) + '&body=' + encodeURIComponent(emailBody);
+    const now = new Date().toISOString();
+    setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, introLetterSentAt: now } : p)));
+    api.projects.update(sel.id, { name: sel.name, introLetterSentAt: now }).catch(() => toast('⚠ Failed to mark complete'));
+    toast('Opened in your email app — step marked complete');
+  };
+  const copyIntroLetter = () => {
+    navigator.clipboard.writeText((emailSubject ? emailSubject + '\n\n' : '') + emailBody).then(() => toast('Copied')).catch(() => toast('⚠ Copy failed'));
+  };
 
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); };
   const openNew = () => { setNp(BLANK); setEditingId(null); setShowForm(true); };
@@ -343,6 +401,7 @@ export function Projects() {
         );
         // The intake task surfaces the full initial-question detail captured in Leads.
         const isIntake = pt.title === 'Press Release & Project Info';
+        const isIntroLetter = pt.title === 'Introduction Letter';
         const lead = isIntake && sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
         const intakeSections: { title: string; rows: [string, string][] }[] = lead ? [
           { title: '1. Contact', rows: [['Lead Name', lead.leadName], ['Pronunciation', lead.namePronunciation], ['Phone', lead.phone], ['Email', lead.email], ['Primary Point of Contact', lead.primaryPointOfContact]] },
@@ -433,6 +492,63 @@ export function Projects() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Introduction Letter — email compose (select template, pre-fill client, send) */}
+              {isIntroLetter && (
+                <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px' }}>
+                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={2} y={4} width={20} height={16} rx={2} /><path d="m22 7-10 5L2 7" /></svg>
+                    <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }}>Send Introduction Letter</div>
+                  </div>
+
+                  {sel?.introLetterSentAt && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#EDF4EC', border: '1px solid rgba(5,150,105,0.15)', borderRadius: 10, marginBottom: 12 }}>
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1C5230' }}>Sent on {new Date(sel.introLetterSentAt).toLocaleString()} — step complete</span>
+                    </div>
+                  )}
+
+                  {templates.length === 0 ? (
+                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>
+                      No email templates yet. Create one in <b style={{ color: '#173326' }}>Settings → Email &amp; Document Templates</b>.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {!sel?.leadId && (
+                        <div style={{ padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5 }}>
+                          No lead linked — client fields aren't pre-filled. Use <b style={{ color: '#173326' }}>Edit project → Linked lead</b>, or fill the fields below manually.
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Template</div>
+                        <select value={tplId} onChange={(e) => applyTemplate(e.target.value)} style={{ ...inputStyle, width: '100%' }}>
+                          {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>To</div>
+                        <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="client@email.com" style={{ ...inputStyle, width: '100%' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
+                        <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Message</div>
+                        <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={14} style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.5, whiteSpace: 'pre-wrap' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <div onClick={sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                          {sel?.introLetterSentAt ? 'Re-send' : 'Send'}
+                        </div>
+                        <div onClick={copyIntroLetter} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>Copy email</div>
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>“Send” opens your email app pre-filled and marks this step complete. Edit the message above before sending if needed.</div>
                     </div>
                   )}
                 </div>

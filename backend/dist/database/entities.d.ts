@@ -16,6 +16,7 @@ export declare class ProjectEntity {
     imgColor: string;
     img: string;
     leadId: string;
+    introLetterSentAt: string;
 }
 export declare class PersonEntity {
     id: number;

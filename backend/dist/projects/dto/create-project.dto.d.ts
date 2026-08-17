@@ -16,4 +16,5 @@ export declare class CreateProjectDto {
     imgColor?: string;
     img?: string;
     leadId?: string;
+    introLetterSentAt?: string;
 }

@@ -19,4 +19,5 @@ export class CreateProjectDto {
   @IsString() @IsOptional() imgColor?: string;
   @IsString() @IsOptional() img?: string;
   @IsString() @IsOptional() leadId?: string;
+  @IsString() @IsOptional() introLetterSentAt?: string;
 }
