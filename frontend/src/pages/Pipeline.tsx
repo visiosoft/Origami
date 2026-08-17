@@ -259,8 +259,8 @@ export function Pipeline() {
     const start = new Date(meetWhen);
     const end = new Date(start.getTime() + 30 * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const text = encodeURIComponent(`Virtual F&F Meeting — ${deal.name}`);
-    const details = encodeURIComponent('Virtual Friends & Family meeting via Origami CRM. Turn on "Add Google Meet video conferencing" in the event to generate the Meet link.');
+    const text = encodeURIComponent(`Virtual F2F Meeting — ${deal.name}`);
+    const details = encodeURIComponent('Virtual F2F meeting via Origami CRM. Turn on "Add Google Meet video conferencing" in the event to generate the Meet link.');
     const guests = deal.email ? `&add=${encodeURIComponent(deal.email)}` : '';
     const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}${guests}&details=${details}`;
     window.open(url, '_blank', 'noopener');
@@ -293,7 +293,7 @@ export function Pipeline() {
   const saveMeet = (deal: Deal, stageName: string) => {
     if (!meetWhen) return;
     setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Virtual F&F meeting saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Virtual F2F meeting saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
     api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen }).catch(() => { });
     toast('Meeting time saved');
   };

@@ -430,17 +430,19 @@ export function Projects() {
                 {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE9AE', color: '#93520F' }}>⚡ AUTO</span>}
               </div>
 
-              <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {row('Assignee', pt.assignee ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 999, background: '#0F2417', color: 'white', display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 700 }}>{initials(pt.assignee)}</span>
-                    {pt.assignee}
-                  </span>
-                ) : <span style={{ color: '#9AA39D' }}>Unassigned</span>)}
-                {row('Duration', pt.dur || '—')}
-                {row('Start', pt.start || '—')}
-                {row('End', pt.end || '—')}
-              </div>
+              {!isIntroLetter && (
+                <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {row('Assignee', pt.assignee ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 999, background: '#0F2417', color: 'white', display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 700 }}>{initials(pt.assignee)}</span>
+                      {pt.assignee}
+                    </span>
+                  ) : <span style={{ color: '#9AA39D' }}>Unassigned</span>)}
+                  {row('Duration', pt.dur || '—')}
+                  {row('Start', pt.start || '—')}
+                  {row('End', pt.end || '—')}
+                </div>
+              )}
 
               {pt.autoLabel && (
                 <div style={{ padding: '0 22px 16px' }}>
