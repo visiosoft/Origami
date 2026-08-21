@@ -24,7 +24,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', badge: '9' },
       { label: 'Projects', route: 'projects', icon: 'folder' },
-      { label: 'Workflows', route: 'workflows', icon: 'list' },
       { label: 'People', route: 'people', icon: 'people' },
       { label: 'Tasks', route: 'tasks', icon: 'check', badge: '32' },
     ],

@@ -280,6 +280,20 @@ export class GoogleService {
     return this.ensureFolder(scope || 'General', await this.attachmentsRootId());
   }
 
+  /**
+   * Resolve (creating as needed) a nested folder path under a named root, so the
+   * Drive mirrors the tree people see rather than dumping everything flat.
+   */
+  async folderForPath(root: string, segments: string[]): Promise<string> {
+    let parent = await this.ensureFolder(root);
+    for (const segment of segments) {
+      const clean = (segment || '').trim();
+      if (!clean) continue;
+      parent = await this.ensureFolder(clean, parent);
+    }
+    return parent;
+  }
+
   /** Upload a file into Drive. Small files go multipart, larger ones resumable. */
   async uploadDriveFile(opts: { name: string; mimeType: string; buffer: Buffer; parentId: string }): Promise<DriveFile> {
     const token = await this.workspaceToken();

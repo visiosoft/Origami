@@ -9,12 +9,12 @@ import { Tasks } from './pages/Tasks';
 import { ModuleSpec } from './pages/ModuleSpec';
 import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
-import { Workflows } from './pages/Workflows';
 import { Help } from './pages/Help';
 import { Auth } from './pages/Auth';
 import { SetPassword } from './pages/SetPassword';
 import { Privacy } from './pages/Privacy';
 import { Home } from './pages/Home';
+import { FileRoom } from './pages/FileRoom';
 import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
@@ -40,11 +40,11 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
-        <Route path="/workflows" element={<Workflows />} />
         <Route path="/people" element={<People />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Admin />} />
+        <Route path="/planroom" element={<FileRoom />} />
         <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>

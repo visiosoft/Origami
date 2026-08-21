@@ -69,6 +69,7 @@ export declare class GoogleService {
     ensureFolder(name: string, parentId?: string): Promise<string>;
     attachmentsRootId(): Promise<string>;
     folderForScope(scope: string): Promise<string>;
+    folderForPath(root: string, segments: string[]): Promise<string>;
     uploadDriveFile(opts: {
         name: string;
         mimeType: string;

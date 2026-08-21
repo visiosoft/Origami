@@ -333,3 +333,36 @@ export class AppSettingEntity {
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) value!: string;
   @Column({ nullable: true }) updatedAt!: string;
 }
+
+/**
+ * A file in the File Room. The bytes live in the connected Google Drive; this
+ * row holds where it sits in the folder tree and which version group it belongs
+ * to. `folderPath` excludes the project itself — ['Drawings & Plans', 'Rev 4'].
+ */
+@Entity('file_room_files')
+export class FileRoomFileEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'simple-json', nullable: true }) folderPath!: string[];
+  @Column() name!: string;
+  @Column({ nullable: true }) ext!: string;
+  @Column({ type: 'bigint', nullable: true }) size!: number;
+  @Column({ nullable: true }) mimeType!: string;
+  @Column({ nullable: true }) driveId!: string;
+  @Column({ nullable: true }) uploadedBy!: string;
+  @Column({ nullable: true }) uploadedById!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  /** Revisions of the same document share a group; one of them is the latest. */
+  @Column({ nullable: true }) groupId!: string;
+  @Column({ nullable: true, default: true }) isLatest!: boolean;
+}
+
+/** A folder someone created that holds no files yet — otherwise it would vanish. */
+@Entity('file_room_folders')
+export class FileRoomFolderEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ type: 'simple-json', nullable: true }) path!: string[];   // includes its own name
+  @Column() name!: string;
+  @Column({ nullable: true }) createdAt!: string;
+}

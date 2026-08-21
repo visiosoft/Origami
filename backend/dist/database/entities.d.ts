@@ -287,3 +287,25 @@ export declare class AppSettingEntity {
     value: string;
     updatedAt: string;
 }
+export declare class FileRoomFileEntity {
+    id: string;
+    projectId: number;
+    folderPath: string[];
+    name: string;
+    ext: string;
+    size: number;
+    mimeType: string;
+    driveId: string;
+    uploadedBy: string;
+    uploadedById: string;
+    updatedAt: string;
+    groupId: string;
+    isLatest: boolean;
+}
+export declare class FileRoomFolderEntity {
+    id: string;
+    projectId: number;
+    path: string[];
+    name: string;
+    createdAt: string;
+}

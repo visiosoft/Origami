@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
+import { Notifications } from './Notifications';
 import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS } from '../data/nav';
 import './AppShell.css';
@@ -144,10 +145,7 @@ export function AppShell() {
             <span className="search-kbd">⌘K</span>
           </div>
 
-          <div className="topbar-bell" title="Notifications">
-            <Icon name="bell" size={18} stroke="#43514D" strokeWidth={2} />
-            <span className="topbar-bell-dot" />
-          </div>
+          <Notifications />
         </header>
 
         <main className="content">

@@ -27,6 +27,7 @@ const settings_module_1 = require("./settings/settings.module");
 const google_module_1 = require("./google/google.module");
 const auth_module_1 = require("./auth/auth.module");
 const reminders_module_1 = require("./reminders/reminders.module");
+const file_room_module_1 = require("./file-room/file-room.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -56,6 +57,7 @@ exports.AppModule = AppModule = __decorate([
             google_module_1.GoogleModule,
             auth_module_1.AuthModule,
             reminders_module_1.RemindersModule,
+            file_room_module_1.FileRoomModule,
             projects_module_1.ProjectsModule,
             people_module_1.PeopleModule,
             tasks_module_1.TasksModule,

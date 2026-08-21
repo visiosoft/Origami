@@ -230,6 +230,16 @@ let GoogleService = class GoogleService {
     async folderForScope(scope) {
         return this.ensureFolder(scope || 'General', await this.attachmentsRootId());
     }
+    async folderForPath(root, segments) {
+        let parent = await this.ensureFolder(root);
+        for (const segment of segments) {
+            const clean = (segment || '').trim();
+            if (!clean)
+                continue;
+            parent = await this.ensureFolder(clean, parent);
+        }
+        return parent;
+    }
     async uploadDriveFile(opts) {
         const token = await this.workspaceToken();
         const metadata = { name: opts.name, parents: [opts.parentId] };

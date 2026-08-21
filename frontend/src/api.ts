@@ -193,6 +193,27 @@ export const api = {
     removeAttachment: (id: string, attId: string) => request(`/project-tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
     addComment: (id: string, text: string) => request(`/project-tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
+  fileRoom: {
+    list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
+    upload: (projectId: number, path: string[], files: File[] | FileList) => {
+      const form = new FormData();
+      form.append('projectId', String(projectId));
+      form.append('path', JSON.stringify(path));
+      Array.from(files).forEach((f) => form.append('files', f, f.name));
+      return requestForm('/file-room/upload', form);
+    },
+    rename: (id: string, name: string) => request(`/file-room/files/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    markLatest: (id: string) => request(`/file-room/files/${id}/latest`, { method: 'PUT' }),
+    remove: (id: string) => request(`/file-room/files/${id}`, { method: 'DELETE' }),
+    createFolder: (projectId: number, path: string[], name: string) =>
+      request('/file-room/folders', { method: 'POST', body: JSON.stringify({ projectId, path, name }) }),
+    removeFolder: (id: string) => request(`/file-room/folders/${id}`, { method: 'DELETE' }),
+    /** Relative on purpose: works through the vite proxy and same-origin in prod. */
+    contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
+      const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');
+      return `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${q ? `?${q}` : ''}`;
+    },
+  },
   projectPhases: {
     list: (projectId: number) => request(`/project-phases?projectId=${projectId}`),
     board: (projectId: number) => request(`/project-phases/board?projectId=${projectId}`),

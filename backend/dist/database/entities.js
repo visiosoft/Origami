@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppSettingEntity = exports.UserEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -1102,4 +1102,88 @@ __decorate([
 exports.AppSettingEntity = AppSettingEntity = __decorate([
     (0, typeorm_1.Entity)('app_settings')
 ], AppSettingEntity);
+let FileRoomFileEntity = class FileRoomFileEntity {
+};
+exports.FileRoomFileEntity = FileRoomFileEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], FileRoomFileEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], FileRoomFileEntity.prototype, "folderPath", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "ext", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bigint', nullable: true }),
+    __metadata("design:type", Number)
+], FileRoomFileEntity.prototype, "size", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "mimeType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "driveId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "uploadedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "uploadedById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "groupId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: true }),
+    __metadata("design:type", Boolean)
+], FileRoomFileEntity.prototype, "isLatest", void 0);
+exports.FileRoomFileEntity = FileRoomFileEntity = __decorate([
+    (0, typeorm_1.Entity)('file_room_files')
+], FileRoomFileEntity);
+let FileRoomFolderEntity = class FileRoomFolderEntity {
+};
+exports.FileRoomFolderEntity = FileRoomFolderEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], FileRoomFolderEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], FileRoomFolderEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], FileRoomFolderEntity.prototype, "path", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], FileRoomFolderEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFolderEntity.prototype, "createdAt", void 0);
+exports.FileRoomFolderEntity = FileRoomFolderEntity = __decorate([
+    (0, typeorm_1.Entity)('file_room_folders')
+], FileRoomFolderEntity);
 //# sourceMappingURL=entities.js.map

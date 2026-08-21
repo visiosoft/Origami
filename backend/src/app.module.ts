@@ -18,6 +18,7 @@ import { SettingsModule } from './settings/settings.module';
 import { GoogleModule } from './google/google.module';
 import { AuthModule } from './auth/auth.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { FileRoomModule } from './file-room/file-room.module';
 
 // SQL is the single source of truth — TypeORM is always on (no in-memory
 // fallback). The app requires a reachable SQL database to run.
@@ -48,6 +49,7 @@ import { RemindersModule } from './reminders/reminders.module';
     GoogleModule,
     AuthModule,
     RemindersModule,
+    FileRoomModule,
     ProjectsModule,
     PeopleModule,
     TasksModule,
