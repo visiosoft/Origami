@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { LEAD_DROPDOWN_OPTIONS } from '../data/leads';
+import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
 import { useApp } from '../AppContext';
@@ -33,11 +34,11 @@ interface NewLead {
 const GIS_HINT = 'Research in the GIS (Geographic Information Services) for the corresponding County';
 const APN_HINT = "Research the Zoning Information in the City's Website using the APN as reference";
 const SETBACK_HINT = "Determined by the Zoning District; the city's Zoning Code should define the setbacks";
-type ZAField = { key?: string; label: string; hint?: string; heading?: boolean };
+type ZAField = { key?: string; label: string; hint?: string; heading?: boolean; options?: string[] };
 const ZONING_FORM: { title: string; fields: ZAField[] }[] = [
   { title: 'Jurisdiction of Authority', fields: [
-    { key: 'county', label: 'County', hint: GIS_HINT },
-    { key: 'city', label: 'City', hint: GIS_HINT },
+    { key: 'county', label: 'County', hint: GIS_HINT, options: US_COUNTIES },
+    { key: 'city', label: 'City', hint: GIS_HINT, options: US_CITIES },
     { key: 'hoa', label: 'Homeowners Association', hint: GIS_HINT },
     { key: 'waterDistrict', label: 'Water District', hint: GIS_HINT },
     { key: 'sanitaryDistrict', label: 'Sanitary District', hint: GIS_HINT },
@@ -746,7 +747,14 @@ export function Pipeline() {
                           ) : (
                             <div key={f.key} style={{ paddingLeft: 4 }}>
                               <div style={{ fontSize: 11, fontWeight: 600, color: '#43514D', marginBottom: 3 }}>{f.label}</div>
-                              <input value={za[f.key!] || ''} onChange={(e) => setZAField(selected, f.key!, e.target.value)} placeholder="—" style={inputStyle} />
+                              {f.options ? (
+                                <>
+                                  <input list={`za-${f.key}`} value={za[f.key!] || ''} onChange={(e) => setZAField(selected, f.key!, e.target.value)} placeholder="Type or select…" autoComplete="off" style={inputStyle} />
+                                  <datalist id={`za-${f.key}`}>{f.options.map((o) => <option key={o} value={o} />)}</datalist>
+                                </>
+                              ) : (
+                                <input value={za[f.key!] || ''} onChange={(e) => setZAField(selected, f.key!, e.target.value)} placeholder="—" style={inputStyle} />
+                              )}
                               {f.hint && <div style={{ fontSize: 9.5, color: '#9AA39D', marginTop: 3, lineHeight: 1.35 }}>{f.hint}</div>}
                             </div>
                           ))}
