@@ -23,6 +23,9 @@ const support_module_1 = require("./support/support.module");
 const email_templates_module_1 = require("./email-templates/email-templates.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
 const seed_module_1 = require("./database/seed.module");
+const settings_module_1 = require("./settings/settings.module");
+const google_module_1 = require("./google/google.module");
+const auth_module_1 = require("./auth/auth.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -48,6 +51,9 @@ exports.AppModule = AppModule = __decorate([
                 }),
             }),
             seed_module_1.SeedModule,
+            settings_module_1.SettingsModule,
+            google_module_1.GoogleModule,
+            auth_module_1.AuthModule,
             projects_module_1.ProjectsModule,
             people_module_1.PeopleModule,
             tasks_module_1.TasksModule,

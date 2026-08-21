@@ -6,23 +6,23 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersModule = void 0;
+exports.AuthModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
-const auth_module_1 = require("../auth/auth.module");
-const users_controller_1 = require("./users.controller");
-const roles_controller_1 = require("./roles.controller");
-const users_service_1 = require("./users.service");
-const roles_service_1 = require("./roles.service");
-let UsersModule = class UsersModule {
+const google_module_1 = require("../google/google.module");
+const google_controller_1 = require("../google/google.controller");
+const auth_controller_1 = require("./auth.controller");
+const auth_service_1 = require("./auth.service");
+let AuthModule = class AuthModule {
 };
-exports.UsersModule = UsersModule;
-exports.UsersModule = UsersModule = __decorate([
+exports.AuthModule = AuthModule;
+exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity]), auth_module_1.AuthModule],
-        controllers: [users_controller_1.UsersController, roles_controller_1.RolesController],
-        providers: [users_service_1.UsersService, roles_service_1.RolesService],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity]), google_module_1.GoogleModule],
+        controllers: [auth_controller_1.AuthController, google_controller_1.GoogleController],
+        providers: [auth_service_1.AuthService],
+        exports: [auth_service_1.AuthService],
     })
-], UsersModule);
-//# sourceMappingURL=users.module.js.map
+], AuthModule);
+//# sourceMappingURL=auth.module.js.map

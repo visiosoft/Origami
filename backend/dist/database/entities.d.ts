@@ -250,4 +250,16 @@ export declare class UserEntity {
     status: string;
     lastLogin: string;
     createdAt: string;
+    passwordHash: string;
+    passwordSetAt: string;
+    googleId: string;
+    avatarUrl: string;
+    inviteToken: string;
+    inviteSentAt: string;
+    inviteExpiresAt: string;
+}
+export declare class AppSettingEntity {
+    key: string;
+    value: string;
+    updatedAt: string;
 }

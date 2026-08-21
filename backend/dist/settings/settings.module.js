@@ -6,23 +6,22 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersModule = void 0;
+exports.SettingsModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
-const auth_module_1 = require("../auth/auth.module");
-const users_controller_1 = require("./users.controller");
-const roles_controller_1 = require("./roles.controller");
-const users_service_1 = require("./users.service");
-const roles_service_1 = require("./roles.service");
-let UsersModule = class UsersModule {
+const settings_controller_1 = require("./settings.controller");
+const settings_service_1 = require("./settings.service");
+let SettingsModule = class SettingsModule {
 };
-exports.UsersModule = UsersModule;
-exports.UsersModule = UsersModule = __decorate([
+exports.SettingsModule = SettingsModule;
+exports.SettingsModule = SettingsModule = __decorate([
+    (0, common_1.Global)(),
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity]), auth_module_1.AuthModule],
-        controllers: [users_controller_1.UsersController, roles_controller_1.RolesController],
-        providers: [users_service_1.UsersService, roles_service_1.RolesService],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.AppSettingEntity])],
+        controllers: [settings_controller_1.SettingsController],
+        providers: [settings_service_1.SettingsService],
+        exports: [settings_service_1.SettingsService],
     })
-], UsersModule);
-//# sourceMappingURL=users.module.js.map
+], SettingsModule);
+//# sourceMappingURL=settings.module.js.map
