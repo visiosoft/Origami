@@ -14,6 +14,7 @@ import { Help } from './pages/Help';
 import { Auth } from './pages/Auth';
 import { SetPassword } from './pages/SetPassword';
 import { Privacy } from './pages/Privacy';
+import { Home } from './pages/Home';
 import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
@@ -31,7 +32,8 @@ export default function App() {
       <Route path="/login" element={<Auth mode="login" />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
       <Route path="/set-password" element={<SetPassword />} />
-      {/* Public on purpose — Google must be able to read it without signing in. */}
+      {/* Public on purpose — Google must be able to read these without signing in. */}
+      <Route path="/home" element={<Home />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

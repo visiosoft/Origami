@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 
 /**
@@ -203,7 +204,8 @@ export function Privacy() {
         </Section>
 
         <p style={{ ...p, fontSize: 12, color: '#9AA39D', marginTop: 36, paddingTop: 18, borderTop: '1px solid rgba(20,8,31,0.08)' }}>
-          Origami Design + Build · Internal project delivery platform
+          origamidb · Origami Design + Build ·{' '}
+          <Link to="/home" style={{ color: '#2F7D4A', fontWeight: 600 }}>About this application</Link>
         </p>
       </main>
     </div>
