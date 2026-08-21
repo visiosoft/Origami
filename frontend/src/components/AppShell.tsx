@@ -8,6 +8,12 @@ import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
 
+/**
+ * TEMPORARY — modules considered ready to test, shown green in the sidebar.
+ * Remove this set and the `ready` class below once everything has landed.
+ */
+const READY_FOR_TESTING = new Set(['pipeline', 'projects', 'people', 'tasks']);
+
 const initialsOf = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
 
@@ -77,7 +83,7 @@ export function AppShell() {
                     <NavLink
                       key={item.route}
                       to={`/${item.route}`}
-                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${READY_FOR_TESTING.has(item.route) ? 'ready' : ''}`}
                     >
                       <Icon name={item.icon} size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
                       <span className="nav-item-label">{item.label}</span>

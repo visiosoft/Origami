@@ -474,3 +474,19 @@
     display: none;
   }
 }
+
+/* TEMPORARY — marks modules that are ready to test. Delete this block and the
+   READY_FOR_TESTING set in AppShell.tsx to revert. */
+.nav-item.ready .nav-item-label {
+  color: #7BD88F;
+  font-weight: 600;
+}
+.nav-item.ready svg {
+  stroke: #7BD88F;
+  opacity: 1;
+}
+.nav-item.ready.active .nav-item-label,
+.nav-item.ready.active svg {
+  color: #A7E8B5;
+  stroke: #A7E8B5;
+}
