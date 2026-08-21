@@ -2,6 +2,28 @@ import { useEffect, useState } from 'react';
 import { attachmentUrl } from '../api';
 import type { Attachment } from '../data/projectTasks';
 
+/** Files on the clipboard, if the paste carried any. */
+export function filesFromClipboard(e: { clipboardData: DataTransfer | null }): File[] {
+  return Array.from(e.clipboardData?.files ?? []);
+}
+
+/** Give a pasted image a timestamped name instead of the browser's 'image.png'. */
+export function nameClipboardFile(f: File): File {
+  return f.name && f.name !== 'image.png' ? f : new File([f], screenshotName(), { type: f.type });
+}
+
+function Spinner({ size = 16 }: { size?: number }) {
+  return (
+    <span
+      style={{
+        width: size, height: size, borderRadius: 999, flexShrink: 0,
+        border: '2px solid rgba(47,125,74,0.25)', borderTopColor: '#2F7D4A',
+        display: 'inline-block', animation: 'origami-spin 0.7s linear infinite',
+      }}
+    />
+  );
+}
+
 /** Block javascript:/data: URLs on hand-typed links. */
 const safeHref = (url?: string) => (url && /^https?:\/\//i.test(url) ? url : undefined);
 
@@ -71,10 +93,10 @@ export function Attachments(props: AttachmentsProps) {
   useEffect(() => {
     if (!canManage) return;
     const onPaste = (e: ClipboardEvent) => {
-      const files = Array.from(e.clipboardData?.files ?? []);
+      const files = filesFromClipboard(e);
       if (!files.length) return;
       e.preventDefault();
-      send(files.map((f) => (f.name && f.name !== 'image.png' ? f : new File([f], screenshotName(), { type: f.type }))));
+      send(files.map(nameClipboardFile));
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
@@ -105,8 +127,12 @@ export function Attachments(props: AttachmentsProps) {
         background: dragging ? '#EEF3EE' : 'transparent',
         padding: dragging ? 8 : 0,
         transition: 'background 0.15s',
+        position: 'relative',
       }}
     >
+      {pending.length > 0 && (
+        <div style={{ position: 'absolute', inset: -4, borderRadius: 12, background: 'rgba(251,248,242,0.35)', zIndex: 1, pointerEvents: 'none' }} />
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>
           Attachments {attachments.length > 0 && <span style={{ color: '#7E9B93' }}>{attachments.length}</span>}
@@ -170,8 +196,11 @@ export function Attachments(props: AttachmentsProps) {
             );
           })}
           {pending.map((name) => (
-            <div key={name} style={{ height: 76, borderRadius: 9, border: '1px dashed rgba(20,8,31,0.18)', background: '#FBF8F2', display: 'grid', placeItems: 'center' }}>
-              <div style={{ fontSize: 10, color: '#7E9B93', textAlign: 'center', padding: 4 }}>Uploading…</div>
+            <div key={name} title={name} style={{ height: 76, borderRadius: 9, border: '1px dashed #2F7D4A', background: '#EEF3EE', display: 'grid', placeItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: 4 }}>
+                <Spinner />
+                <div style={{ fontSize: 9.5, color: '#2F7D4A', fontWeight: 700 }}>Uploading…</div>
+              </div>
             </div>
           ))}
         </div>
@@ -181,17 +210,20 @@ export function Attachments(props: AttachmentsProps) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <label
             style={{
-              padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+              cursor: pending.length ? 'progress' : 'pointer', opacity: pending.length ? 0.75 : 1,
               background: '#EEF3EE', color: '#173326', display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
             <input
               type="file"
               multiple
+              disabled={pending.length > 0}
               style={{ display: 'none' }}
               onChange={(e) => { send(Array.from(e.target.files ?? [])); e.currentTarget.value = ''; }}
             />
-            + Add file
+            {pending.length ? <Spinner size={11} /> : null}
+            {pending.length ? `Uploading ${pending.length}…` : '+ Add file'}
           </label>
           <div
             onClick={() => setLinkOpen((v) => !v)}

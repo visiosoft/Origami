@@ -15,6 +15,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from './TaskScope';
+import { filesFromClipboard, nameClipboardFile } from './Attachments';
 
 const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = {
@@ -365,7 +366,15 @@ export function TaskBoard({ projectId }: { projectId: number }) {
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
               <FieldLabel>Description</FieldLabel>
-              <textarea disabled={!canManage} value={selected.description || ''} onChange={(e) => patchLocal(selected.id, { description: e.target.value })} onBlur={(e) => updateTask(selected.id, { description: e.target.value })} rows={3} placeholder="Add details…" style={{ ...inputStyle, width: '100%', resize: 'vertical' }} />
+              <textarea disabled={!canManage} value={selected.description || ''} onChange={(e) => patchLocal(selected.id, { description: e.target.value })}
+                onPaste={(e) => {
+                  // An image pasted into the description becomes an attachment
+                  // rather than nothing at all; text pastes are left alone.
+                  const files = filesFromClipboard(e).map(nameClipboardFile);
+                  if (!files.length || !canManage) return;
+                  e.preventDefault();
+                  uploadFiles(files).catch((err: Error) => toast('⚠ ' + (err.message || 'Upload failed')));
+                }} onBlur={(e) => updateTask(selected.id, { description: e.target.value })} rows={8} placeholder="Add details…" style={{ ...inputStyle, width: '100%', resize: 'vertical' }} />
             </div>
 
             {/* Subtasks */}
