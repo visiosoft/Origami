@@ -43,6 +43,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       activity: normalizeList<ActivityEvent>(task.activity),
       checklist: normalizeList(task.checklist),
       labels: normalizeList<string>(task.labels),
+      dependsOn: normalizeList<string>(task.dependsOn),
       status: task.status || (task.completed ? 'Done' : 'Not started'),
     } as ProjectTaskEntity;
   }

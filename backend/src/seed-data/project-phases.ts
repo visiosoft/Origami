@@ -1,0 +1,95 @@
+// Phase definitions for the project Phase Board, and the demo project's content.
+//
+// PHASE_DEFINITIONS is created empty for every project on first view — teams add
+// the tasks their own project needs. DEMO_PHASE_TASKS is the board that used to
+// be hardcoded in the frontend, kept for the seeded demo project only so that
+// screen still demonstrates a full delivery programme. Every other project
+// starts clean.
+
+export interface PhaseDefinition {
+  key: string;
+  name: string;
+  color: string;
+  order: number;
+}
+
+export interface PhaseTaskTemplate {
+  phaseKey: string;
+  title: string;
+  status: string;              // fixture status, mapped via TEMPLATE_STATUS
+  team: string;
+  auto: boolean;               // work that should eventually be automated
+  autoLabel?: string;
+  offsetDays: number;          // days from the project's start
+  durationDays: number | null; // null = open-ended ("Ongoing")
+  deps: string[];              // titles; resolved to task ids at seed time
+}
+
+/** The delivery programme every project is organised around. */
+export const PHASE_DEFINITIONS: PhaseDefinition[] = [
+  { key: 'programming', name: 'Project Programming', color: '#0E5A8A', order: 0 },
+  { key: 'schematic', name: 'Schematic Design', color: '#0F7C7C', order: 1 },
+  { key: 'dd', name: 'Design Development & Plans', color: '#6B2FA0', order: 2 },
+  { key: 'cd', name: 'Construction Contract Docs', color: '#C77A0A', order: 3 },
+  { key: 'interior', name: 'Interior Design', color: '#A81E4D', order: 4 },
+  { key: 'ca', name: 'Construction Administration', color: '#145C33', order: 5 },
+];
+
+/** The fixture's statuses, mapped onto the real task statuses. */
+export const TEMPLATE_STATUS: Record<string, string> = {
+  Done: 'Done',
+  'In Progress': 'In progress',
+  Open: 'Not started',
+};
+
+/** Demo-project content only — see the note at the top of this file. */
+export const DEMO_PHASE_TASKS: PhaseTaskTemplate[] = [
+  // Project Programming
+  { phaseKey: 'programming', title: 'Press Release & Project Info', status: 'Done', team: 'Admin & Coordination', auto: false, offsetDays: 0, durationDays: 5, deps: [] },
+  { phaseKey: 'programming', title: 'Introduction Letter', status: 'Done', team: 'Legal & Contracts', auto: false, offsetDays: 0, durationDays: 3, deps: [] },
+  { phaseKey: 'programming', title: 'Project Program DRAFT', status: 'Done', team: 'Project Management', auto: false, offsetDays: 3, durationDays: 7, deps: ['Press Release & Project Info'] },
+  { phaseKey: 'programming', title: 'Municipality: Zoning Analysis, Permit History, Review Procedure', status: 'Done', team: 'Automation', auto: true, autoLabel: 'Auto-pull zoning records', offsetDays: 3, durationDays: 5, deps: ['Press Release & Project Info'] },
+  { phaseKey: 'programming', title: 'Client Review — Project Program', status: 'Done', team: 'Client / Owner', auto: false, offsetDays: 12, durationDays: 4, deps: ['Project Program DRAFT'] },
+  { phaseKey: 'programming', title: 'Site & Client Meeting', status: 'Done', team: 'Project Management', auto: false, offsetDays: 18, durationDays: 1, deps: ['Client Review — Project Program'] },
+  { phaseKey: 'programming', title: 'Schedule of Services (Fee Proposal)', status: 'Done', team: 'Automation', auto: true, autoLabel: 'Auto-generate from scope template', offsetDays: 19, durationDays: 3, deps: ['Site & Client Meeting'] },
+  { phaseKey: 'programming', title: 'Finance Payment #1 — Contract Retainer', status: 'Done', team: 'Finance', auto: true, autoLabel: 'Auto-invoice on contract sign', offsetDays: 24, durationDays: 5, deps: ['Schedule of Services (Fee Proposal)'] },
+  // Schematic Design
+  { phaseKey: 'schematic', title: 'Client Review Meeting #2', status: 'Done', team: 'Project Management', auto: false, offsetDays: 31, durationDays: 1, deps: [] },
+  { phaseKey: 'schematic', title: 'SD Perspective and Renderings (Elite Series)', status: 'Done', team: 'Design', auto: false, offsetDays: 32, durationDays: 9, deps: ['Client Review Meeting #2'] },
+  { phaseKey: 'schematic', title: 'Schematic Design', status: 'Done', team: 'Architecture', auto: false, offsetDays: 32, durationDays: 14, deps: ['Client Review Meeting #2'] },
+  { phaseKey: 'schematic', title: 'Client Review Meeting #3', status: 'Done', team: 'Project Management', auto: false, offsetDays: 52, durationDays: 1, deps: ['Schematic Design'] },
+  { phaseKey: 'schematic', title: 'Schematic Design #4', status: 'Done', team: 'Architecture', auto: false, offsetDays: 53, durationDays: 9, deps: ['Client Review Meeting #3'] },
+  { phaseKey: 'schematic', title: 'Client Review #4', status: 'Done', team: 'Client / Owner', auto: false, offsetDays: 66, durationDays: 3, deps: ['Schematic Design #4'] },
+  { phaseKey: 'schematic', title: 'Schematic Design — Client Approval', status: 'Done', team: 'Client / Owner', auto: false, offsetDays: 69, durationDays: 3, deps: ['Client Review #4'] },
+  { phaseKey: 'schematic', title: 'Finance Payment — Schematic Design', status: 'Done', team: 'Finance', auto: true, autoLabel: 'Auto-invoice on phase approval', offsetDays: 74, durationDays: 4, deps: ['Schematic Design — Client Approval'] },
+  // Design Development & Plans
+  { phaseKey: 'dd', title: 'Design Development Drawings, Elevations & Lighting Fixtures, Structural Diagrams', status: 'Done', team: 'Architecture', auto: false, offsetDays: 80, durationDays: 20, deps: [] },
+  { phaseKey: 'dd', title: 'AEC Team Contract and Schedules', status: 'Done', team: 'Admin & Coordination', auto: false, offsetDays: 80, durationDays: 5, deps: [] },
+  { phaseKey: 'dd', title: 'Client Review & Approval', status: 'Done', team: 'Client / Owner', auto: false, offsetDays: 108, durationDays: 5, deps: ['Design Development Drawings, Elevations & Lighting Fixtures, Structural Diagrams'] },
+  { phaseKey: 'dd', title: 'Design Development Resources', status: 'Done', team: 'Project Management', auto: false, offsetDays: 108, durationDays: 10, deps: ['AEC Team Contract and Schedules'] },
+  { phaseKey: 'dd', title: 'Municipal Planning Resubmission — Residential', status: 'Done', team: 'Permits & Compliance', auto: false, offsetDays: 115, durationDays: 10, deps: ['Client Review & Approval'] },
+  { phaseKey: 'dd', title: 'Municipal Planning Resubmission — Approval', status: 'Done', team: 'Automation', auto: true, autoLabel: 'Auto-track approval status', offsetDays: 126, durationDays: 4, deps: ['Municipal Planning Resubmission — Residential'] },
+  { phaseKey: 'dd', title: 'Invoice — Planning/Entitlement Approval', status: 'Done', team: 'Finance', auto: true, autoLabel: 'Auto-invoice on entitlement', offsetDays: 131, durationDays: 3, deps: ['Municipal Planning Resubmission — Approval'] },
+  // Construction Contract Docs
+  { phaseKey: 'cd', title: 'Drawing Permit (Auto-Renew)', status: 'In Progress', team: 'Automation', auto: true, autoLabel: 'Auto-renew permit tracking', offsetDays: 136, durationDays: 15, deps: [] },
+  { phaseKey: 'cd', title: 'Municipality: Building Permit Resubmission and Process', status: 'In Progress', team: 'Permits & Compliance', auto: false, offsetDays: 136, durationDays: 20, deps: [] },
+  { phaseKey: 'cd', title: 'AEC Team Coordination', status: 'In Progress', team: 'Project Management', auto: false, offsetDays: 136, durationDays: 10, deps: [] },
+  { phaseKey: 'cd', title: 'CD Design Package 60% (Building Permit Submittal)', status: 'Done', team: 'Architecture', auto: false, offsetDays: 136, durationDays: 20, deps: ['AEC Team Coordination'] },
+  { phaseKey: 'cd', title: 'Municipality: Building Permit', status: 'In Progress', team: 'Automation', auto: true, autoLabel: 'Auto-track permit status', offsetDays: 164, durationDays: 20, deps: ['CD Design Package 60% (Building Permit Submittal)', 'Municipality: Building Permit Resubmission and Process'] },
+  { phaseKey: 'cd', title: 'DD Drawing Package 90% — Detail Floor Plans, Mirror Schedules', status: 'Open', team: 'Architecture', auto: false, offsetDays: 184, durationDays: 15, deps: ['CD Design Package 60% (Building Permit Submittal)'] },
+  { phaseKey: 'cd', title: 'Municipality: Ten-inch Community', status: 'Open', team: 'Permits & Compliance', auto: false, offsetDays: 192, durationDays: 10, deps: ['Municipality: Building Permit'] },
+  { phaseKey: 'cd', title: 'CD Design Package 100%', status: 'Open', team: 'Architecture', auto: false, offsetDays: 205, durationDays: 10, deps: ['DD Drawing Package 90% — Detail Floor Plans, Mirror Schedules', 'Municipality: Ten-inch Community'] },
+  // Interior Design
+  { phaseKey: 'interior', title: 'Interior Narrative and Inspiration Boards', status: 'Open', team: 'Interiors', auto: false, offsetDays: 220, durationDays: 10, deps: [] },
+  { phaseKey: 'interior', title: 'Interior Conceptual Designs (MFS)', status: 'Open', team: 'Interiors', auto: false, offsetDays: 234, durationDays: 10, deps: ['Interior Narrative and Inspiration Boards'] },
+  { phaseKey: 'interior', title: 'Interior Schematic Design', status: 'Open', team: 'Interiors', auto: false, offsetDays: 248, durationDays: 10, deps: ['Interior Conceptual Designs (MFS)'] },
+  { phaseKey: 'interior', title: 'Interior Construction Details', status: 'Open', team: 'Architecture', auto: false, offsetDays: 248, durationDays: 10, deps: ['Interior Conceptual Designs (MFS)'] },
+  { phaseKey: 'interior', title: 'Procurement Schedules', status: 'Open', team: 'Automation', auto: true, autoLabel: 'Auto-generate from selections', offsetDays: 262, durationDays: 5, deps: ['Interior Schematic Design', 'Interior Construction Details'] },
+  // Construction Administration
+  { phaseKey: 'ca', title: 'Construction Kick-off Meeting', status: 'Open', team: 'Project Management', auto: false, offsetDays: 269, durationDays: 1, deps: [] },
+  { phaseKey: 'ca', title: 'Request for Information / Clarifications', status: 'Open', team: 'Automation', auto: true, autoLabel: 'Auto-log from field reports', offsetDays: 270, durationDays: null, deps: ['Construction Kick-off Meeting'] },
+  { phaseKey: 'ca', title: 'Change Orders / Clarifications', status: 'Open', team: 'Automation', auto: true, autoLabel: 'Auto-track CO approvals', offsetDays: 270, durationDays: null, deps: ['Construction Kick-off Meeting'] },
+  { phaseKey: 'ca', title: 'Shop Drawing Memo', status: 'Open', team: 'Architecture', auto: false, offsetDays: 276, durationDays: 10, deps: ['Construction Kick-off Meeting'] },
+  { phaseKey: 'ca', title: 'Process: Site Inspections', status: 'Open', team: 'Field Operations', auto: true, autoLabel: 'Auto-schedule inspections', offsetDays: 290, durationDays: null, deps: ['Shop Drawing Memo'] },
+  { phaseKey: 'ca', title: 'Punchlist & Substantial Completion', status: 'Open', team: 'Project Management', auto: false, offsetDays: 367, durationDays: 10, deps: ['Process: Site Inspections'] },
+];

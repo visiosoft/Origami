@@ -278,6 +278,31 @@ export class ProjectTaskEntity {
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ nullable: true }) updatedAt!: string;
+  // --- Phase Board ---
+  @Column({ nullable: true }) phaseId!: string;        // null = ad-hoc task, lives on the kanban
+  @Column({ nullable: true }) team!: string;           // Architecture, Permits & Compliance, ...
+  @Column({ nullable: true, default: false }) auto!: boolean; // work that should eventually be automated
+  @Column({ nullable: true }) autoLabel!: string;
+  @Column({ nullable: true }) startDate!: string;      // ISO
+  @Column({ nullable: true }) endDate!: string;        // ISO; '' when open-ended
+  @Column({ type: 'int', nullable: true }) durationDays!: number;
+  @Column({ type: 'simple-json', nullable: true }) dependsOn!: string[]; // task ids
+}
+
+/**
+ * A stage of the delivery programme. Created empty for every project on first
+ * view; tasks are added into it by the team running that project.
+ */
+@Entity('project_phases')
+export class ProjectPhaseEntity {
+  @PrimaryColumn() id!: string;      // PH-<projectId>-<key>
+  @Column('int') projectId!: number;
+  @Column() key!: string;
+  @Column() name!: string;
+  @Column() color!: string;
+  @Column('int') order!: number;
+  @Column({ nullable: true }) startDate!: string;
+  @Column({ nullable: true }) endDate!: string;
 }
 
 @Entity('users')

@@ -246,6 +246,24 @@ export declare class ProjectTaskEntity {
     labels: string[];
     activity: ActivityEvent[];
     updatedAt: string;
+    phaseId: string;
+    team: string;
+    auto: boolean;
+    autoLabel: string;
+    startDate: string;
+    endDate: string;
+    durationDays: number;
+    dependsOn: string[];
+}
+export declare class ProjectPhaseEntity {
+    id: string;
+    projectId: number;
+    key: string;
+    name: string;
+    color: string;
+    order: number;
+    startDate: string;
+    endDate: string;
 }
 export declare class UserEntity {
     id: string;

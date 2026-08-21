@@ -76,6 +76,28 @@ export interface ProjectTask {
   labels?: string[];
   activity?: ActivityEvent[];
   updatedAt?: string;
+  // --- Phase Board ---
+  /** null/undefined = ad-hoc task, shown on the kanban. */
+  phaseId?: string | null;
+  team?: string;
+  auto?: boolean;
+  autoLabel?: string;
+  startDate?: string;
+  endDate?: string;
+  durationDays?: number | null;
+  dependsOn?: string[];
+}
+
+/** A stage of the delivery programme. Tasks are filed under one. */
+export interface ProjectPhase {
+  id: string;
+  projectId: number;
+  key: string;
+  name: string;
+  color: string;
+  order: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];

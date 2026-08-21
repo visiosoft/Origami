@@ -24,6 +24,15 @@ export class CreateProjectTaskDto {
   @IsArray() @IsOptional() checklist?: ChecklistItem[];
   @IsArray() @IsOptional() attachments?: TaskAttachment[];
   @IsArray() @IsOptional() comments?: TaskComment[];
+  // --- Phase Board ---
+  @IsString() @IsOptional() phaseId?: string | null;
+  @IsString() @IsOptional() team?: string;
+  @IsBoolean() @IsOptional() auto?: boolean;
+  @IsString() @IsOptional() autoLabel?: string;
+  @IsString() @IsOptional() startDate?: string;
+  @IsString() @IsOptional() endDate?: string;
+  @IsNumber() @IsOptional() durationDays?: number;
+  @IsArray() @IsOptional() dependsOn?: string[];
 }
 
 /** Body for the batch card-reorder endpoint. */

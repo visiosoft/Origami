@@ -50,6 +50,7 @@ let ProjectTasksService = class ProjectTasksService {
             activity: (0, task_types_1.normalizeList)(task.activity),
             checklist: (0, task_types_1.normalizeList)(task.checklist),
             labels: (0, task_types_1.normalizeList)(task.labels),
+            dependsOn: (0, task_types_1.normalizeList)(task.dependsOn),
             status: task.status || (task.completed ? 'Done' : 'Not started'),
         };
     }

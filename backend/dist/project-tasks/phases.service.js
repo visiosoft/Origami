@@ -1,0 +1,190 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PhasesService = void 0;
+const common_1 = require("@nestjs/common");
+const typeorm_1 = require("@nestjs/typeorm");
+const typeorm_2 = require("typeorm");
+const entities_1 = require("../database/entities");
+const project_phases_1 = require("../seed-data/project-phases");
+const sections_service_1 = require("./sections.service");
+const task_types_1 = require("../database/task.types");
+const DEMO_PROJECT_ID = 1;
+const SECTION_FOR_STATUS = {
+    'Not started': 0,
+    'In progress': 1,
+    Blocked: 1,
+    Done: 3,
+};
+let PhasesService = class PhasesService {
+    constructor(repo, tasks, projects, sections) {
+        this.repo = repo;
+        this.tasks = tasks;
+        this.projects = projects;
+        this.sections = sections;
+        this.log = new common_1.Logger('PhasesService');
+    }
+    async forProject(projectId) {
+        if (!Number.isFinite(projectId))
+            return [];
+        const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
+        if (existing.length) {
+            await this.seedDemoTasks(projectId, existing);
+            return existing;
+        }
+        const created = project_phases_1.PHASE_DEFINITIONS.map((d) => this.repo.create({
+            id: `PH-${projectId}-${d.key}`,
+            projectId,
+            key: d.key,
+            name: d.name,
+            color: d.color,
+            order: d.order,
+        }));
+        await this.repo.save(created);
+        this.log.log(`Created ${created.length} phases for project ${projectId}`);
+        await this.seedDemoTasks(projectId, created);
+        return this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
+    }
+    async board(projectId) {
+        const phases = await this.forProject(projectId);
+        const rows = await this.tasks.find({ order: { order: 'ASC' } });
+        const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
+        return { phases, tasks };
+    }
+    create(dto) {
+        const projectId = Number(dto.projectId);
+        const id = dto.id || `PH-${projectId}-${(0, task_types_1.subId)('p')}`;
+        return this.repo.save(this.repo.create({
+            color: '#173326',
+            order: 0,
+            key: id,
+            name: 'New Phase',
+            ...dto,
+            projectId,
+            id,
+        }));
+    }
+    async update(id, dto) {
+        const phase = await this.repo.findOneBy({ id });
+        if (!phase)
+            throw new common_1.NotFoundException(`Phase ${id} not found`);
+        Object.assign(phase, dto, { id });
+        return this.repo.save(phase);
+    }
+    async remove(id) {
+        const phase = await this.repo.findOneBy({ id });
+        if (!phase)
+            return { id, deleted: true };
+        await this.tasks.update({ phaseId: id }, { phaseId: null });
+        await this.repo.remove(phase);
+        return { id, deleted: true };
+    }
+    async seedDemoTasks(projectId, phases) {
+        if (projectId !== DEMO_PROJECT_ID)
+            return;
+        const already = await this.tasks.count({ where: { projectId, phaseId: phases[0]?.id } });
+        if (already > 0)
+            return;
+        const anyPhaseTask = (await this.tasks.find({ where: { projectId } })).some((t) => !!t.phaseId);
+        if (anyPhaseTask)
+            return;
+        const start = await this.projectStart(projectId);
+        const sections = await this.sections.forProject(projectId);
+        const phaseByKey = new Map(phases.map((p) => [p.key, p]));
+        const byTitle = new Map();
+        const rows = [];
+        project_phases_1.DEMO_PHASE_TASKS.forEach((tpl, index) => {
+            const phase = phaseByKey.get(tpl.phaseKey);
+            if (!phase)
+                return;
+            const status = project_phases_1.TEMPLATE_STATUS[tpl.status] || 'Not started';
+            const sectionIdx = SECTION_FOR_STATUS[status] ?? 0;
+            const startDate = this.addDays(start, tpl.offsetDays);
+            const endDate = tpl.durationDays == null ? '' : this.addDays(start, tpl.offsetDays + Math.max(0, tpl.durationDays - 1));
+            const id = `T-${projectId}-${String(index + 1).padStart(3, '0')}`;
+            byTitle.set(tpl.title, id);
+            rows.push(this.tasks.create({
+                id,
+                projectId,
+                sectionId: (sections[sectionIdx] ?? sections[0])?.id ?? `S-${projectId}-0`,
+                phaseId: phase.id,
+                title: tpl.title,
+                status,
+                completed: status === 'Done',
+                team: tpl.team,
+                auto: tpl.auto,
+                autoLabel: tpl.autoLabel ?? '',
+                startDate,
+                endDate,
+                durationDays: tpl.durationDays ?? null,
+                order: index,
+                parentId: null,
+                attachments: [],
+                comments: [],
+                checklist: [],
+                labels: [],
+                activity: [(0, task_types_1.event)('created', { name: 'Origami' }, { text: 'created from the project programme' })],
+                createdAt: new Date().toISOString().slice(0, 10),
+            }));
+        });
+        for (const row of rows) {
+            const tpl = project_phases_1.DEMO_PHASE_TASKS.find((t) => t.title === row.title);
+            row.dependsOn = (tpl?.deps ?? []).map((d) => byTitle.get(d)).filter(Boolean);
+        }
+        await this.tasks.save(rows);
+        await this.stampPhaseDates(phases, rows);
+        this.log.log(`Seeded ${rows.length} programme tasks for the demo project`);
+    }
+    async stampPhaseDates(phases, rows) {
+        for (const phase of phases) {
+            const mine = rows.filter((r) => r.phaseId === phase.id && r.startDate);
+            if (!mine.length)
+                continue;
+            phase.startDate = mine.map((r) => r.startDate).sort()[0];
+            phase.endDate = mine.map((r) => r.endDate || r.startDate).sort().slice(-1)[0];
+        }
+        await this.repo.save(phases);
+    }
+    async projectStart(projectId) {
+        const project = await this.projects.findOneBy({ id: projectId });
+        const raw = (project?.estStart || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(raw))
+            return new Date(raw);
+        const monthYear = /^([A-Za-z]{3,})\s+(\d{4})$/.exec(raw);
+        if (monthYear) {
+            const parsed = new Date(`${monthYear[1]} 1, ${monthYear[2]}`);
+            if (!Number.isNaN(parsed.getTime()))
+                return parsed;
+        }
+        const loose = new Date(raw);
+        return Number.isNaN(loose.getTime()) ? new Date() : loose;
+    }
+    addDays(from, days) {
+        const d = new Date(from.getTime());
+        d.setDate(d.getDate() + days);
+        return d.toISOString().slice(0, 10);
+    }
+};
+exports.PhasesService = PhasesService;
+exports.PhasesService = PhasesService = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectPhaseEntity)),
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        sections_service_1.SectionsService])
+], PhasesService);
+//# sourceMappingURL=phases.service.js.map

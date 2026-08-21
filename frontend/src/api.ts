@@ -193,6 +193,13 @@ export const api = {
     removeAttachment: (id: string, attId: string) => request(`/project-tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
     addComment: (id: string, text: string) => request(`/project-tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
+  projectPhases: {
+    list: (projectId: number) => request(`/project-phases?projectId=${projectId}`),
+    board: (projectId: number) => request(`/project-phases/board?projectId=${projectId}`),
+    create: (data: unknown) => request('/project-phases', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
+  },
   projectSections: {
     list: (projectId: number) => request(`/project-sections?projectId=${projectId}`),
     create: (data: unknown) => request('/project-sections', { method: 'POST', body: JSON.stringify(data) }),

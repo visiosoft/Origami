@@ -52,6 +52,9 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   // Uploads need a connected Google account; links work regardless.
   const [storageReady, setStorageReady] = useState(false);
+  // Phase tasks belong to the project's delivery programme and have their own
+  // board; keep them out of here unless asked for.
+  const [showPhaseTasks, setShowPhaseTasks] = useState(false);
   const loadedProject = useRef<number | null>(null);
 
   const load = () => {
@@ -64,6 +67,8 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
+  const visibleTasks = showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId);
+  const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   const selected = tasks.find((t) => t.id === selectedId) || null;
   // Labels already in use on this board, offered as suggestions.
   const allLabels = Array.from(new Set(tasks.flatMap((t) => t.labels ?? []))).sort();
@@ -217,7 +222,7 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   const boardView = (
     <div style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8 }}>
       {sections.map((sec) => {
-        const secTasks = topLevelBySection(tasks, sec.id);
+        const secTasks = topLevelBySection(visibleTasks, sec.id);
         const isOver = dragOver === sec.id;
         return (
           <div key={sec.id}
@@ -264,7 +269,7 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   const listView = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {sections.map((sec) => {
-        const secTasks = topLevelBySection(tasks, sec.id);
+        const secTasks = topLevelBySection(visibleTasks, sec.id);
         return (
           <div key={sec.id}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 8 }}>{sec.name} <span style={{ color: '#7E9B93' }}>· {secTasks.length}</span></div>
@@ -294,7 +299,16 @@ export function TaskBoard({ projectId }: { projectId: number }) {
             <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : 'List'}</div>
           ))}
         </div>
-        <span style={{ fontSize: 11.5, color: '#7E9B93' }}>{tasks.filter((t) => !t.parentId).length} tasks · {tasks.filter((t) => !t.parentId && t.completed).length} done</span>
+        {phaseTaskCount > 0 && (
+          <div
+            onClick={() => setShowPhaseTasks((v) => !v)}
+            title="Tasks from the project's delivery programme, which has its own Phase Board"
+            style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: showPhaseTasks ? '#173326' : '#EFEDE8', color: showPhaseTasks ? 'white' : '#43514D' }}
+          >
+            {showPhaseTasks ? 'Hide' : 'Show'} phase tasks ({phaseTaskCount})
+          </div>
+        )}
+        <span style={{ fontSize: 11.5, color: '#7E9B93' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
       </div>
 
       {view === 'board' ? boardView : listView}

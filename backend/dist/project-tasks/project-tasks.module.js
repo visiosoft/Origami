@@ -14,16 +14,18 @@ const google_module_1 = require("../google/google.module");
 const auth_module_1 = require("../auth/auth.module");
 const project_tasks_controller_1 = require("./project-tasks.controller");
 const sections_controller_1 = require("./sections.controller");
+const phases_controller_1 = require("./phases.controller");
 const project_tasks_service_1 = require("./project-tasks.service");
 const sections_service_1 = require("./sections.service");
+const phases_service_1 = require("./phases.service");
 let ProjectTasksModule = class ProjectTasksModule {
 };
 exports.ProjectTasksModule = ProjectTasksModule;
 exports.ProjectTasksModule = ProjectTasksModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.UserEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
-        controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController],
-        providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.ProjectPhaseEntity, entities_1.ProjectEntity, entities_1.UserEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
+        controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController, phases_controller_1.PhasesController],
+        providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService, phases_service_1.PhasesService],
     })
 ], ProjectTasksModule);
 //# sourceMappingURL=project-tasks.module.js.map

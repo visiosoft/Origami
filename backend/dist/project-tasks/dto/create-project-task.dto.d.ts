@@ -17,6 +17,14 @@ export declare class CreateProjectTaskDto {
     checklist?: ChecklistItem[];
     attachments?: TaskAttachment[];
     comments?: TaskComment[];
+    phaseId?: string | null;
+    team?: string;
+    auto?: boolean;
+    autoLabel?: string;
+    startDate?: string;
+    endDate?: string;
+    durationDays?: number;
+    dependsOn?: string[];
 }
 export declare class ReorderDto {
     sectionId: string;
