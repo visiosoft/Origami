@@ -149,14 +149,18 @@ let FileRoomService = class FileRoomService {
         const stream = await this.google.downloadDriveFile(file.driveId, thumb);
         return { file: this.hydrate(file), ...stream };
     }
-    async rename(id, name) {
+    async update(id, patch) {
         const file = await this.load(id);
-        const clean = (name || '').trim();
-        if (!clean)
-            throw new common_1.BadRequestException('A name is required.');
-        this.assertAllowed(clean);
-        file.name = clean;
-        file.ext = extOf(clean);
+        if (patch.name !== undefined) {
+            const clean = patch.name.trim();
+            if (!clean)
+                throw new common_1.BadRequestException('A name is required.');
+            this.assertAllowed(clean);
+            file.name = clean;
+            file.ext = extOf(clean);
+        }
+        if (patch.notes !== undefined)
+            file.notes = patch.notes;
         file.updatedAt = new Date().toISOString();
         return this.hydrate(await this.files.save(file));
     }

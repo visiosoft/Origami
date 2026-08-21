@@ -5,7 +5,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-room.service';
-import { CreateFolderDto, RenameFileDto, EmailFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, UpdateFileDto, EmailFileDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 
@@ -62,8 +62,8 @@ export class FileRoomController {
   }
 
   @Put('files/:id')
-  rename(@Param('id') id: string, @Body() dto: RenameFileDto) {
-    return this.service.rename(id, dto.name);
+  update(@Param('id') id: string, @Body() dto: UpdateFileDto) {
+    return this.service.update(id, dto);
   }
 
   /** Make the file readable by anyone holding the link, and return that link. */

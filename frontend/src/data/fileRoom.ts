@@ -15,6 +15,8 @@ export interface FileRoomFile {
   /** Revisions of one document share a group; exactly one of them is latest. */
   groupId?: string | null;
   isLatest?: boolean;
+  /** Free notes about the document, shown and edited in the drawer. */
+  notes?: string;
 }
 
 export interface FileRoomFolder {

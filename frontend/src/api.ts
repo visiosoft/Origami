@@ -203,6 +203,7 @@ export const api = {
       return requestForm('/file-room/upload', form);
     },
     rename: (id: string, name: string) => request(`/file-room/files/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    setNotes: (id: string, notes: string) => request(`/file-room/files/${id}`, { method: 'PUT', body: JSON.stringify({ notes }) }),
     markLatest: (id: string) => request(`/file-room/files/${id}/latest`, { method: 'PUT' }),
     remove: (id: string) => request(`/file-room/files/${id}`, { method: 'DELETE' }),
     createFolder: (projectId: number, path: string[], name: string) =>

@@ -184,13 +184,17 @@ export class FileRoomService {
     return { file: this.hydrate(file), ...stream };
   }
 
-  async rename(id: string, name: string) {
+  /** Rename and/or set the notes; whichever field is supplied is applied. */
+  async update(id: string, patch: { name?: string; notes?: string }) {
     const file = await this.load(id);
-    const clean = (name || '').trim();
-    if (!clean) throw new BadRequestException('A name is required.');
-    this.assertAllowed(clean);
-    file.name = clean;
-    file.ext = extOf(clean);
+    if (patch.name !== undefined) {
+      const clean = patch.name.trim();
+      if (!clean) throw new BadRequestException('A name is required.');
+      this.assertAllowed(clean);
+      file.name = clean;
+      file.ext = extOf(clean);
+    }
+    if (patch.notes !== undefined) file.notes = patch.notes;
     file.updatedAt = new Date().toISOString();
     return this.hydrate(await this.files.save(file));
   }

@@ -301,6 +301,7 @@ export declare class FileRoomFileEntity {
     updatedAt: string;
     groupId: string;
     isLatest: boolean;
+    notes: string;
 }
 export declare class FileRoomFolderEntity {
     id: string;

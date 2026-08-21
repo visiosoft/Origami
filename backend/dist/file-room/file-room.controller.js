@@ -47,8 +47,8 @@ let FileRoomController = class FileRoomController {
         res.setHeader('Cache-Control', 'private, max-age=300');
         stream_1.Readable.fromWeb(body).pipe(res);
     }
-    rename(id, dto) {
-        return this.service.rename(id, dto.name);
+    update(id, dto) {
+        return this.service.update(id, dto);
     }
     share(id) {
         return this.service.shareLink(id);
@@ -106,9 +106,9 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, file_room_dto_1.RenameFileDto]),
+    __metadata("design:paramtypes", [String, file_room_dto_1.UpdateFileDto]),
     __metadata("design:returntype", void 0)
-], FileRoomController.prototype, "rename", null);
+], FileRoomController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)('files/:id/share'),
     __param(0, (0, common_1.Param)('id')),

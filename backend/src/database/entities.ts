@@ -355,6 +355,8 @@ export class FileRoomFileEntity {
   /** Revisions of the same document share a group; one of them is the latest. */
   @Column({ nullable: true }) groupId!: string;
   @Column({ nullable: true, default: true }) isLatest!: boolean;
+  /** Free notes about the document — what it is, what changed, what to watch. */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) notes!: string;
 }
 
 /** A folder someone created that holds no files yet — otherwise it would vanish. */

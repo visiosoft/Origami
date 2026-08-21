@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import { FileRoomService } from './file-room.service';
-import { CreateFolderDto, RenameFileDto, EmailFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, UpdateFileDto, EmailFileDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 export declare class FileRoomController {
     private readonly service;
@@ -23,7 +23,7 @@ export declare class FileRoomController {
     }>;
     upload(files: any[], projectId: string, path: string, auth?: string): Promise<import("../database/entities").FileRoomFileEntity[]>;
     content(id: string, thumb: string, download: string, res: Response): Promise<void>;
-    rename(id: string, dto: RenameFileDto): Promise<import("../database/entities").FileRoomFileEntity>;
+    update(id: string, dto: UpdateFileDto): Promise<import("../database/entities").FileRoomFileEntity>;
     share(id: string): Promise<{
         url: string;
         name: string;

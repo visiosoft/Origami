@@ -1157,6 +1157,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true, default: true }),
     __metadata("design:type", Boolean)
 ], FileRoomFileEntity.prototype, "isLatest", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], FileRoomFileEntity.prototype, "notes", void 0);
 exports.FileRoomFileEntity = FileRoomFileEntity = __decorate([
     (0, typeorm_1.Entity)('file_room_files')
 ], FileRoomFileEntity);

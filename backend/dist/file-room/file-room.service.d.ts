@@ -43,7 +43,10 @@ export declare class FileRoomService {
         size?: string;
         file: FileRoomFileEntity;
     }>;
-    rename(id: string, name: string): Promise<FileRoomFileEntity>;
+    update(id: string, patch: {
+        name?: string;
+        notes?: string;
+    }): Promise<FileRoomFileEntity>;
     markLatest(id: string): Promise<FileRoomFileEntity>;
     remove(id: string): Promise<{
         id: string;

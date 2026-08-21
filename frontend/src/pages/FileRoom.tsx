@@ -55,6 +55,7 @@ export function FileRoom() {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState('');
   const [shareUrl, setShareUrl] = useState('');
+  const [notes, setNotes] = useState('');
   const [emailTo, setEmailTo] = useState('');
   const [emailNote, setEmailNote] = useState('');
   const [emailOpen, setEmailOpen] = useState(false);
@@ -308,7 +309,7 @@ export function FileRoom() {
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
-          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setShareUrl(''); setEmailOpen(false); }}
+          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer' }}>
             <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
               {(f.ext || '?').slice(0, 4)}
@@ -346,7 +347,7 @@ export function FileRoom() {
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
-          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setShareUrl(''); setEmailOpen(false); }}
+          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer' }}>
             <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
@@ -505,7 +506,7 @@ export function FileRoom() {
               <div style={{ padding: '0 22px 16px' }}>
                 <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Version history</div>
                 {versions.map((v, i) => (
-                  <div key={v.id} onClick={() => { setSelectedFileId(v.id); setRenaming(v.name); setShareUrl(''); setEmailOpen(false); }}
+                  <div key={v.id} onClick={() => { setSelectedFileId(v.id); setRenaming(v.name); setNotes(v.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: v.id === selected.id ? '#EEF3EE' : 'transparent' }}>
                     <span style={{ width: 6, height: 6, borderRadius: 999, background: v.isLatest !== false ? '#2F7D4A' : '#C9D4CC', flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 11.5, color: '#43514D' }}>
@@ -516,6 +517,19 @@ export function FileRoom() {
                 ))}
               </div>
             )}
+
+            <div style={{ padding: '0 22px 16px' }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 7 }}>Notes</div>
+              <textarea
+                value={notes}
+                disabled={!canManage}
+                onChange={(e) => setNotes(e.target.value)}
+                onBlur={() => { if (notes !== (selected.notes ?? '')) act(api.fileRoom.setNotes(selected.id, notes), 'Notes saved'); }}
+                rows={4}
+                placeholder="What this document is, what changed, anything worth knowing…"
+                style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.6, background: '#FBF8F2' }}
+              />
+            </div>
 
             <div style={{ padding: '0 22px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={api.fileRoom.contentUrl(selected.id, { download: true })}

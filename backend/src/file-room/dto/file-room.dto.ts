@@ -6,8 +6,10 @@ export class CreateFolderDto {
   @IsString() name: string;
 }
 
-export class RenameFileDto {
-  @IsString() name: string;
+/** Patch a file record. Both fields optional so either can be saved alone. */
+export class UpdateFileDto {
+  @IsString() @IsOptional() name?: string;
+  @IsString() @IsOptional() notes?: string;
 }
 
 export class EmailFileDto {
