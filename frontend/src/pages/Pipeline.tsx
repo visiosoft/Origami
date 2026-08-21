@@ -95,6 +95,13 @@ interface FieldSpec { key: keyof NewLead; label: string; kind: FieldKind; optKey
  * unless the gating field says otherwise, so nobody scrolls past a block of
  * empty inputs for a second contact that doesn't exist.
  */
+/** Recorded when a question genuinely doesn't apply to this lead. */
+const NOT_APPLICABLE = 'N/A';
+
+/** A question counts as answered once it holds anything, N/A included. */
+const isAnswered = (v: unknown): boolean =>
+  Array.isArray(v) ? v.length > 0 : String(v ?? '').trim().length > 0;
+
 const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string; value: string; emptyLabel: string } }[] = [
   { title: '1. Contact', fields: [
     { key: 'leadName', label: 'Lead Name *', kind: 'text', ph: 'Full name' },
@@ -603,6 +610,20 @@ export function Pipeline() {
                 (() => {
                   const ld = leadDetails[selected.id] || baseLead(selected);
                   const up = (k: keyof NewLead, v: string | string[]) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), [k]: v } }));
+                  // Every question must be answered before the stage can be saved.
+                  // A section that doesn't apply (no second contact) only requires
+                  // the question that gates it.
+                  const missing = LEAD_SECTIONS.flatMap((sec) => {
+                    const gateMet = !sec.gate || (ld[sec.gate.key as keyof NewLead] as string) === sec.gate.value;
+                    return sec.fields
+                      .filter((f) => (sec.gate && !gateMet ? f.key === sec.gate.key : true))
+                      .filter((f) => !isAnswered(ld[f.key]))
+                      .map((f) => ({ sec, f }));
+                  });
+                  const requiredCount = LEAD_SECTIONS.reduce((n, sec) => {
+                    const gateMet = !sec.gate || (ld[sec.gate.key as keyof NewLead] as string) === sec.gate.value;
+                    return n + (sec.gate && !gateMet ? 1 : sec.fields.length);
+                  }, 0);
                   return (
                     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                       <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 4 }}>Initial Questions — Lead Intake</div>
@@ -626,9 +647,28 @@ export function Pipeline() {
                             )}
                           </div>
                           <div style={{ display: open ? 'flex' : 'none', flexDirection: 'column', gap: 10 }}>
-                            {sec.fields.map((f) => (
+                            {sec.fields.map((f) => {
+                              const value = ld[f.key];
+                              const answered = isAnswered(value);
+                              const na = Array.isArray(value) ? value[0] === NOT_APPLICABLE : value === NOT_APPLICABLE;
+                              return (
                               <div key={f.key}>
-                                <div style={{ fontSize: 10.5, fontWeight: 600, color: '#7E9B93', marginBottom: 4 }}>{f.label}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                  <span style={{ fontSize: 10.5, fontWeight: 600, color: answered ? '#7E9B93' : '#8E2E0A' }}>
+                                    {f.label}{!answered && ' *'}
+                                  </span>
+                                  <span
+                                    onClick={() => up(f.key, na ? (f.kind === 'pills' ? [] : '') : (f.kind === 'pills' ? [NOT_APPLICABLE] : NOT_APPLICABLE))}
+                                    title={na ? 'Clear' : "Mark this question as not applicable"}
+                                    style={{
+                                      marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                                      cursor: 'pointer', border: '1px solid ' + (na ? '#173326' : 'rgba(20,8,31,0.14)'),
+                                      background: na ? '#173326' : 'white', color: na ? 'white' : '#7E9B93',
+                                    }}
+                                  >
+                                    N/A
+                                  </span>
+                                </div>
                                 {f.kind === 'select' ? (
                                   <select value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} style={inputStyle}><option value="">Select…</option>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => <option key={o}>{o}</option>)}</select>
                                 ) : f.kind === 'textarea' ? (
@@ -639,19 +679,38 @@ export function Pipeline() {
                                   <input type={f.kind} value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} placeholder={f.ph} style={inputStyle} />
                                 )}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                         );
                       })}
+                      {missing.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 9, background: '#F7E4DB', marginBottom: 8 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 999, background: '#8E2E0A', flexShrink: 0 }} />
+                          <span style={{ fontSize: 10.5, fontWeight: 600, color: '#8E2E0A', lineHeight: 1.5 }}>
+                            {requiredCount - missing.length} of {requiredCount} answered — {missing.length} still need an answer or N/A
+                          </span>
+                        </div>
+                      )}
                       <div onClick={() => {
+                        if (missing.length) {
+                          // Reveal any collapsed section holding an unanswered question.
+                          setLeadSectionOpen((prev) => {
+                            const next = { ...prev };
+                            missing.forEach(({ sec }) => { if (sec.gate) next[sec.title] = true; });
+                            return next;
+                          });
+                          toast(`⚠ ${missing.length} question${missing.length === 1 ? '' : 's'} still unanswered — use N/A if one doesn't apply`);
+                          return;
+                        }
                         const cur = leadDetails[selected.id] || baseLead(selected);
                         const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                         const entry = { date: when, action: `${selectedStage.name} completed — lead details saved`, role: 'System', type: 'auto' as const };
                         setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));
                         api.leads.update(selected.id, cur).catch(() => { });
                         toast('Lead details saved');
-                      }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>Save Lead Details</div>
+                      }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: missing.length ? '#9AB0A4' : '#173326', color: 'white' }}>Save Lead Details</div>
                     </div>
                   );
                 })()
