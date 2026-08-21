@@ -14,6 +14,8 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab }
 const BG = "'Bricolage Grotesque', serif";
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
+/** The board project is remembered so coming back lands on the same one. */
+const PROJECT_KEY = 'origami.tasksProjectId';
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 
@@ -33,14 +35,29 @@ export function Tasks() {
   const swallow = useRef(false);
   const [mode, setMode] = useState<'board' | 'log'>('board');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
-  const [boardProjectId, setBoardProjectId] = useState<number | null>(null);
+  const [boardProjectId, setBoardProjectId] = useState<number | null>(() => {
+    try {
+      const stored = Number(localStorage.getItem(PROJECT_KEY));
+      return Number.isFinite(stored) && stored > 0 ? stored : null;
+    } catch { return null; }
+  });
   const [logTasks, setLogTasks] = useState<Task[]>([]);
   const [nt, setNt] = useState<NewTask>(blankTask('internal'));
+
+  const selectBoardProject = (id: number) => {
+    setBoardProjectId(id);
+    try { localStorage.setItem(PROJECT_KEY, String(id)); } catch { /* ignore */ }
+  };
 
   const reloadLog = () => { api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
   useEffect(() => {
     api.projects.list().then((r: any) => {
-      if (Array.isArray(r) && r.length) { setProjects(r.map((p) => ({ id: p.id, name: p.name }))); setBoardProjectId((cur) => cur ?? r[0].id); }
+      if (Array.isArray(r) && r.length) {
+        setProjects(r.map((p) => ({ id: p.id, name: p.name })));
+        // Keep the remembered project only while it still exists, so a deleted
+        // one doesn't leave the board pointing at nothing.
+        setBoardProjectId((cur) => (cur != null && r.some((p: any) => p.id === cur) ? cur : r[0].id));
+      }
     }).catch(() => { });
     api.google.status().then((g) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
     reloadLog();
@@ -112,7 +129,7 @@ export function Tasks() {
         {mode === 'board' && (
           <>
             <span style={{ fontSize: 12, color: '#7E9B93', marginLeft: 4 }}>Project:</span>
-            <select value={boardProjectId ?? ''} onChange={(e) => setBoardProjectId(Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit', fontSize: 13, color: '#0B1A12', outline: 'none', maxWidth: 320 }}>
+            <select value={boardProjectId ?? ''} onChange={(e) => selectBoardProject(Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit', fontSize: 13, color: '#0B1A12', outline: 'none', maxWidth: 320 }}>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </>
