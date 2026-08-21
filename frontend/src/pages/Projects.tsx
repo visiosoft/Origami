@@ -4,19 +4,8 @@ import { WorkflowsView } from '../components/WorkflowsView';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project } from '../data/projects';
-import { STATUS_STYLE, TASK_STATUSES, type ProjectPhase, type ProjectTask, type TaskStatus } from '../data/projectTasks';
-import { AssigneePicker } from '../components/AssigneePicker';
-import { Attachments } from '../components/Attachments';
-import { ActivityFeed } from '../components/ActivityFeed';
-import { Checklist } from '../components/Checklist';
 
 const BG = "'Bricolage Grotesque', serif";
-/** 2026-09-01 -> "Sep 1" for the compact phase cards. */
-const fmtDay = (iso?: string) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
@@ -35,14 +24,6 @@ export function Projects() {
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
-  // The Phase Board is real data now: phases are created per project on first
-  // view, and the team adds the tasks that project actually needs.
-  const [phases, setPhases] = useState<ProjectPhase[]>([]);
-  const [phaseTasks, setPhaseTasks] = useState<ProjectTask[]>([]);
-  const [phaseAddingIn, setPhaseAddingIn] = useState<string | null>(null);
-  const [phaseDraft, setPhaseDraft] = useState('');
-  // Uploads need a connected Google account; links work regardless.
-  const [storageReady, setStorageReady] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   // Introduction Letter compose state (populated when that phase task is opened).
@@ -57,45 +38,11 @@ export function Projects() {
     reload();
     api.leads.list().then((r: any) => { if (Array.isArray(r)) setLeads(r); }).catch(() => { });
     api.emailTemplates.list().then((r: any) => { if (Array.isArray(r)) setTemplates(r); }).catch(() => { });
-    api.google.status().then((g) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
   }, []);
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
-
-  const loadPhases = (projectId: number) => {
-    api.projectPhases.board(projectId)
-      .then((res: any) => { if (res) { setPhases(res.phases || []); setPhaseTasks(res.tasks || []); } })
-      .catch(() => { });
-  };
-  useEffect(() => {
-    if (selectedId) loadPhases(selectedId);
-    else { setPhases([]); setPhaseTasks([]); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
-
-  /** Swap in the server's fresh copy after an attachment or comment write. */
-  const replacePhaseTask = (res: any) => {
-    if (!res?.id) return;
-    setPhaseTasks((prev) => prev.map((t) => (t.id === res.id ? (res as ProjectTask) : t)));
-    setSelPt((cur) => (cur && cur.pt?.id === res.id ? { ...cur, pt: res } : cur));
-  };
-
-  const patchPhaseTask = (id: string, patch: Partial<ProjectTask>) => {
-    setPhaseTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    setSelPt((cur) => (cur && cur.pt?.id === id ? { ...cur, pt: { ...cur.pt, ...patch } } : cur));
-    api.projectTasks.update(id, patch).catch(() => toast('⚠ Failed to save'));
-  };
-
-  const addPhaseTask = (phaseId: string, title: string) => {
-    const t = title.trim();
-    if (!t || !sel) return;
-    const order = phaseTasks.filter((x) => x.phaseId === phaseId).length;
-    api.projectTasks.create({ projectId: sel.id, sectionId: `S-${sel.id}-0`, phaseId, title: t, order, status: 'Not started' })
-      .then((res: any) => { if (res) setPhaseTasks((prev) => [...prev, res as ProjectTask]); })
-      .catch(() => toast('⚠ Failed to add task'));
-  };
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
-  const workflow = computeWorkflow(phases, phaseTasks);
+  const workflow = computeWorkflow();
 
   // ---- Introduction Letter email compose (on its Phase Board task) ----
   const introLead = sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
@@ -137,10 +84,6 @@ export function Projects() {
     const now = new Date().toISOString();
     setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, introLetterSentAt: now } : p)));
     api.projects.update(sel.id, { name: sel.name, introLetterSentAt: now }).catch(() => toast('⚠ Failed to mark complete'));
-    // Close the phase task too, so the board reflects it. introLetterSentAt is
-    // still written above — other screens read it.
-    const task = phaseTasks.find((t) => t.title === 'Introduction Letter');
-    if (task && task.status !== 'Done') patchPhaseTask(task.id, { status: 'Done', completed: true });
   };
 
   /**
@@ -403,11 +346,11 @@ export function Projects() {
                       ) : (
                         <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {phase.tasks.map((pt) => {
-                            const sc = STATUS_STYLE[pt.status as TaskStatus] || WF_ST_COLORS[pt.status ?? ''] || { bg: '#EFEDE8', c: '#3A423E' };
-                            const done = pt.status === 'Done' || pt.completed;
+                            const sc = WF_ST_COLORS[pt.status];
+                            const done = pt.status === 'Done';
                             if (phase.isComplete && done) {
                               return (
-                                <div key={pt.id} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
+                                <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                     <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D' }}>{pt.title}</span>
@@ -416,10 +359,10 @@ export function Projects() {
                               );
                             }
                             return (
-                              <div key={pt.id} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)', cursor: 'pointer' }}>
+                              <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)', cursor: 'pointer' }}>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.4, marginBottom: 6 }}>{pt.title}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
-                                  <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team ?? ''] || '#EFEDE8', color: TEAM_COLORS[pt.team ?? ''] || '#7E9B93' }}>{pt.team}</span>
+                                  <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
                                   {pt.auto && (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 999, background: '#FBE9AE', border: '1px solid rgba(245,158,11,0.2)' }}>
                                       <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#D2822E" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
@@ -429,13 +372,13 @@ export function Projects() {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                                   <span style={{ padding: '2px 7px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: sc.bg, color: sc.c }}>{pt.status}</span>
-                                  {pt.startDate && (
+                                  {pt.start && (
                                     <span style={{ fontSize: 9, color: '#7E9B93', display: 'flex', alignItems: 'center', gap: 2 }}>
                                       <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={4} width={18} height={18} rx={2} ry={2} /><line x1={16} y1={2} x2={16} y2={6} /><line x1={8} y1={2} x2={8} y2={6} /><line x1={3} y1={10} x2={21} y2={10} /></svg>
-                                      {fmtDay(pt.startDate)}{pt.endDate ? ` – ${fmtDay(pt.endDate)}` : ''}
+                                      {pt.start} – {pt.end}
                                     </span>
                                   )}
-                                  <span style={{ fontSize: 9, color: '#7E9B93', marginLeft: 'auto', fontWeight: 600 }}>{pt.durationDays ? `${pt.durationDays}d` : 'Ongoing'}</span>
+                                  <span style={{ fontSize: 9, color: '#7E9B93', marginLeft: 'auto', fontWeight: 600 }}>{pt.dur}</span>
                                 </div>
                                 {pt.assignee && (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 5 }}>
@@ -446,32 +389,6 @@ export function Projects() {
                               </div>
                             );
                           })}
-
-                          {phase.tasks.length === 0 && phaseAddingIn !== phase.id && (
-                            <div style={{ padding: '18px 10px', textAlign: 'center', fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>
-                              No tasks yet
-                            </div>
-                          )}
-
-                          {canManage && (phaseAddingIn === phase.id ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                              <textarea
-                                autoFocus
-                                value={phaseDraft}
-                                onChange={(e) => setPhaseDraft(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addPhaseTask(phase.id, phaseDraft); setPhaseDraft(''); } }}
-                                placeholder="Task title…"
-                                rows={2}
-                                style={{ ...inputStyle, fontSize: 11, padding: '7px 8px', resize: 'vertical' }}
-                              />
-                              <div style={{ display: 'flex', gap: 5 }}>
-                                <div onClick={() => { addPhaseTask(phase.id, phaseDraft); setPhaseDraft(''); }} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
-                                <div onClick={() => { setPhaseAddingIn(null); setPhaseDraft(''); }} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div onClick={() => { setPhaseAddingIn(phase.id); setPhaseDraft(''); }} style={{ padding: '7px 8px', borderRadius: 8, fontSize: 10.5, fontWeight: 600, color: '#7E9B93', cursor: 'pointer' }}>+ Add task</div>
-                          ))}
                         </div>
                       )}
                     </div>
@@ -490,7 +407,7 @@ export function Projects() {
       {/* Phase-task detail panel */}
       {selPt && (() => {
         const { pt, phaseName, phaseColor } = selPt;
-        const sc = STATUS_STYLE[pt.status as TaskStatus] || { bg: '#EFEDE8', c: '#7E9B93' };
+        const sc = WF_ST_COLORS[pt.status] || { bg: '#EFEDE8', c: '#7E9B93' };
         const row = (label: string, value: React.ReactNode) => (
           <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
@@ -524,36 +441,21 @@ export function Projects() {
 
               <div style={{ padding: '16px 22px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                 <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.c }}>{pt.status}</span>
-                <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: TEAM_BGS[pt.team ?? ''] || '#EFEDE8', color: TEAM_COLORS[pt.team ?? ''] || '#7E9B93' }}>{pt.team}</span>
+                <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
                 {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE9AE', color: '#93520F' }}>⚡ AUTO</span>}
               </div>
 
               {!isIntroLetter && (
                 <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {row('Assignee', (
-                    <AssigneePicker
-                      valueId={pt.assigneeId}
-                      valueName={pt.assignee}
-                      disabled={!canManage}
-                      onChange={(u) => patchPhaseTask(pt.id, { assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
-                    />
-                  ))}
-                  {row('Status', (
-                    <select
-                      disabled={!canManage}
-                      value={pt.status || 'Not started'}
-                      onChange={(e) => patchPhaseTask(pt.id, { status: e.target.value as TaskStatus })}
-                      style={{ ...inputStyle, padding: '6px 8px', fontSize: 12 }}
-                    >
-                      {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
-                    </select>
-                  ))}
-                  {row('Start', (
-                    <input type="date" disabled={!canManage} value={pt.startDate || ''} onChange={(e) => patchPhaseTask(pt.id, { startDate: e.target.value })} style={{ ...inputStyle, padding: '6px 8px', fontSize: 12 }} />
-                  ))}
-                  {row('End', (
-                    <input type="date" disabled={!canManage} value={pt.endDate || ''} onChange={(e) => patchPhaseTask(pt.id, { endDate: e.target.value })} style={{ ...inputStyle, padding: '6px 8px', fontSize: 12 }} />
-                  ))}
+                  {row('Assignee', pt.assignee ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 999, background: '#0F2417', color: 'white', display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 700 }}>{initials(pt.assignee)}</span>
+                      {pt.assignee}
+                    </span>
+                  ) : <span style={{ color: '#9AA39D' }}>Unassigned</span>)}
+                  {row('Duration', pt.dur || '—')}
+                  {row('Start', pt.start || '—')}
+                  {row('End', pt.end || '—')}
                 </div>
               )}
 
@@ -563,45 +465,11 @@ export function Projects() {
                 </div>
               )}
 
-              {!isIntroLetter && (
-                <>
-                  <div style={{ padding: '0 22px 18px' }}>
-                    <Checklist
-                      items={pt.checklist ?? []}
-                      canManage={canManage}
-                      onChange={(checklist) => patchPhaseTask(pt.id, { checklist })}
-                    />
-                  </div>
-
-                  <div style={{ padding: '0 22px 18px' }}>
-                    <Attachments
-                      scope="project-tasks"
-                      taskId={pt.id}
-                      attachments={pt.attachments ?? []}
-                      canManage={canManage}
-                      storageReady={storageReady}
-                      onUpload={async (files) => { const r: any = await api.projectTasks.uploadAttachments(pt.id, files); replacePhaseTask(r); toast(files.length === 1 ? 'File attached' : `${files.length} files attached`); }}
-                      onRemove={async (att) => { const r: any = await api.projectTasks.removeAttachment(pt.id, att.id); replacePhaseTask(r); }}
-                      onAddLink={async (name, url) => { const r: any = await api.projectTasks.addLink(pt.id, name, url); replacePhaseTask(r); }}
-                    />
-                  </div>
-
-                  <div style={{ padding: '0 22px 20px' }}>
-                    <ActivityFeed
-                      comments={pt.comments ?? []}
-                      activity={pt.activity ?? []}
-                      canManage={canManage}
-                      onComment={async (text) => { const r: any = await api.projectTasks.addComment(pt.id, text); replacePhaseTask(r); }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {Array.isArray(pt.dependsOn) && pt.dependsOn.length > 0 && (
+              {Array.isArray(pt.deps) && pt.deps.length > 0 && (
                 <div style={{ padding: '0 22px 20px' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Depends on</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    {pt.dependsOn.map((id: string) => phaseTasks.find((x) => x.id === id)?.title || id).map((d: string) => (
+                    {pt.deps.map((d: string) => (
                       <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8, fontSize: 12, color: '#43514D' }}>
                         <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
                         {d}
