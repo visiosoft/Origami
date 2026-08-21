@@ -1,3 +1,4 @@
+import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
 export declare class ProjectEntity {
     id: number;
     priority: string;
@@ -50,6 +51,13 @@ export declare class TaskEntity {
     resolution: string;
     linkedFile: string;
     project: string;
+    assignedToId: string;
+    attachments: TaskAttachment[];
+    comments: TaskComment[];
+    activity: ActivityEvent[];
+    checklist: ChecklistItem[];
+    labels: string[];
+    updatedAt: string;
 }
 export declare class DealEntity {
     id: string;
@@ -229,17 +237,15 @@ export declare class ProjectTaskEntity {
     order: number;
     completed: boolean;
     parentId: string;
-    attachments: {
-        name: string;
-        url: string;
-    }[];
-    comments: {
-        id: string;
-        author: string;
-        text: string;
-        date: string;
-    }[];
+    attachments: TaskAttachment[];
+    comments: TaskComment[];
     createdAt: string;
+    assigneeId: string;
+    status: string;
+    checklist: ChecklistItem[];
+    labels: string[];
+    activity: ActivityEvent[];
+    updatedAt: string;
 }
 export declare class UserEntity {
     id: string;

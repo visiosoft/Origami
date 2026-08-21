@@ -1,5 +1,7 @@
 // Tasks fixtures + lead-time logic ported from the Origami v4 prototype (getAllTasks / getLeadTime).
 
+import type { Attachment, TaskComment, ActivityEvent, ChecklistItem } from './projectTasks';
+
 export interface Task {
   id: string;
   meetingType: 'Internal' | 'Owner' | 'Subcontractor';
@@ -15,6 +17,15 @@ export interface Task {
   resolution: string;
   linkedFile: string;
   project: string;
+  tab?: TaskTab;
+  /** users.id — `assignedTo` is kept alongside as the display name. */
+  assignedToId?: string;
+  attachments?: Attachment[];
+  comments?: TaskComment[];
+  activity?: ActivityEvent[];
+  checklist?: ChecklistItem[];
+  labels?: string[];
+  updatedAt?: string;
 }
 
 export type TaskTab = 'internal' | 'owner' | 'subcontractor';

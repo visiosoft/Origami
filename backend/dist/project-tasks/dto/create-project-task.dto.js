@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateProjectTaskDto = void 0;
+exports.ReorderDto = exports.CreateProjectTaskDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateProjectTaskDto {
 }
@@ -46,12 +46,22 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
+], CreateProjectTaskDto.prototype, "assigneeId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
 ], CreateProjectTaskDto.prototype, "dueDate", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateProjectTaskDto.prototype, "priority", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateProjectTaskDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsOptional)(),
@@ -71,10 +81,31 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
+], CreateProjectTaskDto.prototype, "labels", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateProjectTaskDto.prototype, "checklist", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
 ], CreateProjectTaskDto.prototype, "attachments", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateProjectTaskDto.prototype, "comments", void 0);
+class ReorderDto {
+}
+exports.ReorderDto = ReorderDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ReorderDto.prototype, "sectionId", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], ReorderDto.prototype, "ids", void 0);
 //# sourceMappingURL=create-project-task.dto.js.map

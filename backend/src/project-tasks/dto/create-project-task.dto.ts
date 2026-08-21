@@ -1,5 +1,11 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import type { ChecklistItem, TaskAttachment, TaskComment } from '../../database/task.types';
 
+/**
+ * ValidationPipe runs with `whitelist: true`, so anything NOT declared here is
+ * silently stripped from the request body. New task fields must be added in
+ * this file or they never reach the database.
+ */
 export class CreateProjectTaskDto {
   @IsString() @IsOptional() id?: string;
   @IsNumber() projectId: number;
@@ -7,11 +13,21 @@ export class CreateProjectTaskDto {
   @IsString() title: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() assignee?: string;
+  @IsString() @IsOptional() assigneeId?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() priority?: string;
+  @IsString() @IsOptional() status?: string;
   @IsNumber() @IsOptional() order?: number;
   @IsBoolean() @IsOptional() completed?: boolean;
   @IsString() @IsOptional() parentId?: string | null;
-  @IsArray() @IsOptional() attachments?: { name: string; url: string }[];
-  @IsArray() @IsOptional() comments?: { id: string; author: string; text: string; date: string }[];
+  @IsArray() @IsOptional() labels?: string[];
+  @IsArray() @IsOptional() checklist?: ChecklistItem[];
+  @IsArray() @IsOptional() attachments?: TaskAttachment[];
+  @IsArray() @IsOptional() comments?: TaskComment[];
+}
+
+/** Body for the batch card-reorder endpoint. */
+export class ReorderDto {
+  @IsString() sectionId: string;
+  @IsArray() ids: string[];
 }

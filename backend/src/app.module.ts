@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ProjectsModule } from './projects/projects.module';
 import { PeopleModule } from './people/people.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -17,12 +18,14 @@ import { SeedModule } from './database/seed.module';
 import { SettingsModule } from './settings/settings.module';
 import { GoogleModule } from './google/google.module';
 import { AuthModule } from './auth/auth.module';
+import { RemindersModule } from './reminders/reminders.module';
 
 // SQL is the single source of truth — TypeORM is always on (no in-memory
 // fallback). The app requires a reachable SQL database to run.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
@@ -46,6 +49,7 @@ import { AuthModule } from './auth/auth.module';
     SettingsModule,
     GoogleModule,
     AuthModule,
+    RemindersModule,
     ProjectsModule,
     PeopleModule,
     TasksModule,

@@ -51,5 +51,9 @@ export declare class GoogleController {
         from: string;
         to: string;
     }>;
+    testDrive(): Promise<{
+        ok: true;
+        folderId: string;
+    }>;
     files(q?: string): Promise<import("./google.service").DriveFile[]>;
 }

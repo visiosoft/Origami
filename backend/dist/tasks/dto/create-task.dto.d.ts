@@ -4,6 +4,7 @@ export declare class CreateTaskDto {
     meetingType?: string;
     meetingDate?: string;
     assignedTo?: string;
+    assignedToId?: string;
     status?: string;
     originator?: string;
     topicType?: string;
@@ -11,4 +12,10 @@ export declare class CreateTaskDto {
     dueDate?: string;
     linkedFile?: string;
     project?: string;
+    labels?: string[];
+    checklist?: {
+        id: string;
+        item: string;
+        done: boolean;
+    }[];
 }

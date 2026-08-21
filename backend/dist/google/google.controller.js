@@ -83,6 +83,9 @@ let GoogleController = class GoogleController {
     send(body) {
         return this.google.sendMail(body);
     }
+    testDrive() {
+        return this.google.testDrive();
+    }
     files(q) {
         return this.google.listDriveFiles(q);
     }
@@ -138,6 +141,12 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], GoogleController.prototype, "send", null);
+__decorate([
+    (0, common_1.Post)('drive/test'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], GoogleController.prototype, "testDrive", null);
 __decorate([
     (0, common_1.Get)('drive/files'),
     __param(0, (0, common_1.Query)('q')),

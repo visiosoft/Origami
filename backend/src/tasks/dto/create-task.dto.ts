@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 
 // Matches the Request-Log task record (frontend data/tasks.ts Task).
 export class CreateTaskDto {
@@ -7,6 +7,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() meetingType?: string;
   @IsString() @IsOptional() meetingDate?: string;
   @IsString() @IsOptional() assignedTo?: string;
+  @IsString() @IsOptional() assignedToId?: string;
   @IsString() @IsOptional() status?: string;
   @IsString() @IsOptional() originator?: string;
   @IsString() @IsOptional() topicType?: string;
@@ -14,4 +15,6 @@ export class CreateTaskDto {
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() linkedFile?: string;
   @IsString() @IsOptional() project?: string;
+  @IsArray() @IsOptional() labels?: string[];
+  @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];
 }

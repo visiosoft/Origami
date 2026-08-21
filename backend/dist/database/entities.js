@@ -215,6 +215,34 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "project", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "assignedToId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], TaskEntity.prototype, "attachments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], TaskEntity.prototype, "comments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], TaskEntity.prototype, "activity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], TaskEntity.prototype, "checklist", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], TaskEntity.prototype, "labels", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "updatedAt", void 0);
 exports.TaskEntity = TaskEntity = __decorate([
     (0, typeorm_1.Entity)('tasks')
 ], TaskEntity);
@@ -893,6 +921,30 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "assigneeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], ProjectTaskEntity.prototype, "checklist", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], ProjectTaskEntity.prototype, "labels", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], ProjectTaskEntity.prototype, "activity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "updatedAt", void 0);
 exports.ProjectTaskEntity = ProjectTaskEntity = __decorate([
     (0, typeorm_1.Entity)('project_tasks')
 ], ProjectTaskEntity);

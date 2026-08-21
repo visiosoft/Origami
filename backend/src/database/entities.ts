@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
 
 const TEXT = { type: 'nvarchar', length: 'MAX' } as const;
 
@@ -57,8 +58,16 @@ export class TaskEntity {
   @Column({ nullable: true }) dateClosed!: string;
   @Column('int') daysOpen!: number;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) resolution!: string;
-  @Column({ nullable: true }) linkedFile!: string;
+  @Column({ nullable: true }) linkedFile!: string; // legacy free-text link; superseded by `attachments`
   @Column() project!: string;
+  // --- Added with task attachments / real assignment ---
+  @Column({ nullable: true }) assignedToId!: string;   // users.id — `assignedTo` stays as the display name
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
+  @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
+  @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
+  @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  @Column({ nullable: true }) updatedAt!: string;
 }
 
 @Entity('deals')
@@ -259,9 +268,16 @@ export class ProjectTaskEntity {
   @Column('int') order!: number;
   @Column({ default: false }) completed!: boolean;
   @Column({ nullable: true }) parentId!: string; // subtask -> parent task id
-  @Column({ type: 'simple-json', nullable: true }) attachments!: { name: string; url: string }[];
-  @Column({ type: 'simple-json', nullable: true }) comments!: { id: string; author: string; text: string; date: string }[];
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
   @Column() createdAt!: string;
+  // --- Added with task attachments / real assignment ---
+  @Column({ nullable: true }) assigneeId!: string;     // users.id — `assignee` stays as the display name
+  @Column({ nullable: true }) status!: string;         // Not started | In progress | Blocked | Done
+  @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
+  @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
+  @Column({ nullable: true }) updatedAt!: string;
 }
 
 @Entity('users')

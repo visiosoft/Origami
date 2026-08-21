@@ -21,11 +21,17 @@ type Form = {
   'app.baseUrl': string;
   'google.senderEmail': string;
   'google.hostedDomain': string;
+  'google.attachmentsFolder': string;
+  'reminders.enabled': string;
+  'reminders.hour': string;
+  'reminders.timezone': string;
 };
 
 const EMPTY: Form = {
   'google.clientId': '', 'google.clientSecret': '', 'app.baseUrl': '',
   'google.senderEmail': '', 'google.hostedDomain': '',
+  'google.attachmentsFolder': '', 'reminders.enabled': '', 'reminders.hour': '7',
+  'reminders.timezone': 'Asia/Dubai',
 };
 
 /**
@@ -42,6 +48,7 @@ export function GoogleSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [testTo, setTestTo] = useState('');
+  const [busy, setBusy] = useState('');
 
   const load = () => {
     Promise.all([api.settings.get(), api.google.status().catch(() => null)])
@@ -191,6 +198,83 @@ export function GoogleSettings() {
           </div>
         )}
       </div>
+
+      {/* --------------------------------------------------------- attachments */}
+      {status?.connected && (
+        <div style={card}>
+          <SectionTitle>File attachments</SectionTitle>
+          <div style={{ fontSize: 12.5, color: '#5C6B65', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
+            Files attached to tasks are uploaded to this account's Drive, inside a folder per project. Origami streams them
+            back through its own API, so anyone signed in here can see a screenshot without needing access to the Google account.
+          </div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+            <Field label="Attachments folder" hint="Created in Drive on first upload">
+              <input style={inputStyle} value={form['google.attachmentsFolder']} onChange={(e) => set('google.attachmentsFolder', e.target.value)} placeholder="Origami Attachments" />
+            </Field>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+            <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Save</div>
+            <div
+              onClick={() => {
+                setBusy('drive'); setError('');
+                api.google.testDrive()
+                  .then(() => toast('Drive access is working'))
+                  .catch((e: Error) => { setError(e.message); toast('⚠ Drive test failed'); })
+                  .finally(() => setBusy(''));
+              }}
+              style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326' }}
+            >
+              {busy === 'drive' ? 'Testing…' : 'Test Drive access'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------- reminders */}
+      {status?.connected && (
+        <div style={card}>
+          <SectionTitle>Task reminders</SectionTitle>
+          <div style={{ fontSize: 12.5, color: '#5C6B65', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
+            A daily digest of overdue and upcoming tasks, emailed to whoever they're assigned to. Sent through the connected
+            account, once per day.
+          </div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <Field label="Send reminders">
+              <select style={inputStyle} value={form['reminders.enabled'] || 'false'} onChange={(e) => set('reminders.enabled', e.target.value)}>
+                <option value="false">Off</option>
+                <option value="true">On</option>
+              </select>
+            </Field>
+            <Field label="Send at" hint="Local hour, 24-hour clock">
+              <select style={inputStyle} value={form['reminders.hour'] || '7'} onChange={(e) => set('reminders.hour', e.target.value)}>
+                {Array.from({ length: 24 }, (_, h) => <option key={h} value={String(h)}>{String(h).padStart(2, '0')}:00</option>)}
+              </select>
+            </Field>
+            <Field label="Timezone" hint="IANA name, e.g. Asia/Dubai">
+              <input style={inputStyle} value={form['reminders.timezone']} onChange={(e) => set('reminders.timezone', e.target.value)} placeholder="Asia/Dubai" />
+            </Field>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+            <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Save</div>
+            <div
+              onClick={() => {
+                setBusy('reminders'); setError('');
+                api.reminders.run()
+                  .then((r) => toast(r.sent ? `Reminders sent to ${r.sent} person(s)` : 'Nobody has tasks due — nothing sent'))
+                  .catch((e: Error) => { setError(e.message); toast('⚠ Could not send reminders'); })
+                  .finally(() => setBusy(''));
+              }}
+              style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326' }}
+            >
+              {busy === 'reminders' ? 'Sending…' : 'Send now'}
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 10, lineHeight: 1.55 }}>
+            The scheduler runs inside the app, so the App Service needs <strong>Always On</strong> enabled for it to fire
+            reliably. "Send now" works regardless.
+          </div>
+        </div>
+      )}
 
       {status?.connected && <DrivePanel />}
     </div>

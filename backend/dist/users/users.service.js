@@ -20,8 +20,10 @@ const entities_1 = require("../database/entities");
 const users_1 = require("../seed-data/users");
 const auth_service_1 = require("../auth/auth.service");
 let UsersService = class UsersService {
-    constructor(repo, auth) {
+    constructor(repo, projectTasks, tasks, auth) {
         this.repo = repo;
+        this.projectTasks = projectTasks;
+        this.tasks = tasks;
         this.auth = auth;
         this.log = new common_1.Logger('UsersService');
     }
@@ -73,9 +75,23 @@ let UsersService = class UsersService {
         let user = await this.repo.findOneBy({ id });
         if (!user)
             user = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) });
+        const previousName = user.name;
         const { passwordHash, inviteToken, hasPassword, invitePending, invite, ...safe } = dto ?? {};
         Object.assign(user, safe, { id });
-        return (0, auth_service_1.publicUser)(await this.repo.save(user));
+        const saved = await this.repo.save(user);
+        if (previousName && saved.name && previousName !== saved.name) {
+            await this.renameOnTasks(saved.id, saved.name);
+        }
+        return (0, auth_service_1.publicUser)(saved);
+    }
+    async renameOnTasks(userId, name) {
+        try {
+            await this.projectTasks.update({ assigneeId: userId }, { assignee: name });
+            await this.tasks.update({ assignedToId: userId }, { assignedTo: name });
+        }
+        catch (err) {
+            this.log.warn(`Could not propagate the rename of ${userId}: ${err.message}`);
+        }
     }
     async remove(id) {
         const user = await this.repo.findOneBy({ id });
@@ -88,7 +104,11 @@ exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.TaskEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         auth_service_1.AuthService])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

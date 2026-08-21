@@ -3,9 +3,17 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
-  PRIORITIES, PRIORITY_STYLE, topLevelBySection, subtasksOf,
-  type ProjectSection, type ProjectTask, type Priority,
+  PRIORITIES, PRIORITY_STYLE, TASK_STATUSES, STATUS_STYLE, topLevelBySection, subtasksOf,
+  checklistProgress,
+  type ProjectSection, type ProjectTask, type Priority, type TaskStatus,
+  type Attachment as TaskAttachment, type ChecklistItem,
 } from '../data/projectTasks';
+import { Avatar } from './Avatar';
+import { AssigneePicker } from './AssigneePicker';
+import { Attachments } from './Attachments';
+import { ActivityFeed } from './ActivityFeed';
+import { Checklist } from './Checklist';
+import { LabelPicker, LabelChip } from './LabelPicker';
 
 const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = {
@@ -13,9 +21,12 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
   fontSize: 13, color: '#0B1A12', outline: 'none',
 };
-const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
-// Only allow http/https attachment links (blocks javascript:/data: XSS).
-const safeHref = (u: string): string | undefined => (/^https?:\/\//i.test((u || '').trim()) ? u.trim() : undefined);
+
+function StatusPill({ s }: { s?: TaskStatus }) {
+  if (!s || s === 'Not started') return null;
+  const st = STATUS_STYLE[s];
+  return <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: st.bg, color: st.c }}>{s}</span>;
+}
 
 function PriorityPill({ p }: { p?: Priority }) {
   if (!p) return null;
@@ -24,7 +35,7 @@ function PriorityPill({ p }: { p?: Priority }) {
 }
 
 export function TaskBoard({ projectId }: { projectId: number }) {
-  const { can, toast, currentUser } = useApp();
+  const { can, toast, users } = useApp();
   const canManage = can('tasks', 'manage');
   const isMobile = useWindowWidth() <= 720;
 
@@ -32,16 +43,15 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'board' | 'list'>('board');
-  const [people, setPeople] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
   const [addDraft, setAddDraft] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [subDraft, setSubDraft] = useState('');
-  const [commentDraft, setCommentDraft] = useState('');
-  const [attName, setAttName] = useState('');
-  const [attUrl, setAttUrl] = useState('');
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // Uploads need a connected Google account; links work regardless.
+  const [storageReady, setStorageReady] = useState(false);
   const loadedProject = useRef<number | null>(null);
 
   const load = () => {
@@ -51,10 +61,12 @@ export function TaskBoard({ projectId }: { projectId: number }) {
       .finally(() => setLoading(false));
   };
   useEffect(() => { setLoading(true); loadedProject.current = projectId; load(); /* eslint-disable-next-line */ }, [projectId]);
-  // Assignees are users (accounts) so an assigned task shows on that person's dashboard.
-  useEffect(() => { api.users.list().then((r: any) => { if (Array.isArray(r)) setPeople(r.map((u) => u.name)); }).catch(() => { }); }, []);
+  // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
+  useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
   const selected = tasks.find((t) => t.id === selectedId) || null;
+  // Labels already in use on this board, offered as suggestions.
+  const allLabels = Array.from(new Set(tasks.flatMap((t) => t.labels ?? []))).sort();
 
   // ---- task mutations (optimistic + persist) ----
   const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -103,21 +115,46 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   // ---- subtasks / attachments / comments (on selected task) ----
   const toggleSub = (sub: ProjectTask) => updateTask(sub.id, { completed: !sub.completed });
   const addSubtask = () => { if (!selected) return; addTask(selected.sectionId, subDraft, selected.id); setSubDraft(''); };
-  const addComment = () => {
-    if (!selected || !commentDraft.trim()) return;
-    const comment = { id: 'c' + Date.now(), author: currentUser?.name || 'You', text: commentDraft.trim(), date: 'Today' };
-    const comments = [...(selected.comments || []), comment];
-    updateTask(selected.id, { comments });
-    setCommentDraft('');
+  // Comments and attachments are written server-side so the author, timestamp
+  // and history entry are recorded consistently; the response is the fresh task.
+  const replaceTask = (res: any) => { if (res?.id) setTasks((prev) => prev.map((t) => (t.id === res.id ? (res as ProjectTask) : t))); };
+
+  const addComment = async (text: string) => {
+    if (!selected) return;
+    try { replaceTask(await api.projectTasks.addComment(selected.id, text)); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to comment')); }
   };
-  const deleteComment = (cid: string) => { if (!selected) return; updateTask(selected.id, { comments: (selected.comments || []).filter((c) => c.id !== cid) }); };
-  const addAttachment = () => {
-    if (!selected || !attName.trim() || !attUrl.trim()) return;
-    const attachments = [...(selected.attachments || []), { name: attName.trim(), url: attUrl.trim() }];
-    updateTask(selected.id, { attachments });
-    setAttName(''); setAttUrl('');
+  const uploadFiles = async (files: File[]) => {
+    if (!selected) return;
+    replaceTask(await api.projectTasks.uploadAttachments(selected.id, files));
+    toast(files.length === 1 ? 'File attached' : `${files.length} files attached`);
   };
-  const removeAttachment = (i: number) => { if (!selected) return; updateTask(selected.id, { attachments: (selected.attachments || []).filter((_, idx) => idx !== i) }); };
+  const addLink = async (name: string, url: string) => {
+    if (!selected) return;
+    replaceTask(await api.projectTasks.addLink(selected.id, name, url));
+  };
+  const removeAttachment = async (att: TaskAttachment) => {
+    if (!selected) return;
+    try { replaceTask(await api.projectTasks.removeAttachment(selected.id, att.id)); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to remove')); }
+  };
+
+  /** Persist a manual card order after a drag inside one column. */
+  const reorderIn = (sectionId: string, draggedId: string, index: number) => {
+    const current = topLevelBySection(tasks, sectionId).filter((t) => t.id !== draggedId);
+    const dragged = tasks.find((t) => t.id === draggedId);
+    if (!dragged) return;
+    const next = [...current.slice(0, index), dragged, ...current.slice(index)];
+    const ids = next.map((t) => t.id);
+    setTasks((prev) => prev.map((t) => {
+      const at = ids.indexOf(t.id);
+      return at === -1 ? t : { ...t, order: at, sectionId };
+    }));
+    if (dragged.sectionId !== sectionId) {
+      api.projectTasks.update(draggedId, { sectionId }).catch(() => toast('⚠ Failed to move'));
+    }
+    api.projectTasks.reorder(sectionId, ids).catch(() => toast('⚠ Failed to reorder'));
+  };
 
   if (loading) return <div style={{ fontSize: 13, color: '#7E9B93', padding: 20 }}>Loading tasks…</div>;
 
@@ -125,15 +162,25 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   // Card JSX is inlined (not a nested component) so a re-render during drag
   // reconciles the same DOM node instead of remounting it — which would cancel
   // the native HTML5 drag. Keep this inline.
-  const renderCard = (t: ProjectTask) => {
+  const renderCard = (t: ProjectTask, index = 0) => {
     const subs = subtasksOf(tasks, t.id);
     const doneSubs = subs.filter((s) => s.completed).length;
+    const check = checklistProgress(t.checklist);
     return (
       <div
         key={t.id}
         draggable={canManage}
         onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); e.dataTransfer.effectAllowed = 'move'; setDragId(t.id); }}
-        onDragEnd={() => { setDragId(null); setDragOver(null); }}
+        onDragEnd={() => { setDragId(null); setDragOver(null); setDropIndex(null); }}
+        onDragOver={(e) => {
+          // Reorder within a column: remember which slot we're hovering.
+          if (!canManage || !dragId || dragId === t.id) return;
+          e.preventDefault();
+          const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const after = e.clientY > box.top + box.height / 2;
+          setDropIndex(index + (after ? 1 : 0));
+          setDragOver(t.sectionId);
+        }}
         onClick={() => setSelectedId(t.id)}
         style={{ background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.06)', padding: 11, cursor: canManage ? 'grab' : 'pointer', opacity: dragId === t.id ? 0.4 : 1, boxShadow: '0 1px 2px rgba(20,8,31,0.04)' }}
       >
@@ -141,13 +188,24 @@ export function TaskBoard({ projectId }: { projectId: number }) {
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
+            {(t.labels?.length || 0) > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                {t.labels!.map((l) => <LabelChip key={l} label={l} />)}
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 7 }}>
+              <StatusPill s={t.status} />
               <PriorityPill p={t.priority} />
               {t.dueDate && <span style={{ fontSize: 10, color: '#7E9B93' }}>📅 {t.dueDate}</span>}
               {subs.length > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>☑ {doneSubs}/{subs.length}</span>}
+              {check.total > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>✓ {check.done}/{check.total}</span>}
               {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>💬 {t.comments!.length}</span>}
-              {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>🔗 {t.attachments!.length}</span>}
-              {t.assignee && <span style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: 999, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 700 }} title={t.assignee}>{initials(t.assignee)}</span>}
+              {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>📎 {t.attachments!.length}</span>}
+              {t.assignee && (
+                <span style={{ marginLeft: 'auto' }}>
+                  <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} />
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -165,7 +223,16 @@ export function TaskBoard({ projectId }: { projectId: number }) {
           <div key={sec.id}
             onDragOver={(e) => { if (canManage) { e.preventDefault(); if (dragOver !== sec.id) setDragOver(sec.id); } }}
             onDragLeave={() => { if (dragOver === sec.id) setDragOver(null); }}
-            onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) moveTask(id, sec.id); setDragOver(null); setDragId(null); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const id = e.dataTransfer.getData('text/plain');
+              if (id) {
+                // A slot was hovered -> reorder into it; otherwise just move columns.
+                if (dropIndex != null) reorderIn(sec.id, id, dropIndex);
+                else moveTask(id, sec.id);
+              }
+              setDragOver(null); setDragId(null); setDropIndex(null);
+            }}
             style={{ width: 270, flexShrink: 0, background: isOver ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: isOver ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.05)', display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px' }}>
               <input value={sec.name} disabled={!canManage} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: '#0B1A12', outline: 'none', fontFamily: 'inherit' }} />
@@ -173,7 +240,7 @@ export function TaskBoard({ projectId }: { projectId: number }) {
               {canManage && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
             </div>
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
-              {secTasks.map((t) => renderCard(t))}
+              {secTasks.map((t, i) => renderCard(t, i))}
               {addingIn === sec.id ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <textarea autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)} placeholder="Task title…" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(sec.id, addDraft); setAddDraft(''); } }} />
@@ -209,7 +276,7 @@ export function TaskBoard({ projectId }: { projectId: number }) {
                   <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#0B1A12', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                   <PriorityPill p={t.priority} />
                   {t.dueDate && <span style={{ fontSize: 10.5, color: '#7E9B93' }}>{t.dueDate}</span>}
-                  {t.assignee && <span style={{ width: 22, height: 22, borderRadius: 999, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 700 }} title={t.assignee}>{initials(t.assignee)}</span>}
+                  {t.assignee && <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} />}
                 </div>
               ))}
             </div>
@@ -244,7 +311,17 @@ export function TaskBoard({ projectId }: { projectId: number }) {
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Assignee">
-                <select disabled={!canManage} value={selected.assignee || ''} onChange={(e) => updateTask(selected.id, { assignee: e.target.value })} style={{ ...inputStyle, width: '100%' }}><option value="">Unassigned</option>{people.map((p) => <option key={p} value={p}>{p}</option>)}{selected.assignee && !people.includes(selected.assignee) && <option value={selected.assignee}>{selected.assignee}</option>}</select>
+                <AssigneePicker
+                  valueId={selected.assigneeId}
+                  valueName={selected.assignee}
+                  disabled={!canManage}
+                  onChange={(u) => updateTask(selected.id, { assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
+                />
+              </Field>
+              <Field label="Status">
+                <select disabled={!canManage} value={selected.status || 'Not started'} onChange={(e) => updateTask(selected.id, { status: e.target.value as TaskStatus })} style={{ ...inputStyle, width: '100%' }}>
+                  {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+                </select>
               </Field>
               <Field label="Due date"><input type="date" disabled={!canManage} value={selected.dueDate || ''} onChange={(e) => updateTask(selected.id, { dueDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
               <Field label="Priority"><select disabled={!canManage} value={selected.priority || ''} onChange={(e) => updateTask(selected.id, { priority: e.target.value as Priority })} style={{ ...inputStyle, width: '100%' }}><option value="">None</option>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></Field>
@@ -276,51 +353,47 @@ export function TaskBoard({ projectId }: { projectId: number }) {
               )}
             </div>
 
-            {/* Attachments */}
+            {/* Checklist */}
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <FieldLabel>Attachments <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0, color: '#A8B5AF' }}>(links)</span></FieldLabel>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {(selected.attachments || []).map((a, i) => {
-                  const href = safeHref(a.url);
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FBF8F2', borderRadius: 8 }}>
-                      {href
-                        ? <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ flex: 1, fontSize: 12.5, color: '#173326', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔗 {a.name}</a>
-                        : <span title={a.url} style={{ flex: 1, fontSize: 12.5, color: '#7E9B93', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🔗 {a.name} <span style={{ fontSize: 10 }}>(invalid link)</span></span>}
-                      {canManage && <span onClick={() => removeAttachment(i)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
-                    </div>
-                  );
-                })}
-              </div>
-              {canManage && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                  <input value={attName} onChange={(e) => setAttName(e.target.value)} placeholder="Label" style={{ ...inputStyle, flex: '1 1 100px' }} />
-                  <input value={attUrl} onChange={(e) => setAttUrl(e.target.value)} placeholder="https://…" style={{ ...inputStyle, flex: '2 1 140px' }} />
-                  <div onClick={addAttachment} style={{ padding: '8px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
-                </div>
-              )}
+              <Checklist
+                items={selected.checklist ?? []}
+                canManage={canManage}
+                onChange={(checklist: ChecklistItem[]) => updateTask(selected.id, { checklist })}
+              />
             </div>
 
-            {/* Comments */}
+            {/* Labels */}
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+              <LabelPicker
+                labels={selected.labels ?? []}
+                canManage={canManage}
+                suggestions={allLabels}
+                onChange={(labels) => updateTask(selected.id, { labels })}
+              />
+            </div>
+
+            {/* Attachments — paste a screenshot, drop files, or add a link */}
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+              <Attachments
+                scope="project-tasks"
+                taskId={selected.id}
+                attachments={selected.attachments ?? []}
+                canManage={canManage}
+                storageReady={storageReady}
+                onUpload={uploadFiles}
+                onRemove={removeAttachment}
+                onAddLink={addLink}
+              />
+            </div>
+
+            {/* Activity — comments plus a record of what changed */}
             <div style={{ padding: '16px 22px' }}>
-              <FieldLabel>Comments</FieldLabel>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(selected.comments || []).map((c) => (
-                  <div key={c.id} style={{ background: '#FBF8F2', borderRadius: 8, padding: '8px 10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#173326' }}>{c.author}</span>
-                      <span style={{ fontSize: 10, color: '#7E9B93' }}>{c.date}</span>
-                      {canManage && <span onClick={() => deleteComment(c.id)} style={{ marginLeft: 'auto', fontSize: 11, color: '#8E2E0A', cursor: 'pointer' }}>Delete</span>}
-                    </div>
-                    <div style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.5 }}>{c.text}</div>
-                  </div>
-                ))}
-                {(selected.comments || []).length === 0 && <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No comments yet.</div>}
-              </div>
-              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                <input value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} placeholder="Write a comment…" style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => { if (e.key === 'Enter') addComment(); }} />
-                <div onClick={addComment} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: commentDraft.trim() ? 'pointer' : 'not-allowed', background: commentDraft.trim() ? '#173326' : '#D6DED8', color: commentDraft.trim() ? 'white' : '#9AA39D' }}>Send</div>
-              </div>
+              <ActivityFeed
+                comments={selected.comments ?? []}
+                activity={selected.activity ?? []}
+                canManage={canManage}
+                onComment={addComment}
+              />
             </div>
 
             {canManage && (

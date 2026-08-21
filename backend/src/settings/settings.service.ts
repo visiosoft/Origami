@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
@@ -15,6 +15,12 @@ export const PUBLIC_KEYS = [
   'google.senderEmail',
   'google.allowSignup',
   'google.hostedDomain',
+  'google.attachmentsFolder',
+  'reminders.enabled',
+  'reminders.hour',
+  'reminders.timezone',
+  'reminders.triggerToken',
+  'tasks.labels',
 ];
 
 export const MASK = '••••••••';

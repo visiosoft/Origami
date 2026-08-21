@@ -100,6 +100,12 @@ export class GoogleController {
     return this.google.sendMail(body);
   }
 
+  /** Create a folder, upload, read back and trash — proves Drive access works. */
+  @Post('drive/test')
+  testDrive() {
+    return this.google.testDrive();
+  }
+
   /** Recent Drive files from the connected account. */
   @Get('drive/files')
   files(@Query('q') q?: string) {

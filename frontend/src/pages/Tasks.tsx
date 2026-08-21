@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../AppContext';
 import { api } from '../api';
+import { Avatar } from '../components/Avatar';
+import { AssigneePicker } from '../components/AssigneePicker';
+import { Attachments } from '../components/Attachments';
+import { ActivityFeed } from '../components/ActivityFeed';
+import { Checklist } from '../components/Checklist';
+import { LabelPicker } from '../components/LabelPicker';
+import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { TaskBoard } from '../components/TaskBoard';
 import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab } from '../data/tasks';
 
@@ -8,26 +15,26 @@ const BG = "'Bricolage Grotesque', serif";
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
-const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 
 interface NewTask { tab: TaskTab; meetingType: string; meetingDate: string; assignedTo: string; originator: string; topicType: string; status: string; dueDate: string; project: string; description: string; linkedFile: string }
 const blankTask = (tab: TaskTab): NewTask => ({ tab, meetingType: 'Internal', meetingDate: '', assignedTo: '', originator: '', topicType: 'Task', status: 'Open', dueDate: '', project: '', description: '', linkedFile: '' });
 
 export function Tasks() {
-  const { toast, can } = useApp();
+  const { toast, can, users } = useApp();
   const canManage = can('tasks', 'manage');
   const [tab, setTab] = useState<TaskTab>('internal');
   const [pf, setPf] = useState('All projects');
   const [projOpen, setProjOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  // Uploads need a connected Google account; links work regardless.
+  const [storageReady, setStorageReady] = useState(false);
   const swallow = useRef(false);
   const [mode, setMode] = useState<'board' | 'log'>('board');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [boardProjectId, setBoardProjectId] = useState<number | null>(null);
   const [logTasks, setLogTasks] = useState<Task[]>([]);
-  const [people, setPeople] = useState<string[]>([]);
   const [nt, setNt] = useState<NewTask>(blankTask('internal'));
 
   const reloadLog = () => { api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
@@ -35,7 +42,7 @@ export function Tasks() {
     api.projects.list().then((r: any) => {
       if (Array.isArray(r) && r.length) { setProjects(r.map((p) => ({ id: p.id, name: p.name }))); setBoardProjectId((cur) => cur ?? r[0].id); }
     }).catch(() => { });
-    api.people.list().then((r: any) => { if (Array.isArray(r)) setPeople(r.map((p) => p.name)); }).catch(() => { });
+    api.google.status().then((g) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
     reloadLog();
   }, []);
 
@@ -44,6 +51,38 @@ export function Tasks() {
     document.addEventListener('click', onDoc);
     return () => document.removeEventListener('click', onDoc);
   }, []);
+
+  /** Replace one task in local state with the server's fresh copy. */
+  const replaceTask = (res: any) => { if (res?.id) setLogTasks((prev) => prev.map((t) => (t.id === res.id ? (res as Task) : t))); };
+
+  /** Patch a Request Log task. The log used to be read-only — it now saves. */
+  const saveTask = (id: string, patch: Partial<Task>) => {
+    setLogTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    api.tasks.update(id, patch).then(replaceTask).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to save')));
+  };
+
+  const addComment = async (id: string, text: string) => {
+    try { replaceTask(await api.tasks.addComment(id, text)); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to comment')); }
+  };
+  const uploadFiles = async (id: string, files: File[]) => {
+    replaceTask(await api.tasks.uploadAttachments(id, files));
+    toast(files.length === 1 ? 'File attached' : `${files.length} files attached`);
+  };
+  const addLink = async (id: string, name: string, url: string) => { replaceTask(await api.tasks.addLink(id, name, url)); };
+  const removeAttachment = async (id: string, att: TaskAttachment) => {
+    try { replaceTask(await api.tasks.removeAttachment(id, att.id)); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to remove')); }
+  };
+  const deleteTask = (id: string) => {
+    if (!confirm('Delete this task?')) return;
+    setLogTasks((prev) => prev.filter((t) => t.id !== id));
+    setSelectedId(null);
+    api.tasks.remove(id).catch(() => toast('⚠ Failed to delete'));
+  };
+
+  // Labels already in use, offered as suggestions.
+  const allLabels = Array.from(new Set(logTasks.flatMap((t) => t.labels ?? []))).sort();
 
   const openNew = () => { setNt(blankTask(tab)); setShowNew(true); };
   const createTask = () => {
@@ -120,7 +159,7 @@ export function Tasks() {
           tasks.map((t) => {
             const sc = ST_COLORS[t.status];
             const tc = TT_COLORS[t.topicType];
-            const inits = initials(t.assignedTo);
+            const assignedUser = users.find((u) => (t.assignedToId && u.id === t.assignedToId) || u.name === t.assignedTo);
             const desc = t.description.length > 80 ? t.description.slice(0, 80) + '…' : t.description;
             return (
               <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', gap: 10, minWidth: 760 }}>
@@ -128,9 +167,9 @@ export function Tasks() {
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
                 <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.c, textAlign: 'center' }}>{t.status}</span>
-                {inits ? (
+                {t.assignedTo ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0 }}>{inits}</div>
+                    <Avatar user={assignedUser} name={t.assignedTo} size={24} bg="#0F2417" />
                     <span style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignedTo}</span>
                   </div>
                 ) : (
@@ -168,11 +207,24 @@ export function Tasks() {
             <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
                 <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Assigned To</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white' }}>{initials(sel.assignedTo) || '—'}</div>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{sel.assignedTo || 'Unassigned'}</span>
-                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Assigned To</div>
+                  <AssigneePicker
+                    valueId={sel.assignedToId}
+                    valueName={sel.assignedTo}
+                    disabled={!canManage}
+                    onChange={(u) => saveTask(sel.id, { assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
+                  />
+                </div>
+                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Status</div>
+                  <select
+                    disabled={!canManage}
+                    value={sel.status}
+                    onChange={(e) => saveTask(sel.id, { status: e.target.value as Task['status'] })}
+                    style={{ ...inputStyle, padding: '7px 9px' }}
+                  >
+                    {(['Open', 'In Progress', 'Closed'] as const).map((st) => <option key={st} value={st}>{st}</option>)}
+                  </select>
                 </div>
                 <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Meeting Date</div>
@@ -184,7 +236,17 @@ export function Tasks() {
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 12 }}>
-                {([['Due Date', sel.dueDate || '—'], ['Date Closed', sel.dateClosed || '—'], ['Days Open', sel.daysOpen > 0 ? sel.daysOpen + ' days' : '—'], ['Originator', sel.originator || '—']] as [string, string][]).map((r) => (
+                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Due Date</div>
+                  <input
+                    type="date"
+                    disabled={!canManage}
+                    value={sel.dueDate || ''}
+                    onChange={(e) => saveTask(sel.id, { dueDate: e.target.value })}
+                    style={{ ...inputStyle, padding: '7px 9px' }}
+                  />
+                </div>
+                {([['Date Closed', sel.dateClosed || '—'], ['Days Open', sel.daysOpen > 0 ? sel.daysOpen + ' days' : '—'], ['Originator', sel.originator || '—']] as [string, string][]).map((r) => (
                   <div key={r[0]} style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
                     <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{r[1]}</div>
@@ -197,13 +259,53 @@ export function Tasks() {
             <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
               <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 10 }}>Description</div>
               <div style={{ padding: '14px 16px', background: '#FBF8F2', borderRadius: 10 }}>
-                <div style={{ fontSize: 13, lineHeight: 1.65, color: '#0B1A12' }}>{sel.description}</div>
-                {sel.resolution && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(20,8,31,0.07)' }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2F7D4A', marginBottom: 4 }}>Resolution</div>
-                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: '#43514D' }}>{sel.resolution}</div>
-                  </div>
-                )}
+                <textarea
+                  disabled={!canManage}
+                  defaultValue={sel.description}
+                  key={'d' + sel.id}
+                  onBlur={(e) => { if (e.target.value !== sel.description) saveTask(sel.id, { description: e.target.value }); }}
+                  rows={3}
+                  style={{ ...inputStyle, background: 'white', resize: 'vertical', lineHeight: 1.6 }}
+                />
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(20,8,31,0.07)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2F7D4A', marginBottom: 6 }}>Resolution</div>
+                  <textarea
+                    disabled={!canManage}
+                    defaultValue={sel.resolution}
+                    key={'r' + sel.id}
+                    onBlur={(e) => { if (e.target.value !== sel.resolution) saveTask(sel.id, { resolution: e.target.value }); }}
+                    rows={2}
+                    placeholder="How was this resolved?"
+                    style={{ ...inputStyle, background: 'white', resize: 'vertical', lineHeight: 1.6 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginTop: 18 }}>
+                <Checklist
+                  items={sel.checklist ?? []}
+                  canManage={canManage}
+                  onChange={(checklist: ChecklistItem[]) => saveTask(sel.id, { checklist })}
+                />
+                <LabelPicker
+                  labels={sel.labels ?? []}
+                  canManage={canManage}
+                  suggestions={allLabels}
+                  onChange={(labels) => saveTask(sel.id, { labels })}
+                />
+              </div>
+
+              <div style={{ marginTop: 18 }}>
+                <Attachments
+                  scope="tasks"
+                  taskId={sel.id}
+                  attachments={sel.attachments ?? []}
+                  canManage={canManage}
+                  storageReady={storageReady}
+                  onUpload={(files) => uploadFiles(sel.id, files)}
+                  onRemove={(att) => removeAttachment(sel.id, att)}
+                  onAddLink={(name, url) => addLink(sel.id, name, url)}
+                />
               </div>
             </div>
 
@@ -239,15 +341,21 @@ export function Tasks() {
               <div style={{ marginTop: 10, padding: '11px 13px', background: '#EEF3EE', borderRadius: 10, fontSize: 10.5, color: '#43514D', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Moving a due date needs approval from the task owner, and every change is logged above.</div>
             </div>
 
-            {/* Comment input */}
+            {/* Activity — real comments and a record of what changed */}
             <div style={{ padding: '20px 28px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 14 }}>Activity</div>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <div style={{ width: 30, height: 30, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>EM</div>
-                <div style={{ flex: 1, border: '1px solid rgba(20,8,31,0.12)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: '#7E9B93' }}>Write a comment...</div>
-                <div style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', flexShrink: 0 }}>Send</div>
-              </div>
+              <ActivityFeed
+                comments={sel.comments ?? []}
+                activity={sel.activity ?? []}
+                canManage={canManage}
+                onComment={(text) => addComment(sel.id, text)}
+              />
             </div>
+
+            {canManage && (
+              <div style={{ padding: '0 28px 26px' }}>
+                <div onClick={() => deleteTask(sel.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -265,8 +373,8 @@ export function Tasks() {
             <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, flex: 1 }}>
               <Fld label="Meeting Type"><select value={nt.meetingType} onChange={(e) => setNt({ ...nt, meetingType: e.target.value })} style={inputStyle}>{['Internal', 'Owner', 'Subcontractor'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
               <Fld label="Meeting Date"><input type="date" value={nt.meetingDate} onChange={(e) => setNt({ ...nt, meetingDate: e.target.value })} style={inputStyle} /></Fld>
-              <Fld label="Assigned To"><select value={nt.assignedTo} onChange={(e) => setNt({ ...nt, assignedTo: e.target.value })} style={inputStyle}><option value="">Select person…</option>{people.map((p) => <option key={p}>{p}</option>)}</select></Fld>
-              <Fld label="Originator"><select value={nt.originator} onChange={(e) => setNt({ ...nt, originator: e.target.value })} style={inputStyle}><option value="">Select person…</option>{people.map((p) => <option key={p}>{p}</option>)}</select></Fld>
+              <Fld label="Assigned To"><select value={nt.assignedTo} onChange={(e) => setNt({ ...nt, assignedTo: e.target.value })} style={inputStyle}><option value="">Select person…</option>{users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}</select></Fld>
+              <Fld label="Originator"><select value={nt.originator} onChange={(e) => setNt({ ...nt, originator: e.target.value })} style={inputStyle}><option value="">Select person…</option>{users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}</select></Fld>
               <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
               <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{['Open', 'In Progress', 'Closed'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
               <Fld label="Due Date"><input type="date" value={nt.dueDate} onChange={(e) => setNt({ ...nt, dueDate: e.target.value })} style={inputStyle} /></Fld>

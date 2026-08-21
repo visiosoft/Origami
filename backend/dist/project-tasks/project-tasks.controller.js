@@ -14,11 +14,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectTasksController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const stream_1 = require("stream");
 const project_tasks_service_1 = require("./project-tasks.service");
 const create_project_task_dto_1 = require("./dto/create-project-task.dto");
+const update_task_dto_1 = require("../tasks/dto/update-task.dto");
+const auth_service_1 = require("../auth/auth.service");
+const attachments_service_1 = require("../google/attachments.service");
 let ProjectTasksController = class ProjectTasksController {
-    constructor(service) {
+    constructor(service, auth, attachments) {
         this.service = service;
+        this.auth = auth;
+        this.attachments = attachments;
     }
     findAll(projectId) {
         return this.service.findAll(projectId ? Number(projectId) : undefined);
@@ -29,14 +36,38 @@ let ProjectTasksController = class ProjectTasksController {
             return { sections: [], tasks: [] };
         return this.service.board(pid);
     }
-    create(dto) {
-        return this.service.create(dto);
+    reorder(dto) {
+        return this.service.reorder(dto.sectionId, dto.ids ?? []);
     }
-    update(id, dto) {
-        return this.service.update(id, dto);
+    async create(dto, auth) {
+        return this.service.create(dto, await this.auth.actor(auth));
+    }
+    async update(id, dto, auth) {
+        return this.service.update(id, dto, await this.auth.actor(auth));
     }
     remove(id) {
         return this.service.remove(id);
+    }
+    async upload(id, files, auth) {
+        return this.service.addAttachments(id, files, await this.auth.requireActor(auth));
+    }
+    async link(id, dto, auth) {
+        return this.service.addLink(id, dto.name ?? '', dto.url, await this.auth.actor(auth));
+    }
+    async removeAttachment(id, attId, auth) {
+        return this.service.removeAttachment(id, attId, await this.auth.actor(auth));
+    }
+    async content(id, attId, thumb, res) {
+        const att = await this.service.attachment(id, attId);
+        const file = await this.attachments.download(att, thumb === '1');
+        const inline = attachments_service_1.AttachmentsService.inlineSafe(file.mimeType);
+        res.setHeader('Content-Type', file.mimeType);
+        res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(att.name)}"`);
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        stream_1.Readable.fromWeb(file.body).pipe(res);
+    }
+    async comment(id, dto, auth) {
+        return this.service.addComment(id, dto.text, await this.auth.actor(auth));
     }
 };
 exports.ProjectTasksController = ProjectTasksController;
@@ -55,19 +86,28 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ProjectTasksController.prototype, "board", null);
 __decorate([
-    (0, common_1.Post)(),
+    (0, common_1.Put)('reorder'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_project_task_dto_1.CreateProjectTaskDto]),
+    __metadata("design:paramtypes", [create_project_task_dto_1.ReorderDto]),
     __metadata("design:returntype", void 0)
+], ProjectTasksController.prototype, "reorder", null);
+__decorate([
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_project_task_dto_1.CreateProjectTaskDto, String]),
+    __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
@@ -76,8 +116,57 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProjectTasksController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/attachments'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', attachments_service_1.MAX_FILES_PER_UPLOAD, { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.UploadedFiles)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Array, String]),
+    __metadata("design:returntype", Promise)
+], ProjectTasksController.prototype, "upload", null);
+__decorate([
+    (0, common_1.Post)(':id/attachments/link'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_task_dto_1.AddLinkDto, String]),
+    __metadata("design:returntype", Promise)
+], ProjectTasksController.prototype, "link", null);
+__decorate([
+    (0, common_1.Delete)(':id/attachments/:attId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('attId')),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", Promise)
+], ProjectTasksController.prototype, "removeAttachment", null);
+__decorate([
+    (0, common_1.Get)(':id/attachments/:attId/content'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('attId')),
+    __param(2, (0, common_1.Query)('thumb')),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], ProjectTasksController.prototype, "content", null);
+__decorate([
+    (0, common_1.Post)(':id/comments'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_task_dto_1.AddCommentDto, String]),
+    __metadata("design:returntype", Promise)
+], ProjectTasksController.prototype, "comment", null);
 exports.ProjectTasksController = ProjectTasksController = __decorate([
     (0, common_1.Controller)('project-tasks'),
-    __metadata("design:paramtypes", [project_tasks_service_1.ProjectTasksService])
+    __metadata("design:paramtypes", [project_tasks_service_1.ProjectTasksService,
+        auth_service_1.AuthService,
+        attachments_service_1.AttachmentsService])
 ], ProjectTasksController);
 //# sourceMappingURL=project-tasks.controller.js.map

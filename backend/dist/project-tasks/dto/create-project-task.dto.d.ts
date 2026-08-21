@@ -1,3 +1,4 @@
+import type { ChecklistItem, TaskAttachment, TaskComment } from '../../database/task.types';
 export declare class CreateProjectTaskDto {
     id?: string;
     projectId: number;
@@ -5,19 +6,19 @@ export declare class CreateProjectTaskDto {
     title: string;
     description?: string;
     assignee?: string;
+    assigneeId?: string;
     dueDate?: string;
     priority?: string;
+    status?: string;
     order?: number;
     completed?: boolean;
     parentId?: string | null;
-    attachments?: {
-        name: string;
-        url: string;
-    }[];
-    comments?: {
-        id: string;
-        author: string;
-        text: string;
-        date: string;
-    }[];
+    labels?: string[];
+    checklist?: ChecklistItem[];
+    attachments?: TaskAttachment[];
+    comments?: TaskComment[];
+}
+export declare class ReorderDto {
+    sectionId: string;
+    ids: string[];
 }

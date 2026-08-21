@@ -36,6 +36,44 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+/**
+ * Multipart POST. Deliberately omits Content-Type so the browser can set the
+ * multipart boundary itself, while keeping the Authorization header.
+ */
+async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  const token = session.get();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    throw new Error(msg || `Upload failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Build a FormData from a browser FileList / File[]. */
+function filesForm(files: File[] | FileList): FormData {
+  const form = new FormData();
+  Array.from(files).forEach((f) => form.append('files', f, f.name));
+  return form;
+}
+
+/**
+ * Where the browser fetches an attachment's bytes. Relative on purpose: it works
+ * through the vite proxy in dev and same-origin in production. The route is
+ * scoped to the task, so a Drive id alone can never reach an arbitrary file.
+ */
+export const attachmentUrl = (
+  scope: 'tasks' | 'project-tasks',
+  taskId: string,
+  attId: string,
+  thumb = false,
+) => `${API_BASE}/${scope}/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(attId)}/content${thumb ? '?thumb=1' : ''}`;
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -58,6 +96,7 @@ export const api = {
     testEmail: (to?: string) => request<{ sent: boolean; to: string }>('/google/test-email', { method: 'POST', body: JSON.stringify({ to }) }),
     send: (data: { to: string; subject: string; html: string; cc?: string; bcc?: string }) =>
       request('/google/send', { method: 'POST', body: JSON.stringify(data) }),
+    testDrive: () => request<{ ok: boolean; folderId: string }>('/google/drive/test', { method: 'POST' }),
     driveFiles: (q?: string) => request<DriveFile[]>(`/google/drive/files${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   },
   dashboard: {
@@ -91,6 +130,12 @@ export const api = {
     },
     get: (id: string) => request(`/tasks/${id}`),
     create: (data: unknown) => request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/tasks/${id}`, { method: 'DELETE' }),
+    uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/tasks/${id}/attachments`, filesForm(files)),
+    addLink: (id: string, name: string, url: string) => request(`/tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    removeAttachment: (id: string, attId: string) => request(`/tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    addComment: (id: string, text: string) => request(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
   pipeline: {
     list: () => request('/pipeline'),
@@ -119,6 +164,9 @@ export const api = {
     update: (id: string, data: unknown) => request(`/email-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/email-templates/${id}`, { method: 'DELETE' }),
   },
+  reminders: {
+    run: () => request<{ sent: number; skipped: number; recipients: string[] }>('/reminders/run', { method: 'POST' }),
+  },
   users: {
     list: () => request('/users'),
     create: (data: unknown) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
@@ -138,6 +186,11 @@ export const api = {
     create: (data: unknown) => request('/project-tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-tasks/${id}`, { method: 'DELETE' }),
+    reorder: (sectionId: string, ids: string[]) => request('/project-tasks/reorder', { method: 'PUT', body: JSON.stringify({ sectionId, ids }) }),
+    uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/project-tasks/${id}/attachments`, filesForm(files)),
+    addLink: (id: string, name: string, url: string) => request(`/project-tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    removeAttachment: (id: string, attId: string) => request(`/project-tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    addComment: (id: string, text: string) => request(`/project-tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
   projectSections: {
     list: (projectId: number) => request(`/project-sections?projectId=${projectId}`),

@@ -43,6 +43,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
+], CreateTaskDto.prototype, "assignedToId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
 ], CreateTaskDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
@@ -73,4 +78,14 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateTaskDto.prototype, "project", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateTaskDto.prototype, "labels", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateTaskDto.prototype, "checklist", void 0);
 //# sourceMappingURL=create-task.dto.js.map

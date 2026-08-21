@@ -215,6 +215,23 @@ export class AuthService {
     return verifyJwt(raw, await this.settings.jwtSecret());
   }
 
+  /**
+   * Who is making this request, for attribution on comments and history.
+   * The API has no global guard, so an unsigned request is attributed rather
+   * than rejected — see requireActor() for the endpoints that must know.
+   */
+  async actor(bearer: string | undefined): Promise<{ name: string; id?: string }> {
+    const claims = await this.verify(bearer);
+    return claims ? { name: claims.name, id: claims.sub } : { name: 'Unknown' };
+  }
+
+  /** Same, but rejects anonymous callers — used where the action costs storage. */
+  async requireActor(bearer: string | undefined): Promise<{ name: string; id?: string }> {
+    const claims = await this.verify(bearer);
+    if (!claims) throw new UnauthorizedException('Sign in to upload files.');
+    return { name: claims.name, id: claims.sub };
+  }
+
   async me(bearer: string | undefined) {
     const claims = await this.verify(bearer);
     if (!claims) throw new UnauthorizedException('Not signed in.');

@@ -16,11 +16,14 @@ export interface DriveFile {
     size?: string;
     webViewLink?: string;
     iconLink?: string;
+    thumbnailLink?: string;
+    createdTime?: string;
 }
 export declare class GoogleService {
     private readonly settings;
     private readonly log;
     private accessToken;
+    private folderIds;
     constructor(settings: SettingsService);
     credentials(): Promise<{
         clientId: string;
@@ -60,6 +63,27 @@ export declare class GoogleService {
         threadId: string;
         from: string;
         to: string;
+    }>;
+    isConnected(): Promise<boolean>;
+    private q;
+    ensureFolder(name: string, parentId?: string): Promise<string>;
+    attachmentsRootId(): Promise<string>;
+    folderForScope(scope: string): Promise<string>;
+    uploadDriveFile(opts: {
+        name: string;
+        mimeType: string;
+        buffer: Buffer;
+        parentId: string;
+    }): Promise<DriveFile>;
+    downloadDriveFile(id: string, thumb?: boolean): Promise<{
+        body: any;
+        mimeType: string;
+        size?: string;
+    }>;
+    trashDriveFile(id: string): Promise<void>;
+    testDrive(): Promise<{
+        ok: true;
+        folderId: string;
     }>;
     listDriveFiles(q?: string, pageSize?: number): Promise<DriveFile[]>;
 }

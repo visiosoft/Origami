@@ -181,6 +181,16 @@ let AuthService = class AuthService {
             return null;
         return (0, crypto_util_1.verifyJwt)(raw, await this.settings.jwtSecret());
     }
+    async actor(bearer) {
+        const claims = await this.verify(bearer);
+        return claims ? { name: claims.name, id: claims.sub } : { name: 'Unknown' };
+    }
+    async requireActor(bearer) {
+        const claims = await this.verify(bearer);
+        if (!claims)
+            throw new common_1.UnauthorizedException('Sign in to upload files.');
+        return { name: claims.name, id: claims.sub };
+    }
     async me(bearer) {
         const claims = await this.verify(bearer);
         if (!claims)

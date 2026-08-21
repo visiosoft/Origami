@@ -10,6 +10,7 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
+const schedule_1 = require("@nestjs/schedule");
 const projects_module_1 = require("./projects/projects.module");
 const people_module_1 = require("./people/people.module");
 const tasks_module_1 = require("./tasks/tasks.module");
@@ -26,6 +27,7 @@ const seed_module_1 = require("./database/seed.module");
 const settings_module_1 = require("./settings/settings.module");
 const google_module_1 = require("./google/google.module");
 const auth_module_1 = require("./auth/auth.module");
+const reminders_module_1 = require("./reminders/reminders.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -33,6 +35,7 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
+            schedule_1.ScheduleModule.forRoot(),
             typeorm_1.TypeOrmModule.forRootAsync({
                 inject: [config_1.ConfigService],
                 useFactory: (cfg) => ({
@@ -54,6 +57,7 @@ exports.AppModule = AppModule = __decorate([
             settings_module_1.SettingsModule,
             google_module_1.GoogleModule,
             auth_module_1.AuthModule,
+            reminders_module_1.RemindersModule,
             projects_module_1.ProjectsModule,
             people_module_1.PeopleModule,
             tasks_module_1.TasksModule,

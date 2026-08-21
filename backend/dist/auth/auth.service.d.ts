@@ -48,6 +48,14 @@ export declare class AuthService {
     }>;
     private issueSession;
     verify(bearer: string | undefined): Promise<SessionClaims | null>;
+    actor(bearer: string | undefined): Promise<{
+        name: string;
+        id?: string;
+    }>;
+    requireActor(bearer: string | undefined): Promise<{
+        name: string;
+        id?: string;
+    }>;
     me(bearer: string | undefined): Promise<any>;
     findByEmail(email: string): Promise<UserEntity | null>;
 }

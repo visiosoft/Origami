@@ -1,7 +1,7 @@
 import { Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserEntity } from '../database/entities';
+import { UserEntity, ProjectTaskEntity, TaskEntity } from '../database/entities';
 import { DEFAULT_USERS } from '../seed-data/users';
 import { AuthService, publicUser } from '../auth/auth.service';
 
@@ -11,6 +11,8 @@ export class UsersService implements OnApplicationBootstrap {
 
   constructor(
     @InjectRepository(UserEntity) private readonly repo: Repository<UserEntity>,
+    @InjectRepository(ProjectTaskEntity) private readonly projectTasks: Repository<ProjectTaskEntity>,
+    @InjectRepository(TaskEntity) private readonly tasks: Repository<TaskEntity>,
     private readonly auth: AuthService,
   ) {}
 
@@ -70,10 +72,27 @@ export class UsersService implements OnApplicationBootstrap {
   async update(id: string, dto: any) {
     let user = await this.repo.findOneBy({ id });
     if (!user) user = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<UserEntity>);
+    const previousName = user.name;
     // Credentials are only ever changed through the auth flows, never a plain update.
     const { passwordHash, inviteToken, hasPassword, invitePending, invite, ...safe } = dto ?? {};
     Object.assign(user, safe, { id });
-    return publicUser(await this.repo.save(user));
+    const saved = await this.repo.save(user);
+
+    // Tasks store the assignee's name alongside their id for display. Keep that
+    // copy current, otherwise a rename leaves tasks labelled with the old name.
+    if (previousName && saved.name && previousName !== saved.name) {
+      await this.renameOnTasks(saved.id, saved.name);
+    }
+    return publicUser(saved);
+  }
+
+  private async renameOnTasks(userId: string, name: string) {
+    try {
+      await this.projectTasks.update({ assigneeId: userId }, { assignee: name });
+      await this.tasks.update({ assignedToId: userId }, { assignedTo: name });
+    } catch (err) {
+      this.log.warn(`Could not propagate the rename of ${userId}: ${(err as Error).message}`);
+    }
   }
 
   async remove(id: string) {
