@@ -171,6 +171,26 @@ export function Pipeline() {
   const [visitWhen, setVisitWhen] = useState('');
   const [scoringTemplate, setScoringTemplate] = useState<ScoringCriterion[]>([]);
   const [fitByDeal, setFitByDeal] = useState<Record<string, Record<string, string>>>({});
+  const [panelWidth, setPanelWidth] = useState(420);
+
+  // Drag the panel's left edge to resize its width (persists while the app is open).
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = panelWidth;
+    const onMove = (ev: MouseEvent) => {
+      const max = Math.min(window.innerWidth - 120, 1100);
+      setPanelWidth(Math.min(Math.max(startW + (startX - ev.clientX), 340), max));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.userSelect = '';
+    };
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   useEffect(() => {
     api.pipeline.list().then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
@@ -520,7 +540,13 @@ export function Pipeline() {
       {selected && selectedStage && (
         <div style={isMobile
           ? { position: 'fixed', inset: 0, zIndex: 120, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }
-          : { width: 380, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }}>
+          : { position: 'relative', width: panelWidth, flexShrink: 0, borderLeft: '1px solid rgba(20,8,31,0.06)', background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }}>
+          {/* Drag handle — resize the panel by dragging its left edge */}
+          {!isMobile && (
+            <div onMouseDown={startResize} title="Drag to resize" style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 8, cursor: 'ew-resize', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 3, height: 34, borderRadius: 3, background: '#D6E0D7' }} />
+            </div>
+          )}
           {/* Scrollable content region */}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {/* Top bar */}
