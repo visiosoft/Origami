@@ -9,8 +9,8 @@ export declare class TasksController {
     private readonly auth;
     private readonly attachments;
     constructor(tasksService: TasksService, auth: AuthService, attachments: AttachmentsService);
-    findAll(tab?: string, project?: string): Promise<import("../database/entities").TaskEntity[]>;
-    findOne(id: string): Promise<import("../database/entities").TaskEntity>;
+    findAll(tab?: string, project?: string, auth?: string): Promise<import("../database/entities").TaskEntity[]>;
+    findOne(id: string, auth?: string): Promise<import("../database/entities").TaskEntity>;
     create(dto: CreateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
     update(id: string, dto: UpdateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
     remove(id: string): Promise<{

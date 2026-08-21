@@ -14,6 +14,7 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
+import { useTaskScope, TaskScopeToggle, isMine } from './TaskScope';
 
 const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = {
@@ -36,6 +37,7 @@ function PriorityPill({ p }: { p?: Priority }) {
 
 export function TaskBoard({ projectId }: { projectId: number }) {
   const { can, toast, users } = useApp();
+  const { scope, setScope, filter: scopeFilter, restricted, currentUser } = useTaskScope();
   const canManage = can('tasks', 'manage');
   const isMobile = useWindowWidth() <= 720;
 
@@ -67,8 +69,12 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
-  const visibleTasks = showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId);
+  const inScopeOfBoard = showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId);
+  const visibleTasks = scopeFilter(inScopeOfBoard);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
+  // Counts are absolute, not relative to the active scope.
+  const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
+  const allCount = inScopeOfBoard.filter((t) => !t.parentId).length;
   const selected = tasks.find((t) => t.id === selectedId) || null;
   // Labels already in use on this board, offered as suggestions.
   const allLabels = Array.from(new Set(tasks.flatMap((t) => t.labels ?? []))).sort();
@@ -299,6 +305,13 @@ export function TaskBoard({ projectId }: { projectId: number }) {
             <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : 'List'}</div>
           ))}
         </div>
+        <TaskScopeToggle
+          scope={scope}
+          setScope={setScope}
+          restricted={restricted}
+          mineCount={mineCount}
+          allCount={allCount}
+        />
         {phaseTaskCount > 0 && (
           <div
             onClick={() => setShowPhaseTasks((v) => !v)}

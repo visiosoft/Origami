@@ -21,17 +21,24 @@ const create_task_dto_1 = require("./dto/create-task.dto");
 const update_task_dto_1 = require("./dto/update-task.dto");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
+const viewer_util_1 = require("../database/viewer.util");
 let TasksController = class TasksController {
     constructor(tasksService, auth, attachments) {
         this.tasksService = tasksService;
         this.auth = auth;
         this.attachments = attachments;
     }
-    findAll(tab, project) {
-        return this.tasksService.findAll(tab, project);
+    async findAll(tab, project, auth) {
+        const rows = await this.tasksService.findAll(tab, project);
+        return (0, viewer_util_1.scopeTasks)(rows, await this.auth.verify(auth));
     }
-    findOne(id) {
-        return this.tasksService.findOne(id);
+    async findOne(id, auth) {
+        const claims = await this.auth.verify(auth);
+        const task = await this.tasksService.findOne(id);
+        if (claims && (0, viewer_util_1.isRestrictedViewer)(claims) && !(0, viewer_util_1.assignedTo)(task, claims)) {
+            throw new common_1.NotFoundException(`Task ${id} not found`);
+        }
+        return task;
     }
     async create(dto, auth) {
         return this.tasksService.create(dto, await this.auth.actor(auth));
@@ -69,16 +76,18 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('tab')),
     __param(1, (0, common_1.Query)('project')),
+    __param(2, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", Promise)
 ], TasksController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
 ], TasksController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),

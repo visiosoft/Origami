@@ -21,20 +21,23 @@ const create_project_task_dto_1 = require("./dto/create-project-task.dto");
 const update_task_dto_1 = require("../tasks/dto/update-task.dto");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
+const viewer_util_1 = require("../database/viewer.util");
 let ProjectTasksController = class ProjectTasksController {
     constructor(service, auth, attachments) {
         this.service = service;
         this.auth = auth;
         this.attachments = attachments;
     }
-    findAll(projectId) {
-        return this.service.findAll(projectId ? Number(projectId) : undefined);
+    async findAll(projectId, auth) {
+        const rows = await this.service.findAll(projectId ? Number(projectId) : undefined);
+        return (0, viewer_util_1.scopeTasks)(rows, await this.auth.verify(auth));
     }
-    board(projectId) {
+    async board(projectId, auth) {
         const pid = Number(projectId);
         if (!Number.isFinite(pid))
             return { sections: [], tasks: [] };
-        return this.service.board(pid);
+        const { sections, tasks } = await this.service.board(pid);
+        return { sections, tasks: (0, viewer_util_1.scopeTasks)(tasks, await this.auth.verify(auth)) };
     }
     reorder(dto) {
         return this.service.reorder(dto.sectionId, dto.ids ?? []);
@@ -74,16 +77,18 @@ exports.ProjectTasksController = ProjectTasksController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('board'),
     __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "board", null);
 __decorate([
     (0, common_1.Put)('reorder'),

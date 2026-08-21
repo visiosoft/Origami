@@ -9,14 +9,11 @@ export declare class ProjectTasksController {
     private readonly auth;
     private readonly attachments;
     constructor(service: ProjectTasksService, auth: AuthService, attachments: AttachmentsService);
-    findAll(projectId?: string): Promise<any[]>;
-    board(projectId: string): Promise<{
+    findAll(projectId?: string, auth?: string): Promise<any[]>;
+    board(projectId: string, auth?: string): Promise<{
         sections: import("../seed-data/project-tasks").ProjectSection[];
         tasks: any[];
-    }> | {
-        sections: never[];
-        tasks: never[];
-    };
+    }>;
     reorder(dto: ReorderDto): Promise<{
         sectionId: string;
         ordered: number;

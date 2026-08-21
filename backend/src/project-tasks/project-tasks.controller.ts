@@ -9,6 +9,7 @@ import { CreateProjectTaskDto, ReorderDto } from './dto/create-project-task.dto'
 import { AddCommentDto, AddLinkDto } from '../tasks/dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
+import { scopeTasks } from '../database/viewer.util';
 
 @Controller('project-tasks')
 export class ProjectTasksController {
@@ -19,15 +20,17 @@ export class ProjectTasksController {
   ) {}
 
   @Get()
-  findAll(@Query('projectId') projectId?: string) {
-    return this.service.findAll(projectId ? Number(projectId) : undefined);
+  async findAll(@Query('projectId') projectId?: string, @Headers('authorization') auth?: string) {
+    const rows = await this.service.findAll(projectId ? Number(projectId) : undefined);
+    return scopeTasks(rows, await this.auth.verify(auth));
   }
 
   @Get('board')
-  board(@Query('projectId') projectId: string) {
+  async board(@Query('projectId') projectId: string, @Headers('authorization') auth?: string) {
     const pid = Number(projectId);
     if (!Number.isFinite(pid)) return { sections: [], tasks: [] };
-    return this.service.board(pid);
+    const { sections, tasks } = await this.service.board(pid);
+    return { sections, tasks: scopeTasks(tasks, await this.auth.verify(auth)) };
   }
 
   /**

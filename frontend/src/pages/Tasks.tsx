@@ -7,6 +7,7 @@ import { Attachments } from '../components/Attachments';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
+import { useTaskScope, TaskScopeToggle, isMine } from '../components/TaskScope';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { TaskBoard } from '../components/TaskBoard';
 import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab } from '../data/tasks';
@@ -24,6 +25,7 @@ const blankTask = (tab: TaskTab): NewTask => ({ tab, meetingType: 'Internal', me
 
 export function Tasks() {
   const { toast, can, users } = useApp();
+  const { scope, setScope, filter: scopeFilter, restricted, currentUser } = useTaskScope();
   const canManage = can('tasks', 'manage');
   const [tab, setTab] = useState<TaskTab>('internal');
   const [pf, setPf] = useState('All projects');
@@ -111,8 +113,10 @@ export function Tasks() {
   logTasks.forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); });
   const byProject = (list: Task[]) => (pf === 'All projects' ? list : list.filter((x) => x.project === pf));
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
-  TABS.forEach((t) => { tabCounts[t] = byProject(logTasks.filter((x) => (x as any).tab === t)).length; });
-  const tasks = byProject(logTasks.filter((x) => (x as any).tab === tab));
+  TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(logTasks.filter((x) => (x as any).tab === t))).length; });
+  const inTab = byProject(logTasks.filter((x) => (x as any).tab === tab));
+  const tasks = scopeFilter(inTab);
+  const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
 
   const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
   const lt = sel ? getLeadTime(sel) : null;
@@ -149,6 +153,13 @@ export function Tasks() {
           </div>
         ))}
         <div style={{ flex: 1 }} />
+        <TaskScopeToggle
+          scope={scope}
+          setScope={setScope}
+          restricted={restricted}
+          mineCount={logMineCount}
+          allCount={inTab.length}
+        />
         <div style={{ position: 'relative' }}>
           <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: pf === 'All projects' ? '#7E9B93' : 'white', background: pf === 'All projects' ? 'white' : '#173326', border: '1px solid rgba(20,8,31,0.08)' }}>
             <span>{pf}</span>

@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
+  Body, Controller, Delete, Get, Headers, NotFoundException, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -9,6 +9,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto, AddCommentDto, AddLinkDto } from './dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
+import { scopeTasks, isRestrictedViewer, assignedTo } from '../database/viewer.util';
 
 @Controller('tasks')
 export class TasksController {
@@ -19,13 +20,24 @@ export class TasksController {
   ) {}
 
   @Get()
-  findAll(@Query('tab') tab?: string, @Query('project') project?: string) {
-    return this.tasksService.findAll(tab, project);
+  async findAll(
+    @Query('tab') tab?: string,
+    @Query('project') project?: string,
+    @Headers('authorization') auth?: string,
+  ) {
+    const rows = await this.tasksService.findAll(tab, project);
+    return scopeTasks(rows, await this.auth.verify(auth));
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.tasksService.findOne(id);
+  async findOne(@Param('id') id: string, @Headers('authorization') auth?: string) {
+    const claims = await this.auth.verify(auth);
+    const task = await this.tasksService.findOne(id);
+    // A restricted viewer must not reach someone else's task by guessing an id.
+    if (claims && isRestrictedViewer(claims) && !assignedTo(task, claims)) {
+      throw new NotFoundException(`Task ${id} not found`);
+    }
+    return task;
   }
 
   @Post()
