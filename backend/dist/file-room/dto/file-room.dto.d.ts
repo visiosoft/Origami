@@ -6,3 +6,7 @@ export declare class CreateFolderDto {
 export declare class RenameFileDto {
     name: string;
 }
+export declare class EmailFileDto {
+    to: string;
+    note?: string;
+}

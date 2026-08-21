@@ -50,6 +50,15 @@ let FileRoomController = class FileRoomController {
     rename(id, dto) {
         return this.service.rename(id, dto.name);
     }
+    share(id) {
+        return this.service.shareLink(id);
+    }
+    async emailFile(id, dto, auth) {
+        return this.service.email(id, dto.to, dto.note ?? '', await this.auth.actor(auth));
+    }
+    sync(projectId) {
+        return this.service.sync(Number(projectId));
+    }
     markLatest(id) {
         return this.service.markLatest(id);
     }
@@ -100,6 +109,29 @@ __decorate([
     __metadata("design:paramtypes", [String, file_room_dto_1.RenameFileDto]),
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "rename", null);
+__decorate([
+    (0, common_1.Post)('files/:id/share'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "share", null);
+__decorate([
+    (0, common_1.Post)('files/:id/email'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, file_room_dto_1.EmailFileDto, String]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "emailFile", null);
+__decorate([
+    (0, common_1.Post)('sync'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "sync", null);
 __decorate([
     (0, common_1.Put)('files/:id/latest'),
     __param(0, (0, common_1.Param)('id')),

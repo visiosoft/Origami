@@ -5,7 +5,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-room.service';
-import { CreateFolderDto, RenameFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, RenameFileDto, EmailFileDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 
@@ -64,6 +64,23 @@ export class FileRoomController {
   @Put('files/:id')
   rename(@Param('id') id: string, @Body() dto: RenameFileDto) {
     return this.service.rename(id, dto.name);
+  }
+
+  /** Make the file readable by anyone holding the link, and return that link. */
+  @Post('files/:id/share')
+  share(@Param('id') id: string) {
+    return this.service.shareLink(id);
+  }
+
+  @Post('files/:id/email')
+  async emailFile(@Param('id') id: string, @Body() dto: EmailFileDto, @Headers('authorization') auth?: string) {
+    return this.service.email(id, dto.to, dto.note ?? '', await this.auth.actor(auth));
+  }
+
+  /** Pull in anything added to the project's Drive folder outside the app. */
+  @Post('sync')
+  sync(@Query('projectId') projectId: string) {
+    return this.service.sync(Number(projectId));
   }
 
   @Put('files/:id/latest')

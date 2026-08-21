@@ -208,6 +208,11 @@ export const api = {
     createFolder: (projectId: number, path: string[], name: string) =>
       request('/file-room/folders', { method: 'POST', body: JSON.stringify({ projectId, path, name }) }),
     removeFolder: (id: string) => request(`/file-room/folders/${id}`, { method: 'DELETE' }),
+    share: (id: string) => request<{ url: string; name: string }>(`/file-room/files/${id}/share`, { method: 'POST' }),
+    email: (id: string, to: string, note: string) =>
+      request<{ sent: boolean; to: string }>(`/file-room/files/${id}/email`, { method: 'POST', body: JSON.stringify({ to, note }) }),
+    sync: (projectId: number) =>
+      request<{ added: number; updated: number; removed: number; folders: number }>(`/file-room/sync?projectId=${projectId}`, { method: 'POST' }),
     /** Relative on purpose: works through the vite proxy and same-origin in prod. */
     contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
       const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');

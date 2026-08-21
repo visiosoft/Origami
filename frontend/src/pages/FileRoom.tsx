@@ -54,6 +54,11 @@ export function FileRoom() {
   const [uploading, setUploading] = useState<string[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
+  const [emailTo, setEmailTo] = useState('');
+  const [emailNote, setEmailNote] = useState('');
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const load = () => {
@@ -115,6 +120,31 @@ export function FileRoom() {
   }, [data.files]);
 
   // ---- actions ------------------------------------------------------------
+
+  /** Pull in whatever is sitting in the project's Drive folder. */
+  const sync = async (id: number, quiet = false) => {
+    setSyncing(true);
+    try {
+      const r = await api.fileRoom.sync(id);
+      if (!quiet || r.added || r.removed || r.updated) {
+        toast(r.added || r.removed || r.updated
+          ? `Drive synced — ${r.added} added, ${r.updated} updated, ${r.removed} removed`
+          : 'Already up to date with Drive');
+      }
+      load();
+    } catch (e) {
+      if (!quiet) toast('⚠ ' + ((e as Error).message || 'Sync failed'));
+    } finally { setSyncing(false); }
+  };
+
+  // Opening a project reconciles it with Drive, so files added there show up.
+  const syncedFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (!projectId || !storageReady || syncedFor.current === projectId) return;
+    syncedFor.current = projectId;
+    sync(projectId, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, storageReady]);
 
   const openFolder = (segment: string) => setPath((p) => [...p, segment]);
   const jumpTo = (depth: number) => setPath((p) => p.slice(0, depth + 1));
@@ -278,7 +308,7 @@ export function FileRoom() {
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
-          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); }}
+          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setShareUrl(''); setEmailOpen(false); }}
                style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer' }}>
             <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
               {(f.ext || '?').slice(0, 4)}
@@ -316,7 +346,7 @@ export function FileRoom() {
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
-          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); }}
+          <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setShareUrl(''); setEmailOpen(false); }}
                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer' }}>
             <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
@@ -378,6 +408,13 @@ export function FileRoom() {
             </div>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
             {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
+            {!atRoot && (
+              <div onClick={() => projectId && sync(projectId)}
+                   title="Pull in anything added to this project's Drive folder"
+                   style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: 'white', color: '#43514D', border: '1px solid rgba(20,8,31,0.12)' }}>
+                {syncing ? 'Syncing…' : '⟳ Sync Drive'}
+              </div>
+            )}
             {canManage && (
               <div onClick={() => setUploadOpen((v) => !v)}
                    style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>+ Upload Files</div>
@@ -468,7 +505,7 @@ export function FileRoom() {
               <div style={{ padding: '0 22px 16px' }}>
                 <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Version history</div>
                 {versions.map((v, i) => (
-                  <div key={v.id} onClick={() => { setSelectedFileId(v.id); setRenaming(v.name); }}
+                  <div key={v.id} onClick={() => { setSelectedFileId(v.id); setRenaming(v.name); setShareUrl(''); setEmailOpen(false); }}
                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: v.id === selected.id ? '#EEF3EE' : 'transparent' }}>
                     <span style={{ width: 6, height: 6, borderRadius: 999, background: v.isLatest !== false ? '#2F7D4A' : '#C9D4CC', flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 11.5, color: '#43514D' }}>
@@ -483,6 +520,51 @@ export function FileRoom() {
             <div style={{ padding: '0 22px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={api.fileRoom.contentUrl(selected.id, { download: true })}
                  style={{ padding: '10px 0', borderRadius: 10, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
+
+              <div
+                onClick={async () => {
+                  try {
+                    const r = await api.fileRoom.share(selected.id);
+                    setShareUrl(r.url);
+                    try { await navigator.clipboard.writeText(r.url); toast('Share link copied'); }
+                    catch { toast('Share link ready'); }
+                  } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not create a link')); }
+                }}
+                style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
+              >Copy share link</div>
+
+              {shareUrl && (
+                <div style={{ background: '#FBF8F2', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, color: '#8A6D12', fontWeight: 700, marginBottom: 4 }}>Anyone with this link can view the file</div>
+                  <div style={{ fontSize: 10.5, color: '#2F6F68', wordBreak: 'break-all' }}>{shareUrl}</div>
+                </div>
+              )}
+
+              <div onClick={() => setEmailOpen((v) => !v)}
+                   style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>
+                {emailOpen ? 'Cancel email' : 'Email this file'}
+              </div>
+
+              {emailOpen && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#FBF8F2', borderRadius: 10, padding: 10 }}>
+                  <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="Recipient email" style={inputStyle} />
+                  <textarea value={emailNote} onChange={(e) => setEmailNote(e.target.value)} rows={3} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
+                  <div
+                    onClick={async () => {
+                      if (!emailTo.trim()) { toast('⚠ Add a recipient'); return; }
+                      try {
+                        const r = await api.fileRoom.email(selected.id, emailTo, emailNote);
+                        toast(`Sent to ${r.to}`);
+                        setEmailOpen(false); setEmailTo(''); setEmailNote('');
+                      } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not send')); }
+                    }}
+                    style={{ padding: '8px 0', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
+                  >Send</div>
+                  <div style={{ fontSize: 10, color: '#7E9B93', lineHeight: 1.5 }}>
+                    Sent from the connected Google account as a view link, not an attachment — so size is never a problem.
+                  </div>
+                </div>
+              )}
 
               {canManage && (
                 <div style={{ display: 'flex', gap: 6 }}>

@@ -318,6 +318,51 @@ let GoogleService = class GoogleService {
             size: res.headers.get('content-length') || undefined,
         };
     }
+    async listChildren(folderId) {
+        const token = await this.workspaceToken();
+        const out = [];
+        let pageToken;
+        do {
+            const params = new URLSearchParams({
+                q: `'${this.q(folderId)}' in parents and trashed = false`,
+                fields: `nextPageToken, files(${DRIVE_FILE_FIELDS})`,
+                pageSize: '200',
+                supportsAllDrives: 'true',
+                includeItemsFromAllDrives: 'true',
+            });
+            if (pageToken)
+                params.set('pageToken', pageToken);
+            const res = await fetch(`${DRIVE_FILES_URL}?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok)
+                throw new common_1.BadRequestException(body?.error?.message || 'Could not read that Drive folder.');
+            out.push(...(body.files ?? []));
+            pageToken = body.nextPageToken;
+        } while (pageToken);
+        return out;
+    }
+    static isFolder(f) {
+        return f.mimeType === FOLDER_MIME;
+    }
+    async shareLink(id) {
+        const token = await this.workspaceToken();
+        const grant = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}/permissions?supportsAllDrives=true`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+        });
+        if (!grant.ok) {
+            const err = await grant.json().catch(() => ({}));
+            this.log.warn(`Could not make ${id} link-readable: ${JSON.stringify(err)}`);
+        }
+        const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=webViewLink&supportsAllDrives=true`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = await meta.json().catch(() => ({}));
+        if (!meta.ok || !body?.webViewLink)
+            throw new common_1.BadRequestException('Could not produce a share link.');
+        return body.webViewLink;
+    }
     async trashDriveFile(id) {
         const token = await this.workspaceToken();
         const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?supportsAllDrives=true`, {

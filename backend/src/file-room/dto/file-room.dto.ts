@@ -9,3 +9,8 @@ export class CreateFolderDto {
 export class RenameFileDto {
   @IsString() name: string;
 }
+
+export class EmailFileDto {
+  @IsString() to: string;
+  @IsString() @IsOptional() note?: string;
+}

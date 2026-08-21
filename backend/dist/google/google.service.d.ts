@@ -81,6 +81,9 @@ export declare class GoogleService {
         mimeType: string;
         size?: string;
     }>;
+    listChildren(folderId: string): Promise<DriveFile[]>;
+    static isFolder(f: DriveFile): boolean;
+    shareLink(id: string): Promise<string>;
     trashDriveFile(id: string): Promise<void>;
     testDrive(): Promise<{
         ok: true;

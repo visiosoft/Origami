@@ -49,6 +49,21 @@ export declare class FileRoomService {
         id: string;
         deleted: boolean;
     }>;
+    shareLink(id: string): Promise<{
+        url: string;
+        name: string;
+    }>;
+    email(id: string, to: string, note: string, actor: UploadActor): Promise<{
+        sent: boolean;
+        to: string;
+        url: string;
+    }>;
+    sync(projectId: number): Promise<{
+        added: number;
+        updated: number;
+        removed: number;
+        folders: number;
+    }>;
     createFolder(projectId: number, path: string[], name: string): Promise<FileRoomFolderEntity>;
     removeFolder(id: string): Promise<{
         id: string;

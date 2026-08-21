@@ -387,6 +387,59 @@ export class GoogleService {
     };
   }
 
+  /** Everything directly inside a Drive folder — files and subfolders alike. */
+  async listChildren(folderId: string): Promise<DriveFile[]> {
+    const token = await this.workspaceToken();
+    const out: DriveFile[] = [];
+    let pageToken: string | undefined;
+    do {
+      const params = new URLSearchParams({
+        q: `'${this.q(folderId)}' in parents and trashed = false`,
+        fields: `nextPageToken, files(${DRIVE_FILE_FIELDS})`,
+        pageSize: '200',
+        supportsAllDrives: 'true',
+        includeItemsFromAllDrives: 'true',
+      });
+      if (pageToken) params.set('pageToken', pageToken);
+      const res = await fetch(`${DRIVE_FILES_URL}?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+      const body: any = await res.json().catch(() => ({}));
+      if (!res.ok) throw new BadRequestException(body?.error?.message || 'Could not read that Drive folder.');
+      out.push(...((body.files ?? []) as DriveFile[]));
+      pageToken = body.nextPageToken;
+    } while (pageToken);
+    return out;
+  }
+
+  /** True when a Drive entry is a folder rather than a file. */
+  static isFolder(f: DriveFile) {
+    return f.mimeType === FOLDER_MIME;
+  }
+
+  /**
+   * Grant "anyone with the link can view" and hand back the Drive URL.
+   *
+   * This genuinely makes the file readable by anyone holding the link — the
+   * caller is responsible for saying so before offering it.
+   */
+  async shareLink(id: string): Promise<string> {
+    const token = await this.workspaceToken();
+    const grant = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}/permissions?supportsAllDrives=true`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    });
+    if (!grant.ok) {
+      const err: any = await grant.json().catch(() => ({}));
+      this.log.warn(`Could not make ${id} link-readable: ${JSON.stringify(err)}`);
+    }
+    const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=webViewLink&supportsAllDrives=true`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body: any = await meta.json().catch(() => ({}));
+    if (!meta.ok || !body?.webViewLink) throw new BadRequestException('Could not produce a share link.');
+    return body.webViewLink as string;
+  }
+
   /** Move a file to Drive's trash — recoverable, unlike a hard delete. */
   async trashDriveFile(id: string): Promise<void> {
     const token = await this.workspaceToken();

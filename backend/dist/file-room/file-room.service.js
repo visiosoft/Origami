@@ -33,6 +33,10 @@ const BLOCKED_EXTENSIONS = [
 ];
 exports.MAX_FILE_BYTES = 100 * 1024 * 1024;
 exports.MAX_FILES_PER_UPLOAD = 20;
+const pathOf = (f) => (f.folderPath ?? []).join('>');
+const NEWLINE = new RegExp('\n', 'g');
+const escapeText = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+    .replace(NEWLINE, '<br/>');
 const extOf = (name) => {
     const dot = name.lastIndexOf('.');
     return dot > -1 ? name.slice(dot + 1).toUpperCase() : '';
@@ -186,6 +190,90 @@ let FileRoomService = class FileRoomService {
                 await this.files.update({ id: next.id }, { isLatest: true });
         }
         return { id, deleted: true };
+    }
+    async shareLink(id) {
+        const file = await this.load(id);
+        if (!file.driveId)
+            throw new common_1.BadRequestException('That file has no stored content to share.');
+        const url = await this.google.shareLink(file.driveId);
+        return { url, name: file.name };
+    }
+    async email(id, to, note, actor) {
+        const file = await this.load(id);
+        if (!to?.trim())
+            throw new common_1.BadRequestException('A recipient is required.');
+        const { url } = await this.shareLink(id);
+        const project = await this.projectName(Number(file.projectId));
+        const html = `
+      <p>${actor.name} shared a file with you from the Origami File Room.</p>
+      <p><strong>${file.name}</strong><br/>${project}${(file.folderPath ?? []).length ? ' &middot; ' + (file.folderPath ?? []).join(' / ') : ''}</p>
+      ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
+      <p><a href="${url}">Open ${file.name}</a></p>
+      <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
+        await this.google.sendMail({ to: to.trim(), subject: `${file.name} — shared from Origami`, html });
+        return { sent: true, to: to.trim(), url };
+    }
+    async sync(projectId) {
+        if (!(await this.google.isConnected())) {
+            throw new common_1.BadRequestException('No Google account is connected.');
+        }
+        const projectFolder = await this.google.folderForPath(DRIVE_ROOT, [await this.projectName(projectId)]);
+        const seenDriveIds = new Set();
+        const known = (await this.files.find()).filter((f) => Number(f.projectId) === projectId);
+        const byDriveId = new Map(known.filter((f) => f.driveId).map((f) => [f.driveId, f]));
+        let added = 0, updated = 0, removed = 0, folders = 0;
+        const walk = async (folderId, path) => {
+            const children = await this.google.listChildren(folderId);
+            for (const child of children) {
+                if (google_service_1.GoogleService.isFolder(child)) {
+                    folders++;
+                    await this.createFolder(projectId, path, child.name);
+                    await walk(child.id, [...path, child.name]);
+                    continue;
+                }
+                seenDriveIds.add(child.id);
+                const existing = byDriveId.get(child.id);
+                const size = Number(child.size) || 0;
+                if (existing) {
+                    const moved = pathOf(existing) !== path.join('>');
+                    if (existing.name !== child.name || Number(existing.size) !== size || moved) {
+                        existing.name = child.name;
+                        existing.ext = extOf(child.name);
+                        existing.size = size;
+                        existing.mimeType = child.mimeType;
+                        existing.folderPath = path;
+                        existing.updatedAt = child.modifiedTime || existing.updatedAt;
+                        await this.files.save(existing);
+                        updated++;
+                    }
+                }
+                else {
+                    await this.files.save(this.files.create({
+                        id: (0, task_types_1.subId)('fr'),
+                        projectId,
+                        folderPath: path,
+                        name: child.name,
+                        ext: extOf(child.name),
+                        size,
+                        mimeType: child.mimeType,
+                        driveId: child.id,
+                        uploadedBy: 'Google Drive',
+                        updatedAt: child.modifiedTime || new Date().toISOString(),
+                        isLatest: true,
+                    }));
+                    added++;
+                }
+            }
+        };
+        await walk(projectFolder, []);
+        for (const file of known) {
+            if (!file.driveId || seenDriveIds.has(file.driveId))
+                continue;
+            await this.files.remove(file);
+            removed++;
+        }
+        this.log.log(`Drive sync for project ${projectId}: +${added} ~${updated} -${removed}, ${folders} folders`);
+        return { added, updated, removed, folders };
     }
     async createFolder(projectId, path, name) {
         const clean = (name || '').trim();
