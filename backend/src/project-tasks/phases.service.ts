@@ -38,6 +38,8 @@ export class PhasesService {
    */
   async forProject(projectId: number): Promise<ProjectPhaseEntity[]> {
     if (!Number.isFinite(projectId)) return [];
+    // Don't create phases for a project that isn't there.
+    if (!(await this.projects.findOneBy({ id: projectId }))) return [];
 
     const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     if (existing.length) {
@@ -109,6 +111,9 @@ export class PhasesService {
    */
   private async seedDemoTasks(projectId: number, phases: ProjectPhaseEntity[]) {
     if (projectId !== DEMO_PROJECT_ID) return;
+    // Only ever seed a project that actually exists — asking for the board of a
+    // deleted or bogus id must not conjure a programme for it.
+    if (!(await this.projects.findOneBy({ id: projectId }))) return;
     const already = await this.tasks.count({ where: { projectId, phaseId: phases[0]?.id } });
     if (already > 0) return;
     const anyPhaseTask = (await this.tasks.find({ where: { projectId } })).some((t) => !!t.phaseId);
@@ -187,19 +192,26 @@ export class PhasesService {
   private async projectStart(projectId: number): Promise<Date> {
     const project = await this.projects.findOneBy({ id: projectId });
     const raw = (project?.estStart || '').trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return new Date(raw);
+
+    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+    if (iso) return new Date(Date.UTC(+iso[1], +iso[2] - 1, +iso[3]));
+
+    // Values like 'Sep 2025'. Build in UTC — a local-midnight Date serialises to
+    // the previous day for anyone behind UTC.
     const monthYear = /^([A-Za-z]{3,})\s+(\d{4})$/.exec(raw);
     if (monthYear) {
-      const parsed = new Date(`${monthYear[1]} 1, ${monthYear[2]}`);
-      if (!Number.isNaN(parsed.getTime())) return parsed;
+      const month = new Date(`${monthYear[1]} 1, 2000`).getMonth();
+      if (!Number.isNaN(month)) return new Date(Date.UTC(+monthYear[2], month, 1));
     }
-    const loose = new Date(raw);
-    return Number.isNaN(loose.getTime()) ? new Date() : loose;
+
+    // 'Ongoing' and anything else unparseable: start from today.
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   }
 
   private addDays(from: Date, days: number): string {
     const d = new Date(from.getTime());
-    d.setDate(d.getDate() + days);
+    d.setUTCDate(d.getUTCDate() + days);
     return d.toISOString().slice(0, 10);
   }
 }
