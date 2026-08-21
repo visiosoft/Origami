@@ -132,9 +132,20 @@ let AuthService = class AuthService {
         return { ok: true, email: user.email };
     }
     async forgotPassword(email) {
+        const canSend = (await this.google.isConnected()) && !!(await this.settings.baseUrl());
+        if (!canSend) {
+            this.log.warn('Password reset requested but no mailbox is connected.');
+            return { ok: false, reason: 'unavailable' };
+        }
         const user = await this.findByEmail(email);
-        if (user && user.status !== 'suspended')
-            await this.sendInvite(user, 'reset');
+        if (user && user.status !== 'suspended') {
+            try {
+                await this.sendInvite(user, 'reset');
+            }
+            catch (err) {
+                this.log.warn(`Reset email to ${email} failed: ${err.message}`);
+            }
+        }
         return { ok: true };
     }
     async login(email, password) {

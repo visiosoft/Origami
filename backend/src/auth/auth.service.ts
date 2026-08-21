@@ -152,11 +152,33 @@ export class AuthService {
     return { ok: true, email: user.email };
   }
 
-  /** Email a reset link. Always reports success so addresses can't be probed. */
+  /**
+   * Email a reset link.
+   *
+   * Whether the platform can send mail at all is a property of the workspace,
+   * not of the submitted address, so reporting that discloses nothing about who
+   * has an account — and it beats telling someone a link is on its way when no
+   * mailbox is connected. Beyond that check the answer is always the same, so
+   * the form can't be used to discover which addresses exist.
+   */
   async forgotPassword(email: string) {
+    const canSend = (await this.google.isConnected()) && !!(await this.settings.baseUrl());
+    if (!canSend) {
+      this.log.warn('Password reset requested but no mailbox is connected.');
+      return { ok: false as const, reason: 'unavailable' as const };
+    }
+
     const user = await this.findByEmail(email);
-    if (user && user.status !== 'suspended') await this.sendInvite(user, 'reset');
-    return { ok: true };
+    if (user && user.status !== 'suspended') {
+      // A failure for this particular address stays silent: surfacing it would
+      // reveal whether the account exists.
+      try {
+        await this.sendInvite(user, 'reset');
+      } catch (err) {
+        this.log.warn(`Reset email to ${email} failed: ${(err as Error).message}`);
+      }
+    }
+    return { ok: true as const };
   }
 
   // -------------------------------------------------------------------- login

@@ -34,7 +34,11 @@ export declare class AuthService {
         email: string;
     }>;
     forgotPassword(email: string): Promise<{
-        ok: boolean;
+        ok: false;
+        reason: "unavailable";
+    } | {
+        ok: true;
+        reason?: undefined;
     }>;
     login(email: string, password: string): Promise<{
         token: string;

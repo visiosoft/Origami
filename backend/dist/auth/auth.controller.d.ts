@@ -18,7 +18,11 @@ export declare class AuthController {
         email: string;
     }>;
     forgot(dto: ForgotPasswordDto): Promise<{
-        ok: boolean;
+        ok: false;
+        reason: "unavailable";
+    } | {
+        ok: true;
+        reason?: undefined;
     }>;
     me(authorization?: string): Promise<any>;
 }

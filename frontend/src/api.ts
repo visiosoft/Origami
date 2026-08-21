@@ -82,7 +82,8 @@ export const api = {
     invite: (token: string) => request<{ name: string; email: string; isReset: boolean }>(`/auth/invite/${encodeURIComponent(token)}`),
     setPassword: (token: string, password: string) =>
       request('/auth/set-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
-    forgotPassword: (email: string) => request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    forgotPassword: (email: string) =>
+      request<{ ok: boolean; reason?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
     googleLoginUrl: () => `${API_BASE}/google/login`,
   },
   settings: {

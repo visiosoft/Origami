@@ -56,7 +56,16 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     setError('');
     setBusy(true);
     api.auth.forgotPassword(email.trim())
-      .then(() => { setForgotOpen(false); setNotice(`If an account exists for ${email.trim()}, a reset link is on its way.`); })
+      .then((res) => {
+        setForgotOpen(false);
+        // The server says plainly when it has no mailbox to send from, rather
+        // than promising an email that will never arrive.
+        if (res?.ok === false) {
+          setError("Password resets aren't available yet — no mailbox is connected. Ask an administrator to reset your password for you.");
+        } else {
+          setNotice(`If an account exists for ${email.trim()}, a reset link is on its way.`);
+        }
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setBusy(false));
   };
