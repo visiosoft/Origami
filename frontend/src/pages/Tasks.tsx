@@ -7,7 +7,7 @@ import { Attachments } from '../components/Attachments';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
-import { useTaskScope, TaskScopeToggle, isMine } from '../components/TaskScope';
+import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from '../components/TaskScope';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { TaskBoard } from '../components/TaskBoard';
 import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab } from '../data/tasks';
@@ -25,7 +25,8 @@ const blankTask = (tab: TaskTab): NewTask => ({ tab, meetingType: 'Internal', me
 
 export function Tasks() {
   const { toast, can, users } = useApp();
-  const { scope, setScope, filter: scopeFilter, restricted, currentUser } = useTaskScope();
+  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
+  const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
   const [tab, setTab] = useState<TaskTab>('internal');
   const [pf, setPf] = useState('All projects');
@@ -103,7 +104,14 @@ export function Tasks() {
   // Labels already in use, offered as suggestions.
   const allLabels = Array.from(new Set(logTasks.flatMap((t) => t.labels ?? []))).sort();
 
-  const openNew = () => { setNt(blankTask(tab)); setShowNew(true); };
+  const openNew = () => {
+    // Default the assignee to you when filtered to "My tasks", so a new request
+    // doesn't disappear the moment it's created.
+    const draft = blankTask(tab);
+    if (scope === 'mine' && currentUser) draft.assignedTo = currentUser.name;
+    setNt(draft);
+    setShowNew(true);
+  };
   const createTask = () => {
     if (nt.description.trim().length < 3) { toast('Add a task description'); return; }
     api.tasks.create({ ...nt }).then(() => { toast('Task created'); setShowNew(false); reloadLog(); }).catch(() => toast('⚠ Failed to create task'));
@@ -115,7 +123,7 @@ export function Tasks() {
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
   TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(logTasks.filter((x) => (x as any).tab === t))).length; });
   const inTab = byProject(logTasks.filter((x) => (x as any).tab === tab));
-  const tasks = scopeFilter(inTab);
+  const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: t.description }, query));
   const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
 
   const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
@@ -160,6 +168,8 @@ export function Tasks() {
           mineCount={logMineCount}
           allCount={inTab.length}
         />
+        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'all'} />
+        <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
         <div style={{ position: 'relative' }}>
           <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: pf === 'All projects' ? '#7E9B93' : 'white', background: pf === 'All projects' ? 'white' : '#173326', border: '1px solid rgba(20,8,31,0.08)' }}>
             <span>{pf}</span>

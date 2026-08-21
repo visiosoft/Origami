@@ -25,8 +25,10 @@ export function isMine(
  * happen.
  */
 export function useTaskScope() {
-  const { currentUser, tier } = useApp();
+  const { currentUser, tier, users } = useApp();
   const restricted = tier === 'client' || tier === 'consultant';
+  // When looking at everyone's work, optionally narrow to one person.
+  const [person, setPerson] = useState('');
 
   const [scope, setScopeState] = useState<'mine' | 'all'>(() => {
     try { return localStorage.getItem(KEY) === 'all' ? 'all' : 'mine'; } catch { return 'mine'; }
@@ -40,12 +42,85 @@ export function useTaskScope() {
   useEffect(() => { if (restricted && scope !== 'mine') setScope('mine'); }, [restricted, scope, setScope]);
 
   const filter = useCallback(
-    <T extends { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string }>(tasks: T[]): T[] =>
-      scope === 'all' || restricted ? tasks : tasks.filter((t) => isMine(t, currentUser)),
-    [scope, restricted, currentUser],
+    <T extends { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string }>(tasks: T[]): T[] => {
+      if (restricted) return tasks;              // the server already scoped these
+      if (scope === 'mine') return tasks.filter((t) => isMine(t, currentUser));
+      if (person) {
+        const who = users.find((u) => u.id === person);
+        return who ? tasks.filter((t) => isMine(t, who)) : tasks;
+      }
+      return tasks;
+    },
+    [scope, person, restricted, currentUser, users],
   );
 
-  return { scope, setScope, filter, restricted, currentUser };
+  return { scope, setScope, filter, restricted, currentUser, person, setPerson, users };
+}
+
+/** Narrow "Everyone" down to one person's work. */
+export function PersonFilter({ person, setPerson, users, visible }: {
+  person: string;
+  setPerson: (id: string) => void;
+  users: User[];
+  visible: boolean;
+}) {
+  if (!visible) return null;
+  return (
+    <select
+      value={person}
+      onChange={(e) => setPerson(e.target.value)}
+      title="Show one person's tasks"
+      style={{
+        padding: '7px 10px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.14)',
+        background: 'white', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+        color: person ? '#0B1A12' : '#7E9B93', outline: 'none', maxWidth: 190,
+      }}
+    >
+      <option value="">Anyone</option>
+      {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+    </select>
+  );
+}
+
+/** Free-text filter over task titles and descriptions. */
+export function TaskSearch({ value, onChange, placeholder = 'Search tasks…' }: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#9AA39D" strokeWidth={2.2} strokeLinecap="round"
+           style={{ position: 'absolute', left: 11, pointerEvents: 'none' }}>
+        <circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" />
+      </svg>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          padding: '7px 28px 7px 30px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.14)',
+          background: 'white', fontFamily: 'inherit', fontSize: 12, color: '#0B1A12', outline: 'none', width: 190,
+        }}
+      />
+      {value && (
+        <span onClick={() => onChange('')} title="Clear"
+              style={{ position: 'absolute', right: 10, cursor: 'pointer', color: '#9AA39D', fontSize: 14, lineHeight: 1 }}>×</span>
+      )}
+    </div>
+  );
+}
+
+/** Does a task match a free-text query? */
+export function matchesQuery(
+  task: { title?: string; description?: string; assignee?: string; assignedTo?: string; labels?: string[] },
+  query: string,
+): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [task.title, task.description, task.assignee, task.assignedTo, ...(task.labels ?? [])]
+    .filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(q);
 }
 
 /** Segmented "Mine / Everyone" control. Renders nothing for restricted tiers. */

@@ -14,7 +14,7 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
-import { useTaskScope, TaskScopeToggle, isMine } from './TaskScope';
+import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from './TaskScope';
 
 const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = {
@@ -37,7 +37,8 @@ function PriorityPill({ p }: { p?: Priority }) {
 
 export function TaskBoard({ projectId }: { projectId: number }) {
   const { can, toast, users } = useApp();
-  const { scope, setScope, filter: scopeFilter, restricted, currentUser } = useTaskScope();
+  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
+  const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
   const isMobile = useWindowWidth() <= 720;
 
@@ -70,7 +71,7 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
   const inScopeOfBoard = showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId);
-  const visibleTasks = scopeFilter(inScopeOfBoard);
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query));
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
@@ -88,7 +89,12 @@ export function TaskBoard({ projectId }: { projectId: number }) {
   const addTask = (sectionId: string, title: string, parentId: string | null = null) => {
     const t = title.trim(); if (!t) return;
     const order = tasks.filter((x) => x.sectionId === sectionId && !x.parentId).length;
-    api.projectTasks.create({ projectId, sectionId, title: t, order, parentId }).then((res: any) => {
+    // Adding while filtered to "My tasks" assigns it to you — otherwise the new
+    // task is created unassigned and immediately filtered out of view.
+    const mine = scope === 'mine' && currentUser
+      ? { assigneeId: currentUser.id, assignee: currentUser.name }
+      : {};
+    api.projectTasks.create({ projectId, sectionId, title: t, order, parentId, ...mine }).then((res: any) => {
       if (res) setTasks((prev) => [...prev, res as ProjectTask]);
     }).catch(() => toast('⚠ Failed to add task'));
   };
@@ -312,6 +318,8 @@ export function TaskBoard({ projectId }: { projectId: number }) {
           mineCount={mineCount}
           allCount={allCount}
         />
+        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'all'} />
+        <TaskSearch value={query} onChange={setQuery} />
         {phaseTaskCount > 0 && (
           <div
             onClick={() => setShowPhaseTasks((v) => !v)}
