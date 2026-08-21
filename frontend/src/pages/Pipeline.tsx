@@ -26,7 +26,54 @@ interface NewLead {
   projectVision: string; reasonForProject: string; budgetPosition: string; fundingStatus: string;
   desiredStart: string; expectedDuration: string; expectedLengthOfOwnership: string; clientPersonality: string;
   zoningImages?: string; // JSON string of [{name,dataUrl}]
+  zoningAnalysis?: string; // JSON string of the Zoning Code Analysis field map
 }
+
+// Structured Zoning Code Analysis form (rendered on the Zoning Analysis stage).
+const GIS_HINT = 'Research in the GIS (Geographic Information Services) for the corresponding County';
+const APN_HINT = "Research the Zoning Information in the City's Website using the APN as reference";
+const SETBACK_HINT = "Determined by the Zoning District; the city's Zoning Code should define the setbacks";
+type ZAField = { key?: string; label: string; hint?: string; heading?: boolean };
+const ZONING_FORM: { title: string; fields: ZAField[] }[] = [
+  { title: 'Jurisdiction of Authority', fields: [
+    { key: 'county', label: 'County', hint: GIS_HINT },
+    { key: 'city', label: 'City', hint: GIS_HINT },
+    { key: 'hoa', label: 'Homeowners Association', hint: GIS_HINT },
+    { key: 'waterDistrict', label: 'Water District', hint: GIS_HINT },
+    { key: 'sanitaryDistrict', label: 'Sanitary District', hint: GIS_HINT },
+    { key: 'fireDistrict', label: 'Fire District', hint: GIS_HINT },
+    { key: 'schoolDistrict', label: 'School District', hint: GIS_HINT },
+    { key: 'electricityPurveyor', label: 'Electricity Purveyor', hint: GIS_HINT },
+    { key: 'gasPurveyor', label: 'Gas Purveyor', hint: GIS_HINT },
+  ] },
+  { title: 'Zoning Analysis', fields: [
+    { key: 'generalPlan', label: 'General Plan', hint: APN_HINT },
+    { key: 'zoningDistrict', label: 'Zoning District', hint: APN_HINT + '. Ex: R-1' },
+    { key: 'precisePlan', label: 'Precise Plan' },
+    { key: 'historic', label: 'Historic' },
+    { key: 'neighborhood', label: 'Neighborhood' },
+  ] },
+  { title: 'Building Envelope Limitation', fields: [
+    { key: 'belLotCoverage', label: 'Lot Coverage Limitation' },
+    { key: 'belFloorArea', label: 'Floor Area Limitation' },
+    { heading: true, label: 'Setbacks' },
+    { key: 'belFront', label: 'Front', hint: SETBACK_HINT },
+    { key: 'belRear', label: 'Rear', hint: SETBACK_HINT },
+    { key: 'belSide', label: 'Side', hint: SETBACK_HINT },
+    { key: 'belStreetSide', label: 'Street Side', hint: SETBACK_HINT },
+    { key: 'belHeight', label: 'Height', hint: SETBACK_HINT },
+    { key: 'belDaylightPlane', label: 'DayLight Plane', hint: SETBACK_HINT },
+    { key: 'belParking', label: 'Parking', hint: SETBACK_HINT },
+  ] },
+  { title: 'Accessory Dwelling Unit (ADU) Limitation', fields: [
+    { key: 'aduFloorArea', label: 'Floor Area Limitation' },
+    { heading: true, label: 'Setbacks' },
+    { key: 'aduFront', label: 'Front', hint: SETBACK_HINT },
+    { key: 'aduRear', label: 'Rear', hint: SETBACK_HINT },
+    { key: 'aduSide', label: 'Side', hint: SETBACK_HINT },
+    { key: 'aduHeight', label: 'Height', hint: SETBACK_HINT },
+  ] },
+];
 const BLANK_LEAD: NewLead = {
   leadName: '', namePronunciation: '', phone: '', email: '',
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
@@ -322,6 +369,22 @@ export function Pipeline() {
       .then((imgs) => { saveZoningImages(deal, [...parseImgs(leadDetails[deal.id]?.zoningImages), ...imgs]); toast(`${imgs.length} image(s) added`); });
   };
   const removeZoningImage = (deal: Deal, idx: number) => { saveZoningImages(deal, parseImgs(leadDetails[deal.id]?.zoningImages).filter((_, i) => i !== idx)); };
+
+  // ---- Zoning Code Analysis structured form (stored as a JSON field map on the lead) ----
+  const parseZA = (s?: string): Record<string, string> => { try { return s ? JSON.parse(s) : {}; } catch { return {}; } };
+  const setZAField = (deal: Deal, key: string, val: string) => {
+    setLeadDetails((p) => {
+      const base = p[deal.id] || baseLead(deal);
+      const next = JSON.stringify({ ...parseZA(base.zoningAnalysis), [key]: val });
+      return { ...p, [deal.id]: { ...base, zoningAnalysis: next } };
+    });
+  };
+  const saveZoningAnalysis = (deal: Deal) => {
+    const json = (leadDetails[deal.id]?.zoningAnalysis) || '{}';
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningAnalysis: json })
+      .then(() => toast('Zoning analysis saved'))
+      .catch(() => toast('⚠ Failed to save'));
+  };
 
   const setFit = (dealId: string, key: string, label: string) =>
     setFitByDeal((p) => ({ ...p, [dealId]: { ...(p[dealId] || {}), [key]: label } }));
@@ -661,6 +724,36 @@ export function Pipeline() {
                         ))}
                       </div>
                     )}
+                  </div>
+                );
+              })()}
+
+              {/* Zoning Code Analysis — structured research form */}
+              {selected.stage === 'zoning' && (() => {
+                const za = parseZA(leadDetails[selected.id]?.zoningAnalysis);
+                return (
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Zoning Code Analysis</div>
+                      <div onClick={() => saveZoningAnalysis(selected)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Save Analysis</div>
+                    </div>
+                    {ZONING_FORM.map((cat) => (
+                      <div key={cat.title} style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0B1A12', padding: '6px 10px', background: '#EEF3EE', borderRadius: 8, marginBottom: 8 }}>{cat.title}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, paddingLeft: 2 }}>
+                          {cat.fields.map((f) => f.heading ? (
+                            <div key={f.label} style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{f.label}</div>
+                          ) : (
+                            <div key={f.key} style={{ paddingLeft: 4 }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: '#43514D', marginBottom: 3 }}>{f.label}</div>
+                              <input value={za[f.key!] || ''} onChange={(e) => setZAField(selected, f.key!, e.target.value)} placeholder="—" style={inputStyle} />
+                              {f.hint && <div style={{ fontSize: 9.5, color: '#9AA39D', marginTop: 3, lineHeight: 1.35 }}>{f.hint}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <div onClick={() => saveZoningAnalysis(selected)} style={{ display: 'inline-block', padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Save Analysis</div>
                   </div>
                 );
               })()}

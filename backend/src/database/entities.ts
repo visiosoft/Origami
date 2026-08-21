@@ -148,6 +148,7 @@ export class LeadEntity {
   @Column({ type: 'int', nullable: true }) fitScore!: number;
   @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
   @Column({ ...TEXT, nullable: true }) zoningImages!: string; // JSON string of [{name,dataUrl}] (data URLs)
+  @Column({ ...TEXT, nullable: true }) zoningAnalysis!: string; // JSON string of the Zoning Code Analysis field map
   @Column() createdAt!: string;
 }
 

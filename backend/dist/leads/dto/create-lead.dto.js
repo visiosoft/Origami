@@ -187,4 +187,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateLeadDto.prototype, "zoningImages", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateLeadDto.prototype, "zoningAnalysis", void 0);
 //# sourceMappingURL=create-lead.dto.js.map

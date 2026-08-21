@@ -532,6 +532,10 @@ __decorate([
     __metadata("design:type", String)
 ], LeadEntity.prototype, "zoningImages", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "zoningAnalysis", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "createdAt", void 0);

@@ -36,4 +36,5 @@ export class CreateLeadDto {
     @IsNumber() @IsOptional() fitScore?: number;
     @IsObject() @IsOptional() fitSelections?: Record<string, string>;
     @IsString() @IsOptional() zoningImages?: string; // JSON string of [{name,dataUrl}]
+    @IsString() @IsOptional() zoningAnalysis?: string; // JSON string of the Zoning Code Analysis field map
 }
