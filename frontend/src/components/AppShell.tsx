@@ -4,7 +4,6 @@ import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS } from '../data/nav';
-import { TIER_STYLE } from '../data/users';
 import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
@@ -15,9 +14,8 @@ const initialsOf = (name: string) =>
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, users, setCurrentUserId, signOut } = useApp();
+  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, signOut } = useApp();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const slug = location.pathname.slice(1) || 'dashboard';
 
@@ -94,27 +92,8 @@ export function AppShell() {
         </nav>
 
         <div className="user-chip" style={{ position: 'relative' }}>
-          {userMenuOpen && (
-            <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 10, right: 10, background: 'white', borderRadius: 12, boxShadow: '0 8px 30px rgba(11,26,18,0.28)', padding: 6, maxHeight: 320, overflowY: 'auto', zIndex: 50 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', padding: '6px 10px 4px' }}>Switch acting user</div>
-              {users.map((u) => {
-                const on = u.id === currentUser?.id;
-                const ts = TIER_STYLE[u.tier];
-                return (
-                  <div key={u.id} onClick={() => { setCurrentUserId(u.id); setUserMenuOpen(false); }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: on ? '#EEF3EE' : 'transparent' }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 999, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{initialsOf(u.name)}</div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
-                      <div style={{ fontSize: 10, color: '#7E9B93' }}>{u.roleKey}</div>
-                    </div>
-                    <span style={{ fontSize: 8.5, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: ts.bg, color: ts.color, flexShrink: 0 }}>{ts.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div className="user-avatar" onClick={() => setUserMenuOpen((o) => !o)} style={{ cursor: 'pointer' }}>{initialsOf(userName)}</div>
-          <div className="user-info" onClick={() => setUserMenuOpen((o) => !o)} style={{ cursor: 'pointer' }}>
+          <div className="user-avatar">{initialsOf(userName)}</div>
+          <div className="user-info">
             <span className="user-name">{userName}</span>
             <span className="user-role">{userRoleName}</span>
           </div>

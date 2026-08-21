@@ -18,7 +18,6 @@ interface AppContextValue {
   currentRole: Role | undefined;
   tier: Tier;
   loadingAccess: boolean;
-  setCurrentUserId: (id: string) => void;
   refreshAccess: () => void;
   can: (moduleKey: string, action?: Action) => boolean;
   // Session
@@ -35,9 +34,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [currentUserId, setCurrentUserIdState] = useState<string | null>(() => {
-    try { return localStorage.getItem(CURRENT_USER_KEY); } catch { return null; }
-  });
+  const [, setCurrentUserIdState] = useState<string | null>(null);
   const [loadingAccess, setLoadingAccess] = useState(true);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -89,19 +86,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try { localStorage.removeItem(CURRENT_USER_KEY); } catch { /* ignore */ }
   }, []);
 
-  const setCurrentUserId = useCallback((id: string) => {
-    setCurrentUserIdState(id);
-    try { localStorage.setItem(CURRENT_USER_KEY, id); } catch { /* ignore */ }
-  }, []);
-
-  // Resolve the acting user: the signed-in account, else the stored id,
-  // else the first admin, else the first user.
-  const currentUser =
-    (authUser && users.find((u) => u.id === authUser.id)) ||
-    authUser ||
-    users.find((u) => u.id === currentUserId) ||
-    users.find((u) => u.roleKey === 'admin') ||
-    users[0];
+  // The acting user is the signed-in account, full stop. Impersonating another
+  // user was a stand-in from before real authentication existed; leaving it in
+  // would let anyone act as an administrator.
+  const currentUser = (authUser && users.find((u) => u.id === authUser.id)) || authUser || undefined;
   const currentRole = roles.find((r) => r.key === currentUser?.roleKey);
   const tier: Tier = currentUser?.tier ?? 'internal';
 
@@ -119,7 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         viewMode, setViewMode, toast, toastMsg,
         users, roles, currentUser, currentRole, tier, loadingAccess,
-        setCurrentUserId, refreshAccess, can,
+        refreshAccess, can,
         authUser, authReady, signIn, signOut,
       }}
     >
