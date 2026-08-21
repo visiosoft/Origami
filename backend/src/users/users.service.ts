@@ -1,4 +1,4 @@
-import { Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserEntity, ProjectTaskEntity, TaskEntity } from '../database/entities';
@@ -39,7 +39,22 @@ export class UsersService implements OnApplicationBootstrap {
    * New accounts start as `pending` and become `active` once that link is used
    * (or once they sign in with Google using the same address).
    */
+  /**
+   * Accounts are identified by email everywhere — login, Google sign-in,
+   * invitations — so two rows sharing one address means an arbitrary pick at
+   * sign-in time. Reject the duplicate instead.
+   */
+  private async assertEmailFree(email: string, exceptId?: string) {
+    const clean = (email || '').trim();
+    if (!clean) throw new ConflictException('An email address is required.');
+    const existing = await this.auth.findByEmail(clean);
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException(`${clean} already has an account. Use "Resend invite" on that row instead.`);
+    }
+  }
+
   async create(dto: any) {
+    await this.assertEmailFree(dto?.email);
     const id = dto.id || 'U-' + String(1000 + (Date.now() % 9000));
     const user = this.repo.create({
       status: 'pending',
@@ -73,6 +88,9 @@ export class UsersService implements OnApplicationBootstrap {
     let user = await this.repo.findOneBy({ id });
     if (!user) user = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<UserEntity>);
     const previousName = user.name;
+    if (dto?.email && dto.email.trim().toLowerCase() !== (user.email || '').trim().toLowerCase()) {
+      await this.assertEmailFree(dto.email, id);
+    }
     // Credentials are only ever changed through the auth flows, never a plain update.
     const { passwordHash, inviteToken, hasPassword, invitePending, invite, ...safe } = dto ?? {};
     Object.assign(user, safe, { id });

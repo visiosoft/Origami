@@ -43,7 +43,17 @@ let UsersService = class UsersService {
         const rows = await this.repo.find({ order: { createdAt: 'DESC' } });
         return rows.map(auth_service_1.publicUser);
     }
+    async assertEmailFree(email, exceptId) {
+        const clean = (email || '').trim();
+        if (!clean)
+            throw new common_1.ConflictException('An email address is required.');
+        const existing = await this.auth.findByEmail(clean);
+        if (existing && existing.id !== exceptId) {
+            throw new common_1.ConflictException(`${clean} already has an account. Use "Resend invite" on that row instead.`);
+        }
+    }
     async create(dto) {
+        await this.assertEmailFree(dto?.email);
         const id = dto.id || 'U-' + String(1000 + (Date.now() % 9000));
         const user = this.repo.create({
             status: 'pending',
@@ -76,6 +86,9 @@ let UsersService = class UsersService {
         if (!user)
             user = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) });
         const previousName = user.name;
+        if (dto?.email && dto.email.trim().toLowerCase() !== (user.email || '').trim().toLowerCase()) {
+            await this.assertEmailFree(dto.email, id);
+        }
         const { passwordHash, inviteToken, hasPassword, invitePending, invite, ...safe } = dto ?? {};
         Object.assign(user, safe, { id });
         const saved = await this.repo.save(user);

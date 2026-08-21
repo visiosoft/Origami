@@ -11,6 +11,7 @@ export declare class UsersService implements OnApplicationBootstrap {
     constructor(repo: Repository<UserEntity>, projectTasks: Repository<ProjectTaskEntity>, tasks: Repository<TaskEntity>, auth: AuthService);
     onApplicationBootstrap(): Promise<void>;
     findAll(): Promise<any[]>;
+    private assertEmailFree;
     create(dto: any): Promise<any>;
     resendInvite(id: string): Promise<any>;
     update(id: string, dto: any): Promise<any>;

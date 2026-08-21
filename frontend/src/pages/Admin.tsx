@@ -66,11 +66,18 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
   // When the invitation email can't go out (Google not connected yet), we show
   // the link so an admin can pass it to the new user by other means.
   const [inviteNote, setInviteNote] = useState<{ email: string; sent: boolean; url?: string; error?: string } | null>(null);
+  // Guards against a double-click creating two accounts for one person.
+  const [saving, setSaving] = useState(false);
 
   const rolesForTier = (tier: Tier) => roles.filter((r) => r.tier === tier);
 
   const saveNew = () => {
+    if (saving) return;
     if (!draft.name?.trim() || !draft.email?.trim() || !draft.roleKey) { toast('⚠ Name, email and role are required'); return; }
+    if (users.some((u) => u.email.trim().toLowerCase() === draft.email!.trim().toLowerCase())) {
+      toast('⚠ That email already has an account'); return;
+    }
+    setSaving(true);
     api.users.create(draft)
       .then((res: any) => {
         const invite = res?.invite ?? { sent: false };
@@ -80,7 +87,8 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
         setDraft({ name: '', email: '', tier: 'internal', roleKey: '', status: 'pending' });
         refreshAccess();
       })
-      .catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add user')));
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add user')))
+      .finally(() => setSaving(false));
   };
 
   const resend = (u: User) => {
@@ -112,7 +120,7 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
           <Field label="Tier"><select style={{ ...inputStyle, width: 130 }} value={draft.tier} onChange={(e) => setDraft({ ...draft, tier: e.target.value as Tier, roleKey: '' })}>{TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}</select></Field>
           <Field label="Role"><select style={{ ...inputStyle, width: 170 }} value={draft.roleKey} onChange={(e) => setDraft({ ...draft, roleKey: e.target.value })}><option value="">Select…</option>{rolesForTier(draft.tier as Tier).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Field>
           <Field label="Status"><select style={{ ...inputStyle, width: 130 }} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as UserStatus })}>{(['active', 'pending', 'suspended'] as UserStatus[]).map((s) => <option key={s} value={s}>{STATUS_STYLE[s].label}</option>)}</select></Field>
-          <div onClick={saveNew} style={{ padding: '9px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>Save</div>
+          <div onClick={saveNew} style={{ padding: '9px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#2F7D4A', color: 'white' }}>{saving ? 'Saving…' : 'Save'}</div>
         </div>
       )}
 
