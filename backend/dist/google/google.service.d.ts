@@ -58,6 +58,11 @@ export declare class GoogleService {
         text?: string;
         cc?: string;
         bcc?: string;
+        attachments?: Array<{
+            filename: string;
+            mimeType: string;
+            content: Buffer;
+        }>;
     }): Promise<{
         id: string;
         threadId: string;
@@ -84,6 +89,7 @@ export declare class GoogleService {
     listChildren(folderId: string): Promise<DriveFile[]>;
     static isFolder(f: DriveFile): boolean;
     shareLink(id: string): Promise<string>;
+    htmlToPdf(html: string, name?: string): Promise<Buffer>;
     trashDriveFile(id: string): Promise<void>;
     testDrive(): Promise<{
         ok: true;

@@ -363,6 +363,38 @@ let GoogleService = class GoogleService {
             throw new common_1.BadRequestException('Could not produce a share link.');
         return body.webViewLink;
     }
+    async htmlToPdf(html, name = 'document') {
+        const token = await this.workspaceToken();
+        const boundary = 'origami_pdf_' + Math.random().toString(36).slice(2);
+        const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
+        const body = Buffer.concat([
+            Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+            Buffer.from(`--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n`, 'utf8'),
+            Buffer.from(html, 'utf8'),
+            Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+        ]);
+        const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body: body,
+        });
+        const doc = await created.json().catch(() => ({}));
+        if (!created.ok || !doc?.id) {
+            this.log.error(`PDF conversion upload failed: ${JSON.stringify(doc)}`);
+            throw new common_1.BadRequestException(doc?.error?.message || 'Could not render the document.');
+        }
+        try {
+            const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=application/pdf`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok)
+                throw new common_1.BadRequestException('Drive could not export the document as PDF.');
+            return Buffer.from(await res.arrayBuffer());
+        }
+        finally {
+            await this.trashDriveFile(doc.id).catch(() => undefined);
+        }
+    }
     async trashDriveFile(id) {
         const token = await this.workspaceToken();
         const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?supportsAllDrives=true`, {
@@ -408,8 +440,11 @@ exports.GoogleService = GoogleService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [settings_service_1.SettingsService])
 ], GoogleService);
+const CRLF = String.fromCharCode(13, 10);
 function buildMime(opts) {
-    const boundary = 'origami_' + Math.random().toString(36).slice(2);
+    const alt = 'alt_' + Math.random().toString(36).slice(2);
+    const mixed = 'mix_' + Math.random().toString(36).slice(2);
+    const files = opts.attachments ?? [];
     const headers = [
         `From: ${opts.from}`,
         `To: ${opts.to}`,
@@ -417,23 +452,41 @@ function buildMime(opts) {
         opts.bcc ? `Bcc: ${opts.bcc}` : '',
         `Subject: =?UTF-8?B?${Buffer.from(opts.subject, 'utf8').toString('base64')}?=`,
         'MIME-Version: 1.0',
-        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        files.length
+            ? `Content-Type: multipart/mixed; boundary="${mixed}"`
+            : `Content-Type: multipart/alternative; boundary="${alt}"`,
     ].filter(Boolean);
     const text = opts.text ?? opts.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    const body = [
-        `--${boundary}`,
+    const bodyParts = [
+        `--${alt}`,
         'Content-Type: text/plain; charset="UTF-8"',
         'Content-Transfer-Encoding: 7bit',
         '',
         text,
-        `--${boundary}`,
+        `--${alt}`,
         'Content-Type: text/html; charset="UTF-8"',
         'Content-Transfer-Encoding: 7bit',
         '',
         opts.html,
-        `--${boundary}--`,
+        `--${alt}--`,
     ];
-    return Buffer.from([...headers, '', ...body].join('\r\n'), 'utf8')
+    if (!files.length) {
+        return encode([...headers, '', ...bodyParts].join(CRLF));
+    }
+    const parts = [
+        `--${mixed}`,
+        `Content-Type: multipart/alternative; boundary="${alt}"`,
+        '',
+        ...bodyParts,
+    ];
+    for (const file of files) {
+        parts.push(`--${mixed}`, `Content-Type: ${file.mimeType}; name="${file.filename}"`, 'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${file.filename}"`, '', file.content.toString('base64').replace(/(.{76})/g, '$1' + CRLF));
+    }
+    parts.push(`--${mixed}--`);
+    return encode([...headers, '', ...parts].join(CRLF));
+}
+function encode(message) {
+    return Buffer.from(message, 'utf8')
         .toString('base64')
         .replace(/\+/g, '-')
         .replace(/\//g, '_')

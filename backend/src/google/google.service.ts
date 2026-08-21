@@ -202,7 +202,10 @@ export class GoogleService {
   // ------------------------------------------------------------------ mail
 
   /** Send an HTML email through Gmail as the connected workspace account. */
-  async sendMail(opts: { to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string }) {
+  async sendMail(opts: {
+    to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string;
+    attachments?: Array<{ filename: string; mimeType: string; content: Buffer }>;
+  }) {
     const token = await this.workspaceToken();
     const from = (await this.settings.get('google.senderEmail')) || (await this.settings.get('google.connectedEmail')) || '';
     const raw = buildMime({ ...opts, from });
@@ -440,6 +443,48 @@ export class GoogleService {
     return body.webViewLink as string;
   }
 
+  /**
+   * Render HTML as a PDF.
+   *
+   * Drive does the conversion: the HTML is uploaded as a Google Doc, exported as
+   * PDF, and the temporary Doc is trashed. That keeps this app free of a PDF or
+   * headless-browser dependency, which matters here because a new package means
+   * an npm install on every container start.
+   */
+  async htmlToPdf(html: string, name = 'document'): Promise<Buffer> {
+    const token = await this.workspaceToken();
+    const boundary = 'origami_pdf_' + Math.random().toString(36).slice(2);
+    const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+      Buffer.from(`--${boundary}\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n`, 'utf8'),
+      Buffer.from(html, 'utf8'),
+      Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+    ]);
+
+    const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
+    const doc: any = await created.json().catch(() => ({}));
+    if (!created.ok || !doc?.id) {
+      this.log.error(`PDF conversion upload failed: ${JSON.stringify(doc)}`);
+      throw new BadRequestException(doc?.error?.message || 'Could not render the document.');
+    }
+
+    try {
+      const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=application/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new BadRequestException('Drive could not export the document as PDF.');
+      return Buffer.from(await res.arrayBuffer());
+    } finally {
+      // The Doc is scaffolding; don't leave it lying around in Drive.
+      await this.trashDriveFile(doc.id).catch(() => undefined);
+    }
+  }
+
   /** Move a file to Drive's trash — recoverable, unlike a hard delete. */
   async trashDriveFile(id: string): Promise<void> {
     const token = await this.workspaceToken();
@@ -483,9 +528,18 @@ export class GoogleService {
   }
 }
 
+/** MIME line ending. Built from char codes so no editor can normalise it away. */
+const CRLF = String.fromCharCode(13, 10);
+
 /** RFC-2822 message, base64url encoded the way the Gmail API wants it. */
-function buildMime(opts: { from: string; to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string }) {
-  const boundary = 'origami_' + Math.random().toString(36).slice(2);
+function buildMime(opts: {
+  from: string; to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string;
+  attachments?: Array<{ filename: string; mimeType: string; content: Buffer }>;
+}) {
+  const alt = 'alt_' + Math.random().toString(36).slice(2);
+  const mixed = 'mix_' + Math.random().toString(36).slice(2);
+  const files = opts.attachments ?? [];
+
   const headers = [
     `From: ${opts.from}`,
     `To: ${opts.to}`,
@@ -493,25 +547,54 @@ function buildMime(opts: { from: string; to: string; subject: string; html: stri
     opts.bcc ? `Bcc: ${opts.bcc}` : '',
     `Subject: =?UTF-8?B?${Buffer.from(opts.subject, 'utf8').toString('base64')}?=`,
     'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    files.length
+      ? `Content-Type: multipart/mixed; boundary="${mixed}"`
+      : `Content-Type: multipart/alternative; boundary="${alt}"`,
   ].filter(Boolean);
 
   const text = opts.text ?? opts.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  const body = [
-    `--${boundary}`,
+  const bodyParts = [
+    `--${alt}`,
     'Content-Type: text/plain; charset="UTF-8"',
     'Content-Transfer-Encoding: 7bit',
     '',
     text,
-    `--${boundary}`,
+    `--${alt}`,
     'Content-Type: text/html; charset="UTF-8"',
     'Content-Transfer-Encoding: 7bit',
     '',
     opts.html,
-    `--${boundary}--`,
+    `--${alt}--`,
   ];
 
-  return Buffer.from([...headers, '', ...body].join('\r\n'), 'utf8')
+  if (!files.length) {
+    return encode([...headers, '', ...bodyParts].join(CRLF));
+  }
+
+  const parts: string[] = [
+    `--${mixed}`,
+    `Content-Type: multipart/alternative; boundary="${alt}"`,
+    '',
+    ...bodyParts,
+  ];
+  for (const file of files) {
+    parts.push(
+      `--${mixed}`,
+      `Content-Type: ${file.mimeType}; name="${file.filename}"`,
+      'Content-Transfer-Encoding: base64',
+      `Content-Disposition: attachment; filename="${file.filename}"`,
+      '',
+      // Base64 in a MIME body has to be wrapped, or some servers reject it.
+      file.content.toString('base64').replace(/(.{76})/g, '$1' + CRLF),
+    );
+  }
+  parts.push(`--${mixed}--`);
+
+  return encode([...headers, '', ...parts].join(CRLF));
+}
+
+function encode(message: string) {
+  return Buffer.from(message, 'utf8')
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')

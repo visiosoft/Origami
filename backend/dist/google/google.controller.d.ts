@@ -51,6 +51,27 @@ export declare class GoogleController {
         from: string;
         to: string;
     }>;
+    letterPdf(body: {
+        subject?: string;
+        html?: string;
+        recipient?: string;
+        date?: string;
+        filename?: string;
+    }, res: Response): Promise<Response<any, Record<string, any>>>;
+    sendLetter(body: {
+        to: string;
+        subject: string;
+        html: string;
+        cc?: string;
+        bcc?: string;
+        recipient?: string;
+        date?: string;
+        filename?: string;
+    }): Promise<{
+        ok: boolean;
+        filename: string;
+    }>;
+    private renderLetter;
     testDrive(): Promise<{
         ok: true;
         folderId: string;

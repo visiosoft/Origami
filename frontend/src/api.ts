@@ -1,5 +1,17 @@
 const API_BASE = '/api';
 
+/** A letter rendered on the company letterhead — previewed and sent as a PDF. */
+export interface LetterInput {
+  to?: string;
+  cc?: string;
+  bcc?: string;
+  subject: string;
+  html: string;
+  recipient?: string;
+  date?: string;
+  filename?: string;
+}
+
 const TOKEN_KEY = 'origami.session';
 
 /** The signed-in user's session token, shared by every API call. */
@@ -97,6 +109,23 @@ export const api = {
     testEmail: (to?: string) => request<{ sent: boolean; to: string }>('/google/test-email', { method: 'POST', body: JSON.stringify({ to }) }),
     send: (data: { to: string; subject: string; html: string; cc?: string; bcc?: string }) =>
       request('/google/send', { method: 'POST', body: JSON.stringify(data) }),
+    /** Email the letter with the branded PDF attached. */
+    sendLetter: (data: LetterInput) =>
+      request<{ ok: boolean; filename: string }>('/google/send-letter', { method: 'POST', body: JSON.stringify(data) }),
+    /** The same PDF the send would attach, as a blob for preview or download. */
+    letterPdf: async (data: LetterInput): Promise<Blob> => {
+      const token = session.get();
+      const res = await fetch(`${API_BASE}/google/letter/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error((body && body.message) || `Could not render the PDF (${res.status})`);
+      }
+      return res.blob();
+    },
     testDrive: () => request<{ ok: boolean; folderId: string }>('/google/drive/test', { method: 'POST' }),
     driveFiles: (q?: string) => request<DriveFile[]>(`/google/drive/files${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   },

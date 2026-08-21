@@ -21,6 +21,19 @@ export const PUBLIC_KEYS = [
   'reminders.timezone',
   'reminders.triggerToken',
   'tasks.labels',
+  // --- Branding: letterhead, footer and signature used on generated documents ---
+  'brand.companyName',
+  'brand.tagline',
+  'brand.logoDataUrl',
+  'brand.accentColor',
+  'brand.address',
+  'brand.phone',
+  'brand.email',
+  'brand.website',
+  'brand.footerNote',
+  'brand.signatureName',
+  'brand.signatureTitle',
+  'brand.signatureDataUrl',
 ];
 
 export const MASK = '••••••••';

@@ -26,6 +26,8 @@ export function Projects() {
   const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [sendingLetter, setSendingLetter] = useState(false);
+  const [previewingLetter, setPreviewingLetter] = useState(false);
   // Introduction Letter compose state (populated when that phase task is opened).
   const [tplId, setTplId] = useState('');
   const [emailTo, setEmailTo] = useState('');
@@ -114,17 +116,42 @@ export function Projects() {
    * Send through the connected Google Workspace account. If Google isn't set up
    * yet, fall back to handing the message to the local email app.
    */
+  /** What both the preview and the send render — kept in one place so they agree. */
+  const letterInput = () => ({
+    to: emailTo.trim(),
+    subject: emailSubject,
+    html: emailBody,
+    recipient: introLead?.contactName || introLead?.leadName || undefined,
+    date: new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
+    filename: `${sel?.name || 'Project'} — Introduction Letter`,
+  });
+
+  /** Open the branded PDF in a new tab, exactly as the recipient will get it. */
+  const previewIntroLetter = () => {
+    setPreviewingLetter(true);
+    api.google.letterPdf(letterInput())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        // Revoke late; revoking immediately can beat the new tab to the blob.
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setPreviewingLetter(false));
+  };
+
   const sendIntroLetter = () => {
     if (!sel) return;
     if (!emailTo.trim()) { toast('⚠ Add a recipient first'); return; }
-    const html = emailBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br/>');
-    api.google.send({ to: emailTo.trim(), subject: emailSubject, html })
-      .then(() => { markIntroSent(); toast(`Sent to ${emailTo.trim()} — step complete`); })
+    setSendingLetter(true);
+    api.google.sendLetter(letterInput())
+      .then(() => { markIntroSent(); toast(`Sent to ${emailTo.trim()} with the letter attached — step complete`); })
       .catch((e: Error) => {
         window.location.href = 'mailto:' + encodeURIComponent(emailTo) + '?subject=' + encodeURIComponent(emailSubject) + '&body=' + encodeURIComponent(emailBody);
         markIntroSent();
         toast('⚠ ' + (e.message || 'Gmail unavailable') + ' — opened your email app instead');
-      });
+      })
+      .finally(() => setSendingLetter(false));
   };
   const copyIntroLetter = () => {
     navigator.clipboard.writeText((emailSubject ? emailSubject + '\n\n' : '') + emailBody).then(() => toast('Copied')).catch(() => toast('⚠ Copy failed'));
@@ -583,13 +610,17 @@ export function Projects() {
                         <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={14} style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.5, whiteSpace: 'pre-wrap' }} />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <div onClick={sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>
+                        <div onClick={sendingLetter ? undefined : sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sendingLetter ? 'default' : 'pointer', background: sendingLetter ? '#9AB0A4' : '#173326', color: 'white' }}>
                           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-                          {sel?.introLetterSentAt ? 'Re-send' : 'Send'}
+                          {sendingLetter ? 'Sending…' : sel?.introLetterSentAt ? 'Re-send' : 'Send'}
+                        </div>
+                        <div onClick={previewingLetter ? undefined : previewIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: previewingLetter ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                          {previewingLetter ? 'Rendering…' : 'Preview PDF'}
                         </div>
                         <div onClick={copyIntroLetter} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>Copy email</div>
                       </div>
-                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>“Send” delivers the message from the connected Google Workspace account and marks this step complete. If Google isn't connected, it falls back to opening your email app.</div>
+                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>“Send” delivers the message from the connected Google Workspace account with the letter attached as a PDF on your letterhead, and marks this step complete. Header, footer and signature come from Settings → Branding &amp; Letterhead.</div>
                     </div>
                   )}
                 </div>

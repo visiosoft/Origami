@@ -18,6 +18,7 @@ const google_service_1 = require("./google.service");
 const settings_service_1 = require("../settings/settings.service");
 const auth_service_1 = require("../auth/auth.service");
 const crypto_util_1 = require("../auth/crypto.util");
+const letterhead_1 = require("../documents/letterhead");
 let GoogleController = class GoogleController {
     constructor(google, settings, auth) {
         this.google = google;
@@ -83,6 +84,37 @@ let GoogleController = class GoogleController {
     send(body) {
         return this.google.sendMail(body);
     }
+    async letterPdf(body, res) {
+        const pdf = await this.renderLetter(body);
+        const filename = (0, letterhead_1.safeFilename)(body.filename || body.subject || 'Letter') + '.pdf';
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.end(pdf);
+    }
+    async sendLetter(body) {
+        const pdf = await this.renderLetter(body);
+        const filename = (0, letterhead_1.safeFilename)(body.filename || body.subject || 'Letter') + '.pdf';
+        await this.google.sendMail({
+            to: body.to,
+            cc: body.cc,
+            bcc: body.bcc,
+            subject: body.subject,
+            html: body.html,
+            attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
+        });
+        return { ok: true, filename };
+    }
+    async renderLetter(body) {
+        const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
+        const html = (0, letterhead_1.buildLetterHtml)({
+            brand,
+            title: body.subject,
+            recipient: body.recipient,
+            date: body.date,
+            body: body.html || '',
+        });
+        return this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Letter'));
+    }
     testDrive() {
         return this.google.testDrive();
     }
@@ -141,6 +173,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], GoogleController.prototype, "send", null);
+__decorate([
+    (0, common_1.Post)('letter/pdf'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], GoogleController.prototype, "letterPdf", null);
+__decorate([
+    (0, common_1.Post)('send-letter'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], GoogleController.prototype, "sendLetter", null);
 __decorate([
     (0, common_1.Post)('drive/test'),
     __metadata("design:type", Function),

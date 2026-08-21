@@ -32,6 +32,18 @@ exports.PUBLIC_KEYS = [
     'reminders.timezone',
     'reminders.triggerToken',
     'tasks.labels',
+    'brand.companyName',
+    'brand.tagline',
+    'brand.logoDataUrl',
+    'brand.accentColor',
+    'brand.address',
+    'brand.phone',
+    'brand.email',
+    'brand.website',
+    'brand.footerNote',
+    'brand.signatureName',
+    'brand.signatureTitle',
+    'brand.signatureDataUrl',
 ];
 exports.MASK = '••••••••';
 let SettingsService = class SettingsService {

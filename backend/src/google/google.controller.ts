@@ -4,6 +4,7 @@ import { GoogleService } from './google.service';
 import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
 import { signState, readState } from '../auth/crypto.util';
+import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 
 @Controller('google')
 export class GoogleController {
@@ -98,6 +99,56 @@ export class GoogleController {
   @Post('send')
   send(@Body() body: { to: string; subject: string; html: string; cc?: string; bcc?: string }) {
     return this.google.sendMail(body);
+  }
+
+  /**
+   * Render a letter on the company letterhead and return it as a PDF.
+   *
+   * Used for the preview in the composer, so what is downloaded here is byte
+   * for byte what `send-letter` attaches.
+   */
+  @Post('letter/pdf')
+  async letterPdf(
+    @Body() body: { subject?: string; html?: string; recipient?: string; date?: string; filename?: string },
+    @Res() res: Response,
+  ) {
+    const pdf = await this.renderLetter(body);
+    const filename = safeFilename(body.filename || body.subject || 'Letter') + '.pdf';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.end(pdf);
+  }
+
+  /** Email a letter with the branded PDF attached. */
+  @Post('send-letter')
+  async sendLetter(@Body() body: {
+    to: string; subject: string; html: string; cc?: string; bcc?: string;
+    recipient?: string; date?: string; filename?: string;
+  }) {
+    const pdf = await this.renderLetter(body);
+    const filename = safeFilename(body.filename || body.subject || 'Letter') + '.pdf';
+    await this.google.sendMail({
+      to: body.to,
+      cc: body.cc,
+      bcc: body.bcc,
+      subject: body.subject,
+      html: body.html,
+      attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
+    });
+    return { ok: true, filename };
+  }
+
+  /** Shared by the preview and the send, so neither can drift from the other. */
+  private async renderLetter(body: { subject?: string; html?: string; recipient?: string; date?: string }) {
+    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
+    const html = buildLetterHtml({
+      brand,
+      title: body.subject,
+      recipient: body.recipient,
+      date: body.date,
+      body: body.html || '',
+    });
+    return this.google.htmlToPdf(html, safeFilename(body.subject || 'Letter'));
   }
 
   /** Create a folder, upload, read back and trash — proves Drive access works. */
