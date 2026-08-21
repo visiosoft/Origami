@@ -1,164 +1,162 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowWidth } from '../useWindowWidth';
-import { Logo } from '../components/Logo';
-
-const BG = "'Bricolage Grotesque', serif";
-
-const AUTH_POINTS = [
-  'Lead to invoice tracked on one timeline',
-  'Role-scoped access for staff, clients and consultants',
-  'Live budget, schedule and site activity in one place',
-];
-
-const AUTH_ROLES = ['Principal', 'Project Manager', 'Designer', 'Estimator', 'Site Super', 'Admin'];
+import { api } from '../api';
+import { useApp } from '../AppContext';
+import { AuthLayout, authInput, label as fieldLabel } from './AuthLayout';
 
 export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const width = useWindowWidth();
-  const showBrand = width > 760;
+  const { signIn, authUser, authReady } = useApp();
   const isLogin = mode === 'login';
-  const isSignup = mode === 'signup';
 
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Project Manager');
   const [remember, setRemember] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(params.get('error') ?? '');
+  const [notice, setNotice] = useState(params.get('notice') ?? '');
+  const [busy, setBusy] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+
+  // Google sends the browser back to /login#token=… after a successful sign-in.
+  useEffect(() => {
+    const hash = window.location.hash;
+    const match = /token=([^&]+)/.exec(hash);
+    if (!match) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    signIn(decodeURIComponent(match[1]));
+    navigate('/dashboard', { replace: true });
+  }, [signIn, navigate]);
+
+  // Already signed in? Skip the form.
+  useEffect(() => {
+    if (authReady && authUser) navigate('/dashboard', { replace: true });
+  }, [authReady, authUser, navigate]);
 
   const submit = () => {
-    if (!email.trim() || !password.trim() || (isSignup && !name.trim())) {
-      setError('Please fill in all required fields to continue.');
+    if (!email.trim() || !password.trim()) {
+      setError('Enter your email and password to continue.');
       return;
     }
     setError('');
-    navigate('/dashboard');
+    setBusy(true);
+    api.auth.login(email.trim(), password)
+      .then((res) => {
+        signIn(res.token, res.user as any);
+        navigate('/dashboard', { replace: true });
+      })
+      .catch((e: Error) => setError(e.message || 'Sign in failed.'))
+      .finally(() => setBusy(false));
   };
 
-  const fields = isSignup
-    ? [
-        { label: 'Full name', type: 'text', value: name, set: setName, placeholder: 'e.g. Dana Whitfield' },
-        { label: 'Work email', type: 'email', value: email, set: setEmail, placeholder: 'name@origamidb.com' },
-        { label: 'Password', type: 'password', value: password, set: setPassword, placeholder: 'Create a password' },
-      ]
-    : [
-        { label: 'Work email', type: 'email', value: email, set: setEmail, placeholder: 'name@origamidb.com' },
-        { label: 'Password', type: 'password', value: password, set: setPassword, placeholder: 'Enter your password' },
-      ];
+  const sendReset = () => {
+    if (!email.trim()) { setError('Enter your email address first.'); return; }
+    setError('');
+    setBusy(true);
+    api.auth.forgotPassword(email.trim())
+      .then(() => { setForgotOpen(false); setNotice(`If an account exists for ${email.trim()}, a reset link is on its way.`); })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setBusy(false));
+  };
 
-  const tab = (label: string, active: boolean, to: string) => (
-    <div
-      key={label}
-      onClick={() => { setError(''); navigate(to); }}
-      style={{ flex: 1, textAlign: 'center', padding: '9px 0', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', background: active ? 'white' : 'transparent', color: active ? '#0B1A12' : '#7E9B93', boxShadow: active ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
-    >
-      {label}
-    </div>
-  );
+  // Sign-up is invitation-only: accounts are created by an administrator, who
+  // triggers the "set your password" email.
+  if (!isLogin) {
+    return (
+      <AuthLayout showBrand={width > 760} title="Access is by invitation" subtitle="Origami accounts are created by an administrator.">
+        <div style={{ fontSize: 13, lineHeight: 1.7, color: '#43514D' }}>
+          Ask an administrator to add you under <strong>User Access &amp; Roles</strong>. You'll get an email with a link to
+          choose your password, and can then sign in with that password or with your Google account.
+        </div>
+        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: '#173326', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Back to log in</div>
+      </AuthLayout>
+    );
+  }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', background: '#FBF8F2', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", overflow: 'hidden' }}>
-      {/* Brand panel */}
-      <div style={{ width: '42%', minWidth: 340, background: '#0F2417', display: showBrand ? 'flex' : 'none', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 44px', flexShrink: 0 }}>
-        <div style={{ background: '#FBF8F2', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '14px 18px', display: 'inline-flex', width: 'fit-content' }}>
-          <Logo markSize={30} />
+    <AuthLayout showBrand={width > 760} title="Welcome back" subtitle="Sign in to pick up where the team left off.">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={fieldLabel}>Work email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@origamidb.com" style={authInput} />
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 400 }}>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 34, lineHeight: 1.15, letterSpacing: '-0.025em', color: '#ffffff', textWrap: 'pretty' }}>One place for every job, from first call to final invoice.</div>
-          <div style={{ fontSize: 13.5, lineHeight: 1.65, color: 'rgba(255,255,255,0.6)', textWrap: 'pretty' }}>Leads, projects, people, budgets and site activity — tracked together so nothing falls between design and build.</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 6 }}>
-            {AUTH_POINTS.map((pt) => (
-              <div key={pt} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 5, height: 5, borderRadius: 999, background: '#D2822E', flexShrink: 0 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: 'rgba(255,255,255,0.78)' }}>{pt}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.04em' }}>Origami Design + Build · Internal platform</div>
-      </div>
-
-      {/* Form panel */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 32px', overflowY: 'auto' }}>
-        <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 22, animation: 'fadeIn 0.3s ease' }}>
-          <div style={{ display: 'flex', background: '#EEF3EE', borderRadius: 999, padding: 3, gap: 3 }}>
-            {tab('Log in', isLogin, '/login')}
-            {tab('Sign up', isSignup, '/signup')}
-          </div>
-
-          <div>
-            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', color: '#0B1A12' }}>{isLogin ? 'Welcome back' : 'Create your account'}</div>
-            <div style={{ fontSize: 13, color: '#7E9B93', marginTop: 5, lineHeight: 1.5 }}>{isLogin ? 'Sign in to pick up where the team left off.' : 'Request access to the Origami platform.'}</div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-            {fields.map((f) => (
-              <div key={f.label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93' }}>{f.label}</label>
-                <input type={f.type} value={f.value} onChange={(e) => f.set(e.target.value)} placeholder={f.placeholder} style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', background: '#ffffff', fontFamily: 'inherit', fontSize: 13.5, color: '#0B1A12', outline: 'none' }} />
-              </div>
-            ))}
-
-            {isSignup && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93' }}>Your role</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {AUTH_ROLES.map((r) => {
-                    const active = role === r;
-                    return (
-                      <div key={r} onClick={() => setRole(r)} style={{ padding: '8px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: active ? '#173326' : 'white', color: active ? 'white' : '#7E9B93', border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.12)') }}>{r}</div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {isLogin && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div onClick={() => setRemember((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <span style={{ width: 16, height: 16, borderRadius: 5, display: 'grid', placeItems: 'center', flexShrink: 0, background: remember ? '#173326' : 'white', border: '1px solid ' + (remember ? '#173326' : 'rgba(20,8,31,0.2)') }}>
-                  <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: remember ? 1 : 0 }}><path d="M20 6L9 17l-5-5" /></svg>
-                </span>
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: '#43514D' }}>Keep me signed in</span>
-              </div>
-              <span style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 600, color: '#173326', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}>Forgot password?</span>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 10, background: '#F7E4DB', border: '1px solid rgba(142,46,10,0.18)' }}>
-              <span style={{ width: 6, height: 6, borderRadius: 999, background: '#8E2E0A', flexShrink: 0 }} />
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8E2E0A' }}>{error}</span>
-            </div>
-          )}
-
-          <div onClick={submit} style={{ padding: '14px 0', borderRadius: 10, background: '#173326', color: '#ffffff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{isLogin ? 'Log in' : 'Create account'}</div>
-
-          {isSignup && (
-            <div style={{ fontSize: 11.5, lineHeight: 1.6, color: '#7E9B93', textAlign: 'center', textWrap: 'pretty' }}>New accounts are reviewed by an administrator before access is granted.</div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ flex: 1, height: 1, background: 'rgba(20,8,31,0.09)' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93' }}>or</span>
-            <span style={{ flex: 1, height: 1, background: 'rgba(20,8,31,0.09)' }} />
-          </div>
-
-          <div onClick={submit} style={{ padding: '13px 0', borderRadius: 10, background: '#ffffff', border: '1px solid rgba(20,8,31,0.12)', color: '#0B1A12', textAlign: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
-            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.3V21H3V3h8.7" /><path d="M14 3h7v7" /><path d="M10 14L21 3" /></svg>
-            <span>Continue with Microsoft 365</span>
-          </div>
-
-          <div style={{ fontSize: 12.5, color: '#7E9B93', textAlign: 'center' }}>
-            <span>{isLogin ? 'Need an account?' : 'Already have access?'}</span>
-            <span onClick={() => { setError(''); navigate(isLogin ? '/signup' : '/login'); }} style={{ fontWeight: 700, color: '#173326', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2, marginLeft: 5 }}>{isLogin ? 'Sign up' : 'Log in'}</span>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={fieldLabel}>Password</label>
+          <input
+            type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="Enter your password" style={authInput}
+          />
         </div>
       </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div onClick={() => setRemember((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <span style={{ width: 16, height: 16, borderRadius: 5, display: 'grid', placeItems: 'center', flexShrink: 0, background: remember ? '#173326' : 'white', border: '1px solid ' + (remember ? '#173326' : 'rgba(20,8,31,0.2)') }}>
+            <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: remember ? 1 : 0 }}><path d="M20 6L9 17l-5-5" /></svg>
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: '#43514D' }}>Keep me signed in</span>
+        </div>
+        <span onClick={() => { setForgotOpen(true); setNotice(''); }} style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 600, color: '#173326', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}>Forgot password?</span>
+      </div>
+
+      {forgotOpen && (
+        <div style={{ padding: 13, borderRadius: 10, background: '#EEF3EE', border: '1px solid rgba(20,8,31,0.08)', display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55 }}>We'll email a reset link to <strong>{email.trim() || 'your address'}</strong>.</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div onClick={busy ? undefined : sendReset} style={{ padding: '9px 16px', borderRadius: 999, background: '#173326', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Send reset link</div>
+            <div onClick={() => setForgotOpen(false)} style={{ padding: '9px 16px', borderRadius: 999, background: 'white', color: '#43514D', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)' }}>Cancel</div>
+          </div>
+        </div>
+      )}
+
+      {notice && <Banner tone="ok" text={notice} />}
+      {error && <Banner tone="bad" text={error} />}
+
+      <div onClick={busy ? undefined : submit} style={{ padding: '14px 0', borderRadius: 10, background: busy ? '#9AB0A4' : '#173326', color: '#ffffff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>{busy ? 'Signing in…' : 'Log in'}</div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ flex: 1, height: 1, background: 'rgba(20,8,31,0.09)' }} />
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93' }}>or</span>
+        <span style={{ flex: 1, height: 1, background: 'rgba(20,8,31,0.09)' }} />
+      </div>
+
+      <a
+        href={api.auth.googleLoginUrl()}
+        style={{ padding: '13px 0', borderRadius: 10, background: '#ffffff', border: '1px solid rgba(20,8,31,0.12)', color: '#0B1A12', textAlign: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, textDecoration: 'none' }}
+      >
+        <GoogleMark />
+        <span>Continue with Google</span>
+      </a>
+
+      <div style={{ fontSize: 11.5, lineHeight: 1.6, color: '#7E9B93', textAlign: 'center' }}>
+        Google sign-in works for accounts an administrator has already added.
+      </div>
+    </AuthLayout>
+  );
+}
+
+function Banner({ tone, text }: { tone: 'ok' | 'bad'; text: string }) {
+  const s = tone === 'ok'
+    ? { bg: '#D8ECD9', border: 'rgba(30,107,54,0.2)', dot: '#1E6B36', color: '#1E6B36' }
+    : { bg: '#F7E4DB', border: 'rgba(142,46,10,0.18)', dot: '#8E2E0A', color: '#8E2E0A' };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 10, background: s.bg, border: `1px solid ${s.border}` }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: s.dot, flexShrink: 0 }} />
+      <span style={{ fontSize: 12.5, fontWeight: 600, color: s.color, lineHeight: 1.5 }}>{text}</span>
     </div>
+  );
+}
+
+export function GoogleMark({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.7 30.2.5 24 .5 14.6.5 6.5 5.9 2.6 13.8l7.8 6.1C12.3 14 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.4-4.7 7l7.6 5.9c4.4-4.1 6.8-10.1 6.8-17.4z" />
+      <path fill="#FBBC05" d="M10.4 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.8-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.7l7.8-6.1z" />
+      <path fill="#34A853" d="M24 47.5c6.2 0 11.5-2 15.3-5.5l-7.6-5.9c-2.1 1.4-4.8 2.3-7.7 2.3-6.3 0-11.7-4.5-13.6-10.4l-7.8 6.1C6.5 42.1 14.6 47.5 24 47.5z" />
+    </svg>
   );
 }

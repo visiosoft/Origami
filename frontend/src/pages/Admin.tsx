@@ -43,7 +43,7 @@ export function Admin() {
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
       <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12', marginBottom: 4 }}>User Access &amp; Roles</div>
-      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 20 }}>Manage accounts (Internal, Client, Consultant) and the roles that control what each can see.</div>
+      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 20 }}>Manage accounts (Internal, Client, Consultant) and the roles that control what each can see. New users are emailed a link to set their own password — until they use it, or sign in with Google, the account stays <strong>Pending</strong>.</div>
       {readOnly && <div style={{ fontSize: 12, color: '#8A6D12', background: '#FBE9AE', borderRadius: 8, padding: '8px 12px', marginBottom: 16, display: 'inline-block' }}>Your role has view-only access to this page.</div>}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
         {nav}
@@ -62,13 +62,36 @@ function pill(bg: string, color: string, label: string) {
 function UsersEditor({ readOnly }: { readOnly: boolean }) {
   const { users, roles, refreshAccess, toast } = useApp();
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState<Partial<User>>({ name: '', email: '', tier: 'internal', roleKey: '', status: 'active' });
+  const [draft, setDraft] = useState<Partial<User>>({ name: '', email: '', tier: 'internal', roleKey: '', status: 'pending' });
+  // When the invitation email can't go out (Google not connected yet), we show
+  // the link so an admin can pass it to the new user by other means.
+  const [inviteNote, setInviteNote] = useState<{ email: string; sent: boolean; url?: string; error?: string } | null>(null);
 
   const rolesForTier = (tier: Tier) => roles.filter((r) => r.tier === tier);
 
   const saveNew = () => {
     if (!draft.name?.trim() || !draft.email?.trim() || !draft.roleKey) { toast('⚠ Name, email and role are required'); return; }
-    api.users.create(draft).then(() => { toast('User added'); setAdding(false); setDraft({ name: '', email: '', tier: 'internal', roleKey: '', status: 'active' }); refreshAccess(); }).catch(() => toast('⚠ Failed to add user'));
+    api.users.create(draft)
+      .then((res: any) => {
+        const invite = res?.invite ?? { sent: false };
+        setInviteNote({ email: draft.email!.trim(), ...invite });
+        toast(invite.sent ? `Invitation emailed to ${draft.email!.trim()}` : 'User added — invitation not sent');
+        setAdding(false);
+        setDraft({ name: '', email: '', tier: 'internal', roleKey: '', status: 'pending' });
+        refreshAccess();
+      })
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add user')));
+  };
+
+  const resend = (u: User) => {
+    api.users.resendInvite(u.id)
+      .then((res: any) => {
+        const invite = res?.invite ?? { sent: false };
+        setInviteNote({ email: u.email, ...invite });
+        toast(invite.sent ? `Invitation re-sent to ${u.email}` : 'Invitation not sent');
+        refreshAccess();
+      })
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to send invitation')));
   };
   const patch = (u: User, p: Partial<User>) => {
     api.users.update(u.id, { ...u, ...p }).then(() => refreshAccess()).catch(() => toast('⚠ Failed to update'));
@@ -93,6 +116,25 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
         </div>
       )}
 
+      {inviteNote && (
+        <div style={{ background: inviteNote.sent ? '#D8ECD9' : '#FBE9AE', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: inviteNote.sent ? '#1E6B36' : '#8A6D12', flex: 1 }}>
+              {inviteNote.sent
+                ? `Invitation emailed to ${inviteNote.email} — they can set their password from the link.`
+                : `Could not email ${inviteNote.email}${inviteNote.error ? ': ' + inviteNote.error : '.'}`}
+            </div>
+            <div onClick={() => setInviteNote(null)} style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', cursor: 'pointer' }}>Dismiss</div>
+          </div>
+          {!inviteNote.sent && inviteNote.url && (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8A6D12', marginBottom: 4 }}>Send them this link instead</div>
+              <div style={{ fontSize: 11.5, color: '#0B1A12', wordBreak: 'break-all', background: 'white', borderRadius: 8, padding: '8px 10px' }}>{inviteNote.url}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {users.map((u) => {
           const ts = TIER_STYLE[u.tier]; const ss = STATUS_STYLE[u.status];
@@ -109,6 +151,7 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
                   <select style={{ ...inputStyle, width: 130 }} value={u.tier} onChange={(e) => patch(u, { tier: e.target.value as Tier })}>{TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}</select>
                   <select style={{ ...inputStyle, width: 170 }} value={u.roleKey} onChange={(e) => patch(u, { roleKey: e.target.value })}>{rolesForTier(u.tier).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}{!rolesForTier(u.tier).some((r) => r.key === u.roleKey) && <option value={u.roleKey}>{u.roleKey}</option>}</select>
                   <select style={{ ...inputStyle, width: 130 }} value={u.status} onChange={(e) => patch(u, { status: e.target.value as UserStatus })}>{(['active', 'pending', 'suspended'] as UserStatus[]).map((s) => <option key={s} value={s}>{STATUS_STYLE[s].label}</option>)}</select>
+                  <div onClick={() => resend(u)} title={u.hasPassword ? 'Email a password reset link' : 'Re-send the invitation email'} style={{ fontSize: 12, fontWeight: 600, color: '#173326', cursor: 'pointer', padding: '6px 10px' }}>{u.hasPassword ? 'Reset password' : 'Resend invite'}</div>
                   <div onClick={() => del(u)} style={{ fontSize: 12, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer', padding: '6px 10px' }}>Delete</div>
                 </>
               )}

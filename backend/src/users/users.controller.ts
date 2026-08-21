@@ -16,6 +16,12 @@ export class UsersController {
     return this.usersService.create(dto);
   }
 
+  /** Re-send the "set your password" email for a user. */
+  @Post(':id/resend-invite')
+  resendInvite(@Param('id') id: string) {
+    return this.usersService.resendInvite(id);
+  }
+
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: Partial<CreateUserDto>) {
     return this.usersService.update(id, dto);

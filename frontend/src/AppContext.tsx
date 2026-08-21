@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { api } from './api';
+import { api, session } from './api';
 import { can as canFor, type User, type Role, type Tier, type Action } from './data/users';
 
 export type ViewMode = 'internal' | 'client' | 'consultant';
@@ -21,6 +21,11 @@ interface AppContextValue {
   setCurrentUserId: (id: string) => void;
   refreshAccess: () => void;
   can: (moduleKey: string, action?: Action) => boolean;
+  // Session
+  authUser: User | null;
+  authReady: boolean;
+  signIn: (token: string, user?: User) => void;
+  signOut: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -34,6 +39,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try { return localStorage.getItem(CURRENT_USER_KEY); } catch { return null; }
   });
   const [loadingAccess, setLoadingAccess] = useState(true);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -52,13 +59,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { refreshAccess(); }, [refreshAccess]);
 
+  // Restore the session on load: the stored token is only trusted after the
+  // server confirms it still resolves to a real user.
+  useEffect(() => {
+    if (!session.get()) { setAuthReady(true); return; }
+    api.auth.me()
+      .then((u) => { setAuthUser(u as User); setCurrentUserIdState((u as User).id); })
+      .catch(() => { session.clear(); setAuthUser(null); })
+      .finally(() => setAuthReady(true));
+  }, []);
+
+  const signIn = useCallback((token: string, user?: User) => {
+    session.set(token);
+    setAuthReady(true);
+    if (user) {
+      setAuthUser(user);
+      setCurrentUserIdState(user.id);
+      try { localStorage.setItem(CURRENT_USER_KEY, user.id); } catch { /* ignore */ }
+    }
+    api.auth.me()
+      .then((u) => { setAuthUser(u as User); setCurrentUserIdState((u as User).id); })
+      .catch(() => { /* keep the optimistic user */ });
+    refreshAccess();
+  }, [refreshAccess]);
+
+  const signOut = useCallback(() => {
+    session.clear();
+    setAuthUser(null);
+    try { localStorage.removeItem(CURRENT_USER_KEY); } catch { /* ignore */ }
+  }, []);
+
   const setCurrentUserId = useCallback((id: string) => {
     setCurrentUserIdState(id);
     try { localStorage.setItem(CURRENT_USER_KEY, id); } catch { /* ignore */ }
   }, []);
 
-  // Resolve the acting user: the stored id, else the first admin, else the first user.
+  // Resolve the acting user: the signed-in account, else the stored id,
+  // else the first admin, else the first user.
   const currentUser =
+    (authUser && users.find((u) => u.id === authUser.id)) ||
+    authUser ||
     users.find((u) => u.id === currentUserId) ||
     users.find((u) => u.roleKey === 'admin') ||
     users[0];
@@ -80,6 +120,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         viewMode, setViewMode, toast, toastMsg,
         users, roles, currentUser, currentRole, tier, loadingAccess,
         setCurrentUserId, refreshAccess, can,
+        authUser, authReady, signIn, signOut,
       }}
     >
       {children}

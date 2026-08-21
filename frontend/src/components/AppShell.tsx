@@ -15,7 +15,7 @@ const initialsOf = (name: string) =>
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, users, setCurrentUserId } = useApp();
+  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, users, setCurrentUserId, signOut } = useApp();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -118,7 +118,7 @@ export function AppShell() {
             <span className="user-name">{userName}</span>
             <span className="user-role">{userRoleName}</span>
           </div>
-          <div className="user-signout" title="Sign out" onClick={() => navigate('/login')}>
+          <div className="user-signout" title="Sign out" onClick={() => { signOut(); navigate('/login', { replace: true }); }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
           </div>
         </div>

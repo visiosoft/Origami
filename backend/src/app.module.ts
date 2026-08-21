@@ -14,6 +14,9 @@ import { SupportModule } from './support/support.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
+import { SettingsModule } from './settings/settings.module';
+import { GoogleModule } from './google/google.module';
+import { AuthModule } from './auth/auth.module';
 
 // SQL is the single source of truth — TypeORM is always on (no in-memory
 // fallback). The app requires a reachable SQL database to run.
@@ -40,6 +43,9 @@ import { SeedModule } from './database/seed.module';
       }),
     }),
     SeedModule,
+    SettingsModule,
+    GoogleModule,
+    AuthModule,
     ProjectsModule,
     PeopleModule,
     TasksModule,

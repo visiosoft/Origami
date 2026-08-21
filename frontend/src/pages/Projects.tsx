@@ -79,13 +79,28 @@ export function Projects() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selPt, templates, leads, sel]);
 
-  const sendIntroLetter = () => {
+  const markIntroSent = () => {
     if (!sel) return;
-    window.location.href = 'mailto:' + encodeURIComponent(emailTo) + '?subject=' + encodeURIComponent(emailSubject) + '&body=' + encodeURIComponent(emailBody);
     const now = new Date().toISOString();
     setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, introLetterSentAt: now } : p)));
     api.projects.update(sel.id, { name: sel.name, introLetterSentAt: now }).catch(() => toast('⚠ Failed to mark complete'));
-    toast('Opened in your email app — step marked complete');
+  };
+
+  /**
+   * Send through the connected Google Workspace account. If Google isn't set up
+   * yet, fall back to handing the message to the local email app.
+   */
+  const sendIntroLetter = () => {
+    if (!sel) return;
+    if (!emailTo.trim()) { toast('⚠ Add a recipient first'); return; }
+    const html = emailBody.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br/>');
+    api.google.send({ to: emailTo.trim(), subject: emailSubject, html })
+      .then(() => { markIntroSent(); toast(`Sent to ${emailTo.trim()} — step complete`); })
+      .catch((e: Error) => {
+        window.location.href = 'mailto:' + encodeURIComponent(emailTo) + '?subject=' + encodeURIComponent(emailSubject) + '&body=' + encodeURIComponent(emailBody);
+        markIntroSent();
+        toast('⚠ ' + (e.message || 'Gmail unavailable') + ' — opened your email app instead');
+      });
   };
   const copyIntroLetter = () => {
     navigator.clipboard.writeText((emailSubject ? emailSubject + '\n\n' : '') + emailBody).then(() => toast('Copied')).catch(() => toast('⚠ Copy failed'));
@@ -550,7 +565,7 @@ export function Projects() {
                         </div>
                         <div onClick={copyIntroLetter} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>Copy email</div>
                       </div>
-                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>“Send” opens your email app pre-filled and marks this step complete. Edit the message above before sending if needed.</div>
+                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>“Send” delivers the message from the connected Google Workspace account and marks this step complete. If Google isn't connected, it falls back to opening your email app.</div>
                     </div>
                   )}
                 </div>

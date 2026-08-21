@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { GoogleSettings } from './GoogleSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -19,11 +21,16 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
     { key: 'lead-scoring', label: 'Lead Qualification Scoring Template' },
     { key: 'email-templates', label: 'Email & Document Templates' },
   ] },
+  { group: 'Integrations', items: [
+    { key: 'google', label: 'Google Workspace' },
+  ] },
 ];
 
 export function Settings() {
   const isMobile = useWindowWidth() < 768;
-  const [active, setActive] = useState('lead-scoring');
+  const [params] = useSearchParams();
+  // The Google OAuth callback lands back here with ?tab=google.
+  const [active, setActive] = useState(params.get('tab') === 'google' ? 'google' : 'lead-scoring');
 
   const nav = (
     <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>
@@ -50,6 +57,7 @@ export function Settings() {
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
           {active === 'lead-scoring' && <ScoringTemplateEditor />}
           {active === 'email-templates' && <EmailTemplatesEditor />}
+          {active === 'google' && <GoogleSettings />}
         </div>
       </div>
     </div>

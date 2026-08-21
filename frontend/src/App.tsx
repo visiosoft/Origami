@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { AppShell } from './components/AppShell';
 import { DashboardRouter } from './pages/DashboardRouter';
 import { Pipeline } from './pages/Pipeline';
@@ -11,13 +12,25 @@ import { Admin } from './pages/Admin';
 import { Workflows } from './pages/Workflows';
 import { Help } from './pages/Help';
 import { Auth } from './pages/Auth';
+import { SetPassword } from './pages/SetPassword';
+import { useApp } from './AppContext';
+
+/** Sends anyone without a valid session to the log-in screen. */
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { authUser, authReady } = useApp();
+  const location = useLocation();
+  if (!authReady) return <div style={{ padding: 40, fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (!authUser) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return <>{children}</>;
+}
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Auth mode="login" />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
-      <Route element={<AppShell />}>
+      <Route path="/set-password" element={<SetPassword />} />
+      <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/pipeline" element={<Pipeline />} />

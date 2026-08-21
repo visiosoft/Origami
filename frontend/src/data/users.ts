@@ -26,6 +26,11 @@ export interface User {
   status: UserStatus;
   lastLogin?: string;
   createdAt: string;
+  avatarUrl?: string;
+  /** True once the user has chosen a password (set by the server). */
+  hasPassword?: boolean;
+  /** True while an unused invitation / reset link is outstanding. */
+  invitePending?: boolean;
 }
 
 export { MODULES };

@@ -274,4 +274,21 @@ export class UserEntity {
   @Column() status!: string; // pending | active | suspended
   @Column({ nullable: true }) lastLogin!: string;
   @Column() createdAt!: string;
+  // --- Authentication (never sent to the client; stripped in UsersService) ---
+  @Column({ nullable: true }) passwordHash!: string;   // scrypt: salt:hash
+  @Column({ nullable: true }) passwordSetAt!: string;
+  @Column({ nullable: true }) googleId!: string;       // Google "sub" once they sign in with Google
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) avatarUrl!: string;
+  @Column({ nullable: true }) inviteToken!: string;    // sha256 of the emailed token
+  @Column({ nullable: true }) inviteSentAt!: string;
+  @Column({ nullable: true }) inviteExpiresAt!: string;
+}
+
+// Simple key/value store for workspace configuration (Google OAuth credentials,
+// the app base URL, the signing secret …). Secrets are never returned in full.
+@Entity('app_settings')
+export class AppSettingEntity {
+  @PrimaryColumn() key!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) value!: string;
+  @Column({ nullable: true }) updatedAt!: string;
 }

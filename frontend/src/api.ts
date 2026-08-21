@@ -1,15 +1,65 @@
 const API_BASE = '/api';
 
+const TOKEN_KEY = 'origami.session';
+
+/** The signed-in user's session token, shared by every API call. */
+export const session = {
+  get: (): string | null => {
+    try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+  },
+  set: (token: string) => {
+    try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
+  },
+  clear: () => {
+    try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+  },
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers ?? {}),
+    },
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    // Nest returns { message } (or an array of messages) — surface it verbatim so
+    // the UI can show the real reason instead of a bare status code.
+    const body = await res.json().catch(() => null);
+    const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    throw new Error(msg || `API error: ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
   return res.json();
 }
 
 export const api = {
+  auth: {
+    login: (email: string, password: string) =>
+      request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    me: () => request('/auth/me'),
+    invite: (token: string) => request<{ name: string; email: string; isReset: boolean }>(`/auth/invite/${encodeURIComponent(token)}`),
+    setPassword: (token: string, password: string) =>
+      request('/auth/set-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+    forgotPassword: (email: string) => request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    googleLoginUrl: () => `${API_BASE}/google/login`,
+  },
+  settings: {
+    get: () => request<Record<string, string>>('/settings'),
+    save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  },
+  google: {
+    status: () => request<GoogleStatus>('/google/status'),
+    connectUrl: () => `${API_BASE}/google/connect`,
+    disconnect: () => request<GoogleStatus>('/google/disconnect', { method: 'POST' }),
+    testEmail: (to?: string) => request<{ sent: boolean; to: string }>('/google/test-email', { method: 'POST', body: JSON.stringify({ to }) }),
+    send: (data: { to: string; subject: string; html: string; cc?: string; bcc?: string }) =>
+      request('/google/send', { method: 'POST', body: JSON.stringify(data) }),
+    driveFiles: (q?: string) => request<DriveFile[]>(`/google/drive/files${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  },
   dashboard: {
     kpis: () => request('/dashboard/kpis'),
     budgetVsSpend: () => request('/dashboard/budget-vs-spend'),
@@ -74,6 +124,7 @@ export const api = {
     create: (data: unknown) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),
+    resendInvite: (id: string) => request<{ invite: { sent: boolean; url?: string; error?: string } }>(`/users/${id}/resend-invite`, { method: 'POST' }),
   },
   roles: {
     list: () => request('/roles'),
@@ -120,3 +171,23 @@ export const api = {
     remove: (id: string) => request(`/faqs/${id}`, { method: 'DELETE' }),
   },
 };
+
+export interface GoogleStatus {
+  configured: boolean;
+  connected: boolean;
+  connectedEmail: string;
+  connectedAt: string;
+  senderEmail: string;
+  redirectUri: string;
+  scopes: string[];
+}
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime?: string;
+  size?: string;
+  webViewLink?: string;
+  iconLink?: string;
+}
