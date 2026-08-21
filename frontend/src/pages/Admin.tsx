@@ -102,7 +102,9 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
       .catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to send invitation')));
   };
   const patch = (u: User, p: Partial<User>) => {
-    api.users.update(u.id, { ...u, ...p }).then(() => refreshAccess()).catch(() => toast('⚠ Failed to update'));
+    api.users.update(u.id, { ...u, ...p })
+      .then(() => { refreshAccess(); toast('User updated'); })
+      .catch((e: Error) => { toast('⚠ ' + (e.message || 'Failed to update')); refreshAccess(); });
   };
   const del = (u: User) => { if (confirm(`Remove ${u.name}?`)) api.users.remove(u.id).then(() => { toast('User removed'); refreshAccess(); }).catch(() => toast('⚠ Failed')); };
 
@@ -149,8 +151,33 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
           return (
             <div key={u.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 170, flex: '1 1 170px' }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{u.name}</div>
-                <div style={{ fontSize: 11.5, color: '#7E9B93' }}>{u.email}</div>
+                {readOnly ? (
+                  <>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{u.name}</div>
+                    <div style={{ fontSize: 11.5, color: '#7E9B93' }}>{u.email}</div>
+                  </>
+                ) : (
+                  <>
+                    {/* Saved on blur, and only when the value actually changed —
+                        re-sending the same email would trip the duplicate check. */}
+                    <input
+                      key={'n' + u.id}
+                      defaultValue={u.name}
+                      onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== u.name) patch(u, { name: v }); else e.target.value = u.name; }}
+                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}
+                      onFocus={(e) => { e.target.style.border = '1px solid rgba(20,8,31,0.14)'; e.target.style.background = 'white'; }}
+                      onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
+                    />
+                    <input
+                      key={'e' + u.id}
+                      defaultValue={u.email}
+                      onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== u.email) patch(u, { email: v }); else e.target.value = u.email; }}
+                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 11.5, color: '#7E9B93' }}
+                      onFocus={(e) => { e.target.style.border = '1px solid rgba(20,8,31,0.14)'; e.target.style.background = 'white'; }}
+                      onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
+                    />
+                  </>
+                )}
               </div>
               {readOnly ? (
                 <>{pill(ts.bg, ts.color, ts.label)}{pill('#EDE3D0', '#0B1A12', roles.find((r) => r.key === u.roleKey)?.name || u.roleKey)}{pill(ss.bg, ss.color, ss.label)}</>

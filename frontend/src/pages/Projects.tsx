@@ -79,6 +79,30 @@ export function Projects() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selPt, templates, leads, sel]);
 
+  /** Link a lead to this project without leaving the panel. */
+  const linkLead = (leadId: string) => {
+    if (!sel) return;
+    setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, leadId } : p)));
+    api.projects.update(sel.id, { name: sel.name, leadId }).catch(() => toast('⚠ Failed to link lead'));
+    toast(leadId ? 'Lead linked' : 'Lead unlinked');
+  };
+
+  const leadPicker = (
+    <select
+      value={sel?.leadId ?? ''}
+      onChange={(e) => linkLead(e.target.value)}
+      disabled={!canManage}
+      style={{ ...inputStyle, width: '100%', marginTop: 8 }}
+    >
+      <option value="">Select a lead…</option>
+      {leads.map((l: any) => (
+        <option key={l.id} value={String(l.id)}>
+          {l.leadName || l.name || l.id}{l.projectCity ? ` · ${l.projectCity}` : ''}
+        </option>
+      ))}
+    </select>
+  );
+
   const markIntroSent = () => {
     if (!sel) return;
     const now = new Date().toISOString();
@@ -488,7 +512,7 @@ export function Projects() {
                   </div>
                   {!sel?.leadId ? (
                     <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>
-                      No lead linked to this project. Use <b style={{ color: '#173326' }}>Edit project → Linked lead</b> to connect the Leads intake captured during the initial questions.
+                      No lead linked to this project — pick the lead whose initial questions were captured for it.{leadPicker}
                     </div>
                   ) : !lead ? (
                     <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93' }}>Linked lead not found.</div>
@@ -537,7 +561,7 @@ export function Projects() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {!sel?.leadId && (
                         <div style={{ padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5 }}>
-                          No lead linked — client fields aren't pre-filled. Use <b style={{ color: '#173326' }}>Edit project → Linked lead</b>, or fill the fields below manually.
+                          No lead linked — client fields aren't pre-filled. Link the lead to pull them in, or fill the fields below manually.{leadPicker}
                         </div>
                       )}
                       <div>
