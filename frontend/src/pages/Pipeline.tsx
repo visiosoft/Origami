@@ -90,7 +90,12 @@ const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name,
 
 type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills';
 interface FieldSpec { key: keyof NewLead; label: string; kind: FieldKind; optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string }
-const LEAD_SECTIONS: { title: string; fields: FieldSpec[] }[] = [
+/**
+ * `gate` marks a section that only applies in some cases — it starts collapsed
+ * unless the gating field says otherwise, so nobody scrolls past a block of
+ * empty inputs for a second contact that doesn't exist.
+ */
+const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string; value: string; emptyLabel: string } }[] = [
   { title: '1. Contact', fields: [
     { key: 'leadName', label: 'Lead Name *', kind: 'text', ph: 'Full name' },
     { key: 'namePronunciation', label: 'Name Pronunciation', kind: 'text', ph: 'e.g. Mah-REE-ah' },
@@ -98,7 +103,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[] }[] = [
     { key: 'email', label: 'Email', kind: 'email', ph: 'email@example.com' },
     { key: 'primaryPointOfContact', label: 'Primary Point of Contact', kind: 'select', optKey: 'primaryPointOfContact' },
   ] },
-  { title: '2. Second Contact', fields: [
+  { title: '2. Second Contact', gate: { key: 'secondPointOfContact', value: 'Yes', emptyLabel: 'No second contact' }, fields: [
     { key: 'secondPointOfContact', label: 'Second Point of Contact?', kind: 'select', optKey: 'secondPointOfContact' },
     { key: 'nameOfSecondContact', label: 'Name of Second Contact', kind: 'text', ph: 'Full name' },
     { key: 'phoneOfSecondContact', label: 'Phone of Second Contact', kind: 'tel', ph: '(555) 123-4567' },
@@ -162,6 +167,8 @@ export function Pipeline() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<'overview' | 'details'>('overview');
   const [leadDetails, setLeadDetails] = useState<Record<string, NewLead>>({});
+  // Which gated questionnaire sections the user has explicitly toggled open/shut.
+  const [leadSectionOpen, setLeadSectionOpen] = useState<Record<string, boolean>>({});
   const [notesByDeal, setNotesByDeal] = useState<Record<string, LeadNote[]>>({});
   const [noteDraft, setNoteDraft] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -600,10 +607,25 @@ export function Pipeline() {
                     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                       <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 4 }}>Initial Questions — Lead Intake</div>
                       <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 12 }}>Complete these while on the call — saved to the lead record and visible in Full Details.</div>
-                      {LEAD_SECTIONS.map((sec) => (
+                      {LEAD_SECTIONS.map((sec) => {
+                        const gateMet = !sec.gate || (ld[sec.gate.key as keyof NewLead] as string) === sec.gate.value;
+                        // Explicit clicks win; otherwise a gated section follows its answer.
+                        const open = leadSectionOpen[sec.title] ?? gateMet;
+                        return (
                         <div key={sec.title} style={{ marginBottom: 14 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>{sec.title}</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div
+                            onClick={sec.gate ? () => setLeadSectionOpen((p) => ({ ...p, [sec.title]: !open })) : undefined}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8, cursor: sec.gate ? 'pointer' : 'default' }}
+                          >
+                            {sec.gate && (
+                              <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', fontSize: 9, color: '#9AA39D' }}>▶</span>
+                            )}
+                            <span>{sec.title}</span>
+                            {sec.gate && !open && (
+                              <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: '#9AA39D' }}>· {sec.gate.emptyLabel}</span>
+                            )}
+                          </div>
+                          <div style={{ display: open ? 'flex' : 'none', flexDirection: 'column', gap: 10 }}>
                             {sec.fields.map((f) => (
                               <div key={f.key}>
                                 <div style={{ fontSize: 10.5, fontWeight: 600, color: '#7E9B93', marginBottom: 4 }}>{f.label}</div>
@@ -620,7 +642,8 @@ export function Pipeline() {
                             ))}
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                       <div onClick={() => {
                         const cur = leadDetails[selected.id] || baseLead(selected);
                         const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
