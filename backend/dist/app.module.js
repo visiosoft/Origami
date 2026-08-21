@@ -10,7 +10,6 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
-const schedule_1 = require("@nestjs/schedule");
 const projects_module_1 = require("./projects/projects.module");
 const people_module_1 = require("./people/people.module");
 const tasks_module_1 = require("./tasks/tasks.module");
@@ -35,7 +34,6 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
-            schedule_1.ScheduleModule.forRoot(),
             typeorm_1.TypeOrmModule.forRootAsync({
                 inject: [config_1.ConfigService],
                 useFactory: (cfg) => ({

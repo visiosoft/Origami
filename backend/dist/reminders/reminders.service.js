@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RemindersService = void 0;
 const common_1 = require("@nestjs/common");
-const schedule_1 = require("@nestjs/schedule");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
@@ -22,6 +21,7 @@ const settings_service_1 = require("../settings/settings.service");
 const google_service_1 = require("../google/google.service");
 const reminder_templates_1 = require("./reminder.templates");
 const DAY = 86400000;
+const HOUR = 3600000;
 let RemindersService = class RemindersService {
     constructor(projectTasks, tasks, users, projects, settings, google) {
         this.projectTasks = projectTasks;
@@ -31,6 +31,15 @@ let RemindersService = class RemindersService {
         this.settings = settings;
         this.google = google;
         this.log = new common_1.Logger('RemindersService');
+        this.timer = null;
+    }
+    onApplicationBootstrap() {
+        this.timer = setInterval(() => { void this.tick(); }, HOUR);
+        this.timer.unref?.();
+    }
+    onModuleDestroy() {
+        if (this.timer)
+            clearInterval(this.timer);
     }
     async tick() {
         try {
@@ -151,12 +160,6 @@ let RemindersService = class RemindersService {
     }
 };
 exports.RemindersService = RemindersService;
-__decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_HOUR),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], RemindersService.prototype, "tick", null);
 exports.RemindersService = RemindersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),

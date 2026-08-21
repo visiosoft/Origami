@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity } from '../database/entities';
@@ -8,10 +7,12 @@ import { GoogleService } from '../google/google.service';
 import { reminderEmail, type ReminderBuckets, type ReminderTask } from './reminder.templates';
 
 const DAY = 86400000;
+const HOUR = 3600000;
 
 @Injectable()
-export class RemindersService {
+export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly log = new Logger('RemindersService');
+  private timer: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectRepository(ProjectTaskEntity) private readonly projectTasks: Repository<ProjectTaskEntity>,
@@ -23,14 +24,27 @@ export class RemindersService {
   ) {}
 
   /**
-   * Fires hourly and sends at most once per day, at the configured local hour.
-   *
-   * An hourly tick plus a date guard is used rather than a dynamic cron so the
-   * send time stays editable in Settings without re-registering the job. The
-   * `reminders.lastRunDate` key doubles as a lock, so a second App Service
-   * instance cannot send everyone a duplicate digest.
+   * A plain hourly interval rather than a cron library — this app deliberately
+   * carries no scheduler dependency, and adding one means a fresh `npm install`
+   * on every container start.
    */
-  @Cron(CronExpression.EVERY_HOUR)
+  onApplicationBootstrap() {
+    this.timer = setInterval(() => { void this.tick(); }, HOUR);
+    // Don't hold the process open on shutdown.
+    this.timer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  /**
+   * Runs hourly, sends at most once a day at the configured local hour.
+   *
+   * Checking the hour on each tick keeps the send time editable in Settings
+   * without re-registering anything. The `reminders.lastRunDate` key doubles as
+   * a lock, so a second App Service instance cannot double-send.
+   */
   async tick() {
     try {
       if ((await this.settings.get('reminders.enabled')) !== 'true') return;
