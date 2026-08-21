@@ -61,12 +61,21 @@ export class TasksService implements OnApplicationBootstrap {
     return task;
   }
 
-  /** Days between the meeting and either the close date or today. */
+  /**
+   * Days between the meeting and either the close date or today.
+   *
+   * Only computed for real ISO dates: legacy rows store human strings like
+   * "Apr 5", which Date.parse happily reads as the year 2001 and turns into a
+   * nonsense age. Those keep whatever value they already had.
+   */
   private daysOpen(task: TaskEntity): number {
+    const iso = /^\d{4}-\d{2}-\d{2}/;
+    const current = task.daysOpen ?? 0;
+    if (!iso.test(task.meetingDate ?? '')) return current;
     const start = Date.parse(task.meetingDate);
-    if (Number.isNaN(start)) return task.daysOpen ?? 0;
-    const end = task.dateClosed ? Date.parse(task.dateClosed) : Date.now();
-    if (Number.isNaN(end)) return task.daysOpen ?? 0;
+    if (Number.isNaN(start)) return current;
+    const end = task.dateClosed && iso.test(task.dateClosed) ? Date.parse(task.dateClosed) : Date.now();
+    if (Number.isNaN(end)) return current;
     return Math.max(0, Math.round((end - start) / 86400000));
   }
 

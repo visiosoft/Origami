@@ -68,12 +68,16 @@ let TasksService = class TasksService {
         return task;
     }
     daysOpen(task) {
+        const iso = /^\d{4}-\d{2}-\d{2}/;
+        const current = task.daysOpen ?? 0;
+        if (!iso.test(task.meetingDate ?? ''))
+            return current;
         const start = Date.parse(task.meetingDate);
         if (Number.isNaN(start))
-            return task.daysOpen ?? 0;
-        const end = task.dateClosed ? Date.parse(task.dateClosed) : Date.now();
+            return current;
+        const end = task.dateClosed && iso.test(task.dateClosed) ? Date.parse(task.dateClosed) : Date.now();
         if (Number.isNaN(end))
-            return task.daysOpen ?? 0;
+            return current;
         return Math.max(0, Math.round((end - start) / 86400000));
     }
     async create(dto, actor) {
