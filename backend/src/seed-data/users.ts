@@ -120,3 +120,22 @@ export const DEFAULT_USERS: UserSeed[] = [
   { id: 'U-1006', name: 'Aurecon Consulting', email: 'liaison@aurecon.com', tier: 'consultant', roleKey: 'consultant', status: 'active', lastLogin: '2026-08-08', createdAt: '2026-05-01' },
   { id: 'U-1007', name: 'Pending Applicant', email: 'new.hire@origami.build', tier: 'internal', roleKey: 'estimator', status: 'pending', createdAt: '2026-08-14' },
 ];
+
+/**
+ * The founding administrator, created on every boot if the address is missing.
+ *
+ * Only the scrypt hash of the password lives here — the plaintext is never
+ * committed. Rotate it from the app (Admin → Users → Reset password) once
+ * Google is connected, or override the whole account with the
+ * BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD environment variables,
+ * which take precedence.
+ */
+export const FOUNDER_ADMIN = {
+  id: 'U-1000',
+  name: 'Origami Systems',
+  email: 'Systems@origamidb.com',
+  tier: 'internal',
+  roleKey: 'admin',
+  status: 'active',
+  passwordHash: 'b61720f93fdeee665892794c6d8aa2b0:96d9ddee57825ad75b3e00052628c7e04a99071c2ca30dd8ea063f7e48a382fcb4d25b79ce3fc255839f323cdb5a11f290c51821be378984292673baa5a96546',
+};

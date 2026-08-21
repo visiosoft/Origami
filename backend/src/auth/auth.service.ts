@@ -5,6 +5,7 @@ import { UserEntity, RoleEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { inviteEmail, resetEmail } from './email.templates';
+import { FOUNDER_ADMIN } from '../seed-data/users';
 import {
   hashPassword, verifyPassword, passwordProblem,
   randomToken, hashToken, signJwt, verifyJwt, type SessionClaims,
@@ -32,12 +33,31 @@ export class AuthService {
   ) {}
 
   /**
-   * First-run escape hatch. With BOOTSTRAP_ADMIN_EMAIL + BOOTSTRAP_ADMIN_PASSWORD
-   * set, that account is created (or given that password) on boot — otherwise
-   * nobody could sign in to connect Google in the first place, since every
-   * seeded user starts without a password.
+   * Create the founding administrator if that address has no account yet.
+   * Never touches an existing one, so a changed password is not reset on deploy.
+   */
+  private async ensureFounderAdmin() {
+    const existing = await this.findByEmail(FOUNDER_ADMIN.email);
+    if (existing) return;
+    await this.users.save(this.users.create({
+      ...FOUNDER_ADMIN,
+      passwordSetAt: new Date().toISOString(),
+      createdAt: new Date().toISOString().slice(0, 10),
+    } as Partial<UserEntity>));
+    this.log.warn(`Created founding admin ${FOUNDER_ADMIN.email} — change its password after first sign-in.`);
+  }
+
+  /**
+   * Make sure at least one account can sign in.
+   *
+   * The founding admin is created if its address is missing (its password ships
+   * as a scrypt hash, never plaintext). BOOTSTRAP_ADMIN_EMAIL +
+   * BOOTSTRAP_ADMIN_PASSWORD override it when set — useful for a fresh
+   * environment, or to recover if the founder password is changed and lost.
    */
   async ensureBootstrapAdmin() {
+    await this.ensureFounderAdmin();
+
     const email = (process.env.BOOTSTRAP_ADMIN_EMAIL || '').trim();
     const password = process.env.BOOTSTRAP_ADMIN_PASSWORD || '';
     if (!email || !password) return;

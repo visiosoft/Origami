@@ -26,3 +26,12 @@ export interface UserSeed {
 export declare const MODULE_KEYS: string[];
 export declare const DEFAULT_ROLES: RoleSeed[];
 export declare const DEFAULT_USERS: UserSeed[];
+export declare const FOUNDER_ADMIN: {
+    id: string;
+    name: string;
+    email: string;
+    tier: string;
+    roleKey: string;
+    status: string;
+    passwordHash: string;
+};

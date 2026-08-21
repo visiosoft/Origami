@@ -11,6 +11,7 @@ export declare class AuthService {
     private readonly google;
     private readonly log;
     constructor(users: Repository<UserEntity>, roles: Repository<RoleEntity>, settings: SettingsService, google: GoogleService);
+    private ensureFounderAdmin;
     ensureBootstrapAdmin(): Promise<void>;
     sendInvite(user: UserEntity, kind?: 'invite' | 'reset'): Promise<{
         sent: true;

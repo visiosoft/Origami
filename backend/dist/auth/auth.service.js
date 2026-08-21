@@ -21,6 +21,7 @@ const entities_1 = require("../database/entities");
 const settings_service_1 = require("../settings/settings.service");
 const google_service_1 = require("../google/google.service");
 const email_templates_1 = require("./email.templates");
+const users_1 = require("../seed-data/users");
 const crypto_util_1 = require("./crypto.util");
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const INVITE_TTL_DAYS = 7;
@@ -37,7 +38,19 @@ let AuthService = class AuthService {
         this.google = google;
         this.log = new common_1.Logger('AuthService');
     }
+    async ensureFounderAdmin() {
+        const existing = await this.findByEmail(users_1.FOUNDER_ADMIN.email);
+        if (existing)
+            return;
+        await this.users.save(this.users.create({
+            ...users_1.FOUNDER_ADMIN,
+            passwordSetAt: new Date().toISOString(),
+            createdAt: new Date().toISOString().slice(0, 10),
+        }));
+        this.log.warn(`Created founding admin ${users_1.FOUNDER_ADMIN.email} — change its password after first sign-in.`);
+    }
     async ensureBootstrapAdmin() {
+        await this.ensureFounderAdmin();
         const email = (process.env.BOOTSTRAP_ADMIN_EMAIL || '').trim();
         const password = process.env.BOOTSTRAP_ADMIN_PASSWORD || '';
         if (!email || !password)
