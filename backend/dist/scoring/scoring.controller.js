@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScoringController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const scoring_service_1 = require("./scoring.service");
 let ScoringController = class ScoringController {
     constructor(scoringService) {
@@ -41,6 +42,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ScoringController.prototype, "saveTemplate", null);
 exports.ScoringController = ScoringController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('scoring'),
     __metadata("design:paramtypes", [scoring_service_1.ScoringService])
 ], ScoringController);

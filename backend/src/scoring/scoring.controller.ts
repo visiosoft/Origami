@@ -1,7 +1,9 @@
 import { Controller, Get, Put, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { ScoringService } from './scoring.service';
 import { ScoringCriterion } from '../seed-data/scoring';
 
+@Tiers('internal')
 @Controller('scoring')
 export class ScoringController {
   constructor(private readonly scoringService: ScoringService) {}

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectsModule } from './projects/projects.module';
@@ -19,6 +20,8 @@ import { GoogleModule } from './google/google.module';
 import { AuthModule } from './auth/auth.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { FileRoomModule } from './file-room/file-room.module';
+import { SessionGuard } from './auth/guards/session.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
 
 // SQL is the single source of truth — TypeORM is always on (no in-memory
 // fallback). The app requires a reachable SQL database to run.
@@ -62,6 +65,13 @@ import { FileRoomModule } from './file-room/file-room.module';
     SupportModule,
     EmailTemplatesModule,
     DashboardModule,
+  ],
+  // Every route requires a session unless marked @Public(); role and tier rules
+  // are applied after, once the caller is known. Order matters: SessionGuard
+  // must resolve the claims that RolesGuard reads.
+  providers: [
+    { provide: APP_GUARD, useClass: SessionGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule { }

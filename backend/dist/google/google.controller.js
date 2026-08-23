@@ -19,6 +19,9 @@ const settings_service_1 = require("../settings/settings.service");
 const auth_service_1 = require("../auth/auth.service");
 const crypto_util_1 = require("../auth/crypto.util");
 const letterhead_1 = require("../documents/letterhead");
+const public_decorator_1 = require("../auth/guards/public.decorator");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const cookie_util_1 = require("../auth/guards/cookie.util");
 let GoogleController = class GoogleController {
     constructor(google, settings, auth) {
         this.google = google;
@@ -60,6 +63,7 @@ let GoogleController = class GoogleController {
                 return res.redirect(`${base}/settings?tab=google&connected=${encodeURIComponent(profile.email)}`);
             }
             const session = await this.auth.loginWithGoogle(profile);
+            res.cookie(cookie_util_1.SESSION_COOKIE, session.token, (0, cookie_util_1.sessionCookieOptions)(session.expiresIn));
             return res.redirect(`${base}/login#token=${encodeURIComponent(session.token)}`);
         }
         catch (err) {
@@ -130,6 +134,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], GoogleController.prototype, "status", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Get)('connect'),
     __param(0, (0, common_1.Res)()),
     __metadata("design:type", Function),
@@ -137,6 +142,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GoogleController.prototype, "connect", null);
 __decorate([
+    (0, public_decorator_1.Public)(),
     (0, common_1.Get)('login'),
     __param(0, (0, common_1.Res)()),
     __metadata("design:type", Function),
@@ -144,6 +150,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GoogleController.prototype, "login", null);
 __decorate([
+    (0, public_decorator_1.Public)(),
     (0, common_1.Get)('callback'),
     __param(0, (0, common_1.Query)('code')),
     __param(1, (0, common_1.Query)('state')),
@@ -154,12 +161,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GoogleController.prototype, "callback", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Post)('disconnect'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], GoogleController.prototype, "disconnect", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Post)('test-email'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -189,6 +198,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], GoogleController.prototype, "sendLetter", null);
 __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Post)('drive/test'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),

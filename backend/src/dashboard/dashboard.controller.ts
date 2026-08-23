@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { DashboardService } from './dashboard.service';
 
+@Tiers('internal')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}

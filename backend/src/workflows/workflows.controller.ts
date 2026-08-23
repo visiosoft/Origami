@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { WorkflowsService } from './workflows.service';
 import { WorkflowItemsService } from './workflow-items.service';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 
+@Tiers('internal')
 @Controller('workflows')
 export class WorkflowsController {
   constructor(

@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SettingsController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const settings_service_1 = require("./settings.service");
 let SettingsController = class SettingsController {
     constructor(settings) {
@@ -42,6 +43,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], SettingsController.prototype, "update", null);
 exports.SettingsController = SettingsController = __decorate([
+    (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Controller)('settings'),
     __metadata("design:paramtypes", [settings_service_1.SettingsService])
 ], SettingsController);

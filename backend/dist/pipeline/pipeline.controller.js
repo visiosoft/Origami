@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PipelineController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const pipeline_service_1 = require("./pipeline.service");
 const create_deal_dto_1 = require("./dto/create-deal.dto");
 let PipelineController = class PipelineController {
@@ -82,6 +83,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PipelineController.prototype, "remove", null);
 exports.PipelineController = PipelineController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('pipeline'),
     __metadata("design:paramtypes", [pipeline_service_1.PipelineService])
 ], PipelineController);

@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkflowItemsController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const workflow_items_service_1 = require("./workflow-items.service");
 const create_workflow_item_dto_1 = require("./dto/create-workflow-item.dto");
 let WorkflowItemsController = class WorkflowItemsController {
@@ -64,6 +65,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], WorkflowItemsController.prototype, "remove", null);
 exports.WorkflowItemsController = WorkflowItemsController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('workflow-items'),
     __metadata("design:paramtypes", [workflow_items_service_1.WorkflowItemsService])
 ], WorkflowItemsController);

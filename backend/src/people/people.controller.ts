@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { PeopleService } from './people.service';
 import { CreatePersonDto } from './dto/create-person.dto';
 
+@Tiers('internal')
 @Controller('people')
 export class PeopleController {
   constructor(private readonly peopleService: PeopleService) {}

@@ -5,6 +5,9 @@ import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
 import { signState, readState } from '../auth/crypto.util';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
+import { Public } from '../auth/guards/public.decorator';
+import { Roles } from '../auth/guards/roles.decorator';
+import { SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
 
 @Controller('google')
 export class GoogleController {
@@ -21,6 +24,7 @@ export class GoogleController {
   }
 
   /** Start the admin flow that connects the workspace account (Gmail + Drive). */
+  @Roles('admin')
   @Get('connect')
   async connect(@Res() res: Response) {
     const secret = await this.settings.jwtSecret();
@@ -29,6 +33,7 @@ export class GoogleController {
   }
 
   /** Start "Sign in with Google" for an end user. */
+  @Public()
   @Get('login')
   async login(@Res() res: Response) {
     const secret = await this.settings.jwtSecret();
@@ -37,6 +42,7 @@ export class GoogleController {
   }
 
   /** The single OAuth redirect URI — handles both flows via the signed state. */
+  @Public()
   @Get('callback')
   async callback(
     @Query('code') code: string,
@@ -70,12 +76,15 @@ export class GoogleController {
 
       const session = await this.auth.loginWithGoogle(profile);
       // The token rides in the fragment so it never lands in server or proxy logs.
+      // Mirror the password flow: the cookie is what lets <img src> URLs work.
+      res.cookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresIn));
       return res.redirect(`${base}/login#token=${encodeURIComponent(session.token)}`);
     } catch (err: any) {
       return fail(err?.response?.message || err?.message || 'Google sign-in failed.');
     }
   }
 
+  @Roles('admin')
   @Post('disconnect')
   async disconnect() {
     await this.google.disconnect();
@@ -83,6 +92,7 @@ export class GoogleController {
   }
 
   /** Send a test message to confirm the Gmail connection works end to end. */
+  @Roles('admin')
   @Post('test-email')
   async test(@Body() body: { to?: string }) {
     const to = body?.to || (await this.settings.get('google.connectedEmail')) || '';
@@ -152,6 +162,7 @@ export class GoogleController {
   }
 
   /** Create a folder, upload, read back and trash — proves Drive access works. */
+  @Roles('admin')
   @Post('drive/test')
   testDrive() {
     return this.google.testDrive();

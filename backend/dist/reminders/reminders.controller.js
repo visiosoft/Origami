@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RemindersController = void 0;
 const common_1 = require("@nestjs/common");
+const public_decorator_1 = require("../auth/guards/public.decorator");
 const reminders_service_1 = require("./reminders.service");
 const settings_service_1 = require("../settings/settings.service");
 let RemindersController = class RemindersController {
@@ -23,13 +24,14 @@ let RemindersController = class RemindersController {
     }
     async run(token) {
         const expected = await this.settings.get('reminders.triggerToken');
-        if (expected && token !== expected)
+        if (!expected || token !== expected)
             throw new common_1.ForbiddenException('Invalid reminder token.');
         return this.reminders.run();
     }
 };
 exports.RemindersController = RemindersController;
 __decorate([
+    (0, public_decorator_1.Public)(),
     (0, common_1.Post)('run'),
     __param(0, (0, common_1.Headers)('x-reminder-token')),
     __metadata("design:type", Function),

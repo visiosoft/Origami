@@ -12,13 +12,22 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.setGlobalPrefix('api');
-  app.enableCors();
+
+  // The SPA is served by this same process, so the app itself never makes a
+  // cross-origin call. Allow only what CORS_ORIGINS names -- a wide-open policy
+  // would let any page on the internet read authenticated responses.
+  const origins = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.enableCors(origins.length ? { origin: origins, credentials: true } : { origin: false });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = new DocumentBuilder()
     .setTitle('Origami Design + Build')
     .setDescription('CRM & Project Delivery API')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, config));
 

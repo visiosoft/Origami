@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { WorkflowItemsService } from './workflow-items.service';
 import { CreateWorkflowItemDto } from './dto/create-workflow-item.dto';
 
+@Tiers('internal')
 @Controller('workflow-items')
 export class WorkflowItemsController {
   constructor(private readonly service: WorkflowItemsService) {}

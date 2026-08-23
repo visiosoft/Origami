@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const projects_module_1 = require("./projects/projects.module");
@@ -28,6 +29,8 @@ const google_module_1 = require("./google/google.module");
 const auth_module_1 = require("./auth/auth.module");
 const reminders_module_1 = require("./reminders/reminders.module");
 const file_room_module_1 = require("./file-room/file-room.module");
+const session_guard_1 = require("./auth/guards/session.guard");
+const roles_guard_1 = require("./auth/guards/roles.guard");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -70,6 +73,10 @@ exports.AppModule = AppModule = __decorate([
             support_module_1.SupportModule,
             email_templates_module_1.EmailTemplatesModule,
             dashboard_module_1.DashboardModule,
+        ],
+        providers: [
+            { provide: core_1.APP_GUARD, useClass: session_guard_1.SessionGuard },
+            { provide: core_1.APP_GUARD, useClass: roles_guard_1.RolesGuard },
         ],
     })
 ], AppModule);

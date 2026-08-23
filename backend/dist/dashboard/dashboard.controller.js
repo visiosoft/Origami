@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const dashboard_service_1 = require("./dashboard.service");
 let DashboardController = class DashboardController {
     constructor(dashboardService) {
@@ -64,6 +65,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "getWorkload", null);
 exports.DashboardController = DashboardController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('dashboard'),
     __metadata("design:paramtypes", [dashboard_service_1.DashboardService])
 ], DashboardController);

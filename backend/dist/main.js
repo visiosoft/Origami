@@ -10,12 +10,17 @@ const app_module_1 = require("./app.module");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.setGlobalPrefix('api');
-    app.enableCors();
+    const origins = (process.env.CORS_ORIGINS ?? '')
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+    app.enableCors(origins.length ? { origin: origins, credentials: true } : { origin: false });
     app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true }));
     const config = new swagger_1.DocumentBuilder()
         .setTitle('Origami Design + Build')
         .setDescription('CRM & Project Delivery API')
         .setVersion('1.0')
+        .addBearerAuth()
         .build();
     swagger_1.SwaggerModule.setup('api/docs', app, swagger_1.SwaggerModule.createDocument(app, config));
     const clientDir = (0, path_1.join)(__dirname, '..', 'client');

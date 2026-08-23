@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Put } from '@nestjs/common';
+import { Roles } from '../auth/guards/roles.decorator';
 import { SettingsService } from './settings.service';
 
+@Roles('admin')
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}

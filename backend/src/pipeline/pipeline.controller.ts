@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { PipelineService } from './pipeline.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 
+@Tiers('internal')
 @Controller('pipeline')
 export class PipelineController {
   constructor(private readonly pipelineService: PipelineService) {}

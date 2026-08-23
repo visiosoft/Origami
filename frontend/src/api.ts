@@ -91,6 +91,8 @@ export const api = {
     login: (email: string, password: string) =>
       request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me: () => request('/auth/me'),
+    /** Clears the session cookie server-side; the bearer token is dropped locally. */
+    logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
     invite: (token: string) => request<{ name: string; email: string; isReset: boolean }>(`/auth/invite/${encodeURIComponent(token)}`),
     setPassword: (token: string, password: string) =>
       request('/auth/set-password', { method: 'POST', body: JSON.stringify({ token, password }) }),

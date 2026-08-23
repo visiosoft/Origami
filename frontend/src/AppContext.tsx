@@ -81,6 +81,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refreshAccess]);
 
   const signOut = useCallback(() => {
+    // Clear the cookie too, or the browser would still be signed in for the
+    // file and image URLs that authenticate with it.
+    api.auth.logout().catch(() => { /* signing out locally matters more */ });
     session.clear();
     setAuthUser(null);
     try { localStorage.removeItem(CURRENT_USER_KEY); } catch { /* ignore */ }

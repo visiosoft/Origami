@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 
+@Tiers('internal')
 @Controller('leads')
 export class LeadsController {
     constructor(private readonly leadsService: LeadsService) { }
