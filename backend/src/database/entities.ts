@@ -323,6 +323,10 @@ export class UserEntity {
   @Column({ nullable: true }) inviteToken!: string;    // sha256 of the emailed token
   @Column({ nullable: true }) inviteSentAt!: string;
   @Column({ nullable: true }) inviteExpiresAt!: string;
+  // --- Preferences ---
+  // Null means "not chosen", which reads as on: an existing account should keep
+  // being told when work is assigned to them without opting in first.
+  @Column({ type: 'bit', nullable: true }) notifyOnAssignment!: boolean | null;
 }
 
 // Simple key/value store for workspace configuration (Google OAuth credentials,

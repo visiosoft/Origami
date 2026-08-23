@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, SetPasswordDto, ForgotPasswordDto } from './dto/auth.dto';
+import { LoginDto, SetPasswordDto, ForgotPasswordDto, NotificationPrefsDto } from './dto/auth.dto';
 export declare class AuthController {
     private readonly auth;
     constructor(auth: AuthService);
@@ -29,4 +29,5 @@ export declare class AuthController {
         reason?: undefined;
     }>;
     me(authorization?: string): Promise<any>;
+    setNotificationPrefs(dto: NotificationPrefsDto, authorization?: string): Promise<any>;
 }

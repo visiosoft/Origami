@@ -71,7 +71,7 @@ export function Notifications() {
           title: t.title,
           context: projects[Number(t.projectId)] || `Project ${t.projectId}`,
           at: t.updatedAt || t.createdAt,
-          to: '/tasks',
+          to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId}`,
         })),
       ...logTasks
         .filter((t) => t.status !== 'Closed' && isMine(t, currentUser))
@@ -80,7 +80,7 @@ export function Notifications() {
           title: t.description?.length > 70 ? t.description.slice(0, 70) + '…' : t.description || t.id,
           context: t.project || 'Request Log',
           at: t.updatedAt,
-          to: '/tasks',
+          to: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
         })),
     ];
     return out.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 12);

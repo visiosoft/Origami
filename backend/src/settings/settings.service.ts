@@ -21,6 +21,8 @@ export const PUBLIC_KEYS = [
   'reminders.timezone',
   'reminders.triggerToken',
   'tasks.labels',
+  // Workspace kill switch for assignment emails; per-user opt-out lives on the user row.
+  'notifications.assignmentEmail',
   // --- Branding: letterhead, footer and signature used on generated documents ---
   'brand.companyName',
   'brand.tagline',

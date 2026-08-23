@@ -5,6 +5,7 @@ import { UserEntity, RoleEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { inviteEmail, resetEmail } from './email.templates';
+import { loadEmailBrand } from '../email/shell';
 import { FOUNDER_ADMIN } from '../seed-data/users';
 import {
   hashPassword, verifyPassword, passwordProblem,
@@ -107,9 +108,10 @@ export class AuthService {
     const url = `${base}/set-password?token=${encodeURIComponent(token)}`;
 
     const role = await this.roles.findOneBy({ key: user.roleKey });
+    const brand = await loadEmailBrand(this.settings);
     const mail = kind === 'invite'
-      ? inviteEmail({ name: user.name, url, roleName: role?.name || user.roleKey || 'team member', expiresInDays: INVITE_TTL_DAYS })
-      : resetEmail({ name: user.name, url, expiresInHours: RESET_TTL_HOURS });
+      ? inviteEmail({ name: user.name, url, roleName: role?.name || user.roleKey || 'team member', expiresInDays: INVITE_TTL_DAYS, brand })
+      : resetEmail({ name: user.name, url, expiresInHours: RESET_TTL_HOURS, brand });
 
     try {
       await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });
@@ -259,6 +261,22 @@ export class AuthService {
     if (!claims) throw new UnauthorizedException('Not signed in.');
     const user = await this.users.findOneBy({ id: claims.sub });
     if (!user) throw new UnauthorizedException('Not signed in.');
+    return publicUser(user);
+  }
+
+  /**
+   * Update the signed-in user's own notification preference.
+   *
+   * Lives here rather than on UsersController because that controller is
+   * admin-only -- everyone must be able to set their own.
+   */
+  async setNotificationPrefs(bearer: string | undefined, notifyOnAssignment: boolean) {
+    const claims = await this.verify(bearer);
+    if (!claims) throw new UnauthorizedException('Not signed in.');
+    const user = await this.users.findOneBy({ id: claims.sub });
+    if (!user) throw new UnauthorizedException('Not signed in.');
+    user.notifyOnAssignment = notifyOnAssignment;
+    await this.users.save(user);
     return publicUser(user);
   }
 

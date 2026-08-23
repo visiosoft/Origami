@@ -36,7 +36,12 @@ function PriorityPill({ p }: { p?: Priority }) {
   return <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: s.bg, color: s.c }}>{p}</span>;
 }
 
-export function TaskBoard({ projectId }: { projectId: number }) {
+/**
+ * `initialTaskId` opens one task straight away -- used by assignment emails and
+ * the notification bell. It can only be applied after the board has loaded,
+ * since the drawer resolves its task out of `tasks`.
+ */
+export function TaskBoard({ projectId, initialTaskId }: { projectId: number; initialTaskId?: string | null }) {
   const { can, toast, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
   const [query, setQuery] = useState('');
@@ -63,7 +68,15 @@ export function TaskBoard({ projectId }: { projectId: number }) {
 
   const load = () => {
     api.projectTasks.board(projectId)
-      .then((res: any) => { if (res) { setSections(res.sections || []); setTasks(res.tasks || []); } })
+      .then((res: any) => {
+        if (!res) return;
+        setSections(res.sections || []);
+        setTasks(res.tasks || []);
+        // Open the deep-linked task now that it exists in `tasks`.
+        if (initialTaskId && (res.tasks || []).some((t: ProjectTask) => t.id === initialTaskId)) {
+          setSelectedId(initialTaskId);
+        }
+      })
       .catch(() => { })
       .finally(() => setLoading(false));
   };

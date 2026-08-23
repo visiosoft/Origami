@@ -10,6 +10,7 @@ import {
 } from '../database/task.types';
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ProjectTasksService implements OnApplicationBootstrap {
@@ -20,6 +21,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     private readonly sections: SectionsService,
     private readonly attachments: AttachmentsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -98,7 +100,15 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       projectId: Number(dto.projectId),
       id,
     };
-    return this.hydrate(await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>)));
+    const saved = await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>));
+    if (assignee.id) {
+      this.notifications.taskAssigned({
+        surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
+        projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
+        status: saved.status, assigneeId: assignee.id, actor,
+      });
+    }
+    return this.hydrate(saved);
   }
 
   async update(id: string, dto: any, actor: UploadActor = { name: 'Unknown' }) {
@@ -116,10 +126,23 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     this.syncStatus(task, patch);
 
     const events = diffEvents(task, patch, actor);
+    const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
+      ? String(patch.assigneeId)
+      : null;
+
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.updatedAt = new Date().toISOString();
-    return this.hydrate(await this.repo.save(task));
+    const saved = await this.repo.save(task);
+
+    if (reassignedTo) {
+      this.notifications.taskAssigned({
+        surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
+        projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
+        status: saved.status, assigneeId: reassignedTo, actor,
+      });
+    }
+    return this.hydrate(saved);
   }
 
   /** Persist a manual card order within one section (drag-to-reorder). */

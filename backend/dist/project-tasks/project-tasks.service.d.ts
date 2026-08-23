@@ -4,13 +4,15 @@ import { ProjectTaskEntity, UserEntity } from '../database/entities';
 import { SectionsService } from './sections.service';
 import { type TaskAttachment } from '../database/task.types';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
+import { NotificationsService } from '../notifications/notifications.service';
 export declare class ProjectTasksService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly users;
     private readonly sections;
     private readonly attachments;
+    private readonly notifications;
     private readonly log;
-    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService);
+    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService);
     onApplicationBootstrap(): Promise<void>;
     private hydrate;
     findAll(projectId?: number): Promise<any[]>;

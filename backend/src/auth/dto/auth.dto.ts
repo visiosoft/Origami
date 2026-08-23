@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail() email: string;
@@ -12,4 +12,8 @@ export class SetPasswordDto {
 
 export class ForgotPasswordDto {
   @IsEmail() email: string;
+}
+
+export class NotificationPrefsDto {
+  @IsBoolean() notifyOnAssignment: boolean;
 }

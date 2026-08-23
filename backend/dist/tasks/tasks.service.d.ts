@@ -2,13 +2,15 @@ import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { TaskEntity, UserEntity } from '../database/entities';
 import { type TaskAttachment } from '../database/task.types';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 export declare class TasksService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly users;
     private readonly attachments;
+    private readonly notifications;
     private readonly log;
-    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService);
+    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService);
     onApplicationBootstrap(): Promise<void>;
     private hydrate;
     findAll(tab?: string, project?: string): Promise<TaskEntity[]>;

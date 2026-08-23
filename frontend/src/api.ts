@@ -91,6 +91,8 @@ export const api = {
     login: (email: string, password: string) =>
       request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me: () => request('/auth/me'),
+    setNotificationPrefs: (notifyOnAssignment: boolean) =>
+      request('/auth/me/notifications', { method: 'PUT', body: JSON.stringify({ notifyOnAssignment }) }),
     /** Clears the session cookie server-side; the bearer token is dropped locally. */
     logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
     invite: (token: string) => request<{ name: string; email: string; isReset: boolean }>(`/auth/invite/${encodeURIComponent(token)}`),
@@ -104,6 +106,11 @@ export const api = {
     get: () => request<Record<string, string>>('/settings'),
     save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
+  notifications: {
+    /** Sends the caller a sample assignment email, for checking the template. */
+    test: () => request<{ sent: boolean; reason?: string }>('/notifications/test', { method: 'POST' }),
+  },
+
   google: {
     status: () => request<GoogleStatus>('/google/status'),
     connectUrl: () => `${API_BASE}/google/connect`,

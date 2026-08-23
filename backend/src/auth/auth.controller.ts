@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Headers, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Put, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, SetPasswordDto, ForgotPasswordDto } from './dto/auth.dto';
+import { LoginDto, SetPasswordDto, ForgotPasswordDto, NotificationPrefsDto } from './dto/auth.dto';
 import { Public } from './guards/public.decorator';
 import { SESSION_COOKIE, sessionCookieOptions } from './guards/cookie.util';
 
@@ -49,5 +49,11 @@ export class AuthController {
   @Get('me')
   me(@Headers('authorization') authorization?: string) {
     return this.auth.me(authorization);
+  }
+
+  /** The caller's own notification preferences. */
+  @Put('me/notifications')
+  setNotificationPrefs(@Body() dto: NotificationPrefsDto, @Headers('authorization') authorization?: string) {
+    return this.auth.setNotificationPrefs(authorization, dto.notifyOnAssignment);
   }
 }

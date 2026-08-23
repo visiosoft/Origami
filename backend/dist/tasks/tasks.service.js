@@ -19,13 +19,15 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
+const notifications_service_1 = require("../notifications/notifications.service");
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments) {
+    constructor(repo, users, attachments, notifications) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
+        this.notifications = notifications;
         this.log = new common_1.Logger('TasksService');
     }
     async onApplicationBootstrap() {
@@ -108,7 +110,15 @@ let TasksService = class TasksService {
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
             updatedAt: new Date().toISOString(),
         });
-        return this.hydrate(await this.repo.save(task));
+        const saved = await this.repo.save(task);
+        if (assignee.id) {
+            this.notifications.taskAssigned({
+                surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+                projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
+                status: saved.status, assigneeId: assignee.id, actor,
+            });
+        }
+        return this.hydrate(saved);
     }
     async update(id, dto, actor) {
         const task = await this.load(id);
@@ -128,11 +138,22 @@ let TasksService = class TasksService {
         if (patch.status && patch.status !== 'Closed')
             patch.dateClosed = '';
         const events = (0, task_types_1.diffEvents)(task, patch, actor);
+        const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
+            ? String(patch.assignedToId)
+            : null;
         Object.assign(task, patch, { id });
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), ...events];
         task.daysOpen = this.daysOpen(task);
         task.updatedAt = new Date().toISOString();
-        return this.hydrate(await this.repo.save(task));
+        const saved = await this.repo.save(task);
+        if (reassignedTo) {
+            this.notifications.taskAssigned({
+                surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+                projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
+                status: saved.status, assigneeId: reassignedTo, actor,
+            });
+        }
+        return this.hydrate(saved);
     }
     async remove(id) {
         const task = await this.repo.findOneBy({ id });
@@ -201,6 +222,7 @@ exports.TasksService = TasksService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        notifications_service_1.NotificationsService])
 ], TasksService);
 //# sourceMappingURL=tasks.service.js.map

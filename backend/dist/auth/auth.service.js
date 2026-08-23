@@ -21,6 +21,7 @@ const entities_1 = require("../database/entities");
 const settings_service_1 = require("../settings/settings.service");
 const google_service_1 = require("../google/google.service");
 const email_templates_1 = require("./email.templates");
+const shell_1 = require("../email/shell");
 const users_1 = require("../seed-data/users");
 const crypto_util_1 = require("./crypto.util");
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
@@ -90,9 +91,10 @@ let AuthService = class AuthService {
         }
         const url = `${base}/set-password?token=${encodeURIComponent(token)}`;
         const role = await this.roles.findOneBy({ key: user.roleKey });
+        const brand = await (0, shell_1.loadEmailBrand)(this.settings);
         const mail = kind === 'invite'
-            ? (0, email_templates_1.inviteEmail)({ name: user.name, url, roleName: role?.name || user.roleKey || 'team member', expiresInDays: INVITE_TTL_DAYS })
-            : (0, email_templates_1.resetEmail)({ name: user.name, url, expiresInHours: RESET_TTL_HOURS });
+            ? (0, email_templates_1.inviteEmail)({ name: user.name, url, roleName: role?.name || user.roleKey || 'team member', expiresInDays: INVITE_TTL_DAYS, brand })
+            : (0, email_templates_1.resetEmail)({ name: user.name, url, expiresInHours: RESET_TTL_HOURS, brand });
         try {
             await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });
             return { sent: true, to: user.email, url };
@@ -209,6 +211,17 @@ let AuthService = class AuthService {
         const user = await this.users.findOneBy({ id: claims.sub });
         if (!user)
             throw new common_1.UnauthorizedException('Not signed in.');
+        return publicUser(user);
+    }
+    async setNotificationPrefs(bearer, notifyOnAssignment) {
+        const claims = await this.verify(bearer);
+        if (!claims)
+            throw new common_1.UnauthorizedException('Not signed in.');
+        const user = await this.users.findOneBy({ id: claims.sub });
+        if (!user)
+            throw new common_1.UnauthorizedException('Not signed in.');
+        user.notifyOnAssignment = notifyOnAssignment;
+        await this.users.save(user);
         return publicUser(user);
     }
     findByEmail(email) {

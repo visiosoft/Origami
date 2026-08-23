@@ -5,6 +5,7 @@ import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity } from '../dat
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { reminderEmail, type ReminderBuckets, type ReminderTask } from './reminder.templates';
+import { loadEmailBrand } from '../email/shell';
 
 const DAY = 86400000;
 const HOUR = 3600000;
@@ -97,6 +98,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     ]);
     const projectName = new Map(projects.map((p) => [Number(p.id), p.name]));
     const base = await this.settings.baseUrl();
+    const brand = await loadEmailBrand(this.settings);
 
     let sent = 0;
     let skipped = 0;
@@ -124,7 +126,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
       const buckets = this.bucket(mine);
       if (!buckets.overdue.length && !buckets.today.length && !buckets.soon.length) { skipped++; continue; }
 
-      const mail = reminderEmail({ name: user.name, buckets, url: `${base}/tasks` });
+      const mail = reminderEmail({ name: user.name, buckets, url: `${base}/tasks`, brand });
       try {
         await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });
         sent++;

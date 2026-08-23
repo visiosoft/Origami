@@ -1,3 +1,4 @@
+import { type EmailBrand } from '../email/shell';
 export interface ReminderTask {
     id: string;
     title: string;
@@ -14,6 +15,7 @@ export declare function reminderEmail(opts: {
     name: string;
     buckets: ReminderBuckets;
     url: string;
+    brand: EmailBrand;
 }): {
     subject: string;
     html: string;

@@ -20,6 +20,7 @@ const entities_1 = require("../database/entities");
 const settings_service_1 = require("../settings/settings.service");
 const google_service_1 = require("../google/google.service");
 const reminder_templates_1 = require("./reminder.templates");
+const shell_1 = require("../email/shell");
 const DAY = 86400000;
 const HOUR = 3600000;
 let RemindersService = class RemindersService {
@@ -90,6 +91,7 @@ let RemindersService = class RemindersService {
         ]);
         const projectName = new Map(projects.map((p) => [Number(p.id), p.name]));
         const base = await this.settings.baseUrl();
+        const brand = await (0, shell_1.loadEmailBrand)(this.settings);
         let sent = 0;
         let skipped = 0;
         const recipients = [];
@@ -118,7 +120,7 @@ let RemindersService = class RemindersService {
                 skipped++;
                 continue;
             }
-            const mail = (0, reminder_templates_1.reminderEmail)({ name: user.name, buckets, url: `${base}/tasks` });
+            const mail = (0, reminder_templates_1.reminderEmail)({ name: user.name, buckets, url: `${base}/tasks`, brand });
             try {
                 await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });
                 sent++;

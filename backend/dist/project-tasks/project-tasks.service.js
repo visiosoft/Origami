@@ -22,12 +22,14 @@ const sections_service_1 = require("./sections.service");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
 const attachments_service_1 = require("../google/attachments.service");
+const notifications_service_1 = require("../notifications/notifications.service");
 let ProjectTasksService = class ProjectTasksService {
-    constructor(repo, users, sections, attachments) {
+    constructor(repo, users, sections, attachments, notifications) {
         this.repo = repo;
         this.users = users;
         this.sections = sections;
         this.attachments = attachments;
+        this.notifications = notifications;
         this.log = new common_1.Logger('ProjectTasksService');
     }
     async onApplicationBootstrap() {
@@ -99,7 +101,15 @@ let ProjectTasksService = class ProjectTasksService {
             projectId: Number(dto.projectId),
             id,
         };
-        return this.hydrate(await this.repo.save(this.repo.create(task)));
+        const saved = await this.repo.save(this.repo.create(task));
+        if (assignee.id) {
+            this.notifications.taskAssigned({
+                surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
+                projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
+                status: saved.status, assigneeId: assignee.id, actor,
+            });
+        }
+        return this.hydrate(saved);
     }
     async update(id, dto, actor = { name: 'Unknown' }) {
         let task = await this.repo.findOneBy({ id });
@@ -114,10 +124,21 @@ let ProjectTasksService = class ProjectTasksService {
         }
         this.syncStatus(task, patch);
         const events = (0, task_types_1.diffEvents)(task, patch, actor);
+        const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
+            ? String(patch.assigneeId)
+            : null;
         Object.assign(task, patch, { id });
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), ...events];
         task.updatedAt = new Date().toISOString();
-        return this.hydrate(await this.repo.save(task));
+        const saved = await this.repo.save(task);
+        if (reassignedTo) {
+            this.notifications.taskAssigned({
+                surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
+                projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
+                status: saved.status, assigneeId: reassignedTo, actor,
+            });
+        }
+        return this.hydrate(saved);
     }
     async reorder(sectionId, ids) {
         const rows = await this.repo.find({ where: { sectionId } });
@@ -214,6 +235,7 @@ exports.ProjectTasksService = ProjectTasksService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         sections_service_1.SectionsService,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        notifications_service_1.NotificationsService])
 ], ProjectTasksService);
 //# sourceMappingURL=project-tasks.service.js.map

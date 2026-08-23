@@ -281,6 +281,7 @@ export declare class UserEntity {
     inviteToken: string;
     inviteSentAt: string;
     inviteExpiresAt: string;
+    notifyOnAssignment: boolean | null;
 }
 export declare class AppSettingEntity {
     key: string;

@@ -43,6 +43,9 @@ let AuthController = class AuthController {
     me(authorization) {
         return this.auth.me(authorization);
     }
+    setNotificationPrefs(dto, authorization) {
+        return this.auth.setNotificationPrefs(authorization, dto.notifyOnAssignment);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -93,6 +96,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "me", null);
+__decorate([
+    (0, common_1.Put)('me/notifications'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [auth_dto_1.NotificationPrefsDto, String]),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "setNotificationPrefs", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

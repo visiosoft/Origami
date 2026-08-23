@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { Avatar } from '../components/Avatar';
@@ -47,6 +48,14 @@ export function Tasks() {
   const [logTasks, setLogTasks] = useState<Task[]>([]);
   const [nt, setNt] = useState<NewTask>(blankTask('internal'));
 
+  // Deep link from an assignment email or the notification bell:
+  //   /tasks?task=<id>&project=<id>   board
+  //   /tasks?task=<id>&type=log       request log
+  const [params, setParams] = useSearchParams();
+  const linkedTaskId = params.get('task');
+  const linkedIsLog = params.get('type') === 'log';
+  const linkedProjectId = Number(params.get('project')) || null;
+
   const selectBoardProject = (id: number) => {
     setBoardProjectId(id);
     try { localStorage.setItem(PROJECT_KEY, String(id)); } catch { /* ignore */ }
@@ -59,12 +68,37 @@ export function Tasks() {
         setProjects(r.map((p) => ({ id: p.id, name: p.name })));
         // Keep the remembered project only while it still exists, so a deleted
         // one doesn't leave the board pointing at nothing.
-        setBoardProjectId((cur) => (cur != null && r.some((p: any) => p.id === cur) ? cur : r[0].id));
+        // A project named in the URL wins over both the remembered one and the
+        // first-project fallback, or a deep link would land on the wrong board.
+        setBoardProjectId((cur) => {
+          const wanted = linkedProjectId ?? cur;
+          return wanted != null && r.some((p: any) => p.id === wanted) ? wanted : r[0].id;
+        });
       }
     }).catch(() => { });
     api.google.status().then((g) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
     reloadLog();
   }, []);
+
+  /**
+   * Apply a deep link once. The task id is cleared from the URL afterwards so
+   * closing the drawer and reopening another task doesn't snap back to this one,
+   * while `project` stays so a refresh still lands on the right board.
+   */
+  useEffect(() => {
+    if (!linkedTaskId) return;
+    if (linkedIsLog) {
+      setMode('log');
+      setSelectedId(linkedTaskId);
+    } else {
+      setMode('board');
+    }
+    const next = new URLSearchParams(params);
+    next.delete('task');
+    next.delete('type');
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedTaskId]);
 
   useEffect(() => {
     const onDoc = () => { if (swallow.current) { swallow.current = false; return; } setProjOpen(false); };
@@ -149,7 +183,7 @@ export function Tasks() {
       </div>
 
       {mode === 'board' ? (
-        boardProjectId != null ? <TaskBoard projectId={boardProjectId} /> : <div style={{ fontSize: 13, color: '#7E9B93' }}>No projects yet.</div>
+        boardProjectId != null ? <TaskBoard projectId={boardProjectId} initialTaskId={linkedIsLog ? null : linkedTaskId} /> : <div style={{ fontSize: 13, color: '#7E9B93' }}>No projects yet.</div>
       ) : (
       <>
       {/* Tabs + filter + new */}

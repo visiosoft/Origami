@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
+import { NotificationSettings } from './NotificationSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -24,6 +25,9 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   ] },
   { group: 'Brand', items: [
     { key: 'branding', label: 'Branding & Letterhead' },
+  ] },
+  { group: 'Personal', items: [
+    { key: 'notifications', label: 'Notifications' },
   ] },
   { group: 'Integrations', items: [
     { key: 'google', label: 'Google Workspace' },
@@ -62,6 +66,7 @@ export function Settings() {
           {active === 'lead-scoring' && <ScoringTemplateEditor />}
           {active === 'email-templates' && <EmailTemplatesEditor />}
           {active === 'branding' && <BrandingSettings />}
+          {active === 'notifications' && <NotificationSettings />}
           {active === 'google' && <GoogleSettings />}
         </div>
       </div>

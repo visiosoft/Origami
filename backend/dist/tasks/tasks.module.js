@@ -14,12 +14,13 @@ const tasks_service_1 = require("./tasks.service");
 const entities_1 = require("../database/entities");
 const google_module_1 = require("../google/google.module");
 const auth_module_1 = require("../auth/auth.module");
+const notifications_module_1 = require("../notifications/notifications.module");
 let TasksModule = class TasksModule {
 };
 exports.TasksModule = TasksModule;
 exports.TasksModule = TasksModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.TaskEntity, entities_1.UserEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
+        imports: [notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.TaskEntity, entities_1.UserEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
         controllers: [tasks_controller_1.TasksController],
         providers: [tasks_service_1.TasksService],
         exports: [tasks_service_1.TasksService],

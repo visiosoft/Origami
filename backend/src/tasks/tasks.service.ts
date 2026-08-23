@@ -7,6 +7,7 @@ import {
   type ActivityEvent, type TaskAttachment, type TaskComment,
 } from '../database/task.types';
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 
 const SCOPE = 'Request Log';
@@ -19,6 +20,7 @@ export class TasksService implements OnApplicationBootstrap {
     @InjectRepository(TaskEntity) private readonly repo: Repository<TaskEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     private readonly attachments: AttachmentsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -111,7 +113,15 @@ export class TasksService implements OnApplicationBootstrap {
       updatedAt: new Date().toISOString(),
     } as Partial<TaskEntity>);
 
-    return this.hydrate(await this.repo.save(task));
+    const saved = await this.repo.save(task);
+    if (assignee.id) {
+      this.notifications.taskAssigned({
+        surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+        projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
+        status: saved.status, assigneeId: assignee.id, actor,
+      });
+    }
+    return this.hydrate(saved);
   }
 
   /**
@@ -139,12 +149,24 @@ export class TasksService implements OnApplicationBootstrap {
     if (patch.status && patch.status !== 'Closed') patch.dateClosed = '';
 
     const events = diffEvents(task, patch, actor);
+    const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
+      ? String(patch.assignedToId)
+      : null;
+
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.daysOpen = this.daysOpen(task);
     task.updatedAt = new Date().toISOString();
 
-    return this.hydrate(await this.repo.save(task));
+    const saved = await this.repo.save(task);
+    if (reassignedTo) {
+      this.notifications.taskAssigned({
+        surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+        projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
+        status: saved.status, assigneeId: reassignedTo, actor,
+      });
+    }
+    return this.hydrate(saved);
   }
 
   async remove(id: string) {

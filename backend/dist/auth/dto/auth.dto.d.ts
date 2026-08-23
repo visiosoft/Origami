@@ -9,3 +9,6 @@ export declare class SetPasswordDto {
 export declare class ForgotPasswordDto {
     email: string;
 }
+export declare class NotificationPrefsDto {
+    notifyOnAssignment: boolean;
+}

@@ -32,6 +32,7 @@ exports.PUBLIC_KEYS = [
     'reminders.timezone',
     'reminders.triggerToken',
     'tasks.labels',
+    'notifications.assignmentEmail',
     'brand.companyName',
     'brand.tagline',
     'brand.logoDataUrl',
