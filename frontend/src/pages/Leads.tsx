@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead } from '../data/leads';
+import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith } from '../data/leads';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import './Leads.css';
 
 type NewLead = Omit<Lead, 'id' | 'createdAt'>;
 const BLANK: NewLead = {
-    leadName: '', namePronunciation: '', phone: '', email: '',
+    leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
+    namePronunciation: '', phone: '', email: '',
     primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
     phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
@@ -36,7 +37,14 @@ export function Leads() {
     const [form, setForm] = useState<NewLead>({ ...BLANK });
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
-    const set = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setForm((f) => ({ ...f, [k]: v }));
+    const set = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setForm((f) => {
+        const next = { ...f, [k]: v } as NewLead;
+        // leadName is the display name the rest of the app reads.
+        if (k === 'firstName' || k === 'lastName') {
+            next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
+        }
+        return next;
+    });
     const toggleHomework = (v: string) => set('homeworkCompleted', form.homeworkCompleted.includes(v) ? form.homeworkCompleted.filter((x) => x !== v) : [...form.homeworkCompleted, v]);
 
     const openNew = () => { setForm({ ...BLANK }); setTab(1); setShowForm(true); };
@@ -94,6 +102,8 @@ export function Leads() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px 24px', fontSize: 12 }}>
                         <Field label="Phone" value={selected.phone} />
                         <Field label="Email" value={selected.email} />
+                        <Field label="Go-By Name" value={selected.goByName} />
+                        <Field label="Pronouns" value={selected.pronouns} />
                         <Field label="Primary Contact" value={selected.primaryPointOfContact} />
                         <Field label="Lead Source" value={selected.leadSource} />
                         <Field label="Preferred Contact" value={selected.preferredContactMethod} />
@@ -186,9 +196,27 @@ function TabContact({ form, set }: { form: NewLead; set: <K extends keyof NewLea
         <div className="leads-form-section-title">1. Contact Information</div>
         <div className="leads-form-grid">
             <div className="leads-field">
-                <label>Lead Name *</label>
-                <input value={form.leadName} onChange={(e) => set('leadName', e.target.value)} placeholder="Full name of primary contact" />
-                <span className="hint">Enter the full name of the primary person who contacted us or is leading the project.</span>
+                <label>First Name *</label>
+                <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="First name" />
+                <span className="hint">Given name of the primary person who contacted us or is leading the project.</span>
+            </div>
+            <div className="leads-field">
+                <label>Last Name *</label>
+                <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Last name" />
+                <span className="hint">Family name.</span>
+            </div>
+            <div className="leads-field">
+                <label>Go-By Name</label>
+                <input value={form.goByName} onChange={(e) => set('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" />
+                <span className="hint">What they prefer to be called, if it isn't their first name.</span>
+            </div>
+            <div className="leads-field">
+                <label>Pronouns</label>
+                <select value={form.pronouns} onChange={(e) => set('pronouns', e.target.value)}>
+                    <option value="">Select...</option>
+                    {OPT.pronouns.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <span className="hint">How to refer to them in writing.</span>
             </div>
             <div className="leads-field">
                 <label>Name Pronunciation</label>
@@ -246,7 +274,7 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                     <label>Relationship of Second Contact</label>
                     <select value={form.relationshipOfSecondContact} onChange={(e) => set('relationshipOfSecondContact', e.target.value)}>
                         <option value="">Select...</option>
-                        {OPT.relationshipOfSecondContact.map((o) => <option key={o} value={o}>{o}</option>)}
+                        {optionsWith(OPT.relationshipOfSecondContact, form.relationshipOfSecondContact).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                 </div>
             </>}

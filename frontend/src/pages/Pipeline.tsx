@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
-import { LEAD_DROPDOWN_OPTIONS } from '../data/leads';
+import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
@@ -18,7 +18,8 @@ const DOT = '·';
 
 
 interface NewLead {
-  leadName: string; namePronunciation: string; phone: string; email: string;
+  leadName: string; firstName: string; lastName: string; goByName: string; pronouns: string;
+  namePronunciation: string; phone: string; email: string;
   primaryPointOfContact: string; secondPointOfContact: string; nameOfSecondContact: string;
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
   decisionMakers: string; preferredContactMethod: string; leadSource: string;
@@ -76,7 +77,8 @@ const ZONING_FORM: { title: string; fields: ZAField[] }[] = [
   ] },
 ];
 const BLANK_LEAD: NewLead = {
-  leadName: '', namePronunciation: '', phone: '', email: '',
+  leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
+  namePronunciation: '', phone: '', email: '',
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
   decisionMakers: '', preferredContactMethod: '', leadSource: '',
@@ -86,7 +88,7 @@ const BLANK_LEAD: NewLead = {
   desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
 
-const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
+const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
 
 type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills';
 interface FieldSpec { key: keyof NewLead; label: string; kind: FieldKind; optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string }
@@ -104,7 +106,10 @@ const isAnswered = (v: unknown): boolean =>
 
 const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string; value: string; emptyLabel: string } }[] = [
   { title: '1. Contact', fields: [
-    { key: 'leadName', label: 'Lead Name *', kind: 'text', ph: 'Full name' },
+    { key: 'firstName', label: 'First Name *', kind: 'text', ph: 'First name' },
+    { key: 'lastName', label: 'Last Name *', kind: 'text', ph: 'Last name' },
+    { key: 'goByName', label: 'Go-By Name', kind: 'text', ph: 'What they prefer to be called' },
+    { key: 'pronouns', label: 'Pronouns', kind: 'select', optKey: 'pronouns' },
     { key: 'namePronunciation', label: 'Name Pronunciation', kind: 'text', ph: 'e.g. Mah-REE-ah' },
     { key: 'phone', label: 'Phone *', kind: 'tel', ph: '(555) 123-4567' },
     { key: 'email', label: 'Email', kind: 'email', ph: 'email@example.com' },
@@ -232,12 +237,24 @@ export function Pipeline() {
 
   const data: Deal[] = deals.map((d) => (overrides[d.id] ? { ...d, ...overrides[d.id] } : d));
 
-  const setField = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setNl((f) => ({ ...f, [k]: v }));
+  const setField = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setNl((f) => {
+    const next = { ...f, [k]: v } as NewLead;
+    // Everything downstream -- deals, projects, letters -- reads leadName, so it
+    // tracks the separated parts instead of being typed on its own.
+    if (k === 'firstName' || k === 'lastName') {
+      next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
+    }
+    return next;
+  });
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
 
   const openEdit = (deal: Deal) => {
     const existing = leadDetails[deal.id];
-    setNl(existing ? { ...existing } : { ...BLANK_LEAD, leadName: deal.name, phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
+    // A lead captured before the name was separated has no parts yet -- derive
+    // them so the form is editable rather than blank.
+    setNl(existing
+      ? { ...existing, ...(existing.firstName || existing.lastName ? {} : splitLeadName(existing.leadName)) }
+      : { ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
     setEditingId(deal.id);
     setFormTab(1);
     setShowNew(true);
@@ -609,7 +626,15 @@ export function Pipeline() {
               {selected.stage === 'initial_questions' ? (
                 (() => {
                   const ld = leadDetails[selected.id] || baseLead(selected);
-                  const up = (k: keyof NewLead, v: string | string[]) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), [k]: v } }));
+                  const up = (k: keyof NewLead, v: string | string[]) => setLeadDetails((p) => {
+                    const next = { ...(p[selected.id] || baseLead(selected)), [k]: v } as NewLead;
+                    // leadName is the display name the rest of the app reads, so
+                    // it is kept in step with the parts rather than typed.
+                    if (k === 'firstName' || k === 'lastName') {
+                      next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
+                    }
+                    return { ...p, [selected.id]: next };
+                  });
                   // Every question must be answered before the stage can be saved.
                   // A section that doesn't apply (no second contact) only requires
                   // the question that gates it.
@@ -670,7 +695,7 @@ export function Pipeline() {
                                   </span>
                                 </div>
                                 {f.kind === 'select' ? (
-                                  <select value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} style={inputStyle}><option value="">Select…</option>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => <option key={o}>{o}</option>)}</select>
+                                  <select value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} style={inputStyle}><option value="">Select…</option>{optionsWith(LEAD_DROPDOWN_OPTIONS[f.optKey!] || [], ld[f.key] as string).map((o) => <option key={o}>{o}</option>)}</select>
                                 ) : f.kind === 'textarea' ? (
                                   <textarea value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
                                 ) : f.kind === 'pills' ? (
@@ -933,7 +958,7 @@ export function Pipeline() {
               {(() => {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
-                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || '']] },
+                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || '']] },
                   { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || '']] },
                   { title: '3. Communication', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Preferred Method', ld?.preferredContactMethod || ''], ['Lead Source', ld?.leadSource || selected.source || '']] },
                   { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || '']] },
@@ -1006,7 +1031,10 @@ export function Pipeline() {
                 {formTab === 1 && (<>
                   <SectionTitle>1. Contact Information</SectionTitle>
                   <FormGrid>
-                    <FormField label="Lead Name *" hint="Full name of the primary person who contacted us."><input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="Full name" style={inputStyle} /></FormField>
+                    <FormField label="First Name *" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
+                    <FormField label="Last Name *" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
+                    <FormField label="Go-By Name" hint="What they prefer to be called, if it isn't their first name."><input value={nl.goByName} onChange={(e) => setField('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
+                    <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronouns} onChange={(e) => setField('pronouns', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <FormField label="Name Pronunciation" hint="Phonetic spelling if difficult to pronounce."><input value={nl.namePronunciation} onChange={(e) => setField('namePronunciation', e.target.value)} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
                     <FormField label="Phone Number *" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                     <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
@@ -1021,7 +1049,7 @@ export function Pipeline() {
                       <FormField label="Name of Second Contact"><input value={nl.nameOfSecondContact} onChange={(e) => setField('nameOfSecondContact', e.target.value)} placeholder="Full name" style={inputStyle} /></FormField>
                       <FormField label="Phone of Second Contact" hint="Include area code."><input type="tel" value={nl.phoneOfSecondContact} onChange={(e) => setField('phoneOfSecondContact', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                       <FormField label="Email of Second Contact"><input type="email" value={nl.emailOfSecondContact} onChange={(e) => setField('emailOfSecondContact', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
-                      <FormField label="Relationship of Second Contact"><select value={nl.relationshipOfSecondContact} onChange={(e) => setField('relationshipOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.relationshipOfSecondContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                      <FormField label="Relationship of Second Contact"><select value={nl.relationshipOfSecondContact} onChange={(e) => setField('relationshipOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.relationshipOfSecondContact, nl.relationshipOfSecondContact).map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     </>}
                   </FormGrid>
                 </>)}
@@ -1088,7 +1116,7 @@ export function Pipeline() {
 
             {/* Footer */}
             <div style={{ padding: '14px 28px 18px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
-              <span style={{ marginRight: 'auto', fontSize: 11, color: '#7E9B93' }}>{nl.leadName.trim().length < 2 || !nl.phone.trim() ? 'Name & phone required' : 'Ready to save'}</span>
+              <span style={{ marginRight: 'auto', fontSize: 11, color: '#7E9B93' }}>{nl.leadName.trim().length < 2 || !nl.phone.trim() ? 'First name, last name & phone required' : 'Ready to save'}</span>
               <div onClick={() => { setShowNew(false); setEditingId(null); }} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
               <div onClick={saveLead} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: nl.leadName.trim().length >= 2 && nl.phone.trim() ? 'pointer' : 'not-allowed', background: nl.leadName.trim().length >= 2 && nl.phone.trim() ? '#173326' : '#D6DED8', color: nl.leadName.trim().length >= 2 && nl.phone.trim() ? 'white' : '#9AA39D', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>{editingId ? 'Save Changes' : 'Create Lead'}</div>
             </div>

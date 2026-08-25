@@ -123,7 +123,14 @@ export class FinanceEntity {
 @Entity('leads')
 export class LeadEntity {
   @PrimaryColumn() id!: string;
+  // The primary contact's name. `leadName` stays the composed display name so
+  // everything downstream (deals, projects, letters) keeps working; the parts
+  // are what the intake form actually collects.
   @Column() leadName!: string;
+  @Column({ nullable: true }) firstName!: string;
+  @Column({ nullable: true }) lastName!: string;
+  @Column({ nullable: true }) goByName!: string;   // what they prefer to be called
+  @Column({ nullable: true }) pronouns!: string;
   @Column({ nullable: true }) namePronunciation!: string;
   @Column() phone!: string;
   @Column({ nullable: true }) email!: string;

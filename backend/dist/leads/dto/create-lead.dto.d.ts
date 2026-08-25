@@ -1,6 +1,10 @@
 export declare class CreateLeadDto {
     id?: string;
     leadName: string;
+    firstName?: string;
+    lastName?: string;
+    goByName?: string;
+    pronouns?: string;
     namePronunciation?: string;
     phone: string;
     email?: string;

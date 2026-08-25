@@ -3,6 +3,10 @@ import { IsString, IsOptional, IsArray, IsNumber, IsObject, Allow } from 'class-
 export class CreateLeadDto {
     @IsString() @IsOptional() id?: string;
     @IsString() leadName: string;
+    @IsString() @IsOptional() firstName?: string;
+    @IsString() @IsOptional() lastName?: string;
+    @IsString() @IsOptional() goByName?: string;
+    @IsString() @IsOptional() pronouns?: string;
     @IsString() @IsOptional() namePronunciation?: string;
     @IsString() phone: string;
     @IsString() @IsOptional() email?: string;

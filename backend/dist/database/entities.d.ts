@@ -106,6 +106,10 @@ export declare class FinanceEntity {
 export declare class LeadEntity {
     id: string;
     leadName: string;
+    firstName: string;
+    lastName: string;
+    goByName: string;
+    pronouns: string;
     namePronunciation: string;
     phone: string;
     email: string;
