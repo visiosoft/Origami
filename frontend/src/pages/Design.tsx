@@ -19,6 +19,12 @@ interface DesignProject {
   location: string;
   typeOfWork: string;
   imgColor: string;
+  contractType: string;
+  estStart: string;
+  duration: string;
+  scope: string;
+  referral: string;
+  projectProgress: number;
   currentPhaseKey: string | null;
   phases: PhaseProgress[];
   taskTotal: number;
@@ -106,7 +112,7 @@ export function Design() {
           {columns.map((col) => {
             const cards = visible.filter((p) => p.currentPhaseKey === col.key);
             return (
-              <div key={col.key} style={{ width: 250, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#FBF8F2', borderRadius: 12, border: '1px solid rgba(20,8,31,0.04)', maxHeight: '100%' }}>
+              <div key={col.key} style={{ width: 290, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#FBF8F2', borderRadius: 12, border: '1px solid rgba(20,8,31,0.04)', maxHeight: '100%' }}>
                 <div style={{ padding: '10px 12px 9px', borderTop: `3px solid ${col.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(20,8,31,0.06)', background: 'white', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: col.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.name}</div>
@@ -126,31 +132,59 @@ export function Design() {
                         key={p.projectId}
                         onClick={() => navigate('/projects')}
                         title={`${p.name} — open in Projects`}
-                        style={{ background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.07)', padding: '10px 11px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(11,26,18,0.04)' }}
+                        style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: 'pointer' }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                          <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, background: p.imgColor || col.color, flexShrink: 0 }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', lineHeight: 1.35 }}>{p.name}</div>
-                            {p.location && <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 2 }}>{p.location}</div>}
+                        {/* Same banner treatment as the Projects page card. */}
+                        <div style={{ height: 66, background: `linear-gradient(135deg, ${p.imgColor || col.color}, ${(p.imgColor || col.color)}cc)`, position: 'relative' }}>
+                          <span style={{ position: 'absolute', top: 8, right: 8, padding: '2px 8px', borderRadius: 6, fontSize: 9, fontWeight: 700, background: 'rgba(255,255,255,0.9)', color: pr.c, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.priority}</span>
+                          {p.contractType && (
+                            <span style={{ position: 'absolute', bottom: 8, left: 8, padding: '2px 8px', borderRadius: 6, fontSize: 9, fontWeight: 700, background: 'rgba(0,0,0,0.5)', color: 'white' }}>{p.contractType}</span>
+                          )}
+                        </div>
+
+                        <div style={{ padding: 12 }}>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, color: '#0B1A12' }}>{p.name}</div>
+                          {p.location && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#7E9B93', marginBottom: 7 }}>
+                              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
+                              {p.location}
+                            </div>
+                          )}
+                          {p.typeOfWork && <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 8, lineHeight: 1.4 }}>{p.typeOfWork}</div>}
+                          <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8, color: '#0B1A12' }}>{p.contractAmt}</div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 9 }}>
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Est. Start</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 1, color: '#0B1A12' }}>{p.estStart || '—'}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 9, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Duration</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 1, color: '#0B1A12' }}>{p.duration || '—'}</div>
+                            </div>
                           </div>
-                        </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', margin: '8px 0 7px' }}>
-                          <span style={{ padding: '1px 7px', borderRadius: 999, fontSize: 9.5, fontWeight: 700, background: pr.bg, color: pr.c }}>{p.priority}</span>
-                          <span style={{ fontSize: 10.5, fontWeight: 700, color: '#173326' }}>{p.contractAmt}</span>
-                          <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 600, color: '#7E9B93' }}>{p.stage}</span>
-                        </div>
+                          {p.scope && (
+                            <div style={{ fontSize: 10.5, color: '#43514D', lineHeight: 1.4, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8, marginBottom: 9 }}>{p.scope}</div>
+                          )}
 
-                        {/* Progress through this phase, not the whole project. */}
-                        <div style={{ height: 5, borderRadius: 3, background: '#EDEBE5', overflow: 'hidden' }}>
-                          <div style={{ width: `${phase?.progress ?? 0}%`, height: '100%', background: col.color, transition: 'width 0.2s' }} />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                          <span style={{ fontSize: 9.5, color: '#7E9B93' }}>
-                            {phase && phase.total > 0 ? `${phase.done}/${phase.total} tasks` : 'No tasks yet'}
-                          </span>
-                          <span style={{ fontSize: 9.5, fontWeight: 700, color: col.color }}>{phase?.progress ?? 0}%</span>
+                          {/* Progress through this phase, not the project overall. */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ flex: 1, height: 5, background: '#EDE3D0', borderRadius: 999, overflow: 'hidden' }}>
+                              <div style={{ width: `${phase?.progress ?? 0}%`, height: '100%', background: col.color, borderRadius: 999, transition: 'width 0.2s' }} />
+                            </div>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: col.color }}>{phase?.progress ?? 0}%</span>
+                          </div>
+                          <div style={{ fontSize: 9.5, color: '#7E9B93', marginTop: 4 }}>
+                            {phase && phase.total > 0 ? `${phase.done}/${phase.total} tasks in ${col.name}` : 'No tasks yet'}
+                          </div>
+
+                          {p.referral && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#7E9B93', marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(20,8,31,0.04)' }}>
+                              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx={9} cy={7} r={4} /></svg>
+                              Ref: <strong>{p.referral}</strong>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

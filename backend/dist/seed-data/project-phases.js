@@ -1,14 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEMO_PHASE_TASKS = exports.TEMPLATE_STATUS = exports.PHASE_DEFINITIONS = void 0;
+exports.DEMO_PHASE_TASKS = exports.TEMPLATE_STATUS = exports.RETIRED_PHASE_KEYS = exports.PHASE_DEFINITIONS = void 0;
 exports.PHASE_DEFINITIONS = [
     { key: 'programming', name: 'Project Programming', color: '#0E5A8A', order: 0 },
     { key: 'schematic', name: 'Schematic Design', color: '#0F7C7C', order: 1 },
     { key: 'dd', name: 'Design Development & Plans', color: '#6B2FA0', order: 2 },
-    { key: 'cd', name: 'Construction Contract Docs', color: '#C77A0A', order: 3 },
-    { key: 'interior', name: 'Interior Design', color: '#A81E4D', order: 4 },
-    { key: 'ca', name: 'Construction Administration', color: '#145C33', order: 5 },
+    { key: 'closeout', name: 'Closeout', color: '#145C33', order: 3 },
 ];
+exports.RETIRED_PHASE_KEYS = ['cd', 'interior', 'ca'];
 exports.TEMPLATE_STATUS = {
     Done: 'Done',
     'In Progress': 'In progress',

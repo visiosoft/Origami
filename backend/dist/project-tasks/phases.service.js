@@ -35,6 +35,27 @@ let PhasesService = class PhasesService {
         this.sections = sections;
         this.log = new common_1.Logger('PhasesService');
     }
+    async onApplicationBootstrap() {
+        try {
+            const stale = await this.repo.find();
+            const retired = stale.filter((ph) => project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
+            if (!retired.length)
+                return;
+            const ids = retired.map((ph) => ph.id);
+            const orphans = (await this.tasks.find()).filter((t) => t.phaseId && ids.includes(t.phaseId));
+            if (orphans.length) {
+                for (const task of orphans)
+                    task.phaseId = null;
+                await this.tasks.save(orphans);
+                this.log.log(`Unfiled ${orphans.length} task(s) from retired phases`);
+            }
+            await this.repo.remove(retired);
+            this.log.log(`Removed ${retired.length} retired phase row(s)`);
+        }
+        catch (err) {
+            this.log.warn('Retired phase cleanup failed: ' + err.message);
+        }
+    }
     async overview() {
         const [projects, phases, tasks] = await Promise.all([
             this.projects.find({ order: { id: 'ASC' } }),
@@ -52,7 +73,7 @@ let PhasesService = class PhasesService {
             byPhase.set(task.phaseId, bucket);
         }
         return projects.map((project) => {
-            const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id));
+            const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
             const source = rows.length
                 ? rows
                 : project_phases_1.PHASE_DEFINITIONS.map((d) => ({ id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order }));
@@ -81,6 +102,12 @@ let PhasesService = class PhasesService {
                 location: project.location,
                 typeOfWork: project.typeOfWork,
                 imgColor: project.imgColor,
+                contractType: project.contractType,
+                estStart: project.estStart,
+                duration: project.duration,
+                scope: project.scope,
+                referral: project.referral,
+                projectProgress: project.progress,
                 currentPhaseKey: current?.key ?? null,
                 phases: own,
                 taskTotal: total,

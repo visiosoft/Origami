@@ -13,6 +13,12 @@ export declare class PhasesController {
         location: string;
         typeOfWork: string;
         imgColor: string;
+        contractType: string;
+        estStart: string;
+        duration: string;
+        scope: string;
+        referral: string;
+        projectProgress: number;
         currentPhaseKey: string;
         phases: {
             id: string;

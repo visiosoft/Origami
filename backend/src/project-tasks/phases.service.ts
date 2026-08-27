@@ -1,8 +1,8 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
-import { PHASE_DEFINITIONS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
+import { PHASE_DEFINITIONS, RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import { SectionsService } from './sections.service';
 import { event, subId } from '../database/task.types';
 
@@ -22,7 +22,7 @@ const SECTION_FOR_STATUS: Record<string, number> = {
 };
 
 @Injectable()
-export class PhasesService {
+export class PhasesService implements OnApplicationBootstrap {
   private readonly log = new Logger('PhasesService');
 
   constructor(
@@ -31,6 +31,32 @@ export class PhasesService {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly sections: SectionsService,
   ) {}
+
+  /**
+   * Drop phases that are no longer part of the programme.
+   *
+   * Their tasks are unfiled rather than deleted -- they return to the project's
+   * kanban as ad-hoc work instead of vanishing with the column.
+   */
+  async onApplicationBootstrap() {
+    try {
+      const stale = await this.repo.find();
+      const retired = stale.filter((ph) => RETIRED_PHASE_KEYS.includes(ph.key));
+      if (!retired.length) return;
+
+      const ids = retired.map((ph) => ph.id);
+      const orphans = (await this.tasks.find()).filter((t) => t.phaseId && ids.includes(t.phaseId));
+      if (orphans.length) {
+        for (const task of orphans) task.phaseId = null as unknown as string;
+        await this.tasks.save(orphans);
+        this.log.log(`Unfiled ${orphans.length} task(s) from retired phases`);
+      }
+      await this.repo.remove(retired);
+      this.log.log(`Removed ${retired.length} retired phase row(s)`);
+    } catch (err) {
+      this.log.warn('Retired phase cleanup failed: ' + (err as Error).message);
+    }
+  }
 
   /**
    * Every project's design progress in one call, for the Design board.
@@ -58,7 +84,7 @@ export class PhasesService {
     }
 
     return projects.map((project) => {
-      const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id));
+      const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !RETIRED_PHASE_KEYS.includes(ph.key));
       // Phases are only written when someone opens a project's Phase Board, so
       // fall back to the standard six rather than dropping the project off the
       // board entirely. No rows are created by reading this.
@@ -96,6 +122,12 @@ export class PhasesService {
         location: project.location,
         typeOfWork: project.typeOfWork,
         imgColor: project.imgColor,
+        contractType: project.contractType,
+        estStart: project.estStart,
+        duration: project.duration,
+        scope: project.scope,
+        referral: project.referral,
+        projectProgress: project.progress,
         currentPhaseKey: current?.key ?? null,
         phases: own,
         taskTotal: total,

@@ -16,5 +16,6 @@ export interface PhaseTaskTemplate {
     deps: string[];
 }
 export declare const PHASE_DEFINITIONS: PhaseDefinition[];
+export declare const RETIRED_PHASE_KEYS: string[];
 export declare const TEMPLATE_STATUS: Record<string, string>;
 export declare const DEMO_PHASE_TASKS: PhaseTaskTemplate[];

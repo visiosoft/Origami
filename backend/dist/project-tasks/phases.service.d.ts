@@ -1,13 +1,15 @@
+import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
 import { SectionsService } from './sections.service';
-export declare class PhasesService {
+export declare class PhasesService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly tasks;
     private readonly projects;
     private readonly sections;
     private readonly log;
     constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService);
+    onApplicationBootstrap(): Promise<void>;
     overview(): Promise<{
         projectId: number;
         name: string;
@@ -17,6 +19,12 @@ export declare class PhasesService {
         location: string;
         typeOfWork: string;
         imgColor: string;
+        contractType: string;
+        estStart: string;
+        duration: string;
+        scope: string;
+        referral: string;
+        projectProgress: number;
         currentPhaseKey: string;
         phases: {
             id: string;
