@@ -21,12 +21,32 @@ const pipeline_1 = require("../seed-data/pipeline");
 let PipelineService = class PipelineService {
     constructor(repo) {
         this.repo = repo;
+        this.log = new common_1.Logger('PipelineService');
+    }
+    async onApplicationBootstrap() {
+        try {
+            const deals = await this.repo.find();
+            const stale = deals.filter((d) => {
+                const idx = pipeline_1.STAGES.findIndex((s) => s.key === d.stage);
+                return idx >= 0 && d.stageIdx !== idx;
+            });
+            if (!stale.length)
+                return;
+            for (const deal of stale)
+                deal.stageIdx = pipeline_1.STAGES.findIndex((s) => s.key === deal.stage);
+            await this.repo.save(stale);
+            this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
+        }
+        catch (err) {
+            this.log.warn('Stage index repair failed: ' + err.message);
+        }
     }
     getStages() {
         return pipeline_1.STAGES;
     }
-    findAll() {
-        return this.repo.find();
+    async findAll(includeArchived = false) {
+        const deals = await this.repo.find();
+        return includeArchived ? deals : deals.filter((d) => !d.archived);
     }
     async findOne(id) {
         const deal = await this.repo.findOneBy({ id });
@@ -37,17 +57,54 @@ let PipelineService = class PipelineService {
     create(dto) {
         return this.repo.save(this.repo.create(dto));
     }
-    async updateStage(id, stage) {
+    async updateStage(id, stage, actor) {
         const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);
-        const stageName = idx >= 0 ? pipeline_1.STAGES[idx].name : stage;
-        const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        const entry = { date: when, action: `Moved to ${stageName}`, role: 'System', type: 'auto' };
+        const target = idx >= 0 ? pipeline_1.STAGES[idx] : undefined;
+        const stageName = target?.name ?? stage;
         const deal = await this.findOne(id);
         deal.stage = stage;
         if (idx >= 0)
             deal.stageIdx = idx;
-        deal.timeline = [...(deal.timeline || []), entry];
+        if (target?.isHold && target.holdMonths) {
+            deal.holdUntil = addMonths(new Date(), target.holdMonths).toISOString().slice(0, 10);
+        }
+        else {
+            deal.holdUntil = '';
+        }
+        const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
+        deal.timeline = [...(deal.timeline || []), this.event(detail, actor)];
         return this.repo.save(deal);
+    }
+    async setArchived(id, archived, actor) {
+        const deal = await this.findOne(id);
+        deal.archived = archived;
+        deal.archivedAt = archived ? new Date().toISOString() : '';
+        deal.timeline = [...(deal.timeline || []), this.event(archived ? 'Archived' : 'Restored from archive', actor)];
+        return this.repo.save(deal);
+    }
+    async setRoles(id, roles, actor) {
+        const deal = await this.findOne(id);
+        const before = deal.roles || {};
+        deal.roles = { ...before, ...roles };
+        const changed = Object.keys(roles).filter((k) => (before[k] || '') !== (roles[k] || ''));
+        if (changed.length) {
+            deal.timeline = [
+                ...(deal.timeline || []),
+                this.event(`Role assignments updated: ${changed.join(', ')}`, actor),
+            ];
+        }
+        return this.repo.save(deal);
+    }
+    async addEvent(id, action, actor, type = 'auto') {
+        const deal = await this.findOne(id);
+        deal.timeline = [...(deal.timeline || []), this.event(action, actor, type)];
+        return this.repo.save(deal);
+    }
+    event(action, actor, type = 'auto') {
+        const date = new Date().toLocaleString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+        });
+        return { date, action, role: actor?.name || 'System', type, by: actor?.id || '' };
     }
     async remove(id) {
         const deal = await this.repo.findOneBy({ id });
@@ -62,4 +119,13 @@ exports.PipelineService = PipelineService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository])
 ], PipelineService);
+function addMonths(from, months) {
+    const day = from.getDate();
+    const out = new Date(from.getTime());
+    out.setDate(1);
+    out.setMonth(out.getMonth() + months);
+    const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
+    out.setDate(Math.min(day, lastDay));
+    return out;
+}
 //# sourceMappingURL=pipeline.service.js.map

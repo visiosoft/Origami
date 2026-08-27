@@ -21,6 +21,15 @@ export interface Deal {
   email: string;
   timeline: TimelineEvent[];
   notes: string;
+  /** Set on a hold stage: the date to pick the lead back up. */
+  holdUntil?: string;
+  /** Off the board, history intact. Only hold and closed stages allow it. */
+  archived?: boolean;
+  archivedAt?: string;
+  /** Set once converted, so the card can leave the board. */
+  convertedProjectId?: number | null;
+  /** Internal team on this pursuit, keyed by role. */
+  roles?: Record<string, string>;
 }
 
 export interface Stage {
@@ -32,6 +41,11 @@ export interface Stage {
   ownerBg: string;
   isDecision?: boolean;
   isLost?: boolean;
+  /** A parking stage that sets a follow-up date. */
+  isHold?: boolean;
+  holdMonths?: number;
+  /** Terminal: off the active funnel, and archivable. */
+  isClosed?: boolean;
 }
 
 export const STAGES: Stage[] = [
@@ -46,7 +60,14 @@ export const STAGES: Stage[] = [
   { key: 'proposal', name: 'Proposal Sent', idx: 8, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
   { key: 'client_approval', name: 'Client Approval', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
   { key: 'rfp', name: 'RFP to Consultants', idx: 10, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
-  { key: 'rejected', name: 'Lost / Rejected', idx: 11, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true },
+  // Parked leads. Each hold sets a follow-up date so the lead resurfaces
+  // instead of going quiet -- see HOLD_MONTHS.
+  { key: 'hold_1m', name: 'Hold - 1 Month', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 1 },
+  { key: 'hold_3m', name: 'Hold - 3 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 3 },
+  { key: 'hold_6m', name: 'Hold - 6 Months', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 6 },
+  { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 14, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 12 },
+  { key: 'cold', name: 'Cold Lead', idx: 15, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true },
+  { key: 'rejected', name: 'Cancelled / Rejected', idx: 16, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true },
 ];
 
 export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'initial_questions', 'virtual_ff', 'project_fit', 'site_visit', 'f2f', 'zoning', 'proposal', 'client_approval', 'rfp'];

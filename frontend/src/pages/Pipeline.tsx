@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope } from '../data/projectTypes';
+import { RoleAssignments } from '../components/RoleAssignments';
 import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
@@ -91,6 +92,23 @@ const BLANK_LEAD: NewLead = {
   desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
 
+/** A hold whose follow-up date has arrived — time to touch base. */
+const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
+
+/** Canonical index for a stage key, so no call site hardcodes a number. */
+const stageIndex = (key: string) => STAGES.findIndex((s) => s.key === key);
+
+/** Clamps rather than rolling over: 31 Jan + 1 month is 28 Feb, not 3 Mar. */
+function addMonths(from: Date, months: number) {
+  const day = from.getDate();
+  const out = new Date(from.getTime());
+  out.setDate(1);
+  out.setMonth(out.getMonth() + months);
+  const lastDay = new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate();
+  out.setDate(Math.min(day, lastDay));
+  return out;
+}
+
 const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
 
 type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills' | 'checkbox';
@@ -178,7 +196,7 @@ const TABS = [
 export function Pipeline() {
   const width = useWindowWidth();
   const isMobile = width <= 640;
-  const { toast } = useApp();
+  const { toast, currentUser, users } = useApp();
   const [roleFilter, setRoleFilter] = useState<'all' | 'pc' | 'pm'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -189,7 +207,9 @@ export function Pipeline() {
   const [nl, setNl] = useState<NewLead>({ ...BLANK_LEAD });
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'details'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles'>('overview');
+  const [showArchived, setShowArchived] = useState(false);
+  const [rolesDraft, setRolesDraft] = useState<Record<string, Record<string, string>>>({});
   const [leadDetails, setLeadDetails] = useState<Record<string, NewLead>>({});
   // Which gated questionnaire sections the user has explicitly toggled open/shut.
   const [leadSectionOpen, setLeadSectionOpen] = useState<Record<string, boolean>>({});
@@ -223,8 +243,13 @@ export function Pipeline() {
     document.addEventListener('mouseup', onUp);
   };
 
+  // Refetched on toggle, because whether archived deals come back is decided
+  // by the server rather than filtered here.
   useEffect(() => {
-    api.pipeline.list().then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
+    api.pipeline.list(showArchived).then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
+  }, [showArchived]);
+
+  useEffect(() => {
     // Rehydrate the rich intake details (Full Details) from the leads table,
     // keyed by id (new leads share their deal's id), so they survive refresh.
     api.leads.list().then((res) => {
@@ -336,14 +361,35 @@ export function Pipeline() {
   const applyOverride = (id: string, o: Override) => {
     setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
     // Persist stage moves (drag-drop, Advance, Approve/Reject) so the board
-    // shows each lead in its correct stage after a refresh, and log the move to
-    // the activity timeline with a timestamp (server appends its own copy too).
+    // shows each lead in its correct stage after a refresh, and record the move
+    // in the audit trail (the server appends its own copy too).
     if (o.stage) {
       const stageName = STAGES.find((s) => s.key === o.stage)?.name || o.stage;
       const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-      setDeals((prev) => prev.map((d) => d.id === id ? { ...d, timeline: [...(d.timeline || []), { date: when, action: `Moved to ${stageName}`, role: 'System', type: 'auto' as const }] } : d));
+      const who = currentUser?.name || 'Unknown';
+      const target = STAGES.find((st) => st.key === o.stage);
+      // A hold stage parks the lead until a date, so it can be brought back.
+      const holdUntil = target?.isHold && target.holdMonths
+        ? addMonths(new Date(), target.holdMonths).toISOString().slice(0, 10)
+        : '';
+      const action = holdUntil ? `Moved to ${stageName} — follow up ${holdUntil}` : `Moved to ${stageName}`;
+      setDeals((prev) => prev.map((d) => d.id === id
+        ? { ...d, holdUntil, timeline: [...(d.timeline || []), { date: when, action, role: who, type: 'auto' as const }] }
+        : d));
       api.pipeline.updateStage(id, o.stage).catch(() => { });
     }
+  };
+
+  /** Take a parked or closed lead off the board without destroying it. */
+  const archiveDeal = (deal: Deal, archived: boolean) => {
+    setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, archived } : d)));
+    if (archived) setSelectedId(null);
+    api.pipeline.setArchived(deal.id, archived)
+      .then(() => toast(archived ? `${deal.name} archived` : `${deal.name} restored`))
+      .catch((e: Error) => {
+        setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, archived: !archived } : d)));
+        toast('⚠ ' + e.message);
+      });
   };
 
   const submitNote = (dealId: string, stageName: string) => {
@@ -526,6 +572,13 @@ export function Pipeline() {
                 <span style={{ fontSize: 10, color: '#7E9B93', fontWeight: 500 }}>{l}</span>
               </div>
             ))}
+            <div
+              onClick={() => setShowArchived((v) => !v)}
+              title="Archived leads are hidden by default"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: showArchived ? '#EEF3EE' : 'white', color: showArchived ? '#173326' : '#7E9B93' }}
+            >
+              {showArchived ? 'Hide archived' : 'Show archived'}
+            </div>
             <div onClick={() => { setNl({ ...BLANK_LEAD }); setEditingId(null); setFormTab(1); setShowNew(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
               <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New Lead
             </div>
@@ -560,6 +613,12 @@ export function Pipeline() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
                             <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: ss.bg, color: ss.color }}>{ss.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: '#173326' }}>{d.value}</span>
+                            {d.holdUntil && (
+                              <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: holdDue(d.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(d.holdUntil) ? '#8E2E0A' : '#93520F' }}>
+                                {holdDue(d.holdUntil) ? 'Due' : d.holdUntil.slice(5)}
+                              </span>
+                            )}
+                            {d.archived && <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: '#EFEDE8', color: '#7E9B93' }}>Archived</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -624,6 +683,14 @@ export function Pipeline() {
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.ownerBg, color: selectedStage.ownerColor }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
+              {selected.holdUntil && (
+                <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
+                  {holdDue(selected.holdUntil) ? 'Follow up now' : `Follow up ${selected.holdUntil}`}
+                </span>
+              )}
+              {selected.archived && (
+                <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: '#EFEDE8', color: '#7E9B93' }}>Archived</span>
+              )}
             </div>
           </div>
 
@@ -634,7 +701,9 @@ export function Pipeline() {
             ))}
           </div>
 
-          {detailTab === 'overview' ? (
+          {detailTab === 'roles' ? (
+            <RoleAssignments deal={selected} users={users} draft={rolesDraft[selected.id]} onChange={(r) => setRolesDraft((p) => ({ ...p, [selected.id]: r }))} onSaved={(roles) => { setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, roles } : d)); toast('Role assignments saved'); }} />
+          ) : detailTab === 'overview' ? (
             <>
               {selected.stage === 'initial_questions' ? (
                 (() => {
@@ -945,9 +1014,10 @@ export function Pipeline() {
                 </div>
               </div>
 
-              {/* Activity (timeline + notes) */}
+              {/* Audit trail (stage moves, archives, role changes, notes) */}
               <div style={{ padding: '14px 20px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 12 }}>Activity Timeline</div>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 4 }}>Audit Trail</div>
+                <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 12, lineHeight: 1.5 }}>Who did what, and when. Entries marked <b style={{ color: '#7E9B93' }}>System</b> were recorded before sign-in was required, or by an automated step.</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {(() => {
                     const noteList = notesByDeal[selected.id] || [];
@@ -1011,15 +1081,20 @@ export function Pipeline() {
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', flexShrink: 0, background: 'white' }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: 5, daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>✓ Approve — Good Fit</div>
-                <div onClick={() => { applyOverride(selected.id, { stage: 'rejected', stageIdx: 11, daysInStage: 0, status: 'overdue' }); setSelectedId(null); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
+                <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: stageIndex('site_visit'), daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>✓ Approve — Good Fit</div>
+                <div onClick={() => { applyOverride(selected.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0, status: 'overdue' }); setSelectedId(null); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
               </div>
             </div>
           ) : (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'white' }}>
-              <div onClick={() => { const idx = selected.stageIdx; if (idx < 10) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < 10 ? 'Move to ' + (STAGES[selected.stageIdx + 1]?.name || 'next stage') : '✓ Complete'}</div>
+              <div onClick={() => { const idx = selected.stageIdx; if (idx < STAGE_KEYS.length - 1) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < STAGE_KEYS.length - 1 ? 'Move to ' + (STAGES[selected.stageIdx + 1]?.name || 'next stage') : '✓ Complete'}</div>
               <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Delete</div>
+              {(selectedStage.isHold || selectedStage.isClosed) && (
+                <div onClick={() => archiveDeal(selected, !selected.archived)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F6F68', background: '#F4F8F7' }}>
+                  {selected.archived ? 'Restore from archive' : 'Archive'}
+                </div>
+              )}
             </div>
           )}
         </div>

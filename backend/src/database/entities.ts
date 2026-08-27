@@ -90,6 +90,15 @@ export class DealEntity {
   @Column() email!: string;
   @Column('simple-json') timeline!: unknown[];
   @Column(TEXT) notes!: string;
+  // Set when the deal is parked on a hold stage: the date to pick it back up.
+  @Column({ nullable: true }) holdUntil!: string;
+  // Off the board without being destroyed. Only terminal stages are archivable.
+  @Column({ type: 'bit', nullable: true }) archived!: boolean | null;
+  @Column({ nullable: true }) archivedAt!: string;
+  // Set once the lead becomes a project, so the card can leave the board.
+  @Column({ type: 'int', nullable: true }) convertedProjectId!: number | null;
+  // Internal team on this pursuit: { projectManager, superintendent, ... }
+  @Column({ type: 'simple-json', nullable: true }) roles!: Record<string, string>;
 }
 
 @Entity('invoices')

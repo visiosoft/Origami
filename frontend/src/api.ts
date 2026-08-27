@@ -177,11 +177,18 @@ export const api = {
     addComment: (id: string, text: string) => request(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
   pipeline: {
-    list: () => request('/pipeline'),
+    /** Archived deals are excluded unless asked for. */
+    list: (includeArchived = false) => request(`/pipeline${includeArchived ? '?archived=true' : ''}`),
     stages: () => request('/pipeline/stages'),
     get: (id: string) => request(`/pipeline/${id}`),
     create: (data: unknown) => request('/pipeline', { method: 'POST', body: JSON.stringify(data) }),
     updateStage: (id: string, stage: string) => request(`/pipeline/${id}/stage`, { method: 'PUT', body: JSON.stringify({ stage }) }),
+    setArchived: (id: string, archived: boolean) =>
+      request(`/pipeline/${id}/archived`, { method: 'PUT', body: JSON.stringify({ archived }) }),
+    setRoles: (id: string, roles: Record<string, string>) =>
+      request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
+    addEvent: (id: string, action: string) =>
+      request(`/pipeline/${id}/event`, { method: 'PUT', body: JSON.stringify({ action }) }),
     remove: (id: string) => request(`/pipeline/${id}`, { method: 'DELETE' }),
   },
   leads: {

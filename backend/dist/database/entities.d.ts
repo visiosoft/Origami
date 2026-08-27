@@ -78,6 +78,11 @@ export declare class DealEntity {
     email: string;
     timeline: unknown[];
     notes: string;
+    holdUntil: string;
+    archived: boolean | null;
+    archivedAt: string;
+    convertedProjectId: number | null;
+    roles: Record<string, string>;
 }
 export declare class InvoiceEntity {
     pk: number;

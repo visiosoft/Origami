@@ -23,6 +23,11 @@ export interface Deal {
     email: string;
     timeline: TimelineEvent[];
     notes: string;
+    holdUntil?: string;
+    archived?: boolean;
+    archivedAt?: string;
+    convertedProjectId?: number | null;
+    roles?: Record<string, string>;
 }
 export interface Stage {
     key: string;
@@ -33,6 +38,9 @@ export interface Stage {
     ownerBg: string;
     isDecision?: boolean;
     isLost?: boolean;
+    isHold?: boolean;
+    holdMonths?: number;
+    isClosed?: boolean;
 }
 export declare const STAGES: Stage[];
 export declare const STAGE_KEYS: string[];

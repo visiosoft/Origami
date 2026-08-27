@@ -321,6 +321,26 @@ __decorate([
     (0, typeorm_1.Column)(TEXT),
     __metadata("design:type", String)
 ], DealEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DealEntity.prototype, "holdUntil", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], DealEntity.prototype, "archived", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DealEntity.prototype, "archivedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], DealEntity.prototype, "convertedProjectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DealEntity.prototype, "roles", void 0);
 exports.DealEntity = DealEntity = __decorate([
     (0, typeorm_1.Entity)('deals')
 ], DealEntity);
