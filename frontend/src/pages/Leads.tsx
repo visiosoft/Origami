@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { useApp } from '../AppContext';
+import { ContactsDirectory } from '../components/ContactsDirectory';
+import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
 import { api } from '../api';
 import './Leads.css';
 
@@ -35,6 +37,8 @@ const OPT = LEAD_DROPDOWN_OPTIONS;
 export function Leads() {
     const { toast } = useApp();
     const [leads, setLeads] = useState<Lead[]>(LEADS);
+    // Edited in place; seeded from the intake fields the first time it opens.
+    const [contactsByLead, setContactsByLead] = useState<Record<string, LeadContact[]>>({});
     const [showForm, setShowForm] = useState(false);
     const [tab, setTab] = useState(1);
     const [form, setForm] = useState<NewLead>({ ...BLANK });
@@ -141,6 +145,20 @@ export function Leads() {
                             <div style={{ fontSize: 12, color: '#0B1A12', lineHeight: 1.5 }}>{selected.projectVision}</div>
                         </div>
                     )}
+
+                    {/* Everyone involved, with their roles. Same directory as the pipeline lead card. */}
+                    <div style={{ marginTop: 18, marginLeft: -20, marginRight: -20, borderTop: '1px solid rgba(20,8,31,0.08)' }}>
+                        <ContactsDirectory
+                            leadId={selected.id}
+                            leadName={selected.leadName}
+                            phone={selected.phone}
+                            contacts={contactsByLead[selected.id]
+                                ?? ((selected.contacts as LeadContact[] | undefined)?.length
+                                    ? (selected.contacts as LeadContact[])
+                                    : seedContactsFromLead(selected as unknown as Record<string, unknown>))}
+                            onChange={(next) => setContactsByLead((p) => ({ ...p, [selected.id]: next }))}
+                        />
+                    </div>
                 </div>
             )}
 

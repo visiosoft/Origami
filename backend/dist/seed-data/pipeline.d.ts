@@ -36,6 +36,8 @@ export interface Stage {
     owner: string;
     ownerColor: string;
     ownerBg: string;
+    color: string;
+    colorBg: string;
     isDecision?: boolean;
     isLost?: boolean;
     isHold?: boolean;

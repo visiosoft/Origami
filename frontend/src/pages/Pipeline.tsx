@@ -605,13 +605,13 @@ export function Pipeline() {
               const isDragOver = dragOver === stage.key;
               return (
                 <div key={stage.key} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== stage.key) setDragOver(stage.key); }} onDragLeave={() => { if (dragOver === stage.key) setDragOver(null); }} onDrop={(e) => onDrop(e, stage.key, stage.idx)} style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', background: isDragOver ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: isDragOver ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', maxHeight: '100%', transition: 'background 0.15s, border 0.15s' }}>
-                  <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid rgba(20,8,31,0.06)', flexShrink: 0 }}>
+                  <div style={{ padding: '10px 10px 8px', borderTop: `3px solid ${stage.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(20,8,31,0.06)', background: stage.colorBg, flexShrink: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: 2, background: stage.ownerColor }} />
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#0B1A12', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</div>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '1px 6px', borderRadius: 999 }}>{cards.length}</span>
+                      <div style={{ width: 6, height: 6, borderRadius: 2, background: stage.color }} />
+                      <div style={{ fontSize: 11, fontWeight: 700, color: stage.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: stage.color, background: 'rgba(255,255,255,0.7)', padding: '1px 6px', borderRadius: 999 }}>{cards.length}</span>
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 600, color: stage.ownerColor, background: stage.ownerBg, padding: '1px 6px', borderRadius: 999 }}>{stage.owner}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: stage.ownerColor, background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>{stage.owner}</span>
                   </div>
                   <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {cards.map((d) => {
@@ -677,12 +677,12 @@ export function Pipeline() {
             <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Pipeline Progress</div>
             <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
               {STAGES.map((s, i) => (
-                <div key={s.key} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? (s.owner === 'PC' ? '#2F7D4A' : '#173326') : '#D6E0D7' }} />
+                <div key={s.key} title={s.name} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? s.color : '#D6E0D7' }} />
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#7E9B93' }}>
               <span>New Lead</span>
-              <span style={{ fontWeight: 700, color: '#173326' }}>{STAGES[selected.stageIdx]?.name || `Stage ${selected.stageIdx + 1}`}</span>
+              <span style={{ fontWeight: 700, color: selectedStage.color }}>{STAGES[selected.stageIdx]?.name || `Stage ${selected.stageIdx + 1}`}</span>
               <span>RFP</span>
             </div>
           </div>
@@ -693,7 +693,7 @@ export function Pipeline() {
             <div style={{ fontSize: 13, fontWeight: 600, color: '#43514D', margin: '4px 0 10px' }}>{selected.client}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.ownerBg, color: selectedStage.ownerColor }}>{selectedStage.owner}: {selectedStage.name}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
               {selected.holdUntil && (
                 <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>

@@ -39,6 +39,9 @@ export interface Stage {
   owner: string;
   ownerColor: string;
   ownerBg: string;
+  /** The stage's own colour, so the board is not two shades of green. */
+  color: string;
+  colorBg: string;
   isDecision?: boolean;
   isLost?: boolean;
   /** A parking stage that sets a follow-up date. */
@@ -49,25 +52,25 @@ export interface Stage {
 }
 
 export const STAGES: Stage[] = [
-  { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'initial_questions', name: 'Initial Questions', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'virtual_ff', name: 'Virtual F2F meeting', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isDecision: true },
-  { key: 'site_visit', name: 'Schedule Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'f2f', name: 'F2F Meet & Greet', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
-  { key: 'zoning', name: 'Zoning Analysis', idx: 7, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
-  { key: 'proposal', name: 'Proposal Sent', idx: 8, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3' },
-  { key: 'client_approval', name: 'Client Approval', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
-  { key: 'rfp', name: 'RFP to Consultants', idx: 10, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE' },
+  { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2F6F68', colorBg: '#D6E8E5' },
+  { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2C7A7B', colorBg: '#D3E9E7' },
+  { key: 'initial_questions', name: 'Initial Questions', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2B7A5E', colorBg: '#D2E9DF' },
+  { key: 'virtual_ff', name: 'Virtual F2F meeting', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2F7D4A', colorBg: '#D2EAD3' },
+  { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isDecision: true, color: '#4B7B22', colorBg: '#DEEBCC' },
+  { key: 'site_visit', name: 'Schedule Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#6E7A18', colorBg: '#E6E9C6' },
+  { key: 'f2f', name: 'F2F Meet & Greet', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#8A6D12', colorBg: '#F0E4BC' },
+  { key: 'zoning', name: 'Zoning Analysis', idx: 7, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
+  { key: 'proposal', name: 'Proposal Sent', idx: 8, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#A34718', colorBg: '#F7DCCC' },
+  { key: 'client_approval', name: 'Client Approval', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
+  { key: 'rfp', name: 'RFP to Consultants', idx: 10, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#3C5C8A', colorBg: '#D8E2F0' },
   // Parked leads. Each hold sets a follow-up date so the lead resurfaces
   // instead of going quiet -- see HOLD_MONTHS.
-  { key: 'hold_1m', name: 'Hold - 1 Month', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 1 },
-  { key: 'hold_3m', name: 'Hold - 3 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 3 },
-  { key: 'hold_6m', name: 'Hold - 6 Months', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 6 },
-  { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 14, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 12 },
-  { key: 'cold', name: 'Cold Lead', idx: 15, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true },
-  { key: 'rejected', name: 'Cancelled / Rejected', idx: 16, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true },
+  { key: 'hold_1m', name: 'Hold - 1 Month', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 1, color: '#B07A10', colorBg: '#FBECC4' },
+  { key: 'hold_3m', name: 'Hold - 3 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 3, color: '#A96A12', colorBg: '#F9E4C0' },
+  { key: 'hold_6m', name: 'Hold - 6 Months', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 6, color: '#A25A14', colorBg: '#F7DCBC' },
+  { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 14, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 12, color: '#9B4A16', colorBg: '#F5D4B8' },
+  { key: 'cold', name: 'Cold Lead', idx: 15, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true, color: '#4A6C7A', colorBg: '#DCE7EC' },
+  { key: 'rejected', name: 'Cancelled / Rejected', idx: 16, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
 ];
 
 export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'initial_questions', 'virtual_ff', 'project_fit', 'site_visit', 'f2f', 'zoning', 'proposal', 'client_approval', 'rfp'];
