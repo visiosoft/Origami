@@ -74,9 +74,14 @@ let PhasesService = class PhasesService {
         }
         return projects.map((project) => {
             const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
-            const source = rows.length
-                ? rows
-                : project_phases_1.PHASE_DEFINITIONS.map((d) => ({ id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order }));
+            const byKey = new Map(rows.map((ph) => [ph.key, ph]));
+            const source = [
+                ...project_phases_1.PHASE_DEFINITIONS.map((d) => {
+                    const row = byKey.get(d.key);
+                    return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order };
+                }),
+                ...rows.filter((ph) => !project_phases_1.PHASE_DEFINITIONS.some((d) => d.key === ph.key)),
+            ].sort((a, b) => a.order - b.order);
             const own = source
                 .map((ph) => {
                 const c = byPhase.get(ph.id) || { total: 0, done: 0 };
@@ -123,6 +128,15 @@ let PhasesService = class PhasesService {
             return [];
         const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
         if (existing.length) {
+            const missing = project_phases_1.PHASE_DEFINITIONS.filter((d) => !existing.some((ph) => ph.key === d.key));
+            if (missing.length) {
+                const added = await this.repo.save(missing.map((d) => this.repo.create({
+                    id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: d.name, color: d.color, order: d.order,
+                })));
+                this.log.log(`Added ${added.length} new phase(s) to project ${projectId}`);
+                existing.push(...added);
+                existing.sort((a, b) => a.order - b.order);
+            }
             await this.seedDemoTasks(projectId, existing);
             return existing;
         }

@@ -85,12 +85,19 @@ export class PhasesService implements OnApplicationBootstrap {
 
     return projects.map((project) => {
       const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !RETIRED_PHASE_KEYS.includes(ph.key));
-      // Phases are only written when someone opens a project's Phase Board, so
-      // fall back to the standard six rather than dropping the project off the
-      // board entirely. No rows are created by reading this.
-      const source = rows.length
-        ? rows
-        : PHASE_DEFINITIONS.map((d) => ({ id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order }));
+      const byKey = new Map(rows.map((ph) => [ph.key, ph]));
+
+      // Every standard phase, whether or not a row exists for it: rows are only
+      // written when someone opens a project's Phase Board, and a phase added
+      // to the programme later has no row on older projects. Reading creates
+      // nothing. Phases a team added themselves are appended.
+      const source = [
+        ...PHASE_DEFINITIONS.map((d) => {
+          const row = byKey.get(d.key);
+          return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order };
+        }),
+        ...rows.filter((ph) => !PHASE_DEFINITIONS.some((d) => d.key === ph.key)),
+      ].sort((a, b) => a.order - b.order);
 
       const own = source
         .map((ph) => {
@@ -148,6 +155,17 @@ export class PhasesService implements OnApplicationBootstrap {
 
     const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     if (existing.length) {
+      // A phase added to the programme after this project was created has no
+      // row yet, so fill in the gaps rather than leaving the board short.
+      const missing = PHASE_DEFINITIONS.filter((d) => !existing.some((ph) => ph.key === d.key));
+      if (missing.length) {
+        const added = await this.repo.save(missing.map((d) => this.repo.create({
+          id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: d.name, color: d.color, order: d.order,
+        } as Partial<ProjectPhaseEntity>)));
+        this.log.log(`Added ${added.length} new phase(s) to project ${projectId}`);
+        existing.push(...added);
+        existing.sort((a, b) => a.order - b.order);
+      }
       await this.seedDemoTasks(projectId, existing);
       return existing;
     }
