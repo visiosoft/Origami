@@ -152,6 +152,11 @@ export class LeadEntity {
   // Each contact chooses how they want to be reached, so the second contact
   // has its own preference rather than inheriting the primary one.
   @Column({ nullable: true }) preferredContactMethodOfSecondContact!: string;
+  @Column({ nullable: true }) pronounsOfSecondContact!: string;
+  // Everyone involved in the project, each holding one or more roles
+  // (PC, SC, OR, OC, ON, SH, FY, CA, C2, AD). A lead outgrows the single
+  // primary/second contact pair as soon as owners and consultants appear.
+  @Column({ type: 'simple-json', nullable: true }) contacts!: unknown[];
   @Column({ nullable: true }) decisionMakers!: string;
   @Column({ nullable: true }) preferredContactMethod!: string;
   @Column({ nullable: true }) leadSource!: string;

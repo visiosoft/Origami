@@ -17,6 +17,8 @@ export interface Lead {
     emailOfSecondContact: string;
     relationshipOfSecondContact: string;
     preferredContactMethodOfSecondContact: string;
+    pronounsOfSecondContact: string;
+    contacts?: unknown[];
     decisionMakers: string;
     preferredContactMethod: string;
     leadSource: string;
@@ -84,6 +86,7 @@ export const LEADS: Lead[] = [
         emailOfSecondContact: 'carlos.santos@gmail.com',
         relationshipOfSecondContact: 'Spouse / Partner',
         preferredContactMethodOfSecondContact: '',
+        pronounsOfSecondContact: '',
         decisionMakers: 'Lead + Spouse/Partner',
         preferredContactMethod: 'Phone Call',
         leadSource: 'Referral – Past Client',
@@ -126,6 +129,7 @@ export const LEADS: Lead[] = [
         emailOfSecondContact: '',
         relationshipOfSecondContact: '',
         preferredContactMethodOfSecondContact: '',
+        pronounsOfSecondContact: '',
         decisionMakers: 'Lead Only',
         preferredContactMethod: 'Email',
         leadSource: 'Google Search',
@@ -168,6 +172,7 @@ export const LEADS: Lead[] = [
         emailOfSecondContact: 'david.okonkwo@outlook.com',
         relationshipOfSecondContact: 'Spouse / Partner',
         preferredContactMethodOfSecondContact: '',
+        pronounsOfSecondContact: '',
         decisionMakers: 'Lead + Spouse/Partner',
         preferredContactMethod: 'Text Message',
         leadSource: 'Houzz',

@@ -125,6 +125,8 @@ export declare class LeadEntity {
     emailOfSecondContact: string;
     relationshipOfSecondContact: string;
     preferredContactMethodOfSecondContact: string;
+    pronounsOfSecondContact: string;
+    contacts: unknown[];
     decisionMakers: string;
     preferredContactMethod: string;
     leadSource: string;

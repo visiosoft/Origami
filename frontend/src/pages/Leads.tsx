@@ -11,7 +11,8 @@ const BLANK: NewLead = {
     namePronunciation: '', phone: '', email: '',
     primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
     phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
-    preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
+    preferredContactMethodOfSecondContact: '', pronounsOfSecondContact: '',
+    leadSourceReferrerName: '', leadSourceEventDetail: '',
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
     projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
     countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
@@ -289,6 +290,14 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                         <option value="">Select...</option>
                         {optionsWith(OPT.relationshipOfSecondContact, form.relationshipOfSecondContact).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
+                </div>
+                <div className="leads-field">
+                    <label>Pronouns</label>
+                    <select value={form.pronounsOfSecondContact} onChange={(e) => set('pronounsOfSecondContact', e.target.value)}>
+                        <option value="">Select...</option>
+                        {OPT.pronouns.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <span className="hint">How to refer to them in writing.</span>
                 </div>
                 <div className="leads-field">
                     <label>Preferred Contact Method</label>

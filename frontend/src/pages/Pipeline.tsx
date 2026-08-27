@@ -4,6 +4,8 @@ import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
+import { ContactsDirectory } from '../components/ContactsDirectory';
+import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
 import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
@@ -26,7 +28,8 @@ interface NewLead {
   namePronunciation: string; phone: string; email: string;
   primaryPointOfContact: string; secondPointOfContact: string; nameOfSecondContact: string;
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
-  preferredContactMethodOfSecondContact: string; leadSourceReferrerName: string; leadSourceEventDetail: string;
+  preferredContactMethodOfSecondContact: string; pronounsOfSecondContact: string;
+  leadSourceReferrerName: string; leadSourceEventDetail: string;
   decisionMakers: string; preferredContactMethod: string; leadSource: string;
   projectStreetAddress: string; projectStreetName: string; projectCity: string; projectZipCode: string;
   countyLocation: string; hasHOA: string; propertyType: string; potentialProjectType: string; contractType: string; homeworkCompleted: string[];
@@ -86,7 +89,8 @@ const BLANK_LEAD: NewLead = {
   namePronunciation: '', phone: '', email: '',
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
-  preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
+  preferredContactMethodOfSecondContact: '', pronounsOfSecondContact: '',
+  leadSourceReferrerName: '', leadSourceEventDetail: '',
   decisionMakers: '', preferredContactMethod: '', leadSource: '',
   projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
   countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
@@ -150,6 +154,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'phoneOfSecondContact', label: 'Phone of Second Contact', kind: 'tel', ph: '(555) 123-4567' },
     { key: 'emailOfSecondContact', label: 'Email of Second Contact', kind: 'email', ph: 'email@example.com' },
     { key: 'relationshipOfSecondContact', label: 'Relationship', kind: 'select', optKey: 'relationshipOfSecondContact' },
+    { key: 'pronounsOfSecondContact', label: 'Pronouns', kind: 'select', optKey: 'pronouns' },
     { key: 'preferredContactMethodOfSecondContact', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
   ] },
   { title: '3. Source', fields: [
@@ -211,7 +216,9 @@ export function Pipeline() {
   const [nl, setNl] = useState<NewLead>({ ...BLANK_LEAD });
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts'>('overview');
+  // Edited in place; seeded from the intake fields the first time it is opened.
+  const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   const [showArchived, setShowArchived] = useState(false);
   const [converting, setConverting] = useState<Deal | null>(null);
   const [rolesDraft, setRolesDraft] = useState<Record<string, Record<string, string>>>({});
@@ -706,7 +713,25 @@ export function Pipeline() {
             ))}
           </div>
 
-          {detailTab === 'roles' ? (
+          {detailTab === 'contacts' ? (
+            (() => {
+              const ld = leadDetails[selected.id];
+              // A lead captured before the directory existed starts from its
+              // primary and second contact rather than empty.
+              const stored = (ld as any)?.contacts as LeadContact[] | undefined;
+              const current = contactsByDeal[selected.id]
+                ?? (stored?.length ? stored : seedContactsFromLead({ ...(ld || {}), leadName: selected.name, phone: selected.phone, email: selected.email }));
+              return (
+                <ContactsDirectory
+                  leadId={selected.id}
+                  leadName={selected.name}
+                  phone={selected.phone}
+                  contacts={current}
+                  onChange={(next) => setContactsByDeal((p) => ({ ...p, [selected.id]: next }))}
+                />
+              );
+            })()
+          ) : detailTab === 'roles' ? (
             <RoleAssignments deal={selected} users={users} draft={rolesDraft[selected.id]} onChange={(r) => setRolesDraft((p) => ({ ...p, [selected.id]: r }))} onSaved={(roles) => { setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, roles } : d)); toast('Role assignments saved'); }} />
           ) : detailTab === 'overview' ? (
             <>
@@ -1054,7 +1079,7 @@ export function Pipeline() {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
                   { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', ld?.preferredContactMethod || '']] },
-                  { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
+                  { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Pronouns', ld?.pronounsOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
                   { title: '3. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
                   { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
                   { title: '5. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
@@ -1175,6 +1200,7 @@ export function Pipeline() {
                       <FormField label="Phone of Second Contact" hint="Include area code."><input type="tel" value={nl.phoneOfSecondContact} onChange={(e) => setField('phoneOfSecondContact', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                       <FormField label="Email of Second Contact"><input type="email" value={nl.emailOfSecondContact} onChange={(e) => setField('emailOfSecondContact', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                       <FormField label="Relationship of Second Contact"><select value={nl.relationshipOfSecondContact} onChange={(e) => setField('relationshipOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.relationshipOfSecondContact, nl.relationshipOfSecondContact).map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                      <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronounsOfSecondContact} onChange={(e) => setField('pronounsOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                       <FormField label="Preferred Contact Method" hint="How this person prefers to be reached."><select value={nl.preferredContactMethodOfSecondContact} onChange={(e) => setField('preferredContactMethodOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     </>}
                   </FormGrid>

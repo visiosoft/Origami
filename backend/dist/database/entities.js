@@ -506,6 +506,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], LeadEntity.prototype, "pronounsOfSecondContact", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], LeadEntity.prototype, "contacts", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], LeadEntity.prototype, "decisionMakers", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
