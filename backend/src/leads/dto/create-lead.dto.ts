@@ -30,6 +30,7 @@ export class CreateLeadDto {
     @IsString() @IsOptional() hasHOA?: string;
     @IsString() @IsOptional() propertyType?: string;
     @IsString() @IsOptional() potentialProjectType?: string;
+    @IsString() @IsOptional() contractType?: string;
     @IsArray() @IsOptional() homeworkCompleted?: string[];
     @IsString() @IsOptional() projectVision?: string;
     @IsString() @IsOptional() reasonForProject?: string;

@@ -165,6 +165,7 @@ export class LeadEntity {
   @Column({ nullable: true }) hasHOA!: string;   // 'Yes' | 'No'
   @Column({ nullable: true }) propertyType!: string;
   @Column({ nullable: true }) potentialProjectType!: string;
+  @Column({ nullable: true }) contractType!: string;  // DO | BO | DB | PDB
   @Column({ type: 'simple-json', nullable: true }) homeworkCompleted!: string[];
   @Column({ ...TEXT, nullable: true }) projectVision!: string;
   @Column({ nullable: true }) reasonForProject!: string;

@@ -28,6 +28,7 @@ export declare class CreateLeadDto {
     hasHOA?: string;
     propertyType?: string;
     potentialProjectType?: string;
+    contractType?: string;
     homeworkCompleted?: string[];
     projectVision?: string;
     reasonForProject?: string;

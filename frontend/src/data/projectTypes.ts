@@ -151,3 +151,32 @@ export function appendScope(current: string, scope: string) {
 
 ${scope}`;
 }
+
+/**
+ * How the work is delivered, and therefore how far Origami's involvement runs.
+ * Distinct from the work type: a kitchen remodel can be delivered any of these
+ * ways. Carried onto the project as `contractType` at conversion.
+ */
+export interface ContractTypeSpec {
+  code: string;
+  label: string;
+  /** Scope of involvement. */
+  summary: string;
+  /** How price and design get settled. */
+  detail: string;
+}
+
+export const CONTRACT_TYPES: ContractTypeSpec[] = [
+  { code: 'DO', label: 'Design Only', summary: 'Design only, light construction admin.', detail: 'Origami designs; another party builds.' },
+  { code: 'BO', label: 'Build Only', summary: 'Design present, full construct.', detail: 'Design already exists, so no need to go through the full process.' },
+  { code: 'DB', label: 'Design Build', summary: 'Full design, full build process.', detail: 'Sets the price and design early on through competitive bidding.' },
+  { code: 'PDB', label: 'Progressive Design Build', summary: 'Full design, full build process.', detail: 'Selects teams based on qualifications, collaborates to develop the design, then negotiates price.' },
+];
+
+export const contractTypeLabel = (c: ContractTypeSpec) => `${c.label} (${c.code})`;
+
+export const findContractType = (value?: string) => {
+  if (!value) return undefined;
+  const v = value.trim();
+  return CONTRACT_TYPES.find((c) => contractTypeLabel(c) === v || c.code === v || c.label === v);
+};

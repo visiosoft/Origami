@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope } from '../data/projectTypes';
+import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -14,7 +14,7 @@ const BLANK: NewLead = {
     preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
     projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
-    countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
+    countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
     projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
     desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
@@ -400,6 +400,14 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                     ))}
                 </select>
                 <span className="hint">Sets the property type and fills in the standard scope for that code.</span>
+            </div>
+            <div className="leads-field">
+                <label>Contract Type</label>
+                <select value={form.contractType} onChange={(e) => set('contractType', e.target.value)}>
+                    <option value="">Select...</option>
+                    {CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{contractTypeLabel(c)}</option>)}
+                </select>
+                <span className="hint">{findContractType(form.contractType)?.detail || 'How the work is delivered: design only, build only, or design-build.'}</span>
             </div>
             <div className="leads-field full">
                 <label>Homework Completed</label>

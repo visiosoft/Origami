@@ -556,6 +556,10 @@ __decorate([
     __metadata("design:type", String)
 ], LeadEntity.prototype, "potentialProjectType", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "contractType", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
 ], LeadEntity.prototype, "homeworkCompleted", void 0);

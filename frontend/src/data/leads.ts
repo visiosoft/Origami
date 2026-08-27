@@ -1,4 +1,4 @@
-import { PROJECT_TYPE_OPTIONS } from './projectTypes';
+import { PROJECT_TYPE_OPTIONS, CONTRACT_TYPES } from './projectTypes';
 
 export interface Lead {
     id: string;
@@ -30,6 +30,7 @@ export interface Lead {
     hasHOA: string;
     propertyType: string;
     potentialProjectType: string;
+    contractType: string;
     homeworkCompleted: string[];
     projectVision: string;
     reasonForProject: string;
@@ -54,6 +55,7 @@ export const LEAD_DROPDOWN_OPTIONS = {
     countyLocation: ['County of Alameda', 'County of Alpine', 'County of Amador', 'County of Butte', 'County of Calaveras', 'County of Colusa', 'County of Contra Costa', 'County of Del Norte', 'County of El Dorado', 'County of Fresno', 'County of Glenn', 'County of Humboldt', 'County of Imperial', 'County of Inyo', 'County of Kern', 'County of Kings', 'County of Lake', 'County of Lassen', 'County of Los Angeles', 'County of Madera', 'County of Marin', 'County of Mariposa', 'County of Mendocino', 'County of Merced', 'County of Modoc', 'County of Mono', 'County of Monterey', 'County of Napa', 'County of Nevada', 'County of Orange', 'County of Placer', 'County of Plumas', 'County of Riverside', 'County of Sacramento', 'County of San Benito', 'County of San Bernardino', 'County of San Diego', 'County of San Francisco', 'County of San Joaquin', 'County of San Luis Obispo', 'County of San Mateo', 'County of Santa Barbara', 'County of Santa Clara', 'County of Santa Cruz', 'County of Shasta', 'County of Sierra', 'County of Siskiyou', 'County of Solano', 'County of Sonoma', 'County of Stanislaus', 'County of Sutter', 'County of Tehama', 'County of Trinity', 'County of Tulare', 'County of Tuolumne', 'County of Ventura', 'County of Yolo', 'County of Yuba'],
     propertyType: ['Single Family Residence', 'Multi-Family Residence', 'Commercial', 'Commercial Tenant Improvement (TI)', 'Mixed Use', 'Campus Development', 'Other'],
     potentialProjectType: PROJECT_TYPE_OPTIONS,
+    contractType: CONTRACT_TYPES.map((c) => `${c.label} (${c.code})`),
     homeworkCompleted: ['As-Builts', 'Survey', 'Soils / Geotechnical Report', 'Hazardous Materials Report', 'Seismic Report', 'Inspection Files', 'Disclosures', 'Renderings', 'Lease', 'City Contact / Research', 'Permit Set', 'Finish Selections', 'Inspiration Images', 'Sketches'],
     reasonForProject: ['Rental', 'Retirement', 'Growing Family', 'Selling Asset', 'Forever Home', '5-Year Home', 'Developer Sale', 'Refresh Home', 'Other'],
     budgetPosition: ['Has Budget – Design to Budget', 'Design Dream First', 'Exploring', 'Unknown'],
@@ -95,6 +97,7 @@ export const LEADS: Lead[] = [
         hasHOA: 'No',
         propertyType: 'Single Family Residence',
         potentialProjectType: 'Full Home Remodel',
+        contractType: '',
         homeworkCompleted: ['Architectural Plans', 'Budget Established', 'Financing Secured'],
         projectVision: 'Complete remodel of 3,200 sq ft coastal home. Open floor plan, new kitchen with ocean views, master suite expansion, outdoor living space with pool. Maintain mid-century character.',
         reasonForProject: 'Lifestyle Upgrade',
@@ -136,6 +139,7 @@ export const LEADS: Lead[] = [
         hasHOA: 'No',
         propertyType: 'Commercial – Office',
         potentialProjectType: 'Commercial Tenant Improvement',
+        contractType: '',
         homeworkCompleted: ['Budget Established'],
         projectVision: 'Modern tech office buildout for 40-person startup. Open collaboration spaces, private phone booths, server room, and kitchen/lounge area.',
         reasonForProject: 'Business Expansion',
@@ -177,6 +181,7 @@ export const LEADS: Lead[] = [
         hasHOA: 'No',
         propertyType: 'Single Family Residence',
         potentialProjectType: 'Addition (ADU / Room)',
+        contractType: '',
         homeworkCompleted: ['Design Concept / Mood Board', 'HOA Approval'],
         projectVision: 'Adding a detached ADU (800 sq ft) for aging parents. Single story, accessible design, small kitchen, one bedroom, one bathroom, covered patio connecting to main house.',
         reasonForProject: 'Aging in Place / Accessibility',

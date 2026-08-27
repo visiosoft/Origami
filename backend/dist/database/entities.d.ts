@@ -138,6 +138,7 @@ export declare class LeadEntity {
     hasHOA: string;
     propertyType: string;
     potentialProjectType: string;
+    contractType: string;
     homeworkCompleted: string[];
     projectVision: string;
     reasonForProject: string;

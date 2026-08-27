@@ -123,6 +123,7 @@ let PipelineService = class PipelineService {
             contractAmt: opts.contractAmt?.trim() || deal.value || '$0',
             location,
             typeOfWork: lead?.potentialProjectType || '',
+            contractType: lead?.contractType || '',
             scope: lead?.projectVision || deal.notes || '',
             estStart: lead?.desiredStart || '',
             referral: lead?.leadSource || deal.source || '',
