@@ -16,9 +16,12 @@ export class CreateLeadDto {
     @IsString() @IsOptional() phoneOfSecondContact?: string;
     @IsString() @IsOptional() emailOfSecondContact?: string;
     @IsString() @IsOptional() relationshipOfSecondContact?: string;
+    @IsString() @IsOptional() preferredContactMethodOfSecondContact?: string;
     @IsString() @IsOptional() decisionMakers?: string;
     @IsString() @IsOptional() preferredContactMethod?: string;
     @IsString() @IsOptional() leadSource?: string;
+    @IsString() @IsOptional() leadSourceReferrerName?: string;
+    @IsString() @IsOptional() leadSourceEventDetail?: string;
     @IsString() @IsOptional() projectStreetAddress?: string;
     @IsString() @IsOptional() projectStreetName?: string;
     @IsString() @IsOptional() projectCity?: string;

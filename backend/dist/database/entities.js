@@ -482,6 +482,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], LeadEntity.prototype, "preferredContactMethodOfSecondContact", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], LeadEntity.prototype, "decisionMakers", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -491,6 +495,14 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "leadSource", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "leadSourceReferrerName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "leadSourceEventDetail", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)

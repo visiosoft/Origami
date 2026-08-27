@@ -119,9 +119,12 @@ export declare class LeadEntity {
     phoneOfSecondContact: string;
     emailOfSecondContact: string;
     relationshipOfSecondContact: string;
+    preferredContactMethodOfSecondContact: string;
     decisionMakers: string;
     preferredContactMethod: string;
     leadSource: string;
+    leadSourceReferrerName: string;
+    leadSourceEventDetail: string;
     projectStreetAddress: string;
     projectStreetName: string;
     projectCity: string;

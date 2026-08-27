@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith } from '../data/leads';
+import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import './Leads.css';
@@ -10,6 +10,7 @@ const BLANK: NewLead = {
     namePronunciation: '', phone: '', email: '',
     primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
     phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
+    preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
     projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
     countyLocation: '', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
@@ -107,6 +108,8 @@ export function Leads() {
                         <Field label="Primary Contact" value={selected.primaryPointOfContact} />
                         <Field label="Lead Source" value={selected.leadSource} />
                         <Field label="Preferred Contact" value={selected.preferredContactMethod} />
+                        <Field label="Referred By" value={selected.leadSourceReferrerName} />
+                        <Field label="Where It Was" value={selected.leadSourceEventDetail} />
                         <Field label="Decision Makers" value={selected.decisionMakers} />
                         {selected.secondPointOfContact === 'Yes' && <>
                             <Field label="2nd Contact" value={selected.nameOfSecondContact} />
@@ -211,6 +214,14 @@ function TabContact({ form, set }: { form: NewLead; set: <K extends keyof NewLea
                 <span className="hint">What they prefer to be called, if it isn't their first name.</span>
             </div>
             <div className="leads-field">
+                <label>Preferred Contact Method</label>
+                <select value={form.preferredContactMethod} onChange={(e) => set('preferredContactMethod', e.target.value)}>
+                    <option value="">Select...</option>
+                    {OPT.preferredContactMethod.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <span className="hint">How this person prefers to be reached.</span>
+            </div>
+            <div className="leads-field">
                 <label>Pronouns</label>
                 <select value={form.pronouns} onChange={(e) => set('pronouns', e.target.value)}>
                     <option value="">Select...</option>
@@ -277,6 +288,14 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                         {optionsWith(OPT.relationshipOfSecondContact, form.relationshipOfSecondContact).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                 </div>
+                <div className="leads-field">
+                    <label>Preferred Contact Method</label>
+                    <select value={form.preferredContactMethodOfSecondContact} onChange={(e) => set('preferredContactMethodOfSecondContact', e.target.value)}>
+                        <option value="">Select...</option>
+                        {OPT.preferredContactMethod.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <span className="hint">How this person prefers to be reached.</span>
+                </div>
             </>}
         </div>
     </>);
@@ -284,31 +303,30 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
 
 function TabCommunication({ form, set }: { form: NewLead; set: <K extends keyof NewLead>(k: K, v: NewLead[K]) => void }) {
     return (<>
-        <div className="leads-form-section-title">3. Communication & Source</div>
+        <div className="leads-form-section-title">3. Source</div>
         <div className="leads-form-grid">
-            <div className="leads-field">
-                <label>Decision Makers</label>
-                <select value={form.decisionMakers} onChange={(e) => set('decisionMakers', e.target.value)}>
-                    <option value="">Select...</option>
-                    {OPT.decisionMakers.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-                <span className="hint">Who makes final decisions about scope, budget, and design.</span>
-            </div>
-            <div className="leads-field">
-                <label>Preferred Contact Method</label>
-                <select value={form.preferredContactMethod} onChange={(e) => set('preferredContactMethod', e.target.value)}>
-                    <option value="">Select...</option>
-                    {OPT.preferredContactMethod.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-            </div>
             <div className="leads-field">
                 <label>Lead Source</label>
                 <select value={form.leadSource} onChange={(e) => set('leadSource', e.target.value)}>
                     <option value="">Select...</option>
-                    {OPT.leadSource.map((o) => <option key={o} value={o}>{o}</option>)}
+                    {optionsWith(OPT.leadSource, form.leadSource).map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
                 <span className="hint">How the lead first heard about or was referred to us.</span>
             </div>
+            {isReferralSource(form.leadSource) && (
+                <div className="leads-field">
+                    <label>Referred By</label>
+                    <input value={form.leadSourceReferrerName} onChange={(e) => set('leadSourceReferrerName', e.target.value)} placeholder="Name of the person referring" />
+                    <span className="hint">Who made the referral.</span>
+                </div>
+            )}
+            {isEventSource(form.leadSource) && (
+                <div className="leads-field">
+                    <label>Where It Was</label>
+                    <input value={form.leadSourceEventDetail} onChange={(e) => set('leadSourceEventDetail', e.target.value)} placeholder="Event or networking group" />
+                    <span className="hint">Which event, or where the networking happened.</span>
+                </div>
+            )}
         </div>
     </>);
 }
@@ -338,7 +356,7 @@ function TabLocation({ form, set }: { form: NewLead; set: <K extends keyof NewLe
                 <input value={form.projectZipCode} onChange={(e) => set('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} />
             </div>
             <div className="leads-field">
-                <label>County Location</label>
+                <label>County</label>
                 <select value={form.countyLocation} onChange={(e) => set('countyLocation', e.target.value)}>
                     <option value="">Select county...</option>
                     {OPT.countyLocation.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -445,6 +463,14 @@ function TabClientProfile({ form, set }: { form: NewLead; set: <K extends keyof 
     return (<>
         <div className="leads-form-section-title">7. Client Profile</div>
         <div className="leads-form-grid">
+            <div className="leads-field">
+                <label>Decision Makers</label>
+                <select value={form.decisionMakers} onChange={(e) => set('decisionMakers', e.target.value)}>
+                    <option value="">Select...</option>
+                    {optionsWith(OPT.decisionMakers, form.decisionMakers).map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <span className="hint">Who makes final decisions about scope, budget, and design.</span>
+            </div>
             <div className="leads-field full">
                 <label>Client Personality</label>
                 <select value={form.clientPersonality} onChange={(e) => set('clientPersonality', e.target.value)}>

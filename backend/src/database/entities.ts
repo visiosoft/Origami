@@ -140,9 +140,14 @@ export class LeadEntity {
   @Column({ nullable: true }) phoneOfSecondContact!: string;
   @Column({ nullable: true }) emailOfSecondContact!: string;
   @Column({ nullable: true }) relationshipOfSecondContact!: string;
+  // Each contact chooses how they want to be reached, so the second contact
+  // has its own preference rather than inheriting the primary one.
+  @Column({ nullable: true }) preferredContactMethodOfSecondContact!: string;
   @Column({ nullable: true }) decisionMakers!: string;
   @Column({ nullable: true }) preferredContactMethod!: string;
   @Column({ nullable: true }) leadSource!: string;
+  @Column({ nullable: true }) leadSourceReferrerName!: string;  // who made the referral
+  @Column({ nullable: true }) leadSourceEventDetail!: string;   // which event, or where the networking happened
   @Column({ nullable: true }) projectStreetAddress!: string;
   @Column({ nullable: true }) projectStreetName!: string;
   @Column({ nullable: true }) projectCity!: string;

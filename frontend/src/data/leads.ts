@@ -14,9 +14,12 @@ export interface Lead {
     phoneOfSecondContact: string;
     emailOfSecondContact: string;
     relationshipOfSecondContact: string;
+    preferredContactMethodOfSecondContact: string;
     decisionMakers: string;
     preferredContactMethod: string;
     leadSource: string;
+    leadSourceReferrerName: string;
+    leadSourceEventDetail: string;
     projectStreetAddress: string;
     projectStreetName: string;
     projectCity: string;
@@ -43,7 +46,7 @@ export const LEAD_DROPDOWN_OPTIONS = {
     relationshipOfSecondContact: ['Spouse', 'Partner', 'Business Partner', 'Family Member', 'Tenant', 'Property Manager', 'Architect', 'Designer', 'Contractor', 'Attorney', 'Other'],
     decisionMakers: ['Lead Only', 'Lead + Spouse', 'Lead + Partner', 'Lead + Business Partner', 'Lead + Family Member', 'Committee / Board', 'Other'],
     preferredContactMethod: ['Phone Call', 'Text Message', 'Email', 'Video Call', 'In Person', 'No Preference'],
-    leadSource: ['Website', 'Referral – Past Client', 'Referral – Professional', 'Referral – Friend/Family', 'Google Search', 'Social Media', 'Houzz', 'Yelp', 'Drive-By / Signage', 'Home Show / Event', 'Repeat Client', 'Other'],
+    leadSource: ['Website', 'Referral from Client', 'Referral from Networking', 'Referral Family and Friend', 'Google Search', 'Social Media', 'Drive-by', 'Event', 'Repeat Client', 'Other'],
     projectCity: ['Adelanto', 'Agoura Hills', 'Alameda', 'Albany', 'Alhambra', 'Aliso Viejo', 'Alturas', 'Amador City', 'American Canyon', 'Anaheim', 'Anderson', 'Angels Camp', 'Antioch', 'Apple Valley', 'Arcadia', 'Arcata', 'Arroyo Grande', 'Artesia', 'Arvin', 'Atascadero', 'Atherton', 'Atwater', 'Auburn', 'Avalon', 'Avenal', 'Azusa', 'Bakersfield', 'Baldwin Park', 'Banning', 'Barstow', 'Beaumont', 'Bell', 'Bell Gardens', 'Bellflower', 'Belmont', 'Belvedere', 'Benicia', 'Berkeley', 'Beverly Hills', 'Big Bear Lake', 'Biggs', 'Bishop', 'Blue Lake', 'Blythe', 'Bradbury', 'Brawley', 'Brea', 'Brentwood', 'Brisbane', 'Buellton', 'Buena Park', 'Burbank', 'Burlingame', 'Calabasas', 'Calexico', 'California City', 'Calimesa', 'Calipatria', 'Calistoga', 'Camarillo', 'Campbell', 'Canyon Lake', 'Capitola', 'Carlsbad', 'Carmel-by-the-Sea', 'Carpinteria', 'Carson', 'Cathedral City', 'Ceres', 'Cerritos', 'Chico', 'Chino', 'Chino Hills', 'Chowchilla', 'Chula Vista', 'Citrus Heights', 'Claremont', 'Clayton', 'Clearlake', 'Cloverdale', 'Clovis', 'Coachella', 'Coalinga', 'Colfax', 'Colma', 'Colton', 'Colusa', 'Commerce', 'Compton', 'Concord', 'Corcoran', 'Corning', 'Corona', 'Coronado', 'Corte Madera', 'Costa Mesa', 'Cotati', 'Covina', 'Crescent City', 'Cudahy', 'Culver City', 'Cupertino', 'Cypress', 'Daly City', 'Dana Point', 'Danville', 'Davis', 'Del Mar', 'Del Rey Oaks', 'Delano', 'Desert Hot Springs', 'Diamond Bar', 'Dinuba', 'Dixon', 'Dorris', 'Dos Palos', 'Downey', 'Duarte', 'Dublin', 'Dunsmuir', 'East Palo Alto', 'Eastvale', 'El Cajon', 'El Centro', 'El Cerrito', 'El Monte', 'El Segundo', 'Elk Grove', 'Emeryville', 'Encinitas', 'Escalon', 'Escondido', 'Etna', 'Eureka', 'Exeter', 'Fairfax', 'Fairfield', 'Farmersville', 'Ferndale', 'Fillmore', 'Firebaugh', 'Folsom', 'Fontana', 'Fort Bragg', 'Fort Jones', 'Fortuna', 'Foster City', 'Fountain Valley', 'Fowler', 'Fremont', 'Fresno', 'Fullerton', 'Galt', 'Garden Grove', 'Gardena', 'Gilroy', 'Glendale', 'Glendora', 'Goleta', 'Gonzales', 'Grand Terrace', 'Grass Valley', 'Greenfield', 'Gridley', 'Grover Beach', 'Guadalupe', 'Gustine', 'Half Moon Bay', 'Hanford', 'Hawaiian Gardens', 'Hawthorne', 'Hayward', 'Healdsburg', 'Hemet', 'Hercules', 'Hermosa Beach', 'Hesperia', 'Hidden Hills', 'Highland', 'Hillsborough', 'Hollister', 'Holtville', 'Hughson', 'Huntington Beach', 'Huntington Park', 'Huron', 'Imperial', 'Imperial Beach', 'Indian Wells', 'Indio', 'Industry', 'Inglewood', 'Ione', 'Irvine', 'Irwindale', 'Isleton', 'Jackson', 'Jurupa Valley', 'Kerman', 'King City', 'Kingsburg', 'La Cañada Flintridge', 'La Habra', 'La Habra Heights', 'La Mesa', 'La Mirada', 'La Palma', 'La Puente', 'La Quinta', 'La Verne', 'Lafayette', 'Laguna Beach', 'Laguna Hills', 'Laguna Niguel', 'Laguna Woods', 'Lake Elsinore', 'Lake Forest', 'Lakeport', 'Lakewood', 'Lancaster', 'Larkspur', 'Lathrop', 'Lawndale', 'Lemon Grove', 'Lemoore', 'Lincoln', 'Lindsay', 'Live Oak', 'Livermore', 'Livingston', 'Lodi', 'Loma Linda', 'Lomita', 'Lompoc', 'Long Beach', 'Loomis', 'Los Alamitos', 'Los Altos', 'Los Altos Hills', 'Los Angeles', 'Los Banos', 'Los Gatos', 'Loyalton', 'Lynwood', 'Madera', 'Malibu', 'Mammoth Lakes', 'Manhattan Beach', 'Manteca', 'Maricopa', 'Marina', 'Martinez', 'Marysville', 'Maywood', 'McFarland', 'Mendota', 'Menifee', 'Menlo Park', 'Merced', 'Mill Valley', 'Millbrae', 'Milpitas', 'Mission Viejo', 'Modesto', 'Monrovia', 'Montague', 'Montclair', 'Monte Sereno', 'Montebello', 'Monterey', 'Monterey Park', 'Moorpark', 'Moraga', 'Moreno Valley', 'Morgan Hill', 'Morro Bay', 'Mountain View', 'Mount Shasta', 'Murrieta', 'Napa', 'National City', 'Needles', 'Nevada City', 'Newark', 'Newman', 'Newport Beach', 'Norco', 'Norwalk', 'Novato', 'Oakdale', 'Oakland', 'Oakley', 'Oceanside', 'Ojai', 'Ontario', 'Orange', 'Orange Cove', 'Orinda', 'Orland', 'Oroville', 'Oxnard', 'Pacific Grove', 'Pacifica', 'Palm Desert', 'Palm Springs', 'Palmdale', 'Palo Alto', 'Palos Verdes Estates', 'Paradise', 'Paramount', 'Parlier', 'Pasadena', 'Paso Robles', 'Patterson', 'Perris', 'Petaluma', 'Pico Rivera', 'Piedmont', 'Pinole', 'Pismo Beach', 'Pittsburg', 'Placentia', 'Placerville', 'Pleasant Hill', 'Pleasanton', 'Plymouth', 'Point Arena', 'Pomona', 'Port Hueneme', 'Porterville', 'Portola', 'Portola Valley', 'Poway', 'Rancho Cordova', 'Rancho Cucamonga', 'Rancho Mirage', 'Rancho Palos Verdes', 'Rancho Santa Margarita', 'Red Bluff', 'Redding', 'Redlands', 'Redondo Beach', 'Redwood City', 'Reedley', 'Rialto', 'Richmond', 'Ridgecrest', 'Rio Dell', 'Rio Vista', 'Ripon', 'Riverbank', 'Riverside', 'Rocklin', 'Rohnert Park', 'Rolling Hills', 'Rolling Hills Estates', 'Rosemead', 'Roseville', 'Ross', 'Sacramento', 'Salinas', 'San Anselmo', 'San Bernardino', 'San Bruno', 'San Buenaventura', 'San Carlos', 'San Clemente', 'San Diego', 'San Dimas', 'San Fernando', 'San Francisco', 'San Gabriel', 'San Jacinto', 'San Joaquin', 'San Jose', 'San Juan Bautista', 'San Juan Capistrano', 'San Leandro', 'San Luis Obispo', 'San Marcos', 'San Marino', 'San Mateo', 'San Pablo', 'San Rafael', 'San Ramon', 'Sand City', 'Sanger', 'Santa Ana', 'Santa Barbara', 'Santa Clara', 'Santa Clarita', 'Santa Cruz', 'Santa Fe Springs', 'Santa Maria', 'Santa Monica', 'Santa Paula', 'Santa Rosa', 'Santee', 'Saratoga', 'Sausalito', 'Scotts Valley', 'Seal Beach', 'Seaside', 'Sebastopol', 'Selma', 'Shafter', 'Shasta Lake', 'Sierra Madre', 'Signal Hill', 'Simi Valley', 'Solana Beach', 'Soledad', 'Solvang', 'Sonoma', 'Sonora', 'South El Monte', 'South Gate', 'South Lake Tahoe', 'South Pasadena', 'South San Francisco', 'St. Helena', 'Stanton', 'Stockton', 'Suisun City', 'Sunnyvale', 'Susanville', 'Sutter Creek', 'Taft', 'Tehachapi', 'Tehama', 'Temecula', 'Temple City', 'Thousand Oaks', 'Tiburon', 'Torrance', 'Tracy', 'Trinidad', 'Truckee', 'Tulare', 'Tulelake', 'Turlock', 'Tustin', 'Twentynine Palms', 'Ukiah', 'Union City', 'Upland', 'Vacaville', 'Vallejo', 'Victorville', 'Villa Park', 'Visalia', 'Vista', 'Walnut', 'Walnut Creek', 'Wasco', 'Waterford', 'Watsonville', 'Weed', 'West Covina', 'West Hollywood', 'West Sacramento', 'Westlake Village', 'Westminster', 'Westmorland', 'Wheatland', 'Whittier', 'Wildomar', 'Williams', 'Willits', 'Willows', 'Windsor', 'Winters', 'Woodlake', 'Woodland', 'Woodside', 'Yorba Linda', 'Yountville', 'Yreka', 'Yuba City'],
     countyLocation: ['County of Alameda', 'County of Alpine', 'County of Amador', 'County of Butte', 'County of Calaveras', 'County of Colusa', 'County of Contra Costa', 'County of Del Norte', 'County of El Dorado', 'County of Fresno', 'County of Glenn', 'County of Humboldt', 'County of Imperial', 'County of Inyo', 'County of Kern', 'County of Kings', 'County of Lake', 'County of Lassen', 'County of Los Angeles', 'County of Madera', 'County of Marin', 'County of Mariposa', 'County of Mendocino', 'County of Merced', 'County of Modoc', 'County of Mono', 'County of Monterey', 'County of Napa', 'County of Nevada', 'County of Orange', 'County of Placer', 'County of Plumas', 'County of Riverside', 'County of Sacramento', 'County of San Benito', 'County of San Bernardino', 'County of San Diego', 'County of San Francisco', 'County of San Joaquin', 'County of San Luis Obispo', 'County of San Mateo', 'County of Santa Barbara', 'County of Santa Clara', 'County of Santa Cruz', 'County of Shasta', 'County of Sierra', 'County of Siskiyou', 'County of Solano', 'County of Sonoma', 'County of Stanislaus', 'County of Sutter', 'County of Tehama', 'County of Trinity', 'County of Tulare', 'County of Tuolumne', 'County of Ventura', 'County of Yolo', 'County of Yuba'],
     propertyType: ['Single Family Residence', 'Multi-Family Residence', 'Condominium / Townhouse', 'Commercial – Office', 'Commercial – Retail', 'Commercial – Restaurant', 'Commercial – Mixed Use', 'Industrial / Warehouse', 'Vacant Land', 'Historic / Landmark', 'Other'],
@@ -75,9 +78,12 @@ export const LEADS: Lead[] = [
         phoneOfSecondContact: '(310) 555-0148',
         emailOfSecondContact: 'carlos.santos@gmail.com',
         relationshipOfSecondContact: 'Spouse / Partner',
+        preferredContactMethodOfSecondContact: '',
         decisionMakers: 'Lead + Spouse/Partner',
         preferredContactMethod: 'Phone Call',
         leadSource: 'Referral – Past Client',
+        leadSourceReferrerName: '',
+        leadSourceEventDetail: '',
         projectStreetAddress: '1247',
         projectStreetName: 'Pacific Coast Highway',
         projectCity: 'Malibu',
@@ -112,9 +118,12 @@ export const LEADS: Lead[] = [
         phoneOfSecondContact: '',
         emailOfSecondContact: '',
         relationshipOfSecondContact: '',
+        preferredContactMethodOfSecondContact: '',
         decisionMakers: 'Lead Only',
         preferredContactMethod: 'Email',
         leadSource: 'Google Search',
+        leadSourceReferrerName: '',
+        leadSourceEventDetail: '',
         projectStreetAddress: '550',
         projectStreetName: 'Market Street',
         projectCity: 'San Francisco',
@@ -149,9 +158,12 @@ export const LEADS: Lead[] = [
         phoneOfSecondContact: '(818) 555-0362',
         emailOfSecondContact: 'david.okonkwo@outlook.com',
         relationshipOfSecondContact: 'Spouse / Partner',
+        preferredContactMethodOfSecondContact: '',
         decisionMakers: 'Lead + Spouse/Partner',
         preferredContactMethod: 'Text Message',
         leadSource: 'Houzz',
+        leadSourceReferrerName: '',
+        leadSourceEventDetail: '',
         projectStreetAddress: '4821',
         projectStreetName: 'Ventura Boulevard',
         projectCity: 'Calabasas',
@@ -206,3 +218,11 @@ export const preferredName = (lead: { goByName?: string; firstName?: string; lea
  */
 export const optionsWith = (options: readonly string[], value?: string) =>
     value && !options.includes(value) ? [value, ...options] : [...options];
+
+/**
+ * A referral needs to record who made it; an event or networking source needs
+ * to record where. Both are matched on the option text, so a legacy value from
+ * the older source list ("Referral - Past Client") still counts.
+ */
+export const isReferralSource = (source?: string) => /referral/i.test(source || '');
+export const isEventSource = (source?: string) => /event|networking|show/i.test(source || '');

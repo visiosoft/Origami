@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
-import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith } from '../data/leads';
+import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
@@ -22,6 +22,7 @@ interface NewLead {
   namePronunciation: string; phone: string; email: string;
   primaryPointOfContact: string; secondPointOfContact: string; nameOfSecondContact: string;
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
+  preferredContactMethodOfSecondContact: string; leadSourceReferrerName: string; leadSourceEventDetail: string;
   decisionMakers: string; preferredContactMethod: string; leadSource: string;
   projectStreetAddress: string; projectStreetName: string; projectCity: string; projectZipCode: string;
   countyLocation: string; propertyType: string; potentialProjectType: string; homeworkCompleted: string[];
@@ -81,6 +82,7 @@ const BLANK_LEAD: NewLead = {
   namePronunciation: '', phone: '', email: '',
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
+  preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
   decisionMakers: '', preferredContactMethod: '', leadSource: '',
   projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
   countyLocation: '', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
@@ -91,7 +93,12 @@ const BLANK_LEAD: NewLead = {
 const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
 
 type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills';
-interface FieldSpec { key: keyof NewLead; label: string; kind: FieldKind; optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string }
+interface FieldSpec {
+  key: keyof NewLead; label: string; kind: FieldKind;
+  optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string;
+  /** Shown only when this holds. A hidden field is not required either. */
+  when?: (lead: NewLead) => boolean;
+}
 /**
  * `gate` marks a section that only applies in some cases — it starts collapsed
  * unless the gating field says otherwise, so nobody scrolls past a block of
@@ -114,6 +121,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'phone', label: 'Phone *', kind: 'tel', ph: '(555) 123-4567' },
     { key: 'email', label: 'Email', kind: 'email', ph: 'email@example.com' },
     { key: 'primaryPointOfContact', label: 'Primary Point of Contact', kind: 'select', optKey: 'primaryPointOfContact' },
+    { key: 'preferredContactMethod', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
   ] },
   { title: '2. Second Contact', gate: { key: 'secondPointOfContact', value: 'Yes', emptyLabel: 'No second contact' }, fields: [
     { key: 'secondPointOfContact', label: 'Second Point of Contact?', kind: 'select', optKey: 'secondPointOfContact' },
@@ -121,18 +129,19 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'phoneOfSecondContact', label: 'Phone of Second Contact', kind: 'tel', ph: '(555) 123-4567' },
     { key: 'emailOfSecondContact', label: 'Email of Second Contact', kind: 'email', ph: 'email@example.com' },
     { key: 'relationshipOfSecondContact', label: 'Relationship', kind: 'select', optKey: 'relationshipOfSecondContact' },
+    { key: 'preferredContactMethodOfSecondContact', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
   ] },
-  { title: '3. Communication', fields: [
-    { key: 'decisionMakers', label: 'Decision Makers', kind: 'select', optKey: 'decisionMakers' },
-    { key: 'preferredContactMethod', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
+  { title: '3. Source', fields: [
     { key: 'leadSource', label: 'Lead Source', kind: 'select', optKey: 'leadSource' },
+    { key: 'leadSourceReferrerName', label: 'Referred By', kind: 'text', ph: 'Name of the person referring', when: (l) => isReferralSource(l.leadSource) },
+    { key: 'leadSourceEventDetail', label: 'Where It Was', kind: 'text', ph: 'Event or networking group', when: (l) => isEventSource(l.leadSource) },
   ] },
   { title: '4. Location', fields: [
     { key: 'projectStreetAddress', label: 'Project Street Address', kind: 'text', ph: 'Street number' },
     { key: 'projectStreetName', label: 'Project Street Name', kind: 'text', ph: 'Street name' },
     { key: 'projectCity', label: 'Project City', kind: 'select', optKey: 'projectCity' },
     { key: 'projectZipCode', label: 'Project ZIP Code', kind: 'text', ph: '5-digit ZIP' },
-    { key: 'countyLocation', label: 'County Location', kind: 'select', optKey: 'countyLocation' },
+    { key: 'countyLocation', label: 'County', kind: 'select', optKey: 'countyLocation' },
   ] },
   { title: '5. Project', fields: [
     { key: 'propertyType', label: 'Property Type', kind: 'select', optKey: 'propertyType' },
@@ -149,6 +158,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'expectedLengthOfOwnership', label: 'Expected Length of Ownership', kind: 'select', optKey: 'expectedLengthOfOwnership' },
   ] },
   { title: '7. Client Profile', fields: [
+    { key: 'decisionMakers', label: 'Decision Makers', kind: 'select', optKey: 'decisionMakers' },
     { key: 'clientPersonality', label: 'Client Personality', kind: 'select', optKey: 'clientPersonality' },
   ] },
 ];
@@ -156,7 +166,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
 const TABS = [
   { id: 1, label: '1. Contact Info' },
   { id: 2, label: '2. Second Contact' },
-  { id: 3, label: '3. Communication' },
+  { id: 3, label: '3. Source' },
   { id: 4, label: '4. Location' },
   { id: 5, label: '5. Project Details' },
   { id: 6, label: '6. Budget & Timeline' },
@@ -641,6 +651,7 @@ export function Pipeline() {
                   const missing = LEAD_SECTIONS.flatMap((sec) => {
                     const gateMet = !sec.gate || (ld[sec.gate.key as keyof NewLead] as string) === sec.gate.value;
                     return sec.fields
+                      .filter((f) => !f.when || f.when(ld))
                       .filter((f) => (sec.gate && !gateMet ? f.key === sec.gate.key : true))
                       .filter((f) => !isAnswered(ld[f.key]))
                       .map((f) => ({ sec, f }));
@@ -672,7 +683,7 @@ export function Pipeline() {
                             )}
                           </div>
                           <div style={{ display: open ? 'flex' : 'none', flexDirection: 'column', gap: 10 }}>
-                            {sec.fields.map((f) => {
+                            {sec.fields.filter((f) => !f.when || f.when(ld)).map((f) => {
                               const value = ld[f.key];
                               const answered = isAnswered(value);
                               const na = Array.isArray(value) ? value[0] === NOT_APPLICABLE : value === NOT_APPLICABLE;
@@ -958,13 +969,13 @@ export function Pipeline() {
               {(() => {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
-                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || '']] },
-                  { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || '']] },
-                  { title: '3. Communication', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Preferred Method', ld?.preferredContactMethod || ''], ['Lead Source', ld?.leadSource || selected.source || '']] },
+                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', ld?.preferredContactMethod || '']] },
+                  { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
+                  { title: '3. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
                   { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || '']] },
                   { title: '5. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
                   { title: '6. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
-                  { title: '7. Client Profile', rows: [['Client Personality', ld?.clientPersonality || '']] },
+                  { title: '7. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
                 ].map((s) => ({ title: s.title, rows: s.rows.filter(([, val]) => val && String(val).trim()) as [string, string][] })).filter((s) => s.rows.length > 0);
                 if (sections.length === 0) return <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
                 return sections.map((s) => (
@@ -1039,6 +1050,7 @@ export function Pipeline() {
                     <FormField label="Phone Number *" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                     <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                     <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="Preferred Contact Method" hint="How this person prefers to be reached."><select value={nl.preferredContactMethod} onChange={(e) => setField('preferredContactMethod', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                   </FormGrid>
                 </>)}
                 {formTab === 2 && (<>
@@ -1050,15 +1062,20 @@ export function Pipeline() {
                       <FormField label="Phone of Second Contact" hint="Include area code."><input type="tel" value={nl.phoneOfSecondContact} onChange={(e) => setField('phoneOfSecondContact', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                       <FormField label="Email of Second Contact"><input type="email" value={nl.emailOfSecondContact} onChange={(e) => setField('emailOfSecondContact', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                       <FormField label="Relationship of Second Contact"><select value={nl.relationshipOfSecondContact} onChange={(e) => setField('relationshipOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.relationshipOfSecondContact, nl.relationshipOfSecondContact).map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                      <FormField label="Preferred Contact Method" hint="How this person prefers to be reached."><select value={nl.preferredContactMethodOfSecondContact} onChange={(e) => setField('preferredContactMethodOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     </>}
                   </FormGrid>
                 </>)}
                 {formTab === 3 && (<>
-                  <SectionTitle>3. Communication & Source</SectionTitle>
+                  <SectionTitle>3. Source</SectionTitle>
                   <FormGrid>
-                    <FormField label="Decision Makers" hint="Who makes final decisions about scope, budget, and design."><select value={nl.decisionMakers} onChange={(e) => setField('decisionMakers', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.decisionMakers.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Preferred Contact Method"><select value={nl.preferredContactMethod} onChange={(e) => setField('preferredContactMethod', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Lead Source" hint="How the lead first heard about or was referred to us."><select value={nl.leadSource} onChange={(e) => setField('leadSource', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.leadSource.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="Lead Source" hint="How the lead first heard about or was referred to us."><select value={nl.leadSource} onChange={(e) => setField('leadSource', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.leadSource, nl.leadSource).map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    {isReferralSource(nl.leadSource) && (
+                      <FormField label="Referred By" hint="Who made the referral."><input value={nl.leadSourceReferrerName} onChange={(e) => setField('leadSourceReferrerName', e.target.value)} placeholder="Name of the person referring" style={inputStyle} /></FormField>
+                    )}
+                    {isEventSource(nl.leadSource) && (
+                      <FormField label="Where It Was" hint="Which event, or where the networking happened."><input value={nl.leadSourceEventDetail} onChange={(e) => setField('leadSourceEventDetail', e.target.value)} placeholder="Event or networking group" style={inputStyle} /></FormField>
+                    )}
                   </FormGrid>
                 </>)}
                 {formTab === 4 && (<>
@@ -1068,7 +1085,7 @@ export function Pipeline() {
                     <FormField label="Project Street Name"><input value={nl.projectStreetName} onChange={(e) => setField('projectStreetName', e.target.value)} placeholder="Street name" style={inputStyle} /></FormField>
                     <FormField label="Project City"><select value={nl.projectCity} onChange={(e) => setField('projectCity', e.target.value)} style={inputStyle}><option value="">Select city...</option>{OPT.projectCity.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <FormField label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
-                    <FormField label="County Location"><select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}><option value="">Select county...</option>{OPT.countyLocation.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="County"><select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}><option value="">Select county...</option>{OPT.countyLocation.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                   </FormGrid>
                 </>)}
                 {formTab === 5 && (<>
@@ -1104,6 +1121,7 @@ export function Pipeline() {
                 {formTab === 7 && (<>
                   <SectionTitle>7. Client Profile</SectionTitle>
                   <FormGrid>
+                    <FormField label="Decision Makers" hint="Who makes final decisions about scope, budget, and design."><select value={nl.decisionMakers} onChange={(e) => setField('decisionMakers', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.decisionMakers, nl.decisionMakers).map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Client Personality</div>
                       <select value={nl.clientPersonality} onChange={(e) => setField('clientPersonality', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.clientPersonality.map((o) => <option key={o}>{o}</option>)}</select>
