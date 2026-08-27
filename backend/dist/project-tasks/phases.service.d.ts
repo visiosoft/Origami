@@ -25,6 +25,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
         scope: string;
         referral: string;
         projectProgress: number;
+        designPhase: string | null;
         currentPhaseKey: string;
         phases: {
             id: string;

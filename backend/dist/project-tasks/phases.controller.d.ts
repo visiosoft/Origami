@@ -19,6 +19,7 @@ export declare class PhasesController {
         scope: string;
         referral: string;
         projectProgress: number;
+        designPhase: string | null;
         currentPhaseKey: string;
         phases: {
             id: string;

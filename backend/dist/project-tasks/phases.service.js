@@ -115,6 +115,7 @@ let PhasesService = class PhasesService {
                 scope: project.scope,
                 referral: project.referral,
                 projectProgress: project.progress,
+                designPhase: project.designPhase || null,
                 currentPhaseKey: current?.key ?? null,
                 phases: own,
                 taskTotal: total,

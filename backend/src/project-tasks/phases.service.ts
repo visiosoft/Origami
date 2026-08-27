@@ -139,6 +139,8 @@ export class PhasesService implements OnApplicationBootstrap {
         scope: project.scope,
         referral: project.referral,
         projectProgress: project.progress,
+        // Echoed so the board can mark a card as placed by hand.
+        designPhase: project.designPhase || null,
         currentPhaseKey: current?.key ?? null,
         phases: own,
         taskTotal: total,
