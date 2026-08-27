@@ -15,6 +15,7 @@ import { SetPassword } from './pages/SetPassword';
 import { Privacy } from './pages/Privacy';
 import { Home } from './pages/Home';
 import { Design } from './pages/Design';
+import { DesignProject } from './pages/DesignProject';
 import { FileRoom } from './pages/FileRoom';
 import { useApp } from './AppContext';
 
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Admin />} />
         <Route path="/design" element={<Design />} />
+        <Route path="/design/:projectId" element={<DesignProject />} />
         <Route path="/planroom" element={<FileRoom />} />
         <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />
