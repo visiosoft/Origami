@@ -130,6 +130,7 @@ export declare class LeadEntity {
     projectCity: string;
     projectZipCode: string;
     countyLocation: string;
+    hasHOA: string;
     propertyType: string;
     potentialProjectType: string;
     homeworkCompleted: string[];

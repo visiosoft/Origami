@@ -25,6 +25,7 @@ export declare class CreateLeadDto {
     projectCity?: string;
     projectZipCode?: string;
     countyLocation?: string;
+    hasHOA?: string;
     propertyType?: string;
     potentialProjectType?: string;
     homeworkCompleted?: string[];

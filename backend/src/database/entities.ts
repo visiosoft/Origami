@@ -153,6 +153,7 @@ export class LeadEntity {
   @Column({ nullable: true }) projectCity!: string;
   @Column({ nullable: true }) projectZipCode!: string;
   @Column({ nullable: true }) countyLocation!: string;
+  @Column({ nullable: true }) hasHOA!: string;   // 'Yes' | 'No'
   @Column({ nullable: true }) propertyType!: string;
   @Column({ nullable: true }) potentialProjectType!: string;
   @Column({ type: 'simple-json', nullable: true }) homeworkCompleted!: string[];

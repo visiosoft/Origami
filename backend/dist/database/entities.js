@@ -526,6 +526,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], LeadEntity.prototype, "hasHOA", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], LeadEntity.prototype, "propertyType", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),

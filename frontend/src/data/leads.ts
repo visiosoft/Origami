@@ -27,6 +27,7 @@ export interface Lead {
     projectCity: string;
     projectZipCode: string;
     countyLocation: string;
+    hasHOA: string;
     propertyType: string;
     potentialProjectType: string;
     homeworkCompleted: string[];
@@ -53,7 +54,7 @@ export const LEAD_DROPDOWN_OPTIONS = {
     countyLocation: ['County of Alameda', 'County of Alpine', 'County of Amador', 'County of Butte', 'County of Calaveras', 'County of Colusa', 'County of Contra Costa', 'County of Del Norte', 'County of El Dorado', 'County of Fresno', 'County of Glenn', 'County of Humboldt', 'County of Imperial', 'County of Inyo', 'County of Kern', 'County of Kings', 'County of Lake', 'County of Lassen', 'County of Los Angeles', 'County of Madera', 'County of Marin', 'County of Mariposa', 'County of Mendocino', 'County of Merced', 'County of Modoc', 'County of Mono', 'County of Monterey', 'County of Napa', 'County of Nevada', 'County of Orange', 'County of Placer', 'County of Plumas', 'County of Riverside', 'County of Sacramento', 'County of San Benito', 'County of San Bernardino', 'County of San Diego', 'County of San Francisco', 'County of San Joaquin', 'County of San Luis Obispo', 'County of San Mateo', 'County of Santa Barbara', 'County of Santa Clara', 'County of Santa Cruz', 'County of Shasta', 'County of Sierra', 'County of Siskiyou', 'County of Solano', 'County of Sonoma', 'County of Stanislaus', 'County of Sutter', 'County of Tehama', 'County of Trinity', 'County of Tulare', 'County of Tuolumne', 'County of Ventura', 'County of Yolo', 'County of Yuba'],
     propertyType: ['Single Family Residence', 'Multi-Family Residence', 'Commercial', 'Mixed Use', 'Campus Development', 'Other'],
     potentialProjectType: PROJECT_TYPE_OPTIONS,
-    homeworkCompleted: ['As-Builts', 'Survey', 'Soils / Geotechnical Report', 'Hazardous Materials Report', 'Seismic Report', 'City Contact / Research', 'Permit Set', 'Finish Selections', 'Inspiration Images', 'Sketches'],
+    homeworkCompleted: ['As-Builts', 'Survey', 'Soils / Geotechnical Report', 'Hazardous Materials Report', 'Seismic Report', 'Inspection Files', 'Disclosures', 'Renderings', 'Lease', 'City Contact / Research', 'Permit Set', 'Finish Selections', 'Inspiration Images', 'Sketches'],
     reasonForProject: ['Rental', 'Retirement', 'Growing Family', 'Selling Asset', 'Forever Home', '5-Year Home', 'Developer Sale', 'Refresh Home', 'Other'],
     budgetPosition: ['Has Budget – Design to Budget', 'Design Dream First', 'Exploring', 'Unknown'],
     fundingStatus: ['Funds Ready', 'Partial – Needs Help', 'Possible / Uncertain', 'Needs Financing', 'No'],
@@ -91,6 +92,7 @@ export const LEADS: Lead[] = [
         projectCity: 'Malibu',
         projectZipCode: '90265',
         countyLocation: 'Los Angeles',
+        hasHOA: 'No',
         propertyType: 'Single Family Residence',
         potentialProjectType: 'Full Home Remodel',
         homeworkCompleted: ['Architectural Plans', 'Budget Established', 'Financing Secured'],
@@ -131,6 +133,7 @@ export const LEADS: Lead[] = [
         projectCity: 'San Francisco',
         projectZipCode: '94105',
         countyLocation: 'San Francisco',
+        hasHOA: 'No',
         propertyType: 'Commercial – Office',
         potentialProjectType: 'Commercial Tenant Improvement',
         homeworkCompleted: ['Budget Established'],
@@ -171,6 +174,7 @@ export const LEADS: Lead[] = [
         projectCity: 'Calabasas',
         projectZipCode: '91302',
         countyLocation: 'Los Angeles',
+        hasHOA: 'No',
         propertyType: 'Single Family Residence',
         potentialProjectType: 'Addition (ADU / Room)',
         homeworkCompleted: ['Design Concept / Mood Board', 'HOA Approval'],

@@ -26,7 +26,7 @@ interface NewLead {
   preferredContactMethodOfSecondContact: string; leadSourceReferrerName: string; leadSourceEventDetail: string;
   decisionMakers: string; preferredContactMethod: string; leadSource: string;
   projectStreetAddress: string; projectStreetName: string; projectCity: string; projectZipCode: string;
-  countyLocation: string; propertyType: string; potentialProjectType: string; homeworkCompleted: string[];
+  countyLocation: string; hasHOA: string; propertyType: string; potentialProjectType: string; homeworkCompleted: string[];
   projectVision: string; reasonForProject: string; budgetPosition: string; fundingStatus: string;
   desiredStart: string; expectedDuration: string; expectedLengthOfOwnership: string; clientPersonality: string;
   zoningImages?: string; // JSON string of [{name,dataUrl}]
@@ -86,14 +86,14 @@ const BLANK_LEAD: NewLead = {
   preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
   decisionMakers: '', preferredContactMethod: '', leadSource: '',
   projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
-  countyLocation: '', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
+  countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
   projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
   desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
 
 const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
 
-type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills';
+type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills' | 'checkbox';
 interface FieldSpec {
   key: keyof NewLead; label: string; kind: FieldKind;
   optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string;
@@ -143,6 +143,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'projectCity', label: 'Project City', kind: 'select', optKey: 'projectCity' },
     { key: 'projectZipCode', label: 'Project ZIP Code', kind: 'text', ph: '5-digit ZIP' },
     { key: 'countyLocation', label: 'County', kind: 'select', optKey: 'countyLocation' },
+    { key: 'hasHOA', label: 'Property has an HOA', kind: 'checkbox' },
   ] },
   { title: '5. Project', fields: [
     { key: 'propertyType', label: 'Property Type', kind: 'select', optKey: 'propertyType' },
@@ -712,6 +713,11 @@ export function Pipeline() {
                                   <select value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} style={inputStyle}><option value="">Select…</option>{optionsWith(LEAD_DROPDOWN_OPTIONS[f.optKey!] || [], ld[f.key] as string).map((o) => <option key={o}>{o}</option>)}</select>
                                 ) : f.kind === 'textarea' ? (
                                   <textarea value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                                ) : f.kind === 'checkbox' ? (
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#0B1A12', cursor: 'pointer' }}>
+                                    <input type="checkbox" checked={ld[f.key] === 'Yes'} onChange={(e) => up(f.key, e.target.checked ? 'Yes' : 'No')} />
+                                    Yes, this property is in an HOA
+                                  </label>
                                 ) : f.kind === 'pills' ? (
                                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => { const arr = (ld[f.key] as string[]) || []; const on = arr.includes(o); return <div key={o} onClick={() => up(f.key, on ? arr.filter((x) => x !== o) : [...arr, o])} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#0B1A12', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}</div>
                                 ) : (
@@ -975,7 +981,7 @@ export function Pipeline() {
                   { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', ld?.preferredContactMethod || '']] },
                   { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
                   { title: '3. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || '']] },
+                  { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
                   { title: '5. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
                   { title: '6. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
                   { title: '7. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
@@ -1088,6 +1094,7 @@ export function Pipeline() {
                     <FormField label="Project Street Name"><input value={nl.projectStreetName} onChange={(e) => setField('projectStreetName', e.target.value)} placeholder="Street name" style={inputStyle} /></FormField>
                     <FormField label="Project City"><select value={nl.projectCity} onChange={(e) => setField('projectCity', e.target.value)} style={inputStyle}><option value="">Select city...</option>{OPT.projectCity.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <FormField label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
+                    <FormField label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
                     <FormField label="County"><select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}><option value="">Select county...</option>{OPT.countyLocation.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                   </FormGrid>
                 </>)}

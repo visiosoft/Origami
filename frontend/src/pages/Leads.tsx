@@ -14,7 +14,7 @@ const BLANK: NewLead = {
     preferredContactMethodOfSecondContact: '', leadSourceReferrerName: '', leadSourceEventDetail: '',
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
     projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
-    countyLocation: '', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
+    countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', homeworkCompleted: [],
     projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
     desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
@@ -356,6 +356,14 @@ function TabLocation({ form, set }: { form: NewLead; set: <K extends keyof NewLe
             <div className="leads-field">
                 <label>Project ZIP Code</label>
                 <input value={form.projectZipCode} onChange={(e) => set('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} />
+            </div>
+            <div className="leads-field">
+                <label>Property has an HOA</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', padding: '9px 0' }}>
+                    <input type="checkbox" checked={form.hasHOA === 'Yes'} onChange={(e) => set('hasHOA', e.target.checked ? 'Yes' : 'No')} />
+                    Yes, this property is in an HOA
+                </label>
+                <span className="hint">Work in an HOA needs association approval.</span>
             </div>
             <div className="leads-field">
                 <label>County</label>
