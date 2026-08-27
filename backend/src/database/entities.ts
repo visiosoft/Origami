@@ -21,6 +21,9 @@ export class ProjectEntity {
   @Column() contactedBy!: string;
   @Column() imgColor!: string;
   @Column(TEXT) img!: string;
+  // Set by dragging on the Design board. Overrides the phase derived from
+  // task progress, so a team can park a project where they say it is.
+  @Column({ nullable: true }) designPhase!: string;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
 }

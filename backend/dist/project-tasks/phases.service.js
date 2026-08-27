@@ -92,8 +92,10 @@ let PhasesService = class PhasesService {
                     complete: c.total > 0 && c.done === c.total,
                 };
             });
+            const pinned = own.find((ph) => ph.key === project.designPhase);
             const started = own.filter((ph) => ph.total > 0);
-            const current = started.find((ph) => !ph.complete)
+            const current = pinned
+                ?? started.find((ph) => !ph.complete)
                 ?? started[started.length - 1]
                 ?? own[0];
             const total = own.reduce((sum, ph) => sum + ph.total, 0);

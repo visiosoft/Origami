@@ -16,6 +16,7 @@ export declare class ProjectEntity {
     contactedBy: string;
     imgColor: string;
     img: string;
+    designPhase: string;
     leadId: string;
     introLetterSentAt: string;
 }

@@ -110,10 +110,14 @@ export class PhasesService implements OnApplicationBootstrap {
           };
         });
 
+      // An explicit drag wins over the derived position, as long as the phase
+      // still exists -- a retired phase falls back to the derived one.
+      const pinned = own.find((ph) => ph.key === project.designPhase);
       const started = own.filter((ph) => ph.total > 0);
       // The first phase with work outstanding; if everything is done, the last
       // one that had work; if nothing has been planned yet, the first phase.
-      const current = started.find((ph) => !ph.complete)
+      const current = pinned
+        ?? started.find((ph) => !ph.complete)
         ?? started[started.length - 1]
         ?? own[0];
 

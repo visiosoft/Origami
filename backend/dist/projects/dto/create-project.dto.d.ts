@@ -15,6 +15,7 @@ export declare class CreateProjectDto {
     contactedBy?: string;
     imgColor?: string;
     img?: string;
+    designPhase?: string;
     leadId?: string;
     introLetterSentAt?: string;
 }

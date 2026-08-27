@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useApp } from '../AppContext';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -25,6 +26,7 @@ interface DesignProject {
   scope: string;
   referral: string;
   projectProgress: number;
+  designPhase?: string;
   currentPhaseKey: string | null;
   phases: PhaseProgress[];
   taskTotal: number;
@@ -47,6 +49,10 @@ const PRIORITY_STYLE: Record<string, { bg: string; c: string }> = {
  */
 export function Design() {
   const navigate = useNavigate();
+  const { toast, can } = useApp();
+  const canManage = can('projects', 'manage');
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const [rows, setRows] = useState<DesignProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,6 +86,42 @@ export function Design() {
 
   const planned = visible.filter((p) => p.taskTotal > 0).length;
 
+  /**
+   * Dragging pins a project to a phase, overriding the position derived from
+   * task progress — the team's word on where it is beats the arithmetic.
+   */
+  const moveTo = (projectId: number, phaseKey: string) => {
+    const project = rows.find((p) => p.projectId === projectId);
+    if (!project || project.currentPhaseKey === phaseKey) return;
+    const previous = project.currentPhaseKey;
+
+    setRows((prev) => prev.map((p) => (p.projectId === projectId ? { ...p, currentPhaseKey: phaseKey, designPhase: phaseKey } : p)));
+    api.projects.update(String(projectId), { name: project.name, designPhase: phaseKey })
+      .then(() => toast(`${project.name} moved to ${rows[0]?.phases.find((ph) => ph.key === phaseKey)?.name || phaseKey}`))
+      .catch((e: Error) => {
+        setRows((prev) => prev.map((p) => (p.projectId === projectId ? { ...p, currentPhaseKey: previous } : p)));
+        toast('⚠ ' + e.message);
+      });
+  };
+
+  /** Stop pinning and let the card follow task progress again. */
+  const clearPin = (projectId: number) => {
+    const project = rows.find((p) => p.projectId === projectId);
+    if (!project) return;
+    api.projects.update(String(projectId), { name: project.name, designPhase: '' })
+      .then(() => api.projectPhases.overview())
+      .then((res: any) => { if (Array.isArray(res)) setRows(res as DesignProject[]); toast(`${project.name} follows task progress again`); })
+      .catch((e: Error) => toast('⚠ ' + e.message));
+  };
+
+  const onDrop = (e: React.DragEvent, phaseKey: string) => {
+    e.preventDefault();
+    setDragOver(null);
+    const id = Number(e.dataTransfer.getData('text/plain'));
+    setDragId(null);
+    if (Number.isFinite(id)) moveTo(id, phaseKey);
+  };
+
   if (loading) return <div style={{ padding: 24, fontSize: 13, color: '#7E9B93' }}>Loading design board…</div>;
 
   return (
@@ -112,7 +154,13 @@ export function Design() {
           {columns.map((col) => {
             const cards = visible.filter((p) => p.currentPhaseKey === col.key);
             return (
-              <div key={col.key} style={{ width: 290, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#FBF8F2', borderRadius: 12, border: '1px solid rgba(20,8,31,0.04)', maxHeight: '100%' }}>
+              <div
+                key={col.key}
+                onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== col.key) setDragOver(col.key); }}
+                onDragLeave={() => { if (dragOver === col.key) setDragOver(null); }}
+                onDrop={(e) => onDrop(e, col.key)}
+                style={{ width: 290, flexShrink: 0, display: 'flex', flexDirection: 'column', background: dragOver === col.key ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: dragOver === col.key ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', maxHeight: '100%', transition: 'background 0.15s, border 0.15s' }}
+              >
                 <div style={{ padding: '10px 12px 9px', borderTop: `3px solid ${col.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(20,8,31,0.06)', background: 'white', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: col.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.name}</div>
@@ -130,9 +178,12 @@ export function Design() {
                     return (
                       <div
                         key={p.projectId}
+                        draggable={canManage}
+                        onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(p.projectId)); e.dataTransfer.effectAllowed = 'move'; setDragId(p.projectId); }}
+                        onDragEnd={() => { setDragId(null); setDragOver(null); }}
                         onClick={() => navigate('/projects')}
-                        title={`${p.name} — open in Projects`}
-                        style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: 'pointer' }}
+                        title={canManage ? `${p.name} — drag to move phase, click to open` : `${p.name} — open in Projects`}
+                        style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.projectId ? 0.4 : 1 }}
                       >
                         {/* Same banner treatment as the Projects page card. */}
                         <div style={{ height: 66, background: `linear-gradient(135deg, ${p.imgColor || col.color}, ${(p.imgColor || col.color)}cc)`, position: 'relative' }}>
@@ -175,8 +226,15 @@ export function Design() {
                             </div>
                             <span style={{ fontSize: 10.5, fontWeight: 700, color: col.color }}>{phase?.progress ?? 0}%</span>
                           </div>
-                          <div style={{ fontSize: 9.5, color: '#7E9B93', marginTop: 4 }}>
-                            {phase && phase.total > 0 ? `${phase.done}/${phase.total} tasks in ${col.name}` : 'No tasks yet'}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: '#7E9B93', marginTop: 4 }}>
+                            <span>{phase && phase.total > 0 ? `${phase.done}/${phase.total} tasks in ${col.name}` : 'No tasks yet'}</span>
+                            {p.designPhase && canManage && (
+                              <span
+                                onClick={(e) => { e.stopPropagation(); clearPin(p.projectId); }}
+                                title="Placed here by hand. Clear to follow task progress again."
+                                style={{ marginLeft: 'auto', fontWeight: 700, color: '#93520F', cursor: 'pointer' }}
+                              >Pinned ✕</span>
+                            )}
                           </div>
 
                           {p.referral && (
