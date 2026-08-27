@@ -1,7 +1,8 @@
-import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DealEntity } from '../database/entities';
+import { DealEntity, LeadEntity } from '../database/entities';
+import { ProjectsService } from '../projects/projects.service';
 import { STAGES } from '../seed-data/pipeline';
 
 /** Who performed an action, for the audit trail. */
@@ -13,6 +14,8 @@ export class PipelineService implements OnApplicationBootstrap {
 
   constructor(
     @InjectRepository(DealEntity) private readonly repo: Repository<DealEntity>,
+    @InjectRepository(LeadEntity) private readonly leads: Repository<LeadEntity>,
+    private readonly projects: ProjectsService,
   ) {}
 
   /**
@@ -119,6 +122,52 @@ export class PipelineService implements OnApplicationBootstrap {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
     return { date, action, role: actor?.name || 'System', type, by: actor?.id || '' };
+  }
+
+  /**
+   * Turn an approved lead into a project.
+   *
+   * Everything captured during intake travels with it, and the deal is
+   * archived rather than deleted -- the board stops carrying the card, but its
+   * audit trail survives and stays reachable from the project via `leadId`.
+   */
+  async convertToProject(id: string, opts: { stage?: string; name?: string; contractAmt?: string }, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    if (deal.convertedProjectId) {
+      throw new BadRequestException(`${deal.name} was already converted to project ${deal.convertedProjectId}.`);
+    }
+
+    // The lead shares the deal's id -- that is how intake and board are linked.
+    const lead = await this.leads.findOneBy({ id });
+
+    const location = [lead?.projectCity, lead?.countyLocation].filter(Boolean).join(', ')
+      || [lead?.projectStreetAddress, lead?.projectStreetName].filter(Boolean).join(' ');
+
+    const project = await this.projects.create({
+      name: opts.name?.trim() || deal.name,
+      stage: opts.stage || 'Design',
+      contractAmt: opts.contractAmt?.trim() || deal.value || '$0',
+      location,
+      typeOfWork: lead?.potentialProjectType || '',
+      scope: lead?.projectVision || deal.notes || '',
+      estStart: lead?.desiredStart || '',
+      referral: lead?.leadSource || deal.source || '',
+      contactedBy: deal.assignee || '',
+      leadId: id,
+      priority: 'Medium',
+      progress: 0,
+    });
+
+    deal.convertedProjectId = Number(project.id);
+    deal.archived = true;
+    deal.archivedAt = new Date().toISOString();
+    deal.timeline = [
+      ...((deal.timeline as unknown[]) || []),
+      this.event(`Converted to project #${project.id} (${project.stage}) — card archived`, actor),
+    ];
+    await this.repo.save(deal);
+
+    return { project, deal };
   }
 
   // Idempotent: succeeds even if the deal is already gone.

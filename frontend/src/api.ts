@@ -189,6 +189,10 @@ export const api = {
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
     addEvent: (id: string, action: string) =>
       request(`/pipeline/${id}/event`, { method: 'PUT', body: JSON.stringify({ action }) }),
+    /** Approved lead becomes a project; the card is archived off the board. */
+    convert: (id: string, data: { stage?: string; name?: string; contractAmt?: string }) =>
+      request<{ project: { id: number; name: string; stage: string }; deal: unknown }>(
+        `/pipeline/${id}/convert`, { method: 'POST', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/pipeline/${id}`, { method: 'DELETE' }),
   },
   leads: {

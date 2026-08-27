@@ -1,7 +1,9 @@
 ﻿import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
+import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
 import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
@@ -197,6 +199,7 @@ export function Pipeline() {
   const width = useWindowWidth();
   const isMobile = width <= 640;
   const { toast, currentUser, users } = useApp();
+  const navigate = useNavigate();
   const [roleFilter, setRoleFilter] = useState<'all' | 'pc' | 'pm'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -209,6 +212,7 @@ export function Pipeline() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles'>('overview');
   const [showArchived, setShowArchived] = useState(false);
+  const [converting, setConverting] = useState<Deal | null>(null);
   const [rolesDraft, setRolesDraft] = useState<Record<string, Record<string, string>>>({});
   const [leadDetails, setLeadDetails] = useState<Record<string, NewLead>>({});
   // Which gated questionnaire sections the user has explicitly toggled open/shut.
@@ -1088,6 +1092,16 @@ export function Pipeline() {
           ) : (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'white' }}>
               <div onClick={() => { const idx = selected.stageIdx; if (idx < STAGE_KEYS.length - 1) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < STAGE_KEYS.length - 1 ? 'Move to ' + (STAGES[selected.stageIdx + 1]?.name || 'next stage') : '✓ Complete'}</div>
+              {selected.stageIdx >= stageIndex('client_approval') && !selectedStage.isHold && !selectedStage.isClosed && !selected.convertedProjectId && (
+                <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>
+                  → Convert to Project
+                </div>
+              )}
+              {selected.convertedProjectId && (
+                <div onClick={() => navigate('/projects')} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>
+                  Converted — open project #{selected.convertedProjectId}
+                </div>
+              )}
               <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#2F7D4A' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', color: '#8E2E0A' }}>Delete</div>
               {(selectedStage.isHold || selectedStage.isClosed) && (
@@ -1100,6 +1114,20 @@ export function Pipeline() {
         </div>
       )}
 
+
+      {converting && (
+        <ConvertLeadDialog
+          deal={converting}
+          onCancel={() => setConverting(null)}
+          onConverted={(project) => {
+            // The card is archived server-side, so drop it from the board here.
+            setDeals((prev) => prev.filter((d) => d.id !== converting.id));
+            setConverting(null);
+            setSelectedId(null);
+            toast(`${project.name} created in ${project.stage}`);
+          }}
+        />
+      )}
 
       {/* Lead Intake drawer */}
       {showNew && (

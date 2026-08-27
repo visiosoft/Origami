@@ -69,6 +69,16 @@ export class PipelineController {
     return this.pipelineService.addEvent(id, action, await this.auth.actor(auth));
   }
 
+  /** Approved lead becomes a project; the card leaves the board. */
+  @Post(':id/convert')
+  async convert(
+    @Param('id') id: string,
+    @Body() body: { stage?: string; name?: string; contractAmt?: string },
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.pipelineService.convertToProject(id, body || {}, await this.auth.actor(auth));
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.pipelineService.remove(id);

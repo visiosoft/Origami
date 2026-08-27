@@ -13,6 +13,14 @@ export declare class PipelineController {
     setArchived(id: string, archived: boolean, auth?: string): Promise<import("../database/entities").DealEntity>;
     setRoles(id: string, roles: Record<string, string>, auth?: string): Promise<import("../database/entities").DealEntity>;
     addEvent(id: string, action: string, auth?: string): Promise<import("../database/entities").DealEntity>;
+    convert(id: string, body: {
+        stage?: string;
+        name?: string;
+        contractAmt?: string;
+    }, auth?: string): Promise<{
+        project: import("../database/entities").ProjectEntity;
+        deal: import("../database/entities").DealEntity;
+    }>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

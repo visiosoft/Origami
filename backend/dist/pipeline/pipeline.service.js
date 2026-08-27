@@ -17,10 +17,13 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const projects_service_1 = require("../projects/projects.service");
 const pipeline_1 = require("../seed-data/pipeline");
 let PipelineService = class PipelineService {
-    constructor(repo) {
+    constructor(repo, leads, projects) {
         this.repo = repo;
+        this.leads = leads;
+        this.projects = projects;
         this.log = new common_1.Logger('PipelineService');
     }
     async onApplicationBootstrap() {
@@ -106,6 +109,38 @@ let PipelineService = class PipelineService {
         });
         return { date, action, role: actor?.name || 'System', type, by: actor?.id || '' };
     }
+    async convertToProject(id, opts, actor) {
+        const deal = await this.findOne(id);
+        if (deal.convertedProjectId) {
+            throw new common_1.BadRequestException(`${deal.name} was already converted to project ${deal.convertedProjectId}.`);
+        }
+        const lead = await this.leads.findOneBy({ id });
+        const location = [lead?.projectCity, lead?.countyLocation].filter(Boolean).join(', ')
+            || [lead?.projectStreetAddress, lead?.projectStreetName].filter(Boolean).join(' ');
+        const project = await this.projects.create({
+            name: opts.name?.trim() || deal.name,
+            stage: opts.stage || 'Design',
+            contractAmt: opts.contractAmt?.trim() || deal.value || '$0',
+            location,
+            typeOfWork: lead?.potentialProjectType || '',
+            scope: lead?.projectVision || deal.notes || '',
+            estStart: lead?.desiredStart || '',
+            referral: lead?.leadSource || deal.source || '',
+            contactedBy: deal.assignee || '',
+            leadId: id,
+            priority: 'Medium',
+            progress: 0,
+        });
+        deal.convertedProjectId = Number(project.id);
+        deal.archived = true;
+        deal.archivedAt = new Date().toISOString();
+        deal.timeline = [
+            ...(deal.timeline || []),
+            this.event(`Converted to project #${project.id} (${project.stage}) — card archived`, actor),
+        ];
+        await this.repo.save(deal);
+        return { project, deal };
+    }
     async remove(id) {
         const deal = await this.repo.findOneBy({ id });
         if (deal)
@@ -117,7 +152,10 @@ exports.PipelineService = PipelineService;
 exports.PipelineService = PipelineService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        projects_service_1.ProjectsService])
 ], PipelineService);
 function addMonths(from, months) {
     const day = from.getDate();
