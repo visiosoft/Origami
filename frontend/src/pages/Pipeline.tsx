@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
+import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope } from '../data/projectTypes';
 import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
@@ -254,6 +255,7 @@ export function Pipeline() {
     if (k === 'firstName' || k === 'lastName') {
       next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
     }
+    if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
     return next;
   });
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
@@ -643,6 +645,7 @@ export function Pipeline() {
                     if (k === 'firstName' || k === 'lastName') {
                       next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
                     }
+                    if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
                     return { ...p, [selected.id]: next };
                   });
                   // Every question must be answered before the stage can be saved.
@@ -1092,7 +1095,7 @@ export function Pipeline() {
                   <SectionTitle>5. Project Details</SectionTitle>
                   <FormGrid>
                     <FormField label="Property Type"><select value={nl.propertyType} onChange={(e) => setField('propertyType', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.propertyType.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Potential Project Type" hint="Based on what is known during the first conversation."><select value={nl.potentialProjectType} onChange={(e) => setField('potentialProjectType', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.potentialProjectType.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="Potential Project Type" hint="Sets the property type and fills in the standard scope for that code."><select value={nl.potentialProjectType} onChange={(e) => setField('potentialProjectType', e.target.value)} style={inputStyle}><option value="">Select...</option>{PROJECT_TYPE_GROUPS.map((g) => (<optgroup key={g} label={g}>{PROJECT_TYPES.filter((t) => t.group === g).map((t) => <option key={t.code} value={projectTypeLabel(t)}>{projectTypeLabel(t)}</option>)}</optgroup>))}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Homework Completed</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1101,9 +1104,20 @@ export function Pipeline() {
                       <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 6 }}>Select all preliminary work the client has already completed.</div>
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Project Vision / Scope</div>
-                      <textarea value={nl.projectVision} onChange={(e) => setField('projectVision', e.target.value)} placeholder="Describe what the client wants to accomplish..." rows={4} style={{ ...inputStyle, resize: 'vertical', minHeight: 80 }} />
-                      <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 4 }}>Capture major spaces, changes, additions, and goals mentioned during conversation.</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project Vision / Scope</div>
+                        {findProjectType(nl.potentialProjectType) && (
+                          // Appends rather than replaces, so nothing already written is lost.
+                          <span
+                            onClick={() => setField('projectVision', appendScope(nl.projectVision, findProjectType(nl.potentialProjectType)!.scope))}
+                            style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}
+                          >
+                            + Standard scope for {findProjectType(nl.potentialProjectType)!.code}
+                          </span>
+                        )}
+                      </div>
+                      <textarea value={nl.projectVision} onChange={(e) => setField('projectVision', e.target.value)} placeholder="Describe what the client wants to accomplish..." rows={5} style={{ ...inputStyle, resize: 'vertical', minHeight: 96 }} />
+                      <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 4 }}>The standard scope for the selected project type is filled in automatically. Add the specifics for this client.</div>
                     </div>
                   </FormGrid>
                 </>)}

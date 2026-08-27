@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope } from '../data/projectTypes';
 import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -44,6 +45,7 @@ export function Leads() {
         if (k === 'firstName' || k === 'lastName') {
             next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
         }
+        if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
         return next;
     });
     const toggleHomework = (v: string) => set('homeworkCompleted', form.homeworkCompleted.includes(v) ? form.homeworkCompleted.filter((x) => x !== v) : [...form.homeworkCompleted, v]);
@@ -381,9 +383,15 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                 <label>Potential Project Type</label>
                 <select value={form.potentialProjectType} onChange={(e) => set('potentialProjectType', e.target.value)}>
                     <option value="">Select...</option>
-                    {OPT.potentialProjectType.map((o) => <option key={o} value={o}>{o}</option>)}
+                    {PROJECT_TYPE_GROUPS.map((g) => (
+                        <optgroup key={g} label={g}>
+                            {PROJECT_TYPES.filter((t) => t.group === g).map((t) => (
+                                <option key={t.code} value={projectTypeLabel(t)}>{projectTypeLabel(t)}</option>
+                            ))}
+                        </optgroup>
+                    ))}
                 </select>
-                <span className="hint">Select based on what is known during the first conversation.</span>
+                <span className="hint">Sets the property type and fills in the standard scope for that code.</span>
             </div>
             <div className="leads-field full">
                 <label>Homework Completed</label>
@@ -398,9 +406,19 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                 <span className="hint">Select all preliminary work the client has already completed.</span>
             </div>
             <div className="leads-field full">
-                <label>Project Vision / Scope</label>
+                <label>
+                    Project Vision / Scope
+                    {findProjectType(form.potentialProjectType) && (
+                        <span
+                            onClick={() => set('projectVision', appendScope(form.projectVision, findProjectType(form.potentialProjectType)!.scope))}
+                            style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}
+                        >
+                            + Standard scope for {findProjectType(form.potentialProjectType)!.code}
+                        </span>
+                    )}
+                </label>
                 <textarea value={form.projectVision} onChange={(e) => set('projectVision', e.target.value)} placeholder="Describe what the client wants to accomplish..." />
-                <span className="hint">Capture major spaces, changes, additions, problems, and goals mentioned during the conversation.</span>
+                <span className="hint">The standard scope for the selected project type is filled in automatically. Add the specifics for this client.</span>
             </div>
         </div>
     </>);
