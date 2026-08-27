@@ -39,9 +39,24 @@ let ProjectTasksService = class ProjectTasksService {
                 this.log.log(`Seeded ${project_tasks_1.DEFAULT_TASKS.length} project tasks`);
             }
             await (0, assignee_util_1.backfillAssignees)(this.repo, this.users, 'assigneeId', 'assignee', this.log);
+            await this.renameLegacyTitles();
         }
         catch (err) {
             this.log.error('Task seed failed: ' + err.message);
+        }
+    }
+    async renameLegacyTitles() {
+        const RENAMES = [
+            ['Press Release & Project Info', 'Project Info'],
+        ];
+        for (const [from, to] of RENAMES) {
+            const rows = await this.repo.findBy({ title: from });
+            if (!rows.length)
+                continue;
+            for (const row of rows)
+                row.title = to;
+            await this.repo.save(rows);
+            this.log.log(`Renamed ${rows.length} task(s): "${from}" -> "${to}"`);
         }
     }
     hydrate(task) {

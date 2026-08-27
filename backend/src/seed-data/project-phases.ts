@@ -45,10 +45,10 @@ export const TEMPLATE_STATUS: Record<string, string> = {
 /** Demo-project content only — see the note at the top of this file. */
 export const DEMO_PHASE_TASKS: PhaseTaskTemplate[] = [
   // Project Programming
-  { phaseKey: 'programming', title: 'Press Release & Project Info', status: 'Done', team: 'Admin & Coordination', auto: false, offsetDays: 0, durationDays: 5, deps: [] },
+  { phaseKey: 'programming', title: 'Project Info', status: 'Done', team: 'Admin & Coordination', auto: false, offsetDays: 0, durationDays: 5, deps: [] },
   { phaseKey: 'programming', title: 'Introduction Letter', status: 'Done', team: 'Legal & Contracts', auto: false, offsetDays: 0, durationDays: 3, deps: [] },
-  { phaseKey: 'programming', title: 'Project Program DRAFT', status: 'Done', team: 'Project Management', auto: false, offsetDays: 3, durationDays: 7, deps: ['Press Release & Project Info'] },
-  { phaseKey: 'programming', title: 'Municipality: Zoning Analysis, Permit History, Review Procedure', status: 'Done', team: 'Automation', auto: true, autoLabel: 'Auto-pull zoning records', offsetDays: 3, durationDays: 5, deps: ['Press Release & Project Info'] },
+  { phaseKey: 'programming', title: 'Project Program DRAFT', status: 'Done', team: 'Project Management', auto: false, offsetDays: 3, durationDays: 7, deps: ['Project Info'] },
+  { phaseKey: 'programming', title: 'Municipality: Zoning Analysis, Permit History, Review Procedure', status: 'Done', team: 'Automation', auto: true, autoLabel: 'Auto-pull zoning records', offsetDays: 3, durationDays: 5, deps: ['Project Info'] },
   { phaseKey: 'programming', title: 'Client Review — Project Program', status: 'Done', team: 'Client / Owner', auto: false, offsetDays: 12, durationDays: 4, deps: ['Project Program DRAFT'] },
   { phaseKey: 'programming', title: 'Site & Client Meeting', status: 'Done', team: 'Project Management', auto: false, offsetDays: 18, durationDays: 1, deps: ['Client Review — Project Program'] },
   { phaseKey: 'programming', title: 'Schedule of Services (Fee Proposal)', status: 'Done', team: 'Automation', auto: true, autoLabel: 'Auto-generate from scope template', offsetDays: 19, durationDays: 3, deps: ['Site & Client Meeting'] },

@@ -14,6 +14,7 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService);
     onApplicationBootstrap(): Promise<void>;
+    private renameLegacyTitles;
     private hydrate;
     findAll(projectId?: number): Promise<any[]>;
     board(projectId: number): Promise<{

@@ -17,7 +17,7 @@ export interface Project {
   contactedBy: string;
   imgColor: string;
   img: string;
-  leadId?: string; // originating lead (intake questionnaire) shown on the Press Release & Project Info task
+  leadId?: string; // originating lead (intake questionnaire) shown on the Project Info task
   introLetterSentAt?: string; // ISO timestamp when the Introduction Letter was sent (marks that step complete)
 }
 
@@ -60,10 +60,10 @@ export interface WfPhase { id: string; name: string; color: string; start: strin
 
 export const PROJECT_WORKFLOW: WfPhase[] = [
   { id: 'programming', name: 'Project Programming', color: '#0E5A8A', start: 'Mar 1', end: 'Mar 29', tasks: [
-    { title: 'Press Release & Project Info', status: 'Done', auto: false, assignee: 'Alejandra', team: 'Admin & Coordination', start: 'Mar 1', end: 'Mar 5', dur: '5d', deps: [] },
+    { title: 'Project Info', status: 'Done', auto: false, assignee: 'Alejandra', team: 'Admin & Coordination', start: 'Mar 1', end: 'Mar 5', dur: '5d', deps: [] },
     { title: 'Introduction Letter', status: 'Done', auto: false, assignee: 'Manju', team: 'Legal & Contracts', start: 'Mar 1', end: 'Mar 3', dur: '3d', deps: [] },
-    { title: 'Project Program DRAFT', status: 'Done', auto: false, assignee: 'Edward', team: 'Project Management', start: 'Mar 4', end: 'Mar 12', dur: '7d', deps: ['Press Release & Project Info'] },
-    { title: 'Municipality: Zoning Analysis, Permit History, Review Procedure', status: 'Done', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-pull zoning records', start: 'Mar 4', end: 'Mar 8', dur: '5d', deps: ['Press Release & Project Info'] },
+    { title: 'Project Program DRAFT', status: 'Done', auto: false, assignee: 'Edward', team: 'Project Management', start: 'Mar 4', end: 'Mar 12', dur: '7d', deps: ['Project Info'] },
+    { title: 'Municipality: Zoning Analysis, Permit History, Review Procedure', status: 'Done', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-pull zoning records', start: 'Mar 4', end: 'Mar 8', dur: '5d', deps: ['Project Info'] },
     { title: 'Client Review — Project Program', status: 'Done', auto: false, assignee: 'Owner', team: 'Client / Owner', start: 'Mar 13', end: 'Mar 18', dur: '4d', deps: ['Project Program DRAFT'] },
     { title: 'Site & Client Meeting', status: 'Done', auto: false, assignee: 'Edward', team: 'Project Management', start: 'Mar 19', end: 'Mar 19', dur: '1d', deps: ['Client Review — Project Program'] },
     { title: 'Schedule of Services (Fee Proposal)', status: 'Done', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-generate from scope template', start: 'Mar 20', end: 'Mar 22', dur: '3d', deps: ['Site & Client Meeting'] },

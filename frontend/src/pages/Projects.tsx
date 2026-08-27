@@ -465,8 +465,10 @@ export function Projects() {
             <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{value}</div>
           </div>
         );
-        // The intake task surfaces the full initial-question detail captured in Leads.
-        const isIntake = pt.title === 'Press Release & Project Info';
+        // The intake task surfaces the full initial-question detail captured in
+        // Leads. Rows saved before the task was renamed still carry the old
+        // title, so both are matched.
+        const isIntake = pt.title === 'Project Info' || pt.title === 'Press Release & Project Info';
         const isIntroLetter = pt.title === 'Introduction Letter';
         const lead = isIntake && sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
         const intakeSections: { title: string; rows: [string, string][] }[] = lead ? [
@@ -530,7 +532,7 @@ export function Projects() {
                 </div>
               )}
 
-              {/* Intake questionnaire captured in Leads (shown on the Press Release & Project Info task) */}
+              {/* Intake questionnaire captured in Leads (shown on the Project Info task) */}
               {isIntake && (
                 <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(20,8,31,0.06)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px' }}>

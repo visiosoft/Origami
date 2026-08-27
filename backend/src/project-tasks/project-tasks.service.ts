@@ -31,8 +31,28 @@ export class ProjectTasksService implements OnApplicationBootstrap {
         this.log.log(`Seeded ${DEFAULT_TASKS.length} project tasks`);
       }
       await backfillAssignees(this.repo, this.users, 'assigneeId', 'assignee', this.log);
+      await this.renameLegacyTitles();
     } catch (err) {
       this.log.error('Task seed failed: ' + (err as Error).message);
+    }
+  }
+
+  /**
+   * Rename tasks whose titles have changed since they were seeded.
+   *
+   * Renaming the seed only affects fresh databases; rows already saved keep the
+   * old wording forever otherwise. Idempotent — it only matches the old title.
+   */
+  private async renameLegacyTitles() {
+    const RENAMES: [string, string][] = [
+      ['Press Release & Project Info', 'Project Info'],
+    ];
+    for (const [from, to] of RENAMES) {
+      const rows = await this.repo.findBy({ title: from });
+      if (!rows.length) continue;
+      for (const row of rows) row.title = to;
+      await this.repo.save(rows);
+      this.log.log(`Renamed ${rows.length} task(s): "${from}" -> "${to}"`);
     }
   }
 
