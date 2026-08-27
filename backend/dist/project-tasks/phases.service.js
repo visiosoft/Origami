@@ -57,7 +57,12 @@ let PhasesService = class PhasesService {
         }
         try {
             for (const project of await this.projects.find()) {
-                await this.forProject(Number(project.id));
+                try {
+                    await this.forProject(Number(project.id));
+                }
+                catch (err) {
+                    this.log.warn(`Seeding project ${project.id} failed: ${err.message}`);
+                }
             }
         }
         catch (err) {

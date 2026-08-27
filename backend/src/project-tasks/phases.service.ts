@@ -59,9 +59,15 @@ export class PhasesService implements OnApplicationBootstrap {
 
     // Give every existing project its phases and standard checklist, so the
     // Design board is populated without anyone opening each project first.
+    // Each project is guarded on its own: one bad row must not stop the rest,
+    // which is exactly what a single try around the loop did.
     try {
       for (const project of await this.projects.find()) {
-        await this.forProject(Number(project.id));
+        try {
+          await this.forProject(Number(project.id));
+        } catch (err) {
+          this.log.warn(`Seeding project ${project.id} failed: ${(err as Error).message}`);
+        }
       }
     } catch (err) {
       this.log.warn('Checklist seeding failed: ' + (err as Error).message);
