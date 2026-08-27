@@ -58,8 +58,15 @@ export class PhasesService {
     }
 
     return projects.map((project) => {
-      const own = phases
-        .filter((ph) => Number(ph.projectId) === Number(project.id))
+      const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id));
+      // Phases are only written when someone opens a project's Phase Board, so
+      // fall back to the standard six rather than dropping the project off the
+      // board entirely. No rows are created by reading this.
+      const source = rows.length
+        ? rows
+        : PHASE_DEFINITIONS.map((d) => ({ id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order }));
+
+      const own = source
         .map((ph) => {
           const c = byPhase.get(ph.id) || { total: 0, done: 0 };
           return {

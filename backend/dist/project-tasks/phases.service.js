@@ -52,8 +52,11 @@ let PhasesService = class PhasesService {
             byPhase.set(task.phaseId, bucket);
         }
         return projects.map((project) => {
-            const own = phases
-                .filter((ph) => Number(ph.projectId) === Number(project.id))
+            const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id));
+            const source = rows.length
+                ? rows
+                : project_phases_1.PHASE_DEFINITIONS.map((d) => ({ id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order }));
+            const own = source
                 .map((ph) => {
                 const c = byPhase.get(ph.id) || { total: 0, done: 0 };
                 return {
