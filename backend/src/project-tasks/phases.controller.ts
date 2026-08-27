@@ -13,6 +13,12 @@ export class PhasesController {
   }
 
   /** { phases, tasks } for the Phase Board. */
+  /** Every project's design progress, for the Design board. */
+  @Get('overview')
+  overview() {
+    return this.service.overview();
+  }
+
   @Get('board')
   board(@Query('projectId') projectId: string) {
     const pid = Number(projectId);

@@ -14,6 +14,7 @@ import { Auth } from './pages/Auth';
 import { SetPassword } from './pages/SetPassword';
 import { Privacy } from './pages/Privacy';
 import { Home } from './pages/Home';
+import { Design } from './pages/Design';
 import { FileRoom } from './pages/FileRoom';
 import { useApp } from './AppContext';
 
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Admin />} />
+        <Route path="/design" element={<Design />} />
         <Route path="/planroom" element={<FileRoom />} />
         <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />

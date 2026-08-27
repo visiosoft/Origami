@@ -33,6 +33,72 @@ export class PhasesService {
   ) {}
 
   /**
+   * Every project's design progress in one call, for the Design board.
+   *
+   * Per project it returns the phases with their task counts and the phase the
+   * work has actually reached — the first with unfinished tasks, so a project
+   * shows up in the column somebody is working in rather than the one it was
+   * filed under. Done in one pass instead of a request per project.
+   */
+  async overview() {
+    const [projects, phases, tasks] = await Promise.all([
+      this.projects.find({ order: { id: 'ASC' } }),
+      this.repo.find({ order: { order: 'ASC' } }),
+      this.tasks.find(),
+    ]);
+
+    // Only phase tasks count towards a phase; ad-hoc board tasks don't.
+    const byPhase = new Map<string, { total: number; done: number }>();
+    for (const task of tasks) {
+      if (!task.phaseId || task.parentId) continue;
+      const bucket = byPhase.get(task.phaseId) || { total: 0, done: 0 };
+      bucket.total += 1;
+      if (task.completed || task.status === 'Done') bucket.done += 1;
+      byPhase.set(task.phaseId, bucket);
+    }
+
+    return projects.map((project) => {
+      const own = phases
+        .filter((ph) => Number(ph.projectId) === Number(project.id))
+        .map((ph) => {
+          const c = byPhase.get(ph.id) || { total: 0, done: 0 };
+          return {
+            id: ph.id, key: ph.key, name: ph.name, color: ph.color, order: ph.order,
+            total: c.total, done: c.done,
+            progress: c.total ? Math.round((c.done / c.total) * 100) : 0,
+            complete: c.total > 0 && c.done === c.total,
+          };
+        });
+
+      const started = own.filter((ph) => ph.total > 0);
+      // The first phase with work outstanding; if everything is done, the last
+      // one that had work; if nothing has been planned yet, the first phase.
+      const current = started.find((ph) => !ph.complete)
+        ?? started[started.length - 1]
+        ?? own[0];
+
+      const total = own.reduce((sum, ph) => sum + ph.total, 0);
+      const done = own.reduce((sum, ph) => sum + ph.done, 0);
+
+      return {
+        projectId: Number(project.id),
+        name: project.name,
+        stage: project.stage,
+        priority: project.priority,
+        contractAmt: project.contractAmt,
+        location: project.location,
+        typeOfWork: project.typeOfWork,
+        imgColor: project.imgColor,
+        currentPhaseKey: current?.key ?? null,
+        phases: own,
+        taskTotal: total,
+        taskDone: done,
+        progress: total ? Math.round((done / total) * 100) : 0,
+      };
+    });
+  }
+
+  /**
    * A project's phases, creating the standard six the first time it's opened.
    * Mirrors SectionsService.forProject, which lazily creates board sections.
    */

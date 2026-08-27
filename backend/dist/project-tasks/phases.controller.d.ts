@@ -4,6 +4,31 @@ export declare class PhasesController {
     private readonly service;
     constructor(service: PhasesService);
     findAll(projectId: string): Promise<import("../database/entities").ProjectPhaseEntity[]>;
+    overview(): Promise<{
+        projectId: number;
+        name: string;
+        stage: string;
+        priority: string;
+        contractAmt: string;
+        location: string;
+        typeOfWork: string;
+        imgColor: string;
+        currentPhaseKey: string;
+        phases: {
+            id: string;
+            key: string;
+            name: string;
+            color: string;
+            order: number;
+            total: number;
+            done: number;
+            progress: number;
+            complete: boolean;
+        }[];
+        taskTotal: number;
+        taskDone: number;
+        progress: number;
+    }[]>;
     board(projectId: string): Promise<{
         phases: import("../database/entities").ProjectPhaseEntity[];
         tasks: import("../database/entities").ProjectTaskEntity[];

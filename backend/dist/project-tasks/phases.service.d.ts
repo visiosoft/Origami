@@ -8,6 +8,31 @@ export declare class PhasesService {
     private readonly sections;
     private readonly log;
     constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService);
+    overview(): Promise<{
+        projectId: number;
+        name: string;
+        stage: string;
+        priority: string;
+        contractAmt: string;
+        location: string;
+        typeOfWork: string;
+        imgColor: string;
+        currentPhaseKey: string;
+        phases: {
+            id: string;
+            key: string;
+            name: string;
+            color: string;
+            order: number;
+            total: number;
+            done: number;
+            progress: number;
+            complete: boolean;
+        }[];
+        taskTotal: number;
+        taskDone: number;
+        progress: number;
+    }[]>;
     forProject(projectId: number): Promise<ProjectPhaseEntity[]>;
     board(projectId: number): Promise<{
         phases: ProjectPhaseEntity[];

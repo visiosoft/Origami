@@ -23,6 +23,9 @@ let PhasesController = class PhasesController {
     findAll(projectId) {
         return this.service.forProject(Number(projectId));
     }
+    overview() {
+        return this.service.overview();
+    }
     board(projectId) {
         const pid = Number(projectId);
         if (!Number.isFinite(pid))
@@ -47,6 +50,12 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('overview'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PhasesController.prototype, "overview", null);
 __decorate([
     (0, common_1.Get)('board'),
     __param(0, (0, common_1.Query)('projectId')),

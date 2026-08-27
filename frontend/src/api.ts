@@ -272,6 +272,8 @@ export const api = {
   projectPhases: {
     list: (projectId: number) => request(`/project-phases?projectId=${projectId}`),
     board: (projectId: number) => request(`/project-phases/board?projectId=${projectId}`),
+    /** Every project's phase progress in one call, for the Design board. */
+    overview: () => request('/project-phases/overview'),
     create: (data: unknown) => request('/project-phases', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
