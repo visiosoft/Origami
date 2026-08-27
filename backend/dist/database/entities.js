@@ -1083,6 +1083,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectPhaseEntity.prototype, "endDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectPhaseEntity.prototype, "seededAt", void 0);
 exports.ProjectPhaseEntity = ProjectPhaseEntity = __decorate([
     (0, typeorm_1.Entity)('project_phases')
 ], ProjectPhaseEntity);

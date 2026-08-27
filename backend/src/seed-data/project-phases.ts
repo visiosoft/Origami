@@ -33,6 +33,52 @@ export const PHASE_DEFINITIONS: PhaseDefinition[] = [
   { key: 'closeout', name: 'Closeout', color: '#145C33', order: 3 },
 ];
 
+/**
+ * The standard steps in each phase, given to every project so a new job starts
+ * with the programme already laid out rather than an empty board. They are
+ * seeded unchecked -- ticking one is the record that it actually happened.
+ */
+export const PHASE_CHECKLISTS: Record<string, string[]> = {
+  programming: [
+    'Project Info',
+    'Introduction Letter',
+    'Project Program DRAFT',
+    'Municipality: Zoning Analysis, Permit History, Review Procedure',
+    'Client Review — Project Program',
+    'Site & Client Meeting',
+    'Schedule of Services (Fee Proposal)',
+    'Finance Payment #1 — Contract Retainer',
+  ],
+  schematic: [
+    'Client Review Meeting #2',
+    'SD Perspective and Renderings (Elite Series)',
+    'Schematic Design',
+    'Client Review Meeting #3',
+    'Schematic Design #4',
+    'Client Review #4',
+    'Schematic Design — Client Approval',
+    'Finance Payment — Schematic Design',
+  ],
+  dd: [
+    'Design Development Drawings, Elevations & Lighting Fixtures, Structural Diagrams',
+    'AEC Team Contract and Schedules',
+    'Client Review & Approval',
+    'Design Development Resources',
+    'Municipal Planning Resubmission — Residential',
+    'Municipal Planning Resubmission — Approval',
+    'Invoice — Planning/Entitlement Approval',
+  ],
+  closeout: [
+    'Final Punch List',
+    'As-Built Drawings Issued',
+    'Warranties & Manuals Handover',
+    'Final Inspection Sign-off',
+    'Certificate of Occupancy',
+    'Client Walkthrough & Acceptance',
+    'Final Invoice & Retention Release',
+  ],
+};
+
 /** Phases that were defined once and are no longer used. Removed on boot. */
 export const RETIRED_PHASE_KEYS = ['cd', 'interior', 'ca'];
 

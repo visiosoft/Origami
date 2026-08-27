@@ -10,6 +10,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService);
     onApplicationBootstrap(): Promise<void>;
+    private seedChecklists;
     overview(): Promise<{
         projectId: number;
         name: string;

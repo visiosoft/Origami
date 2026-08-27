@@ -1,12 +1,52 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEMO_PHASE_TASKS = exports.TEMPLATE_STATUS = exports.RETIRED_PHASE_KEYS = exports.PHASE_DEFINITIONS = void 0;
+exports.DEMO_PHASE_TASKS = exports.TEMPLATE_STATUS = exports.RETIRED_PHASE_KEYS = exports.PHASE_CHECKLISTS = exports.PHASE_DEFINITIONS = void 0;
 exports.PHASE_DEFINITIONS = [
     { key: 'programming', name: 'Project Programming', color: '#0E5A8A', order: 0 },
     { key: 'schematic', name: 'Schematic Design', color: '#0F7C7C', order: 1 },
     { key: 'dd', name: 'Design Development & Plans', color: '#6B2FA0', order: 2 },
     { key: 'closeout', name: 'Closeout', color: '#145C33', order: 3 },
 ];
+exports.PHASE_CHECKLISTS = {
+    programming: [
+        'Project Info',
+        'Introduction Letter',
+        'Project Program DRAFT',
+        'Municipality: Zoning Analysis, Permit History, Review Procedure',
+        'Client Review — Project Program',
+        'Site & Client Meeting',
+        'Schedule of Services (Fee Proposal)',
+        'Finance Payment #1 — Contract Retainer',
+    ],
+    schematic: [
+        'Client Review Meeting #2',
+        'SD Perspective and Renderings (Elite Series)',
+        'Schematic Design',
+        'Client Review Meeting #3',
+        'Schematic Design #4',
+        'Client Review #4',
+        'Schematic Design — Client Approval',
+        'Finance Payment — Schematic Design',
+    ],
+    dd: [
+        'Design Development Drawings, Elevations & Lighting Fixtures, Structural Diagrams',
+        'AEC Team Contract and Schedules',
+        'Client Review & Approval',
+        'Design Development Resources',
+        'Municipal Planning Resubmission — Residential',
+        'Municipal Planning Resubmission — Approval',
+        'Invoice — Planning/Entitlement Approval',
+    ],
+    closeout: [
+        'Final Punch List',
+        'As-Built Drawings Issued',
+        'Warranties & Manuals Handover',
+        'Final Inspection Sign-off',
+        'Certificate of Occupancy',
+        'Client Walkthrough & Acceptance',
+        'Final Invoice & Retention Release',
+    ],
+};
 exports.RETIRED_PHASE_KEYS = ['cd', 'interior', 'ca'];
 exports.TEMPLATE_STATUS = {
     Done: 'Done',

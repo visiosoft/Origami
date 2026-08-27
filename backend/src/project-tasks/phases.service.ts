@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
-import { PHASE_DEFINITIONS, RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
+import { PHASE_DEFINITIONS, RETIRED_PHASE_KEYS, PHASE_CHECKLISTS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import { SectionsService } from './sections.service';
 import { event, subId } from '../database/task.types';
 
@@ -56,6 +56,61 @@ export class PhasesService implements OnApplicationBootstrap {
     } catch (err) {
       this.log.warn('Retired phase cleanup failed: ' + (err as Error).message);
     }
+
+    // Give every existing project its phases and standard checklist, so the
+    // Design board is populated without anyone opening each project first.
+    try {
+      for (const project of await this.projects.find()) {
+        await this.forProject(Number(project.id));
+      }
+    } catch (err) {
+      this.log.warn('Checklist seeding failed: ' + (err as Error).message);
+    }
+  }
+
+  /**
+   * Lay the standard checklist into any phase that has never had one.
+   *
+   * Seeded unchecked: the list is what the phase involves, ticking is the
+   * record that it happened. A phase is stamped once so deliberately clearing
+   * it is not undone on the next boot.
+   */
+  private async seedChecklists(projectId: number, phases: ProjectPhaseEntity[]) {
+    const pending = phases.filter((ph) => !ph.seededAt && (PHASE_CHECKLISTS[ph.key] || []).length);
+    if (!pending.length) return;
+
+    const sections = await this.sections.forProject(projectId);
+    // Everything starts in To Do, since nothing has been done yet.
+    const sectionId = (sections[0])?.id ?? `S-${projectId}-0`;
+    const existing = await this.tasks.find({ where: { projectId } });
+    const stamp = new Date().toISOString();
+    const rows: ProjectTaskEntity[] = [];
+
+    for (const phase of pending) {
+      const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
+      (PHASE_CHECKLISTS[phase.key] || []).forEach((title, i) => {
+        if (already.has(title)) return;
+        rows.push(this.tasks.create({
+          id: `T-${projectId}-${phase.key}-${String(i + 1).padStart(2, '0')}`,
+          projectId,
+          sectionId,
+          phaseId: phase.id,
+          title,
+          status: 'Not started',
+          completed: false,
+          order: i,
+          attachments: [], comments: [], checklist: [], labels: [],
+          activity: [event('created', { name: 'System' }, { text: 'added from the standard programme' })],
+          createdAt: stamp.slice(0, 10),
+          updatedAt: stamp,
+        } as Partial<ProjectTaskEntity>));
+      });
+      phase.seededAt = stamp;
+    }
+
+    if (rows.length) await this.tasks.save(rows);
+    await this.repo.save(pending);
+    if (rows.length) this.log.log(`Seeded ${rows.length} checklist step(s) for project ${projectId}`);
   }
 
   /**
@@ -173,6 +228,7 @@ export class PhasesService implements OnApplicationBootstrap {
         existing.sort((a, b) => a.order - b.order);
       }
       await this.seedDemoTasks(projectId, existing);
+      await this.seedChecklists(projectId, existing);
       return existing;
     }
 
@@ -190,6 +246,7 @@ export class PhasesService implements OnApplicationBootstrap {
     this.log.log(`Created ${created.length} phases for project ${projectId}`);
 
     await this.seedDemoTasks(projectId, created);
+    await this.seedChecklists(projectId, created);
     return this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
   }
 

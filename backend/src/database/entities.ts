@@ -334,6 +334,9 @@ export class ProjectPhaseEntity {
   @Column('int') order!: number;
   @Column({ nullable: true }) startDate!: string;
   @Column({ nullable: true }) endDate!: string;
+  // Set once the standard checklist has been laid down, so deliberately
+  // clearing a phase is not undone on the next boot.
+  @Column({ nullable: true }) seededAt!: string;
 }
 
 @Entity('users')

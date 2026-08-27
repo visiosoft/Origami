@@ -281,6 +281,7 @@ export declare class ProjectPhaseEntity {
     order: number;
     startDate: string;
     endDate: string;
+    seededAt: string;
 }
 export declare class UserEntity {
     id: string;

@@ -55,6 +55,51 @@ let PhasesService = class PhasesService {
         catch (err) {
             this.log.warn('Retired phase cleanup failed: ' + err.message);
         }
+        try {
+            for (const project of await this.projects.find()) {
+                await this.forProject(Number(project.id));
+            }
+        }
+        catch (err) {
+            this.log.warn('Checklist seeding failed: ' + err.message);
+        }
+    }
+    async seedChecklists(projectId, phases) {
+        const pending = phases.filter((ph) => !ph.seededAt && (project_phases_1.PHASE_CHECKLISTS[ph.key] || []).length);
+        if (!pending.length)
+            return;
+        const sections = await this.sections.forProject(projectId);
+        const sectionId = (sections[0])?.id ?? `S-${projectId}-0`;
+        const existing = await this.tasks.find({ where: { projectId } });
+        const stamp = new Date().toISOString();
+        const rows = [];
+        for (const phase of pending) {
+            const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
+            (project_phases_1.PHASE_CHECKLISTS[phase.key] || []).forEach((title, i) => {
+                if (already.has(title))
+                    return;
+                rows.push(this.tasks.create({
+                    id: `T-${projectId}-${phase.key}-${String(i + 1).padStart(2, '0')}`,
+                    projectId,
+                    sectionId,
+                    phaseId: phase.id,
+                    title,
+                    status: 'Not started',
+                    completed: false,
+                    order: i,
+                    attachments: [], comments: [], checklist: [], labels: [],
+                    activity: [(0, task_types_1.event)('created', { name: 'System' }, { text: 'added from the standard programme' })],
+                    createdAt: stamp.slice(0, 10),
+                    updatedAt: stamp,
+                }));
+            });
+            phase.seededAt = stamp;
+        }
+        if (rows.length)
+            await this.tasks.save(rows);
+        await this.repo.save(pending);
+        if (rows.length)
+            this.log.log(`Seeded ${rows.length} checklist step(s) for project ${projectId}`);
     }
     async overview() {
         const [projects, phases, tasks] = await Promise.all([
@@ -141,6 +186,7 @@ let PhasesService = class PhasesService {
                 existing.sort((a, b) => a.order - b.order);
             }
             await this.seedDemoTasks(projectId, existing);
+            await this.seedChecklists(projectId, existing);
             return existing;
         }
         const created = project_phases_1.PHASE_DEFINITIONS.map((d) => this.repo.create({
@@ -154,6 +200,7 @@ let PhasesService = class PhasesService {
         await this.repo.save(created);
         this.log.log(`Created ${created.length} phases for project ${projectId}`);
         await this.seedDemoTasks(projectId, created);
+        await this.seedChecklists(projectId, created);
         return this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     }
     async board(projectId) {
