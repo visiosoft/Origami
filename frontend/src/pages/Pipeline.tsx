@@ -697,11 +697,12 @@ export function Pipeline() {
                       const ss = STATUS_STYLES[d.status] || { label: d.status || 'Active', bg: '#E8E8E8', color: '#555', dot: '#999' };
                       const isSelected = selectedId === d.id;
                       const isDraggingCard = dragging === d.id;
+                      const sla = slaState(d, slaDays, stage);
                       // The delivery method reads as a code on the card, so the
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} className={sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -713,7 +714,6 @@ export function Pipeline() {
                               </span>
                             )}
                             {(() => {
-                              const sla = slaState(d, slaDays, stage);
                               if (!sla) return null;
                               const tone = sla.overdue
                                 ? { bg: '#F2DFD4', c: '#8E2E0A' }
