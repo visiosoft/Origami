@@ -99,6 +99,14 @@ const BLANK_LEAD: NewLead = {
 };
 
 /** A hold whose follow-up date has arrived — time to touch base. */
+/** Colour per delivery method, so the codes read apart at card size. */
+const DELIVERY_STYLE: Record<string, { bg: string; c: string }> = {
+  DO: { bg: '#E4DCF7', c: '#5B2BC9' },   // Design Only
+  BO: { bg: '#D6E8E5', c: '#2F6F68' },   // Build Only
+  DB: { bg: '#D2EAD3', c: '#1C5230' },   // Design Build
+  PDB: { bg: '#FBE9AE', c: '#93520F' },  // Progressive Design Build
+};
+
 const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
 
 /** Canonical index for a stage key, so no call site hardcodes a number. */
@@ -618,6 +626,9 @@ export function Pipeline() {
                       const ss = STATUS_STYLES[d.status] || { label: d.status || 'Active', bg: '#E8E8E8', color: '#555', dot: '#999' };
                       const isSelected = selectedId === d.id;
                       const isDraggingCard = dragging === d.id;
+                      // The delivery method reads as a code on the card, so the
+                      // board says at a glance where a lead is likely to go next.
+                      const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
                         <div key={d.id} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
@@ -625,6 +636,11 @@ export function Pipeline() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
                             <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: ss.bg, color: ss.color }}>{ss.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: '#173326' }}>{d.value}</span>
+                            {delivery && (
+                              <span title={`${delivery.label} — ${delivery.detail}`} style={{ padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', background: DELIVERY_STYLE[delivery.code].bg, color: DELIVERY_STYLE[delivery.code].c }}>
+                                {delivery.code}
+                              </span>
+                            )}
                             {d.holdUntil && (
                               <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: holdDue(d.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(d.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                                 {holdDue(d.holdUntil) ? 'Due' : d.holdUntil.slice(5)}
