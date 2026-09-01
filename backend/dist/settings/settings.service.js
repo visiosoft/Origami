@@ -33,6 +33,7 @@ exports.PUBLIC_KEYS = [
     'reminders.triggerToken',
     'tasks.labels',
     'notifications.assignmentEmail',
+    'pipeline.slaDays',
     'brand.companyName',
     'brand.tagline',
     'brand.logoDataUrl',

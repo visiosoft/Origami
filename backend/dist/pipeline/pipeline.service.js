@@ -40,6 +40,16 @@ let PipelineService = class PipelineService {
                 this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
             }
             await this.rehomeRetiredStages(deals);
+            const undated = deals.filter((d) => !d.stageEnteredAt);
+            if (undated.length) {
+                const now = Date.now();
+                for (const deal of undated) {
+                    const days = Number(deal.daysInStage) || 0;
+                    deal.stageEnteredAt = new Date(now - days * 86400000).toISOString();
+                }
+                await this.repo.save(undated);
+                this.log.log(`Backfilled stageEnteredAt on ${undated.length} deal(s)`);
+            }
         }
         catch (err) {
             this.log.warn('Stage index repair failed: ' + err.message);
@@ -94,6 +104,8 @@ let PipelineService = class PipelineService {
         deal.stage = stage;
         if (idx >= 0)
             deal.stageIdx = idx;
+        deal.stageEnteredAt = new Date().toISOString();
+        deal.daysInStage = 0;
         if (target?.isHold && target.holdMonths) {
             deal.holdUntil = addMonths(new Date(), target.holdMonths).toISOString().slice(0, 10);
         }

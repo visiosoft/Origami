@@ -490,3 +490,16 @@
   color: #A7E8B5;
   stroke: #A7E8B5;
 }
+
+/* An overdue pipeline card pulses until somebody deals with it. Kept gentle:
+   a hard flash across a full board is unreadable. */
+@keyframes origami-sla-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.sla-overdue {
+  animation: origami-sla-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sla-overdue { animation: none; }
+}

@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode } from '../data/pipeline';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -228,6 +228,9 @@ export function Pipeline() {
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   const [showArchived, setShowArchived] = useState(false);
+  const [slaDays, setSlaDays] = useState<Record<string, number>>(DEFAULT_SLA_DAYS);
+  // Re-rendered on a timer so a countdown ticks down without a reload.
+  const [, setTick] = useState(0);
   const [converting, setConverting] = useState<Deal | null>(null);
   const [rolesDraft, setRolesDraft] = useState<Record<string, Record<string, string>>>({});
   const [leadDetails, setLeadDetails] = useState<Record<string, NewLead>>({});
@@ -265,6 +268,20 @@ export function Pipeline() {
 
   // Refetched on toggle, because whether archived deals come back is decided
   // by the server rather than filtered here.
+  useEffect(() => {
+    api.settings.get()
+      .then((res: any) => {
+        try {
+          const parsed = JSON.parse(res?.['pipeline.slaDays'] || '{}');
+          if (parsed && typeof parsed === 'object') setSlaDays({ ...DEFAULT_SLA_DAYS, ...parsed });
+        } catch { /* keep the defaults */ }
+      })
+      .catch(() => { });
+    // Once a minute is enough for a countdown measured in hours.
+    const t = setInterval(() => setTick((v) => v + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
   useEffect(() => {
     api.pipeline.list(showArchived).then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
   }, [showArchived]);
@@ -694,6 +711,23 @@ export function Pipeline() {
                                 {delivery.code}
                               </span>
                             )}
+                            {(() => {
+                              const sla = slaState(d, slaDays, stage);
+                              if (!sla) return null;
+                              const tone = sla.overdue
+                                ? { bg: '#F2DFD4', c: '#8E2E0A' }
+                                : sla.dueSoon ? { bg: '#FBE9AE', c: '#93520F' } : { bg: '#E8EFE9', c: '#3F6B52' };
+                              return (
+                                <span
+                                  className={sla.overdue ? 'sla-overdue' : undefined}
+                                  title={`Target: act within ${sla.days} day${sla.days === 1 ? '' : 's'} of entering ${stage.name}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 700, background: tone.bg, color: tone.c }}
+                                >
+                                  <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><circle cx={12} cy={12} r={10} /><polyline points="12 6 12 12 16 14" /></svg>
+                                  {sla.label}
+                                </span>
+                              );
+                            })()}
                             {d.holdUntil && (
                               <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: holdDue(d.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(d.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                                 {holdDue(d.holdUntil) ? 'Due' : d.holdUntil.slice(5)}

@@ -79,6 +79,7 @@ export declare class DealEntity {
     email: string;
     timeline: unknown[];
     notes: string;
+    stageEnteredAt: string;
     holdUntil: string;
     archived: boolean | null;
     archivedAt: string;

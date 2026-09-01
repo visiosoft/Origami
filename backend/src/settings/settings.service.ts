@@ -23,6 +23,8 @@ export const PUBLIC_KEYS = [
   'tasks.labels',
   // Workspace kill switch for assignment emails; per-user opt-out lives on the user row.
   'notifications.assignmentEmail',
+  // Response-time target per pipeline stage, as JSON { stageKey: days }.
+  'pipeline.slaDays',
   // --- Branding: letterhead, footer and signature used on generated documents ---
   'brand.companyName',
   'brand.tagline',

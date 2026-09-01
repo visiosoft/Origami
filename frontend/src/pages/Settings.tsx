@@ -4,6 +4,7 @@ import { api } from '../api';
 import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
+import { PipelineSlaSettings } from './PipelineSlaSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -25,6 +26,9 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   ] },
   { group: 'Brand', items: [
     { key: 'branding', label: 'Branding & Letterhead' },
+  ] },
+  { group: 'Pipeline', items: [
+    { key: 'sla', label: 'Response Times' },
   ] },
   { group: 'Personal', items: [
     { key: 'notifications', label: 'Notifications' },
@@ -66,6 +70,7 @@ export function Settings() {
           {active === 'lead-scoring' && <ScoringTemplateEditor />}
           {active === 'email-templates' && <EmailTemplatesEditor />}
           {active === 'branding' && <BrandingSettings />}
+          {active === 'sla' && <PipelineSlaSettings />}
           {active === 'notifications' && <NotificationSettings />}
           {active === 'google' && <GoogleSettings />}
         </div>

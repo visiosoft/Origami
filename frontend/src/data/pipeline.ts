@@ -192,3 +192,67 @@ export function deliveryCode(contractType?: string): string {
 export function stageBlockedFor(contractType: string | undefined, stageKey: string): boolean {
   return (BLOCKED_STAGES_BY_DELIVERY[deliveryCode(contractType)] || []).includes(stageKey);
 }
+
+/**
+ * How long a lead may sit in a stage before it needs chasing, in days.
+ *
+ * A new lead gets one day — leaving a fresh enquiry longer than that is how
+ * they go cold. Later stages depend on other people, so they get more room.
+ * Overridable per stage in Settings; these are only the starting values.
+ */
+export const DEFAULT_SLA_DAYS: Record<string, number> = {
+  new_lead: 1,
+  contact_attempted: 2,
+  initial_questions: 3,
+  virtual_ff: 5,
+  project_fit: 3,
+  site_visit: 5,
+  zoning: 7,
+  proposal: 7,
+  client_approval: 10,
+  rfp: 10,
+};
+
+/** Stages with no target: parked and closed work is not being chased. */
+export const slaExempt = (stage?: Stage) => !!stage && (!!stage.isHold || !!stage.isClosed);
+
+export interface SlaState {
+  /** Days allowed in this stage. */
+  days: number;
+  /** Negative once the target has passed. */
+  hoursLeft: number;
+  overdue: boolean;
+  /** Within the last quarter of the window. */
+  dueSoon: boolean;
+  label: string;
+}
+
+/**
+ * Time left before this card needs attention.
+ *
+ * Returns null when the stage has no target, or the clock has not started.
+ */
+export function slaState(
+  deal: { stage: string; stageEnteredAt?: string; daysInStage?: number },
+  slaDays: Record<string, number>,
+  stage?: Stage,
+): SlaState | null {
+  if (slaExempt(stage)) return null;
+  const days = slaDays[deal.stage];
+  if (!days || days <= 0) return null;
+
+  // Fall back to the age the card already carries if the clock is missing.
+  const startedMs = deal.stageEnteredAt
+    ? Date.parse(deal.stageEnteredAt)
+    : Date.now() - (Number(deal.daysInStage) || 0) * 86400000;
+  if (Number.isNaN(startedMs)) return null;
+
+  const hoursLeft = (startedMs + days * 86400000 - Date.now()) / 3600000;
+  const overdue = hoursLeft < 0;
+  const over = Math.abs(hoursLeft);
+  const label = overdue
+    ? (over >= 24 ? `${Math.floor(over / 24)}d over` : `${Math.max(1, Math.floor(over))}h over`)
+    : (hoursLeft >= 24 ? `${Math.floor(hoursLeft / 24)}d left` : `${Math.max(1, Math.ceil(hoursLeft))}h left`);
+
+  return { days, hoursLeft, overdue, dueSoon: !overdue && hoursLeft <= days * 24 * 0.25, label };
+}

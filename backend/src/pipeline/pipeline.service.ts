@@ -36,6 +36,19 @@ export class PipelineService implements OnApplicationBootstrap {
         this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
       }
       await this.rehomeRetiredStages(deals);
+
+      // Deals predating the response clock get one derived from daysInStage,
+      // so an old card is not treated as having just arrived.
+      const undated = deals.filter((d) => !d.stageEnteredAt);
+      if (undated.length) {
+        const now = Date.now();
+        for (const deal of undated) {
+          const days = Number(deal.daysInStage) || 0;
+          deal.stageEnteredAt = new Date(now - days * 86400000).toISOString();
+        }
+        await this.repo.save(undated);
+        this.log.log(`Backfilled stageEnteredAt on ${undated.length} deal(s)`);
+      }
     } catch (err) {
       this.log.warn('Stage index repair failed: ' + (err as Error).message);
     }
@@ -113,6 +126,9 @@ export class PipelineService implements OnApplicationBootstrap {
 
     deal.stage = stage;
     if (idx >= 0) deal.stageIdx = idx;
+    // Restart the response clock: the target is time in *this* stage.
+    deal.stageEnteredAt = new Date().toISOString();
+    deal.daysInStage = 0;
 
     // A hold stage parks the lead until a date, so it can be brought back.
     if (target?.isHold && target.holdMonths) {

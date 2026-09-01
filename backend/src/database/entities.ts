@@ -94,6 +94,9 @@ export class DealEntity {
   @Column('simple-json') timeline!: unknown[];
   @Column(TEXT) notes!: string;
   // Set when the deal is parked on a hold stage: the date to pick it back up.
+  // When the deal entered its current stage — the clock the response-time
+  // target is measured from.
+  @Column({ nullable: true }) stageEnteredAt!: string;
   @Column({ nullable: true }) holdUntil!: string;
   // Off the board without being destroyed. Only terminal stages are archivable.
   @Column({ type: 'bit', nullable: true }) archived!: boolean | null;

@@ -328,6 +328,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], DealEntity.prototype, "stageEnteredAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], DealEntity.prototype, "holdUntil", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
