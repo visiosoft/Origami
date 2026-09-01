@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
-import { STAGES } from '../seed-data/pipeline';
+import { STAGES, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
 
 /** Who performed an action, for the audit trail. */
 export interface DealActor { name: string; id?: string }
@@ -67,6 +67,17 @@ export class PipelineService implements OnApplicationBootstrap {
     const stageName = target?.name ?? stage;
 
     const deal = await this.findOne(id);
+
+    // Some stages do not apply to a delivery method — a Build Only lead has
+    // nothing to review at design fit or zoning. Enforced here rather than only
+    // in the UI, so the rule holds however the move is made.
+    const lead = await this.leads.findOneBy({ id });
+    if (stageBlockedFor(lead?.contractType, stage)) {
+      throw new BadRequestException(
+        `${stageName} does not apply to a ${deliveryCode(lead?.contractType)} lead.`,
+      );
+    }
+
     deal.stage = stage;
     if (idx >= 0) deal.stageIdx = idx;
 

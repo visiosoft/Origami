@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEALS = exports.STATUS_STYLES = exports.STAGE_KEYS = exports.STAGES = void 0;
+exports.BLOCKED_STAGES_BY_DELIVERY = exports.DEALS = exports.STATUS_STYLES = exports.STAGE_KEYS = exports.STAGES = void 0;
+exports.deliveryCode = deliveryCode;
+exports.stageBlockedFor = stageBlockedFor;
 exports.STAGES = [
     { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2F6F68', colorBg: '#D6E8E5' },
     { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2C7A7B', colorBg: '#D3E9E7' },
@@ -113,4 +115,14 @@ exports.DEALS = [
         ],
         notes: 'Café fit-out for Coffee Planet expansion. Good meeting, client wants to proceed quickly. Need to initiate ZA.' },
 ];
+exports.BLOCKED_STAGES_BY_DELIVERY = {
+    BO: ['virtual_ff', 'project_fit', 'zoning'],
+};
+function deliveryCode(contractType) {
+    const match = /\(([A-Z]{2,3})\)\s*$/.exec((contractType || '').trim());
+    return match ? match[1] : '';
+}
+function stageBlockedFor(contractType, stageKey) {
+    return (exports.BLOCKED_STAGES_BY_DELIVERY[deliveryCode(contractType)] || []).includes(stageKey);
+}
 //# sourceMappingURL=pipeline.js.map

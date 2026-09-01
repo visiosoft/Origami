@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { deliveryCode } from '../data/pipeline';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9,
@@ -16,6 +17,8 @@ const PROJECT_STAGES = [
 
 interface Props {
   deal: { id: string; name: string; value: string };
+  /** The lead's delivery method, which decides where the work starts. */
+  contractType?: string;
   onCancel: () => void;
   onConverted: (project: { id: number; name: string; stage: string }) => void;
 }
@@ -26,10 +29,12 @@ interface Props {
  * Everything captured during intake travels with it server-side; this only
  * collects the few things worth confirming at the moment of conversion.
  */
-export function ConvertLeadDialog({ deal, onCancel, onConverted }: Props) {
+export function ConvertLeadDialog({ deal, contractType, onCancel, onConverted }: Props) {
+  const code = deliveryCode(contractType);
   const [name, setName] = useState(deal.name);
   const [contractAmt, setContractAmt] = useState(deal.value || '');
-  const [stage, setStage] = useState('Design');
+  // Build Only has no design to run, so it starts in construction.
+  const [stage, setStage] = useState(code === 'BO' ? 'Construction' : 'Design');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,6 +62,7 @@ export function ConvertLeadDialog({ deal, onCancel, onConverted }: Props) {
           <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 4, lineHeight: 1.55 }}>
             The intake details, scope, location and source all transfer. The card leaves the pipeline board —
             its audit trail stays with the lead and remains reachable from the project.
+            {code === 'BO' && ' This is a Build Only lead, so it starts in Construction.'}
           </div>
         </div>
 

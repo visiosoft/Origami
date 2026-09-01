@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal } from '../data/pipeline';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -543,12 +543,63 @@ export function Pipeline() {
     e.dataTransfer.effectAllowed = 'move';
     setDragging(id);
   };
+  /** Whether this lead's delivery method rules a stage out. */
+  const blockedFor = (dealId: string, stageKey: string) =>
+    stageBlockedFor(leadDetails[dealId]?.contractType, stageKey);
+
+  /**
+   * The next stage this lead may actually enter — stages ruled out by its
+   * delivery method are stepped over rather than blocking the button.
+   */
+  const nextStageFor = (deal: Deal) => {
+    for (let i = deal.stageIdx + 1; i < STAGE_KEYS.length; i += 1) {
+      const key = STAGE_KEYS[i];
+      if (!blockedFor(deal.id, key)) return { key, idx: i, name: STAGES[i]?.name || key };
+    }
+    return null;
+  };
+
+  /**
+   * Change how the work is delivered.
+   *
+   * A pursuit genuinely moves between methods as it is understood — a Build
+   * Only job turns into Design Build once it is clear design is needed, and a
+   * Design Only one can go either way. Recorded in the Audit Trail, because it
+   * changes which stages the lead may enter.
+   */
+  const changeDelivery = (deal: Deal, contractType: string) => {
+    const before = leadDetails[deal.id]?.contractType || '';
+    if (before === contractType) return;
+    const label = contractType ? deliveryCode(contractType) : 'none';
+
+    setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...(prev[deal.id] || baseLead(deal)), contractType } }));
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', contractType })
+      .then(() => {
+        api.pipeline.addEvent(deal.id, `Delivery method set to ${label}${before ? ` (was ${deliveryCode(before) || 'none'})` : ''}`).catch(() => { });
+        toast(`Delivery method set to ${label}`);
+        // Warn rather than move it: where the lead goes next is a judgement.
+        if (stageBlockedFor(contractType, deal.stage)) {
+          toast(`⚠ ${STAGES.find((st) => st.key === deal.stage)?.name} doesn't apply to a ${label} lead — move it on`);
+        }
+      })
+      .catch((e: Error) => {
+        setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...(prev[deal.id] || baseLead(deal)), contractType: before } }));
+        toast('⚠ ' + e.message);
+      });
+  };
+
   const onDrop = (e: React.DragEvent, stageKey: string, stageIdx: number) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
-    if (id) applyOverride(id, { stage: stageKey, stageIdx, daysInStage: 0, status: 'in_progress' });
     setDragging(null);
     setDragOver(null);
+    if (!id) return;
+    if (blockedFor(id, stageKey)) {
+      const code = deliveryCode(leadDetails[id]?.contractType);
+      toast(`⚠ ${STAGES.find((st) => st.key === stageKey)?.name} doesn't apply to a ${code} lead`);
+      return;
+    }
+    applyOverride(id, { stage: stageKey, stageIdx, daysInStage: 0, status: 'in_progress' });
   };
 
   const stats = [
@@ -611,8 +662,10 @@ export function Pipeline() {
             {STAGES.filter((st) => roleFilter === 'all' || (roleFilter === 'pc' ? st.owner === 'PC' : st.owner === 'PM')).map((stage) => {
               const cards = filtered.filter((d) => d.stage === stage.key);
               const isDragOver = dragOver === stage.key;
+              // Dim the columns the card being dragged is not allowed into.
+              const isBlocked = !!dragging && blockedFor(dragging, stage.key);
               return (
-                <div key={stage.key} onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== stage.key) setDragOver(stage.key); }} onDragLeave={() => { if (dragOver === stage.key) setDragOver(null); }} onDrop={(e) => onDrop(e, stage.key, stage.idx)} style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', background: isDragOver ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: isDragOver ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', maxHeight: '100%', transition: 'background 0.15s, border 0.15s' }}>
+                <div key={stage.key} onDragOver={(e) => { if (dragging && blockedFor(dragging, stage.key)) { e.dataTransfer.dropEffect = 'none'; return; } e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== stage.key) setDragOver(stage.key); }} onDragLeave={() => { if (dragOver === stage.key) setDragOver(null); }} onDrop={(e) => onDrop(e, stage.key, stage.idx)} style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', background: isDragOver ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: isDragOver ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', maxHeight: '100%', opacity: isBlocked ? 0.35 : 1, transition: 'background 0.15s, border 0.15s, opacity 0.15s' }}>
                   <div style={{ padding: '10px 10px 8px', borderTop: `3px solid ${stage.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(20,8,31,0.06)', background: stage.colorBg, flexShrink: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                       <div style={{ width: 6, height: 6, borderRadius: 2, background: stage.color }} />
@@ -711,6 +764,15 @@ export function Pipeline() {
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
+              <select
+                value={leadDetails[selected.id]?.contractType || ''}
+                onChange={(e) => changeDelivery(selected, e.target.value)}
+                title="How the work is delivered. It can change as you learn more."
+                style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, border: '1px solid rgba(20,8,31,0.12)', background: 'white', color: '#0B1A12', fontFamily: 'inherit', cursor: 'pointer' }}
+              >
+                <option value="">Delivery…</option>
+                {CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{c.code} — {c.label}</option>)}
+              </select>
               {selected.holdUntil && (
                 <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                   {holdDue(selected.holdUntil) ? 'Follow up now' : `Follow up ${selected.holdUntil}`}
@@ -1133,7 +1195,7 @@ export function Pipeline() {
             </div>
           ) : (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'white' }}>
-              <div onClick={() => { const idx = selected.stageIdx; if (idx < STAGE_KEYS.length - 1) applyOverride(selected.id, { stage: STAGE_KEYS[idx + 1], stageIdx: idx + 1, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{selected.stageIdx < STAGE_KEYS.length - 1 ? 'Move to ' + (STAGES[selected.stageIdx + 1]?.name || 'next stage') : '✓ Complete'}</div>
+              <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
               {selected.stageIdx >= stageIndex('client_approval') && !selectedStage.isHold && !selectedStage.isClosed && !selected.convertedProjectId && (
                 <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>
                   → Convert to Project
@@ -1160,6 +1222,7 @@ export function Pipeline() {
       {converting && (
         <ConvertLeadDialog
           deal={converting}
+          contractType={leadDetails[converting.id]?.contractType}
           onCancel={() => setConverting(null)}
           onConverted={(project) => {
             // The card is archived server-side, so drop it from the board here.

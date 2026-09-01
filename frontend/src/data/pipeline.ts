@@ -168,3 +168,25 @@ export const DEALS: Deal[] = [
     ],
     notes: 'Café fit-out for Coffee Planet expansion. Good meeting, client wants to proceed quickly. Need to initiate ZA.' },
 ];
+
+/**
+ * Stages that do not apply to a delivery method.
+ *
+ * Build Only means the design already exists and the client is not going
+ * through the full process, so the design-fit and zoning steps have nothing to
+ * review — a BO lead reaching them is a mistake, not a shortcut.
+ */
+export const BLOCKED_STAGES_BY_DELIVERY: Record<string, string[]> = {
+  BO: ['virtual_ff', 'project_fit', 'zoning'],
+};
+
+/** The code inside a stored contract type, e.g. "Build Only (BO)" -> "BO". */
+export function deliveryCode(contractType?: string): string {
+  const match = /\(([A-Z]{2,3})\)\s*$/.exec((contractType || '').trim());
+  return match ? match[1] : '';
+}
+
+/** Whether a delivery method bars a lead from a stage. */
+export function stageBlockedFor(contractType: string | undefined, stageKey: string): boolean {
+  return (BLOCKED_STAGES_BY_DELIVERY[deliveryCode(contractType)] || []).includes(stageKey);
+}

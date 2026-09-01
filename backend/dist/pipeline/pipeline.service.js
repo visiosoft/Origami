@@ -65,6 +65,10 @@ let PipelineService = class PipelineService {
         const target = idx >= 0 ? pipeline_1.STAGES[idx] : undefined;
         const stageName = target?.name ?? stage;
         const deal = await this.findOne(id);
+        const lead = await this.leads.findOneBy({ id });
+        if ((0, pipeline_1.stageBlockedFor)(lead?.contractType, stage)) {
+            throw new common_1.BadRequestException(`${stageName} does not apply to a ${(0, pipeline_1.deliveryCode)(lead?.contractType)} lead.`);
+        }
         deal.stage = stage;
         if (idx >= 0)
             deal.stageIdx = idx;

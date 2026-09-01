@@ -53,3 +53,6 @@ export declare const STATUS_STYLES: Record<string, {
     dot: string;
 }>;
 export declare const DEALS: Deal[];
+export declare const BLOCKED_STAGES_BY_DELIVERY: Record<string, string[]>;
+export declare function deliveryCode(contractType?: string): string;
+export declare function stageBlockedFor(contractType: string | undefined, stageKey: string): boolean;
