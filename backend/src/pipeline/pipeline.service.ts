@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
-import { STAGES, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
+import { STAGES, RETIRED_STAGE_KEYS, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
 
 /** Who performed an action, for the audit trail. */
 export interface DealActor { name: string; id?: string }
@@ -30,12 +30,45 @@ export class PipelineService implements OnApplicationBootstrap {
         const idx = STAGES.findIndex((s) => s.key === d.stage);
         return idx >= 0 && d.stageIdx !== idx;
       });
-      if (!stale.length) return;
-      for (const deal of stale) deal.stageIdx = STAGES.findIndex((s) => s.key === deal.stage);
-      await this.repo.save(stale);
-      this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
+      if (stale.length) {
+        for (const deal of stale) deal.stageIdx = STAGES.findIndex((s) => s.key === deal.stage);
+        await this.repo.save(stale);
+        this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
+      }
+      await this.rehomeRetiredStages(deals);
     } catch (err) {
       this.log.warn('Stage index repair failed: ' + (err as Error).message);
+    }
+  }
+
+  /**
+   * Move deals off a stage that no longer exists.
+   *
+   * Forward, not back: the step was removed because it is not needed, so the
+   * lead has effectively passed it — sending it backwards would undo progress
+   * that actually happened. Stages the lead's delivery method rules out are
+   * stepped over, and the move is written to the audit trail so nobody is left
+   * wondering why a card jumped.
+   */
+  private async rehomeRetiredStages(deals: DealEntity[]) {
+    const stranded = deals.filter((d) => RETIRED_STAGE_KEYS.includes(d.stage));
+    if (!stranded.length) return;
+
+    const order = STAGES.filter((s) => !s.isHold && !s.isClosed);
+    for (const deal of stranded) {
+      const lead = await this.leads.findOneBy({ id: deal.id });
+      const target = order.find((s, i) => i >= 0 && s.idx >= 0 && !RETIRED_STAGE_KEYS.includes(s.key)
+        && s.idx >= deal.stageIdx && !stageBlockedFor(lead?.contractType, s.key));
+      if (!target) continue;
+
+      deal.stage = target.key;
+      deal.stageIdx = target.idx;
+      deal.timeline = [
+        ...((deal.timeline as unknown[]) || []),
+        this.event(`Stage removed from the funnel — moved to ${target.name}`, { name: 'System' }),
+      ];
+      await this.repo.save(deal);
+      this.log.log(`Moved ${deal.id} off a retired stage to ${target.key}`);
     }
   }
 

@@ -33,15 +33,37 @@ let PipelineService = class PipelineService {
                 const idx = pipeline_1.STAGES.findIndex((s) => s.key === d.stage);
                 return idx >= 0 && d.stageIdx !== idx;
             });
-            if (!stale.length)
-                return;
-            for (const deal of stale)
-                deal.stageIdx = pipeline_1.STAGES.findIndex((s) => s.key === deal.stage);
-            await this.repo.save(stale);
-            this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
+            if (stale.length) {
+                for (const deal of stale)
+                    deal.stageIdx = pipeline_1.STAGES.findIndex((s) => s.key === deal.stage);
+                await this.repo.save(stale);
+                this.log.log(`Repaired stageIdx on ${stale.length} deal(s)`);
+            }
+            await this.rehomeRetiredStages(deals);
         }
         catch (err) {
             this.log.warn('Stage index repair failed: ' + err.message);
+        }
+    }
+    async rehomeRetiredStages(deals) {
+        const stranded = deals.filter((d) => pipeline_1.RETIRED_STAGE_KEYS.includes(d.stage));
+        if (!stranded.length)
+            return;
+        const order = pipeline_1.STAGES.filter((s) => !s.isHold && !s.isClosed);
+        for (const deal of stranded) {
+            const lead = await this.leads.findOneBy({ id: deal.id });
+            const target = order.find((s, i) => i >= 0 && s.idx >= 0 && !pipeline_1.RETIRED_STAGE_KEYS.includes(s.key)
+                && s.idx >= deal.stageIdx && !(0, pipeline_1.stageBlockedFor)(lead?.contractType, s.key));
+            if (!target)
+                continue;
+            deal.stage = target.key;
+            deal.stageIdx = target.idx;
+            deal.timeline = [
+                ...(deal.timeline || []),
+                this.event(`Stage removed from the funnel — moved to ${target.name}`, { name: 'System' }),
+            ];
+            await this.repo.save(deal);
+            this.log.log(`Moved ${deal.id} off a retired stage to ${target.key}`);
         }
     }
     getStages() {

@@ -13,6 +13,7 @@ export declare class PipelineService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<DealEntity>, leads: Repository<LeadEntity>, projects: ProjectsService);
     onApplicationBootstrap(): Promise<void>;
+    private rehomeRetiredStages;
     getStages(): import("../seed-data/pipeline").Stage[];
     findAll(includeArchived?: boolean): Promise<DealEntity[]>;
     findOne(id: string): Promise<DealEntity>;
