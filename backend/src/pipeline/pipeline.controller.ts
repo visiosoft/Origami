@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, Query, Headers } from '@nestjs/common';
 import { Tiers } from '../auth/guards/roles.decorator';
-import { PipelineService } from './pipeline.service';
+import { PipelineService, type FollowUpInput } from './pipeline.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 
@@ -77,6 +77,16 @@ export class PipelineController {
     @Headers('authorization') auth?: string,
   ) {
     return this.pipelineService.convertToProject(id, body || {}, await this.auth.actor(auth));
+  }
+
+  /** Record a chase on a lead; the last attempt hands it to a manager. */
+  @Post(':id/follow-up')
+  async logFollowUp(
+    @Param('id') id: string,
+    @Body() body: FollowUpInput,
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.pipelineService.logFollowUp(id, body, await this.auth.actor(auth));
   }
 
   @Delete(':id')

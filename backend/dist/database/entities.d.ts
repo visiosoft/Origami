@@ -85,6 +85,7 @@ export declare class DealEntity {
     archivedAt: string;
     convertedProjectId: number | null;
     roles: Record<string, string>;
+    followUps: unknown[];
 }
 export declare class InvoiceEntity {
     pk: number;

@@ -30,6 +30,10 @@ export interface Deal {
   convertedProjectId?: number | null;
   /** Internal team on this pursuit, keyed by role. */
   roles?: Record<string, string>;
+  /** Chases made on this lead. */
+  followUps?: unknown[];
+  /** When the deal entered its current stage — the response clock. */
+  stageEnteredAt?: string;
 }
 
 export interface Stage {

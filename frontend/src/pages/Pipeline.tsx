@@ -5,6 +5,7 @@ import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch,
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
 import { ContactsDirectory } from '../components/ContactsDirectory';
+import { FollowUpPanel, type FollowUp } from '../components/FollowUpPanel';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
 import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
@@ -1155,6 +1156,20 @@ export function Pipeline() {
                   {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)' }}>Cancel</div>}
                 </div>
               </div>
+
+              {(selected.stage === 'contact_attempted' || selected.stage === 'new_lead') && (
+                <FollowUpPanel
+                  dealId={selected.id}
+                  followUps={(selected.followUps as FollowUp[]) || []}
+                  users={users}
+                  onLogged={(followUps, assignee) => {
+                    setDeals((prev) => prev.map((d) => (d.id === selected.id
+                      ? { ...d, followUps, ...(assignee ? { assignee, assignedRole: 'PM', status: 'awaiting_pm' as const } : {}) }
+                      : d)));
+                    toast(assignee ? `Handed to ${assignee}` : 'Attempt logged');
+                  }}
+                />
+              )}
 
               {/* Audit trail (stage moves, archives, role changes, notes) */}
               <div style={{ padding: '14px 20px' }}>

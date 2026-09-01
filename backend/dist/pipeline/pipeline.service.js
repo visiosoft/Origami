@@ -12,13 +12,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PipelineService = void 0;
+exports.PipelineService = exports.MAX_FOLLOW_UPS = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const projects_service_1 = require("../projects/projects.service");
 const pipeline_1 = require("../seed-data/pipeline");
+exports.MAX_FOLLOW_UPS = 3;
 let PipelineService = class PipelineService {
     constructor(repo, leads, projects) {
         this.repo = repo;
@@ -136,6 +137,45 @@ let PipelineService = class PipelineService {
         }
         return this.repo.save(deal);
     }
+    async logFollowUp(id, input, actor) {
+        const deal = await this.findOne(id);
+        const existing = (deal.followUps || []);
+        if (existing.length >= exports.MAX_FOLLOW_UPS) {
+            throw new common_1.BadRequestException(`All ${exports.MAX_FOLLOW_UPS} attempts have been logged for ${deal.name}.`);
+        }
+        const attempt = existing.length + 1;
+        const isLast = attempt >= exports.MAX_FOLLOW_UPS;
+        const who = input.contactName?.trim() || (input.target === 'referral' ? 'a referral' : deal.client || deal.name);
+        const entry = {
+            attempt,
+            method: input.method,
+            outcome: input.outcome,
+            note: (input.note || '').trim(),
+            target: input.target || 'lead',
+            contactName: input.contactName?.trim() || '',
+            at: new Date().toISOString(),
+            by: actor?.name || 'Unknown',
+            byId: actor?.id || '',
+            assignedTo: isLast ? (input.assignToName || '') : '',
+            assignedToId: isLast ? (input.assignToId || '') : '',
+        };
+        deal.followUps = [...existing, entry];
+        if (isLast && input.assignToName) {
+            deal.assignee = input.assignToName;
+            deal.assigneeInit = initialsOf(input.assignToName);
+            deal.assignedRole = 'PM';
+            deal.status = 'awaiting_pm';
+        }
+        const detail = `Attempt ${attempt} of ${exports.MAX_FOLLOW_UPS} — ${input.method}, ${input.outcome} (${who})`;
+        deal.timeline = [
+            ...(deal.timeline || []),
+            this.event(detail, actor, 'pc'),
+            ...(isLast && input.assignToName
+                ? [this.event(`Handed to ${input.assignToName} after ${exports.MAX_FOLLOW_UPS} attempts`, actor, 'pm')]
+                : []),
+        ];
+        return this.repo.save(deal);
+    }
     async addEvent(id, action, actor, type = 'auto') {
         const deal = await this.findOne(id);
         deal.timeline = [...(deal.timeline || []), this.event(action, actor, type)];
@@ -196,6 +236,12 @@ exports.PipelineService = PipelineService = __decorate([
         typeorm_2.Repository,
         projects_service_1.ProjectsService])
 ], PipelineService);
+function initialsOf(name) {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length)
+        return '?';
+    return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
 function addMonths(from, months) {
     const day = from.getDate();
     const out = new Date(from.getTime());

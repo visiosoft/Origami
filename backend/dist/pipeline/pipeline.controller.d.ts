@@ -1,4 +1,4 @@
-import { PipelineService } from './pipeline.service';
+import { PipelineService, type FollowUpInput } from './pipeline.service';
 import { AuthService } from '../auth/auth.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 export declare class PipelineController {
@@ -21,6 +21,7 @@ export declare class PipelineController {
         project: import("../database/entities").ProjectEntity;
         deal: import("../database/entities").DealEntity;
     }>;
+    logFollowUp(id: string, body: FollowUpInput, auth?: string): Promise<import("../database/entities").DealEntity>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

@@ -50,6 +50,9 @@ let PipelineController = class PipelineController {
     async convert(id, body, auth) {
         return this.pipelineService.convertToProject(id, body || {}, await this.auth.actor(auth));
     }
+    async logFollowUp(id, body, auth) {
+        return this.pipelineService.logFollowUp(id, body, await this.auth.actor(auth));
+    }
     remove(id) {
         return this.pipelineService.remove(id);
     }
@@ -127,6 +130,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], PipelineController.prototype, "convert", null);
+__decorate([
+    (0, common_1.Post)(':id/follow-up'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], PipelineController.prototype, "logFollowUp", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

@@ -5,6 +5,21 @@ import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
 import { STAGES, RETIRED_STAGE_KEYS, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
 
+/** How many chases before the lead is handed on rather than chased again. */
+export const MAX_FOLLOW_UPS = 3;
+
+export interface FollowUpInput {
+  method: string;
+  outcome: string;
+  note?: string;
+  /** Who was chased: the lead, or one of their referrals. */
+  target?: string;
+  contactName?: string;
+  /** On the last attempt, the person the lead is handed to. */
+  assignToId?: string;
+  assignToName?: string;
+}
+
 /** Who performed an action, for the audit trail. */
 export interface DealActor { name: string; id?: string }
 
@@ -166,6 +181,61 @@ export class PipelineService implements OnApplicationBootstrap {
     return this.repo.save(deal);
   }
 
+  /**
+   * Record a chase on a lead.
+   *
+   * The coordinator gets a fixed number of attempts; the last one hands the
+   * lead to a manager rather than being another call into the void. Everything
+   * is audited, because "we tried three times" only means something if the
+   * attempts are on the record.
+   */
+  async logFollowUp(id: string, input: FollowUpInput, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    const existing = ((deal.followUps as any[]) || []);
+    if (existing.length >= MAX_FOLLOW_UPS) {
+      throw new BadRequestException(`All ${MAX_FOLLOW_UPS} attempts have been logged for ${deal.name}.`);
+    }
+
+    const attempt = existing.length + 1;
+    const isLast = attempt >= MAX_FOLLOW_UPS;
+    const who = input.contactName?.trim() || (input.target === 'referral' ? 'a referral' : deal.client || deal.name);
+
+    const entry = {
+      attempt,
+      method: input.method,
+      outcome: input.outcome,
+      note: (input.note || '').trim(),
+      target: input.target || 'lead',
+      contactName: input.contactName?.trim() || '',
+      at: new Date().toISOString(),
+      by: actor?.name || 'Unknown',
+      byId: actor?.id || '',
+      assignedTo: isLast ? (input.assignToName || '') : '',
+      assignedToId: isLast ? (input.assignToId || '') : '',
+    };
+    deal.followUps = [...existing, entry];
+
+    // The last chase hands the lead on, so it stops sitting with the person
+    // who has already failed to reach them three times.
+    if (isLast && input.assignToName) {
+      deal.assignee = input.assignToName;
+      deal.assigneeInit = initialsOf(input.assignToName);
+      deal.assignedRole = 'PM';
+      deal.status = 'awaiting_pm';
+    }
+
+    const detail = `Attempt ${attempt} of ${MAX_FOLLOW_UPS} — ${input.method}, ${input.outcome} (${who})`;
+    deal.timeline = [
+      ...((deal.timeline as unknown[]) || []),
+      this.event(detail, actor, 'pc'),
+      ...(isLast && input.assignToName
+        ? [this.event(`Handed to ${input.assignToName} after ${MAX_FOLLOW_UPS} attempts`, actor, 'pm')]
+        : []),
+    ];
+
+    return this.repo.save(deal);
+  }
+
   /** Append a note or any other audited action to the trail. */
   async addEvent(id: string, action: string, actor?: DealActor, type: 'auto' | 'pc' | 'pm' = 'auto') {
     const deal = await this.findOne(id);
@@ -237,6 +307,13 @@ export class PipelineService implements OnApplicationBootstrap {
     if (deal) await this.repo.remove(deal);
     return { id, deleted: true };
   }
+}
+
+/** Initials for the little avatar on a card. */
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
 }
 
 /** Month arithmetic that clamps rather than rolling over (31 Jan + 1mo = 28 Feb). */

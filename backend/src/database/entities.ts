@@ -105,6 +105,8 @@ export class DealEntity {
   @Column({ type: 'int', nullable: true }) convertedProjectId!: number | null;
   // Internal team on this pursuit: { projectManager, superintendent, ... }
   @Column({ type: 'simple-json', nullable: true }) roles!: Record<string, string>;
+  // Chases made on this lead: how, to whom, what came of it.
+  @Column({ type: 'simple-json', nullable: true }) followUps!: unknown[];
 }
 
 @Entity('invoices')

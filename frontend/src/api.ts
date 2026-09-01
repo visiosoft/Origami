@@ -187,6 +187,8 @@ export const api = {
       request(`/pipeline/${id}/archived`, { method: 'PUT', body: JSON.stringify({ archived }) }),
     setRoles: (id: string, roles: Record<string, string>) =>
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
+    logFollowUp: (id: string, data: Record<string, unknown>) =>
+      request(`/pipeline/${id}/follow-up`, { method: 'POST', body: JSON.stringify(data) }),
     addEvent: (id: string, action: string) =>
       request(`/pipeline/${id}/event`, { method: 'PUT', body: JSON.stringify({ action }) }),
     /** Approved lead becomes a project; the card is archived off the board. */
