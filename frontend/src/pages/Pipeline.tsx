@@ -1044,6 +1044,20 @@ export function Pipeline() {
                     </div>
                   );
                 })()
+              ) : selected.stage === 'contact_attempted' || selected.stage === 'new_lead' ? (
+                // While a lead is being chased, the chase is the useful thing
+                // to see — the client grid is mostly blanks at this point.
+                <FollowUpPanel
+                  dealId={selected.id}
+                  followUps={(selected.followUps as FollowUp[]) || []}
+                  users={users}
+                  onLogged={(followUps, assignee) => {
+                    setDeals((prev) => prev.map((d) => (d.id === selected.id
+                      ? { ...d, followUps, ...(assignee ? { assignee, assignedRole: 'PM', status: 'awaiting_pm' as const } : {}) }
+                      : d)));
+                    toast(assignee ? `Handed to ${assignee}` : 'Attempt logged');
+                  }}
+                />
               ) : (
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                   <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Client</div>
@@ -1156,20 +1170,6 @@ export function Pipeline() {
                   {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)' }}>Cancel</div>}
                 </div>
               </div>
-
-              {(selected.stage === 'contact_attempted' || selected.stage === 'new_lead') && (
-                <FollowUpPanel
-                  dealId={selected.id}
-                  followUps={(selected.followUps as FollowUp[]) || []}
-                  users={users}
-                  onLogged={(followUps, assignee) => {
-                    setDeals((prev) => prev.map((d) => (d.id === selected.id
-                      ? { ...d, followUps, ...(assignee ? { assignee, assignedRole: 'PM', status: 'awaiting_pm' as const } : {}) }
-                      : d)));
-                    toast(assignee ? `Handed to ${assignee}` : 'Attempt logged');
-                  }}
-                />
-              )}
 
               {/* Audit trail (stage moves, archives, role changes, notes) */}
               <div style={{ padding: '14px 20px' }}>

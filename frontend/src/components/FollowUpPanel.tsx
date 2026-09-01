@@ -99,7 +99,7 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
   };
 
   return (
-    <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Follow-up</span>
         {!exhausted && (
