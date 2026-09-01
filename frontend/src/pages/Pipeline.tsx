@@ -577,35 +577,6 @@ export function Pipeline() {
     return null;
   };
 
-  /**
-   * Change how the work is delivered.
-   *
-   * A pursuit genuinely moves between methods as it is understood — a Build
-   * Only job turns into Design Build once it is clear design is needed, and a
-   * Design Only one can go either way. Recorded in the Audit Trail, because it
-   * changes which stages the lead may enter.
-   */
-  const changeDelivery = (deal: Deal, contractType: string) => {
-    const before = leadDetails[deal.id]?.contractType || '';
-    if (before === contractType) return;
-    const label = contractType ? deliveryCode(contractType) : 'none';
-
-    setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...(prev[deal.id] || baseLead(deal)), contractType } }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', contractType })
-      .then(() => {
-        api.pipeline.addEvent(deal.id, `Delivery method set to ${label}${before ? ` (was ${deliveryCode(before) || 'none'})` : ''}`).catch(() => { });
-        toast(`Delivery method set to ${label}`);
-        // Warn rather than move it: where the lead goes next is a judgement.
-        if (stageBlockedFor(contractType, deal.stage)) {
-          toast(`⚠ ${STAGES.find((st) => st.key === deal.stage)?.name} doesn't apply to a ${label} lead — move it on`);
-        }
-      })
-      .catch((e: Error) => {
-        setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...(prev[deal.id] || baseLead(deal)), contractType: before } }));
-        toast('⚠ ' + e.message);
-      });
-  };
-
   const onDrop = (e: React.DragEvent, stageKey: string, stageIdx: number) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
@@ -799,15 +770,6 @@ export function Pipeline() {
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
-              <select
-                value={leadDetails[selected.id]?.contractType || ''}
-                onChange={(e) => changeDelivery(selected, e.target.value)}
-                title="How the work is delivered. It can change as you learn more."
-                style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, border: '1px solid rgba(20,8,31,0.12)', background: 'white', color: '#0B1A12', fontFamily: 'inherit', cursor: 'pointer' }}
-              >
-                <option value="">Delivery…</option>
-                {CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{c.code} — {c.label}</option>)}
-              </select>
               {selected.holdUntil && (
                 <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                   {holdDue(selected.holdUntil) ? 'Follow up now' : `Follow up ${selected.holdUntil}`}
