@@ -197,6 +197,8 @@ export class LeadEntity {
   @Column({ nullable: true }) leadSourceEventDetail!: string;   // which event, or where the networking happened
   @Column({ nullable: true }) projectStreetAddress!: string;
   @Column({ nullable: true }) projectStreetName!: string;
+  @Column({ nullable: true }) projectAddress2!: string;   // unit, suite, floor
+  @Column({ nullable: true }) occupancyStatus!: string;   // owner, tenant, and so on
   @Column({ nullable: true }) projectCity!: string;
   @Column({ nullable: true }) projectZipCode!: string;
   @Column({ nullable: true }) countyLocation!: string;

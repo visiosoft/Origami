@@ -29,6 +29,8 @@ export class CreateLeadDto {
     @IsString() @IsOptional() leadSourceEventDetail?: string;
     @IsString() @IsOptional() projectStreetAddress?: string;
     @IsString() @IsOptional() projectStreetName?: string;
+    @IsString() @IsOptional() projectAddress2?: string;
+    @IsString() @IsOptional() occupancyStatus?: string;
     @IsString() @IsOptional() projectCity?: string;
     @IsString() @IsOptional() projectZipCode?: string;
     @IsString() @IsOptional() countyLocation?: string;

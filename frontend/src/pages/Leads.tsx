@@ -3,6 +3,7 @@ import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch,
 import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource, sourceDetailLabel, primaryContactMethod } from '../data/leads';
 import { OtherDetail } from '../components/OtherDetail';
 import { ContactMethodMatrix } from '../components/ContactMethodMatrix';
+import { countyForCity } from '../data/californiaCounties';
 import { useApp } from '../AppContext';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
@@ -21,7 +22,7 @@ const BLANK: NewLead = {
     otherDetails: {},
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
     projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
-    countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
+    projectAddress2: '', occupancyStatus: '', countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
     projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
     desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
@@ -52,6 +53,8 @@ export function Leads() {
         const next = { ...f, [k]: v } as NewLead;
         // leadName is the display name the rest of the app reads.
         if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
+        // Picking a city settles the county; it stays editable for the edge cases.
+        if (k === 'projectCity') { const c = countyForCity(String(v)); if (c) next.countyLocation = c; }
         if (k === 'firstName' || k === 'lastName') {
             next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
         }
@@ -390,6 +393,11 @@ function TabLocation({ form, set }: { form: NewLead; set: <K extends keyof NewLe
                 <input value={form.projectStreetName} onChange={(e) => set('projectStreetName', e.target.value)} placeholder="Street name" />
             </div>
             <div className="leads-field">
+                <label>Address 2</label>
+                <input value={form.projectAddress2} onChange={(e) => set('projectAddress2', e.target.value)} placeholder="e.g. Suite 400" />
+                <span className="hint">Unit, suite or floor.</span>
+            </div>
+            <div className="leads-field">
                 <label>Project City</label>
                 <select value={form.projectCity} onChange={(e) => set('projectCity', e.target.value)}>
                     <option value="">Select city...</option>
@@ -414,6 +422,15 @@ function TabLocation({ form, set }: { form: NewLead; set: <K extends keyof NewLe
                     <option value="">Select county...</option>
                     {OPT.countyLocation.map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+            </div>
+            <div className="leads-field">
+                <label>Owner or Tenant</label>
+                <select value={form.occupancyStatus} onChange={(e) => set('occupancyStatus', e.target.value)}>
+                    <option value="">Select...</option>
+                    {OPT.occupancyStatus.map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <OtherDetail value={form.occupancyStatus} field="occupancyStatus" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
+                <span className="hint">Who the client is to the property. It decides whose approval the work needs.</span>
             </div>
         </div>
     </>);

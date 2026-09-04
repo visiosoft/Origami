@@ -150,6 +150,8 @@ export declare class LeadEntity {
     leadSourceEventDetail: string;
     projectStreetAddress: string;
     projectStreetName: string;
+    projectAddress2: string;
+    occupancyStatus: string;
     projectCity: string;
     projectZipCode: string;
     countyLocation: string;

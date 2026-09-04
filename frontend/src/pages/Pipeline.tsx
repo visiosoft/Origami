@@ -6,6 +6,7 @@ import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
 import { OtherDetail } from '../components/OtherDetail';
 import { ContactMethodMatrix } from '../components/ContactMethodMatrix';
+import { countyForCity } from '../data/californiaCounties';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { FollowUpPanel, type FollowUp } from '../components/FollowUpPanel';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
@@ -37,7 +38,7 @@ interface NewLead {
   otherDetails?: Record<string, string>;
   decisionMakers: string; preferredContactMethod: string; leadSource: string;
   projectStreetAddress: string; projectStreetName: string; projectCity: string; projectZipCode: string;
-  countyLocation: string; hasHOA: string; propertyType: string; potentialProjectType: string; contractType: string; homeworkCompleted: string[];
+  projectAddress2: string; occupancyStatus: string; countyLocation: string; hasHOA: string; propertyType: string; potentialProjectType: string; contractType: string; homeworkCompleted: string[];
   projectVision: string; reasonForProject: string; budgetPosition: string; fundingStatus: string;
   desiredStart: string; expectedDuration: string; expectedLengthOfOwnership: string; clientPersonality: string;
   zoningImages?: string; // JSON string of [{name,dataUrl}]
@@ -100,7 +101,7 @@ const BLANK_LEAD: NewLead = {
   otherDetails: {},
   decisionMakers: '', preferredContactMethod: '', leadSource: '',
   projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
-  countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
+  projectAddress2: '', occupancyStatus: '', countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
   projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
   desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
@@ -181,9 +182,11 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
   { title: '4. Location', fields: [
     { key: 'projectStreetAddress', label: 'Project Street Address', kind: 'text', ph: 'Street number' },
     { key: 'projectStreetName', label: 'Project Street Name', kind: 'text', ph: 'Street name' },
+    { key: 'projectAddress2', label: 'Address 2', kind: 'text', ph: 'Unit, suite or floor' },
     { key: 'projectCity', label: 'Project City', kind: 'select', optKey: 'projectCity' },
     { key: 'projectZipCode', label: 'Project ZIP Code', kind: 'text', ph: '5-digit ZIP' },
     { key: 'countyLocation', label: 'County', kind: 'select', optKey: 'countyLocation' },
+    { key: 'occupancyStatus', label: 'Owner or Tenant', kind: 'select', optKey: 'occupancyStatus' },
     { key: 'hasHOA', label: 'Property has an HOA', kind: 'checkbox' },
   ] },
   { title: '5. Project', fields: [
@@ -329,6 +332,7 @@ export function Pipeline() {
     if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
     // The single headline answer is derived, never typed.
     if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
+    if (k === 'projectCity') { const c = countyForCity(String(v)); if (c) next.countyLocation = c; }
     return next;
   });
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
@@ -831,6 +835,7 @@ export function Pipeline() {
                     }
                     if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
                     if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
+                    if (k === 'projectCity') { const c = countyForCity(String(v)); if (c) next.countyLocation = c; }
                     return { ...p, [selected.id]: next };
                   });
                   // Every question must be answered before the stage can be saved.
@@ -1185,7 +1190,7 @@ export function Pipeline() {
                   { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || '']] },
                   { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Pronouns', ld?.pronounsOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
                   { title: '3. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
+                  { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
                   { title: '5. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
                   { title: '6. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
                   { title: '7. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
@@ -1341,10 +1346,12 @@ export function Pipeline() {
                   <FormGrid>
                     <FormField label="Project Street Address" hint="Street number. Leave blank if no exact address."><input value={nl.projectStreetAddress} onChange={(e) => setField('projectStreetAddress', e.target.value)} placeholder="Street number" style={inputStyle} /></FormField>
                     <FormField label="Project Street Name"><input value={nl.projectStreetName} onChange={(e) => setField('projectStreetName', e.target.value)} placeholder="Street name" style={inputStyle} /></FormField>
+                    <FormField label="Address 2" hint="Unit, suite or floor."><input value={nl.projectAddress2} onChange={(e) => setField('projectAddress2', e.target.value)} placeholder="e.g. Suite 400" style={inputStyle} /></FormField>
                     <FormField label="Project City"><select value={nl.projectCity} onChange={(e) => setField('projectCity', e.target.value)} style={inputStyle}><option value="">Select city...</option>{OPT.projectCity.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <FormField label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
                     <FormField label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
                     <FormField label="County"><select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}><option value="">Select county...</option>{OPT.countyLocation.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="Owner or Tenant" hint="Who the client is to the property. It decides whose approval the work needs."><select value={nl.occupancyStatus} onChange={(e) => setField('occupancyStatus', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.occupancyStatus.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.occupancyStatus} field="occupancyStatus" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                   </FormGrid>
                 </>)}
                 {formTab === 5 && (<>
