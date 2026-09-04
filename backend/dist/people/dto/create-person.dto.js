@@ -27,6 +27,61 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
+], CreatePersonDto.prototype, "firstName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "lastName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "goByName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "pronouns", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "gender", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreatePersonDto.prototype, "categories", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreatePersonDto.prototype, "addresses", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreatePersonDto.prototype, "contactInfo", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreatePersonDto.prototype, "licenses", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreatePersonDto.prototype, "insurance", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreatePersonDto.prototype, "notLicensedDesigner", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
 ], CreatePersonDto.prototype, "role", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),

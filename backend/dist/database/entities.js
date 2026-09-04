@@ -153,6 +153,50 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], PersonEntity.prototype, "last", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "firstName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "lastName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "goByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "pronouns", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "gender", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], PersonEntity.prototype, "categories", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "addresses", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "contactInfo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], PersonEntity.prototype, "licenses", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "insurance", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "notLicensedDesigner", void 0);
 exports.PersonEntity = PersonEntity = __decorate([
     (0, typeorm_1.Entity)('people')
 ], PersonEntity);

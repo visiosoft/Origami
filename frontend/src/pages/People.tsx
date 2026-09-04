@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
+import { PersonProfileEditor } from '../components/PersonProfileEditor';
+import { normalizeProfile, personDisplayName, missingFields, type PersonProfile } from '../data/personProfile';
 import {
   KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, initials, type Person, type Comply,
 } from '../data/people';
@@ -76,12 +78,13 @@ export function People() {
   ];
 
   const sel = all.find((p) => p.id === selectedId) || null;
+  const [profile, setProfile] = useState<PersonProfile>(() => normalizeProfile({}));
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
     <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? '#173326' : 'white', color: active ? 'white' : '#7E9B93', border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.1)') }}>{label}</div>
   );
 
-  const openNew = () => { setNp(BLANK); setEditingId(null); setShowNew(true); };
+  const openNew = () => { setNp(BLANK); setProfile(normalizeProfile({})); setEditingId(null); setShowNew(true); };
   const openEdit = (p: Person) => {
     setNp({
       name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '',
@@ -114,7 +117,11 @@ export function People() {
       email: np.email.trim() || '—',
       projects: [...np.projects],
       comply: needsComplyLocal && np.complyDate.trim() ? { label: 'Insurance', date: np.complyDate.trim(), ok: true, extra: np.complyRef.trim() || 'No reference on file' } : null,
+      ...profile,
     };
+    // The directory shows one name, composed from the parts the profile holds.
+    const composed = personDisplayName(profile);
+    if (composed) payload.name = composed;
     const done = (verb: string) => { setShowNew(false); setNp(BLANK); setEditingId(null); reload(); toast(`${payload.name} ${verb}`); };
     if (editingId != null) {
       api.people.update(editingId, payload).then(() => done('updated')).catch(() => toast('⚠ Failed to save'));
@@ -426,10 +433,19 @@ export function People() {
               {needsComply && field('Insurance expiry', 'complyDate', 'e.g. Expires Mar 2027')}
               {needsComply && field('Licence / EMR reference', 'complyRef', 'e.g. EMR 0.87 · Licence 1042118')}
             </div>
+
+            {/* The full record: identity, addresses, licences and insurance. */}
+            <div style={{ padding: '0 26px 18px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', margin: '4px 0 10px' }}>Full record</div>
+              <PersonProfileEditor profile={profile} onChange={setProfile} />
+            </div>
             <div style={{ padding: '0 26px 18px' }}>
               <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 11, color: '#43514D', lineHeight: 1.55 }}>{np.tier === 'Internal' ? 'Internal tier sees every project, every task and all financials.' : np.tier === 'Client' ? 'Client tier sees only the projects selected above — no internal tasks, costs or margins.' : 'Consultant tier sees only the projects selected above, and only the tasks and files shared with them.'}</div>
             </div>
             <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ marginRight: 'auto', fontSize: 11, fontWeight: 600, color: missingFields(profile).length ? '#8E2E0A' : '#2F7D4A' }}>
+                {missingFields(profile).length ? `${missingFields(profile).length} required field(s) outstanding` : 'Record complete'}
+              </span>
               <div onClick={save} style={{ padding: '11px 20px', borderRadius: 999, background: valid ? '#173326' : '#D6DED8', color: valid ? 'white' : '#9AA39D', fontSize: 13, fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed' }}>{editingId != null ? 'Save changes' : 'Save to directory'}</div>
               <div onClick={() => setShowNew(false)} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
               <div style={{ marginLeft: 'auto', fontSize: 11, color: '#7E9B93' }}>{valid ? 'Ready to save' : 'Name is required'}</div>

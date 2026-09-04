@@ -44,6 +44,27 @@ export class PersonEntity {
   @Column() since!: string;
   @Column({ type: 'simple-json', nullable: true }) comply!: unknown;
   @Column() last!: string;
+
+  // --- Profile ---
+  // `name` stays the display name; these are the parts it is composed from.
+  @Column({ nullable: true }) firstName!: string;
+  @Column({ nullable: true }) lastName!: string;
+  @Column({ nullable: true }) goByName!: string;
+  @Column({ nullable: true }) pronouns!: string;
+  @Column({ nullable: true }) gender!: string;          // Male | Female | Unknown
+  // Which directories this person belongs to. Someone on staff who also runs a
+  // consultancy is both, so this is a list rather than the single `kind`.
+  @Column({ type: 'simple-json', nullable: true }) categories!: string[];
+  // { project, billing, home, business, businessMailing }, each with its parts
+  // and a notApplicable flag.
+  @Column({ type: 'simple-json', nullable: true }) addresses!: Record<string, unknown>;
+  // Websites, social, business phone and email.
+  @Column({ type: 'simple-json', nullable: true }) contactInfo!: Record<string, unknown>;
+  // Every licence held, of any discipline and any state — people hold several.
+  @Column({ type: 'simple-json', nullable: true }) licenses!: unknown[];
+  @Column({ type: 'simple-json', nullable: true }) insurance!: Record<string, unknown>;
+  // A designer who may take residential work but not commercial.
+  @Column({ type: 'bit', nullable: true }) notLicensedDesigner!: boolean | null;
 }
 
 @Entity('tasks')

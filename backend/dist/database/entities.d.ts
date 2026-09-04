@@ -35,6 +35,17 @@ export declare class PersonEntity {
     since: string;
     comply: unknown;
     last: string;
+    firstName: string;
+    lastName: string;
+    goByName: string;
+    pronouns: string;
+    gender: string;
+    categories: string[];
+    addresses: Record<string, unknown>;
+    contactInfo: Record<string, unknown>;
+    licenses: unknown[];
+    insurance: Record<string, unknown>;
+    notLicensedDesigner: boolean | null;
 }
 export declare class TaskEntity {
     id: string;
