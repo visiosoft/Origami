@@ -5,6 +5,7 @@ import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
+import { SmsSettings } from './SmsSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -35,6 +36,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   ] },
   { group: 'Integrations', items: [
     { key: 'google', label: 'Google Workspace' },
+    { key: 'sms', label: 'SMS' },
   ] },
 ];
 
@@ -72,6 +74,7 @@ export function Settings() {
           {active === 'branding' && <BrandingSettings />}
           {active === 'sla' && <PipelineSlaSettings />}
           {active === 'notifications' && <NotificationSettings />}
+          {active === 'sms' && <SmsSettings />}
           {active === 'google' && <GoogleSettings />}
         </div>
       </div>
@@ -183,6 +186,16 @@ function ScoringTemplateEditor() {
   );
 }
 
+/** Mirrors segmentsFor in backend/src/sms/sms.service.ts. */
+function smsSegments(body: string) {
+  const unicode = /[^ -]/.test(body);
+  const single = unicode ? 70 : 160;
+  const multi = unicode ? 67 : 153;
+  const length = body.length;
+  if (length === 0) return { length, unicode, segments: 0 };
+  return { length, unicode, segments: length <= single ? 1 : Math.ceil(length / multi) };
+}
+
 interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }
 const BLANK_TEMPLATE: EmailTemplate = { id: '', name: 'New Template', subject: '', body: '', kind: 'email', category: '' };
 
@@ -252,12 +265,44 @@ function EmailTemplatesEditor() {
               <input value={draft.name} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
-              <input value={draft.subject || ''} disabled={!canManage} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kind</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['email', 'sms', 'document'] as const).map((k) => (
+                  <span key={k} onClick={() => canManage && setDraft({ ...draft, kind: k })} style={{
+                    padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: canManage ? 'pointer' : 'default',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    background: (draft.kind || 'email') === k ? '#173326' : 'white',
+                    color: (draft.kind || 'email') === k ? 'white' : '#7E9B93',
+                    border: '1px solid ' + ((draft.kind || 'email') === k ? '#173326' : 'rgba(20,8,31,0.12)'),
+                  }}>{k}</span>
+                ))}
+              </div>
             </div>
+            {draft.kind !== 'sms' && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
+                <input value={draft.subject || ''} disabled={!canManage} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
+              </div>
+            )}
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Body</div>
-              <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Body</div>
+                {draft.kind === 'sms' && (() => {
+                  const m = smsSegments(draft.body || '');
+                  return (
+                    <span title="Merge fields expand when sent, so a real message may run longer than this."
+                      style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: m.segments > 1 ? '#93520F' : '#7E9B93' }}>
+                      {m.length} chars · {m.segments} segment{m.segments === 1 ? '' : 's'}{m.unicode ? ' · unicode' : ''}
+                    </span>
+                  );
+                })()}
+              </div>
+              <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
+              {draft.kind === 'sms' && (
+                <div style={{ fontSize: 10.5, color: '#9AA39D', marginTop: 4, lineHeight: 1.45 }}>
+                  One segment is 160 characters, or 70 if any character is outside the GSM set. Longer messages are sent as several segments and billed as several.
+                </div>
+              )}
             </div>
           </div>
           {canManage && (

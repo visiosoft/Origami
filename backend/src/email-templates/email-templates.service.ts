@@ -14,9 +14,15 @@ export class EmailTemplatesService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     try {
-      if ((await this.repo.count()) === 0) {
-        await this.repo.save(DEFAULT_EMAIL_TEMPLATES as unknown as EmailTemplateEntity[]);
-        this.log.log(`Seeded ${DEFAULT_EMAIL_TEMPLATES.length} email templates`);
+      // Top up rather than seed-once: a database created before a template
+      // existed would otherwise never receive it, which is what happened when
+      // the SMS templates were added to an already-seeded install. Only
+      // missing ids are inserted, so edits to existing templates are safe.
+      const existing = new Set((await this.repo.find()).map((t) => t.id));
+      const missing = DEFAULT_EMAIL_TEMPLATES.filter((t) => !existing.has(t.id));
+      if (missing.length) {
+        await this.repo.save(missing as unknown as EmailTemplateEntity[]);
+        this.log.log(`Seeded ${missing.length} template(s)`);
       }
     } catch (err) {
       this.log.error('Email template seed failed: ' + (err as Error).message);

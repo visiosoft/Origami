@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
@@ -25,6 +25,11 @@ export const PUBLIC_KEYS = [
   'notifications.assignmentEmail',
   // Response-time target per pipeline stage, as JSON { stageKey: days }.
   'pipeline.slaDays',
+  // --- SMS (Twilio) ---
+  'sms.enabled',
+  'sms.accountSid',
+  'sms.authToken',
+  'sms.fromNumber',
   // --- Branding: letterhead, footer and signature used on generated documents ---
   'brand.companyName',
   'brand.tagline',

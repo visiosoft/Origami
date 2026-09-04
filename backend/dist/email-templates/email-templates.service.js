@@ -25,9 +25,11 @@ let EmailTemplatesService = class EmailTemplatesService {
     }
     async onApplicationBootstrap() {
         try {
-            if ((await this.repo.count()) === 0) {
-                await this.repo.save(email_templates_1.DEFAULT_EMAIL_TEMPLATES);
-                this.log.log(`Seeded ${email_templates_1.DEFAULT_EMAIL_TEMPLATES.length} email templates`);
+            const existing = new Set((await this.repo.find()).map((t) => t.id));
+            const missing = email_templates_1.DEFAULT_EMAIL_TEMPLATES.filter((t) => !existing.has(t.id));
+            if (missing.length) {
+                await this.repo.save(missing);
+                this.log.log(`Seeded ${missing.length} template(s)`);
             }
         }
         catch (err) {

@@ -18,7 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const crypto_1 = require("crypto");
 const entities_1 = require("../database/entities");
-exports.SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken'];
+exports.SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
 exports.PUBLIC_KEYS = [
     'google.clientId',
     'google.clientSecret',
@@ -34,6 +34,10 @@ exports.PUBLIC_KEYS = [
     'tasks.labels',
     'notifications.assignmentEmail',
     'pipeline.slaDays',
+    'sms.enabled',
+    'sms.accountSid',
+    'sms.authToken',
+    'sms.fromNumber',
     'brand.companyName',
     'brand.tagline',
     'brand.logoDataUrl',

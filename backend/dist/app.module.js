@@ -30,6 +30,7 @@ const auth_module_1 = require("./auth/auth.module");
 const reminders_module_1 = require("./reminders/reminders.module");
 const file_room_module_1 = require("./file-room/file-room.module");
 const notifications_module_1 = require("./notifications/notifications.module");
+const sms_module_1 = require("./sms/sms.module");
 const session_guard_1 = require("./auth/guards/session.guard");
 const roles_guard_1 = require("./auth/guards/roles.guard");
 let AppModule = class AppModule {
@@ -75,6 +76,7 @@ exports.AppModule = AppModule = __decorate([
             email_templates_module_1.EmailTemplatesModule,
             dashboard_module_1.DashboardModule,
             notifications_module_1.NotificationsModule,
+            sms_module_1.SmsModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: session_guard_1.SessionGuard },

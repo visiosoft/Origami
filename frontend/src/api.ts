@@ -106,6 +106,14 @@ export const api = {
     get: () => request<Record<string, string>>('/settings'),
     save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
+  sms: {
+    status: () => request<{ configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
+    send: (to: string, body: string) =>
+      request<{ sent: boolean; to: string; segments: number }>('/sms/send', { method: 'POST', body: JSON.stringify({ to, body }) }),
+    test: (to: string) =>
+      request<{ sent: boolean; to: string }>('/sms/test', { method: 'POST', body: JSON.stringify({ to }) }),
+  },
+
   notifications: {
     /** Sends the caller a sample assignment email, for checking the template. */
     test: () => request<{ sent: boolean; reason?: string }>('/notifications/test', { method: 'POST' }),
