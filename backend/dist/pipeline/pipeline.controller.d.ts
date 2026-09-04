@@ -22,6 +22,12 @@ export declare class PipelineController {
         deal: import("../database/entities").DealEntity;
     }>;
     logFollowUp(id: string, body: FollowUpInput, auth?: string): Promise<import("../database/entities").DealEntity>;
+    setNotes(id: string, body: {
+        notes: unknown[];
+        action: string;
+        stageName?: string;
+        text?: string;
+    }, auth?: string): Promise<import("../database/entities").DealEntity>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

@@ -97,6 +97,7 @@ export declare class DealEntity {
     convertedProjectId: number | null;
     roles: Record<string, string>;
     followUps: unknown[];
+    stageNotes: unknown[];
 }
 export declare class InvoiceEntity {
     pk: number;

@@ -176,6 +176,17 @@ let PipelineService = class PipelineService {
         ];
         return this.repo.save(deal);
     }
+    async setNotes(id, notes, change, actor) {
+        const deal = await this.findOne(id);
+        deal.stageNotes = notes || [];
+        const where = change.stageName ? ` (${change.stageName})` : '';
+        const body = change.text ? `: ${change.text}` : '';
+        deal.timeline = [
+            ...(deal.timeline || []),
+            this.event(`${change.action}${where}${body}`, actor, 'pc'),
+        ];
+        return this.repo.save(deal);
+    }
     async addEvent(id, action, actor, type = 'auto') {
         const deal = await this.findOne(id);
         deal.timeline = [...(deal.timeline || []), this.event(action, actor, type)];

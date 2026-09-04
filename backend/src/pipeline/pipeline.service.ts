@@ -236,6 +236,30 @@ export class PipelineService implements OnApplicationBootstrap {
     return this.repo.save(deal);
   }
 
+  /**
+   * Add, change or remove a stage note.
+   *
+   * Every version is written to the trail as its own entry, so editing a note
+   * adds a row rather than quietly rewriting history -- what the note used to
+   * say is often the thing worth knowing.
+   */
+  async setNotes(
+    id: string,
+    notes: unknown[],
+    change: { action: string; stageName?: string; text?: string },
+    actor?: DealActor,
+  ) {
+    const deal = await this.findOne(id);
+    deal.stageNotes = notes || [];
+    const where = change.stageName ? ` (${change.stageName})` : '';
+    const body = change.text ? `: ${change.text}` : '';
+    deal.timeline = [
+      ...((deal.timeline as unknown[]) || []),
+      this.event(`${change.action}${where}${body}`, actor, 'pc'),
+    ];
+    return this.repo.save(deal);
+  }
+
   /** Append a note or any other audited action to the trail. */
   async addEvent(id: string, action: string, actor?: DealActor, type: 'auto' | 'pc' | 'pm' = 'auto') {
     const deal = await this.findOne(id);

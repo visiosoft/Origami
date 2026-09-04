@@ -89,6 +89,21 @@ export class PipelineController {
     return this.pipelineService.logFollowUp(id, body, await this.auth.actor(auth));
   }
 
+  /** Stage notes, with every add, edit and delete written to the trail. */
+  @Put(':id/notes')
+  async setNotes(
+    @Param('id') id: string,
+    @Body() body: { notes: unknown[]; action: string; stageName?: string; text?: string },
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.pipelineService.setNotes(
+      id,
+      body?.notes || [],
+      { action: body?.action || 'Note changed', stageName: body?.stageName, text: body?.text },
+      await this.auth.actor(auth),
+    );
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.pipelineService.remove(id);

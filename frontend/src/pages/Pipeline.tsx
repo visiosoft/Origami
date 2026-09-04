@@ -238,6 +238,8 @@ export function Pipeline() {
   const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts'>('overview');
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
+  // The lead as last saved, so an edit can say which fields moved.
+  const [leadBaseline, setLeadBaseline] = useState<Record<string, NewLead>>({});
   const [showArchived, setShowArchived] = useState(false);
   const [slaDays, setSlaDays] = useState<Record<string, number>>(DEFAULT_SLA_DAYS);
   // Re-rendered on a timer so a countdown ticks down without a reload.
@@ -294,7 +296,12 @@ export function Pipeline() {
   }, []);
 
   useEffect(() => {
-    api.pipeline.list(showArchived).then((res) => { if (Array.isArray(res)) setDeals(res as Deal[]); }).catch(() => { });
+    api.pipeline.list(showArchived).then((res) => {
+      if (!Array.isArray(res)) return;
+      const rows = res as Deal[];
+      setDeals(rows);
+      setNotesByDeal(Object.fromEntries(rows.map((d) => [d.id, ((d as any).stageNotes || []) as LeadNote[]])));
+    }).catch(() => { });
   }, [showArchived]);
 
   useEffect(() => {
@@ -313,6 +320,8 @@ export function Pipeline() {
         if (l.fitSelections) fits[l.id] = l.fitSelections;
       }
       setLeadDetails((prev) => ({ ...map, ...prev }));
+      // Snapshot as loaded, so a later save can name what changed.
+      setLeadBaseline((prev) => ({ ...map, ...prev }));
       setMeetByDeal((prev) => ({ ...meets, ...prev }));
       setVisitByDeal((prev) => ({ ...visits, ...prev }));
       setFitByDeal((prev) => ({ ...fits, ...prev }));
@@ -443,23 +452,43 @@ export function Pipeline() {
       });
   };
 
+  /**
+   * Save the notes list and record what changed.
+   *
+   * Every version goes to the audit trail as its own entry, so an edit adds a
+   * row rather than rewriting the old one -- what a note used to say is often
+   * the thing worth knowing.
+   */
+  const persistNotes = (dealId: string, notes: LeadNote[], action: string, stageName: string, text: string) => {
+    setNotesByDeal((p) => ({ ...p, [dealId]: notes }));
+    api.pipeline.setNotes(dealId, { notes, action, stageName, text })
+      .then((deal: any) => {
+        // Take the server's trail back so the panel shows the new row at once.
+        if (deal?.timeline) setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, timeline: deal.timeline } : d)));
+      })
+      .catch((e: Error) => toast('⚠ ' + e.message));
+  };
+
   const submitNote = (dealId: string, stageName: string) => {
     const text = noteDraft.trim();
     if (!text) return;
+    const current = notesByDeal[dealId] || [];
     if (editingNoteId) {
-      setNotesByDeal((p) => ({ ...p, [dealId]: (p[dealId] || []).map((n) => (n.id === editingNoteId ? { ...n, text } : n)) }));
+      persistNotes(dealId, current.map((n) => (n.id === editingNoteId ? { ...n, text } : n)), 'Note edited', stageName, text);
       setEditingNoteId(null);
       toast('Note updated');
     } else {
       const note: LeadNote = { id: String(Date.now()), text, stageName, date: 'Today' };
-      setNotesByDeal((p) => ({ ...p, [dealId]: [...(p[dealId] || []), note] }));
+      persistNotes(dealId, [...current, note], 'Note added', stageName, text);
       toast('Note added');
     }
     setNoteDraft('');
   };
   const editNote = (n: LeadNote) => { setEditingNoteId(n.id); setNoteDraft(n.text); };
   const deleteNote = (dealId: string, nid: string) => {
-    setNotesByDeal((p) => ({ ...p, [dealId]: (p[dealId] || []).filter((n) => n.id !== nid) }));
+    const current = notesByDeal[dealId] || [];
+    const gone = current.find((n) => n.id === nid);
+    persistNotes(dealId, current.filter((n) => n.id !== nid), 'Note deleted', gone?.stageName || '', gone?.text || '');
     if (editingNoteId === nid) { setEditingNoteId(null); setNoteDraft(''); }
   };
 
@@ -944,6 +973,16 @@ export function Pipeline() {
                           return;
                         }
                         const cur = leadDetails[selected.id] || baseLead(selected);
+                        // Name the fields that changed, so an edit is not just
+                        // "lead details saved" with no way to see what moved.
+                        const before = leadBaseline[selected.id];
+                        const changed = before
+                          ? (Object.keys(cur) as (keyof NewLead)[]).filter((k) => JSON.stringify(cur[k] ?? '') !== JSON.stringify(before[k] ?? ''))
+                          : [];
+                        if (changed.length) {
+                          api.pipeline.addEvent(selected.id, `Lead details edited: ${changed.join(', ')}`).catch(() => { });
+                          setLeadBaseline((p) => ({ ...p, [selected.id]: { ...cur } }));
+                        }
                         const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                         const entry = { date: when, action: `${selectedStage.name} completed — lead details saved`, role: 'System', type: 'auto' as const };
                         setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));

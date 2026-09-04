@@ -53,6 +53,9 @@ let PipelineController = class PipelineController {
     async logFollowUp(id, body, auth) {
         return this.pipelineService.logFollowUp(id, body, await this.auth.actor(auth));
     }
+    async setNotes(id, body, auth) {
+        return this.pipelineService.setNotes(id, body?.notes || [], { action: body?.action || 'Note changed', stageName: body?.stageName, text: body?.text }, await this.auth.actor(auth));
+    }
     remove(id) {
         return this.pipelineService.remove(id);
     }
@@ -139,6 +142,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], PipelineController.prototype, "logFollowUp", null);
+__decorate([
+    (0, common_1.Put)(':id/notes'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], PipelineController.prototype, "setNotes", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),

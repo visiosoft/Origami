@@ -397,6 +397,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
 ], DealEntity.prototype, "followUps", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], DealEntity.prototype, "stageNotes", void 0);
 exports.DealEntity = DealEntity = __decorate([
     (0, typeorm_1.Entity)('deals')
 ], DealEntity);

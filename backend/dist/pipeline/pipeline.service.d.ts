@@ -32,6 +32,11 @@ export declare class PipelineService implements OnApplicationBootstrap {
     setArchived(id: string, archived: boolean, actor?: DealActor): Promise<DealEntity>;
     setRoles(id: string, roles: Record<string, string>, actor?: DealActor): Promise<DealEntity>;
     logFollowUp(id: string, input: FollowUpInput, actor?: DealActor): Promise<DealEntity>;
+    setNotes(id: string, notes: unknown[], change: {
+        action: string;
+        stageName?: string;
+        text?: string;
+    }, actor?: DealActor): Promise<DealEntity>;
     addEvent(id: string, action: string, actor?: DealActor, type?: 'auto' | 'pc' | 'pm'): Promise<DealEntity>;
     private event;
     convertToProject(id: string, opts: {

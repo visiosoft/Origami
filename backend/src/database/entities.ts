@@ -128,6 +128,9 @@ export class DealEntity {
   @Column({ type: 'simple-json', nullable: true }) roles!: Record<string, string>;
   // Chases made on this lead: how, to whom, what came of it.
   @Column({ type: 'simple-json', nullable: true }) followUps!: unknown[];
+  // Stage notes. Held here rather than only in the browser, which is where
+  // they used to live -- and where they were lost on every reload.
+  @Column({ type: 'simple-json', nullable: true }) stageNotes!: unknown[];
 }
 
 @Entity('invoices')
