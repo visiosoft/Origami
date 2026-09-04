@@ -504,3 +504,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sla-overdue { animation: none; box-shadow: 0 0 0 2px rgba(184, 65, 15, 0.3); }
 }
+
+/* Panels that come in from the right edge. */
+@keyframes slideInRight {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}

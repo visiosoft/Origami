@@ -387,17 +387,18 @@ export function People() {
         </div>
       )}
 
-      {/* New person modal */}
+      {/* New person panel */}
       {showNew && (
-        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 120, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 620, maxWidth: '94vw', maxHeight: '88vh', overflowY: 'auto', background: 'white', borderRadius: 18, boxShadow: '0 24px 60px rgba(20,8,31,0.24)', animation: 'scaleIn 0.18s ease' }}>
-            <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 120, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100vw', height: '100vh', background: 'white', boxShadow: '-18px 0 48px rgba(20,8,31,0.22)', display: 'flex', flexDirection: 'column', animation: 'slideInRight 0.2s ease' }}>
+            <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{editingId != null ? 'Edit person or company' : 'Add to People'}</div>
                 <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>One record serves the directory, the address book and access control.</div>
               </div>
               <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 15, flexShrink: 0 }}>×</div>
             </div>
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 {lbl('Kind', 'sets the default access tier')}
@@ -442,13 +443,18 @@ export function People() {
             <div style={{ padding: '0 26px 18px' }}>
               <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 11, color: '#43514D', lineHeight: 1.55 }}>{np.tier === 'Internal' ? 'Internal tier sees every project, every task and all financials.' : np.tier === 'Client' ? 'Client tier sees only the projects selected above — no internal tasks, costs or margins.' : 'Consultant tier sees only the projects selected above, and only the tasks and files shared with them.'}</div>
             </div>
-            <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'center', gap: 9 }}>
-              <span style={{ marginRight: 'auto', fontSize: 11, fontWeight: 600, color: missingFields(profile).length ? '#8E2E0A' : '#2F7D4A' }}>
-                {missingFields(profile).length ? `${missingFields(profile).length} required field(s) outstanding` : 'Record complete'}
+            </div>
+            <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, background: 'white' }}>
+              <span style={{ marginRight: 'auto', fontSize: 11, fontWeight: 600, color: !valid ? '#8E2E0A' : missingFields(profile).length ? '#93520F' : '#2F7D4A' }}>
+                {!valid
+                  ? 'A name is required to save'
+                  : missingFields(profile).length
+                    ? `${missingFields(profile).length} required field(s) outstanding`
+                    : 'Record complete'}
               </span>
               <div onClick={save} style={{ padding: '11px 20px', borderRadius: 999, background: valid ? '#173326' : '#D6DED8', color: valid ? 'white' : '#9AA39D', fontSize: 13, fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed' }}>{editingId != null ? 'Save changes' : 'Save to directory'}</div>
               <div onClick={() => setShowNew(false)} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
-              <div style={{ marginLeft: 'auto', fontSize: 11, color: '#7E9B93' }}>{valid ? 'Ready to save' : 'Name is required'}</div>
+
             </div>
           </div>
         </div>
