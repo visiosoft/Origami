@@ -75,12 +75,37 @@ let PhasesService = class PhasesService {
         await this.repo.save(phases);
         const before = (await this.tasks.find({ where: { projectId } })).length;
         await this.seedChecklists(projectId, phases, plan);
-        const after = (await this.tasks.find({ where: { projectId } })).length;
+        const rows = await this.tasks.find({ where: { projectId } });
+        const after = rows.length;
+        const byPhase = new Map(phases.map((ph) => [ph.id, ph.key]));
+        const enriched = [];
+        for (const task of rows) {
+            const key = task.phaseId ? byPhase.get(task.phaseId) : undefined;
+            if (!key)
+                continue;
+            const tpl = plan.find((d) => d.key === key)?.tasks.find((t) => t.title === task.title);
+            if (!tpl)
+                continue;
+            let touched = false;
+            if (!task.team && tpl.team) {
+                task.team = tpl.team;
+                touched = true;
+            }
+            if (!(task.labels || []).length && (tpl.labels || []).length) {
+                task.labels = [...tpl.labels];
+                touched = true;
+            }
+            if (touched)
+                enriched.push(task);
+        }
+        if (enriched.length)
+            await this.tasks.save(enriched);
         const extraPhases = phases.filter((ph) => !plan.some((d) => d.key === ph.key)).map((ph) => ph.name);
         this.log.log(`Applied template to project ${projectId}: +${missingPhases.length} phase(s), +${after - before} task(s)`);
         return {
             phasesAdded: missingPhases.length,
             tasksAdded: after - before,
+            tasksEnriched: enriched.length,
             phasesNotInTemplate: extraPhases,
         };
     }

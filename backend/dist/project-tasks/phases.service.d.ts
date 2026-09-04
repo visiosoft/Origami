@@ -16,6 +16,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
     applyTemplate(projectId: number): Promise<{
         phasesAdded: number;
         tasksAdded: number;
+        tasksEnriched: number;
         phasesNotInTemplate: string[];
     }>;
     getTemplate(): Promise<TemplatePhase[]>;

@@ -10,6 +10,7 @@ export declare class PhasesController {
     applyTemplate(projectId: string): Promise<{
         phasesAdded: number;
         tasksAdded: number;
+        tasksEnriched: number;
         phasesNotInTemplate: string[];
     }>;
     overview(): Promise<{
