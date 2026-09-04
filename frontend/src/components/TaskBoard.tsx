@@ -54,6 +54,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number; ini
   const [view, setView] = useState<'board' | 'list'>('board');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
+  // Which parents are expanded, plus the inline subtask composer.
+  const [openTasks, setOpenTasks] = useState<Record<string, boolean>>({});
+  const [addingSubIn, setAddingSubIn] = useState<string | null>(null);
   const [addDraft, setAddDraft] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -292,22 +295,131 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number; ini
   );
 
   // ---- list view ----
+  /**
+   * One row, used for a task and for its subtasks alike. A subtask is the same
+   * row indented, so the two cannot drift apart in look or behaviour.
+   */
+  const listRow = (t: ProjectTask, depth: number) => {
+    const kids = depth === 0 ? subtasksOf(tasks, t.id) : [];
+    const isOpen = !!openTasks[t.id];
+    const doneKids = kids.filter((k) => k.completed).length;
+    return (
+      <div key={t.id}>
+        <div
+          onClick={() => setSelectedId(t.id)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 9,
+            padding: depth ? '8px 14px 8px 46px' : '10px 14px',
+            borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer',
+            background: depth ? '#FCFBF9' : 'white',
+          }}
+        >
+          <span
+            onClick={(e) => { e.stopPropagation(); if (kids.length) setOpenTasks((prev) => ({ ...prev, [t.id]: !isOpen })); }}
+            style={{ width: 12, flexShrink: 0, fontSize: 9, color: '#9AA39D', cursor: kids.length ? 'pointer' : 'default', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
+          >
+            {kids.length ? '\u25B6' : ''}
+          </span>
+
+          <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} />
+
+          <span style={{ flex: 1, minWidth: 0, fontSize: depth ? 12.5 : 13, fontWeight: depth ? 500 : 600, color: '#0B1A12', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {t.title}
+          </span>
+
+          {kids.length > 0 && (
+            <span
+              onClick={(e) => { e.stopPropagation(); setOpenTasks((prev) => ({ ...prev, [t.id]: !isOpen })); }}
+              title={doneKids + ' of ' + kids.length + ' subtasks done'}
+              style={{ padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 700, background: '#EFEDE8', color: '#5c5666', flexShrink: 0 }}
+            >
+              {doneKids}/{kids.length}
+            </span>
+          )}
+
+          <PriorityPill p={t.priority} />
+          <span style={{ width: 76, flexShrink: 0, fontSize: 10.5, color: '#7E9B93', textAlign: 'right' }}>{t.dueDate || ''}</span>
+          <span style={{ width: 26, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+            {t.assignee ? <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} /> : null}
+          </span>
+        </div>
+
+        {depth === 0 && isOpen && (
+          <>
+            {kids.map((k) => listRow(k, 1))}
+            {canManage && (addingSubIn === t.id ? (
+              <div style={{ padding: '8px 14px 10px 46px', borderTop: '1px solid rgba(20,8,31,0.04)', background: '#FCFBF9' }}>
+                <input
+                  autoFocus
+                  value={subDraft}
+                  onChange={(e) => setSubDraft(e.target.value)}
+                  placeholder="Subtask title"
+                  style={{ ...inputStyle, fontSize: 12.5 }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { addTask(t.sectionId, subDraft, t.id); setSubDraft(''); }
+                    if (e.key === 'Escape') { setAddingSubIn(null); setSubDraft(''); }
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <div onClick={() => { addTask(t.sectionId, subDraft, t.id); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
+                  <div onClick={() => { setAddingSubIn(null); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => { setAddingSubIn(t.id); setSubDraft(''); }}
+                style={{ padding: '7px 14px 7px 46px', borderTop: '1px solid rgba(20,8,31,0.04)', background: '#FCFBF9', fontSize: 11.5, color: '#9AA39D', cursor: 'pointer' }}
+              >
+                + Add subtask
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
   const listView = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA39D' }}>
+        <span style={{ width: 12, flexShrink: 0 }} />
+        <span style={{ width: 13, flexShrink: 0 }} />
+        <span style={{ flex: 1 }}>Name</span>
+        <span style={{ width: 76, flexShrink: 0, textAlign: 'right' }}>Due</span>
+        <span style={{ width: 26, flexShrink: 0, textAlign: 'right' }}>Who</span>
+      </div>
+
       {sections.map((sec) => {
         const secTasks = topLevelBySection(visibleTasks, sec.id);
         return (
           <div key={sec.id}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 8 }}>{sec.name} <span style={{ color: '#7E9B93' }}>· {secTasks.length}</span></div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 8 }}>
+              {sec.name} <span style={{ color: '#7E9B93' }}>{'\u00B7'} {secTasks.length}</span>
+            </div>
             <div style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden' }}>
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No tasks</div>}
-              {secTasks.map((t) => (
-                <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} />
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#0B1A12', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                  <PriorityPill p={t.priority} />
-                  {t.dueDate && <span style={{ fontSize: 10.5, color: '#7E9B93' }}>{t.dueDate}</span>}
-                  {t.assignee && <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} />}
+              {secTasks.map((t) => listRow(t, 0))}
+              {canManage && (addingIn === sec.id ? (
+                <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)' }}>
+                  <input
+                    autoFocus
+                    value={addDraft}
+                    onChange={(e) => setAddDraft(e.target.value)}
+                    placeholder="Task title"
+                    style={inputStyle}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { addTask(sec.id, addDraft); setAddDraft(''); }
+                      if (e.key === 'Escape') { setAddingIn(null); setAddDraft(''); }
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
+                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+                  </div>
+                </div>
+              ) : (
+                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', fontSize: 12, color: '#9AA39D', cursor: 'pointer' }}>
+                  + Add task
                 </div>
               ))}
             </div>
@@ -316,6 +428,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number; ini
       })}
     </div>
   );
+
 
   return (
     <div>
