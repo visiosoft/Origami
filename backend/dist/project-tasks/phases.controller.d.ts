@@ -7,6 +7,11 @@ export declare class PhasesController {
     getTemplate(): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
     saveTemplate(body: unknown): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
     resetTemplate(): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
+    applyTemplate(projectId: string): Promise<{
+        phasesAdded: number;
+        tasksAdded: number;
+        phasesNotInTemplate: string[];
+    }>;
     overview(): Promise<{
         projectId: number;
         name: string;

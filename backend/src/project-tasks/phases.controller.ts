@@ -31,6 +31,12 @@ export class PhasesController {
     return this.service.saveTemplate(null);
   }
 
+  /** Bring one project's board up to the current template. */
+  @Post('apply-template')
+  applyTemplate(@Query('projectId') projectId: string) {
+    return this.service.applyTemplate(Number(projectId));
+  }
+
   @Get('overview')
   overview() {
     return this.service.overview();

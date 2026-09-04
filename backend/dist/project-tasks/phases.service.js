@@ -46,6 +46,44 @@ let PhasesService = class PhasesService {
             return programme_template_1.DEFAULT_PROGRAMME;
         }
     }
+    async applyTemplate(projectId) {
+        if (!Number.isFinite(projectId))
+            throw new common_1.BadRequestException('Which project?');
+        if (!(await this.projects.findOneBy({ id: projectId }))) {
+            throw new common_1.NotFoundException(`Project ${projectId} not found`);
+        }
+        const plan = await this.programme();
+        const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
+        const missingPhases = plan.filter((d) => !existing.some((ph) => ph.key === d.key));
+        if (missingPhases.length) {
+            await this.repo.save(missingPhases.map((d) => this.repo.create({
+                id: `PH-${projectId}-${d.key}`,
+                projectId, key: d.key, name: d.name, color: d.color,
+                order: plan.findIndex((x) => x.key === d.key),
+            })));
+        }
+        const phases = await this.repo.find({ where: { projectId } });
+        for (const ph of phases) {
+            const tpl = plan.find((d) => d.key === ph.key);
+            if (!tpl)
+                continue;
+            ph.name = tpl.name;
+            ph.color = tpl.color;
+            ph.order = plan.findIndex((d) => d.key === ph.key);
+            ph.seededAt = '';
+        }
+        await this.repo.save(phases);
+        const before = (await this.tasks.find({ where: { projectId } })).length;
+        await this.seedChecklists(projectId, phases, plan);
+        const after = (await this.tasks.find({ where: { projectId } })).length;
+        const extraPhases = phases.filter((ph) => !plan.some((d) => d.key === ph.key)).map((ph) => ph.name);
+        this.log.log(`Applied template to project ${projectId}: +${missingPhases.length} phase(s), +${after - before} task(s)`);
+        return {
+            phasesAdded: missingPhases.length,
+            tasksAdded: after - before,
+            phasesNotInTemplate: extraPhases,
+        };
+    }
     async getTemplate() {
         return this.programme();
     }

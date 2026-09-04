@@ -51,6 +51,59 @@ export class PhasesService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * Bring a project's board up to the current template.
+   *
+   * Adds phases and tasks the template has and the project lacks, matching
+   * tasks by title so nothing is duplicated. It never deletes: a task someone
+   * has been working on is not the template's to remove, and a phase the
+   * project has beyond the template is left where it is and reported instead.
+   */
+  async applyTemplate(projectId: number) {
+    if (!Number.isFinite(projectId)) throw new BadRequestException('Which project?');
+    if (!(await this.projects.findOneBy({ id: projectId }))) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    const plan = await this.programme();
+    const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
+
+    // Phases the template has that the project does not.
+    const missingPhases = plan.filter((d) => !existing.some((ph) => ph.key === d.key));
+    if (missingPhases.length) {
+      await this.repo.save(missingPhases.map((d) => this.repo.create({
+        id: `PH-${projectId}-${d.key}`,
+        projectId, key: d.key, name: d.name, color: d.color,
+        order: plan.findIndex((x) => x.key === d.key),
+      } as Partial<ProjectPhaseEntity>)));
+    }
+
+    // Keep the board in the template's order, and its names and colours current.
+    const phases = await this.repo.find({ where: { projectId } });
+    for (const ph of phases) {
+      const tpl = plan.find((d) => d.key === ph.key);
+      if (!tpl) continue;
+      ph.name = tpl.name;
+      ph.color = tpl.color;
+      ph.order = plan.findIndex((d) => d.key === ph.key);
+      // Clearing the stamp lets the checklist top-up run for the new tasks.
+      ph.seededAt = '';
+    }
+    await this.repo.save(phases);
+
+    const before = (await this.tasks.find({ where: { projectId } })).length;
+    await this.seedChecklists(projectId, phases, plan);
+    const after = (await this.tasks.find({ where: { projectId } })).length;
+
+    const extraPhases = phases.filter((ph) => !plan.some((d) => d.key === ph.key)).map((ph) => ph.name);
+    this.log.log(`Applied template to project ${projectId}: +${missingPhases.length} phase(s), +${after - before} task(s)`);
+    return {
+      phasesAdded: missingPhases.length,
+      tasksAdded: after - before,
+      phasesNotInTemplate: extraPhases,
+    };
+  }
+
   /** The live template, for the editor. */
   async getTemplate() {
     return this.programme();

@@ -3,7 +3,7 @@ import { TaskBoard } from '../components/TaskBoard';
 import { WorkflowsView } from '../components/WorkflowsView';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project } from '../data/projects';
+import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 
 const BG = "'Bricolage Grotesque', serif";
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
@@ -44,7 +44,31 @@ export function Projects() {
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
-  const workflow = computeWorkflow();
+  // The Phase Board reads the project's own phases and tasks, so it shows what
+  // the programme template actually put there.
+  const [boardPhases, setBoardPhases] = useState<BoardPhase[]>([]);
+  const [boardTasks, setBoardTasks] = useState<BoardTask[]>([]);
+  const [applying, setApplying] = useState(false);
+  const workflow = computeWorkflow(boardPhases, boardTasks);
+
+  const loadBoard = (projectId: number) => {
+    api.projectPhases.board(projectId)
+      .then((res: any) => { setBoardPhases((res?.phases || []) as BoardPhase[]); setBoardTasks((res?.tasks || []) as BoardTask[]); })
+      .catch(() => { setBoardPhases([]); setBoardTasks([]); });
+  };
+
+  const applyProgramme = (projectId: number) => {
+    setApplying(true);
+    api.projectPhases.applyTemplate(projectId)
+      .then((r: any) => {
+        toast(r?.tasksAdded || r?.phasesAdded
+          ? `Template applied — ${r.phasesAdded} phase(s), ${r.tasksAdded} task(s) added`
+          : 'Already up to date with the template');
+        loadBoard(projectId);
+      })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setApplying(false));
+  };
 
   // ---- Introduction Letter email compose (on its Phase Board task) ----
   const introLead = sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
@@ -157,7 +181,7 @@ export function Projects() {
     navigator.clipboard.writeText((emailSubject ? emailSubject + '\n\n' : '') + emailBody).then(() => toast('Copied')).catch(() => toast('⚠ Copy failed'));
   };
 
-  const openProject = (id: number) => { setSelectedId(id); setTab('overview'); };
+  const openProject = (id: number) => { setSelectedId(id); setTab('overview'); loadBoard(id); };
   const openNew = () => { setNp(BLANK); setEditingId(null); setShowForm(true); };
   const openEdit = (p: Project) => { setNp({ ...p }); setEditingId(p.id); setSelectedId(null); setShowForm(true); };
   const saveProject = () => {
@@ -358,6 +382,20 @@ export function Projects() {
               </div>
             ) : tab === 'phases' ? (
               <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11.5, color: '#7E9B93' }}>
+                    {workflow.length
+                      ? `${workflow.length} phases · ${workflow.reduce((a, w) => a + w.count, 0)} tasks`
+                      : 'This project has no programme yet.'}
+                  </span>
+                  <div
+                    onClick={applying || !sel ? undefined : () => applyProgramme(sel.id)}
+                    title="Add any phases and tasks the template has that this project is missing. Nothing is removed."
+                    style={{ marginLeft: 'auto', padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applying ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+                  >
+                    {applying ? 'Applying…' : 'Apply programme template'}
+                  </div>
+                </div>
                 {/* Wizard step indicator */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 16, padding: '0 4px' }}>
                   {workflow.map((step) => (

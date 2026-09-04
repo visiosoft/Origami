@@ -32,6 +32,9 @@ let PhasesController = class PhasesController {
     resetTemplate() {
         return this.service.saveTemplate(null);
     }
+    applyTemplate(projectId) {
+        return this.service.applyTemplate(Number(projectId));
+    }
     overview() {
         return this.service.overview();
     }
@@ -78,6 +81,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "resetTemplate", null);
+__decorate([
+    (0, common_1.Post)('apply-template'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PhasesController.prototype, "applyTemplate", null);
 __decorate([
     (0, common_1.Get)('overview'),
     __metadata("design:type", Function),

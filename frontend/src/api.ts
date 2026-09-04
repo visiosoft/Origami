@@ -286,6 +286,10 @@ export const api = {
     board: (projectId: number) => request(`/project-phases/board?projectId=${projectId}`),
     /** Every project's phase progress in one call, for the Design board. */
     overview: () => request('/project-phases/overview'),
+    /** Bring one project up to the current programme template. */
+    applyTemplate: (projectId: number) =>
+      request<{ phasesAdded: number; tasksAdded: number; phasesNotInTemplate: string[] }>(
+        `/project-phases/apply-template?projectId=${projectId}`, { method: 'POST' }),
     create: (data: unknown) => request('/project-phases', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),

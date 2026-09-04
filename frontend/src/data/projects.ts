@@ -125,23 +125,64 @@ export interface ComputedPhase extends WfPhase {
   statusBg: string; statusC: string; headerOpacity: string;
 }
 
-export function computeWorkflow(): ComputedPhase[] {
+/** A phase row as the board needs it, built from the project's real data. */
+export interface BoardPhase { id: string; key: string; name: string; color: string; order: number }
+export interface BoardTask {
+  id: string; phaseId?: string; title: string; status?: string; completed?: boolean;
+  assignee?: string; team?: string; auto?: boolean; autoLabel?: string;
+  startDate?: string; endDate?: string; durationDays?: number; parentId?: string | null;
+}
+
+/**
+ * The Phase Board, from the project's own phases and tasks.
+ *
+ * It used to map a fixture, so every project showed the same board no matter
+ * what was on it. Now it reads what the project actually has — which is what
+ * the programme template put there.
+ */
+export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): ComputedPhase[] {
   let prevComplete = true;
-  return PROJECT_WORKFLOW.map((ph, idx) => {
-    const done = ph.tasks.filter((t) => t.status === 'Done').length;
-    const allDone = done === ph.tasks.length;
-    const hasInProgress = ph.tasks.some((t) => t.status === 'In Progress');
+  return [...phases].sort((a, b) => a.order - b.order).map((ph, idx) => {
+    const own = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
+    const isDone = (t: BoardTask) => !!t.completed || t.status === 'Done';
+    const done = own.filter(isDone).length;
+    const allDone = own.length > 0 && done === own.length;
+    const hasInProgress = own.some((t) => t.status === 'In progress' || t.status === 'In Progress');
     const locked = idx > 0 && !prevComplete;
-    const phaseStatus = allDone ? 'Complete' : hasInProgress || (done > 0 && !allDone) ? 'In Progress' : locked ? 'Locked' : 'Not Started';
+    const phaseStatus = allDone
+      ? 'Complete'
+      : hasInProgress || (done > 0 && !allDone) ? 'In Progress' : locked ? 'Locked' : 'Not Started';
+
     const result: ComputedPhase = {
-      ...ph, count: ph.tasks.length, doneCount: done,
-      progress: Math.round((done / ph.tasks.length) * 100),
+      id: ph.key,
+      name: ph.name,
+      color: ph.color,
+      // The phase span, taken from the dates on its own tasks.
+      start: own.map((t) => t.startDate || '').filter(Boolean).sort()[0] || '',
+      end: own.map((t) => t.endDate || '').filter(Boolean).sort().slice(-1)[0] || '',
+      tasks: own.map((t) => ({
+        title: t.title,
+        status: isDone(t) ? 'Done' : t.status === 'In progress' ? 'In Progress' : 'Open',
+        auto: !!t.auto,
+        assignee: t.assignee || '',
+        team: t.team || '',
+        autoLabel: t.autoLabel,
+        start: t.startDate || '',
+        end: t.endDate || '',
+        dur: t.durationDays ? `${t.durationDays}d` : '',
+        deps: [],
+      })),
+      count: own.length,
+      doneCount: done,
+      progress: own.length ? Math.round((done / own.length) * 100) : 0,
       locked,
-      isComplete: allDone, isLocked: locked, isActive: !locked && !allDone,
+      isComplete: allDone,
+      isLocked: locked,
+      isActive: !locked && !allDone,
       statusLabel: phaseStatus,
       statusBg: allDone ? '#D2EAD3' : locked ? '#EFEDE8' : '#D6E8E5',
       statusC: allDone ? '#1C5230' : locked ? '#9AA39D' : '#2F6F68',
-      headerOpacity: locked ? '0.45' : '1',
+      headerOpacity: locked ? '0.55' : '1',
     };
     prevComplete = allDone;
     return result;

@@ -13,6 +13,11 @@ export declare class PhasesService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService, settings: SettingsService);
     private programme;
+    applyTemplate(projectId: number): Promise<{
+        phasesAdded: number;
+        tasksAdded: number;
+        phasesNotInTemplate: string[];
+    }>;
     getTemplate(): Promise<TemplatePhase[]>;
     saveTemplate(body: unknown): Promise<TemplatePhase[]>;
     onApplicationBootstrap(): Promise<void>;
