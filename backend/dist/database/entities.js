@@ -576,6 +576,10 @@ __decorate([
     __metadata("design:type", String)
 ], LeadEntity.prototype, "preferredContactMethod", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadEntity.prototype, "preferredContactMatrix", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "leadSource", void 0);

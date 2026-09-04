@@ -5,10 +5,11 @@ import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch,
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
 import { OtherDetail } from '../components/OtherDetail';
+import { ContactMethodMatrix } from '../components/ContactMethodMatrix';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { FollowUpPanel, type FollowUp } from '../components/FollowUpPanel';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
-import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
+import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource, sourceDetailLabel, primaryContactMethod, contactMatrixSummary } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
@@ -30,6 +31,7 @@ interface NewLead {
   namePronunciation: string; phone: string; email: string;
   primaryPointOfContact: string; secondPointOfContact: string; nameOfSecondContact: string;
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
+  preferredContactMatrix?: Record<string, string>;
   preferredContactMethodOfSecondContact: string; pronounsOfSecondContact: string;
   leadSourceReferrerName: string; leadSourceReferrerPhone: string; leadSourceEventDetail: string;
   otherDetails?: Record<string, string>;
@@ -92,6 +94,7 @@ const BLANK_LEAD: NewLead = {
   namePronunciation: '', phone: '', email: '',
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
+  preferredContactMatrix: {},
   preferredContactMethodOfSecondContact: '', pronounsOfSecondContact: '',
   leadSourceReferrerName: '', leadSourceReferrerPhone: '', leadSourceEventDetail: '',
   otherDetails: {},
@@ -129,7 +132,7 @@ function addMonths(from: Date, months: number) {
 
 const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
 
-type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills' | 'checkbox';
+type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills' | 'checkbox' | 'matrix';
 interface FieldSpec {
   key: keyof NewLead; label: string; kind: FieldKind;
   optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS; ph?: string;
@@ -158,7 +161,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'phone', label: 'Phone *', kind: 'tel', ph: '(555) 123-4567' },
     { key: 'email', label: 'Email', kind: 'email', ph: 'email@example.com' },
     { key: 'primaryPointOfContact', label: 'Primary Point of Contact', kind: 'select', optKey: 'primaryPointOfContact' },
-    { key: 'preferredContactMethod', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
+    { key: 'preferredContactMatrix', label: 'Preferred Contact Method', kind: 'matrix' },
   ] },
   { title: '2. Second Contact', gate: { key: 'secondPointOfContact', value: 'Yes', emptyLabel: 'No second contact' }, fields: [
     { key: 'secondPointOfContact', label: 'Second Point of Contact?', kind: 'select', optKey: 'secondPointOfContact' },
@@ -171,7 +174,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
   ] },
   { title: '3. Source', fields: [
     { key: 'leadSource', label: 'Lead Source', kind: 'select', optKey: 'leadSource' },
-    { key: 'leadSourceReferrerName', label: 'Referred By', kind: 'text', ph: 'Name of the person referring', when: (l) => isReferralSource(l.leadSource) },
+    { key: 'leadSourceReferrerName', label: 'Referred By', kind: 'text', ph: 'Name of the person referring' },
     { key: 'leadSourceReferrerPhone', label: 'Referrer Phone', kind: 'tel', ph: '(555) 123-4567', when: (l) => isReferralSource(l.leadSource) },
     { key: 'leadSourceEventDetail', label: 'Where It Was', kind: 'text', ph: 'Event or networking group', when: (l) => isEventSource(l.leadSource) },
   ] },
@@ -324,6 +327,8 @@ export function Pipeline() {
       next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
     }
     if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
+    // The single headline answer is derived, never typed.
+    if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
     return next;
   });
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
@@ -825,6 +830,7 @@ export function Pipeline() {
                       next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
                     }
                     if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
+                    if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
                     return { ...p, [selected.id]: next };
                   });
                   // Every question must be answered before the stage can be saved.
@@ -894,6 +900,8 @@ export function Pipeline() {
                                   </>
                                 ) : f.kind === 'textarea' ? (
                                   <textarea value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+                                ) : f.kind === 'matrix' ? (
+                                  <ContactMethodMatrix value={ld.preferredContactMatrix} onChange={(m) => up('preferredContactMatrix', m as never)} />
                                 ) : f.kind === 'checkbox' ? (
                                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#0B1A12', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={ld[f.key] === 'Yes'} onChange={(e) => up(f.key, e.target.checked ? 'Yes' : 'No')} />
@@ -1174,7 +1182,7 @@ export function Pipeline() {
               {(() => {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
-                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', ld?.preferredContactMethod || '']] },
+                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || '']] },
                   { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Pronouns', ld?.pronounsOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
                   { title: '3. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
                   { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
@@ -1285,7 +1293,7 @@ export function Pipeline() {
                     <FormField label="Phone Number *" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                     <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                     <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Preferred Contact Method" hint="How this person prefers to be reached."><select value={nl.preferredContactMethod} onChange={(e) => setField('preferredContactMethod', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={nl.preferredContactMatrix} onChange={(mx) => setField('preferredContactMatrix', mx)} /></div>
                   </FormGrid>
                 </>)}
                 {formTab === 2 && (<>
@@ -1306,13 +1314,26 @@ export function Pipeline() {
                   <SectionTitle>3. Source</SectionTitle>
                   <FormGrid>
                     <FormField label="Lead Source" hint="How the lead first heard about or was referred to us."><select value={nl.leadSource} onChange={(e) => setField('leadSource', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.leadSource, nl.leadSource).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.leadSource} field="leadSource" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                    {isReferralSource(nl.leadSource) && (<>
-                      <FormField label="Referred By" hint="Who made the referral."><input value={nl.leadSourceReferrerName} onChange={(e) => setField('leadSourceReferrerName', e.target.value)} placeholder="Name of the person referring" style={inputStyle} /></FormField>
-                      <FormField label="Referrer Phone" hint="How to reach the person who referred them."><input type="tel" value={nl.leadSourceReferrerPhone} onChange={(e) => setField('leadSourceReferrerPhone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
-                    </>)}
-                    {isEventSource(nl.leadSource) && (
-                      <FormField label="Where It Was" hint="Which event, or where the networking happened."><input value={nl.leadSourceEventDetail} onChange={(e) => setField('leadSourceEventDetail', e.target.value)} placeholder="Event or networking group" style={inputStyle} /></FormField>
-                    )}
+                    {(() => {
+                      const d = sourceDetailLabel(nl.leadSource);
+                      return (
+                        <>
+                          <FormField label={d.label} hint={d.hint}>
+                            <input value={nl.leadSourceReferrerName} onChange={(e) => setField('leadSourceReferrerName', e.target.value)} placeholder={d.ph} style={inputStyle} />
+                          </FormField>
+                          {isReferralSource(nl.leadSource) && (
+                            <FormField label="Referrer Phone" hint="How to reach the person who referred them.">
+                              <input type="tel" value={nl.leadSourceReferrerPhone} onChange={(e) => setField('leadSourceReferrerPhone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} />
+                            </FormField>
+                          )}
+                          {isEventSource(nl.leadSource) && (
+                            <FormField label="Where It Was" hint="Which event, or where the networking happened.">
+                              <input value={nl.leadSourceEventDetail} onChange={(e) => setField('leadSourceEventDetail', e.target.value)} placeholder="Event or networking group" style={inputStyle} />
+                            </FormField>
+                          )}
+                        </>
+                      );
+                    })()}
                   </FormGrid>
                 </>)}
                 {formTab === 4 && (<>

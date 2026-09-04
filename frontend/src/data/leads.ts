@@ -21,6 +21,7 @@ export interface Lead {
     contacts?: unknown[];
     decisionMakers: string;
     preferredContactMethod: string;
+    preferredContactMatrix?: Record<string, string>;
     leadSource: string;
     leadSourceReferrerName: string;
     leadSourceReferrerPhone: string;
@@ -257,3 +258,59 @@ export const offersOther = (optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS) =>
 
 /** Whether a stored answer is the "Other" one, including the coded project type. */
 export const isOtherValue = (value?: string) => /^other/i.test((value || '').trim());
+
+/** Every way a person might be reached, as a row on the contact-method matrix. */
+export const CONTACT_METHODS = [
+    'No Preference',
+    'Cell Phone Call',
+    'Cell Phone Text',
+    'House Phone Call',
+    'Office Phone',
+    'Primary Email',
+    'Secondary Email',
+    'Video Call',
+    'In-Person',
+];
+
+export const CONTACT_PREFERENCES = ['Primary', 'Secondary', 'No'] as const;
+export type ContactPreference = typeof CONTACT_PREFERENCES[number];
+
+/**
+ * The single headline answer, derived from the matrix.
+ *
+ * Kept so everything already reading preferredContactMethod -- cards, the
+ * summary, the letter -- kept working when the matrix replaced the dropdown.
+ */
+export function primaryContactMethod(matrix?: Record<string, string>): string {
+    if (!matrix) return '';
+    const primary = CONTACT_METHODS.filter((m) => matrix[m] === 'Primary');
+    if (primary.length) return primary.join(', ');
+    const secondary = CONTACT_METHODS.filter((m) => matrix[m] === 'Secondary');
+    return secondary.length ? secondary.join(', ') : '';
+}
+
+/** A readable summary of the whole matrix, for the read-only views. */
+export function contactMatrixSummary(matrix?: Record<string, string>): string {
+    if (!matrix) return '';
+    const parts = CONTACT_PREFERENCES.map((pref) => {
+        const methods = CONTACT_METHODS.filter((m) => matrix[m] === pref);
+        return methods.length ? `${pref}: ${methods.join(', ')}` : '';
+    }).filter(Boolean);
+    return parts.join(' · ');
+}
+
+/**
+ * What the free-text box beside Lead Source is asking for.
+ *
+ * Every source deserves a note -- which page of the website, what they
+ * searched, whose van they saw -- not just referrals.
+ */
+export function sourceDetailLabel(source?: string): { label: string; hint: string; ph: string } {
+    if (isReferralSource(source)) {
+        return { label: 'Referred By', hint: 'Who made the referral.', ph: 'Name of the person referring' };
+    }
+    if (isEventSource(source)) {
+        return { label: 'Where It Was', hint: 'Which event, or where the networking happened.', ph: 'Event or networking group' };
+    }
+    return { label: 'Source Details', hint: 'Anything worth knowing about how they found us.', ph: 'e.g. which page, what they searched, who mentioned us' };
+}

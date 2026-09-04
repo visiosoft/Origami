@@ -21,6 +21,7 @@ export class CreateLeadDto {
     @IsArray() @IsOptional() contacts?: unknown[];
     @IsString() @IsOptional() decisionMakers?: string;
     @IsString() @IsOptional() preferredContactMethod?: string;
+    @IsObject() @IsOptional() preferredContactMatrix?: Record<string, string>;
     @IsString() @IsOptional() leadSource?: string;
     @IsString() @IsOptional() leadSourceReferrerName?: string;
     @IsString() @IsOptional() leadSourceReferrerPhone?: string;

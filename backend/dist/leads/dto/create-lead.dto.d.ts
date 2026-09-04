@@ -19,6 +19,7 @@ export declare class CreateLeadDto {
     contacts?: unknown[];
     decisionMakers?: string;
     preferredContactMethod?: string;
+    preferredContactMatrix?: Record<string, string>;
     leadSource?: string;
     leadSourceReferrerName?: string;
     leadSourceReferrerPhone?: string;

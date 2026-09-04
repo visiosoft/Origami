@@ -188,6 +188,9 @@ export class LeadEntity {
   @Column({ type: 'simple-json', nullable: true }) contacts!: unknown[];
   @Column({ nullable: true }) decisionMakers!: string;
   @Column({ nullable: true }) preferredContactMethod!: string;
+  // How they want to be reached, per method: Primary | Secondary | No.
+  // preferredContactMethod stays the single headline answer derived from it.
+  @Column({ type: 'simple-json', nullable: true }) preferredContactMatrix!: Record<string, string>;
   @Column({ nullable: true }) leadSource!: string;
   @Column({ nullable: true }) leadSourceReferrerName!: string;  // who made the referral
   @Column({ nullable: true }) leadSourceReferrerPhone!: string; // and how to reach them

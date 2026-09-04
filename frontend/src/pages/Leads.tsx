@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
-import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
+import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource, sourceDetailLabel, primaryContactMethod } from '../data/leads';
 import { OtherDetail } from '../components/OtherDetail';
+import { ContactMethodMatrix } from '../components/ContactMethodMatrix';
 import { useApp } from '../AppContext';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
@@ -14,6 +15,7 @@ const BLANK: NewLead = {
     namePronunciation: '', phone: '', email: '',
     primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
     phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
+    preferredContactMatrix: {},
     preferredContactMethodOfSecondContact: '', pronounsOfSecondContact: '',
     leadSourceReferrerName: '', leadSourceReferrerPhone: '', leadSourceEventDetail: '',
     otherDetails: {},
@@ -49,6 +51,7 @@ export function Leads() {
     const set = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setForm((f) => {
         const next = { ...f, [k]: v } as NewLead;
         // leadName is the display name the rest of the app reads.
+        if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
         if (k === 'firstName' || k === 'lastName') {
             next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
         }
@@ -236,13 +239,8 @@ function TabContact({ form, set }: { form: NewLead; set: <K extends keyof NewLea
                 <input value={form.goByName} onChange={(e) => set('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" />
                 <span className="hint">What they prefer to be called, if it isn't their first name.</span>
             </div>
-            <div className="leads-field">
-                <label>Preferred Contact Method</label>
-                <select value={form.preferredContactMethod} onChange={(e) => set('preferredContactMethod', e.target.value)}>
-                    <option value="">Select...</option>
-                    {OPT.preferredContactMethod.map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-                <span className="hint">How this person prefers to be reached.</span>
+            <div className="leads-field full">
+                <ContactMethodMatrix value={form.preferredContactMatrix} onChange={(mx) => set('preferredContactMatrix', mx)} />
             </div>
             <div className="leads-field">
                 <label>Pronouns</label>
@@ -348,18 +346,25 @@ function TabCommunication({ form, set }: { form: NewLead; set: <K extends keyof 
                 <OtherDetail value={form.leadSource} field="leadSource" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 <span className="hint">How the lead first heard about or was referred to us.</span>
             </div>
-            {isReferralSource(form.leadSource) && (<>
-                <div className="leads-field">
-                    <label>Referred By</label>
-                    <input value={form.leadSourceReferrerName} onChange={(e) => set('leadSourceReferrerName', e.target.value)} placeholder="Name of the person referring" />
-                    <span className="hint">Who made the referral.</span>
-                </div>
-                <div className="leads-field">
-                    <label>Referrer Phone</label>
-                    <input type="tel" value={form.leadSourceReferrerPhone} onChange={(e) => set('leadSourceReferrerPhone', e.target.value)} placeholder="(555) 123-4567" />
-                    <span className="hint">How to reach the person who referred them.</span>
-                </div>
-            </>)}
+            {(() => {
+                const d = sourceDetailLabel(form.leadSource);
+                return (
+                    <>
+                        <div className="leads-field">
+                            <label>{d.label}</label>
+                            <input value={form.leadSourceReferrerName} onChange={(e) => set('leadSourceReferrerName', e.target.value)} placeholder={d.ph} />
+                            <span className="hint">{d.hint}</span>
+                        </div>
+                        {isReferralSource(form.leadSource) && (
+                            <div className="leads-field">
+                                <label>Referrer Phone</label>
+                                <input type="tel" value={form.leadSourceReferrerPhone} onChange={(e) => set('leadSourceReferrerPhone', e.target.value)} placeholder="(555) 123-4567" />
+                                <span className="hint">How to reach the person who referred them.</span>
+                            </div>
+                        )}
+                    </>
+                );
+            })()}
             {isEventSource(form.leadSource) && (
                 <div className="leads-field">
                     <label>Where It Was</label>
