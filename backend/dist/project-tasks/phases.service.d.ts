@@ -1,14 +1,17 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
+import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
 export declare class PhasesService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly tasks;
     private readonly projects;
     private readonly sections;
+    private readonly settings;
     private readonly log;
-    constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService);
+    constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService, settings: SettingsService);
+    private programme;
     onApplicationBootstrap(): Promise<void>;
     private seedChecklists;
     overview(): Promise<{

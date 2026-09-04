@@ -18,6 +18,8 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const project_phases_1 = require("../seed-data/project-phases");
+const programme_template_1 = require("../seed-data/programme-template");
+const settings_service_1 = require("../settings/settings.service");
 const sections_service_1 = require("./sections.service");
 const task_types_1 = require("../database/task.types");
 const DEMO_PROJECT_ID = 1;
@@ -28,12 +30,21 @@ const SECTION_FOR_STATUS = {
     Done: 3,
 };
 let PhasesService = class PhasesService {
-    constructor(repo, tasks, projects, sections) {
+    constructor(repo, tasks, projects, sections, settings) {
         this.repo = repo;
         this.tasks = tasks;
         this.projects = projects;
         this.sections = sections;
+        this.settings = settings;
         this.log = new common_1.Logger('PhasesService');
+    }
+    async programme() {
+        try {
+            return (0, programme_template_1.parseProgramme)(await this.settings.get('programme.template')) || programme_template_1.DEFAULT_PROGRAMME;
+        }
+        catch {
+            return programme_template_1.DEFAULT_PROGRAMME;
+        }
     }
     async onApplicationBootstrap() {
         try {
@@ -69,8 +80,10 @@ let PhasesService = class PhasesService {
             this.log.warn('Checklist seeding failed: ' + err.message);
         }
     }
-    async seedChecklists(projectId, phases) {
-        const pending = phases.filter((ph) => !ph.seededAt && (project_phases_1.PHASE_CHECKLISTS[ph.key] || []).length);
+    async seedChecklists(projectId, phases, programme) {
+        const plan = programme || (await this.programme());
+        const tasksFor = (key) => plan.find((ph) => ph.key === key)?.tasks || [];
+        const pending = phases.filter((ph) => !ph.seededAt && tasksFor(ph.key).length);
         if (!pending.length)
             return;
         const sections = await this.sections.forProject(projectId);
@@ -80,7 +93,8 @@ let PhasesService = class PhasesService {
         const rows = [];
         for (const phase of pending) {
             const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
-            (project_phases_1.PHASE_CHECKLISTS[phase.key] || []).forEach((title, i) => {
+            tasksFor(phase.key).forEach((tpl, i) => {
+                const title = tpl.title;
                 if (already.has(title))
                     return;
                 rows.push(this.tasks.create({
@@ -92,7 +106,8 @@ let PhasesService = class PhasesService {
                     status: 'Not started',
                     completed: false,
                     order: i,
-                    attachments: [], comments: [], checklist: [], labels: [],
+                    team: tpl.team || '',
+                    attachments: [], comments: [], checklist: [], labels: tpl.labels || [],
                     activity: [(0, task_types_1.event)('created', { name: 'System' }, { text: 'added from the standard programme' })],
                     createdAt: stamp.slice(0, 10),
                     updatedAt: stamp,
@@ -107,6 +122,7 @@ let PhasesService = class PhasesService {
             this.log.log(`Seeded ${rows.length} checklist step(s) for project ${projectId}`);
     }
     async overview() {
+        const plan = await this.programme();
         const [projects, phases, tasks] = await Promise.all([
             this.projects.find({ order: { id: 'ASC' } }),
             this.repo.find({ order: { order: 'ASC' } }),
@@ -126,11 +142,11 @@ let PhasesService = class PhasesService {
             const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
             const byKey = new Map(rows.map((ph) => [ph.key, ph]));
             const source = [
-                ...project_phases_1.PHASE_DEFINITIONS.map((d) => {
+                ...plan.map((d, di) => {
                     const row = byKey.get(d.key);
-                    return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order };
+                    return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: di };
                 }),
-                ...rows.filter((ph) => !project_phases_1.PHASE_DEFINITIONS.some((d) => d.key === ph.key)),
+                ...rows.filter((ph) => !plan.some((d) => d.key === ph.key)),
             ].sort((a, b) => a.order - b.order);
             const own = source
                 .map((ph) => {
@@ -175,16 +191,17 @@ let PhasesService = class PhasesService {
         });
     }
     async forProject(projectId) {
+        const plan = await this.programme();
         if (!Number.isFinite(projectId))
             return [];
         if (!(await this.projects.findOneBy({ id: projectId })))
             return [];
         const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
         if (existing.length) {
-            const missing = project_phases_1.PHASE_DEFINITIONS.filter((d) => !existing.some((ph) => ph.key === d.key));
+            const missing = plan.filter((d) => !existing.some((ph) => ph.key === d.key));
             if (missing.length) {
                 const added = await this.repo.save(missing.map((d) => this.repo.create({
-                    id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: d.name, color: d.color, order: d.order,
+                    id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: d.name, color: d.color, order: plan.findIndex((x) => x.key === d.key),
                 })));
                 this.log.log(`Added ${added.length} new phase(s) to project ${projectId}`);
                 existing.push(...added);
@@ -194,13 +211,13 @@ let PhasesService = class PhasesService {
             await this.seedChecklists(projectId, existing);
             return existing;
         }
-        const created = project_phases_1.PHASE_DEFINITIONS.map((d) => this.repo.create({
+        const created = plan.map((d, idx) => this.repo.create({
             id: `PH-${projectId}-${d.key}`,
             projectId,
             key: d.key,
             name: d.name,
             color: d.color,
-            order: d.order,
+            order: idx,
         }));
         await this.repo.save(created);
         this.log.log(`Created ${created.length} phases for project ${projectId}`);
@@ -340,6 +357,7 @@ exports.PhasesService = PhasesService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        sections_service_1.SectionsService])
+        sections_service_1.SectionsService,
+        settings_service_1.SettingsService])
 ], PhasesService);
 //# sourceMappingURL=phases.service.js.map

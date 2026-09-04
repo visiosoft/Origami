@@ -290,6 +290,12 @@ export const api = {
     update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
   },
+  programmeTemplate: {
+    get: () => request('/project-phases/template'),
+    save: (phases: unknown) => request('/project-phases/template', { method: 'PUT', body: JSON.stringify(phases) }),
+    reset: () => request('/project-phases/template', { method: 'DELETE' }),
+  },
+
   projectSections: {
     list: (projectId: number) => request(`/project-sections?projectId=${projectId}`),
     create: (data: unknown) => request('/project-sections', { method: 'POST', body: JSON.stringify(data) }),

@@ -5,6 +5,7 @@ import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
+import { ProgrammeTemplate } from './ProgrammeTemplate';
 import { SmsSettings } from './SmsSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
@@ -27,6 +28,9 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   ] },
   { group: 'Brand', items: [
     { key: 'branding', label: 'Branding & Letterhead' },
+  ] },
+  { group: 'Projects', items: [
+    { key: 'programme', label: 'Programme Template' },
   ] },
   { group: 'Pipeline', items: [
     { key: 'sla', label: 'CRM Response Times' },
@@ -72,6 +76,7 @@ export function Settings() {
           {active === 'lead-scoring' && <ScoringTemplateEditor />}
           {active === 'email-templates' && <EmailTemplatesEditor />}
           {active === 'branding' && <BrandingSettings />}
+          {active === 'programme' && <ProgrammeTemplate />}
           {active === 'sla' && <PipelineSlaSettings />}
           {active === 'notifications' && <NotificationSettings />}
           {active === 'sms' && <SmsSettings />}

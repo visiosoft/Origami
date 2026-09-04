@@ -14,6 +14,23 @@ export class PhasesController {
 
   /** { phases, tasks } for the Phase Board. */
   /** Every project's design progress, for the Design board. */
+  /** The programme template new projects are built from. */
+  @Get('template')
+  getTemplate() {
+    return this.service.getTemplate();
+  }
+
+  @Put('template')
+  saveTemplate(@Body() body: unknown) {
+    return this.service.saveTemplate(body);
+  }
+
+  /** Back to the shipped default. */
+  @Delete('template')
+  resetTemplate() {
+    return this.service.saveTemplate(null);
+  }
+
   @Get('overview')
   overview() {
     return this.service.overview();

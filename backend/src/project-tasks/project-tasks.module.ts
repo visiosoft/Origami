@@ -10,9 +10,10 @@ import { ProjectTasksService } from './project-tasks.service';
 import { SectionsService } from './sections.service';
 import { PhasesService } from './phases.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity]), GoogleModule, AuthModule],
+  imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity]), GoogleModule, AuthModule],
   controllers: [ProjectTasksController, SectionsController, PhasesController],
   providers: [ProjectTasksService, SectionsService, PhasesService],
 })

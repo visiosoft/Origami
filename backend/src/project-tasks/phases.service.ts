@@ -1,8 +1,10 @@
-import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
-import { PHASE_DEFINITIONS, RETIRED_PHASE_KEYS, PHASE_CHECKLISTS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
+import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
+import { DEFAULT_PROGRAMME, parseProgramme, type TemplatePhase } from '../seed-data/programme-template';
+import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
 import { event, subId } from '../database/task.types';
 
@@ -30,7 +32,46 @@ export class PhasesService implements OnApplicationBootstrap {
     @InjectRepository(ProjectTaskEntity) private readonly tasks: Repository<ProjectTaskEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly sections: SectionsService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /**
+   * The programme a new project is built from.
+   *
+   * Read from settings rather than baked in, so the office can reshape it in
+   * the app. Falls back to the shipped default when nothing is saved, or when
+   * what is saved cannot be parsed -- seeding must never be the thing that
+   * breaks because a template was mangled.
+   */
+  private async programme(): Promise<TemplatePhase[]> {
+    try {
+      return parseProgramme(await this.settings.get('programme.template')) || DEFAULT_PROGRAMME;
+    } catch {
+      return DEFAULT_PROGRAMME;
+    }
+  }
+
+  /** The live template, for the editor. */
+  async getTemplate() {
+    return this.programme();
+  }
+
+  /**
+   * Replace the template, or clear it back to the default with null.
+   *
+   * Parsed before it is stored, so what comes back is always usable: a template
+   * that fails to parse would leave every new project with no programme.
+   */
+  async saveTemplate(body: unknown) {
+    if (body === null) {
+      await this.settings.set('programme.template', '');
+      return DEFAULT_PROGRAMME;
+    }
+    const parsed = parseProgramme(JSON.stringify(body));
+    if (!parsed) throw new BadRequestException('That is not a usable programme template.');
+    await this.settings.set('programme.template', JSON.stringify(parsed));
+    return parsed;
+  }
 
   /**
    * Drop phases that are no longer part of the programme.
@@ -81,8 +122,10 @@ export class PhasesService implements OnApplicationBootstrap {
    * record that it happened. A phase is stamped once so deliberately clearing
    * it is not undone on the next boot.
    */
-  private async seedChecklists(projectId: number, phases: ProjectPhaseEntity[]) {
-    const pending = phases.filter((ph) => !ph.seededAt && (PHASE_CHECKLISTS[ph.key] || []).length);
+  private async seedChecklists(projectId: number, phases: ProjectPhaseEntity[], programme?: TemplatePhase[]) {
+    const plan = programme || (await this.programme());
+    const tasksFor = (key: string) => plan.find((ph) => ph.key === key)?.tasks || [];
+    const pending = phases.filter((ph) => !ph.seededAt && tasksFor(ph.key).length);
     if (!pending.length) return;
 
     const sections = await this.sections.forProject(projectId);
@@ -94,7 +137,8 @@ export class PhasesService implements OnApplicationBootstrap {
 
     for (const phase of pending) {
       const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
-      (PHASE_CHECKLISTS[phase.key] || []).forEach((title, i) => {
+      tasksFor(phase.key).forEach((tpl, i) => {
+        const title = tpl.title;
         if (already.has(title)) return;
         rows.push(this.tasks.create({
           id: `T-${projectId}-${phase.key}-${String(i + 1).padStart(2, '0')}`,
@@ -105,7 +149,8 @@ export class PhasesService implements OnApplicationBootstrap {
           status: 'Not started',
           completed: false,
           order: i,
-          attachments: [], comments: [], checklist: [], labels: [],
+          team: tpl.team || '',
+          attachments: [], comments: [], checklist: [], labels: tpl.labels || [],
           activity: [event('created', { name: 'System' }, { text: 'added from the standard programme' })],
           createdAt: stamp.slice(0, 10),
           updatedAt: stamp,
@@ -128,6 +173,7 @@ export class PhasesService implements OnApplicationBootstrap {
    * filed under. Done in one pass instead of a request per project.
    */
   async overview() {
+    const plan = await this.programme();
     const [projects, phases, tasks] = await Promise.all([
       this.projects.find({ order: { id: 'ASC' } }),
       this.repo.find({ order: { order: 'ASC' } }),
@@ -153,11 +199,11 @@ export class PhasesService implements OnApplicationBootstrap {
       // to the programme later has no row on older projects. Reading creates
       // nothing. Phases a team added themselves are appended.
       const source = [
-        ...PHASE_DEFINITIONS.map((d) => {
+        ...plan.map((d, di) => {
           const row = byKey.get(d.key);
-          return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: d.order };
+          return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: di };
         }),
-        ...rows.filter((ph) => !PHASE_DEFINITIONS.some((d) => d.key === ph.key)),
+        ...rows.filter((ph) => !plan.some((d) => d.key === ph.key)),
       ].sort((a, b) => a.order - b.order);
 
       const own = source
@@ -216,6 +262,7 @@ export class PhasesService implements OnApplicationBootstrap {
    * Mirrors SectionsService.forProject, which lazily creates board sections.
    */
   async forProject(projectId: number): Promise<ProjectPhaseEntity[]> {
+    const plan = await this.programme();
     if (!Number.isFinite(projectId)) return [];
     // Don't create phases for a project that isn't there.
     if (!(await this.projects.findOneBy({ id: projectId }))) return [];
@@ -224,10 +271,10 @@ export class PhasesService implements OnApplicationBootstrap {
     if (existing.length) {
       // A phase added to the programme after this project was created has no
       // row yet, so fill in the gaps rather than leaving the board short.
-      const missing = PHASE_DEFINITIONS.filter((d) => !existing.some((ph) => ph.key === d.key));
+      const missing = plan.filter((d) => !existing.some((ph) => ph.key === d.key));
       if (missing.length) {
         const added = await this.repo.save(missing.map((d) => this.repo.create({
-          id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: d.name, color: d.color, order: d.order,
+          id: `PH-${projectId}-${d.key}`, projectId, key: d.key, name: d.name, color: d.color, order: plan.findIndex((x) => x.key === d.key),
         } as Partial<ProjectPhaseEntity>)));
         this.log.log(`Added ${added.length} new phase(s) to project ${projectId}`);
         existing.push(...added);
@@ -238,14 +285,14 @@ export class PhasesService implements OnApplicationBootstrap {
       return existing;
     }
 
-    const created = PHASE_DEFINITIONS.map((d) =>
+    const created = plan.map((d, idx) =>
       this.repo.create({
         id: `PH-${projectId}-${d.key}`,
         projectId,
         key: d.key,
         name: d.name,
         color: d.color,
-        order: d.order,
+        order: idx,
       } as Partial<ProjectPhaseEntity>),
     );
     await this.repo.save(created);

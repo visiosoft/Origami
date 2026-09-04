@@ -25,6 +25,8 @@ export const PUBLIC_KEYS = [
   'notifications.assignmentEmail',
   // Response-time target per pipeline stage, as JSON { stageKey: days }.
   'pipeline.slaDays',
+  // The phase-and-task programme new projects are built from.
+  'programme.template',
   // --- SMS (Twilio) ---
   'sms.enabled',
   'sms.accountSid',

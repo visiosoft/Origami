@@ -34,6 +34,7 @@ exports.PUBLIC_KEYS = [
     'tasks.labels',
     'notifications.assignmentEmail',
     'pipeline.slaDays',
+    'programme.template',
     'sms.enabled',
     'sms.accountSid',
     'sms.authToken',
