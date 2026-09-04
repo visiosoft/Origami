@@ -169,6 +169,7 @@ export class LeadEntity {
   @Column({ nullable: true }) preferredContactMethod!: string;
   @Column({ nullable: true }) leadSource!: string;
   @Column({ nullable: true }) leadSourceReferrerName!: string;  // who made the referral
+  @Column({ nullable: true }) leadSourceReferrerPhone!: string; // and how to reach them
   @Column({ nullable: true }) leadSourceEventDetail!: string;   // which event, or where the networking happened
   @Column({ nullable: true }) projectStreetAddress!: string;
   @Column({ nullable: true }) projectStreetName!: string;
@@ -179,6 +180,9 @@ export class LeadEntity {
   @Column({ nullable: true }) propertyType!: string;
   @Column({ nullable: true }) potentialProjectType!: string;
   @Column({ nullable: true }) contractType!: string;  // DO | BO | DB | PDB
+  // Free text for any field answered 'Other', keyed by that field's name —
+  // a column per dropdown would be six columns that are almost always null.
+  @Column({ type: 'simple-json', nullable: true }) otherDetails!: Record<string, string>;
   @Column({ type: 'simple-json', nullable: true }) homeworkCompleted!: string[];
   @Column({ ...TEXT, nullable: true }) projectVision!: string;
   @Column({ nullable: true }) reasonForProject!: string;

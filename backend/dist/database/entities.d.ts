@@ -134,6 +134,7 @@ export declare class LeadEntity {
     preferredContactMethod: string;
     leadSource: string;
     leadSourceReferrerName: string;
+    leadSourceReferrerPhone: string;
     leadSourceEventDetail: string;
     projectStreetAddress: string;
     projectStreetName: string;
@@ -144,6 +145,7 @@ export declare class LeadEntity {
     propertyType: string;
     potentialProjectType: string;
     contractType: string;
+    otherDetails: Record<string, string>;
     homeworkCompleted: string[];
     projectVision: string;
     reasonForProject: string;

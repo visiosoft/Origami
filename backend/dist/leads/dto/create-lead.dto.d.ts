@@ -21,6 +21,8 @@ export declare class CreateLeadDto {
     preferredContactMethod?: string;
     leadSource?: string;
     leadSourceReferrerName?: string;
+    leadSourceReferrerPhone?: string;
+    otherDetails?: Record<string, string>;
     leadSourceEventDetail?: string;
     projectStreetAddress?: string;
     projectStreetName?: string;

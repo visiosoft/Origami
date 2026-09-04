@@ -23,6 +23,8 @@ export interface Lead {
     preferredContactMethod: string;
     leadSource: string;
     leadSourceReferrerName: string;
+    leadSourceReferrerPhone: string;
+    otherDetails?: Record<string, string>;
     leadSourceEventDetail: string;
     projectStreetAddress: string;
     projectStreetName: string;
@@ -91,6 +93,7 @@ export const LEADS: Lead[] = [
         preferredContactMethod: 'Phone Call',
         leadSource: 'Referral – Past Client',
         leadSourceReferrerName: '',
+        leadSourceReferrerPhone: '',
         leadSourceEventDetail: '',
         projectStreetAddress: '1247',
         projectStreetName: 'Pacific Coast Highway',
@@ -134,6 +137,7 @@ export const LEADS: Lead[] = [
         preferredContactMethod: 'Email',
         leadSource: 'Google Search',
         leadSourceReferrerName: '',
+        leadSourceReferrerPhone: '',
         leadSourceEventDetail: '',
         projectStreetAddress: '550',
         projectStreetName: 'Market Street',
@@ -177,6 +181,7 @@ export const LEADS: Lead[] = [
         preferredContactMethod: 'Text Message',
         leadSource: 'Houzz',
         leadSourceReferrerName: '',
+        leadSourceReferrerPhone: '',
         leadSourceEventDetail: '',
         projectStreetAddress: '4821',
         projectStreetName: 'Ventura Boulevard',
@@ -242,3 +247,13 @@ export const optionsWith = (options: readonly string[], value?: string) =>
  */
 export const isReferralSource = (source?: string) => /referral/i.test(source || '');
 export const isEventSource = (source?: string) => /event|networking|show/i.test(source || '');
+
+/**
+ * Whether a dropdown offers "Other", and therefore needs somewhere to say what
+ * the other thing actually is. Selecting "Other" and moving on records nothing.
+ */
+export const offersOther = (optKey?: keyof typeof LEAD_DROPDOWN_OPTIONS) =>
+    !!optKey && (LEAD_DROPDOWN_OPTIONS[optKey] as readonly string[]).some((o) => /^other/i.test(o));
+
+/** Whether a stored answer is the "Other" one, including the coded project type. */
+export const isOtherValue = (value?: string) => /^other/i.test((value || '').trim());

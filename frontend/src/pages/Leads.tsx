@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource } from '../data/leads';
+import { OtherDetail } from '../components/OtherDetail';
 import { useApp } from '../AppContext';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
@@ -14,7 +15,8 @@ const BLANK: NewLead = {
     primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
     phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
     preferredContactMethodOfSecondContact: '', pronounsOfSecondContact: '',
-    leadSourceReferrerName: '', leadSourceEventDetail: '',
+    leadSourceReferrerName: '', leadSourceReferrerPhone: '', leadSourceEventDetail: '',
+    otherDetails: {},
     decisionMakers: '', preferredContactMethod: '', leadSource: '',
     projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
     countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
@@ -248,6 +250,7 @@ function TabContact({ form, set }: { form: NewLead; set: <K extends keyof NewLea
                     <option value="">Select...</option>
                     {OPT.pronouns.map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+                <OtherDetail value={form.pronouns} field="pronouns" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 <span className="hint">How to refer to them in writing.</span>
             </div>
             <div className="leads-field">
@@ -308,6 +311,7 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                         <option value="">Select...</option>
                         {optionsWith(OPT.relationshipOfSecondContact, form.relationshipOfSecondContact).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
+                <OtherDetail value={form.relationshipOfSecondContact} field="relationshipOfSecondContact" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 </div>
                 <div className="leads-field">
                     <label>Pronouns</label>
@@ -315,6 +319,7 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                         <option value="">Select...</option>
                         {OPT.pronouns.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
+                <OtherDetail value={form.pronounsOfSecondContact} field="pronounsOfSecondContact" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                     <span className="hint">How to refer to them in writing.</span>
                 </div>
                 <div className="leads-field">
@@ -340,15 +345,21 @@ function TabCommunication({ form, set }: { form: NewLead; set: <K extends keyof 
                     <option value="">Select...</option>
                     {optionsWith(OPT.leadSource, form.leadSource).map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+                <OtherDetail value={form.leadSource} field="leadSource" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 <span className="hint">How the lead first heard about or was referred to us.</span>
             </div>
-            {isReferralSource(form.leadSource) && (
+            {isReferralSource(form.leadSource) && (<>
                 <div className="leads-field">
                     <label>Referred By</label>
                     <input value={form.leadSourceReferrerName} onChange={(e) => set('leadSourceReferrerName', e.target.value)} placeholder="Name of the person referring" />
                     <span className="hint">Who made the referral.</span>
                 </div>
-            )}
+                <div className="leads-field">
+                    <label>Referrer Phone</label>
+                    <input type="tel" value={form.leadSourceReferrerPhone} onChange={(e) => set('leadSourceReferrerPhone', e.target.value)} placeholder="(555) 123-4567" />
+                    <span className="hint">How to reach the person who referred them.</span>
+                </div>
+            </>)}
             {isEventSource(form.leadSource) && (
                 <div className="leads-field">
                     <label>Where It Was</label>
@@ -413,6 +424,7 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                     <option value="">Select...</option>
                     {OPT.propertyType.map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+                <OtherDetail value={form.propertyType} field="propertyType" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
             </div>
             <div className="leads-field">
                 <label>Potential Project Type</label>
@@ -426,6 +438,7 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                         </optgroup>
                     ))}
                 </select>
+                <OtherDetail value={form.potentialProjectType} field="potentialProjectType" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 <span className="hint">Sets the property type and fills in the standard scope for that code.</span>
             </div>
             <div className="leads-field">
@@ -477,6 +490,7 @@ function TabBudgetTimeline({ form, set }: { form: NewLead; set: <K extends keyof
                     <option value="">Select...</option>
                     {OPT.reasonForProject.map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+                <OtherDetail value={form.reasonForProject} field="reasonForProject" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
             </div>
             <div className="leads-field">
                 <label>Budget Position</label>
@@ -530,6 +544,7 @@ function TabClientProfile({ form, set }: { form: NewLead; set: <K extends keyof 
                     <option value="">Select...</option>
                     {optionsWith(OPT.decisionMakers, form.decisionMakers).map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
+                <OtherDetail value={form.decisionMakers} field="decisionMakers" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 <span className="hint">Who makes final decisions about scope, budget, and design.</span>
             </div>
             <div className="leads-field full">

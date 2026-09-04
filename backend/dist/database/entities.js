@@ -542,6 +542,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], LeadEntity.prototype, "leadSourceReferrerPhone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], LeadEntity.prototype, "leadSourceEventDetail", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -579,6 +583,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "contractType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadEntity.prototype, "otherDetails", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)

@@ -23,6 +23,8 @@ export class CreateLeadDto {
     @IsString() @IsOptional() preferredContactMethod?: string;
     @IsString() @IsOptional() leadSource?: string;
     @IsString() @IsOptional() leadSourceReferrerName?: string;
+    @IsString() @IsOptional() leadSourceReferrerPhone?: string;
+    @IsObject() @IsOptional() otherDetails?: Record<string, string>;
     @IsString() @IsOptional() leadSourceEventDetail?: string;
     @IsString() @IsOptional() projectStreetAddress?: string;
     @IsString() @IsOptional() projectStreetName?: string;
