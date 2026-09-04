@@ -29,7 +29,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
     { key: 'branding', label: 'Branding & Letterhead' },
   ] },
   { group: 'Pipeline', items: [
-    { key: 'sla', label: 'Response Times' },
+    { key: 'sla', label: 'CRM Response Times' },
   ] },
   { group: 'Personal', items: [
     { key: 'notifications', label: 'Notifications' },
@@ -188,7 +188,7 @@ function ScoringTemplateEditor() {
 
 /** Mirrors segmentsFor in backend/src/sms/sms.service.ts. */
 function smsSegments(body: string) {
-  const unicode = /[^ -]/.test(body);
+  const unicode = /[^\x00-\x7F]/.test(body);
   const single = unicode ? 70 : 160;
   const multi = unicode ? 67 : 153;
   const length = body.length;

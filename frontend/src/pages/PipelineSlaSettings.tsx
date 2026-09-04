@@ -53,7 +53,7 @@ export function PipelineSlaSettings() {
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Response Times</div>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>CRM Response Times</div>
         <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           How long a lead may sit in each stage before its card starts asking for attention. Each card shows the time
           left; once the target passes it turns red and pulses until somebody acts. Set a stage to 0 to stop tracking it.
