@@ -14,9 +14,14 @@ export class RolesService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     try {
-      if ((await this.repo.count()) === 0) {
-        await this.repo.save(DEFAULT_ROLES as unknown as RoleEntity[]);
-        this.log.log(`Seeded ${DEFAULT_ROLES.length} roles`);
+      // Top up rather than seed-once: a role added after the table was first
+      // filled would otherwise never appear on an existing install. Only
+      // missing keys are inserted, so edited permissions are left alone.
+      const existing = new Set((await this.repo.find()).map((r) => r.key));
+      const missing = DEFAULT_ROLES.filter((r) => !existing.has(r.key));
+      if (missing.length) {
+        await this.repo.save(missing as unknown as RoleEntity[]);
+        this.log.log(`Seeded ${missing.length} role(s)`);
       }
     } catch (err) {
       this.log.error('Roles seed failed: ' + (err as Error).message);

@@ -100,6 +100,54 @@ export const DEFAULT_ROLES: RoleSeed[] = [
     ),
   },
   {
+    key: 'architect', name: 'Architect', description: 'Design authority and drawing sets.',
+    tier: 'internal', order: 7, isSystem: false,
+    permissions: perms(
+      ['dashboard', 'projects', 'tasks', 'design', 'selections', 'planroom', 'schedule', 'rfis', 'changeorders', 'library'],
+      ['design', 'tasks', 'rfis'],
+    ),
+  },
+  {
+    key: 'drafting', name: 'Drafting', description: 'Drawing production and renderings.',
+    tier: 'internal', order: 8, isSystem: false,
+    permissions: perms(
+      ['dashboard', 'projects', 'tasks', 'design', 'planroom', 'library'],
+      ['design'],
+    ),
+  },
+  {
+    key: 'accounting', name: 'Accounting', description: 'Invoicing, payments and project finance.',
+    tier: 'internal', order: 9, isSystem: false,
+    permissions: perms(
+      ['dashboard', 'projects', 'tasks', 'reimbursement', 'library', 'reports', 'fin_business', 'fin_project', 'fin_resources'],
+      ['reimbursement', 'fin_project', 'fin_business', 'fin_resources'],
+    ),
+  },
+  {
+    key: 'permits', name: 'Permits & Compliance', description: 'Municipal submissions, permits and approvals.',
+    tier: 'internal', order: 10, isSystem: false,
+    permissions: perms(
+      ['dashboard', 'projects', 'tasks', 'design', 'planroom', 'schedule', 'quality', 'library'],
+      ['tasks', 'planroom'],
+    ),
+  },
+  {
+    key: 'interior_design', name: 'Interior Design', description: 'Interiors, FF&E and procurement schedules.',
+    tier: 'internal', order: 11, isSystem: false,
+    permissions: perms(
+      ['dashboard', 'projects', 'tasks', 'design', 'selections', 'planroom', 'library'],
+      ['selections', 'design'],
+    ),
+  },
+  {
+    key: 'construction', name: 'Construction', description: 'Site delivery and trades coordination.',
+    tier: 'internal', order: 12, isSystem: false,
+    permissions: perms(
+      ['dashboard', 'projects', 'tasks', 'pm', 'quality', 'schedule', 'rfis', 'changeorders', 'manpower_con', 'planroom', 'library'],
+      ['pm', 'quality', 'tasks'],
+    ),
+  },
+  {
     key: 'client', name: 'Client', description: 'Client portal — their projects, selections and documents.',
     tier: 'client', order: 8, isSystem: true,
     permissions: perms(['dashboard', 'projects', 'selections', 'schedule', 'library']),

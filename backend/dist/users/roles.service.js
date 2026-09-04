@@ -25,9 +25,11 @@ let RolesService = class RolesService {
     }
     async onApplicationBootstrap() {
         try {
-            if ((await this.repo.count()) === 0) {
-                await this.repo.save(users_1.DEFAULT_ROLES);
-                this.log.log(`Seeded ${users_1.DEFAULT_ROLES.length} roles`);
+            const existing = new Set((await this.repo.find()).map((r) => r.key));
+            const missing = users_1.DEFAULT_ROLES.filter((r) => !existing.has(r.key));
+            if (missing.length) {
+                await this.repo.save(missing);
+                this.log.log(`Seeded ${missing.length} role(s)`);
             }
         }
         catch (err) {

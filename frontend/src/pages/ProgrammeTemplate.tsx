@@ -7,7 +7,12 @@ const BG = "'Bricolage Grotesque', serif";
 export interface TemplateTask { id: string; title: string; team: string; labels: string[] }
 export interface TemplatePhase { key: string; name: string; color: string; tasks: TemplateTask[] }
 
-const TEAMS = ['Admin', 'Project Manager', 'Architect', 'Drafting', 'Estimator', 'Accounting', 'Client', 'Permits & Compliance', 'Automation', 'Interior Design', 'Construction'];
+/**
+ * Not a person: marks work meant to run by itself. Everything else in the list
+ * is a real role from the roles table, so what a task is assigned to is always
+ * something a person can actually hold.
+ */
+const AUTOMATION = 'Automation';
 const LABELS = ['Deliverable', 'Approval', 'Auto', 'Milestone'];
 
 /** Same palette the phase columns use. */
@@ -42,6 +47,7 @@ const slug = (name: string) =>
 export function ProgrammeTemplate() {
   const { toast } = useApp();
   const [phases, setPhases] = useState<TemplatePhase[]>([]);
+  const [teams, setTeams] = useState<string[]>([]);
   const [openPhase, setOpenPhase] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -53,7 +59,16 @@ export function ProgrammeTemplate() {
     .catch((e: Error) => setError(e.message))
     .finally(() => setLoading(false));
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Roles are the source of truth for who work can be given to.
+    api.roles.list()
+      .then((res: any) => {
+        if (!Array.isArray(res)) return;
+        setTeams([...res.filter((r: any) => r.tier === 'internal').map((r: any) => r.name as string), AUTOMATION]);
+      })
+      .catch(() => setTeams([AUTOMATION]));
+  }, []);
 
   const edit = (next: TemplatePhase[]) => { setPhases(next); setDirty(true); };
   const patchPhase = (key: string, patch: Partial<TemplatePhase>) =>
@@ -166,7 +181,9 @@ export function ProgrammeTemplate() {
                       <input value={task.title} onChange={(e) => patchTask(phase.key, task.id, { title: e.target.value })} placeholder="Task title" style={{ ...input, flex: 1 }} />
                       <select value={task.team} onChange={(e) => patchTask(phase.key, task.id, { team: e.target.value })} style={{ ...input, width: 132, flexShrink: 0, ...(TEAM_TONE[task.team] ? { background: TEAM_TONE[task.team].bg, color: TEAM_TONE[task.team].c, fontWeight: 600 } : {}) }}>
                         <option value="">No team</option>
-                        {TEAMS.map((t) => <option key={t}>{t}</option>)}
+                        {/* Keep a value the roles list no longer offers, rather than losing it. */}
+                        {task.team && !teams.includes(task.team) && <option value={task.team}>{task.team} (not a current role)</option>}
+                        {teams.map((t) => <option key={t}>{t}</option>)}
                       </select>
                       <select
                         value={task.labels[0] || ''}
