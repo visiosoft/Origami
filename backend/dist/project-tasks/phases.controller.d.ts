@@ -4,6 +4,9 @@ export declare class PhasesController {
     private readonly service;
     constructor(service: PhasesService);
     findAll(projectId: string): Promise<import("../database/entities").ProjectPhaseEntity[]>;
+    getTemplate(): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
+    saveTemplate(body: unknown): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
+    resetTemplate(): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
     overview(): Promise<{
         projectId: number;
         name: string;

@@ -1,6 +1,7 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
+import { type TemplatePhase } from '../seed-data/programme-template';
 import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
 export declare class PhasesService implements OnApplicationBootstrap {
@@ -12,6 +13,8 @@ export declare class PhasesService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService, settings: SettingsService);
     private programme;
+    getTemplate(): Promise<TemplatePhase[]>;
+    saveTemplate(body: unknown): Promise<TemplatePhase[]>;
     onApplicationBootstrap(): Promise<void>;
     private seedChecklists;
     overview(): Promise<{

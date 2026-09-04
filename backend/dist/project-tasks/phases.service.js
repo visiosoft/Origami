@@ -46,6 +46,20 @@ let PhasesService = class PhasesService {
             return programme_template_1.DEFAULT_PROGRAMME;
         }
     }
+    async getTemplate() {
+        return this.programme();
+    }
+    async saveTemplate(body) {
+        if (body === null) {
+            await this.settings.set('programme.template', '');
+            return programme_template_1.DEFAULT_PROGRAMME;
+        }
+        const parsed = (0, programme_template_1.parseProgramme)(JSON.stringify(body));
+        if (!parsed)
+            throw new common_1.BadRequestException('That is not a usable programme template.');
+        await this.settings.set('programme.template', JSON.stringify(parsed));
+        return parsed;
+    }
     async onApplicationBootstrap() {
         try {
             const stale = await this.repo.find();

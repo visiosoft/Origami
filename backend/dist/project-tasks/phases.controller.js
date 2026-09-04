@@ -23,6 +23,15 @@ let PhasesController = class PhasesController {
     findAll(projectId) {
         return this.service.forProject(Number(projectId));
     }
+    getTemplate() {
+        return this.service.getTemplate();
+    }
+    saveTemplate(body) {
+        return this.service.saveTemplate(body);
+    }
+    resetTemplate() {
+        return this.service.saveTemplate(null);
+    }
     overview() {
         return this.service.overview();
     }
@@ -50,6 +59,25 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('template'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PhasesController.prototype, "getTemplate", null);
+__decorate([
+    (0, common_1.Put)('template'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PhasesController.prototype, "saveTemplate", null);
+__decorate([
+    (0, common_1.Delete)('template'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PhasesController.prototype, "resetTemplate", null);
 __decorate([
     (0, common_1.Get)('overview'),
     __metadata("design:type", Function),

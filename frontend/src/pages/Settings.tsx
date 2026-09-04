@@ -5,7 +5,6 @@ import { GoogleSettings } from './GoogleSettings';
 import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
-import { ProgrammeTemplate } from './ProgrammeTemplate';
 import { SmsSettings } from './SmsSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
@@ -22,15 +21,8 @@ const inputStyle: React.CSSProperties = {
 
 // Settings sections and their sub-links. Extend this as more settings are added.
 const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
-  { group: 'Templates', items: [
-    { key: 'lead-scoring', label: 'Lead Qualification Scoring Template' },
-    { key: 'email-templates', label: 'Email & Document Templates' },
-  ] },
   { group: 'Brand', items: [
     { key: 'branding', label: 'Branding & Letterhead' },
-  ] },
-  { group: 'Projects', items: [
-    { key: 'programme', label: 'Programme Template' },
   ] },
   { group: 'Pipeline', items: [
     { key: 'sla', label: 'CRM Response Times' },
@@ -73,10 +65,7 @@ export function Settings() {
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
         {nav}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
-          {active === 'lead-scoring' && <ScoringTemplateEditor />}
-          {active === 'email-templates' && <EmailTemplatesEditor />}
           {active === 'branding' && <BrandingSettings />}
-          {active === 'programme' && <ProgrammeTemplate />}
           {active === 'sla' && <PipelineSlaSettings />}
           {active === 'notifications' && <NotificationSettings />}
           {active === 'sms' && <SmsSettings />}
@@ -87,7 +76,7 @@ export function Settings() {
   );
 }
 
-function ScoringTemplateEditor() {
+export function ScoringTemplateEditor() {
   const { toast } = useApp();
   const [criteria, setCriteria] = useState<ScoringCriterion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,7 +193,7 @@ function smsSegments(body: string) {
 interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }
 const BLANK_TEMPLATE: EmailTemplate = { id: '', name: 'New Template', subject: '', body: '', kind: 'email', category: '' };
 
-function EmailTemplatesEditor() {
+export function EmailTemplatesEditor() {
   const { toast, can } = useApp();
   const canManage = can('settings', 'manage');
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
