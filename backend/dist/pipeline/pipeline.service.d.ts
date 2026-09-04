@@ -4,6 +4,7 @@ import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
 export declare const MAX_FOLLOW_UPS = 3;
 export interface FollowUpInput {
+    direction?: 'out' | 'in';
     method: string;
     outcome: string;
     note?: string;

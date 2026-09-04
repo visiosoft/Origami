@@ -140,13 +140,16 @@ let PipelineService = class PipelineService {
     async logFollowUp(id, input, actor) {
         const deal = await this.findOne(id);
         const existing = (deal.followUps || []);
-        if (existing.length >= exports.MAX_FOLLOW_UPS) {
+        if (input.direction !== 'in' && existing.filter((e) => e.direction !== 'in').length >= exports.MAX_FOLLOW_UPS) {
             throw new common_1.BadRequestException(`All ${exports.MAX_FOLLOW_UPS} attempts have been logged for ${deal.name}.`);
         }
-        const attempt = existing.length + 1;
-        const isLast = attempt >= exports.MAX_FOLLOW_UPS;
+        const inbound = input.direction === 'in';
+        const outboundSoFar = existing.filter((e) => e.direction !== 'in').length;
+        const attempt = inbound ? 0 : outboundSoFar + 1;
+        const isLast = !inbound && attempt >= exports.MAX_FOLLOW_UPS;
         const who = input.contactName?.trim() || (input.target === 'referral' ? 'a referral' : deal.client || deal.name);
         const entry = {
+            direction: inbound ? 'in' : 'out',
             attempt,
             method: input.method,
             outcome: input.outcome,
@@ -166,7 +169,9 @@ let PipelineService = class PipelineService {
             deal.assignedRole = 'PM';
             deal.status = 'awaiting_pm';
         }
-        const detail = `Attempt ${attempt} of ${exports.MAX_FOLLOW_UPS} — ${input.method}, ${input.outcome} (${who})`;
+        const detail = inbound
+            ? `They got in touch — ${input.method}, ${input.outcome} (${who})`
+            : `Attempt ${attempt} of ${exports.MAX_FOLLOW_UPS} — ${input.method}, ${input.outcome} (${who})`;
         deal.timeline = [
             ...(deal.timeline || []),
             this.event(detail, actor, 'pc'),

@@ -9,6 +9,12 @@ import { STAGES, RETIRED_STAGE_KEYS, stageBlockedFor, deliveryCode } from '../se
 export const MAX_FOLLOW_UPS = 3;
 
 export interface FollowUpInput {
+  /**
+   * 'out' is us chasing them, 'in' is them getting in touch. Only outbound
+   * attempts count towards the limit -- a client ringing back is the outcome
+   * the chasing was for, not a use of one of the tries.
+   */
+  direction?: 'out' | 'in';
   method: string;
   outcome: string;
   note?: string;
@@ -192,15 +198,19 @@ export class PipelineService implements OnApplicationBootstrap {
   async logFollowUp(id: string, input: FollowUpInput, actor?: DealActor) {
     const deal = await this.findOne(id);
     const existing = ((deal.followUps as any[]) || []);
-    if (existing.length >= MAX_FOLLOW_UPS) {
+    // Only chases are capped; an inbound contact can always be recorded.
+    if (input.direction !== 'in' && existing.filter((e) => e.direction !== 'in').length >= MAX_FOLLOW_UPS) {
       throw new BadRequestException(`All ${MAX_FOLLOW_UPS} attempts have been logged for ${deal.name}.`);
     }
 
-    const attempt = existing.length + 1;
-    const isLast = attempt >= MAX_FOLLOW_UPS;
+    const inbound = input.direction === 'in';
+    const outboundSoFar = existing.filter((e) => e.direction !== 'in').length;
+    const attempt = inbound ? 0 : outboundSoFar + 1;
+    const isLast = !inbound && attempt >= MAX_FOLLOW_UPS;
     const who = input.contactName?.trim() || (input.target === 'referral' ? 'a referral' : deal.client || deal.name);
 
     const entry = {
+      direction: inbound ? 'in' : 'out',
       attempt,
       method: input.method,
       outcome: input.outcome,
@@ -224,7 +234,9 @@ export class PipelineService implements OnApplicationBootstrap {
       deal.status = 'awaiting_pm';
     }
 
-    const detail = `Attempt ${attempt} of ${MAX_FOLLOW_UPS} — ${input.method}, ${input.outcome} (${who})`;
+    const detail = inbound
+      ? `They got in touch — ${input.method}, ${input.outcome} (${who})`
+      : `Attempt ${attempt} of ${MAX_FOLLOW_UPS} — ${input.method}, ${input.outcome} (${who})`;
     deal.timeline = [
       ...((deal.timeline as unknown[]) || []),
       this.event(detail, actor, 'pc'),

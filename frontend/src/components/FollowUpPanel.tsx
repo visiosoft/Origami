@@ -6,7 +6,10 @@ import type { User } from '../data/users';
 export const MAX_FOLLOW_UPS = 3;
 
 const METHODS = ['Called', 'WhatsApp', 'Voice note', 'Email', 'SMS', 'In person', 'Other'];
-const OUTCOMES = ['No answer', 'No reply', 'Spoke to them', 'Call back later', 'Not interested', 'Wrong number'];
+/** What came of a chase we made. */
+const OUTBOUND_OUTCOMES = ['No answer', 'No reply', 'Spoke to them', 'Call back later', 'Not interested', 'Wrong number'];
+/** What they wanted when they got in touch. */
+const INBOUND_OUTCOMES = ['Wants to talk', 'Asked a question', 'Ready to proceed', 'Wants to reschedule', 'Not interested', 'Left a message'];
 
 /** What each attempt is for, shown before it has been made. */
 const PLAN = [
@@ -16,6 +19,8 @@ const PLAN = [
 ];
 
 export interface FollowUp {
+  /** 'in' when they contacted us; only 'out' entries use an attempt. */
+  direction?: 'out' | 'in';
   attempt: number;
   method: string;
   outcome: string;
@@ -68,13 +73,17 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
   const [target, setTarget] = useState<'lead' | 'referral'>('lead');
   const [contactName, setContactName] = useState('');
   const [assignToId, setAssignToId] = useState('');
+  const [direction, setDirection] = useState<'out' | 'in'>('out');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const done = followUps.length;
+  const chases = followUps.filter((f) => f.direction !== 'in');
+  const inbound = followUps.filter((f) => f.direction === 'in');
+  const done = chases.length;
   const attempt = Math.min(done + 1, MAX_FOLLOW_UPS);
-  const isLast = attempt === MAX_FOLLOW_UPS;
+  const isLast = direction === 'out' && attempt === MAX_FOLLOW_UPS;
   const exhausted = done >= MAX_FOLLOW_UPS;
+  const outcomes = direction === 'in' ? INBOUND_OUTCOMES : OUTBOUND_OUTCOMES;
   const internal = users.filter((u) => u.tier === 'internal' && u.status !== 'suspended');
 
   const submit = () => {
@@ -84,7 +93,7 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
     setError('');
     const assignTo = internal.find((u) => u.id === assignToId);
     api.pipeline.logFollowUp(dealId, {
-      method, outcome, note: note.trim(), target,
+      direction, method, outcome, note: note.trim(), target,
       contactName: contactName.trim(),
       assignToId: isLast ? assignToId : undefined,
       assignToName: isLast ? assignTo?.name : undefined,
@@ -92,7 +101,7 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
       .then((deal: any) => {
         onLogged((deal?.followUps || []) as FollowUp[], deal?.assignee);
         setOpen(false); setNote(''); setContactName(''); setTarget('lead');
-        setMethod('Called'); setOutcome('No answer'); setAssignToId('');
+        setMethod('Called'); setOutcome('No answer'); setAssignToId(''); setDirection('out');
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -102,11 +111,10 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Follow-up</span>
-        {!exhausted && (
-          <span onClick={() => setOpen((v) => !v)} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#5B2BC9', cursor: 'pointer' }}>
-            {open ? 'Cancel' : '+ Log an attempt'}
-          </span>
-        )}
+        <span onClick={() => { setOpen((v) => !v); if (!open) { setDirection(exhausted ? 'in' : 'out'); setOutcome(exhausted ? 'Wants to talk' : 'No answer'); } }}
+          style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#5B2BC9', cursor: 'pointer' }}>
+          {open ? 'Cancel' : exhausted ? '+ Log contact' : '+ Log an attempt'}
+        </span>
       </div>
 
       <div style={{ fontSize: 12.5, fontWeight: 700, color: '#14081F', marginBottom: 8 }}>
@@ -116,7 +124,7 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
       {/* The three chases: what was done, or what is planned. */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {Array.from({ length: MAX_FOLLOW_UPS }, (_, i) => {
-          const made = followUps[i];
+          const made = chases[i];
           const isNext = !made && i === done;
           return (
             <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', opacity: made || isNext ? 1 : 0.5 }}>
@@ -152,27 +160,66 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
         })}
       </div>
 
-      {open && !exhausted && (
+      {inbound.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#7E9B93', marginBottom: 6 }}>
+            They contacted us
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {inbound.map((f, i) => (
+              <div key={i} style={{ padding: '7px 10px', borderRadius: 8, background: '#EEF3EE', border: '1px solid rgba(47,125,74,0.16)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#0B1A12' }}>{f.method} · {f.outcome}</div>
+                <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 1 }}>
+                  {shortWhen(f.at)} · logged by {f.by}
+                  {f.contactName ? ` · ${f.contactName}` : ''}
+                </div>
+                {f.note && <div style={{ fontSize: 11, color: '#4A4357', marginTop: 4, lineHeight: 1.4 }}>{f.note}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {open && (
         <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: '#F9F7FE', border: '1px solid rgba(91,43,201,0.12)' }}>
           {error && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#8E2E0A', marginBottom: 8 }}>{error}</div>}
 
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', marginBottom: 6 }}>Who did you contact?</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', marginBottom: 6 }}>Which way round?</div>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            <span onClick={() => { if (!exhausted) { setDirection('out'); setOutcome('No answer'); } }}
+              title={exhausted ? `All ${MAX_FOLLOW_UPS} chases have been made` : 'A chase we made'}
+              style={{ ...chip(direction === 'out', 'method'), opacity: exhausted ? 0.45 : 1, cursor: exhausted ? 'default' : 'pointer' }}>
+              We contacted them
+            </span>
+            <span onClick={() => { setDirection('in'); setOutcome('Wants to talk'); }} style={chip(direction === 'in', 'method')}>
+              They contacted us
+            </span>
+          </div>
+          {direction === 'in' && (
+            <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10, lineHeight: 1.45 }}>
+              Recorded without using up a chase — them getting in touch is what the chasing was for.
+            </div>
+          )}
+
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', marginBottom: 6 }}>
+            {direction === 'in' ? 'Who got in touch?' : 'Who did you contact?'}
+          </div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
             <span onClick={() => setTarget('lead')} style={chip(target === 'lead', 'method')}>The lead</span>
-            <span onClick={() => setTarget('referral')} style={chip(target === 'referral', 'method')}>A referral</span>
+            <span onClick={() => setTarget('referral')} style={chip(target === 'referral', 'method')}>{direction === 'in' ? 'Someone else' : 'A referral'}</span>
           </div>
           {target === 'referral' && (
             <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Name of the person you contacted" style={{ ...inputStyle, marginBottom: 10 }} />
           )}
 
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', marginBottom: 6 }}>How did you try?</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', marginBottom: 6 }}>{direction === 'in' ? 'How did they reach you?' : 'How did you try?'}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             {METHODS.map((m) => <span key={m} onClick={() => setMethod(m)} style={chip(method === m, 'method')}>{m}</span>)}
           </div>
 
           <div style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', marginBottom: 6 }}>What happened?</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-            {OUTCOMES.map((o) => <span key={o} onClick={() => setOutcome(o)} style={chip(outcome === o, 'outcome')}>{o}</span>)}
+            {outcomes.map((o) => <span key={o} onClick={() => setOutcome(o)} style={chip(outcome === o, 'outcome')}>{o}</span>)}
           </div>
 
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Anything worth remembering…" style={{ ...inputStyle, resize: 'vertical', marginBottom: 10 }} />
@@ -193,7 +240,7 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
           )}
 
           <div onClick={saving ? undefined : submit} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, textAlign: 'center', cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
-            {saving ? 'Saving…' : `Log attempt ${attempt}`}
+            {saving ? 'Saving…' : direction === 'in' ? 'Log their contact' : `Log attempt ${attempt}`}
           </div>
         </div>
       )}
