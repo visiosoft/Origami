@@ -175,7 +175,7 @@ let PhasesService = class PhasesService {
                 if (already.has(title))
                     return;
                 rows.push(this.tasks.create({
-                    id: `T-${projectId}-${phase.key}-${String(i + 1).padStart(2, '0')}`,
+                    id: `T-${projectId}-${tpl.id}`,
                     projectId,
                     sectionId,
                     phaseId: phase.id,

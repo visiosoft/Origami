@@ -213,7 +213,10 @@ export class PhasesService implements OnApplicationBootstrap {
         const title = tpl.title;
         if (already.has(title)) return;
         rows.push(this.tasks.create({
-          id: `T-${projectId}-${phase.key}-${String(i + 1).padStart(2, '0')}`,
+          // Keyed by the template task, not its position. Position collided
+          // with ids already on a project seeded before the template, so a
+          // save overwrote existing rows instead of adding the new ones.
+          id: `T-${projectId}-${tpl.id}`,
           projectId,
           sectionId,
           phaseId: phase.id,
