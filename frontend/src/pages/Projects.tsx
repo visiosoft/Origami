@@ -427,13 +427,7 @@ export function Projects() {
                           <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
                         </div>
                       </div>
-                      {phase.isLocked ? (
-                        <div style={{ padding: '40px 16px', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                          <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#D5D3CC" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={11} width={18} height={11} rx={2} ry={2} /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#9AA39D' }}>Complete previous phase to unlock</div>
-                        </div>
-                      ) : (
-                        <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, opacity: phase.isLocked ? 0.55 : 1 }}>
                           {phase.tasks.map((pt) => {
                             const sc = WF_ST_COLORS[pt.status];
                             const done = pt.status === 'Done';
@@ -478,8 +472,7 @@ export function Projects() {
                               </div>
                             );
                           })}
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
