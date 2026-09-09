@@ -57,7 +57,18 @@ export declare class PhasesService implements OnApplicationBootstrap {
     }[]>;
     forProject(projectId: number): Promise<ProjectPhaseEntity[]>;
     board(projectId: number): Promise<{
-        phases: ProjectPhaseEntity[];
+        phases: {
+            gated: boolean;
+            id: string;
+            projectId: number;
+            key: string;
+            name: string;
+            color: string;
+            order: number;
+            startDate: string;
+            endDate: string;
+            seededAt: string;
+        }[];
         tasks: ProjectTaskEntity[];
     }>;
     create(dto: any): Promise<ProjectPhaseEntity>;

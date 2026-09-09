@@ -46,7 +46,18 @@ export declare class PhasesController {
         progress: number;
     }[]>;
     board(projectId: string): Promise<{
-        phases: import("../database/entities").ProjectPhaseEntity[];
+        phases: {
+            gated: boolean;
+            id: string;
+            projectId: number;
+            key: string;
+            name: string;
+            color: string;
+            order: number;
+            startDate: string;
+            endDate: string;
+            seededAt: string;
+        }[];
         tasks: import("../database/entities").ProjectTaskEntity[];
     }> | {
         phases: never[];

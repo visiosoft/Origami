@@ -303,9 +303,11 @@ let PhasesService = class PhasesService {
         return this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     }
     async board(projectId) {
-        const phases = await this.forProject(projectId);
+        const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programme()]);
         const rows = await this.tasks.find({ order: { order: 'ASC' } });
         const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
+        const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
+        const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key) }));
         return { phases, tasks };
     }
     create(dto) {

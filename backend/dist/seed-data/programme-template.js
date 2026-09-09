@@ -165,6 +165,7 @@ function parseProgramme(raw) {
             key: String(p.key),
             name: String(p.name),
             color: typeof p.color === 'string' && p.color ? p.color : '#173326',
+            gated: !!p.gated,
             order: i,
             tasks: Array.isArray(p.tasks)
                 ? p.tasks

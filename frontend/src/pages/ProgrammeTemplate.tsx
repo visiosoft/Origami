@@ -5,7 +5,7 @@ import { useApp } from '../AppContext';
 const BG = "'Bricolage Grotesque', serif";
 
 export interface TemplateTask { id: string; title: string; team: string; labels: string[] }
-export interface TemplatePhase { key: string; name: string; color: string; tasks: TemplateTask[] }
+export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; tasks: TemplateTask[] }
 
 /**
  * Not a person: marks work meant to run by itself. Everything else in the list
@@ -162,6 +162,21 @@ export function ProgrammeTemplate() {
                 <select value={phase.color} onChange={(e) => patchPhase(phase.key, { color: e.target.value })} style={{ ...input, width: 74, flexShrink: 0 }}>
                   {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
+                <label
+                  title={i === 0
+                    ? 'The first phase has nothing before it, so it can never be locked.'
+                    : `Keep ${phase.name} locked on the Phase Board until the last task of the phase before it is done. Its tasks stay visible either way.`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, flexShrink: 0, color: i === 0 ? '#C9CDC9' : '#7E9B93', cursor: i === 0 ? 'default' : 'pointer' }}
+                >
+                  <input
+                    type="checkbox"
+                    disabled={i === 0}
+                    checked={!!phase.gated && i > 0}
+                    onChange={(e) => patchPhase(phase.key, { gated: e.target.checked })}
+                    style={{ accentColor: '#173326', cursor: i === 0 ? 'default' : 'pointer' }}
+                  />
+                  Locks
+                </label>
                 <span onClick={() => movePhase(i, -1)} title="Move up" style={{ cursor: 'pointer', color: i ? '#7E9B93' : '#DDD', fontSize: 13, flexShrink: 0 }}>↑</span>
                 <span onClick={() => movePhase(i, 1)} title="Move down" style={{ cursor: 'pointer', color: i < phases.length - 1 ? '#7E9B93' : '#DDD', fontSize: 13, flexShrink: 0 }}>↓</span>
                 <span

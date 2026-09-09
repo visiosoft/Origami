@@ -18,6 +18,14 @@ export interface TemplatePhase {
   key: string;
   name: string;
   color: string;
+  /**
+   * Hold this phase closed until the phase before it has finished.
+   *
+   * "Finished" is its *last* task being done, not all of them: real phases
+   * overlap, and the last card is the handover. Off by default -- the office
+   * decides in the template which phases genuinely gate the next one.
+   */
+  gated?: boolean;
   tasks: TemplateTask[];
 }
 
@@ -191,6 +199,7 @@ export function parseProgramme(raw: string | null | undefined): TemplatePhase[] 
         key: String(p.key),
         name: String(p.name),
         color: typeof p.color === 'string' && p.color ? p.color : '#173326',
+        gated: !!p.gated,
         order: i,
         tasks: Array.isArray(p.tasks)
           ? p.tasks

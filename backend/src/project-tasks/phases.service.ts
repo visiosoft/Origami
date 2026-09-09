@@ -379,9 +379,14 @@ export class PhasesService implements OnApplicationBootstrap {
   }
 
   async board(projectId: number) {
-    const phases = await this.forProject(projectId);
+    const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programme()]);
     const rows = await this.tasks.find({ order: { order: 'ASC' } });
     const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
+    // Which phases gate the next one is read off the template every time rather
+    // than copied onto the phase rows, so changing it in the Library takes
+    // effect everywhere at once instead of only where the template was applied.
+    const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
+    const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key) }));
     return { phases, tasks };
   }
 

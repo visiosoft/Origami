@@ -8,6 +8,7 @@ export interface TemplatePhase {
     key: string;
     name: string;
     color: string;
+    gated?: boolean;
     tasks: TemplateTask[];
 }
 export declare const DEFAULT_PROGRAMME: TemplatePhase[];

@@ -427,7 +427,7 @@ export function Projects() {
                           <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
                         </div>
                       </div>
-                      <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, opacity: phase.isLocked ? 0.55 : 1 }}>
+                      <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, opacity: phase.isLocked ? 0.7 : 1 }}>
                           {phase.tasks.map((pt) => {
                             const sc = WF_ST_COLORS[pt.status];
                             const done = pt.status === 'Done';

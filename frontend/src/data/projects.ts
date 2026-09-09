@@ -126,9 +126,9 @@ export interface ComputedPhase extends WfPhase {
 }
 
 /** A phase row as the board needs it, built from the project's real data. */
-export interface BoardPhase { id: string; key: string; name: string; color: string; order: number }
+export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean }
 export interface BoardTask {
-  id: string; phaseId?: string; title: string; status?: string; completed?: boolean;
+  id: string; phaseId?: string; title: string; status?: string; completed?: boolean; order?: number;
   assignee?: string; team?: string; auto?: boolean; autoLabel?: string;
   startDate?: string; endDate?: string; durationDays?: number; parentId?: string | null;
 }
@@ -141,14 +141,18 @@ export interface BoardTask {
  * the programme template put there.
  */
 export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): ComputedPhase[] {
-  let prevComplete = true;
+  // The gate is the previous phase's *last* task, not all of them. Phases on a
+  // real job overlap; the last card is the handover that lets the next start.
+  // An empty phase gates nothing and passes the previous phase's gate through.
+  let gateOpen = true;
   return [...phases].sort((a, b) => a.order - b.order).map((ph, idx) => {
     const own = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
     const isDone = (t: BoardTask) => !!t.completed || t.status === 'Done';
     const done = own.filter(isDone).length;
     const allDone = own.length > 0 && done === own.length;
     const hasInProgress = own.some((t) => t.status === 'In progress' || t.status === 'In Progress');
-    const locked = idx > 0 && !prevComplete;
+    // Only phases marked as gating in the programme template ever lock.
+    const locked = idx > 0 && !!ph.gated && !gateOpen;
     const phaseStatus = allDone
       ? 'Complete'
       : hasInProgress || (done > 0 && !allDone) ? 'In Progress' : locked ? 'Locked' : 'Not Started';
@@ -184,7 +188,8 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
       statusC: allDone ? '#1C5230' : locked ? '#9AA39D' : '#2F6F68',
       headerOpacity: locked ? '0.55' : '1',
     };
-    prevComplete = allDone;
+    const ordered = [...own].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    if (ordered.length) gateOpen = isDone(ordered[ordered.length - 1]);
     return result;
   });
 }
