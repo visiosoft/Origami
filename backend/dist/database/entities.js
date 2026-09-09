@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -1166,6 +1166,32 @@ __decorate([
 exports.ProjectPhaseEntity = ProjectPhaseEntity = __decorate([
     (0, typeorm_1.Entity)('project_phases')
 ], ProjectPhaseEntity);
+let ProjectProgramEntity = class ProjectProgramEntity {
+};
+exports.ProjectProgramEntity = ProjectProgramEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)('int'),
+    __metadata("design:type", Number)
+], ProjectProgramEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)('nvarchar', { length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "data", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "updatedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "completedAt", void 0);
+exports.ProjectProgramEntity = ProjectProgramEntity = __decorate([
+    (0, typeorm_1.Entity)('project_programs')
+], ProjectProgramEntity);
 let UserEntity = class UserEntity {
 };
 exports.UserEntity = UserEntity;

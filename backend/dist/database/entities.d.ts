@@ -302,6 +302,13 @@ export declare class ProjectPhaseEntity {
     endDate: string;
     seededAt: string;
 }
+export declare class ProjectProgramEntity {
+    projectId: number;
+    data: string;
+    updatedAt: string;
+    updatedBy: string;
+    completedAt: string;
+}
 export declare class UserEntity {
     id: string;
     name: string;

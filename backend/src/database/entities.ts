@@ -377,6 +377,23 @@ export class ProjectPhaseEntity {
   @Column({ nullable: true }) seededAt!: string;
 }
 
+/**
+ * The Project Program a job's early work produces -- the workbook the office
+ * used to keep per project, one wizard step per sheet.
+ *
+ * Stored as one JSON document rather than a column per question: the form is
+ * edited in the app and grows a field at a time, and a hundred nullable
+ * columns would need a schema change for each one.
+ */
+@Entity('project_programs')
+export class ProjectProgramEntity {
+  @PrimaryColumn('int') projectId!: number;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) data!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+  @Column({ nullable: true }) completedAt!: string;
+}
+
 @Entity('users')
 export class UserEntity {
   @PrimaryColumn() id!: string;

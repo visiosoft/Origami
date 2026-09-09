@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
+import { ProjectProgram } from './ProjectProgram';
 import { AssigneePicker } from '../components/AssigneePicker';
 import { Attachments, filesFromClipboard, nameClipboardFile } from '../components/Attachments';
 import { ActivityFeed } from '../components/ActivityFeed';
@@ -22,7 +23,7 @@ export function Projects() {
   const canManage = can('projects', 'manage');
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'tasks'>('overview');
+  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks'>('overview');
   // The Phase Board reads either as columns or as a grouped list.
   const [phaseView, setPhaseView] = useState<'board' | 'list'>('board');
   const [shutPhases, setShutPhases] = useState<string[]>([]);
@@ -351,7 +352,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'tasks' || tab === 'phases' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'tasks' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -380,6 +381,12 @@ export function Projects() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={7} height={7} /><rect x={14} y={3} width={7} height={7} /><rect x={3} y={14} width={7} height={7} /><rect x={14} y={14} width={7} height={7} /></svg>
                   Phase Board
+                </span>
+              </div>
+              <div onClick={() => setTab('program')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'program' ? '#173326' : 'transparent'), color: tab === 'program' ? '#0B1A12' : '#7E9B93' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
+                  Project Program
                 </span>
               </div>
               <div onClick={() => setTab('tasks')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
@@ -421,6 +428,10 @@ export function Projects() {
                   <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}>Open Phase Board</div>
                   {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Delete</div>}
                 </div>
+              </div>
+            ) : tab === 'program' ? (
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                <ProjectProgram projectId={sel.id} projectName={sel.name} />
               </div>
             ) : tab === 'tasks' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
@@ -628,6 +639,9 @@ export function Projects() {
         // title, so both are matched.
         const isIntake = pt.title === 'Project Info' || pt.title === 'Press Release & Project Info';
         const isIntroLetter = pt.title === 'Introduction Letter';
+        // The programme's drafting step is where the Project Program is filled
+        // in, so send people there rather than leaving them to find the tab.
+        const isProgramDraft = pt.title === 'Project Program DRAFT';
         const lead = isIntake && sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
         const intakeSections: { title: string; rows: [string, string][] }[] = lead ? [
           { title: '1. Contact', rows: [['Lead Name', lead.leadName], ['Pronunciation', lead.namePronunciation], ['Phone', lead.phone], ['Email', lead.email], ['Primary Point of Contact', lead.primaryPointOfContact]] },
@@ -656,6 +670,21 @@ export function Projects() {
                 {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE9AE', color: '#93520F' }}>⚡ AUTO</span>}
               </div>
 
+              {isProgramDraft && (
+                <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ fontSize: 12, color: '#43514D', lineHeight: 1.55, marginBottom: 10 }}>
+                    This step produces the Project Program — the title page, parcel and zoning research,
+                    goals, budgets, schedule and AEC team, as nine steps.
+                  </div>
+                  <div
+                    onClick={() => { setSelPt(null); setTab('program'); }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}
+                  >
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                    Open Project Program
+                  </div>
+                </div>
+              )}
               {!isIntroLetter && live && (
                 <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                   {fieldBox('Assignee', (
