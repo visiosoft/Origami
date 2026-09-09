@@ -9,12 +9,10 @@ const HEADING = "'Bricolage Grotesque', serif";
 
 /** Tokens from the design handoff. */
 const INK = '#14081F';
-const INK2 = '#4A4357';
 const INK3 = '#756E80';
 const MUTED = '#9c96a4';
 const PAPER = '#FBF8F2';
 const ACCENT = '#5B2BC9';
-const ACCENT_BG = '#F7F3FF';
 const SAND = '#EDE3CF';
 const CARD_BORDER = '1px solid rgba(20,8,31,.06)';
 const CARD_SHADOW = '0 1px 2px rgba(20,8,31,.05)';
@@ -25,20 +23,6 @@ const STAGE_COLORS: Record<string, { dot: string; text: string }> = {
   schematic: { dot: '#1f8a72', text: '#2f7a52' },
   dd: { dot: '#6b3fa0', text: '#6b46c1' },
   closeout: { dot: '#1f8a72', text: '#2f7a52' },
-};
-
-/** Header band colour by contract type, per the handoff. */
-const HEADER_COLORS: Record<string, string> = {
-  'Design + Build': '#16281f',
-  'T&M': '#b8763a',
-  Build: '#2f6b5e',
-  Consulting: '#1f5f66',
-};
-
-const PRIORITY: Record<string, { bg: string; c: string }> = {
-  High: { bg: '#f4d9d9', c: '#a13636' },
-  Medium: { bg: '#f4e6cf', c: '#8a5a1e' },
-  Low: { bg: '#d9efe4', c: '#1f7a52' },
 };
 
 const STATUS = {
@@ -53,10 +37,6 @@ interface Project {
   priority: string; typeOfWork: string; estStart: string; duration: string; scope: string;
   referral: string; designPhase?: string;
 }
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: MUTED,
-};
 
 /**
  * One project's design checklist, opened from a card on the Design board.
@@ -144,9 +124,6 @@ export function DesignProject() {
     );
   }
 
-  const headerColor = HEADER_COLORS[project.contractType] || '#16281f';
-  const pr = PRIORITY[project.priority];
-
   const checkMark = (checked: boolean, size: number, dot: string) => (
     <span style={{
       width: size, height: size, borderRadius: 999, flex: '0 0 auto',
@@ -205,43 +182,7 @@ export function DesignProject() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px minmax(340px, 560px)', gap: 20, alignItems: 'start' }}>
-        {/* Project overview */}
-        <div style={{ background: '#fff', borderRadius: 18, border: CARD_BORDER, overflow: 'hidden', boxShadow: CARD_SHADOW }}>
-          <div style={{ background: headerColor, padding: '16px 18px', position: 'relative' }}>
-            {pr && (
-              <span style={{ position: 'absolute', top: 14, right: 14, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', padding: '3px 8px', borderRadius: 999, background: pr.bg, color: pr.c }}>
-                {project.priority.toUpperCase()}
-              </span>
-            )}
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.92)' }}>{project.contractType || 'Project'}</span>
-          </div>
-          <div style={{ padding: '18px 18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {project.typeOfWork && (
-              <div>
-                <div style={labelStyle}>Category</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: INK, marginTop: 3 }}>{project.typeOfWork}</div>
-              </div>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Detail label="Budget" value={project.contractAmt || '—'} big />
-              <Detail label="Location" value={project.location || '—'} />
-              <Detail label="Est. Start" value={project.estStart || '—'} />
-              <Detail label="Duration" value={project.duration || '—'} />
-            </div>
-            {project.scope && (
-              <div style={{ background: ACCENT_BG, borderRadius: 10, padding: '12px 14px', fontSize: 13, color: INK2, lineHeight: 1.45 }}>
-                {project.scope}
-              </div>
-            )}
-            {project.referral && (
-              <div style={{ fontSize: 12, color: INK3, borderTop: '1px solid rgba(20,8,31,.08)', paddingTop: 12 }}>
-                Ref: {project.referral}
-              </div>
-            )}
-          </div>
-        </div>
-
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 720px)', gap: 20, alignItems: 'start' }}>
         {/* Checklist */}
         {active ? (
           <div style={{ background: '#fff', borderRadius: 18, border: CARD_BORDER, padding: '20px 20px 22px', boxShadow: CARD_SHADOW }}>
@@ -362,11 +303,3 @@ function BackLink({ onClick }: { onClick: () => void }) {
   );
 }
 
-function Detail({ label, value, big }: { label: string; value: string; big?: boolean }) {
-  return (
-    <div>
-      <div style={labelStyle}>{label}</div>
-      <div style={{ fontSize: big ? 15 : 13, fontWeight: big ? 700 : 600, color: INK, marginTop: 3 }}>{value}</div>
-    </div>
-  );
-}
