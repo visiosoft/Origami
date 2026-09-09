@@ -251,6 +251,9 @@ export function Pipeline() {
   const [leadSectionOpen, setLeadSectionOpen] = useState<Record<string, boolean>>({});
   const [notesByDeal, setNotesByDeal] = useState<Record<string, LeadNote[]>>({});
   const [noteDraft, setNoteDraft] = useState('');
+  // The audit trail grows for the life of a lead, so it is paged rather than
+  // left to run off the panel. Page 0 is the most recent ten.
+  const [auditPage, setAuditPage] = useState(0);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [meetByDeal, setMeetByDeal] = useState<Record<string, { when: string }>>({});
   const [meetWhen, setMeetWhen] = useState('');
@@ -592,6 +595,8 @@ export function Pipeline() {
   });
 
   const selected = selectedId ? data.find((d) => d.id === selectedId) : null;
+  // Opening a different lead starts its trail at the most recent page.
+  useEffect(() => { setAuditPage(0); }, [selectedId]);
   const selectedStage = selected ? STAGES.find((st) => st.key === selected.stage) : null;
 
   const totalValue = data.reduce((s, d) => s + parseFloat(String(d.value).replace(/[^0-9.]/g, '') || '0') * 1000, 0);
@@ -1202,21 +1207,57 @@ export function Pipeline() {
                     const combined = [...selected.timeline, ...noteList.map((n) => ({ date: n.date, action: `Note (${n.stageName}): ${n.text}`, role: 'Note', type: 'pc' as const }))];
                     const tc: Record<string, string> = { pc: '#2F7D4A', pm: '#173326', auto: '#D9B94F' };
                     const tb: Record<string, string> = { pc: '#D2EAD3', pm: '#DCE7DE', auto: '#FBE9AE' };
-                    return combined.slice().reverse().map((t, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 10, paddingBottom: 12 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: 999, background: tb[t.type] || '#EEE', border: '2px solid ' + (tc[t.type] || '#7E9B93'), flexShrink: 0 }} />
-                          {i < combined.length - 1 && <div style={{ width: 1, flex: 1, background: '#D6E0D7', marginTop: 3 }} />}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{t.date}</span>
-                            <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: tb[t.type] || '#EEE', color: tc[t.type] || '#7E9B93' }}>{t.role}</span>
+                    const PER_PAGE = 10;
+                    const rows = combined.slice().reverse();
+                    const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+                    // A lead with a shorter history than the page you were on
+                    // must not render blank.
+                    const page = Math.min(auditPage, pages - 1);
+                    const start = page * PER_PAGE;
+                    const shown = rows.slice(start, start + PER_PAGE);
+                    const pageBtn = (n: number, labelText: string, disabled: boolean, active = false) => (
+                      <span
+                        key={labelText + n}
+                        onClick={disabled ? undefined : () => setAuditPage(n)}
+                        style={{
+                          minWidth: 22, textAlign: 'center', padding: '3px 7px', borderRadius: 7, fontSize: 10.5,
+                          fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
+                          background: active ? '#173326' : 'transparent',
+                          color: active ? 'white' : disabled ? '#C9CDC9' : '#7E9B93',
+                          border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.09)'),
+                        }}
+                      >{labelText}</span>
+                    );
+                    return (
+                      <>
+                        {shown.map((t, i) => (
+                          <div key={start + i} style={{ display: 'flex', gap: 10, paddingBottom: 12 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
+                              <div style={{ width: 10, height: 10, borderRadius: 999, background: tb[t.type] || '#EEE', border: '2px solid ' + (tc[t.type] || '#7E9B93'), flexShrink: 0 }} />
+                              {i < shown.length - 1 && <div style={{ width: 1, flex: 1, background: '#D6E0D7', marginTop: 3 }} />}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#C9CDC9', flexShrink: 0 }}>{start + i + 1}</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{t.date}</span>
+                                <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: tb[t.type] || '#EEE', color: tc[t.type] || '#7E9B93' }}>{t.role}</span>
+                              </div>
+                              <div style={{ fontSize: 11, fontWeight: 500, color: '#0B1A12', lineHeight: 1.4 }}>{t.action}</div>
+                            </div>
                           </div>
-                          <div style={{ fontSize: 11, fontWeight: 500, color: '#0B1A12', lineHeight: 1.4 }}>{t.action}</div>
-                        </div>
-                      </div>
-                    ));
+                        ))}
+                        {rows.length > PER_PAGE && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', paddingTop: 4, borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+                            <span style={{ fontSize: 10, color: '#9AA39D', marginRight: 'auto' }}>
+                              {start + 1}–{start + shown.length} of {rows.length}
+                            </span>
+                            {pageBtn(page - 1, '‹', page === 0)}
+                            {Array.from({ length: pages }, (_, n) => pageBtn(n, String(n + 1), false, n === page))}
+                            {pageBtn(page + 1, '›', page >= pages - 1)}
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
                 </div>
               </div>
