@@ -1189,6 +1189,14 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectProgramEntity.prototype, "completedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "sentAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "sentTo", void 0);
 exports.ProjectProgramEntity = ProjectProgramEntity = __decorate([
     (0, typeorm_1.Entity)('project_programs')
 ], ProjectProgramEntity);

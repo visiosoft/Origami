@@ -392,6 +392,8 @@ export class ProjectProgramEntity {
   @Column({ nullable: true }) updatedAt!: string;
   @Column({ nullable: true }) updatedBy!: string;
   @Column({ nullable: true }) completedAt!: string;
+  @Column({ nullable: true }) sentAt!: string;
+  @Column({ nullable: true }) sentTo!: string;
 }
 
 @Entity('users')

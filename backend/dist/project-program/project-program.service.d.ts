@@ -16,6 +16,8 @@ export declare class ProjectProgramService {
         updatedAt: string;
         updatedBy: string;
         completedAt: string;
+        sentAt: string;
+        sentTo: string;
     }>;
     save(projectId: number, data: unknown, actor?: ProgramActor): Promise<{
         projectId: number;
@@ -23,12 +25,17 @@ export declare class ProjectProgramService {
         updatedAt: string;
         updatedBy: string;
         completedAt: string;
+        sentAt: string;
+        sentTo: string;
     }>;
+    markSent(projectId: number, to: string, actor?: ProgramActor): Promise<void>;
     setComplete(projectId: number, complete: boolean): Promise<{
         projectId: number;
         data: Record<string, any>;
         updatedAt: string;
         updatedBy: string;
         completedAt: string;
+        sentAt: string;
+        sentTo: string;
     }>;
 }

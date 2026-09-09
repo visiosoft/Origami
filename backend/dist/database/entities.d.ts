@@ -308,6 +308,8 @@ export declare class ProjectProgramEntity {
     updatedAt: string;
     updatedBy: string;
     completedAt: string;
+    sentAt: string;
+    sentTo: string;
 }
 export declare class UserEntity {
     id: string;

@@ -16,9 +16,15 @@ exports.ProjectProgramController = void 0;
 const common_1 = require("@nestjs/common");
 const project_program_service_1 = require("./project-program.service");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const google_service_1 = require("../google/google.service");
+const settings_service_1 = require("../settings/settings.service");
+const letterhead_1 = require("../documents/letterhead");
+const program_document_1 = require("../documents/program-document");
 let ProjectProgramController = class ProjectProgramController {
-    constructor(service) {
+    constructor(service, google, settings) {
         this.service = service;
+        this.google = google;
+        this.settings = settings;
     }
     get(projectId) {
         return this.service.get(Number(projectId));
@@ -28,6 +34,37 @@ let ProjectProgramController = class ProjectProgramController {
     }
     complete(body) {
         return this.service.setComplete(Number(body?.projectId), body?.complete !== false);
+    }
+    async pdf(body, res) {
+        const { pdf, filename } = await this.render(body);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.end(pdf);
+    }
+    async send(body, req) {
+        const { pdf, filename } = await this.render(body);
+        await this.google.sendMail({
+            to: body.to,
+            cc: body.cc,
+            subject: body.subject,
+            html: body.html,
+            attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
+        });
+        await this.service.markSent(Number(body.projectId), body.to, req?.user);
+        return { ok: true, filename, to: body.to };
+    }
+    async render(body) {
+        const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
+        const projectName = body.projectName || `Project ${body.projectId}`;
+        const html = (0, program_document_1.buildProgramHtml)({
+            brand,
+            projectName,
+            subtitle: body.subtitle,
+            date: body.date,
+            steps: Array.isArray(body.steps) ? body.steps : [],
+        });
+        const name = (0, letterhead_1.safeFilename)(`${projectName} - Project Program`);
+        return { pdf: await this.google.htmlToPdf(html, name), filename: `${name}.pdf` };
     }
 };
 exports.ProjectProgramController = ProjectProgramController;
@@ -53,9 +90,27 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ProjectProgramController.prototype, "complete", null);
+__decorate([
+    (0, common_1.Post)('pdf'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], ProjectProgramController.prototype, "pdf", null);
+__decorate([
+    (0, common_1.Post)('send'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], ProjectProgramController.prototype, "send", null);
 exports.ProjectProgramController = ProjectProgramController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('project-program'),
-    __metadata("design:paramtypes", [project_program_service_1.ProjectProgramService])
+    __metadata("design:paramtypes", [project_program_service_1.ProjectProgramService,
+        google_service_1.GoogleService,
+        settings_service_1.SettingsService])
 ], ProjectProgramController);
 //# sourceMappingURL=project-program.controller.js.map

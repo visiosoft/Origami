@@ -44,6 +44,8 @@ let ProjectProgramService = class ProjectProgramService {
             updatedAt: row?.updatedAt || '',
             updatedBy: row?.updatedBy || '',
             completedAt: row?.completedAt || '',
+            sentAt: row?.sentAt || '',
+            sentTo: row?.sentTo || '',
         };
     }
     async save(projectId, data, actor) {
@@ -62,6 +64,15 @@ let ProjectProgramService = class ProjectProgramService {
         row.updatedBy = actor?.name || 'System';
         await this.repo.save(row);
         return this.get(projectId);
+    }
+    async markSent(projectId, to, actor) {
+        const row = await this.repo.findOneBy({ projectId });
+        if (!row)
+            return;
+        row.sentAt = new Date().toISOString();
+        row.sentTo = to || '';
+        row.updatedBy = actor?.name || row.updatedBy || 'System';
+        await this.repo.save(row);
     }
     async setComplete(projectId, complete) {
         const row = await this.repo.findOneBy({ projectId });

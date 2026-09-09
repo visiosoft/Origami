@@ -20,7 +20,7 @@ const input: React.CSSProperties = {
  * half-filled is a normal state rather than a validation failure: this gets
  * built up over weeks as the research comes back.
  */
-export function ProjectProgram({ projectId, projectName }: { projectId: number; projectName?: string }) {
+export function ProjectProgram({ projectId, projectName, defaultTo }: { projectId: number; projectName?: string; defaultTo?: string }) {
   const { can, toast } = useApp();
   const canManage = can('projects', 'manage');
   const [data, setData] = useState<ProgramData>({});
@@ -28,7 +28,13 @@ export function ProjectProgram({ projectId, projectName }: { projectId: number; 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [meta, setMeta] = useState<{ updatedAt: string; updatedBy: string; completedAt: string }>({ updatedAt: '', updatedBy: '', completedAt: '' });
+  const [meta, setMeta] = useState<{ updatedAt: string; updatedBy: string; completedAt: string; sentAt?: string; sentTo?: string }>({ updatedAt: '', updatedBy: '', completedAt: '' });
+  const [rendering, setRendering] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [to, setTo] = useState('');
+  const [cc, setCc] = useState('');
+  const [subject, setSubject] = useState('');
+  const [note, setNote] = useState('');
   const loadedFor = useRef<number | null>(null);
 
   useEffect(() => {
@@ -38,11 +44,13 @@ export function ProjectProgram({ projectId, projectName }: { projectId: number; 
     api.projectProgram.get(projectId)
       .then((res: any) => {
         setData(res?.data || {});
-        setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '' });
+        setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '', sentAt: res?.sentAt || '', sentTo: res?.sentTo || '' });
         setDirty(false);
       })
       .catch(() => setData({}))
       .finally(() => setLoading(false));
+    setTo(defaultTo || '');
+    setSubject(`Project Program — ${projectName || ''}`.trim());
   }, [projectId]);
 
   const step = PROGRAM_STEPS[stepIdx];
@@ -65,13 +73,77 @@ export function ProjectProgram({ projectId, projectName }: { projectId: number; 
     setSaving(true);
     try {
       const res: any = await api.projectProgram.save(projectId, data);
-      setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '' });
+      setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '', sentAt: res?.sentAt || '', sentTo: res?.sentTo || '' });
       setDirty(false);
       toast('Project Program saved');
     } catch (e: any) {
       toast('⚠ ' + (e.message || 'Could not save the program'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  /**
+   * The document the PDF is rendered from.
+   *
+   * Built here rather than on the server because the labels live with the form
+   * definition -- sending the shape across keeps one copy of it, not two that
+   * can drift.
+   */
+  const docPayload = () => ({
+    projectId,
+    projectName: projectName || `Project ${projectId}`,
+    subtitle: String(data.title?.['main.projectTitle'] || '').trim() || undefined,
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+    steps: PROGRAM_STEPS.map((st) => {
+      const v = data[st.key] || {};
+      const blocks = st.sections.map((sec) => {
+        if (sec.kind === 'fields') {
+          return { title: sec.title, kind: 'fields' as const, note: sec.note, rows: (sec.fields || []).map((fl) => ({ label: fl.label, value: String(v[`${sec.key}.${fl.key}`] ?? '') })) };
+        }
+        if (sec.kind === 'table') {
+          return { title: sec.title, kind: 'table' as const, rows: (sec.rows || []).map((rw) => ({ label: rw.label, budget: String(v[rw.key]?.budget ?? ''), actual: String(v[rw.key]?.actual ?? ''), notes: String(v[rw.key]?.notes ?? '') })) };
+        }
+        if (sec.kind === 'weeks') {
+          return { title: sec.title, kind: 'weeks' as const, rows: (sec.rows || []).map((rw) => ({ label: rw.label, value: String(v[rw.key] ?? '') })) };
+        }
+        const items = ((v[sec.key] || []) as string[]).filter((x) => String(x || '').trim());
+        return { title: sec.title, kind: 'list' as const, rows: items.map((x) => ({ label: x, value: x })) };
+      });
+      const t = stepTotals(st, v);
+      return { name: st.name, blurb: st.blurb, blocks, totals: st.totalOf ? { budget: money(t.budget), actual: money(t.actual) } : undefined };
+    }),
+  });
+
+  const openPdf = async () => {
+    setRendering(true);
+    try {
+      const blob = await api.projectProgram.pdf(docPayload());
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      // Give the new tab time to take the blob before it is revoked.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e: any) {
+      toast('⚠ ' + (e.message || 'Could not render the PDF'));
+    } finally {
+      setRendering(false);
+    }
+  };
+
+  const sendToClient = async () => {
+    if (!to.trim()) { toast('⚠ Who should it go to?'); return; }
+    setSending(true);
+    try {
+      const html = note.trim()
+        ? note.trim().split(/\n{2,}/).map((para) => `<p>${para.replace(/\n/g, '<br/>')}</p>`).join('')
+        : `<p>Please find the Project Program for ${projectName || 'your project'} attached.</p>`;
+      const res: any = await api.projectProgram.send({ ...docPayload(), to: to.trim(), cc: cc.trim() || undefined, subject: subject.trim() || `Project Program — ${projectName || ''}`.trim(), html });
+      setMeta((m) => ({ ...m, sentAt: new Date().toISOString(), sentTo: res?.to || to.trim() }));
+      toast(`Sent to ${res?.to || to.trim()}`);
+    } catch (e: any) {
+      toast('⚠ ' + (e.message || 'Could not send it'));
+    } finally {
+      setSending(false);
     }
   };
 
@@ -222,6 +294,14 @@ export function ProjectProgram({ projectId, projectName }: { projectId: number; 
             <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: '#0B1A12', marginTop: 3 }}>{step.name}</div>
             {step.blurb && <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 4, lineHeight: 1.55, maxWidth: 620 }}>{step.blurb}</div>}
           </div>
+          <div
+            onClick={rendering ? undefined : openPdf}
+            title="The whole program on the company letterhead, one section per page."
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: rendering ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1={12} y1={15} x2={12} y2={3} /></svg>
+            {rendering ? 'Rendering…' : 'Download PDF'}
+          </div>
           {canManage && (
             <div
               onClick={saving ? undefined : save}
@@ -252,6 +332,47 @@ export function ProjectProgram({ projectId, projectName }: { projectId: number; 
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {stepIdx === PROGRAM_STEPS.length - 1 && canManage && (
+          <div style={{ border: '1px solid rgba(20,8,31,0.09)', borderRadius: 12, padding: '16px 18px', marginBottom: 18, background: '#FBFDFA' }}>
+            <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: '#0B1A12' }}>Send to the client</div>
+            <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 3, marginBottom: 12, lineHeight: 1.55 }}>
+              Emails the program from the connected Google Workspace account, with the letterhead PDF attached.
+              {meta.sentAt ? ` Last sent ${new Date(meta.sentAt).toLocaleString()}${meta.sentTo ? ` to ${meta.sentTo}` : ''}.` : ''}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 10 }}>
+              <div>
+                {label('To')}
+                <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@example.com" style={input} />
+              </div>
+              <div>
+                {label('CC', 'Optional')}
+                <input value={cc} onChange={(e) => setCc(e.target.value)} style={input} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                {label('Subject')}
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} style={input} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                {label('Message', 'Left blank, a short covering note is used.')}
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={5} style={{ ...input, resize: 'vertical', lineHeight: 1.55 }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div
+                onClick={sending ? undefined : sendToClient}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? '#9AB0A4' : '#173326', color: 'white' }}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                {sending ? 'Sending…' : meta.sentAt ? 'Re-send' : 'Send'}
+              </div>
+              <div onClick={rendering ? undefined : openPdf} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
+                {rendering ? 'Rendering…' : 'Preview the PDF first'}
+              </div>
+              {dirty && <span style={{ fontSize: 11, color: '#8E2E0A', fontWeight: 600 }}>Unsaved edits are included in the PDF but not yet stored — Save first.</span>}
+            </div>
           </div>
         )}
 

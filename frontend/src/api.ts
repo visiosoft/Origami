@@ -258,6 +258,23 @@ export const api = {
     get: (projectId: number) => request(`/project-program?projectId=${projectId}`),
     save: (projectId: number, data: unknown) => request('/project-program', { method: 'PUT', body: JSON.stringify({ projectId, data }) }),
     complete: (projectId: number, complete: boolean) => request('/project-program/complete', { method: 'PUT', body: JSON.stringify({ projectId, complete }) }),
+    /** The program on the letterhead, as a blob to preview or download. */
+    pdf: async (payload: unknown): Promise<Blob> => {
+      const token = session.get();
+      const res = await fetch(`${API_BASE}/project-program/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error((body && body.message) || `Could not render the PDF (${res.status})`);
+      }
+      return res.blob();
+    },
+    /** Email it to the client with that same PDF attached. */
+    send: (payload: unknown) =>
+      request<{ ok: boolean; filename: string; to: string }>('/project-program/send', { method: 'POST', body: JSON.stringify(payload) }),
   },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),

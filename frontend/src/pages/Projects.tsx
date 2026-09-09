@@ -431,7 +431,7 @@ export function Projects() {
               </div>
             ) : tab === 'program' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
-                <ProjectProgram projectId={sel.id} projectName={sel.name} />
+                <ProjectProgram projectId={sel.id} projectName={sel.name} defaultTo={introLead?.email || ''} />
               </div>
             ) : tab === 'tasks' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>

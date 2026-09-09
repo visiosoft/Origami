@@ -41,6 +41,8 @@ export class ProjectProgramService {
       updatedAt: row?.updatedAt || '',
       updatedBy: row?.updatedBy || '',
       completedAt: row?.completedAt || '',
+      sentAt: row?.sentAt || '',
+      sentTo: row?.sentTo || '',
     };
   }
 
@@ -59,6 +61,16 @@ export class ProjectProgramService {
     row.updatedBy = actor?.name || 'System';
     await this.repo.save(row);
     return this.get(projectId);
+  }
+
+  /** Record that the program went to the client, and who sent it. */
+  async markSent(projectId: number, to: string, actor?: ProgramActor) {
+    const row = await this.repo.findOneBy({ projectId });
+    if (!row) return;
+    row.sentAt = new Date().toISOString();
+    row.sentTo = to || '';
+    row.updatedBy = actor?.name || row.updatedBy || 'System';
+    await this.repo.save(row);
   }
 
   /** Mark the program finished, or reopen it by passing false. */
