@@ -78,6 +78,12 @@ export class ProjectProgramController {
       steps: Array.isArray(body.steps) ? body.steps : [],
     });
     const name = safeFilename(`${projectName} - Project Program`);
-    return { pdf: await this.google.htmlToPdf(html, name), filename: `${name}.pdf` };
+    // The running head repeats on every printed page; the section bands in the
+    // HTML repeat per section. Both, so a page that overflows still says whose
+    // document it is.
+    const header = [brand.companyName, projectName, 'Project Program'].filter(Boolean).join('  ·  ');
+    const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
+    const pdf = await this.google.htmlToPdf(html, name, { header, footer });
+    return { pdf, filename: `${name}.pdf` };
   }
 }

@@ -7,6 +7,7 @@ const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const GMAIL_SEND_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
+const DOCS_URL = 'https://docs.googleapis.com/v1/documents';
 const DRIVE_FILE_FIELDS = 'id,name,mimeType,size,webViewLink,iconLink,thumbnailLink,createdTime';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 /** Google caps uploadType=multipart at 5 MB; anything larger goes resumable. */
@@ -451,7 +452,7 @@ export class GoogleService {
    * headless-browser dependency, which matters here because a new package means
    * an npm install on every container start.
    */
-  async htmlToPdf(html: string, name = 'document'): Promise<Buffer> {
+  async htmlToPdf(html: string, name = 'document', running?: { header?: string; footer?: string }): Promise<Buffer> {
     const token = await this.workspaceToken();
     const boundary = 'origami_pdf_' + Math.random().toString(36).slice(2);
     const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
@@ -474,6 +475,14 @@ export class GoogleService {
     }
 
     try {
+      // A header written into the HTML only appears where it sits in the flow.
+      // A real repeating one is a property of the document, so it is set on the
+      // Doc before the export. Best effort: a document without a running head
+      // is still the document, and is not worth failing the export over.
+      if (running?.header || running?.footer) {
+        await this.setRunningHeadFoot(doc.id, running).catch((err: Error) =>
+          this.log.warn(`Running header/footer skipped: ${err.message}`));
+      }
       const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=application/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -483,6 +492,59 @@ export class GoogleService {
       // The Doc is scaffolding; don't leave it lying around in Drive.
       await this.trashDriveFile(doc.id).catch(() => undefined);
     }
+  }
+
+  /**
+   * Give a Doc a real running header and footer, repeated on every printed
+   * page. Text only: an inline image needs a fetchable URI, and the letterhead
+   * logo is a data URL in settings, so it stays on the section bands instead.
+   *
+   * Two round trips because the segment id only exists once the header has
+   * been created, and the text has to be inserted into that segment.
+   */
+  private async setRunningHeadFoot(docId: string, running: { header?: string; footer?: string }) {
+    const token = await this.workspaceToken();
+    const call = async (requests: unknown[]) => {
+      const res = await fetch(`${DOCS_URL}/${encodeURIComponent(docId)}:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests }),
+      });
+      const json: any = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error?.message || `Docs API said ${res.status}`);
+      return json;
+    };
+
+    const create: unknown[] = [];
+    if (running.header) create.push({ createHeader: { type: 'DEFAULT' } });
+    if (running.footer) create.push({ createFooter: { type: 'DEFAULT' } });
+    const made = await call(create);
+
+    const replies: any[] = made?.replies || [];
+    const headerId = replies.find((r) => r?.createHeader)?.createHeader?.headerId;
+    const footerId = replies.find((r) => r?.createFooter)?.createFooter?.footerId;
+
+    const fill: unknown[] = [];
+    const write = (segmentId: string, text: string, align: string) => {
+      fill.push({ insertText: { location: { segmentId, index: 0 }, text } });
+      fill.push({
+        updateTextStyle: {
+          range: { segmentId, startIndex: 0, endIndex: text.length },
+          textStyle: { fontSize: { magnitude: 8, unit: 'PT' }, foregroundColor: { color: { rgbColor: { red: 0.49, green: 0.61, blue: 0.58 } } } },
+          fields: 'fontSize,foregroundColor',
+        },
+      });
+      fill.push({
+        updateParagraphStyle: {
+          range: { segmentId, startIndex: 0, endIndex: text.length },
+          paragraphStyle: { alignment: align },
+          fields: 'alignment',
+        },
+      });
+    };
+    if (headerId && running.header) write(headerId, running.header, 'START');
+    if (footerId && running.footer) write(footerId, running.footer, 'CENTER');
+    if (fill.length) await call(fill);
   }
 
   /** Move a file to Drive's trash — recoverable, unlike a hard delete. */

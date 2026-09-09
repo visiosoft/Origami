@@ -110,6 +110,19 @@ export function Projects() {
     catch (e: any) { toast('⚠ ' + (e.message || 'Could not delete')); }
   };
 
+  /**
+   * Opening a phase card.
+   *
+   * The programme's drafting step *is* the Project Program, so its card goes
+   * straight to that tab rather than to a task panel with a button on it. The
+   * task itself is still on the Tasks board if someone needs to assign or
+   * comment on it.
+   */
+  const openPhaseTask = (pt: any, phase: { name: string; color: string }) => {
+    if (pt?.title === 'Project Program DRAFT') { setTab('program'); return; }
+    openPhaseTask(pt, phase);
+  };
+
   const applyProgramme = (projectId: number) => {
     setApplying(true);
     api.projectPhases.applyTemplate(projectId)
@@ -502,7 +515,7 @@ export function Projects() {
                             const done = pt.status === 'Done';
                             if (phase.isComplete && done) {
                               return (
-                                <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
+                                <div key={pt.title} onClick={() => openPhaseTask(pt, phase)} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                     <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D' }}>{pt.title}</span>
@@ -511,7 +524,7 @@ export function Projects() {
                               );
                             }
                             return (
-                              <div key={pt.title} onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)', cursor: 'pointer' }}>
+                              <div key={pt.title} onClick={() => openPhaseTask(pt, phase)} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)', cursor: 'pointer' }}>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.4, marginBottom: 6 }}>{pt.title}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
                                   <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
@@ -577,7 +590,7 @@ export function Projects() {
                                 return (
                                   <div
                                     key={pt.title}
-                                    onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })}
+                                    onClick={() => openPhaseTask(pt, phase)}
                                     style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '9px 12px 9px 26px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', background: done ? '#FBFDFA' : 'white' }}
                                   >
                                     <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 500, color: done ? '#43514D' : '#0B1A12' }}>

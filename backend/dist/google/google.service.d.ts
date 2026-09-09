@@ -89,7 +89,11 @@ export declare class GoogleService {
     listChildren(folderId: string): Promise<DriveFile[]>;
     static isFolder(f: DriveFile): boolean;
     shareLink(id: string): Promise<string>;
-    htmlToPdf(html: string, name?: string): Promise<Buffer>;
+    htmlToPdf(html: string, name?: string, running?: {
+        header?: string;
+        footer?: string;
+    }): Promise<Buffer>;
+    private setRunningHeadFoot;
     trashDriveFile(id: string): Promise<void>;
     testDrive(): Promise<{
         ok: true;

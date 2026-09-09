@@ -18,6 +18,7 @@ const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const GMAIL_SEND_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
+const DOCS_URL = 'https://docs.googleapis.com/v1/documents';
 const DRIVE_FILE_FIELDS = 'id,name,mimeType,size,webViewLink,iconLink,thumbnailLink,createdTime';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const MULTIPART_LIMIT = 5 * 1024 * 1024;
@@ -363,7 +364,7 @@ let GoogleService = class GoogleService {
             throw new common_1.BadRequestException('Could not produce a share link.');
         return body.webViewLink;
     }
-    async htmlToPdf(html, name = 'document') {
+    async htmlToPdf(html, name = 'document', running) {
         const token = await this.workspaceToken();
         const boundary = 'origami_pdf_' + Math.random().toString(36).slice(2);
         const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
@@ -384,6 +385,9 @@ let GoogleService = class GoogleService {
             throw new common_1.BadRequestException(doc?.error?.message || 'Could not render the document.');
         }
         try {
+            if (running?.header || running?.footer) {
+                await this.setRunningHeadFoot(doc.id, running).catch((err) => this.log.warn(`Running header/footer skipped: ${err.message}`));
+            }
             const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=application/pdf`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -394,6 +398,53 @@ let GoogleService = class GoogleService {
         finally {
             await this.trashDriveFile(doc.id).catch(() => undefined);
         }
+    }
+    async setRunningHeadFoot(docId, running) {
+        const token = await this.workspaceToken();
+        const call = async (requests) => {
+            const res = await fetch(`${DOCS_URL}/${encodeURIComponent(docId)}:batchUpdate`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requests }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok)
+                throw new Error(json?.error?.message || `Docs API said ${res.status}`);
+            return json;
+        };
+        const create = [];
+        if (running.header)
+            create.push({ createHeader: { type: 'DEFAULT' } });
+        if (running.footer)
+            create.push({ createFooter: { type: 'DEFAULT' } });
+        const made = await call(create);
+        const replies = made?.replies || [];
+        const headerId = replies.find((r) => r?.createHeader)?.createHeader?.headerId;
+        const footerId = replies.find((r) => r?.createFooter)?.createFooter?.footerId;
+        const fill = [];
+        const write = (segmentId, text, align) => {
+            fill.push({ insertText: { location: { segmentId, index: 0 }, text } });
+            fill.push({
+                updateTextStyle: {
+                    range: { segmentId, startIndex: 0, endIndex: text.length },
+                    textStyle: { fontSize: { magnitude: 8, unit: 'PT' }, foregroundColor: { color: { rgbColor: { red: 0.49, green: 0.61, blue: 0.58 } } } },
+                    fields: 'fontSize,foregroundColor',
+                },
+            });
+            fill.push({
+                updateParagraphStyle: {
+                    range: { segmentId, startIndex: 0, endIndex: text.length },
+                    paragraphStyle: { alignment: align },
+                    fields: 'alignment',
+                },
+            });
+        };
+        if (headerId && running.header)
+            write(headerId, running.header, 'START');
+        if (footerId && running.footer)
+            write(footerId, running.footer, 'CENTER');
+        if (fill.length)
+            await call(fill);
     }
     async trashDriveFile(id) {
         const token = await this.workspaceToken();
