@@ -74,13 +74,11 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
     rows.forEach((p) => p.phases.forEach((ph) => {
       if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order });
     }));
-    // Only this board's phases. A phase the template has that neither board
-    // claims would otherwise vanish, so anything unclaimed falls to Design.
-    const claimed = new Set(Object.values(PHASE_SCOPES).flatMap((v) => v.keys));
+    // Only this board's phases, in the template's order.
     return [...seen.values()]
-      .filter((c) => (view.keys.includes(c.key) || (scope === 'design' && !claimed.has(c.key))))
+      .filter((c) => view.keys.includes(c.key))
       .sort((a, b) => a.order - b.order);
-  }, [rows, scope, view]);
+  }, [rows, view]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();

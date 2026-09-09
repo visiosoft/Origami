@@ -211,14 +211,15 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
  * The Design and Construction pages are not separate boards with their own
  * data -- they are the project's Phase Board seen through a filter, so a phase
  * renamed or re-estimated in the programme template changes everywhere at
- * once. Programming sits with Design: it is pre-design work the design team
- * carries, and leaving it out would orphan a whole phase.
+ * once. A phase named by neither board appears on neither: Programming,
+ * Contract Documents and Interior Design sit outside both today, so a project
+ * in one of those is reached from Projects rather than from these boards.
  */
 export const PHASE_SCOPES: Record<string, { title: string; blurb: string; keys: string[] }> = {
   design: {
     title: 'Design & Preconstruction',
-    blurb: 'Every project from programming through to permit, in the phase its work has reached.',
-    keys: ['programming', 'schematic', 'dd', 'ccd', 'interior'],
+    blurb: 'Schematic design and design development, by the phase each project has reached.',
+    keys: ['schematic', 'dd'],
   },
   construction: {
     title: 'Construction',
