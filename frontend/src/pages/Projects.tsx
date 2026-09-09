@@ -68,7 +68,21 @@ export function Projects() {
   // A phase card is a real task row, so the panel edits it in place rather
   // than showing a read-only copy of it.
   const [storageReady, setStorageReady] = useState(false);
-  useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false)); }, []);
+  // Roles are the source of truth for who work can be given to -- the same
+  // list the programme template picks a task's team from, so a seeded task's
+  // role is already one of these. TEAM_COLORS is only a colour lookup and
+  // carries older names ("Architecture" for "Architect"), so it is the wrong
+  // thing to offer as choices.
+  const [teams, setTeams] = useState<string[]>(['Automation']);
+  useEffect(() => {
+    api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
+    api.roles.list()
+      .then((res: any) => {
+        if (!Array.isArray(res)) return;
+        setTeams([...res.filter((r: any) => r.tier === 'internal').map((r: any) => r.name as string), 'Automation']);
+      })
+      .catch(() => { /* keep the fallback */ });
+  }, []);
   const [subDraft, setSubDraft] = useState('');
   const allLabels = Array.from(new Set(boardTasks.flatMap((t: any) => t.labels ?? []))).sort() as string[];
 
@@ -674,15 +688,13 @@ export function Projects() {
                       style={inputStyle}
                     >
                       <option value="">None</option>
-                      {/* The team already typed onto this task, even one that
-                          predates this list or was free-typed loosely (e.g.
-                          "Admin" instead of "Admin & Coordination") — kept
-                          selectable so switching to a dropdown never silently
-                          drops what a task already had. */}
-                      {live.team && !(live.team in TEAM_COLORS) && (
-                        <option value={live.team}>{live.team} (not a standard team — pick one below to fix)</option>
+                      {/* A role this task already carries that the roles list
+                          no longer offers stays selectable, so switching to a
+                          dropdown never silently drops what a task had. */}
+                      {live.team && !teams.includes(live.team) && (
+                        <option value={live.team}>{live.team} (not a current role)</option>
                       )}
-                      {Object.keys(TEAM_COLORS).map((t) => <option key={t} value={t}>{t}</option>)}
+                      {teams.map((tm) => <option key={tm} value={tm}>{tm}</option>)}
                     </select>
                   ))}
                   {fieldBox('Dates', (
