@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { ProjectTask } from '../data/projectTasks';
+import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 
 const HEADING = "'Bricolage Grotesque', serif";
 
@@ -67,6 +68,9 @@ const labelStyle: React.CSSProperties = {
 export function DesignProject() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  // Opened from Design or from Construction; go back to whichever it was.
+  const board = pathname.startsWith('/pm') ? '/pm' : '/design';
   const { toast, can } = useApp();
   const canManage = can('projects', 'manage');
 
@@ -75,6 +79,7 @@ export function DesignProject() {
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [activeStage, setActiveStage] = useState<string | null>(null);
   const [layout, setLayout] = useState<'cards' | 'timeline'>('cards');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -111,6 +116,10 @@ export function DesignProject() {
 
   const active = stages.find((s) => s.key === activeStage) ?? null;
 
+  const reload = () => api.projectPhases.board(id)
+    .then((b: any) => { setPhases((b?.phases ?? []) as Phase[]); setTasks((b?.tasks ?? []) as ProjectTask[]); })
+    .catch(() => { });
+
   /** Ticking writes through — the board and reports read the same completion. */
   const toggle = (task: ProjectTask) => {
     if (!canManage) return;
@@ -129,7 +138,7 @@ export function DesignProject() {
   if (error || !project) {
     return (
       <div style={{ padding: '32px 36px', background: PAPER, minHeight: '100%' }}>
-        <BackLink onClick={() => navigate('/design')} />
+        <BackLink onClick={() => navigate(board)} />
         <div style={{ marginTop: 20, fontSize: 13, color: '#8E2E0A' }}>{error || 'Project not found.'}</div>
       </div>
     );
@@ -151,7 +160,7 @@ export function DesignProject() {
 
   return (
     <div style={{ background: PAPER, minHeight: '100%', padding: '32px 36px 60px' }}>
-      <BackLink onClick={() => navigate('/design')} />
+      <BackLink onClick={() => navigate(board)} />
 
       <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
       <p style={{ margin: '6px 0 22px', fontSize: 14, color: INK3 }}>
@@ -270,18 +279,24 @@ export function DesignProject() {
                   return (
                     <div
                       key={task.id}
-                      onClick={() => toggle(task)}
+                      onClick={() => setSelectedId(task.id)}
+                      title="Open the task"
                       style={{
                         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 999,
-                        cursor: canManage ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         background: checked ? '#dcf2e4' : '#F3F0EA',
                         transition: 'background .15s ease',
                       }}
                     >
-                      {checkMark(checked, 20, active.colors.dot)}
-                      <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, color: checked ? active.colors.text : '#5c5666' }}>
+                      <span onClick={(e) => { e.stopPropagation(); toggle(task); }} title={checked ? 'Mark not done' : 'Mark done'} style={{ display: 'flex', cursor: canManage ? 'pointer' : 'default' }}>
+                        {checkMark(checked, 20, active.colors.dot)}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, color: checked ? active.colors.text : '#5c5666' }}>
                         {task.title}
                       </span>
+                      {task.assignee && (
+                        <span style={{ fontSize: 10.5, color: MUTED, flex: '0 0 auto' }}>{task.assignee}</span>
+                      )}
                     </div>
                   );
                 })}
@@ -293,12 +308,14 @@ export function DesignProject() {
                   return (
                     <div key={task.id} style={{ display: 'flex', gap: 14, alignItems: 'stretch' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 22, flex: '0 0 auto' }}>
-                        {checkMark(checked, 22, active.colors.dot)}
+                        <span onClick={() => toggle(task)} style={{ display: 'flex', cursor: canManage ? 'pointer' : 'default' }}>
+                          {checkMark(checked, 22, active.colors.dot)}
+                        </span>
                         {idx !== active.items.length - 1 && (
                           <div style={{ width: 2, flex: 1, marginTop: 2, background: checked ? active.colors.dot : 'rgba(20,8,31,.12)' }} />
                         )}
                       </div>
-                      <div onClick={() => toggle(task)} style={{ cursor: canManage ? 'pointer' : 'default', paddingBottom: 22 }}>
+                      <div onClick={() => setSelectedId(task.id)} title="Open the task" style={{ cursor: 'pointer', paddingBottom: 22 }}>
                         <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, color: checked ? active.colors.text : '#5c5666' }}>
                           {task.title}
                         </span>
@@ -315,6 +332,23 @@ export function DesignProject() {
           </div>
         )}
       </div>
+
+      {selectedId && (() => {
+        const t = tasks.find((x) => x.id === selectedId);
+        if (!t) return null;
+        const ph = phases.find((x) => x.id === t.phaseId);
+        return (
+          <PhaseTaskPanel
+            task={t}
+            tasks={tasks}
+            phaseName={ph?.name || ''}
+            phaseColor={ph?.color || ACCENT}
+            onClose={() => setSelectedId(null)}
+            onSaved={(next: any) => setTasks((prev) => prev.map((x) => (x.id === next.id ? next : x)))}
+            onReload={reload}
+          />
+        );
+      })()}
     </div>
   );
 }

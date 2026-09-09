@@ -204,3 +204,25 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
     return result;
   });
 }
+
+/**
+ * Which phases each board in the left menu shows.
+ *
+ * The Design and Construction pages are not separate boards with their own
+ * data -- they are the project's Phase Board seen through a filter, so a phase
+ * renamed or re-estimated in the programme template changes everywhere at
+ * once. Programming sits with Design: it is pre-design work the design team
+ * carries, and leaving it out would orphan a whole phase.
+ */
+export const PHASE_SCOPES: Record<string, { title: string; blurb: string; keys: string[] }> = {
+  design: {
+    title: 'Design & Preconstruction',
+    blurb: 'Every project from programming through to permit, in the phase its work has reached.',
+    keys: ['programming', 'schematic', 'dd', 'ccd', 'interior'],
+  },
+  construction: {
+    title: 'Construction',
+    blurb: 'Builder selection, the build itself, and closing the job out.',
+    keys: ['gc', 'ca', 'closeout'],
+  },
+};

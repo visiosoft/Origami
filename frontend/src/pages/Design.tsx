@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { PHASE_SCOPES } from '../data/projects';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -47,7 +48,8 @@ const PRIORITY_STYLE: Record<string, { bg: string; c: string }> = {
  * phase its work has actually reached — so the question "what is in schematic
  * right now" is answered by looking, rather than by opening every project.
  */
-export function Design() {
+export function Design({ scope = 'design' }: { scope?: 'design' | 'construction' }) {
+  const view = PHASE_SCOPES[scope] || PHASE_SCOPES.design;
   const navigate = useNavigate();
   const { toast, can } = useApp();
   const canManage = can('projects', 'manage');
@@ -72,8 +74,13 @@ export function Design() {
     rows.forEach((p) => p.phases.forEach((ph) => {
       if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order });
     }));
-    return [...seen.values()].sort((a, b) => a.order - b.order);
-  }, [rows]);
+    // Only this board's phases. A phase the template has that neither board
+    // claims would otherwise vanish, so anything unclaimed falls to Design.
+    const claimed = new Set(Object.values(PHASE_SCOPES).flatMap((v) => v.keys));
+    return [...seen.values()]
+      .filter((c) => (view.keys.includes(c.key) || (scope === 'design' && !claimed.has(c.key))))
+      .sort((a, b) => a.order - b.order);
+  }, [rows, scope, view]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -84,7 +91,12 @@ export function Design() {
       || (p.typeOfWork || '').toLowerCase().includes(q));
   }, [rows, query]);
 
-  const planned = visible.filter((p) => p.taskTotal > 0).length;
+  // Only projects sitting in one of this board's phases are on this board.
+  const onBoard = useMemo(() => {
+    const keys = new Set(columns.map((c) => c.key));
+    return visible.filter((p) => p.currentPhaseKey && keys.has(p.currentPhaseKey));
+  }, [visible, columns]);
+  const planned = onBoard.filter((p) => p.taskTotal > 0).length;
 
   /**
    * Dragging pins a project to a phase, overriding the position derived from
@@ -128,9 +140,10 @@ export function Design() {
     <div style={{ padding: '18px 22px', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
-          <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>Design &amp; Preconstruction</div>
+          <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{view.title}</div>
+          <div style={{ fontSize: 11.5, color: '#9AA39D', marginTop: 2, maxWidth: 520, lineHeight: 1.5 }}>{view.blurb}</div>
           <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 3 }}>
-            {visible.length} project{visible.length === 1 ? '' : 's'} · {planned} with a programme
+            {onBoard.length} project{onBoard.length === 1 ? '' : 's'} · {planned} with a programme
           </div>
         </div>
         <input
@@ -147,7 +160,7 @@ export function Design() {
 
       {columns.length === 0 ? (
         <div style={{ padding: '30px 20px', textAlign: 'center', fontSize: 13, color: '#9AA39D', background: '#FBF8F2', borderRadius: 12 }}>
-          No design phases yet. Open a project's Phase Board to create them.
+          No {view.title.toLowerCase()} phases yet. Open a project's Phase Board to create them.
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flex: 1, minHeight: 0, paddingBottom: 6 }}>

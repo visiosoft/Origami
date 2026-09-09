@@ -49,6 +49,8 @@ export default function App() {
         <Route path="/users" element={<Admin />} />
         <Route path="/design" element={<Design />} />
         <Route path="/design/:projectId" element={<DesignProject />} />
+        <Route path="/pm" element={<Design scope="construction" />} />
+        <Route path="/pm/:projectId" element={<DesignProject />} />
         <Route path="/library" element={<Library />} />
         <Route path="/planroom" element={<FileRoom />} />
         <Route path="/help" element={<Help />} />
