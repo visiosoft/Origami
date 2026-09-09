@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { ProjectTask } from '../data/projectTasks';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
+import { TEAM_BGS, TEAM_COLORS, WF_ST_COLORS } from '../data/projects';
 
 const HEADING = "'Bricolage Grotesque', serif";
 
@@ -214,30 +215,43 @@ export function DesignProject() {
                 No tasks in {active.name} yet. Add them on the project's Phase Board.
               </div>
             ) : layout === 'cards' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 16 }}>
+              /* The same card the Phase Board draws: title, role, status. */
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 10, marginTop: 16 }}>
                 {active.items.map((task) => {
                   const checked = !!(task.completed || task.status === 'Done');
+                  const statusLabel = checked ? 'Done' : task.status === 'In progress' ? 'In Progress' : 'Open';
+                  const sc = WF_ST_COLORS[statusLabel] || { bg: '#EFEDE8', c: '#3A423E' };
                   return (
                     <div
                       key={task.id}
                       onClick={() => setSelectedId(task.id)}
                       title="Open the task"
                       style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 999,
-                        cursor: 'pointer',
-                        background: checked ? '#dcf2e4' : '#F3F0EA',
-                        transition: 'background .15s ease',
+                        background: checked ? '#EDF4EC' : '#fff', borderRadius: 10, padding: '11px 12px',
+                        border: '1px solid ' + (checked ? 'rgba(28,82,48,0.14)' : 'rgba(20,8,31,0.06)'),
+                        boxShadow: '0 1px 3px rgba(20,8,31,.05)', cursor: 'pointer',
+                        display: 'flex', flexDirection: 'column', gap: 7,
                       }}
                     >
-                      <span onClick={(e) => { e.stopPropagation(); toggle(task); }} title={checked ? 'Mark not done' : 'Mark done'} style={{ display: 'flex', cursor: canManage ? 'pointer' : 'default' }}>
-                        {checkMark(checked, 20, active.colors.dot)}
-                      </span>
-                      <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, lineHeight: 1.35, color: checked ? active.colors.text : '#5c5666' }}>
-                        {task.title}
-                      </span>
-                      {task.assignee && (
-                        <span style={{ fontSize: 10.5, color: MUTED, flex: '0 0 auto' }}>{task.assignee}</span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+                        <span
+                          onClick={(e) => { e.stopPropagation(); toggle(task); }}
+                          title={checked ? 'Mark not done' : 'Mark done'}
+                          style={{ display: 'flex', marginTop: 1, cursor: canManage ? 'pointer' : 'default' }}
+                        >
+                          {checkMark(checked, 18, active.colors.dot)}
+                        </span>
+                        <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, lineHeight: 1.35, color: checked ? active.colors.text : INK }}>
+                          {task.title}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', paddingLeft: 27 }}>
+                        {task.team && (
+                          <span style={{ padding: '1px 7px', borderRadius: 999, fontSize: 8.5, fontWeight: 600, background: TEAM_BGS[task.team] || '#EFEDE8', color: TEAM_COLORS[task.team] || '#7E9B93' }}>{task.team}</span>
+                        )}
+                        <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: sc.bg, color: sc.c }}>{statusLabel}</span>
+                        {task.assignee && <span style={{ fontSize: 9.5, color: MUTED, marginLeft: 'auto' }}>{task.assignee}</span>}
+                      </div>
                     </div>
                   );
                 })}
