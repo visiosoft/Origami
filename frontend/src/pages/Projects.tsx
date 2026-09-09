@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
+import { AssigneePicker } from '../components/AssigneePicker';
+import { Attachments, filesFromClipboard, nameClipboardFile } from '../components/Attachments';
+import { ActivityFeed } from '../components/ActivityFeed';
+import { Checklist } from '../components/Checklist';
+import { LabelPicker } from '../components/LabelPicker';
+import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
@@ -57,6 +63,36 @@ export function Projects() {
     api.projectPhases.board(projectId)
       .then((res: any) => { setBoardPhases((res?.phases || []) as BoardPhase[]); setBoardTasks((res?.tasks || []) as BoardTask[]); })
       .catch(() => { setBoardPhases([]); setBoardTasks([]); });
+  };
+
+  // A phase card is a real task row, so the panel edits it in place rather
+  // than showing a read-only copy of it.
+  const [storageReady, setStorageReady] = useState(false);
+  useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false)); }, []);
+  const [subDraft, setSubDraft] = useState('');
+  const allLabels = Array.from(new Set(boardTasks.flatMap((t: any) => t.labels ?? []))).sort() as string[];
+
+  const putTask = (t: any) => setBoardTasks((prev) => prev.map((x) => (x.id === t.id ? t : x)) as BoardTask[]);
+  /** Type-ahead edits show at once; the save follows on blur. */
+  const patchLocal = (id: string, patch: any) =>
+    setBoardTasks((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)) as BoardTask[]);
+  const saveTask = async (id: string, patch: any) => {
+    try { putTask(await api.projectTasks.update(id, patch)); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
+  };
+  const addSubtask = async (parent: any) => {
+    const title = subDraft.trim();
+    if (!title || !sel) return;
+    setSubDraft('');
+    try {
+      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, title, parentId: parent.id });
+      loadBoard(sel.id);
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
+  };
+  const deleteTask = async (id: string) => {
+    if (!sel) return;
+    try { await api.projectTasks.remove(id); loadBoard(sel.id); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not delete')); }
   };
 
   const applyProgramme = (projectId: number) => {
@@ -557,6 +593,15 @@ export function Projects() {
       {/* Phase-task detail panel */}
       {selPt && (() => {
         const { pt, phaseName, phaseColor } = selPt;
+        // The card is a projection; this is the row it came from, and what the
+        // panel actually edits. Absent only for the demo fixture project.
+        const live: any = (boardTasks as any[]).find((t) => t.id && t.id === pt.id) || null;
+        const fieldBox = (label: string, body: React.ReactNode) => (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
+            {body}
+          </div>
+        );
         const sc = WF_ST_COLORS[pt.status] || { bg: '#EFEDE8', c: '#7E9B93' };
         const row = (label: string, value: React.ReactNode) => (
           <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
@@ -597,14 +642,41 @@ export function Projects() {
                 {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE9AE', color: '#93520F' }}>⚡ AUTO</span>}
               </div>
 
-              {!isIntroLetter && (
+              {!isIntroLetter && live && (
+                <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  {fieldBox('Assignee', (
+                    <AssigneePicker
+                      valueId={live.assigneeId}
+                      valueName={live.assignee}
+                      disabled={!canManage}
+                      onChange={(u: any) => saveTask(live.id, { assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
+                    />
+                  ))}
+                  {fieldBox('Status', (
+                    <select disabled={!canManage} value={live.status || 'Not started'} onChange={(e) => saveTask(live.id, { status: e.target.value })} style={inputStyle}>
+                      {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  ))}
+                  {fieldBox('Due date', (
+                    <input type="date" disabled={!canManage} value={live.dueDate || ''} onChange={(e) => saveTask(live.id, { dueDate: e.target.value })} style={inputStyle} />
+                  ))}
+                  {fieldBox('Priority', (
+                    <select disabled={!canManage} value={live.priority || ''} onChange={(e) => saveTask(live.id, { priority: e.target.value })} style={inputStyle}>
+                      <option value="">None</option>
+                      {PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
+                    </select>
+                  ))}
+                  {fieldBox('Role', (
+                    <input disabled={!canManage} value={live.team || ''} onChange={(e) => patchLocal(live.id, { team: e.target.value })} onBlur={(e) => saveTask(live.id, { team: e.target.value })} placeholder="Team or discipline" style={inputStyle} />
+                  ))}
+                  {fieldBox('Dates', (
+                    <div style={{ fontSize: 12, color: pt.start ? '#43514D' : '#9AA39D', padding: '9px 0' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'Not scheduled'}</div>
+                  ))}
+                </div>
+              )}
+              {!isIntroLetter && !live && (
                 <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {row('Assignee', pt.assignee ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 20, height: 20, borderRadius: 999, background: '#0F2417', color: 'white', display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 700 }}>{initials(pt.assignee)}</span>
-                      {pt.assignee}
-                    </span>
-                  ) : <span style={{ color: '#9AA39D' }}>Unassigned</span>)}
+                  {row('Assignee', pt.assignee || '—')}
                   {row('Duration', pt.dur || '—')}
                   {row('Start', pt.start || '—')}
                   {row('End', pt.end || '—')}
@@ -725,6 +797,82 @@ export function Projects() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {live && (
+                <>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    {fieldBox('Description', (
+                      <textarea
+                        disabled={!canManage}
+                        value={live.description || ''}
+                        onChange={(e) => patchLocal(live.id, { description: e.target.value })}
+                        onPaste={(e) => {
+                          // A pasted screenshot becomes an attachment rather than
+                          // nothing at all; text pastes are left alone.
+                          const files = filesFromClipboard(e).map(nameClipboardFile);
+                          if (!files.length || !canManage) return;
+                          e.preventDefault();
+                          api.projectTasks.uploadAttachments(live.id, files).then(putTask).catch((err: Error) => toast('⚠ ' + (err.message || 'Upload failed')));
+                        }}
+                        onBlur={(e) => saveTask(live.id, { description: e.target.value })}
+                        rows={7}
+                        placeholder="Add details…"
+                        style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }}
+                      />
+                    ))}
+                  </div>
+
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    {fieldBox('Subtasks', (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {subtasksOf(boardTasks as any, live.id).map((st: any) => (
+                          <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FBF8F2', borderRadius: 8 }}>
+                            <input type="checkbox" checked={!!st.completed} disabled={!canManage} onChange={() => saveTask(st.id, { completed: !st.completed, status: st.completed ? 'Not started' : 'Done' })} />
+                            <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
+                            {canManage && <span onClick={() => deleteTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
+                          </div>
+                        ))}
+                        {canManage && (
+                          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                            <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(live); }} placeholder="Add a subtask…" style={{ ...inputStyle, flex: 1 }} />
+                            <div onClick={() => addSubtask(live)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    <Checklist items={live.checklist ?? []} canManage={canManage} onChange={(checklist: ChecklistItem[]) => saveTask(live.id, { checklist })} />
+                  </div>
+
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    <LabelPicker labels={live.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => saveTask(live.id, { labels })} />
+                  </div>
+
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    <Attachments
+                      scope="project-tasks"
+                      taskId={live.id}
+                      attachments={live.attachments ?? []}
+                      canManage={canManage}
+                      storageReady={storageReady}
+                      onUpload={async (files: File[] | FileList) => { putTask(await api.projectTasks.uploadAttachments(live.id, files)); }}
+                      onRemove={async (att: any) => { putTask(await api.projectTasks.removeAttachment(live.id, att.id)); }}
+                      onAddLink={async (name: string, url: string) => { putTask(await api.projectTasks.addLink(live.id, name, url)); }}
+                    />
+                  </div>
+
+                  <div style={{ padding: '16px 22px' }}>
+                    <ActivityFeed
+                      comments={live.comments ?? []}
+                      activity={live.activity ?? []}
+                      canManage={canManage}
+                      onComment={async (text: string) => { putTask(await api.projectTasks.addComment(live.id, text)); }}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </div>

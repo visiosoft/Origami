@@ -45,6 +45,8 @@ export const PR_COLORS: Record<string, { bg: string; c: string }> = {
 };
 
 export interface WfTask {
+  /** The real task row behind the card, absent only on the demo fixture. */
+  id?: string;
   title: string;
   status: 'Done' | 'Open' | 'In Progress';
   auto: boolean;
@@ -165,6 +167,7 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
       start: own.map((t) => t.startDate || '').filter(Boolean).sort()[0] || '',
       end: own.map((t) => t.endDate || '').filter(Boolean).sort().slice(-1)[0] || '',
       tasks: own.map((t) => ({
+        id: t.id,
         title: t.title,
         status: isDone(t) ? 'Done' : t.status === 'In progress' ? 'In Progress' : 'Open',
         auto: !!t.auto,
