@@ -537,3 +537,104 @@ export function stepFilled(step: PStep, values: Record<string, any> = {}) {
   }
   return { total, done };
 }
+
+/* ------------------------------------------------------------------ *
+ * Prefill.
+ *
+ * A project either came from a lead or was added directly, and either way it
+ * already knows things this form asks for. Answering them twice is how the two
+ * copies end up disagreeing, so what is already known is filled in.
+ * ------------------------------------------------------------------ */
+
+/** "Fremont" -> "City of Fremont", matching whichever prefix the list uses. */
+function jurisdiction(city: string): string {
+  const name = String(city || '').trim();
+  if (!name) return '';
+  if (PICKLISTS.city.includes(name)) return name;
+  return PICKLISTS.city.find((c) => c.replace(/^(City and County of|City of|Town of)\s+/, '') === name) || '';
+}
+
+const first = (...vals: any[]) => {
+  for (const v of vals) {
+    const t = String(v ?? '').trim();
+    if (t) return t;
+  }
+  return '';
+};
+
+export function buildPrefill(project: any, lead: any): ProgramData {
+  const contact = first(
+    lead?.goByName,
+    [lead?.firstName, lead?.lastName].filter(Boolean).join(' '),
+    lead?.leadName,
+    project?.contactedBy,
+  );
+  const address = first(
+    [lead?.projectStreetAddress, lead?.projectStreetName].filter(Boolean).join(' '),
+    project?.location,
+  );
+  const fullAddress = [
+    address,
+    lead?.projectAddress2,
+    lead?.projectCity,
+    lead?.projectZipCode,
+  ].map((x) => String(x ?? '').trim()).filter(Boolean).join(', ');
+
+  const location = first(fullAddress, project?.location);
+  const city = jurisdiction(lead?.projectCity);
+  const county = first(lead?.countyLocation);
+  // Only offer a scope the list actually has -- the lead's project-type list is
+  // a different vocabulary, and a value from it would show as "not in the
+  // current list" on every project.
+  const scope = PICKLISTS.projectType.includes(String(lead?.potentialProjectType || '').trim())
+    ? String(lead.potentialProjectType).trim()
+    : '';
+  const hoa = String(lead?.hasHOA ?? '').trim();
+
+  return {
+    title: {
+      'main.projectTitle': first(project?.name),
+      'main.projectScope': scope,
+      'main.projectLocation': location,
+      'main.date': new Date().toISOString().slice(0, 10),
+      'main.contactName': contact,
+      'main.phone': first(lead?.phone),
+      'main.address': fullAddress,
+    },
+    parcel: {
+      'main.projectName': first(project?.name),
+      'main.projectLocation': location,
+      'authority.city': city,
+      'authority.county': county,
+      'authority.hoa': hoa === 'true' || hoa === 'Yes' ? 'Yes' : '',
+    },
+    zoning: {
+      'authority.city': city,
+      'authority.county': county,
+      'authority.hoa': hoa === 'true' || hoa === 'Yes' ? 'Yes' : '',
+    },
+  };
+}
+
+/**
+ * Lay the prefill under what is stored.
+ *
+ * Only keys the document has never held are filled: once a field has been
+ * saved, even as an empty string, it was answered deliberately and clearing it
+ * must stick rather than being undone on the next visit.
+ */
+export function withPrefill(stored: ProgramData, prefill: ProgramData): ProgramData {
+  const out: ProgramData = { ...stored };
+  for (const [stepKey, fields] of Object.entries(prefill)) {
+    const bag = { ...(stored[stepKey] || {}) };
+    let touched = false;
+    for (const [key, value] of Object.entries(fields)) {
+      if (!value) continue;
+      if (key in bag) continue;
+      bag[key] = value;
+      touched = true;
+    }
+    if (touched) out[stepKey] = bag;
+  }
+  return out;
+}

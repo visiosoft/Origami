@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
 import { ProjectProgram } from './ProjectProgram';
-import { stepForTaskId } from '../data/projectProgram';
+import { stepForTaskId, buildPrefill } from '../data/projectProgram';
 import { AssigneePicker } from '../components/AssigneePicker';
 import { Attachments, filesFromClipboard, nameClipboardFile } from '../components/Attachments';
 import { ActivityFeed } from '../components/ActivityFeed';
@@ -454,6 +454,7 @@ export function Projects() {
                   projectName={sel.name}
                   defaultTo={introLead?.email || ''}
                   initialStep={programStep}
+                  prefill={buildPrefill(sel, introLead)}
                   linkedTasks={(boardTasks as any[])
                     .map((t) => ({ stepKey: stepForTaskId(t.id) || '', id: t.id, title: t.title, done: !!t.completed || t.status === 'Done' }))
                     .filter((t) => t.stepKey)}

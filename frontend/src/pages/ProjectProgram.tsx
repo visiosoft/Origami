@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import {
-  PROGRAM_STEPS, PICKLISTS, money, num, stepFilled, stepTotals,
+  PROGRAM_STEPS, PICKLISTS, money, num, stepFilled, stepTotals, withPrefill,
   type PSection, type PField, type ProgramData,
 } from '../data/projectProgram';
 
@@ -22,7 +22,7 @@ const input: React.CSSProperties = {
  */
 export interface LinkedTask { stepKey: string; id: string; title: string; done: boolean }
 
-export function ProjectProgram({ projectId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask }: {
+export function ProjectProgram({ projectId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill }: {
   projectId: number;
   projectName?: string;
   defaultTo?: string;
@@ -30,6 +30,8 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
   initialStep?: string | null;
   /** The Project Programming tasks this form answers. */
   linkedTasks?: LinkedTask[];
+  /** What the project and its lead already know, laid under the answers. */
+  prefill?: ProgramData;
   onToggleTask?: (id: string, done: boolean) => void;
 }) {
   const { can, toast } = useApp();
@@ -54,7 +56,8 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
     setLoading(true);
     api.projectProgram.get(projectId)
       .then((res: any) => {
-        setData(res?.data || {});
+        // The prefill goes under what was saved, never over it.
+        setData(withPrefill(res?.data || {}, prefill || {}));
         setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '', sentAt: res?.sentAt || '', sentTo: res?.sentTo || '' });
         setDirty(false);
       })
@@ -63,6 +66,17 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
     setTo(defaultTo || '');
     setSubject(`Project Program — ${projectName || ''}`.trim());
   }, [projectId]);
+
+  // The lead is fetched alongside the program, so it can land after it. Re-lay
+  // the prefill when it arrives -- it never overwrites a stored answer, so
+  // running it more than once is harmless. Keyed on the content, not the
+  // object, which is rebuilt on every render.
+  const prefillKey = JSON.stringify(prefill || {});
+  useEffect(() => {
+    if (loading || !prefill) return;
+    setData((prev) => withPrefill(prev, prefill));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillKey, loading]);
 
   // Arriving from a phase card, open at the step that card produces.
   useEffect(() => {
