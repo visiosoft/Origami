@@ -20,7 +20,18 @@ const input: React.CSSProperties = {
  * half-filled is a normal state rather than a validation failure: this gets
  * built up over weeks as the research comes back.
  */
-export function ProjectProgram({ projectId, projectName, defaultTo }: { projectId: number; projectName?: string; defaultTo?: string }) {
+export interface LinkedTask { stepKey: string; id: string; title: string; done: boolean }
+
+export function ProjectProgram({ projectId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask }: {
+  projectId: number;
+  projectName?: string;
+  defaultTo?: string;
+  /** A step to open at, when arriving from the Phase Board. */
+  initialStep?: string | null;
+  /** The Project Programming tasks this form answers. */
+  linkedTasks?: LinkedTask[];
+  onToggleTask?: (id: string, done: boolean) => void;
+}) {
   const { can, toast } = useApp();
   const canManage = can('projects', 'manage');
   const [data, setData] = useState<ProgramData>({});
@@ -52,6 +63,13 @@ export function ProjectProgram({ projectId, projectName, defaultTo }: { projectI
     setTo(defaultTo || '');
     setSubject(`Project Program — ${projectName || ''}`.trim());
   }, [projectId]);
+
+  // Arriving from a phase card, open at the step that card produces.
+  useEffect(() => {
+    if (!initialStep) return;
+    const i = PROGRAM_STEPS.findIndex((st) => st.key === initialStep);
+    if (i >= 0) setStepIdx(i);
+  }, [initialStep]);
 
   const step = PROGRAM_STEPS[stepIdx];
   const values = data[step.key] || {};
@@ -311,6 +329,25 @@ export function ProjectProgram({ projectId, projectName, defaultTo }: { projectI
             </div>
           )}
         </div>
+
+        {(linkedTasks || []).filter((lt) => lt.stepKey === step.key).map((lt) => (
+          <div key={lt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: lt.done ? '#EDF4EC' : '#FBF8F2', border: '1px solid ' + (lt.done ? 'rgba(28,82,48,0.16)' : 'rgba(20,8,31,0.07)'), marginBottom: 16 }}>
+            <input
+              type="checkbox"
+              checked={lt.done}
+              disabled={!canManage || !onToggleTask}
+              onChange={(e) => onToggleTask?.(lt.id, e.target.checked)}
+              style={{ accentColor: '#173326' }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Project Programming</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', marginTop: 1 }}>{lt.title}</div>
+            </div>
+            <span style={{ fontSize: 10.5, color: '#7E9B93' }}>
+              {lt.done ? 'Done on the Phase Board' : 'Ticking this closes the card on the Phase Board'}
+            </span>
+          </div>
+        ))}
 
         {step.sections.map(renderSection)}
 

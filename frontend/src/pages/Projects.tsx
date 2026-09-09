@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
 import { ProjectProgram } from './ProjectProgram';
+import { stepForTaskId } from '../data/projectProgram';
 import { AssigneePicker } from '../components/AssigneePicker';
 import { Attachments, filesFromClipboard, nameClipboardFile } from '../components/Attachments';
 import { ActivityFeed } from '../components/ActivityFeed';
@@ -85,6 +86,9 @@ export function Projects() {
       .catch(() => { /* keep the fallback */ });
   }, []);
   const [subDraft, setSubDraft] = useState('');
+  // Which wizard step a phase card opens, so the Phase Board and the Project
+  // Program land on the same piece of work rather than sitting side by side.
+  const [programStep, setProgramStep] = useState<string | null>(null);
   const allLabels = Array.from(new Set(boardTasks.flatMap((t: any) => t.labels ?? []))).sort() as string[];
 
   const putTask = (t: any) => setBoardTasks((prev) => prev.map((x) => (x.id === t.id ? t : x)) as BoardTask[]);
@@ -119,8 +123,9 @@ export function Projects() {
    * comment on it.
    */
   const openPhaseTask = (pt: any, phase: { name: string; color: string }) => {
-    if (pt?.title === 'Project Program DRAFT') { setTab('program'); return; }
-    openPhaseTask(pt, phase);
+    const step = stepForTaskId(pt?.id);
+    if (step) { setProgramStep(step); setTab('program'); return; }
+    setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color });
   };
 
   const applyProgramme = (projectId: number) => {
@@ -444,7 +449,16 @@ export function Projects() {
               </div>
             ) : tab === 'program' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
-                <ProjectProgram projectId={sel.id} projectName={sel.name} defaultTo={introLead?.email || ''} />
+                <ProjectProgram
+                  projectId={sel.id}
+                  projectName={sel.name}
+                  defaultTo={introLead?.email || ''}
+                  initialStep={programStep}
+                  linkedTasks={(boardTasks as any[])
+                    .map((t) => ({ stepKey: stepForTaskId(t.id) || '', id: t.id, title: t.title, done: !!t.completed || t.status === 'Done' }))
+                    .filter((t) => t.stepKey)}
+                  onToggleTask={(id: string, done: boolean) => saveTask(id, { completed: done, status: done ? 'Done' : 'Not started' })}
+                />
               </div>
             ) : tab === 'tasks' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>

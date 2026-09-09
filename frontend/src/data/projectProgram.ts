@@ -456,6 +456,32 @@ export const PROGRAM_STEPS: PStep[] = [
   },
 ];
 
+
+/* ------------------------------------------------------------------ *
+ * The programme tasks this form answers.
+ *
+ * "Project Programming" on the Phase Board and "Project Program" here are the
+ * same piece of work seen twice: the phase is the checklist of what to do, the
+ * form is what doing it produces. Keyed on the template task id, which is the
+ * stable half of a task's id (T-<project>-<template id>), so renaming a task
+ * in the template does not break the link.
+ * ------------------------------------------------------------------ */
+
+export const TASK_STEP: Record<string, string> = {
+  'pp-03': 'title',       // Project Program DRAFT -- the whole document
+  'pp-04': 'zoning',      // Municipality: Zoning Analysis, Permit History, Review Procedure
+  'pp-05': 'aec',         // AEC Team outline
+  'pp-13': 'budget',      // Project Budget and Milestone Schedule
+  'pp-06': 'construction', // Client Review -- where it is sent from
+};
+
+/** The step a phase task opens, or null if it is not part of this form. */
+export function stepForTaskId(taskId?: string): string | null {
+  if (!taskId) return null;
+  const m = /^T-\d+-(.+)$/.exec(taskId);
+  return (m && TASK_STEP[m[1]]) || null;
+}
+
 /** What the API stores: one bag of answers per step key. */
 export type ProgramData = Record<string, Record<string, any>>;
 
