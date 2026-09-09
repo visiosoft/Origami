@@ -309,7 +309,22 @@ let PhasesService = class PhasesService {
         const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
         const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
         const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), weeks: weeks.get(ph.key) || 0 }));
-        return { phases, tasks };
+        const target = new Map();
+        for (const phase of plan) {
+            const split = phase.tasks.length && phase.weeks
+                ? Math.max(1, Math.round((Number(phase.weeks) * 5) / phase.tasks.length))
+                : 0;
+            for (const task of phase.tasks) {
+                const own = Number(task.days) || 0;
+                target.set(task.id, own ? { days: own, derived: false } : { days: split, derived: true });
+            }
+        }
+        const withTargets = tasks.map((row) => {
+            const m = /^T-\d+-(.+)$/.exec(row.id);
+            const hit = m ? target.get(m[1]) : undefined;
+            return { ...row, targetDays: hit?.days || 0, targetDerived: !!hit?.derived };
+        });
+        return { phases, tasks: withTargets };
     }
     create(dto) {
         const projectId = Number(dto.projectId);

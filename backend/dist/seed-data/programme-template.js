@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TEMPLATE_LABELS = exports.TEMPLATE_TEAMS = exports.DEFAULT_PROGRAMME = void 0;
 exports.parseProgramme = parseProgramme;
-const t = (id, title, team = '', labels = []) => ({ id, title, team, labels });
+const t = (id, title, team = '', labels = [], days = 0) => ({ id, title, team, labels, days });
 exports.DEFAULT_PROGRAMME = [
     {
         key: 'programming',
@@ -183,6 +183,7 @@ function parseProgramme(raw) {
                     id: String(task.id || `${p.key}-${j + 1}`),
                     title: String(task.title).trim(),
                     team: String(task.team || ''),
+                    days: Number.isFinite(Number(task.days)) && Number(task.days) > 0 ? Number(task.days) : 0,
                     labels: Array.isArray(task.labels) ? task.labels.map(String) : [],
                 }))
                 : [],

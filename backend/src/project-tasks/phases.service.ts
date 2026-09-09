@@ -388,7 +388,28 @@ export class PhasesService implements OnApplicationBootstrap {
     const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
     const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
     const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), weeks: weeks.get(ph.key) || 0 }));
-    return { phases, tasks };
+
+    // How long each task is meant to take, read off the template by its stable
+    // id so a change in the Library reaches every project at once. A task with
+    // no target of its own falls back to an even split of its phase's week
+    // estimate, flagged as derived so an even split is never mistaken for a
+    // considered figure.
+    const target = new Map<string, { days: number; derived: boolean }>();
+    for (const phase of plan) {
+      const split = phase.tasks.length && phase.weeks
+        ? Math.max(1, Math.round((Number(phase.weeks) * 5) / phase.tasks.length))
+        : 0;
+      for (const task of phase.tasks) {
+        const own = Number(task.days) || 0;
+        target.set(task.id, own ? { days: own, derived: false } : { days: split, derived: true });
+      }
+    }
+    const withTargets = tasks.map((row) => {
+      const m = /^T-\d+-(.+)$/.exec(row.id);
+      const hit = m ? target.get(m[1]) : undefined;
+      return { ...row, targetDays: hit?.days || 0, targetDerived: !!hit?.derived };
+    });
+    return { phases, tasks: withTargets };
   }
 
   create(dto: any) {

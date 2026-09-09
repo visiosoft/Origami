@@ -4,7 +4,7 @@ import { useApp } from '../AppContext';
 
 const BG = "'Bricolage Grotesque', serif";
 
-export interface TemplateTask { id: string; title: string; team: string; labels: string[] }
+export interface TemplateTask { id: string; title: string; team: string; labels: string[]; days?: number }
 export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; weeks?: number; tasks: TemplateTask[] }
 
 /**
@@ -219,6 +219,15 @@ export function ProgrammeTemplate() {
                         <option value="">No tag</option>
                         {LABELS.map((l) => <option key={l}>{l}</option>)}
                       </select>
+                      <input
+                        type="number"
+                        min={0}
+                        value={task.days || ''}
+                        onChange={(e) => patchTask(phase.key, task.id, { days: e.target.value === '' ? 0 : Number(e.target.value) })}
+                        placeholder="d"
+                        title="Working days this task should take. Left blank, the phase's week estimate is split evenly across its tasks."
+                        style={{ ...input, width: 46, flexShrink: 0, textAlign: 'right' }}
+                      />
                       <span onClick={() => moveTask(phase.key, ti, -1)} style={{ cursor: 'pointer', color: ti ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↑</span>
                       <span onClick={() => moveTask(phase.key, ti, 1)} style={{ cursor: 'pointer', color: ti < phase.tasks.length - 1 ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↓</span>
                       <span onClick={() => patchPhase(phase.key, { tasks: phase.tasks.filter((t) => t.id !== task.id) })} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 14, flexShrink: 0 }}>×</span>

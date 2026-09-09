@@ -135,6 +135,13 @@ export function DesignProject() {
 
   const isDone = (t: ProjectTask) => !!(t.completed || t.status === 'Done');
   const isProgress = (t: ProjectTask) => !isDone(t) && t.status === 'In progress';
+  const today = new Date().toISOString().slice(0, 10);
+  const isLate = (t: any) => !isDone(t) && !!t.dueDate && t.dueDate < today;
+  const lateCount = filtered.filter((r) => isLate(r.task)).length;
+  /** Working days a task should take, from the programme template. */
+  const targetOf = (t: any) => Number(t.targetDays) || 0;
+  const plannedDays = filtered.reduce((a, r) => a + targetOf(r.task), 0);
+  const doneDays = filtered.filter((r) => isDone(r.task)).reduce((a, r) => a + targetOf(r.task), 0);
   const doneCount = filtered.filter((r) => isDone(r.task)).length;
   const progCount = filtered.filter((r) => isProgress(r.task)).length;
   const openCount = filtered.length - doneCount - progCount;
@@ -242,6 +249,22 @@ export function DesignProject() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: '#C9BFA8' }} />{openCount} not started</span>
             </div>
 
+            <div style={{ display: 'flex', gap: 18, marginTop: 10, fontSize: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ color: INK3 }}>
+                {plannedDays ? <>{doneDays} of {plannedDays} planned days delivered</> : 'No day targets set yet'}
+              </span>
+              {lateCount > 0 ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 999, background: '#FBE4E4', color: '#B4232A', fontWeight: 700 }}>
+                  {lateCount} past due
+                </span>
+              ) : (
+                <span style={{ color: '#8A8194' }}>Nothing past its due date</span>
+              )}
+              {!plannedDays && (
+                <span style={{ color: '#8A8194' }}>Set them per task in the Programme Template.</span>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 14px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, background: PAPER, flex: '1 1 220px', maxWidth: 340 }}>
                 <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={INK3} strokeWidth={2} strokeLinecap="round"><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
@@ -347,8 +370,20 @@ export function DesignProject() {
                                   {task.assignee || 'Unassigned'}
                                 </span>
                               </div>
-                              <span style={{ fontSize: 11.5, fontWeight: 600, color: overdue ? '#B4232A' : '#8A8194', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                                {task.dueDate || 'No date'}
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+                                {targetOf(task) > 0 && (
+                                  <span
+                                    title={(task as any).targetDerived
+                                      ? "Derived by splitting the phase's week estimate across its tasks — set a real one in the Programme Template."
+                                      : 'Target from the Programme Template'}
+                                    style={{ fontSize: 11, fontWeight: 600, color: (task as any).targetDerived ? '#B7AFC4' : '#4A4357', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+                                  >
+                                    {(task as any).targetDerived ? '~' : ''}{targetOf(task)}d
+                                  </span>
+                                )}
+                                <span style={{ fontSize: 11.5, fontWeight: 600, color: overdue ? '#B4232A' : '#8A8194', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                  {task.dueDate || 'No date'}
+                                </span>
                               </span>
                             </div>
 

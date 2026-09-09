@@ -8,6 +8,15 @@
 export interface TemplateTask {
   id: string;
   title: string;
+  /**
+   * How many working days this task is expected to take.
+   *
+   * Zero means nobody has set one. Rather than show nothing, the board then
+   * derives a target by splitting the phase's own week estimate across its
+   * tasks, and marks that figure as derived -- an even split is a guess, and
+   * it should not be mistaken for the office's judgement.
+   */
+  days?: number;
   /** Who normally carries it — Admin, Architect, Accounting, and so on. */
   team: string;
   /** Free tags shown on the card: Deliverable, Approval, Auto, … */
@@ -38,8 +47,8 @@ export interface TemplatePhase {
 }
 
 /** Stable ids so editing a template never re-creates tasks already on a job. */
-const t = (id: string, title: string, team = '', labels: string[] = []): TemplateTask =>
-  ({ id, title, team, labels });
+const t = (id: string, title: string, team = '', labels: string[] = [], days = 0): TemplateTask =>
+  ({ id, title, team, labels, days });
 
 export const DEFAULT_PROGRAMME: TemplatePhase[] = [
   {
@@ -225,6 +234,7 @@ export function parseProgramme(raw: string | null | undefined): TemplatePhase[] 
                 id: String(task.id || `${p.key}-${j + 1}`),
                 title: String(task.title).trim(),
                 team: String(task.team || ''),
+                days: Number.isFinite(Number(task.days)) && Number(task.days) > 0 ? Number(task.days) : 0,
                 labels: Array.isArray(task.labels) ? task.labels.map(String) : [],
               }))
           : [],

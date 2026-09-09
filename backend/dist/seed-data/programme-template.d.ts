@@ -1,6 +1,7 @@
 export interface TemplateTask {
     id: string;
     title: string;
+    days?: number;
     team: string;
     labels: string[];
 }
