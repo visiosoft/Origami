@@ -455,6 +455,8 @@ export function Projects() {
                   defaultTo={introLead?.email || ''}
                   initialStep={programStep}
                   prefill={buildPrefill(sel, introLead)}
+                  clientPersonality={introLead?.clientPersonality || ''}
+                  clientName={introLead?.goByName || introLead?.leadName || ''}
                   linkedTasks={(boardTasks as any[])
                     .map((t) => ({ stepKey: stepForTaskId(t.id) || '', id: t.id, title: t.title, done: !!t.completed || t.status === 'Done' }))
                     .filter((t) => t.stepKey)}

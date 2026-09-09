@@ -5,6 +5,7 @@ import {
   PROGRAM_STEPS, PICKLISTS, money, num, stepFilled, stepTotals, withPrefill,
   type PSection, type PField, type ProgramData,
 } from '../data/projectProgram';
+import { PERSONALITY_TEMPLATE, templateKeyForPersonality, mergeTokens } from '../data/clientPersonality';
 
 const BG = "'Bricolage Grotesque', serif";
 const input: React.CSSProperties = {
@@ -22,7 +23,7 @@ const input: React.CSSProperties = {
  */
 export interface LinkedTask { stepKey: string; id: string; title: string; done: boolean }
 
-export function ProjectProgram({ projectId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill }: {
+export function ProjectProgram({ projectId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill, clientPersonality, clientName }: {
   projectId: number;
   projectName?: string;
   defaultTo?: string;
@@ -32,6 +33,9 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
   linkedTasks?: LinkedTask[];
   /** What the project and its lead already know, laid under the answers. */
   prefill?: ProgramData;
+  /** How this client communicates, from the intake -- picks the message tone. */
+  clientPersonality?: string;
+  clientName?: string;
   onToggleTask?: (id: string, done: boolean) => void;
 }) {
   const { can, toast } = useApp();
@@ -48,6 +52,8 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
   const [cc, setCc] = useState('');
   const [subject, setSubject] = useState('');
   const [note, setNote] = useState('');
+  const [tone, setTone] = useState('');
+  const [templates, setTemplates] = useState<any[]>([]);
   const loadedFor = useRef<number | null>(null);
 
   useEffect(() => {
@@ -66,6 +72,29 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
     setTo(defaultTo || '');
     setSubject(`Project Program — ${projectName || ''}`.trim());
   }, [projectId]);
+
+  useEffect(() => { api.emailTemplates.list().then((r: any) => { if (Array.isArray(r)) setTemplates(r); }).catch(() => { }); }, []);
+
+  // The covering note is written in the tone the intake recorded for this
+  // client. Only laid down while the note is untouched -- once someone has
+  // written their own words, switching tone is their choice, not ours.
+  const noteTouched = useRef(false);
+  useEffect(() => {
+    if (!templates.length) return;
+    const key = tone || templateKeyForPersonality(clientPersonality);
+    if (!tone) setTone(key);
+    if (noteTouched.current) return;
+    const tpl = templates.find((t: any) => t.key === key);
+    if (!tpl) return;
+    setNote(mergeTokens(tpl.body || '', {
+      clientName: clientName || 'there',
+      projectTitle: projectName || '',
+      projectScope: String(data.title?.['main.projectScope'] || ''),
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      senderName: '',
+    }).trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templates, tone, clientPersonality]);
 
   // The lead is fetched alongside the program, so it can land after it. Re-lay
   // the prefill when it arrives -- it never overwrites a stored answer, so
@@ -407,8 +436,27 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
                 <input value={subject} onChange={(e) => setSubject(e.target.value)} style={input} />
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
-                {label('Message', 'Left blank, a short covering note is used.')}
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={5} style={{ ...input, resize: 'vertical', lineHeight: 1.55 }} />
+                {label('Tone', clientPersonality
+                  ? `From the intake: this client is ${clientPersonality}.`
+                  : 'No client personality recorded on the lead, so the standard wording is used.')}
+                <select
+                  value={tone}
+                  onChange={(e) => { noteTouched.current = false; setTone(e.target.value); }}
+                  style={input}
+                >
+                  {Object.entries(PERSONALITY_TEMPLATE).map(([person, key]) => (
+                    <option key={key} value={key}>{person}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                {label('Message', 'Written in the tone above. Edit freely — switching tone will not overwrite your words.')}
+                <textarea
+                  value={note}
+                  onChange={(e) => { noteTouched.current = true; setNote(e.target.value); }}
+                  rows={12}
+                  style={{ ...input, resize: 'vertical', lineHeight: 1.55 }}
+                />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

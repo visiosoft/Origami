@@ -150,5 +150,197 @@ exports.DEFAULT_EMAIL_TEMPLATES = [
         category: 'Finance',
         updatedAt: '',
     },
+    {
+        id: 'TPL-personality-analytical',
+        key: 'client_email_analytical',
+        name: 'Client Update — Analytical / Detail-Oriented',
+        subject: '{{projectTitle}} — status, figures and next step',
+        body: `{{clientName}},
+
+Here is where {{projectTitle}} stands as of {{date}}.
+
+1. Scope: {{projectScope}}
+2. Completed since the last update: [what finished, with dates]
+3. In progress now: [what is running, and who holds it]
+4. Budget: [committed to date] against [projection], a variance of [amount]
+5. Schedule: [weeks elapsed] of [total], currently [on / ahead of / behind] plan
+
+Supporting documents are attached so you can check the figures yourself.
+
+What I need from you: [the single decision or document], by [date]. If anything in the numbers does not reconcile against your own records, tell me which line and I will trace it.
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-driver',
+        key: 'client_email_driver',
+        name: 'Client Update — Driver / Decisive',
+        subject: '{{projectTitle}} — one decision needed by [date]',
+        body: `{{clientName}},
+
+Bottom line: [the decision], by [date].
+
+Option A: [option] — [cost], [time impact]
+Option B: [option] — [cost], [time impact]
+
+My recommendation is [A or B], because [one sentence].
+
+Everything else on {{projectTitle}} is on track. Reply with a letter and I will run with it. Detail is attached if you want it; you do not need it to decide.
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-expressive',
+        key: 'client_email_expressive',
+        name: 'Client Update — Expressive / Visionary',
+        subject: '{{projectTitle}} — something to show you',
+        body: `{{clientName}},
+
+There is something worth seeing on {{projectTitle}} this week.
+
+[What has taken shape, described as the client will experience it — the light in the room, the approach to the door, the way the space opens up.]
+
+[What is coming next, and what it will feel like when it lands.]
+
+Attached: [renderings, images, samples].
+
+Tell me what you react to and what you do not — that reaction shapes the next round more than anything else we do. If it is easier to talk it through, I will find twenty minutes this week.
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-amiable',
+        key: 'client_email_amiable',
+        name: 'Client Update — Amiable / Collaborative',
+        subject: '{{projectTitle}} — where we are, and how it is sitting with you',
+        body: `Hello {{clientName}},
+
+A quick note on {{projectTitle}} so you are never wondering.
+
+Since we last spoke: [what happened]. Next: [what happens now, and who on our side is doing it].
+
+There is one thing we would like your thoughts on: [the question]. There is no wrong answer, and no rush on it — we would rather take the extra day and get it right with you than move fast past something that matters.
+
+How is all of this sitting with you? If a call is easier than email, say the word and we will find a time that suits.
+
+Warm regards,
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-skeptical',
+        key: 'client_email_skeptical',
+        name: 'Client Update — Skeptical / Cautious',
+        subject: '{{projectTitle}} — update, with the reasoning behind it',
+        body: `{{clientName}},
+
+An update on {{projectTitle}}, with the reasoning set out so you can judge it rather than take it on trust.
+
+What we did: [action]
+Why: [reason]
+What it is based on: [the code section, the survey, the quote, the inspection]
+What could still change it: [the honest risk], and how we would handle that: [mitigation]
+
+Costs to date are [amount] against a projection of [amount]. Nothing has been committed beyond what you have approved in writing.
+
+Attached is the documentation behind the above. If you want a second opinion on any of it, I will send the file to whoever you nominate.
+
+No decision is needed from you this week unless you want one made.
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-overwhelmed',
+        key: 'client_email_overwhelmed',
+        name: 'Client Update — Overwhelmed / Needs Guidance',
+        subject: '{{projectTitle}} — one small thing this week',
+        body: `Hello {{clientName}},
+
+Short note, and only one thing to do.
+
+Where we are: [one plain sentence].
+
+The only thing we need from you this week: [the single request]. That is it — everything else is with us.
+
+If you would rather talk it through than read it, ring me on [phone] and we will do it in five minutes. And if this week is not a good week, tell me and we will move it; nothing breaks.
+
+You are not behind. The project is where it should be.
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-hands-off',
+        key: 'client_email_hands_off',
+        name: 'Client Update — Hands-Off / Delegator',
+        subject: '{{projectTitle}} — for your records, no action needed',
+        body: `{{clientName}},
+
+For the record, on {{projectTitle}}:
+
+Completed: [what finished]
+Underway: [what is running]
+Budget: [committed] of [projection]
+Schedule: [status]
+
+We are proceeding as planned and will handle [the decisions in hand] within the authority you have already given us.
+
+One item sits above that line: [the item], at [amount]. Unless you tell us otherwise by [date], we will proceed as described.
+
+Nothing else needs you.
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
+    {
+        id: 'TPL-personality-neutral',
+        key: 'client_email_neutral',
+        name: 'Client Update — Standard',
+        subject: '{{projectTitle}} — project update',
+        body: `{{clientName}},
+
+An update on {{projectTitle}} as of {{date}}.
+
+Completed: [what finished]
+In progress: [what is running]
+Next: [what happens next, and when]
+
+Budget stands at [committed] against a projection of [amount]. The schedule is [status].
+
+What we need from you: [request], by [date].
+
+Any questions, reply here or ring me on [phone].
+
+{{senderName}}
+Origami Design + Build`,
+        kind: 'email',
+        category: 'Client Personality',
+        updatedAt: '',
+    },
 ];
 //# sourceMappingURL=email-templates.js.map
