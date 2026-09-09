@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
-import { WorkflowsView } from '../components/WorkflowsView';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
@@ -17,7 +16,10 @@ export function Projects() {
   const canManage = can('projects', 'manage');
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'workflow' | 'tasks'>('overview');
+  const [tab, setTab] = useState<'overview' | 'phases' | 'tasks'>('overview');
+  // The Phase Board reads either as columns or as a grouped list.
+  const [phaseView, setPhaseView] = useState<'board' | 'list'>('board');
+  const [shutPhases, setShutPhases] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [np, setNp] = useState<Partial<Project>>(BLANK);
@@ -299,7 +301,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'workflow' || tab === 'tasks' || tab === 'phases' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'tasks' || tab === 'phases' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -328,12 +330,6 @@ export function Projects() {
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={7} height={7} /><rect x={14} y={3} width={7} height={7} /><rect x={3} y={14} width={7} height={7} /><rect x={14} y={14} width={7} height={7} /></svg>
                   Phase Board
-                </span>
-              </div>
-              <div onClick={() => setTab('workflow')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'workflow' ? '#173326' : 'transparent'), color: tab === 'workflow' ? '#0B1A12' : '#7E9B93' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
-                  Workflows
                 </span>
               </div>
               <div onClick={() => setTab('tasks')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
@@ -380,7 +376,7 @@ export function Projects() {
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                 <TaskBoard projectId={sel.id} />
               </div>
-            ) : tab === 'phases' ? (
+            ) : (
               <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11.5, color: '#7E9B93' }}>
@@ -388,14 +384,26 @@ export function Projects() {
                       ? `${workflow.length} phases · ${workflow.reduce((a, w) => a + w.count, 0)} tasks`
                       : 'This project has no programme yet.'}
                   </span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: '#EFEDE8', borderRadius: 999 }}>
+                    {(['board', 'list'] as const).map((v) => (
+                      <div
+                        key={v}
+                        onClick={() => setPhaseView(v)}
+                        style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: phaseView === v ? 'white' : 'transparent', color: phaseView === v ? '#0B1A12' : '#7E9B93', boxShadow: phaseView === v ? '0 1px 3px rgba(20,8,31,0.1)' : 'none' }}
+                      >
+                        {v}
+                      </div>
+                    ))}
+                  </div>
                   <div
                     onClick={applying || !sel ? undefined : () => applyProgramme(sel.id)}
                     title="Add any phases and tasks the template has that this project is missing. Nothing is removed."
-                    style={{ marginLeft: 'auto', padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applying ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+                    style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applying ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
                   >
                     {applying ? 'Applying…' : 'Apply programme template'}
                   </div>
                 </div>
+                {phaseView === 'board' ? (<>
                 {/* Wizard step indicator */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 16, padding: '0 4px' }}>
                   {workflow.map((step) => (
@@ -476,10 +484,70 @@ export function Projects() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
-                <WorkflowsView projectId={sel.id} />
+                </>) : (
+                  /* List view: the same programme, read as rows grouped by phase. */
+                  <div style={{ minWidth: 720 }}>
+                    {workflow.map((phase) => {
+                      const shut = shutPhases.includes(phase.id);
+                      const GRID = 'minmax(240px, 1fr) 150px 112px 150px 132px';
+                      return (
+                        <div key={phase.id} style={{ marginBottom: 14, border: '1px solid rgba(20,8,31,0.07)', borderRadius: 11, overflow: 'hidden', background: 'white' }}>
+                          <div
+                            onClick={() => setShutPhases((prev) => (shut ? prev.filter((x) => x !== phase.id) : [...prev, phase.id]))}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F7F9F7', borderLeft: `3px solid ${phase.color}`, cursor: 'pointer' }}
+                          >
+                            <span style={{ fontSize: 9, color: '#9AA39D', transform: shut ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12' }}>{phase.name}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
+                            <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#7E9B93', fontWeight: 600 }}>{phase.doneCount}/{phase.count} done</span>
+                          </div>
+                          {!shut && (
+                            <div style={{ opacity: phase.isLocked ? 0.7 : 1 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, padding: '7px 12px 7px 26px', borderBottom: '1px solid rgba(20,8,31,0.06)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+                                <span>Name</span><span>Role</span><span>Status</span><span>Assignee</span><span>Dates</span>
+                              </div>
+                              {phase.tasks.length === 0 && (
+                                <div style={{ padding: '12px 26px', fontSize: 11.5, color: '#9AA39D' }}>No tasks in this phase yet.</div>
+                              )}
+                              {phase.tasks.map((pt) => {
+                                const sc = WF_ST_COLORS[pt.status] || { bg: '#EFEDE8', c: '#7E9B93' };
+                                const done = pt.status === 'Done';
+                                return (
+                                  <div
+                                    key={pt.title}
+                                    onClick={() => setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color })}
+                                    style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '9px 12px 9px 26px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', background: done ? '#FBFDFA' : 'white' }}
+                                  >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 500, color: done ? '#43514D' : '#0B1A12' }}>
+                                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={done ? '#1C5230' : '#C9CDC9'} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx={12} cy={12} r={10} /><polyline points="9 12 11.5 14.5 16 10" /></svg>
+                                      {pt.title}
+                                    </span>
+                                    <span>
+                                      {pt.team && (
+                                        <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
+                                      )}
+                                    </span>
+                                    <span><span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, background: sc.bg, color: sc.c }}>{pt.status}</span></span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#7E9B93' }}>
+                                      {pt.assignee ? (
+                                        <>
+                                          <span style={{ width: 18, height: 18, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(pt.assignee)}</span>
+                                          {pt.assignee}
+                                        </>
+                                      ) : <span style={{ color: '#C9CDC9' }}>Unassigned</span>}
+                                    </span>
+                                    <span style={{ fontSize: 10.5, color: pt.start ? '#7E9B93' : '#C9CDC9' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'No dates'}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
