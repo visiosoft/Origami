@@ -667,7 +667,23 @@ export function Projects() {
                     </select>
                   ))}
                   {fieldBox('Role', (
-                    <input disabled={!canManage} value={live.team || ''} onChange={(e) => patchLocal(live.id, { team: e.target.value })} onBlur={(e) => saveTask(live.id, { team: e.target.value })} placeholder="Team or discipline" style={inputStyle} />
+                    <select
+                      disabled={!canManage}
+                      value={live.team || ''}
+                      onChange={(e) => { patchLocal(live.id, { team: e.target.value }); saveTask(live.id, { team: e.target.value }); }}
+                      style={inputStyle}
+                    >
+                      <option value="">None</option>
+                      {/* The team already typed onto this task, even one that
+                          predates this list or was free-typed loosely (e.g.
+                          "Admin" instead of "Admin & Coordination") — kept
+                          selectable so switching to a dropdown never silently
+                          drops what a task already had. */}
+                      {live.team && !(live.team in TEAM_COLORS) && (
+                        <option value={live.team}>{live.team} (not a standard team — pick one below to fix)</option>
+                      )}
+                      {Object.keys(TEAM_COLORS).map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   ))}
                   {fieldBox('Dates', (
                     <div style={{ fontSize: 12, color: pt.start ? '#43514D' : '#9AA39D', padding: '9px 0' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'Not scheduled'}</div>
