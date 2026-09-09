@@ -307,7 +307,8 @@ let PhasesService = class PhasesService {
         const rows = await this.tasks.find({ order: { order: 'ASC' } });
         const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
         const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
-        const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key) }));
+        const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
+        const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), weeks: weeks.get(ph.key) || 0 }));
         return { phases, tasks };
     }
     create(dto) {

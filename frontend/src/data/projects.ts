@@ -125,10 +125,12 @@ export interface ComputedPhase extends WfPhase {
   count: number; doneCount: number; progress: number; locked: boolean;
   isComplete: boolean; isLocked: boolean; isActive: boolean; statusLabel: string;
   statusBg: string; statusC: string; headerOpacity: string;
+  /** The estimate from the programme template, and where it falls in the run. */
+  weeks: number; weekFrom: number; weekTo: number;
 }
 
 /** A phase row as the board needs it, built from the project's real data. */
-export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean }
+export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; weeks?: number }
 export interface BoardTask {
   id: string; phaseId?: string; title: string; status?: string; completed?: boolean; order?: number;
   assignee?: string; team?: string; auto?: boolean; autoLabel?: string;
@@ -147,6 +149,8 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
   // real job overlap; the last card is the handover that lets the next start.
   // An empty phase gates nothing and passes the previous phase's gate through.
   let gateOpen = true;
+  // Where each phase falls in the run, by adding up the estimates before it.
+  let weekCursor = 0;
   return [...phases].sort((a, b) => a.order - b.order).map((ph, idx) => {
     const own = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
     const isDone = (t: BoardTask) => !!t.completed || t.status === 'Done';
@@ -187,10 +191,14 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
       isLocked: locked,
       isActive: !locked && !allDone,
       statusLabel: phaseStatus,
+      weeks: Number(ph.weeks) || 0,
+      weekFrom: weekCursor,
+      weekTo: weekCursor + (Number(ph.weeks) || 0),
       statusBg: allDone ? '#D2EAD3' : locked ? '#EFEDE8' : '#D6E8E5',
       statusC: allDone ? '#1C5230' : locked ? '#9AA39D' : '#2F6F68',
       headerOpacity: locked ? '0.55' : '1',
     };
+    weekCursor += Number(ph.weeks) || 0;
     const ordered = [...own].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     if (ordered.length) gateOpen = isDone(ordered[ordered.length - 1]);
     return result;

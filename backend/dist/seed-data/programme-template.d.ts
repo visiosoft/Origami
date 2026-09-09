@@ -9,6 +9,7 @@ export interface TemplatePhase {
     name: string;
     color: string;
     gated?: boolean;
+    weeks?: number;
     tasks: TemplateTask[];
 }
 export declare const DEFAULT_PROGRAMME: TemplatePhase[];

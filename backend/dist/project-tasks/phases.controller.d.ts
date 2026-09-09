@@ -48,6 +48,7 @@ export declare class PhasesController {
     board(projectId: string): Promise<{
         phases: {
             gated: boolean;
+            weeks: number;
             id: string;
             projectId: number;
             key: string;

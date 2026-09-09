@@ -5,7 +5,7 @@ import { useApp } from '../AppContext';
 const BG = "'Bricolage Grotesque', serif";
 
 export interface TemplateTask { id: string; title: string; team: string; labels: string[] }
-export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; tasks: TemplateTask[] }
+export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; weeks?: number; tasks: TemplateTask[] }
 
 /**
  * Not a person: marks work meant to run by itself. Everything else in the list
@@ -162,6 +162,17 @@ export function ProgrammeTemplate() {
                 <select value={phase.color} onChange={(e) => patchPhase(phase.key, { color: e.target.value })} style={{ ...input, width: 74, flexShrink: 0 }}>
                   {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
+                <label title="How long this phase is expected to take. It sets the projected week range on every project's Phase Board." style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, color: '#7E9B93', flexShrink: 0 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    value={phase.weeks ?? ''}
+                    onChange={(e) => patchPhase(phase.key, { weeks: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    placeholder="0"
+                    style={{ ...input, width: 52, textAlign: 'right' }}
+                  />
+                  wks
+                </label>
                 <label
                   title={i === 0
                     ? 'The first phase has nothing before it, so it can never be locked.'

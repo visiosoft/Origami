@@ -386,7 +386,8 @@ export class PhasesService implements OnApplicationBootstrap {
     // than copied onto the phase rows, so changing it in the Library takes
     // effect everywhere at once instead of only where the template was applied.
     const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
-    const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key) }));
+    const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
+    const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), weeks: weeks.get(ph.key) || 0 }));
     return { phases, tasks };
   }
 

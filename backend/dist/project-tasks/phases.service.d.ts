@@ -59,6 +59,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
     board(projectId: number): Promise<{
         phases: {
             gated: boolean;
+            weeks: number;
             id: string;
             projectId: number;
             key: string;

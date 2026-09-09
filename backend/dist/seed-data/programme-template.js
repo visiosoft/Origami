@@ -8,6 +8,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'programming',
         name: 'Project Programming',
         color: '#0E5A8A',
+        weeks: 4,
         tasks: [
             t('pp-01', 'Phone Interview & Project Fit', 'Admin'),
             t('pp-02', 'Introduction Letter', 'Project Manager'),
@@ -29,6 +30,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'schematic',
         name: 'Schematic Design',
         color: '#0F7C7C',
+        weeks: 8,
         tasks: [
             t('sd-site-survey', 'Site Survey', 'Project Manager'),
             t('sd-field-study', 'Field Study & As-Built Drawings', 'Project Manager'),
@@ -54,6 +56,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'dd',
         name: 'Design Development & Plans',
         color: '#6B2FA0',
+        weeks: 6,
         tasks: [
             t('dd-01', 'Municipal Planning Application Package', 'Project Manager'),
             t('dd-02', 'Municipal Planning/Entitlement Submission', 'Admin'),
@@ -69,6 +72,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'ccd',
         name: 'Construction Contract Documents & Building Permit',
         color: '#A03A1F',
+        weeks: 10,
         tasks: [
             t('ccd-permit-review', 'Municipality: review building permit application, requirements and process', 'Admin'),
             t('ccd-cd-75', 'CD Drawing Package 75% (building permit code review)', 'Architect'),
@@ -89,6 +93,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'interior',
         name: 'Interior Design',
         color: '#B0356F',
+        weeks: 6,
         tasks: [
             t('id-narrative', 'Interior Narrative and Inspiration Boards', 'Interior Design', ['Deliverable']),
             t('id-conceptual', 'Interior Conceptual Designs (FF&E)', 'Interior Design'),
@@ -102,6 +107,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'ca',
         name: 'Construction Administration',
         color: '#1F5FA0',
+        weeks: 0,
         tasks: [
             t('ca-kickoff', 'Construction kick off meeting', 'Architect'),
             t('ca-rfi', 'Request for Information/Clarifications', 'Project Manager'),
@@ -115,6 +121,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'gc',
         name: 'General Contractor Selection',
         color: '#8A6A0E',
+        weeks: 4,
         tasks: [
             t('gc-preliminary-list', 'Preliminary list of potential builders', 'Project Manager'),
             t('gc-review-references', 'Review GC list and references', 'Project Manager'),
@@ -127,6 +134,7 @@ exports.DEFAULT_PROGRAMME = [
         key: 'closeout',
         name: 'Closeout',
         color: '#145C33',
+        weeks: 3,
         tasks: [
             t('co-01', 'Final Punch List', 'Architect'),
             t('co-02', 'As-Built Drawings Issued', 'Architect', ['Deliverable']),
@@ -166,6 +174,7 @@ function parseProgramme(raw) {
             name: String(p.name),
             color: typeof p.color === 'string' && p.color ? p.color : '#173326',
             gated: !!p.gated,
+            weeks: Number.isFinite(Number(p.weeks)) && Number(p.weeks) > 0 ? Number(p.weeks) : 0,
             order: i,
             tasks: Array.isArray(p.tasks)
                 ? p.tasks

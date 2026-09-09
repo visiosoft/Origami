@@ -472,7 +472,10 @@ export function Projects() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11.5, color: '#7E9B93' }}>
                     {workflow.length
-                      ? `${workflow.length} phases · ${workflow.reduce((a, w) => a + w.count, 0)} tasks`
+                      ? `${workflow.length} phases · ${workflow.reduce((a, w) => a + w.count, 0)} tasks${
+                          workflow.reduce((a, w) => a + w.weeks, 0)
+                            ? ` · ${workflow.reduce((a, w) => a + w.weeks, 0)} weeks estimated`
+                            : ''}`
                       : 'This project has no programme yet.'}
                   </span>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: '#EFEDE8', borderRadius: 999 }}>
@@ -520,6 +523,11 @@ export function Projects() {
                           <div style={{ width: 8, height: 8, borderRadius: 3, background: phase.color, flexShrink: 0 }} />
                           <div style={{ fontSize: 11, fontWeight: 700, color: '#0B1A12', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phase.name}</div>
                           <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
+                        </div>
+                        <div style={{ fontSize: 9.5, color: '#9AA39D', marginBottom: 6 }}>
+                          {phase.weeks
+                            ? `${phase.weeks} wks · week ${phase.weekFrom}–${phase.weekTo}`
+                            : 'No estimate'}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <div style={{ flex: 1, height: 4, background: 'rgba(20,8,31,0.06)', borderRadius: 999, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, background: phase.color, width: phase.progress + '%', transition: 'width 0.3s' }} /></div>
@@ -591,7 +599,10 @@ export function Projects() {
                             <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12' }}>{phase.name}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
                             <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
-                            <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#7E9B93', fontWeight: 600 }}>{phase.doneCount}/{phase.count} done</span>
+                            <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#9AA39D' }}>
+                              {phase.weeks ? `${phase.weeks} wks · week ${phase.weekFrom}–${phase.weekTo}` : 'No estimate'}
+                            </span>
+                            <span style={{ fontSize: 10.5, color: '#7E9B93', fontWeight: 600 }}>{phase.doneCount}/{phase.count} done</span>
                           </div>
                           {!shut && (
                             <div style={{ opacity: phase.isLocked ? 0.7 : 1 }}>
