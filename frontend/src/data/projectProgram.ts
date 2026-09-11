@@ -284,25 +284,45 @@ export const PROGRAM_STEPS: PStep[] = [
   {
     key: 'budget',
     name: 'Project Budget Projection',
-    blurb: 'The whole job at a glance. The detail behind the AEC and municipal lines is on their own steps.',
+    blurb: 'The whole job at a glance, as a range early on. The detail behind the AEC and municipal lines is on their own steps.',
     totalOf: ['soft', 'hard'],
     sections: [
       { key: 'opening', kind: 'table', rows: [r('titleInsurance', 'Title Insurance')] },
       {
-        key: 'soft', title: 'Soft Cost', kind: 'table', rows: [
+        // Renamed for the client-facing document -- the *storage* key stays
+        // 'soft' so nothing written under it by an earlier version orphans.
+        key: 'soft', title: 'Design and Approvals', kind: 'table', rows: [
           r('aecDesignTeam', 'AEC Design Team'),
           r('municipalFees', 'Municipal Fees'),
         ],
       },
       {
-        key: 'hard', title: 'Hard Costs', kind: 'table', rows: [
+        // Same note as above -- storage key stays 'hard'. Renamed to
+        // "Construction" here, which collides in the UI with the
+        // Milestone Schedule's own "Construction" section and with the
+        // separate "Construction Budget Projection" step further down; every
+        // place that shows a section title also shows its step name, so a
+        // reader never sees a bare "Construction" without that context.
+        key: 'hard', title: 'Construction', kind: 'table', rows: [
           r('demolition', 'Demolition'),
           r('siteImprovements', 'Site Improvements'),
           r('construction', 'Construction'),
           r('interiorAllowances', 'Interior Allowances'),
         ],
       },
-      { key: 'contingency', title: 'Contingency', kind: 'table', rows: [r('contingency', 'Contingency')] },
+      {
+        // Phased contingency (40% conceptual / 30% design development / 10%
+        // building permit) as three labeled lines rather than one flat row,
+        // so each phase's contingency can still be totaled like any other
+        // budget line. The old single 'contingency' row is read as a
+        // fallback display (see contingencyLegacyValue below) so the
+        // projects that already have a value there don't go blank.
+        key: 'contingency', title: 'Contingency', kind: 'table', rows: [
+          r('contingencyConceptual', 'Contingency — Conceptual (40%)'),
+          r('contingencyDesignDev', 'Contingency — Design Development (30%)'),
+          r('contingencyPermit', 'Contingency — Building Permit (10%)'),
+        ],
+      },
     ],
   },
   {
@@ -511,6 +531,68 @@ export function stepTotals(step: PStep, values: Record<string, any> = {}) {
   return { budget, actual };
 }
 
+/**
+ * A step's totals as a range (low–high), over the sections named in totalOf.
+ *
+ * A row with no range yet falls back to its old single `budget` figure on
+ * both ends, so a project with only legacy single-figure rows still totals
+ * to something sensible rather than $0 — the range just happens to be a
+ * point until someone enters a real spread.
+ */
+export function stepRangeTotals(step: PStep, values: Record<string, any> = {}) {
+  let low = 0;
+  let high = 0;
+  for (const section of step.sections) {
+    if (section.kind !== 'table') continue;
+    if (step.totalOf && !step.totalOf.includes(section.key)) continue;
+    for (const row of section.rows || []) {
+      const cell = values[row.key] || {};
+      const hasRange = String(cell.rangeLow ?? '').trim() || String(cell.rangeHigh ?? '').trim();
+      if (hasRange) {
+        low += num(cell.rangeLow);
+        high += num(cell.rangeHigh ?? cell.rangeLow);
+      } else {
+        low += num(cell.budget);
+        high += num(cell.budget);
+      }
+    }
+  }
+  return { low, high };
+}
+
+export function rangeText(low: number, high: number): string {
+  return low === high ? money(low) : `${money(low)} – ${money(high)}`;
+}
+
+/**
+ * The old flat Contingency row's value, read as a fallback.
+ *
+ * Contingency moved from one row to three phased rows (40/30/10); a project
+ * that already had a value under the old row key shows it here rather than
+ * going blank until someone re-enters it under the new phased rows.
+ */
+export function contingencyLegacyValue(values: Record<string, any> = {}) {
+  const anyNew = ['contingencyConceptual', 'contingencyDesignDev', 'contingencyPermit']
+    .some((k) => String(values[k]?.budget ?? '').trim() || String(values[k]?.rangeLow ?? '').trim());
+  if (anyNew) return null;
+  const legacy = values['contingency'];
+  if (!legacy || (!String(legacy.budget ?? '').trim() && !String(legacy.rangeLow ?? '').trim())) return null;
+  return legacy;
+}
+
+/**
+ * A milestone/weeks row's value, tolerant of the old shape.
+ *
+ * Before, a row held a bare number of weeks. It now holds
+ * `{ weeks?, rangeText? }` so a broad range ("3-6 months") can be entered
+ * instead of a single figure. A bare value already saved is read as
+ * `{ weeks: <that value> }` rather than being lost.
+ */
+export function weeksValue(cell: any): { weeks?: string; rangeText?: string } {
+  if (cell && typeof cell === 'object') return cell;
+  return cell === undefined || cell === null || cell === '' ? {} : { weeks: String(cell) };
+}
+
 /** How much of a step has been answered, for the progress rail. */
 export function stepFilled(step: PStep, values: Record<string, any> = {}) {
   let total = 0;
@@ -526,8 +608,8 @@ export function stepFilled(step: PStep, values: Record<string, any> = {}) {
         total += 1;
         const cell = values[row.key];
         const filled = section.kind === 'weeks'
-          ? String(cell ?? '').trim()
-          : String(cell?.budget ?? '').trim() || String(cell?.actual ?? '').trim();
+          ? !!(weeksValue(cell).weeks || weeksValue(cell).rangeText)
+          : String(cell?.budget ?? '').trim() || String(cell?.actual ?? '').trim() || String(cell?.rangeLow ?? '').trim();
         if (filled) done += 1;
       }
     } else if (section.kind === 'list') {

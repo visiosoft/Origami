@@ -31,6 +31,7 @@ exports.PUBLIC_KEYS = [
     'reminders.hour',
     'reminders.timezone',
     'reminders.triggerToken',
+    'reminders.overstretchThreshold',
     'tasks.labels',
     'notifications.assignmentEmail',
     'pipeline.slaDays',

@@ -65,7 +65,49 @@ export const CITIES_BY_COUNTY: Record<string, string[]> = {
   Ventura: ['Camarillo', 'Fillmore', 'Moorpark', 'Ojai', 'Oxnard', 'Port Hueneme', 'San Buenaventura', 'Santa Paula', 'Simi Valley', 'Thousand Oaks'],
   Yolo: ['Davis', 'West Sacramento', 'Winters', 'Woodland'],
   Yuba: ['Marysville', 'Wheatland'],
+  // No incorporated city in the leads dropdown sits in these three counties,
+  // but the county itself is still a valid answer -- kept so the county list
+  // derived below stays the single source, matching the leads form's own list.
+  Alpine: [],
+  Mariposa: [],
+  Trinity: [],
 };
+
+/**
+ * A rough regional grouping, used only to pre-narrow the city/county dropdown
+ * -- a UI convenience, not a fact about the county. Boundary counties (the
+ * Central Valley's edges especially) are a judgement call; this starting
+ * assignment has not been confirmed by the office and should be treated as a
+ * first draft to correct, not a fixed truth.
+ */
+export type Region = 'NorCal' | 'SoCal' | 'CentralValley';
+
+export const REGION_BY_COUNTY: Record<string, Region> = {
+  // Bay Area / North Coast / Sacramento Valley / Sierra
+  Alameda: 'NorCal', Alpine: 'NorCal', Amador: 'NorCal', Butte: 'NorCal',
+  Calaveras: 'NorCal', Colusa: 'NorCal', 'Contra Costa': 'NorCal', 'Del Norte': 'NorCal',
+  'El Dorado': 'NorCal', Glenn: 'NorCal', Humboldt: 'NorCal', Lake: 'NorCal',
+  Lassen: 'NorCal', Marin: 'NorCal', Mendocino: 'NorCal', Modoc: 'NorCal',
+  Napa: 'NorCal', Nevada: 'NorCal', Placer: 'NorCal', Plumas: 'NorCal',
+  Sacramento: 'NorCal', 'San Francisco': 'NorCal', 'San Mateo': 'NorCal', 'Santa Clara': 'NorCal',
+  'Santa Cruz': 'NorCal', Shasta: 'NorCal', Sierra: 'NorCal', Siskiyou: 'NorCal',
+  Solano: 'NorCal', Sonoma: 'NorCal', Sutter: 'NorCal', Tehama: 'NorCal',
+  Trinity: 'NorCal', Yolo: 'NorCal', Yuba: 'NorCal',
+  // Central Valley
+  Fresno: 'CentralValley', Kern: 'CentralValley', Kings: 'CentralValley', Madera: 'CentralValley',
+  Mariposa: 'CentralValley', Merced: 'CentralValley', 'San Joaquin': 'CentralValley', Stanislaus: 'CentralValley',
+  Tulare: 'CentralValley', Tuolumne: 'CentralValley', Mono: 'CentralValley',
+  // Southern California
+  Imperial: 'SoCal', Inyo: 'SoCal', 'Los Angeles': 'SoCal', Monterey: 'SoCal',
+  Orange: 'SoCal', Riverside: 'SoCal', 'San Benito': 'SoCal', 'San Bernardino': 'SoCal',
+  'San Diego': 'SoCal', 'San Luis Obispo': 'SoCal', 'Santa Barbara': 'SoCal', Ventura: 'SoCal',
+};
+
+/** The region for a county name (with or without the "County of " prefix). */
+export function regionForCounty(county?: string): Region | '' {
+  const bare = (county || '').replace(/^County of /, '').trim();
+  return REGION_BY_COUNTY[bare] || '';
+}
 
 /** City -> county, built once from the table above. */
 export const COUNTY_BY_CITY: Record<string, string> = Object.entries(CITIES_BY_COUNTY)

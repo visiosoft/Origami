@@ -1,6 +1,6 @@
 import { OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity } from '../database/entities';
+import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 export declare class RemindersService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -8,11 +8,12 @@ export declare class RemindersService implements OnApplicationBootstrap, OnModul
     private readonly tasks;
     private readonly users;
     private readonly projects;
+    private readonly phases;
     private readonly settings;
     private readonly google;
     private readonly log;
     private timer;
-    constructor(projectTasks: Repository<ProjectTaskEntity>, tasks: Repository<TaskEntity>, users: Repository<UserEntity>, projects: Repository<ProjectEntity>, settings: SettingsService, google: GoogleService);
+    constructor(projectTasks: Repository<ProjectTaskEntity>, tasks: Repository<TaskEntity>, users: Repository<UserEntity>, projects: Repository<ProjectEntity>, phases: Repository<ProjectPhaseEntity>, settings: SettingsService, google: GoogleService);
     onApplicationBootstrap(): void;
     onModuleDestroy(): void;
     tick(): Promise<void>;
@@ -24,4 +25,7 @@ export declare class RemindersService implements OnApplicationBootstrap, OnModul
     }>;
     private isMine;
     private bucket;
+    private runOverdueOnly;
+    private runProgressChecks;
+    private runOverstretch;
 }

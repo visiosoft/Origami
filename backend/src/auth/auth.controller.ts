@@ -54,6 +54,6 @@ export class AuthController {
   /** The caller's own notification preferences. */
   @Put('me/notifications')
   setNotificationPrefs(@Body() dto: NotificationPrefsDto, @Headers('authorization') authorization?: string) {
-    return this.auth.setNotificationPrefs(authorization, dto.notifyOnAssignment);
+    return this.auth.setNotificationPrefs(authorization, dto);
   }
 }

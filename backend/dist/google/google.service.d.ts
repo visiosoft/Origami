@@ -92,7 +92,8 @@ export declare class GoogleService {
     htmlToPdf(html: string, name?: string, running?: {
         header?: string;
         footer?: string;
-    }): Promise<Buffer>;
+    }, landscape?: boolean): Promise<Buffer>;
+    private setPageOrientation;
     private setRunningHeadFoot;
     trashDriveFile(id: string): Promise<void>;
     testDrive(): Promise<{

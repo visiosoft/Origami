@@ -1,4 +1,4 @@
-import { IsBoolean, IsEmail, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsEmail() email: string;
@@ -15,5 +15,10 @@ export class ForgotPasswordDto {
 }
 
 export class NotificationPrefsDto {
-  @IsBoolean() notifyOnAssignment: boolean;
+  @IsBoolean() @IsOptional() notifyOnAssignment?: boolean;
+  @IsBoolean() @IsOptional() notifyByEmail?: boolean;
+  @IsBoolean() @IsOptional() notifyBySms?: boolean;
+  @IsBoolean() @IsOptional() notifyOnOverdue?: boolean;
+  @IsBoolean() @IsOptional() notifyOnMilestone?: boolean;
+  @IsIn(['daily', 'weekly', 'off']) @IsOptional() digestFrequency?: string;
 }

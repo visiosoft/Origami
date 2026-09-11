@@ -157,6 +157,7 @@ export declare class LeadEntity {
     projectZipCode: string;
     countyLocation: string;
     hasHOA: string;
+    addresses: Record<string, unknown>;
     propertyType: string;
     potentialProjectType: string;
     contractType: string;
@@ -301,6 +302,9 @@ export declare class ProjectPhaseEntity {
     startDate: string;
     endDate: string;
     seededAt: string;
+    notified50: string | null;
+    notified90: string | null;
+    notified100: string | null;
 }
 export declare class ProjectProgramEntity {
     projectId: number;
@@ -328,6 +332,11 @@ export declare class UserEntity {
     inviteSentAt: string;
     inviteExpiresAt: string;
     notifyOnAssignment: boolean | null;
+    notifyByEmail: boolean | null;
+    notifyBySms: boolean | null;
+    digestFrequency: string | null;
+    notifyOnOverdue: boolean | null;
+    notifyOnMilestone: boolean | null;
 }
 export declare class AppSettingEntity {
     key: string;

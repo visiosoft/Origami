@@ -183,6 +183,11 @@ __decorate([
     __metadata("design:type", String)
 ], CreateLeadDto.prototype, "hasHOA", void 0);
 __decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateLeadDto.prototype, "addresses", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

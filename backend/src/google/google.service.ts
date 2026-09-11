@@ -452,7 +452,7 @@ export class GoogleService {
    * headless-browser dependency, which matters here because a new package means
    * an npm install on every container start.
    */
-  async htmlToPdf(html: string, name = 'document', running?: { header?: string; footer?: string }): Promise<Buffer> {
+  async htmlToPdf(html: string, name = 'document', running?: { header?: string; footer?: string }, landscape = false): Promise<Buffer> {
     const token = await this.workspaceToken();
     const boundary = 'origami_pdf_' + Math.random().toString(36).slice(2);
     const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
@@ -483,6 +483,10 @@ export class GoogleService {
         await this.setRunningHeadFoot(doc.id, running).catch((err: Error) =>
           this.log.warn(`Running header/footer skipped: ${err.message}`));
       }
+      if (landscape) {
+        await this.setPageOrientation(doc.id, true).catch((err: Error) =>
+          this.log.warn(`Landscape orientation skipped: ${err.message}`));
+      }
       const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=application/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -492,6 +496,34 @@ export class GoogleService {
       // The Doc is scaffolding; don't leave it lying around in Drive.
       await this.trashDriveFile(doc.id).catch(() => undefined);
     }
+  }
+
+  /**
+   * Landscape, by swapping the page's width and height. US Letter is
+   * 612x792pt portrait; this makes it 792x612. Margins are left as Docs'
+   * defaults -- the document's own tables are already width="100%", so they
+   * simply reflow wider rather than needing a margin change to look right.
+   */
+  private async setPageOrientation(docId: string, landscape: boolean) {
+    const token = await this.workspaceToken();
+    const res = await fetch(`${DOCS_URL}/${encodeURIComponent(docId)}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          updateDocumentStyle: {
+            documentStyle: {
+              pageSize: landscape
+                ? { width: { magnitude: 792, unit: 'PT' }, height: { magnitude: 612, unit: 'PT' } }
+                : { width: { magnitude: 612, unit: 'PT' }, height: { magnitude: 792, unit: 'PT' } },
+            },
+            fields: 'pageSize',
+          },
+        }],
+      }),
+    });
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json?.error?.message || `Docs API said ${res.status}`);
   }
 
   /**

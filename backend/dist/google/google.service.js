@@ -364,7 +364,7 @@ let GoogleService = class GoogleService {
             throw new common_1.BadRequestException('Could not produce a share link.');
         return body.webViewLink;
     }
-    async htmlToPdf(html, name = 'document', running) {
+    async htmlToPdf(html, name = 'document', running, landscape = false) {
         const token = await this.workspaceToken();
         const boundary = 'origami_pdf_' + Math.random().toString(36).slice(2);
         const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
@@ -388,6 +388,9 @@ let GoogleService = class GoogleService {
             if (running?.header || running?.footer) {
                 await this.setRunningHeadFoot(doc.id, running).catch((err) => this.log.warn(`Running header/footer skipped: ${err.message}`));
             }
+            if (landscape) {
+                await this.setPageOrientation(doc.id, true).catch((err) => this.log.warn(`Landscape orientation skipped: ${err.message}`));
+            }
             const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=application/pdf`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -398,6 +401,28 @@ let GoogleService = class GoogleService {
         finally {
             await this.trashDriveFile(doc.id).catch(() => undefined);
         }
+    }
+    async setPageOrientation(docId, landscape) {
+        const token = await this.workspaceToken();
+        const res = await fetch(`${DOCS_URL}/${encodeURIComponent(docId)}:batchUpdate`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requests: [{
+                        updateDocumentStyle: {
+                            documentStyle: {
+                                pageSize: landscape
+                                    ? { width: { magnitude: 792, unit: 'PT' }, height: { magnitude: 612, unit: 'PT' } }
+                                    : { width: { magnitude: 612, unit: 'PT' }, height: { magnitude: 792, unit: 'PT' } },
+                            },
+                            fields: 'pageSize',
+                        },
+                    }],
+            }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok)
+            throw new Error(json?.error?.message || `Docs API said ${res.status}`);
     }
     async setRunningHeadFoot(docId, running) {
         const token = await this.workspaceToken();

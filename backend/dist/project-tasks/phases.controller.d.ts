@@ -58,6 +58,9 @@ export declare class PhasesController {
             startDate: string;
             endDate: string;
             seededAt: string;
+            notified50: string | null;
+            notified90: string | null;
+            notified100: string | null;
         }[];
         tasks: {
             targetDays: number;

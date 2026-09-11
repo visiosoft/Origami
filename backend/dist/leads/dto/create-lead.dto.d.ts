@@ -33,6 +33,7 @@ export declare class CreateLeadDto {
     projectZipCode?: string;
     countyLocation?: string;
     hasHOA?: string;
+    addresses?: Record<string, unknown>;
     propertyType?: string;
     potentialProjectType?: string;
     contractType?: string;

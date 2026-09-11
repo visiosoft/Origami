@@ -19,7 +19,7 @@ exports.RemindersModule = RemindersModule;
 exports.RemindersModule = RemindersModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.TaskEntity, entities_1.UserEntity, entities_1.ProjectEntity]),
+            typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.TaskEntity, entities_1.UserEntity, entities_1.ProjectEntity, entities_1.ProjectPhaseEntity]),
             google_module_1.GoogleModule,
         ],
         controllers: [reminders_controller_1.RemindersController],

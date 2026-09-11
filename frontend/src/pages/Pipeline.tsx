@@ -6,7 +6,8 @@ import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
 import { OtherDetail } from '../components/OtherDetail';
 import { ContactMethodMatrix } from '../components/ContactMethodMatrix';
-import { countyForCity } from '../data/californiaCounties';
+import { countyForCity, regionForCounty, REGION_BY_COUNTY, type Region } from '../data/californiaCounties';
+import { type Address, blankAddress } from '../data/personProfile';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { FollowUpPanel, type FollowUp } from '../components/FollowUpPanel';
 import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
@@ -39,6 +40,10 @@ interface NewLead {
   decisionMakers: string; preferredContactMethod: string; leadSource: string;
   projectStreetAddress: string; projectStreetName: string; projectCity: string; projectZipCode: string;
   projectAddress2: string; occupancyStatus: string; countyLocation: string; hasHOA: string; propertyType: string; potentialProjectType: string; contractType: string; homeworkCompleted: string[];
+  // The client's mailing address -- distinct from the project site above.
+  // Keyed by ADDRESS_KINDS entries ('businessMailing', optionally 'billing'
+  // for a third address); same Address shape People already uses.
+  addresses?: Record<string, Address>;
   projectVision: string; reasonForProject: string; budgetPosition: string; fundingStatus: string;
   desiredStart: string; expectedDuration: string; expectedLengthOfOwnership: string; clientPersonality: string;
   zoningImages?: string; // JSON string of [{name,dataUrl}]
@@ -102,6 +107,7 @@ const BLANK_LEAD: NewLead = {
   decisionMakers: '', preferredContactMethod: '', leadSource: '',
   projectStreetAddress: '', projectStreetName: '', projectCity: '', projectZipCode: '',
   projectAddress2: '', occupancyStatus: '', countyLocation: '', hasHOA: 'No', propertyType: '', potentialProjectType: '', contractType: '', homeworkCompleted: [],
+  addresses: {},
   projectVision: '', reasonForProject: '', budgetPosition: '', fundingStatus: '',
   desiredStart: '', expectedDuration: '', expectedLengthOfOwnership: '', clientPersonality: '',
 };
@@ -233,6 +239,13 @@ export function Pipeline() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [nl, setNl] = useState<NewLead>({ ...BLANK_LEAD });
+  // A pure UI filter over the city/county lists -- narrows the dropdown, does
+  // not change what gets saved. 'All' shows everything, as before.
+  const [regionFilter, setRegionFilter] = useState<Region | 'All'>('All');
+  // Whether the mailing address is currently following the project address.
+  // Not stored: checking it copies values once, unchecking lets them diverge,
+  // and reopening a lead recomputes nothing -- it just shows what was saved.
+  const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts'>('overview');
@@ -1424,15 +1437,78 @@ export function Pipeline() {
                 {formTab === 4 && (<>
                   <SectionTitle>4. Project Location</SectionTitle>
                   <FormGrid>
+                    <FormField label="Region" hint="Narrows City and County below to speed up finding one. Doesn't change what's saved.">
+                      <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value as Region | 'All')} style={inputStyle}>
+                        <option value="All">All regions</option>
+                        <option value="NorCal">Northern California</option>
+                        <option value="CentralValley">Central Valley</option>
+                        <option value="SoCal">Southern California</option>
+                      </select>
+                    </FormField>
+                    <div />
                     <FormField label="Project Street Address" hint="Street number. Leave blank if no exact address."><input value={nl.projectStreetAddress} onChange={(e) => setField('projectStreetAddress', e.target.value)} placeholder="Street number" style={inputStyle} /></FormField>
                     <FormField label="Project Street Name"><input value={nl.projectStreetName} onChange={(e) => setField('projectStreetName', e.target.value)} placeholder="Street name" style={inputStyle} /></FormField>
                     <FormField label="Address 2" hint="Unit, suite or floor."><input value={nl.projectAddress2} onChange={(e) => setField('projectAddress2', e.target.value)} placeholder="e.g. Suite 400" style={inputStyle} /></FormField>
-                    <FormField label="Project City"><select value={nl.projectCity} onChange={(e) => setField('projectCity', e.target.value)} style={inputStyle}><option value="">Select city...</option>{OPT.projectCity.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="Project City">
+                      <select value={nl.projectCity} onChange={(e) => setField('projectCity', e.target.value)} style={inputStyle}>
+                        <option value="">Select city...</option>
+                        {OPT.projectCity.filter((o) => regionFilter === 'All' || regionForCounty(countyForCity(o)) === regionFilter).map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                    </FormField>
                     <FormField label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
                     <FormField label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
-                    <FormField label="County"><select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}><option value="">Select county...</option>{OPT.countyLocation.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField label="County">
+                      <select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}>
+                        <option value="">Select county...</option>
+                        {OPT.countyLocation.filter((o) => regionFilter === 'All' || REGION_BY_COUNTY[o.replace(/^County of /, '')] === regionFilter).map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                    </FormField>
                     <FormField label="Owner or Tenant" hint="Who the client is to the property. It decides whose approval the work needs."><select value={nl.occupancyStatus} onChange={(e) => setField('occupancyStatus', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.occupancyStatus.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.occupancyStatus} field="occupancyStatus" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                   </FormGrid>
+
+                  <SectionTitle>Business Mailing Address</SectionTitle>
+                  <div style={{ fontSize: 11.5, color: '#7E9B93', marginBottom: 10, marginTop: -6 }}>
+                    Where correspondence goes for the legal entity — not always the same as where the work is.
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', marginBottom: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={mailingSameAsProject}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setMailingSameAsProject(on);
+                        if (on) {
+                          setField('addresses', {
+                            ...(nl.addresses || {}),
+                            businessMailing: {
+                              ...blankAddress(),
+                              street: [nl.projectStreetAddress, nl.projectStreetName].filter(Boolean).join(' '),
+                              unit: nl.projectAddress2,
+                              city: nl.projectCity,
+                              state: 'CA',
+                              zip: nl.projectZipCode,
+                              county: nl.countyLocation,
+                            },
+                          });
+                        }
+                      }}
+                    />
+                    Same as project address
+                  </label>
+                  {(() => {
+                    const addr: Address = nl.addresses?.businessMailing || blankAddress();
+                    const setAddr = (patch: Partial<Address>) => setField('addresses', { ...(nl.addresses || {}), businessMailing: { ...addr, ...patch } });
+                    return (
+                      <FormGrid>
+                        <FormField label="Street"><input disabled={mailingSameAsProject} value={addr.street} onChange={(e) => setAddr({ street: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="Unit"><input disabled={mailingSameAsProject} value={addr.unit} onChange={(e) => setAddr({ unit: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="City"><input disabled={mailingSameAsProject} value={addr.city} onChange={(e) => setAddr({ city: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="State"><input disabled={mailingSameAsProject} value={addr.state} onChange={(e) => setAddr({ state: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="ZIP"><input disabled={mailingSameAsProject} value={addr.zip} onChange={(e) => setAddr({ zip: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="County"><input disabled={mailingSameAsProject} value={addr.county} onChange={(e) => setAddr({ county: e.target.value })} style={inputStyle} /></FormField>
+                      </FormGrid>
+                    );
+                  })()}
                 </>)}
                 {formTab === 5 && (<>
                   <SectionTitle>5. Project Details</SectionTitle>

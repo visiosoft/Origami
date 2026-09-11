@@ -632,6 +632,10 @@ __decorate([
     __metadata("design:type", String)
 ], LeadEntity.prototype, "hasHOA", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadEntity.prototype, "addresses", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "propertyType", void 0);
@@ -1163,6 +1167,18 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectPhaseEntity.prototype, "seededAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Object)
+], ProjectPhaseEntity.prototype, "notified50", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Object)
+], ProjectPhaseEntity.prototype, "notified90", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Object)
+], ProjectPhaseEntity.prototype, "notified100", void 0);
 exports.ProjectPhaseEntity = ProjectPhaseEntity = __decorate([
     (0, typeorm_1.Entity)('project_phases')
 ], ProjectPhaseEntity);
@@ -1267,6 +1283,26 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
     __metadata("design:type", Object)
 ], UserEntity.prototype, "notifyOnAssignment", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "notifyByEmail", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "notifyBySms", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "digestFrequency", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "notifyOnOverdue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "notifyOnMilestone", void 0);
 exports.UserEntity = UserEntity = __decorate([
     (0, typeorm_1.Entity)('users')
 ], UserEntity);

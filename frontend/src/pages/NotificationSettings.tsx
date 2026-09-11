@@ -38,6 +38,15 @@ export function NotificationSettings() {
 
   const [mine, setMine] = useState(true);
   const [workspace, setWorkspace] = useState(true);
+  const [overstretchThreshold, setOverstretchThreshold] = useState('');
+  // The newer preferences. Overdue and milestone notices are opt-in (off
+  // unless chosen) since the daily digest already covers both by default --
+  // turning these on adds a second, separate email for people who want one.
+  // SMS is opt-in for the same reason it defaults off everywhere in this
+  // app: it costs money per message.
+  const [overdue, setOverdue] = useState(false);
+  const [milestone, setMilestone] = useState(false);
+  const [sms, setSms] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -48,9 +57,18 @@ export function NotificationSettings() {
       isAdmin ? api.settings.get().catch(() => null) : Promise.resolve(null),
     ])
       .then(([me, settings]: any[]) => {
-        // Null means never chosen, which reads as on.
-        if (me) setMine(me.notifyOnAssignment !== false);
-        if (settings) setWorkspace(settings['notifications.assignmentEmail'] !== 'false');
+        // Null means never chosen, which reads as on for assignment (the
+        // long-standing default) and off for the newer opt-in preferences.
+        if (me) {
+          setMine(me.notifyOnAssignment !== false);
+          setOverdue(me.notifyOnOverdue === true);
+          setMilestone(me.notifyOnMilestone === true);
+          setSms(me.notifyBySms === true);
+        }
+        if (settings) {
+          setWorkspace(settings['notifications.assignmentEmail'] !== 'false');
+          setOverstretchThreshold(settings['reminders.overstretchThreshold'] || '');
+        }
       })
       .finally(() => setLoading(false));
   }, [isAdmin]);
@@ -63,6 +81,17 @@ export function NotificationSettings() {
     api.auth.setNotificationPrefs(value)
       .then(() => toast(value ? 'Assignment emails on' : 'Assignment emails off'))
       .catch((e: Error) => { setMine(previous); setError(e.message); })
+      .finally(() => setSaving(false));
+  };
+
+  const saveExtra = (setter: (v: boolean) => void, key: 'notifyOnOverdue' | 'notifyOnMilestone' | 'notifyBySms') => (value: boolean) => {
+    const previous = { overdue, milestone, sms }[key === 'notifyOnOverdue' ? 'overdue' : key === 'notifyOnMilestone' ? 'milestone' : 'sms'];
+    setter(value);
+    setSaving(true);
+    setError('');
+    api.auth.setNotificationPrefsExtra({ [key]: value })
+      .then(() => toast(value ? 'Preference on' : 'Preference off'))
+      .catch((e: Error) => { setter(previous); setError(e.message); })
       .finally(() => setSaving(false));
   };
 
@@ -118,6 +147,23 @@ export function NotificationSettings() {
           'Covers the Task Board and the Request Log. You are never emailed for assigning something to yourself.',
           mine, saveMine,
         )}
+        <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {row(
+            'Standalone overdue notice',
+            'A separate email the moment the daily digest would otherwise be your only reminder — on top of it, not instead.',
+            overdue, saveExtra(setOverdue, 'notifyOnOverdue'),
+          )}
+          {row(
+            'Milestone look-ahead',
+            'Adds milestones due in the next 3 weeks to your daily digest.',
+            milestone, saveExtra(setMilestone, 'notifyOnMilestone'),
+          )}
+          {row(
+            'Text message (SMS)',
+            'Also send a short text for the notices above. Off by default — this has a real per-message cost.',
+            sms, saveExtra(setSms, 'notifyBySms'),
+          )}
+        </div>
         <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14 }}>
           <span onClick={saving ? undefined : sendTest} style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}>
             Send me a sample →
@@ -132,6 +178,33 @@ export function NotificationSettings() {
             'Turning this off stops assignment emails for everyone, whatever their own preference says.',
             workspace, saveWorkspace,
           )}
+          <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Overstretch threshold</div>
+            <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, marginBottom: 8, lineHeight: 1.55 }}>
+              A daily notice when someone's open-task count goes over this number. Blank or zero disables it — pick a
+              real number before this does anything.
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="number" min={0} value={overstretchThreshold}
+                onChange={(e) => setOverstretchThreshold(e.target.value)}
+                placeholder="0 = disabled"
+                style={{ width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit' }}
+              />
+              <span
+                onClick={saving ? undefined : () => {
+                  setSaving(true);
+                  api.settings.save({ 'reminders.overstretchThreshold': overstretchThreshold || '0' })
+                    .then(() => toast('Threshold saved'))
+                    .catch((e: Error) => setError(e.message))
+                    .finally(() => setSaving(false));
+                }}
+                style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}
+              >
+                Save
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </div>

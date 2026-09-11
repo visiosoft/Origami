@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import {
   PROGRAM_STEPS, PICKLISTS, money, num, stepFilled, stepTotals, withPrefill,
+  stepRangeTotals, rangeText, contingencyLegacyValue, weeksValue,
   type PSection, type PField, type ProgramData,
 } from '../data/projectProgram';
 import { PERSONALITY_TEMPLATE, templateKeyForPersonality, mergeTokens } from '../data/clientPersonality';
@@ -121,7 +122,7 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
     setDirty(true);
     setData((prev) => ({ ...prev, [step.key]: { ...(prev[step.key] || {}), [key]: value } }));
   };
-  const putCell = (rowKey: string, col: 'budget' | 'actual' | 'notes', value: string) => {
+  const putCell = (rowKey: string, col: 'budget' | 'actual' | 'notes' | 'rangeLow' | 'rangeHigh', value: string) => {
     setDirty(true);
     setData((prev) => {
       const bag = prev[step.key] || {};
@@ -163,10 +164,30 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
           return { title: sec.title, kind: 'fields' as const, note: sec.note, rows: (sec.fields || []).map((fl) => ({ label: fl.label, value: String(v[`${sec.key}.${fl.key}`] ?? '') })) };
         }
         if (sec.kind === 'table') {
-          return { title: sec.title, kind: 'table' as const, rows: (sec.rows || []).map((rw) => ({ label: rw.label, budget: String(v[rw.key]?.budget ?? ''), actual: String(v[rw.key]?.actual ?? ''), notes: String(v[rw.key]?.notes ?? '') })) };
+          return {
+            title: sec.title, kind: 'table' as const,
+            rows: (sec.rows || []).map((rw) => {
+              const cell = v[rw.key] || {};
+              const hasRange = String(cell.rangeLow ?? '').trim() || String(cell.rangeHigh ?? '').trim();
+              // A range prints as one combined figure in the Budget column
+              // rather than two separate ones -- the document has no third
+              // numeric column to spare, and "$X – $Y" reads as one answer.
+              const budget = hasRange
+                ? rangeText(num(cell.rangeLow), num(cell.rangeHigh ?? cell.rangeLow))
+                : String(cell.budget ?? '');
+              return { label: rw.label, budget, actual: String(cell.actual ?? ''), notes: String(cell.notes ?? '') };
+            }),
+          };
         }
         if (sec.kind === 'weeks') {
-          return { title: sec.title, kind: 'weeks' as const, rows: (sec.rows || []).map((rw) => ({ label: rw.label, value: String(v[rw.key] ?? '') })) };
+          return {
+            title: sec.title, kind: 'weeks' as const,
+            rows: (sec.rows || []).map((rw) => {
+              const cell = weeksValue(v[rw.key]);
+              const text = cell.rangeText || (cell.weeks ? `${cell.weeks} weeks` : '');
+              return { label: rw.label, value: text };
+            }),
+          };
         }
         const items = ((v[sec.key] || []) as string[]).filter((x) => String(x || '').trim());
         return { title: sec.title, kind: 'list' as const, rows: items.map((x) => ({ label: x, value: x })) };
@@ -272,16 +293,20 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
 
       {section.kind === 'table' && (
         <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 120px 120px minmax(140px, 1fr)', gap: 8, padding: '8px 12px', background: '#F7F9F7', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
-            <span>Description</span><span>Budget</span><span>Actual</span><span>Notes</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, padding: '8px 12px', background: '#F7F9F7', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+            <span>Description</span><span>Range low</span><span>Range high</span><span>Notes</span>
           </div>
           {(section.rows || []).map((row) => {
             const cell = values[row.key] || {};
+            // A figure saved before ranges existed still shows -- as the
+            // placeholder for both ends, so it reads at a glance without
+            // being silently carried into the new fields as if re-entered.
+            const legacy = String(cell.budget ?? '').trim();
             return (
-              <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 120px 120px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
+              <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
                 <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
-                <input disabled={!canManage} value={cell.budget ?? ''} onChange={(e) => putCell(row.key, 'budget', e.target.value)} placeholder="0" style={{ ...input, padding: '6px 8px' }} />
-                <input disabled={!canManage} value={cell.actual ?? ''} onChange={(e) => putCell(row.key, 'actual', e.target.value)} placeholder="0" style={{ ...input, padding: '6px 8px' }} />
+                <input disabled={!canManage} value={cell.rangeLow ?? ''} onChange={(e) => putCell(row.key, 'rangeLow', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
+                <input disabled={!canManage} value={cell.rangeHigh ?? ''} onChange={(e) => putCell(row.key, 'rangeHigh', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
                 <input disabled={!canManage} value={cell.notes ?? ''} onChange={(e) => putCell(row.key, 'notes', e.target.value)} style={{ ...input, padding: '6px 8px' }} />
               </div>
             );
@@ -291,13 +316,19 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
 
       {section.kind === 'weeks' && (
         <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          {(section.rows || []).map((row) => (
-            <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
-              <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
-              <input disabled={!canManage} type="number" min={0} value={values[row.key] ?? ''} onChange={(e) => put(row.key, e.target.value)} placeholder="0" style={{ ...input, width: 90, padding: '6px 8px' }} />
-              <span style={{ fontSize: 11, color: '#9AA39D', width: 40 }}>weeks</span>
-            </div>
-          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, padding: '6px 12px', background: '#F7F9F7', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+            <span>Stage</span><span>Weeks</span><span>or a range, e.g. "3–6 months"</span>
+          </div>
+          {(section.rows || []).map((row) => {
+            const cell = weeksValue(values[row.key]);
+            return (
+              <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
+                <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
+                <input disabled={!canManage} type="number" min={0} value={cell.weeks ?? ''} onChange={(e) => put(row.key, { ...cell, weeks: e.target.value })} placeholder="0" style={{ ...input, padding: '6px 8px' }} />
+                <input disabled={!canManage} value={cell.rangeText ?? ''} onChange={(e) => put(row.key, { ...cell, rangeText: e.target.value })} placeholder="e.g. 3–6 months" style={{ ...input, padding: '6px 8px' }} />
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -394,23 +425,52 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
 
         {step.sections.map(renderSection)}
 
+        {step.key === 'budget' && (() => {
+          const legacy = contingencyLegacyValue(values);
+          if (!legacy) return null;
+          return (
+            <div style={{ padding: '10px 14px', background: '#FBF3E4', borderRadius: 10, marginBottom: 14, fontSize: 11.5, color: '#8A6A0E' }}>
+              A contingency figure was entered before this was split into phases: <b>{legacy.rangeLow ? rangeText(num(legacy.rangeLow), num(legacy.rangeHigh ?? legacy.rangeLow)) : money(num(legacy.budget))}</b>.
+              It's kept here for reference — enter it against the three phases above when you have a real split.
+            </div>
+          );
+        })()}
+
         {hasTotals && (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '14px 16px', background: '#F7F9F7', borderRadius: 11, marginBottom: 18 }}>
-            <div style={{ flex: 1, minWidth: 130 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Budget subtotal</div>
-              <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{money(totals.budget)}</div>
-            </div>
-            <div style={{ flex: 1, minWidth: 130 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Actual to date</div>
-              <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{money(totals.actual)}</div>
-            </div>
-            {step.key === 'budget' && (
-              <div style={{ flex: 1, minWidth: 130 }}>
-                <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>With contingency</div>
-                <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#173326' }}>
-                  {money(totals.budget + num(values['titleInsurance']?.budget) + num(values['contingency']?.budget))}
+            {step.key === 'budget' ? (() => {
+              const range = stepRangeTotals(step, values);
+              const legacy = contingencyLegacyValue(values);
+              const contingencyLow = legacy ? num(legacy.rangeLow ?? legacy.budget) : num(values['contingencyConceptual']?.rangeLow) + num(values['contingencyDesignDev']?.rangeLow) + num(values['contingencyPermit']?.rangeLow);
+              const contingencyHigh = legacy ? num(legacy.rangeHigh ?? legacy.rangeLow ?? legacy.budget) : num(values['contingencyConceptual']?.rangeHigh ?? values['contingencyConceptual']?.rangeLow) + num(values['contingencyDesignDev']?.rangeHigh ?? values['contingencyDesignDev']?.rangeLow) + num(values['contingencyPermit']?.rangeHigh ?? values['contingencyPermit']?.rangeLow);
+              const titleIns = values['titleInsurance'] || {};
+              const titleLow = num(titleIns.rangeLow ?? titleIns.budget);
+              const titleHigh = num(titleIns.rangeHigh ?? titleIns.rangeLow ?? titleIns.budget);
+              return (
+                <>
+                  <div style={{ flex: 1, minWidth: 130 }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Design and Approvals + Construction</div>
+                    <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{rangeText(range.low, range.high)}</div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 130 }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>With contingency</div>
+                    <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#173326' }}>
+                      {rangeText(range.low + titleLow + contingencyLow, range.high + titleHigh + contingencyHigh)}
+                    </div>
+                  </div>
+                </>
+              );
+            })() : (
+              <>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Budget subtotal</div>
+                  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{money(totals.budget)}</div>
                 </div>
-              </div>
+                <div style={{ flex: 1, minWidth: 130 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Actual to date</div>
+                  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{money(totals.actual)}</div>
+                </div>
+              </>
             )}
           </div>
         )}

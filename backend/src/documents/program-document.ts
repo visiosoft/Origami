@@ -104,8 +104,12 @@ function blockHtml(block: DocBlock, accent: string) {
   if (block.kind === 'weeks') {
     const rows = block.rows.map((r) => `<tr>
       <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:9.5pt;">${esc(r.label)}</td>
-      <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:9.5pt;text-align:right;width:90pt;">${
-        String(r.value ?? '').trim() ? `${esc(r.value)} weeks` : val('')
+      <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:9.5pt;text-align:right;width:110pt;">${
+        // The caller already appends "weeks" to a bare count; a broad range
+        // like "3-6 months" already reads on its own -- printing it as-is
+        // either way, rather than always suffixing "weeks", is what stops a
+        // range value coming out "3-6 months weeks".
+        String(r.value ?? '').trim() ? esc(r.value) : val('')
       }</td>
     </tr>`).join('');
     return `${heading}${note}<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>`;

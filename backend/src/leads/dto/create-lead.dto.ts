@@ -35,6 +35,7 @@ export class CreateLeadDto {
     @IsString() @IsOptional() projectZipCode?: string;
     @IsString() @IsOptional() countyLocation?: string;
     @IsString() @IsOptional() hasHOA?: string;
+    @IsObject() @IsOptional() addresses?: Record<string, unknown>;
     @IsString() @IsOptional() propertyType?: string;
     @IsString() @IsOptional() potentialProjectType?: string;
     @IsString() @IsOptional() contractType?: string;

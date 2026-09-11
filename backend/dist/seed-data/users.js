@@ -87,6 +87,16 @@ exports.DEFAULT_ROLES = [
         tier: 'consultant', order: 9, isSystem: true,
         permissions: perms(['dashboard', 'projects', 'prequal', 'planroom', 'rfis', 'library']),
     },
+    {
+        key: 'authority', name: 'Authority Having Jurisdiction', description: 'Municipal or permitting contact — narrow read access.',
+        tier: 'consultant', order: 10, isSystem: false,
+        permissions: perms(['dashboard', 'projects', 'planroom']),
+    },
+    {
+        key: 'subcontractor', name: 'Subcontractor', description: 'Trade partner — task and schedule visibility on assigned work.',
+        tier: 'consultant', order: 11, isSystem: false,
+        permissions: perms(['dashboard', 'projects', 'tasks', 'schedule', 'planroom'], ['tasks']),
+    },
 ];
 exports.DEFAULT_USERS = [
     { id: 'U-1001', name: 'Edward M.', email: 'edward@origami.build', tier: 'internal', roleKey: 'admin', status: 'active', lastLogin: '2026-08-14', createdAt: '2026-01-05' },

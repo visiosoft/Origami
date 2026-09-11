@@ -213,14 +213,17 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Not signed in.');
         return publicUser(user);
     }
-    async setNotificationPrefs(bearer, notifyOnAssignment) {
+    async setNotificationPrefs(bearer, prefs) {
         const claims = await this.verify(bearer);
         if (!claims)
             throw new common_1.UnauthorizedException('Not signed in.');
         const user = await this.users.findOneBy({ id: claims.sub });
         if (!user)
             throw new common_1.UnauthorizedException('Not signed in.');
-        user.notifyOnAssignment = notifyOnAssignment;
+        for (const key of ['notifyOnAssignment', 'notifyByEmail', 'notifyBySms', 'notifyOnOverdue', 'notifyOnMilestone', 'digestFrequency']) {
+            if (prefs[key] !== undefined)
+                user[key] = prefs[key];
+        }
         await this.users.save(user);
         return publicUser(user);
     }

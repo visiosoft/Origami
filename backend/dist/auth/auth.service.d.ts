@@ -61,6 +61,13 @@ export declare class AuthService {
         id?: string;
     }>;
     me(bearer: string | undefined): Promise<any>;
-    setNotificationPrefs(bearer: string | undefined, notifyOnAssignment: boolean): Promise<any>;
+    setNotificationPrefs(bearer: string | undefined, prefs: {
+        notifyOnAssignment?: boolean;
+        notifyByEmail?: boolean;
+        notifyBySms?: boolean;
+        notifyOnOverdue?: boolean;
+        notifyOnMilestone?: boolean;
+        digestFrequency?: string;
+    }): Promise<any>;
     findByEmail(email: string): Promise<UserEntity | null>;
 }

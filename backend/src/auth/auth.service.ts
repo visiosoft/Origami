@@ -265,17 +265,24 @@ export class AuthService {
   }
 
   /**
-   * Update the signed-in user's own notification preference.
+   * Update the signed-in user's own notification preferences.
    *
    * Lives here rather than on UsersController because that controller is
-   * admin-only -- everyone must be able to set their own.
+   * admin-only -- everyone must be able to set their own. Only the keys the
+   * caller actually sent are touched, so an old client that only ever sends
+   * notifyOnAssignment can't accidentally reset the newer preferences.
    */
-  async setNotificationPrefs(bearer: string | undefined, notifyOnAssignment: boolean) {
+  async setNotificationPrefs(bearer: string | undefined, prefs: {
+    notifyOnAssignment?: boolean; notifyByEmail?: boolean; notifyBySms?: boolean;
+    notifyOnOverdue?: boolean; notifyOnMilestone?: boolean; digestFrequency?: string;
+  }) {
     const claims = await this.verify(bearer);
     if (!claims) throw new UnauthorizedException('Not signed in.');
     const user = await this.users.findOneBy({ id: claims.sub });
     if (!user) throw new UnauthorizedException('Not signed in.');
-    user.notifyOnAssignment = notifyOnAssignment;
+    for (const key of ['notifyOnAssignment', 'notifyByEmail', 'notifyBySms', 'notifyOnOverdue', 'notifyOnMilestone', 'digestFrequency'] as const) {
+      if (prefs[key] !== undefined) (user as any)[key] = prefs[key];
+    }
     await this.users.save(user);
     return publicUser(user);
   }

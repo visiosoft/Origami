@@ -66,7 +66,7 @@ let ProjectProgramController = class ProjectProgramController {
         const name = (0, letterhead_1.safeFilename)(`${projectName} - Project Program`);
         const header = [brand.companyName, projectName, 'Project Program'].filter(Boolean).join('  ·  ');
         const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
-        const pdf = await this.google.htmlToPdf(html, name, { header, footer });
+        const pdf = await this.google.htmlToPdf(html, name, { header, footer }, true);
         return { pdf, filename: `${name}.pdf` };
     }
 };

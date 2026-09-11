@@ -157,6 +157,22 @@ export const DEFAULT_ROLES: RoleSeed[] = [
     tier: 'consultant', order: 9, isSystem: true,
     permissions: perms(['dashboard', 'projects', 'prequal', 'planroom', 'rfis', 'library']),
   },
+  // 'Authority' and 'subcontractor' are roles, not tiers -- Tier drives the
+  // broad @Tiers() access-guard behaviour and is meant to stay a small,
+  // stable set. These two are business-role distinctions the office asked
+  // for, so they sit as extra roles under the existing 'consultant' tier
+  // rather than growing Tier itself. Starting scopes below are a proposal,
+  // not a confirmed spec -- narrow, not editable by the person holding them.
+  {
+    key: 'authority', name: 'Authority Having Jurisdiction', description: 'Municipal or permitting contact — narrow read access.',
+    tier: 'consultant', order: 10, isSystem: false,
+    permissions: perms(['dashboard', 'projects', 'planroom']),
+  },
+  {
+    key: 'subcontractor', name: 'Subcontractor', description: 'Trade partner — task and schedule visibility on assigned work.',
+    tier: 'consultant', order: 11, isSystem: false,
+    permissions: perms(['dashboard', 'projects', 'tasks', 'schedule', 'planroom'], ['tasks']),
+  },
 ];
 
 export const DEFAULT_USERS: UserSeed[] = [

@@ -20,6 +20,10 @@ export const PUBLIC_KEYS = [
   'reminders.hour',
   'reminders.timezone',
   'reminders.triggerToken',
+  // Daily notice when an assignee's open-task count crosses this number.
+  // Blank/zero disables it -- the actual figure is the office's call, not a
+  // guessed default.
+  'reminders.overstretchThreshold',
   'tasks.labels',
   // Workspace kill switch for assignment emails; per-user opt-out lives on the user row.
   'notifications.assignmentEmail',

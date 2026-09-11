@@ -12,6 +12,8 @@ export interface ReminderBuckets {
   overdue: ReminderTask[];
   today: ReminderTask[];
   soon: ReminderTask[];
+  /** Tasks labelled Milestone, due within the look-ahead window. */
+  milestones?: ReminderTask[];
 }
 
 const row = (t: ReminderTask, accent: string) => `
@@ -36,7 +38,7 @@ const section = (title: string, tasks: ReminderTask[], accent: string) =>
     : '';
 
 export function reminderEmail(opts: { name: string; buckets: ReminderBuckets; url: string; brand: EmailBrand }) {
-  const { overdue, today, soon } = opts.buckets;
+  const { overdue, today, soon, milestones = [] } = opts.buckets;
   const total = overdue.length + today.length + soon.length;
   const first = opts.name.split(/\s+/)[0] || 'there';
   const headline = overdue.length
@@ -55,9 +57,59 @@ export function reminderEmail(opts: { name: string; buckets: ReminderBuckets; ur
         <p style="margin:0 0 22px;font-size:13.5px;line-height:1.6;color:#43514D;">${escapeHtml(headline)}.</p>
         ${section('Overdue', overdue, '#8E2E0A')}
         ${section('Due today', today, '#8A6D12')}
-        ${section('Coming up', soon, '#2F6F68')}`,
+        ${section('Coming up', soon, '#2F6F68')}
+        ${section('Milestones in the next 3 weeks', milestones, '#5B2BC9')}`,
       cta: { label: 'Open Origami', url: opts.url },
       footer: "You're getting this because tasks are assigned to you. An administrator can turn these off under Settings &rarr; Integrations.",
+    }),
+  };
+}
+
+/** A standalone overdue notice -- opted into separately from the digest above. */
+export function overdueEmail(opts: { name: string; tasks: ReminderTask[]; url: string; brand: EmailBrand }) {
+  const first = opts.name.split(/\s+/)[0] || 'there';
+  const n = opts.tasks.length;
+  return {
+    subject: `${opts.brand.companyName}: ${n} task${n === 1 ? ' is' : 's are'} overdue`,
+    html: emailShell({
+      brand: opts.brand,
+      eyebrow: 'Overdue',
+      title: `${first}, ${n} task${n === 1 ? ' needs' : 's need'} attention`,
+      body: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${opts.tasks.map((t) => row(t, '#8E2E0A')).join('')}</table>`,
+      cta: { label: 'Open Origami', url: opts.url },
+      footer: "You're getting this because you turned on standalone overdue notices under Settings &rarr; Notifications.",
+    }),
+  };
+}
+
+/** Fires once when a phase first crosses 50, 90 or 100% complete. */
+export function progressEmail(opts: { name: string; phaseName: string; projectName: string; threshold: 50 | 90 | 100; url: string; brand: EmailBrand }) {
+  const first = opts.name.split(/\s+/)[0] || 'there';
+  return {
+    subject: `${opts.brand.companyName}: ${opts.projectName} — ${opts.phaseName} is ${opts.threshold}% complete`,
+    html: emailShell({
+      brand: opts.brand,
+      eyebrow: 'Progress',
+      title: `${first}, ${opts.phaseName} just hit ${opts.threshold}%`,
+      body: `<p style="margin:0;font-size:13.5px;line-height:1.6;color:#43514D;">${escapeHtml(opts.projectName)} &mdash; ${escapeHtml(opts.phaseName)} has reached ${opts.threshold}% complete.</p>`,
+      cta: { label: 'Open Origami', url: opts.url },
+      footer: "You're getting this because you turned on milestone/progress notices under Settings &rarr; Notifications.",
+    }),
+  };
+}
+
+/** A single assignee over the configured open-task threshold. */
+export function overstretchEmail(opts: { name: string; count: number; threshold: number; url: string; brand: EmailBrand }) {
+  const first = opts.name.split(/\s+/)[0] || 'there';
+  return {
+    subject: `${opts.brand.companyName}: ${opts.count} open tasks assigned to you`,
+    html: emailShell({
+      brand: opts.brand,
+      eyebrow: 'Workload',
+      title: `${first}, you have ${opts.count} open tasks`,
+      body: `<p style="margin:0;font-size:13.5px;line-height:1.6;color:#43514D;">That's above the office's threshold of ${opts.threshold}. Worth a look at what can move to someone else, or be reprioritised.</p>`,
+      cta: { label: 'Open Origami', url: opts.url },
+      footer: 'You are getting this because your open-task count crossed the configured threshold for today.',
     }),
   };
 }

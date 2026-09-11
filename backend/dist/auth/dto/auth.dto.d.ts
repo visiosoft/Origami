@@ -10,5 +10,10 @@ export declare class ForgotPasswordDto {
     email: string;
 }
 export declare class NotificationPrefsDto {
-    notifyOnAssignment: boolean;
+    notifyOnAssignment?: boolean;
+    notifyByEmail?: boolean;
+    notifyBySms?: boolean;
+    notifyOnOverdue?: boolean;
+    notifyOnMilestone?: boolean;
+    digestFrequency?: string;
 }

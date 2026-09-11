@@ -44,7 +44,7 @@ let AuthController = class AuthController {
         return this.auth.me(authorization);
     }
     setNotificationPrefs(dto, authorization) {
-        return this.auth.setNotificationPrefs(authorization, dto.notifyOnAssignment);
+        return this.auth.setNotificationPrefs(authorization, dto);
     }
 };
 exports.AuthController = AuthController;

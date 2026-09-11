@@ -206,6 +206,13 @@ export class LeadEntity {
   @Column({ nullable: true }) projectZipCode!: string;
   @Column({ nullable: true }) countyLocation!: string;
   @Column({ nullable: true }) hasHOA!: string;   // 'Yes' | 'No'
+  // A mailing address distinct from the project site -- the correspondence
+  // address for the legal entity, not the work address. Keyed by kind
+  // ('businessMailing', 'billing' for an optional third address), same shape
+  // as PersonEntity.addresses below, reusing frontend's Address/ADDRESS_KINDS
+  // rather than a second address type. The flat project-site fields above are
+  // deliberately left alone -- this only covers the *new* mailing address.
+  @Column({ type: 'simple-json', nullable: true }) addresses!: Record<string, unknown>;
   @Column({ nullable: true }) propertyType!: string;
   @Column({ nullable: true }) potentialProjectType!: string;
   @Column({ nullable: true }) contractType!: string;  // DO | BO | DB | PDB
@@ -375,6 +382,14 @@ export class ProjectPhaseEntity {
   // Set once the standard checklist has been laid down, so deliberately
   // clearing a phase is not undone on the next boot.
   @Column({ nullable: true }) seededAt!: string;
+  // Fire-once stamps for the 50/90/100% completion notifications -- same
+  // idiom as seededAt above. Null means that threshold hasn't been crossed
+  // (or the notification hasn't been sent for it) yet; once stamped it never
+  // refires, even if the phase later drops back under the threshold and
+  // crosses it again.
+  @Column({ nullable: true }) notified50!: string | null;
+  @Column({ nullable: true }) notified90!: string | null;
+  @Column({ nullable: true }) notified100!: string | null;
 }
 
 /**
@@ -418,6 +433,16 @@ export class UserEntity {
   // Null means "not chosen", which reads as on: an existing account should keep
   // being told when work is assigned to them without opting in first.
   @Column({ type: 'bit', nullable: true }) notifyOnAssignment!: boolean | null;
+  // Notification preferences beyond assignment -- flat nullable columns, one
+  // bit per preference, matching notifyOnAssignment above rather than a JSON
+  // blob (which would be the first of its kind on this entity). Null reads as
+  // the documented default for each: on for email/overdue/milestone, off for
+  // SMS (it costs money per message; nobody should be opted in silently).
+  @Column({ type: 'bit', nullable: true }) notifyByEmail!: boolean | null;
+  @Column({ type: 'bit', nullable: true }) notifyBySms!: boolean | null;
+  @Column({ nullable: true }) digestFrequency!: string | null; // 'daily' | 'weekly' | 'off'
+  @Column({ type: 'bit', nullable: true }) notifyOnOverdue!: boolean | null;
+  @Column({ type: 'bit', nullable: true }) notifyOnMilestone!: boolean | null;
 }
 
 // Simple key/value store for workspace configuration (Google OAuth credentials,

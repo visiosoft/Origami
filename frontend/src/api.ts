@@ -93,6 +93,9 @@ export const api = {
     me: () => request('/auth/me'),
     setNotificationPrefs: (notifyOnAssignment: boolean) =>
       request('/auth/me/notifications', { method: 'PUT', body: JSON.stringify({ notifyOnAssignment }) }),
+    /** Any subset of the newer per-channel/trigger notification preferences. */
+    setNotificationPrefsExtra: (prefs: Partial<{ notifyByEmail: boolean; notifyBySms: boolean; notifyOnOverdue: boolean; notifyOnMilestone: boolean; digestFrequency: string }>) =>
+      request('/auth/me/notifications', { method: 'PUT', body: JSON.stringify(prefs) }),
     /** Clears the session cookie server-side; the bearer token is dropped locally. */
     logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
     invite: (token: string) => request<{ name: string; email: string; isReset: boolean }>(`/auth/invite/${encodeURIComponent(token)}`),

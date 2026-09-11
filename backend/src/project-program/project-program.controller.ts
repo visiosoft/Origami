@@ -83,7 +83,9 @@ export class ProjectProgramController {
     // document it is.
     const header = [brand.companyName, projectName, 'Project Program'].filter(Boolean).join('  ·  ');
     const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
-    const pdf = await this.google.htmlToPdf(html, name, { header, footer });
+    // Landscape for this document only -- the plain letterhead path in
+    // google.controller.ts doesn't pass this and stays portrait.
+    const pdf = await this.google.htmlToPdf(html, name, { header, footer }, true);
     return { pdf, filename: `${name}.pdf` };
   }
 }

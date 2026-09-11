@@ -46,6 +46,32 @@ class NotificationPrefsDto {
 exports.NotificationPrefsDto = NotificationPrefsDto;
 __decorate([
     (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], NotificationPrefsDto.prototype, "notifyOnAssignment", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], NotificationPrefsDto.prototype, "notifyByEmail", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], NotificationPrefsDto.prototype, "notifyBySms", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], NotificationPrefsDto.prototype, "notifyOnOverdue", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], NotificationPrefsDto.prototype, "notifyOnMilestone", void 0);
+__decorate([
+    (0, class_validator_1.IsIn)(['daily', 'weekly', 'off']),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], NotificationPrefsDto.prototype, "digestFrequency", void 0);
 //# sourceMappingURL=auth.dto.js.map
