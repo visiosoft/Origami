@@ -103,6 +103,16 @@ __decorate([
     __metadata("design:type", Array)
 ], CreateLeadDto.prototype, "additionalContacts", void 0);
 __decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateLeadDto.prototype, "sectionNotes", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateLeadDto.prototype, "sectionCustomFields", void 0);
+__decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)

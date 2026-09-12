@@ -44,6 +44,10 @@ const blankAdditionalContact = (): AdditionalContact => ({
   firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '',
 });
 
+/** An ad-hoc label/value pair, for something a section's fixed fields don't cover. */
+interface CustomField { id: string; label: string; value: string }
+const blankCustomField = (): CustomField => ({ id: 'CF-' + Math.random().toString(36).slice(2, 9), label: '', value: '' });
+
 interface NewLead {
   leadName: string; firstName: string; lastName: string; goByName: string; pronouns: string;
   namePronunciation: string; phone: string; email: string;
@@ -51,6 +55,11 @@ interface NewLead {
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
   preferredContactMatrix?: Record<string, string>;
   additionalContacts?: AdditionalContact[];
+  // Every section carries its own notes and ad-hoc fields, keyed by the
+  // section's key (below) rather than its numbered title -- a section
+  // getting renumbered or renamed must not orphan what was written here.
+  sectionNotes?: Record<string, string>;
+  sectionCustomFields?: Record<string, CustomField[]>;
   preferredContactMethodOfSecondContact: string; pronounsOfSecondContact: string;
   leadSourceReferrerName: string; leadSourceReferrerPhone: string; leadSourceEventDetail: string;
   otherDetails?: Record<string, string>;
@@ -116,6 +125,7 @@ const BLANK_LEAD: NewLead = {
   leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
   namePronunciation: '', phone: '', email: '',
   additionalContacts: [],
+  sectionNotes: {}, sectionCustomFields: {},
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
   preferredContactMatrix: {},
@@ -176,8 +186,8 @@ const NOT_APPLICABLE = 'N/A';
 const isAnswered = (v: unknown): boolean =>
   Array.isArray(v) ? v.length > 0 : String(v ?? '').trim().length > 0;
 
-const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string; value: string; emptyLabel: string } }[] = [
-  { title: '1. Contact', fields: [
+const LEAD_SECTIONS: { key: string; title: string; fields: FieldSpec[]; gate?: { key: string; value: string; emptyLabel: string } }[] = [
+  { key: 'contact', title: '1. Contact', fields: [
     { key: 'firstName', label: 'First Name *', kind: 'text', ph: 'First name' },
     { key: 'lastName', label: 'Last Name *', kind: 'text', ph: 'Last name' },
     { key: 'goByName', label: 'Go-By Name', kind: 'text', ph: 'What they prefer to be called' },
@@ -188,13 +198,13 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'primaryPointOfContact', label: 'Primary Point of Contact', kind: 'select', optKey: 'primaryPointOfContact' },
     { key: 'preferredContactMatrix', label: 'Preferred Contact Method', kind: 'matrix' },
   ] },
-  { title: '2. Source', fields: [
+  { key: 'source', title: '2. Source', fields: [
     { key: 'leadSource', label: 'Lead Source', kind: 'select', optKey: 'leadSource' },
     { key: 'leadSourceReferrerName', label: 'Referred By', kind: 'text', ph: 'Name of the person referring' },
     { key: 'leadSourceReferrerPhone', label: 'Referrer Phone', kind: 'tel', ph: '(555) 123-4567', when: (l) => isReferralSource(l.leadSource) },
     { key: 'leadSourceEventDetail', label: 'Where It Was', kind: 'text', ph: 'Event or networking group', when: (l) => isEventSource(l.leadSource) },
   ] },
-  { title: '3. Location', fields: [
+  { key: 'location', title: '3. Location', fields: [
     { key: 'projectStreetAddress', label: 'Project Street Address', kind: 'text', ph: 'Street number' },
     { key: 'projectStreetName', label: 'Project Street Name', kind: 'text', ph: 'Street name' },
     { key: 'projectAddress2', label: 'Address 2', kind: 'text', ph: 'Unit, suite or floor' },
@@ -204,14 +214,14 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'occupancyStatus', label: 'Owner or Tenant', kind: 'select', optKey: 'occupancyStatus' },
     { key: 'hasHOA', label: 'Property has an HOA', kind: 'checkbox' },
   ] },
-  { title: '4. Project', fields: [
+  { key: 'project', title: '4. Project', fields: [
     { key: 'propertyType', label: 'Property Type', kind: 'select', optKey: 'propertyType' },
     { key: 'potentialProjectType', label: 'Potential Project Type', kind: 'select', optKey: 'potentialProjectType' },
     { key: 'contractType', label: 'Contract Type', kind: 'select', optKey: 'contractType' },
     { key: 'homeworkCompleted', label: 'Homework Completed', kind: 'pills', optKey: 'homeworkCompleted' },
     { key: 'projectVision', label: 'Project Vision / Scope', kind: 'textarea', ph: 'Describe what the client wants to accomplish…' },
   ] },
-  { title: '5. Budget & Timeline', fields: [
+  { key: 'budget', title: '5. Budget & Timeline', fields: [
     { key: 'reasonForProject', label: 'Reason for Project', kind: 'select', optKey: 'reasonForProject' },
     { key: 'budgetPosition', label: 'Budget Position', kind: 'select', optKey: 'budgetPosition' },
     { key: 'fundingStatus', label: 'Funding Status', kind: 'select', optKey: 'fundingStatus' },
@@ -219,7 +229,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'expectedDuration', label: 'Expected Duration', kind: 'select', optKey: 'expectedDuration' },
     { key: 'expectedLengthOfOwnership', label: 'Expected Length of Ownership', kind: 'select', optKey: 'expectedLengthOfOwnership' },
   ] },
-  { title: '6. Client Profile', fields: [
+  { key: 'clientProfile', title: '6. Client Profile', fields: [
     { key: 'decisionMakers', label: 'Decision Makers', kind: 'select', optKey: 'decisionMakers' },
     { key: 'clientPersonality', label: 'Client Personality', kind: 'select', optKey: 'clientPersonality' },
   ] },
@@ -373,6 +383,14 @@ export function Pipeline() {
   const updateContact = (id: string, patch: Partial<AdditionalContact>) =>
     setField('additionalContacts', (nl.additionalContacts || []).map((c) => (c.id === id ? { ...c, ...patch } : c)));
   const removeContact = (id: string) => setField('additionalContacts', (nl.additionalContacts || []).filter((c) => c.id !== id));
+  const sectionExtrasProps = (key: string) => ({
+    notes: nl.sectionNotes?.[key] || '',
+    fields: nl.sectionCustomFields?.[key] || [],
+    onNoteChange: (v: string) => setField('sectionNotes', { ...(nl.sectionNotes || {}), [key]: v }),
+    onAddField: () => setField('sectionCustomFields', { ...(nl.sectionCustomFields || {}), [key]: [...(nl.sectionCustomFields?.[key] || []), blankCustomField()] }),
+    onFieldChange: (id: string, patch: Partial<CustomField>) => setField('sectionCustomFields', { ...(nl.sectionCustomFields || {}), [key]: (nl.sectionCustomFields?.[key] || []).map((f) => (f.id === id ? { ...f, ...patch } : f)) }),
+    onRemoveField: (id: string) => setField('sectionCustomFields', { ...(nl.sectionCustomFields || {}), [key]: (nl.sectionCustomFields?.[key] || []).filter((f) => f.id !== id) }),
+  });
 
   const openEdit = (deal: Deal) => {
     const existing = leadDetails[deal.id];
@@ -1031,6 +1049,14 @@ export function Pipeline() {
                                 </div>
                               </>
                             )}
+                            <SectionExtras
+                              notes={ld.sectionNotes?.[sec.key] || ''}
+                              fields={ld.sectionCustomFields?.[sec.key] || []}
+                              onNoteChange={(v) => up('sectionNotes', { ...(ld.sectionNotes || {}), [sec.key]: v } as never)}
+                              onAddField={() => up('sectionCustomFields', { ...(ld.sectionCustomFields || {}), [sec.key]: [...(ld.sectionCustomFields?.[sec.key] || []), blankCustomField()] } as never)}
+                              onFieldChange={(id, patch) => up('sectionCustomFields', { ...(ld.sectionCustomFields || {}), [sec.key]: (ld.sectionCustomFields?.[sec.key] || []).map((f) => (f.id === id ? { ...f, ...patch } : f)) } as never)}
+                              onRemoveField={(id) => up('sectionCustomFields', { ...(ld.sectionCustomFields || {}), [sec.key]: (ld.sectionCustomFields?.[sec.key] || []).filter((f) => f.id !== id) } as never)}
+                            />
                           </div>
                         </div>
                         );
@@ -1344,7 +1370,7 @@ export function Pipeline() {
               {(() => {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
-                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
+                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
                     ...(ld?.additionalContacts || []).flatMap((c, i) => ([
                       [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || ''],
                       [`Contact ${i + 2} — Phone`, c.phone || ''],
@@ -1352,12 +1378,19 @@ export function Pipeline() {
                       [`Contact ${i + 2} — Preferred Contact Method`, c.preferredContactMethod || ''],
                     ] as [string, string][])),
                   ] },
-                  { title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
-                  { title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
-                  { title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
-                  { title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
-                ].map((s) => ({ title: s.title, rows: s.rows.filter(([, val]) => val && String(val).trim()) as [string, string][] })).filter((s) => s.rows.length > 0);
+                  { key: 'source', title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
+                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
+                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
+                  { key: 'budget', title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
+                  { key: 'clientProfile', title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
+                ].map((s) => ({
+                  title: s.title,
+                  rows: [
+                    ...s.rows.filter(([, val]) => val && String(val).trim()),
+                    ...(ld?.sectionNotes?.[s.key] ? [['Notes', ld.sectionNotes[s.key]]] : []),
+                    ...(ld?.sectionCustomFields?.[s.key] || []).filter((f) => f.label || f.value).map((f) => [f.label || 'Custom field', f.value || '']),
+                  ] as [string, string][],
+                })).filter((s) => s.rows.length > 0);
                 if (sections.length === 0) return <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
                 return sections.map((s) => (
                   <div key={s.title} style={{ marginBottom: 16 }}>
@@ -1485,6 +1518,7 @@ export function Pipeline() {
                   <div onClick={addContact} style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
                     + Add another contact
                   </div>
+                  <SectionExtras {...sectionExtrasProps('contact')} />
                 </>)}
                 {formTab === 2 && (<>
                   <SectionTitle>2. Source</SectionTitle>
@@ -1511,6 +1545,7 @@ export function Pipeline() {
                       );
                     })()}
                   </FormGrid>
+                  <SectionExtras {...sectionExtrasProps('source')} />
                 </>)}
                 {formTab === 3 && (<>
                   <SectionTitle>3. Project Location</SectionTitle>
@@ -1587,6 +1622,7 @@ export function Pipeline() {
                       </FormGrid>
                     );
                   })()}
+                  <SectionExtras {...sectionExtrasProps('location')} />
                 </>)}
                 {formTab === 4 && (<>
                   <SectionTitle>4. Project Details</SectionTitle>
@@ -1618,6 +1654,7 @@ export function Pipeline() {
                       <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 4 }}>The standard scope for the selected project type is filled in automatically. Add the specifics for this client.</div>
                     </div>
                   </FormGrid>
+                  <SectionExtras {...sectionExtrasProps('project')} />
                 </>)}
                 {formTab === 5 && (<>
                   <SectionTitle>5. Budget & Timeline</SectionTitle>
@@ -1629,6 +1666,7 @@ export function Pipeline() {
                     <FormField label="Expected Duration" hint="Client's expectation, not our estimated schedule."><select value={nl.expectedDuration} onChange={(e) => setField('expectedDuration', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedDuration.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <FormField label="Expected Length of Ownership"><select value={nl.expectedLengthOfOwnership} onChange={(e) => setField('expectedLengthOfOwnership', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedLengthOfOwnership.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                   </FormGrid>
+                  <SectionExtras {...sectionExtrasProps('budget')} />
                 </>)}
                 {formTab === 6 && (<>
                   <SectionTitle>6. Client Profile</SectionTitle>
@@ -1640,6 +1678,7 @@ export function Pipeline() {
                       <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 6 }}>Based on the first conversation, select the personality style that most closely reflects how the client communicates and makes decisions.</div>
                     </div>
                   </FormGrid>
+                  <SectionExtras {...sectionExtrasProps('clientProfile')} />
                 </>)}
               </div>
             </div>
@@ -1661,3 +1700,35 @@ const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box'
 function SectionTitle({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, fontWeight: 700, color: '#173326', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>{children}</div>; }
 function FormGrid({ children }: { children: React.ReactNode }) { return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>{children}</div>; }
 function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return (<div><div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{label}</div>{children}{hint && <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}</div>); }
+
+/**
+ * Every section's escape hatch: a free-text Notes box plus any number of
+ * ad-hoc label/value fields, for whatever this section's fixed questions
+ * don't cover -- a gate code, a special instruction, anything.
+ */
+function SectionExtras({ notes, fields, onNoteChange, onAddField, onFieldChange, onRemoveField }: {
+  notes: string;
+  fields: CustomField[];
+  onNoteChange: (v: string) => void;
+  onAddField: () => void;
+  onFieldChange: (id: string, patch: Partial<CustomField>) => void;
+  onRemoveField: (id: string) => void;
+}) {
+  return (
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(20,8,31,0.08)' }}>
+      <FormField label="Notes" hint="Anything else worth capturing for this section.">
+        <textarea value={notes} onChange={(e) => onNoteChange(e.target.value)} rows={2} placeholder="Optional notes…" style={{ ...inputStyle, resize: 'vertical' }} />
+      </FormField>
+      {fields.map((f) => (
+        <div key={f.id} style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}><FormField label="Field label"><input value={f.label} onChange={(e) => onFieldChange(f.id, { label: e.target.value })} placeholder="e.g. Gate code" style={inputStyle} /></FormField></div>
+          <div style={{ flex: 1 }}><FormField label="Value"><input value={f.value} onChange={(e) => onFieldChange(f.id, { value: e.target.value })} style={inputStyle} /></FormField></div>
+          <div onClick={() => onRemoveField(f.id)} style={{ paddingBottom: 9, fontSize: 11.5, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Remove</div>
+        </div>
+      ))}
+      <div onClick={onAddField} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
+        + Add custom field
+      </div>
+    </div>
+  );
+}

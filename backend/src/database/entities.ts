@@ -189,6 +189,11 @@ export class LeadEntity {
   // still read correctly, but no longer edited. Replaced by this repeatable
   // list: same columns as the primary contact, as many as the lead needs.
   @Column({ type: 'simple-json', nullable: true }) additionalContacts!: unknown[];
+  // Every intake section carries its own free-text notes and ad-hoc
+  // label/value fields, keyed by the section's stable key (see LEAD_SECTIONS
+  // on the frontend) rather than its numbered title.
+  @Column({ type: 'simple-json', nullable: true }) sectionNotes!: Record<string, string>;
+  @Column({ type: 'simple-json', nullable: true }) sectionCustomFields!: Record<string, unknown[]>;
   // Everyone involved in the project, each holding one or more roles
   // (PC, SC, OR, OC, ON, SH, FY, CA, C2, AD). A lead outgrows the single
   // primary/second contact pair as soon as owners and consultants appear.

@@ -573,6 +573,14 @@ __decorate([
 ], LeadEntity.prototype, "additionalContacts", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadEntity.prototype, "sectionNotes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadEntity.prototype, "sectionCustomFields", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
 ], LeadEntity.prototype, "contacts", void 0);
 __decorate([
