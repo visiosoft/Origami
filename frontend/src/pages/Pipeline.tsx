@@ -28,12 +28,29 @@ const DOT = '·';
 
 
 
+/**
+ * A contact beyond the primary one, on the same lead.
+ *
+ * Same columns as the primary contact in section 1 -- there is no cap on how
+ * many a lead can have, unlike the old fixed "second contact" fields this
+ * replaces.
+ */
+interface AdditionalContact {
+  id: string; firstName: string; lastName: string; goByName: string; pronouns: string;
+  namePronunciation: string; phone: string; email: string; preferredContactMethod: string;
+}
+const blankAdditionalContact = (): AdditionalContact => ({
+  id: 'AC-' + Math.random().toString(36).slice(2, 9),
+  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '',
+});
+
 interface NewLead {
   leadName: string; firstName: string; lastName: string; goByName: string; pronouns: string;
   namePronunciation: string; phone: string; email: string;
   primaryPointOfContact: string; secondPointOfContact: string; nameOfSecondContact: string;
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
   preferredContactMatrix?: Record<string, string>;
+  additionalContacts?: AdditionalContact[];
   preferredContactMethodOfSecondContact: string; pronounsOfSecondContact: string;
   leadSourceReferrerName: string; leadSourceReferrerPhone: string; leadSourceEventDetail: string;
   otherDetails?: Record<string, string>;
@@ -98,6 +115,7 @@ const ZONING_FORM: { title: string; fields: ZAField[] }[] = [
 const BLANK_LEAD: NewLead = {
   leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
   namePronunciation: '', phone: '', email: '',
+  additionalContacts: [],
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
   preferredContactMatrix: {},
@@ -170,22 +188,13 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'primaryPointOfContact', label: 'Primary Point of Contact', kind: 'select', optKey: 'primaryPointOfContact' },
     { key: 'preferredContactMatrix', label: 'Preferred Contact Method', kind: 'matrix' },
   ] },
-  { title: '2. Second Contact', gate: { key: 'secondPointOfContact', value: 'Yes', emptyLabel: 'No second contact' }, fields: [
-    { key: 'secondPointOfContact', label: 'Second Point of Contact?', kind: 'select', optKey: 'secondPointOfContact' },
-    { key: 'nameOfSecondContact', label: 'Name of Second Contact', kind: 'text', ph: 'Full name' },
-    { key: 'phoneOfSecondContact', label: 'Phone of Second Contact', kind: 'tel', ph: '(555) 123-4567' },
-    { key: 'emailOfSecondContact', label: 'Email of Second Contact', kind: 'email', ph: 'email@example.com' },
-    { key: 'relationshipOfSecondContact', label: 'Relationship', kind: 'select', optKey: 'relationshipOfSecondContact' },
-    { key: 'pronounsOfSecondContact', label: 'Pronouns', kind: 'select', optKey: 'pronouns' },
-    { key: 'preferredContactMethodOfSecondContact', label: 'Preferred Contact Method', kind: 'select', optKey: 'preferredContactMethod' },
-  ] },
-  { title: '3. Source', fields: [
+  { title: '2. Source', fields: [
     { key: 'leadSource', label: 'Lead Source', kind: 'select', optKey: 'leadSource' },
     { key: 'leadSourceReferrerName', label: 'Referred By', kind: 'text', ph: 'Name of the person referring' },
     { key: 'leadSourceReferrerPhone', label: 'Referrer Phone', kind: 'tel', ph: '(555) 123-4567', when: (l) => isReferralSource(l.leadSource) },
     { key: 'leadSourceEventDetail', label: 'Where It Was', kind: 'text', ph: 'Event or networking group', when: (l) => isEventSource(l.leadSource) },
   ] },
-  { title: '4. Location', fields: [
+  { title: '3. Location', fields: [
     { key: 'projectStreetAddress', label: 'Project Street Address', kind: 'text', ph: 'Street number' },
     { key: 'projectStreetName', label: 'Project Street Name', kind: 'text', ph: 'Street name' },
     { key: 'projectAddress2', label: 'Address 2', kind: 'text', ph: 'Unit, suite or floor' },
@@ -195,14 +204,14 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'occupancyStatus', label: 'Owner or Tenant', kind: 'select', optKey: 'occupancyStatus' },
     { key: 'hasHOA', label: 'Property has an HOA', kind: 'checkbox' },
   ] },
-  { title: '5. Project', fields: [
+  { title: '4. Project', fields: [
     { key: 'propertyType', label: 'Property Type', kind: 'select', optKey: 'propertyType' },
     { key: 'potentialProjectType', label: 'Potential Project Type', kind: 'select', optKey: 'potentialProjectType' },
     { key: 'contractType', label: 'Contract Type', kind: 'select', optKey: 'contractType' },
     { key: 'homeworkCompleted', label: 'Homework Completed', kind: 'pills', optKey: 'homeworkCompleted' },
     { key: 'projectVision', label: 'Project Vision / Scope', kind: 'textarea', ph: 'Describe what the client wants to accomplish…' },
   ] },
-  { title: '6. Budget & Timeline', fields: [
+  { title: '5. Budget & Timeline', fields: [
     { key: 'reasonForProject', label: 'Reason for Project', kind: 'select', optKey: 'reasonForProject' },
     { key: 'budgetPosition', label: 'Budget Position', kind: 'select', optKey: 'budgetPosition' },
     { key: 'fundingStatus', label: 'Funding Status', kind: 'select', optKey: 'fundingStatus' },
@@ -210,7 +219,7 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
     { key: 'expectedDuration', label: 'Expected Duration', kind: 'select', optKey: 'expectedDuration' },
     { key: 'expectedLengthOfOwnership', label: 'Expected Length of Ownership', kind: 'select', optKey: 'expectedLengthOfOwnership' },
   ] },
-  { title: '7. Client Profile', fields: [
+  { title: '6. Client Profile', fields: [
     { key: 'decisionMakers', label: 'Decision Makers', kind: 'select', optKey: 'decisionMakers' },
     { key: 'clientPersonality', label: 'Client Personality', kind: 'select', optKey: 'clientPersonality' },
   ] },
@@ -218,12 +227,11 @@ const LEAD_SECTIONS: { title: string; fields: FieldSpec[]; gate?: { key: string;
 
 const TABS = [
   { id: 1, label: '1. Contact Info' },
-  { id: 2, label: '2. Second Contact' },
-  { id: 3, label: '3. Source' },
-  { id: 4, label: '4. Location' },
-  { id: 5, label: '5. Project Details' },
-  { id: 6, label: '6. Budget & Timeline' },
-  { id: 7, label: '7. Client Profile' },
+  { id: 2, label: '2. Source' },
+  { id: 3, label: '3. Location' },
+  { id: 4, label: '4. Project Details' },
+  { id: 5, label: '5. Budget & Timeline' },
+  { id: 6, label: '6. Client Profile' },
 ];
 
 export function Pipeline() {
@@ -361,6 +369,10 @@ export function Pipeline() {
     return next;
   });
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
+  const addContact = () => setField('additionalContacts', [...(nl.additionalContacts || []), blankAdditionalContact()]);
+  const updateContact = (id: string, patch: Partial<AdditionalContact>) =>
+    setField('additionalContacts', (nl.additionalContacts || []).map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const removeContact = (id: string) => setField('additionalContacts', (nl.additionalContacts || []).filter((c) => c.id !== id));
 
   const openEdit = (deal: Deal) => {
     const existing = leadDetails[deal.id];
@@ -967,6 +979,58 @@ export function Pipeline() {
                               </div>
                               );
                             })}
+                            {sec.title === '1. Contact' && (
+                              <>
+                                {(ld.additionalContacts || []).map((c, i) => (
+                                  <div key={c.id} style={{ paddingTop: 10, marginTop: 4, borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                      <span style={{ fontSize: 10.5, fontWeight: 700, color: '#173326' }}>Additional Contact {i + 1}</span>
+                                      <span
+                                        onClick={() => up('additionalContacts', (ld.additionalContacts || []).filter((x) => x.id !== c.id) as never)}
+                                        style={{ fontSize: 10, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer' }}
+                                      >
+                                        Remove
+                                      </span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {([
+                                        ['First Name', 'firstName', 'text'], ['Last Name', 'lastName', 'text'],
+                                        ['Go-By Name', 'goByName', 'text'], ['Pronouns', 'pronouns', 'select'],
+                                        ['Name Pronunciation', 'namePronunciation', 'text'], ['Phone Number', 'phone', 'tel'],
+                                        ['Email', 'email', 'email'], ['Preferred Contact Method', 'preferredContactMethod', 'select'],
+                                      ] as [string, keyof AdditionalContact, string][]).map(([label, key, kind]) => (
+                                        <div key={key}>
+                                          <span style={{ fontSize: 10, fontWeight: 600, color: '#9AA39D', display: 'block', marginBottom: 3 }}>{label}</span>
+                                          {kind === 'select' ? (
+                                            <select
+                                              value={c[key]}
+                                              onChange={(e) => up('additionalContacts', (ld.additionalContacts || []).map((x) => (x.id === c.id ? { ...x, [key]: e.target.value } : x)) as never)}
+                                              style={inputStyle}
+                                            >
+                                              <option value="">Select…</option>
+                                              {(key === 'pronouns' ? OPT.pronouns : OPT.preferredContactMethod).map((o) => <option key={o}>{o}</option>)}
+                                            </select>
+                                          ) : (
+                                            <input
+                                              type={kind}
+                                              value={c[key]}
+                                              onChange={(e) => up('additionalContacts', (ld.additionalContacts || []).map((x) => (x.id === c.id ? { ...x, [key]: e.target.value } : x)) as never)}
+                                              style={inputStyle}
+                                            />
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                                <div
+                                  onClick={() => up('additionalContacts', [...(ld.additionalContacts || []), blankAdditionalContact()] as never)}
+                                  style={{ fontSize: 11, fontWeight: 700, color: '#173326', cursor: 'pointer', paddingTop: 4 }}
+                                >
+                                  + Add another contact
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                         );
@@ -1280,13 +1344,19 @@ export function Pipeline() {
               {(() => {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
-                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || '']] },
-                  { title: '2. Second Contact', rows: [['Has second contact', ld?.secondPointOfContact || ''], ['Name', ld?.nameOfSecondContact || ''], ['Phone', ld?.phoneOfSecondContact || ''], ['Email', ld?.emailOfSecondContact || ''], ['Relationship', ld?.relationshipOfSecondContact || ''], ['Pronouns', ld?.pronounsOfSecondContact || ''], ['Preferred Contact Method', ld?.preferredContactMethodOfSecondContact || '']] },
-                  { title: '3. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { title: '4. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
-                  { title: '5. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
-                  { title: '6. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
-                  { title: '7. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
+                  { title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
+                    ...(ld?.additionalContacts || []).flatMap((c, i) => ([
+                      [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || ''],
+                      [`Contact ${i + 2} — Phone`, c.phone || ''],
+                      [`Contact ${i + 2} — Email`, c.email || ''],
+                      [`Contact ${i + 2} — Preferred Contact Method`, c.preferredContactMethod || ''],
+                    ] as [string, string][])),
+                  ] },
+                  { title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
+                  { title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
+                  { title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
+                  { title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
+                  { title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
                 ].map((s) => ({ title: s.title, rows: s.rows.filter(([, val]) => val && String(val).trim()) as [string, string][] })).filter((s) => s.rows.length > 0);
                 if (sections.length === 0) return <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
                 return sections.map((s) => (
@@ -1393,23 +1463,31 @@ export function Pipeline() {
                     <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={nl.preferredContactMatrix} onChange={(mx) => setField('preferredContactMatrix', mx)} /></div>
                   </FormGrid>
+
+                  {(nl.additionalContacts || []).map((c, i) => (
+                    <div key={c.id} style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(20,8,31,0.08)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#173326', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Additional Contact {i + 1}</div>
+                        <div onClick={() => removeContact(c.id)} style={{ fontSize: 11.5, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer' }}>Remove</div>
+                      </div>
+                      <FormGrid>
+                        <FormField label="First Name"><input value={c.firstName} onChange={(e) => updateContact(c.id, { firstName: e.target.value })} placeholder="First name" style={inputStyle} /></FormField>
+                        <FormField label="Last Name"><input value={c.lastName} onChange={(e) => updateContact(c.id, { lastName: e.target.value })} placeholder="Last name" style={inputStyle} /></FormField>
+                        <FormField label="Go-By Name"><input value={c.goByName} onChange={(e) => updateContact(c.id, { goByName: e.target.value })} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
+                        <FormField label="Pronouns"><select value={c.pronouns} onChange={(e) => updateContact(c.id, { pronouns: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                        <FormField label="Name Pronunciation"><input value={c.namePronunciation} onChange={(e) => updateContact(c.id, { namePronunciation: e.target.value })} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
+                        <FormField label="Phone Number"><input type="tel" value={c.phone} onChange={(e) => updateContact(c.id, { phone: e.target.value })} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
+                        <FormField label="Email"><input type="email" value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} placeholder="email@example.com" style={inputStyle} /></FormField>
+                        <FormField label="Preferred Contact Method"><select value={c.preferredContactMethod} onChange={(e) => updateContact(c.id, { preferredContactMethod: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                      </FormGrid>
+                    </div>
+                  ))}
+                  <div onClick={addContact} style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
+                    + Add another contact
+                  </div>
                 </>)}
                 {formTab === 2 && (<>
-                  <SectionTitle>2. Second Point of Contact</SectionTitle>
-                  <FormGrid>
-                    <FormField label="Second Point of Contact?" hint="Is there another person to include in communications?"><select value={nl.secondPointOfContact} onChange={(e) => setField('secondPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.secondPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    {nl.secondPointOfContact === 'Yes' && <>
-                      <FormField label="Name of Second Contact"><input value={nl.nameOfSecondContact} onChange={(e) => setField('nameOfSecondContact', e.target.value)} placeholder="Full name" style={inputStyle} /></FormField>
-                      <FormField label="Phone of Second Contact" hint="Include area code."><input type="tel" value={nl.phoneOfSecondContact} onChange={(e) => setField('phoneOfSecondContact', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
-                      <FormField label="Email of Second Contact"><input type="email" value={nl.emailOfSecondContact} onChange={(e) => setField('emailOfSecondContact', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
-                      <FormField label="Relationship of Second Contact"><select value={nl.relationshipOfSecondContact} onChange={(e) => setField('relationshipOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.relationshipOfSecondContact, nl.relationshipOfSecondContact).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.relationshipOfSecondContact} field="relationshipOfSecondContact" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                      <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronounsOfSecondContact} onChange={(e) => setField('pronounsOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.pronounsOfSecondContact} field="pronounsOfSecondContact" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                      <FormField label="Preferred Contact Method" hint="How this person prefers to be reached."><select value={nl.preferredContactMethodOfSecondContact} onChange={(e) => setField('preferredContactMethodOfSecondContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    </>}
-                  </FormGrid>
-                </>)}
-                {formTab === 3 && (<>
-                  <SectionTitle>3. Source</SectionTitle>
+                  <SectionTitle>2. Source</SectionTitle>
                   <FormGrid>
                     <FormField label="Lead Source" hint="How the lead first heard about or was referred to us."><select value={nl.leadSource} onChange={(e) => setField('leadSource', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.leadSource, nl.leadSource).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.leadSource} field="leadSource" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     {(() => {
@@ -1434,8 +1512,8 @@ export function Pipeline() {
                     })()}
                   </FormGrid>
                 </>)}
-                {formTab === 4 && (<>
-                  <SectionTitle>4. Project Location</SectionTitle>
+                {formTab === 3 && (<>
+                  <SectionTitle>3. Project Location</SectionTitle>
                   <FormGrid>
                     <FormField label="Region" hint="Narrows City and County below to speed up finding one. Doesn't change what's saved.">
                       <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value as Region | 'All')} style={inputStyle}>
@@ -1510,8 +1588,8 @@ export function Pipeline() {
                     );
                   })()}
                 </>)}
-                {formTab === 5 && (<>
-                  <SectionTitle>5. Project Details</SectionTitle>
+                {formTab === 4 && (<>
+                  <SectionTitle>4. Project Details</SectionTitle>
                   <FormGrid>
                     <FormField label="Property Type"><select value={nl.propertyType} onChange={(e) => setField('propertyType', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.propertyType.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.propertyType} field="propertyType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Potential Project Type" hint="Sets the property type and fills in the standard scope for that code."><select value={nl.potentialProjectType} onChange={(e) => setField('potentialProjectType', e.target.value)} style={inputStyle}><option value="">Select...</option>{PROJECT_TYPE_GROUPS.map((g) => (<optgroup key={g} label={g}>{PROJECT_TYPES.filter((t) => t.group === g).map((t) => <option key={t.code} value={projectTypeLabel(t)}>{projectTypeLabel(t)}</option>)}</optgroup>))}</select><OtherDetail value={nl.potentialProjectType} field="potentialProjectType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
@@ -1541,8 +1619,8 @@ export function Pipeline() {
                     </div>
                   </FormGrid>
                 </>)}
-                {formTab === 6 && (<>
-                  <SectionTitle>6. Budget & Timeline</SectionTitle>
+                {formTab === 5 && (<>
+                  <SectionTitle>5. Budget & Timeline</SectionTitle>
                   <FormGrid>
                     <FormField label="Reason for Project"><select value={nl.reasonForProject} onChange={(e) => setField('reasonForProject', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.reasonForProject.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.reasonForProject} field="reasonForProject" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Budget Position" hint="How the client currently thinks about budget."><select value={nl.budgetPosition} onChange={(e) => setField('budgetPosition', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.budgetPosition.map((o) => <option key={o}>{o}</option>)}</select></FormField>
@@ -1552,8 +1630,8 @@ export function Pipeline() {
                     <FormField label="Expected Length of Ownership"><select value={nl.expectedLengthOfOwnership} onChange={(e) => setField('expectedLengthOfOwnership', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedLengthOfOwnership.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                   </FormGrid>
                 </>)}
-                {formTab === 7 && (<>
-                  <SectionTitle>7. Client Profile</SectionTitle>
+                {formTab === 6 && (<>
+                  <SectionTitle>6. Client Profile</SectionTitle>
                   <FormGrid>
                     <FormField label="Decision Makers" hint="Who makes final decisions about scope, budget, and design."><select value={nl.decisionMakers} onChange={(e) => setField('decisionMakers', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.decisionMakers, nl.decisionMakers).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.decisionMakers} field="decisionMakers" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>

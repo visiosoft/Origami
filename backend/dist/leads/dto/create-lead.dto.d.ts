@@ -16,6 +16,7 @@ export declare class CreateLeadDto {
     relationshipOfSecondContact?: string;
     preferredContactMethodOfSecondContact?: string;
     pronounsOfSecondContact?: string;
+    additionalContacts?: unknown[];
     contacts?: unknown[];
     decisionMakers?: string;
     preferredContactMethod?: string;

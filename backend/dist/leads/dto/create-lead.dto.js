@@ -101,6 +101,11 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
+], CreateLeadDto.prototype, "additionalContacts", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
 ], CreateLeadDto.prototype, "contacts", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),

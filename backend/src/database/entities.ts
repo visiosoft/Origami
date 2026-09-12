@@ -185,6 +185,10 @@ export class LeadEntity {
   // has its own preference rather than inheriting the primary one.
   @Column({ nullable: true }) preferredContactMethodOfSecondContact!: string;
   @Column({ nullable: true }) pronounsOfSecondContact!: string;
+  // The fixed "second contact" fields above are legacy -- kept so old leads
+  // still read correctly, but no longer edited. Replaced by this repeatable
+  // list: same columns as the primary contact, as many as the lead needs.
+  @Column({ type: 'simple-json', nullable: true }) additionalContacts!: unknown[];
   // Everyone involved in the project, each holding one or more roles
   // (PC, SC, OR, OC, ON, SH, FY, CA, C2, AD). A lead outgrows the single
   // primary/second contact pair as soon as owners and consultants appear.
