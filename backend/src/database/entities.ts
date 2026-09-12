@@ -387,9 +387,14 @@ export class ProjectPhaseEntity {
   // (or the notification hasn't been sent for it) yet; once stamped it never
   // refires, even if the phase later drops back under the threshold and
   // crosses it again.
-  @Column({ nullable: true }) notified50!: string | null;
-  @Column({ nullable: true }) notified90!: string | null;
-  @Column({ nullable: true }) notified100!: string | null;
+  // Plain `string`, not `string | null` -- TypeORM reflects a union type as
+  // "Object" and can't map that to a column type without an explicit `type`,
+  // which is exactly what took the whole app down after this was shipped as
+  // `string | null`. `nullable: true` alone gives the DB-level nullability;
+  // every other nullable string column in this file follows that pattern.
+  @Column({ nullable: true }) notified50!: string;
+  @Column({ nullable: true }) notified90!: string;
+  @Column({ nullable: true }) notified100!: string;
 }
 
 /**
@@ -440,7 +445,7 @@ export class UserEntity {
   // SMS (it costs money per message; nobody should be opted in silently).
   @Column({ type: 'bit', nullable: true }) notifyByEmail!: boolean | null;
   @Column({ type: 'bit', nullable: true }) notifyBySms!: boolean | null;
-  @Column({ nullable: true }) digestFrequency!: string | null; // 'daily' | 'weekly' | 'off'
+  @Column({ nullable: true }) digestFrequency!: string; // 'daily' | 'weekly' | 'off'
   @Column({ type: 'bit', nullable: true }) notifyOnOverdue!: boolean | null;
   @Column({ type: 'bit', nullable: true }) notifyOnMilestone!: boolean | null;
 }

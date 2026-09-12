@@ -1169,15 +1169,15 @@ __decorate([
 ], ProjectPhaseEntity.prototype, "seededAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Object)
+    __metadata("design:type", String)
 ], ProjectPhaseEntity.prototype, "notified50", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Object)
+    __metadata("design:type", String)
 ], ProjectPhaseEntity.prototype, "notified90", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Object)
+    __metadata("design:type", String)
 ], ProjectPhaseEntity.prototype, "notified100", void 0);
 exports.ProjectPhaseEntity = ProjectPhaseEntity = __decorate([
     (0, typeorm_1.Entity)('project_phases')
@@ -1293,7 +1293,7 @@ __decorate([
 ], UserEntity.prototype, "notifyBySms", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
-    __metadata("design:type", Object)
+    __metadata("design:type", String)
 ], UserEntity.prototype, "digestFrequency", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'bit', nullable: true }),

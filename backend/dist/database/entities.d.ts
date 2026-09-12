@@ -302,9 +302,9 @@ export declare class ProjectPhaseEntity {
     startDate: string;
     endDate: string;
     seededAt: string;
-    notified50: string | null;
-    notified90: string | null;
-    notified100: string | null;
+    notified50: string;
+    notified90: string;
+    notified100: string;
 }
 export declare class ProjectProgramEntity {
     projectId: number;
@@ -334,7 +334,7 @@ export declare class UserEntity {
     notifyOnAssignment: boolean | null;
     notifyByEmail: boolean | null;
     notifyBySms: boolean | null;
-    digestFrequency: string | null;
+    digestFrequency: string;
     notifyOnOverdue: boolean | null;
     notifyOnMilestone: boolean | null;
 }
