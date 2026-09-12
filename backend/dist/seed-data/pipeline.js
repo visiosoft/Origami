@@ -10,7 +10,7 @@ exports.STAGES = [
     { key: 'virtual_ff', name: 'Virtual F2F meeting', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2F7D4A', colorBg: '#D2EAD3' },
     { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isDecision: true, color: '#4B7B22', colorBg: '#DEEBCC' },
     { key: 'site_visit', name: 'Schedule Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#6E7A18', colorBg: '#E6E9C6' },
-    { key: 'zoning', name: 'Zoning Analysis', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
+    { key: 'zoning', name: 'Project Programming', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
     { key: 'proposal', name: 'Proposal Sent', idx: 7, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#A34718', colorBg: '#F7DCCC' },
     { key: 'client_approval', name: 'Client Approval', idx: 8, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
     { key: 'rfp', name: 'RFP to Consultants', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#3C5C8A', colorBg: '#D8E2F0' },
