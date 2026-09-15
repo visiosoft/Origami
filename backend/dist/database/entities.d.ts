@@ -318,6 +318,15 @@ export declare class ProjectProgramEntity {
     sentAt: string;
     sentTo: string;
 }
+export declare class LeadProgramEntity {
+    leadId: string;
+    data: string;
+    updatedAt: string;
+    updatedBy: string;
+    completedAt: string;
+    sentAt: string;
+    sentTo: string;
+}
 export declare class UserEntity {
     id: string;
     name: string;

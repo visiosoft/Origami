@@ -19,7 +19,7 @@ let ProjectProgramModule = class ProjectProgramModule {
 exports.ProjectProgramModule = ProjectProgramModule;
 exports.ProjectProgramModule = ProjectProgramModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectProgramEntity, entities_1.ProjectEntity]), google_module_1.GoogleModule, settings_module_1.SettingsModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectProgramEntity, entities_1.ProjectEntity, entities_1.LeadProgramEntity, entities_1.LeadEntity]), google_module_1.GoogleModule, settings_module_1.SettingsModule],
         controllers: [project_program_controller_1.ProjectProgramController],
         providers: [project_program_service_1.ProjectProgramService],
         exports: [project_program_service_1.ProjectProgramService],

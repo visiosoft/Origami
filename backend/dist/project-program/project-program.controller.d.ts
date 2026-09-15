@@ -4,7 +4,8 @@ import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { type DocStep } from '../documents/program-document';
 interface DocumentInput {
-    projectId: number;
+    projectId?: number;
+    leadId?: string;
     projectName?: string;
     subtitle?: string;
     date?: string;
@@ -15,7 +16,15 @@ export declare class ProjectProgramController {
     private readonly google;
     private readonly settings;
     constructor(service: ProjectProgramService, google: GoogleService, settings: SettingsService);
-    get(projectId: string): Promise<{
+    get(projectId?: string, leadId?: string): Promise<{
+        leadId: string;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+    }> | Promise<{
         projectId: number;
         data: Record<string, any>;
         updatedAt: string;
@@ -25,9 +34,18 @@ export declare class ProjectProgramController {
         sentTo: string;
     }>;
     save(body: {
-        projectId: number;
+        projectId?: number;
+        leadId?: string;
         data: unknown;
     }, req: any): Promise<{
+        leadId: string;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+    }> | Promise<{
         projectId: number;
         data: Record<string, any>;
         updatedAt: string;
@@ -37,9 +55,18 @@ export declare class ProjectProgramController {
         sentTo: string;
     }>;
     complete(body: {
-        projectId: number;
+        projectId?: number;
+        leadId?: string;
         complete?: boolean;
     }): Promise<{
+        leadId: string;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+    }> | Promise<{
         projectId: number;
         data: Record<string, any>;
         updatedAt: string;

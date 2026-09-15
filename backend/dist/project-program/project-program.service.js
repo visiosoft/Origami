@@ -18,9 +18,11 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 let ProjectProgramService = class ProjectProgramService {
-    constructor(repo, projects) {
+    constructor(repo, projects, leadRepo, leads) {
         this.repo = repo;
         this.projects = projects;
+        this.leadRepo = leadRepo;
+        this.leads = leads;
         this.log = new common_1.Logger('ProjectProgramService');
     }
     parse(raw) {
@@ -82,13 +84,65 @@ let ProjectProgramService = class ProjectProgramService {
         await this.repo.save(row);
         return this.get(projectId);
     }
+    async getLead(leadId) {
+        if (!leadId)
+            throw new common_1.BadRequestException('Which lead?');
+        const row = await this.leadRepo.findOneBy({ leadId });
+        return {
+            leadId,
+            data: this.parse(row?.data),
+            updatedAt: row?.updatedAt || '',
+            updatedBy: row?.updatedBy || '',
+            completedAt: row?.completedAt || '',
+            sentAt: row?.sentAt || '',
+            sentTo: row?.sentTo || '',
+        };
+    }
+    async saveLead(leadId, data, actor) {
+        if (!leadId)
+            throw new common_1.BadRequestException('Which lead?');
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw new common_1.BadRequestException('The program must be an object of answers.');
+        }
+        if (!(await this.leads.findOneBy({ id: leadId }))) {
+            throw new common_1.BadRequestException(`Lead ${leadId} not found`);
+        }
+        const existing = await this.leadRepo.findOneBy({ leadId });
+        const row = existing || this.leadRepo.create({ leadId });
+        row.data = JSON.stringify(data);
+        row.updatedAt = new Date().toISOString();
+        row.updatedBy = actor?.name || 'System';
+        await this.leadRepo.save(row);
+        return this.getLead(leadId);
+    }
+    async markSentLead(leadId, to, actor) {
+        const row = await this.leadRepo.findOneBy({ leadId });
+        if (!row)
+            return;
+        row.sentAt = new Date().toISOString();
+        row.sentTo = to || '';
+        row.updatedBy = actor?.name || row.updatedBy || 'System';
+        await this.leadRepo.save(row);
+    }
+    async setCompleteLead(leadId, complete) {
+        const row = await this.leadRepo.findOneBy({ leadId });
+        if (!row)
+            throw new common_1.BadRequestException('Nothing has been filled in yet.');
+        row.completedAt = complete ? new Date().toISOString() : '';
+        await this.leadRepo.save(row);
+        return this.getLead(leadId);
+    }
 };
 exports.ProjectProgramService = ProjectProgramService;
 exports.ProjectProgramService = ProjectProgramService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectProgramEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.LeadProgramEntity)),
+    __param(3, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], ProjectProgramService);
 //# sourceMappingURL=project-program.service.js.map

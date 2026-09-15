@@ -425,6 +425,25 @@ export class ProjectProgramEntity {
   @Column({ nullable: true }) sentTo!: string;
 }
 
+/**
+ * The same Project Program document, held against a lead instead of a
+ * project -- the programme is produced before a lead converts, so the
+ * document needs a home on that side of the line too. A separate table
+ * rather than reusing ProjectProgramEntity with a shared id space: leads use
+ * string ids ('LD-001'), projects use numeric ones, and keeping them apart
+ * means a project id can never collide with a lead id.
+ */
+@Entity('lead_programs')
+export class LeadProgramEntity {
+  @PrimaryColumn() leadId!: string;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) data!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+  @Column({ nullable: true }) completedAt!: string;
+  @Column({ nullable: true }) sentAt!: string;
+  @Column({ nullable: true }) sentTo!: string;
+}
+
 @Entity('users')
 export class UserEntity {
   @PrimaryColumn() id!: string;

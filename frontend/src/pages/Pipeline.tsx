@@ -17,6 +17,8 @@ import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring'
 import { useWindowWidth } from '../useWindowWidth';
 import { useApp } from '../AppContext';
 import { api } from '../api';
+import { ProjectProgram } from './ProjectProgram';
+import { buildPrefill } from '../data/projectProgram';
 
 const BG = "'Bricolage Grotesque', serif";
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -1365,6 +1367,25 @@ export function Pipeline() {
                 </div>
               </div>
             </>
+          ) : selected.stage === 'zoning' ? (
+            // The stage is named Project Programming -- opening a card sitting
+            // here starts that document directly, on the lead itself, since the
+            // programme is produced before the lead converts into a project.
+            <div style={{ padding: '20px 24px' }}>
+              {(() => {
+                const ld = leadDetails[selected.id] || baseLead(selected);
+                return (
+                  <ProjectProgram
+                    leadId={selected.id}
+                    projectName={selected.name}
+                    defaultTo={selected.email || ld.email || ''}
+                    prefill={buildPrefill({ name: selected.name }, ld)}
+                    clientPersonality={ld.clientPersonality || ''}
+                    clientName={ld.goByName || selected.name}
+                  />
+                );
+              })()}
+            </div>
           ) : (
             <div style={{ padding: '14px 20px' }}>
               {(() => {

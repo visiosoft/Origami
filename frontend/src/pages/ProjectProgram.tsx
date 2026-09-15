@@ -24,8 +24,10 @@ const input: React.CSSProperties = {
  */
 export interface LinkedTask { stepKey: string; id: string; title: string; done: boolean }
 
-export function ProjectProgram({ projectId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill, clientPersonality, clientName }: {
-  projectId: number;
+export function ProjectProgram({ projectId, leadId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill, clientPersonality, clientName }: {
+  /** Exactly one of projectId / leadId is given -- a project once converted, a lead before. */
+  projectId?: number;
+  leadId?: string;
   projectName?: string;
   defaultTo?: string;
   /** A step to open at, when arriving from the Phase Board. */
@@ -55,13 +57,16 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
   const [note, setNote] = useState('');
   const [tone, setTone] = useState('');
   const [templates, setTemplates] = useState<any[]>([]);
-  const loadedFor = useRef<number | null>(null);
+  const loadedFor = useRef<string | null>(null);
+  // Which document this is -- reused by every save/pdf/send call below.
+  const owner = leadId ? { leadId } : { projectId };
 
   useEffect(() => {
-    if (loadedFor.current === projectId) return;
-    loadedFor.current = projectId;
+    const key = leadId ? `lead:${leadId}` : `project:${projectId}`;
+    if (loadedFor.current === key) return;
+    loadedFor.current = key;
     setLoading(true);
-    api.projectProgram.get(projectId)
+    (leadId ? api.projectProgram.getForLead(leadId) : api.projectProgram.get(projectId!))
       .then((res: any) => {
         // The prefill goes under what was saved, never over it.
         setData(withPrefill(res?.data || {}, prefill || {}));
@@ -72,7 +77,7 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
       .finally(() => setLoading(false));
     setTo(defaultTo || '');
     setSubject(`Project Program — ${projectName || ''}`.trim());
-  }, [projectId]);
+  }, [projectId, leadId]);
 
   useEffect(() => { api.emailTemplates.list().then((r: any) => { if (Array.isArray(r)) setTemplates(r); }).catch(() => { }); }, []);
 
@@ -134,7 +139,7 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
     if (!canManage) return;
     setSaving(true);
     try {
-      const res: any = await api.projectProgram.save(projectId, data);
+      const res: any = leadId ? await api.projectProgram.saveForLead(leadId, data) : await api.projectProgram.save(projectId!, data);
       setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '', sentAt: res?.sentAt || '', sentTo: res?.sentTo || '' });
       setDirty(false);
       toast('Project Program saved');
@@ -153,8 +158,8 @@ export function ProjectProgram({ projectId, projectName, defaultTo, initialStep,
    * can drift.
    */
   const docPayload = () => ({
-    projectId,
-    projectName: projectName || `Project ${projectId}`,
+    ...owner,
+    projectName: projectName || (leadId ? `Lead ${leadId}` : `Project ${projectId}`),
     subtitle: String(data.title?.['main.projectTitle'] || '').trim() || undefined,
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
     steps: PROGRAM_STEPS.map((st) => {

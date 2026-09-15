@@ -8,7 +8,8 @@ import { BRAND_KEYS, brandingFrom, safeFilename } from '../documents/letterhead'
 import { buildProgramHtml, type DocStep } from '../documents/program-document';
 
 interface DocumentInput {
-  projectId: number;
+  projectId?: number;
+  leadId?: string;
   projectName?: string;
   subtitle?: string;
   date?: string;
@@ -25,18 +26,22 @@ export class ProjectProgramController {
   ) {}
 
   @Get()
-  get(@Query('projectId') projectId: string) {
-    return this.service.get(Number(projectId));
+  get(@Query('projectId') projectId?: string, @Query('leadId') leadId?: string) {
+    return leadId ? this.service.getLead(leadId) : this.service.get(Number(projectId));
   }
 
   @Put()
-  save(@Body() body: { projectId: number; data: unknown }, @Req() req: any) {
-    return this.service.save(Number(body?.projectId), body?.data, req?.user);
+  save(@Body() body: { projectId?: number; leadId?: string; data: unknown }, @Req() req: any) {
+    return body?.leadId
+      ? this.service.saveLead(body.leadId, body.data, req?.user)
+      : this.service.save(Number(body?.projectId), body?.data, req?.user);
   }
 
   @Put('complete')
-  complete(@Body() body: { projectId: number; complete?: boolean }) {
-    return this.service.setComplete(Number(body?.projectId), body?.complete !== false);
+  complete(@Body() body: { projectId?: number; leadId?: string; complete?: boolean }) {
+    return body?.leadId
+      ? this.service.setCompleteLead(body.leadId, body.complete !== false)
+      : this.service.setComplete(Number(body?.projectId), body.complete !== false);
   }
 
   /** The program on the company letterhead, as a PDF to read or download. */
@@ -62,14 +67,15 @@ export class ProjectProgramController {
       html: body.html,
       attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
     });
-    await this.service.markSent(Number(body.projectId), body.to, req?.user);
+    if (body.leadId) await this.service.markSentLead(body.leadId, body.to, req?.user);
+    else await this.service.markSent(Number(body.projectId), body.to, req?.user);
     return { ok: true, filename, to: body.to };
   }
 
   /** Shared by the download and the send, so neither can drift from the other. */
   private async render(body: DocumentInput) {
     const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
-    const projectName = body.projectName || `Project ${body.projectId}`;
+    const projectName = body.projectName || (body.leadId ? `Lead ${body.leadId}` : `Project ${body.projectId}`);
     const html = buildProgramHtml({
       brand,
       projectName,

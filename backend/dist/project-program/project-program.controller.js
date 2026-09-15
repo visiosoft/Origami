@@ -26,14 +26,18 @@ let ProjectProgramController = class ProjectProgramController {
         this.google = google;
         this.settings = settings;
     }
-    get(projectId) {
-        return this.service.get(Number(projectId));
+    get(projectId, leadId) {
+        return leadId ? this.service.getLead(leadId) : this.service.get(Number(projectId));
     }
     save(body, req) {
-        return this.service.save(Number(body?.projectId), body?.data, req?.user);
+        return body?.leadId
+            ? this.service.saveLead(body.leadId, body.data, req?.user)
+            : this.service.save(Number(body?.projectId), body?.data, req?.user);
     }
     complete(body) {
-        return this.service.setComplete(Number(body?.projectId), body?.complete !== false);
+        return body?.leadId
+            ? this.service.setCompleteLead(body.leadId, body.complete !== false)
+            : this.service.setComplete(Number(body?.projectId), body.complete !== false);
     }
     async pdf(body, res) {
         const { pdf, filename } = await this.render(body);
@@ -50,12 +54,15 @@ let ProjectProgramController = class ProjectProgramController {
             html: body.html,
             attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
         });
-        await this.service.markSent(Number(body.projectId), body.to, req?.user);
+        if (body.leadId)
+            await this.service.markSentLead(body.leadId, body.to, req?.user);
+        else
+            await this.service.markSent(Number(body.projectId), body.to, req?.user);
         return { ok: true, filename, to: body.to };
     }
     async render(body) {
         const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
-        const projectName = body.projectName || `Project ${body.projectId}`;
+        const projectName = body.projectName || (body.leadId ? `Lead ${body.leadId}` : `Project ${body.projectId}`);
         const html = (0, program_document_1.buildProgramHtml)({
             brand,
             projectName,
@@ -74,8 +81,9 @@ exports.ProjectProgramController = ProjectProgramController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Query)('leadId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], ProjectProgramController.prototype, "get", null);
 __decorate([

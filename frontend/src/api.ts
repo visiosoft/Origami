@@ -261,6 +261,10 @@ export const api = {
     get: (projectId: number) => request(`/project-program?projectId=${projectId}`),
     save: (projectId: number, data: unknown) => request('/project-program', { method: 'PUT', body: JSON.stringify({ projectId, data }) }),
     complete: (projectId: number, complete: boolean) => request('/project-program/complete', { method: 'PUT', body: JSON.stringify({ projectId, complete }) }),
+    /** Same document, held against a lead -- the programme is produced before conversion. */
+    getForLead: (leadId: string) => request(`/project-program?leadId=${encodeURIComponent(leadId)}`),
+    saveForLead: (leadId: string, data: unknown) => request('/project-program', { method: 'PUT', body: JSON.stringify({ leadId, data }) }),
+    completeForLead: (leadId: string, complete: boolean) => request('/project-program/complete', { method: 'PUT', body: JSON.stringify({ leadId, complete }) }),
     /** The program on the letterhead, as a blob to preview or download. */
     pdf: async (payload: unknown): Promise<Blob> => {
       const token = session.get();
