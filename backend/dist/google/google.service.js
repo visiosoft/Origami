@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GoogleService = exports.LOGIN_SCOPES = exports.WORKSPACE_SCOPES = void 0;
+exports.GoogleService = exports.MY_CALENDAR_SCOPES = exports.LOGIN_SCOPES = exports.WORKSPACE_SCOPES = void 0;
 const common_1 = require("@nestjs/common");
 const settings_service_1 = require("../settings/settings.service");
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -32,6 +32,12 @@ exports.WORKSPACE_SCOPES = [
     'https://www.googleapis.com/auth/calendar.freebusy',
 ];
 exports.LOGIN_SCOPES = ['openid', 'email', 'profile'];
+exports.MY_CALENDAR_SCOPES = [
+    'openid',
+    'email',
+    'profile',
+    'https://www.googleapis.com/auth/calendar.readonly',
+];
 let GoogleService = class GoogleService {
     constructor(settings) {
         this.settings = settings;
@@ -59,15 +65,16 @@ let GoogleService = class GoogleService {
     }
     async consentUrl(mode, state) {
         const { clientId, redirectUri } = await this.credentials();
+        const scopes = mode === 'connect' ? exports.WORKSPACE_SCOPES : mode === 'my-calendar' ? exports.MY_CALENDAR_SCOPES : exports.LOGIN_SCOPES;
         const params = new URLSearchParams({
             client_id: clientId,
             redirect_uri: redirectUri,
             response_type: 'code',
-            scope: (mode === 'connect' ? exports.WORKSPACE_SCOPES : exports.LOGIN_SCOPES).join(' '),
+            scope: scopes.join(' '),
             state,
             include_granted_scopes: 'true',
         });
-        if (mode === 'connect') {
+        if (mode === 'connect' || mode === 'my-calendar') {
             params.set('access_type', 'offline');
             params.set('prompt', 'consent');
         }

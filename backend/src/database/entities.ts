@@ -484,6 +484,14 @@ export class UserEntity {
   @Column({ nullable: true }) digestFrequency!: string; // 'daily' | 'weekly' | 'off'
   @Column({ type: 'bit', nullable: true }) notifyOnOverdue!: boolean | null;
   @Column({ type: 'bit', nullable: true }) notifyOnMilestone!: boolean | null;
+  // A staff member's OWN Google Calendar -- separate from the one shared
+  // workspace connection everything else in this file (mail, Drive, the
+  // office-wide calendars checked while booking) uses. Read-only: this is
+  // for a person to see their own schedule, not for the app to act on their
+  // behalf. Never returned to the client -- see publicUser() in auth.service.
+  @Column({ nullable: true }) calendarRefreshToken!: string;
+  @Column({ nullable: true }) calendarEmail!: string;
+  @Column({ nullable: true }) calendarConnectedAt!: string;
 }
 
 // Simple key/value store for workspace configuration (Google OAuth credentials,

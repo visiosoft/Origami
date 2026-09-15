@@ -14,10 +14,51 @@ const common_1 = require("@nestjs/common");
 const google_service_1 = require("./google.service");
 const FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 let CalendarService = class CalendarService {
     constructor(google) {
         this.google = google;
         this.log = new common_1.Logger('CalendarService');
+        this.userTokens = new Map();
+    }
+    async userToken(userId, refreshToken) {
+        const cached = this.userTokens.get(userId);
+        if (cached && cached.expiresAt > Date.now() + 60_000)
+            return cached.value;
+        const { clientId, clientSecret } = await this.google.credentials();
+        const res = await fetch(TOKEN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ refresh_token: refreshToken, client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token' }).toString(),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            this.log.error(`Personal calendar refresh failed for ${userId}: ${JSON.stringify(body)}`);
+            throw new common_1.BadRequestException('Your calendar connection expired. Reconnect it under your account settings.');
+        }
+        const token = { value: body.access_token, expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000 };
+        this.userTokens.set(userId, token);
+        return token.value;
+    }
+    async myEvents(userId, refreshToken, timeMin, timeMax) {
+        const token = await this.userToken(userId, refreshToken);
+        const params = new URLSearchParams({
+            timeMin, timeMax, singleEvents: 'true', orderBy: 'startTime', maxResults: '50',
+        });
+        const res = await fetch(`${EVENTS_URL}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            this.log.error(`myEvents failed: ${JSON.stringify(body)}`);
+            throw new common_1.BadRequestException(body?.error?.message || 'Could not read your calendar.');
+        }
+        return (body.items || []).map((e) => ({
+            id: e.id,
+            summary: e.summary || '(no title)',
+            start: e.start?.dateTime || e.start?.date,
+            end: e.end?.dateTime || e.end?.date,
+            allDay: !e.start?.dateTime,
+            htmlLink: e.htmlLink,
+        }));
     }
     async freeBusy(emails, timeMin, timeMax) {
         const clean = [...new Set(emails.map((e) => e.trim()).filter(Boolean))];

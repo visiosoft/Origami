@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { GoogleService } from './google.service';
+import { CalendarService } from './calendar.service';
 import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
 import { signState, readState } from '../auth/crypto.util';
@@ -8,6 +9,7 @@ import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../docu
 import { Public } from '../auth/guards/public.decorator';
 import { Roles } from '../auth/guards/roles.decorator';
 import { SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
+import type { AuthedRequest } from '../auth/guards/session.guard';
 
 @Controller('google')
 export class GoogleController {
@@ -15,6 +17,7 @@ export class GoogleController {
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
     private readonly auth: AuthService,
+    private readonly calendar: CalendarService,
   ) {}
 
   /** Whether Google is configured, and which account is currently connected. */
@@ -30,6 +33,45 @@ export class GoogleController {
     const secret = await this.settings.jwtSecret();
     const url = await this.google.consentUrl('connect', signState({ mode: 'connect' }, secret));
     return res.redirect(url);
+  }
+
+  /**
+   * Start a staff member connecting their OWN calendar -- separate from the
+   * admin-only workspace connection above. Any signed-in user can start
+   * this; the state carries who, since the callback that lands afterward
+   * has no session of its own to read.
+   */
+  @Get('my-calendar/connect')
+  async connectMyCalendar(@Req() req: AuthedRequest, @Res() res: Response) {
+    const userId = req.claims?.sub;
+    if (!userId) throw new BadRequestException('Sign in to continue.');
+    const secret = await this.settings.jwtSecret();
+    const url = await this.google.consentUrl('my-calendar', signState({ mode: 'my-calendar', userId }, secret));
+    return res.redirect(url);
+  }
+
+  @Post('my-calendar/disconnect')
+  async disconnectMyCalendar(@Req() req: AuthedRequest) {
+    const userId = req.claims?.sub;
+    if (userId) await this.auth.disconnectMyCalendar(userId);
+    return { connected: false };
+  }
+
+  @Get('my-calendar/status')
+  async myCalendarStatus(@Req() req: AuthedRequest) {
+    const userId = req.claims?.sub;
+    if (!userId) return { connected: false, email: '' };
+    return this.auth.myCalendarStatus(userId);
+  }
+
+  /** The signed-in user's own events for a window -- their real calendar. */
+  @Get('my-calendar/events')
+  async myCalendarEvents(@Req() req: AuthedRequest, @Query('from') from: string, @Query('to') to: string) {
+    const userId = req.claims?.sub;
+    if (!userId || !from || !to) return [];
+    const creds = await this.auth.myCalendarCredentials(userId);
+    if (!creds) return [];
+    return this.calendar.myEvents(userId, creds.refreshToken, from, to);
   }
 
   /** Start "Sign in with Google" for an end user. */
@@ -53,12 +95,14 @@ export class GoogleController {
     const base = (await this.settings.baseUrl()) || '';
     const secret = await this.settings.jwtSecret();
     const parsed = readState(state, secret);
-    const mode = parsed?.mode === 'connect' ? 'connect' : 'login';
+    const mode = parsed?.mode === 'connect' ? 'connect' : parsed?.mode === 'my-calendar' ? 'my-calendar' : 'login';
     const fail = (msg: string) =>
       res.redirect(
         mode === 'connect'
           ? `${base}/settings?tab=google&error=${encodeURIComponent(msg)}`
-          : `${base}/login?error=${encodeURIComponent(msg)}`,
+          : mode === 'my-calendar'
+            ? `${base}/settings?tab=my-calendar&error=${encodeURIComponent(msg)}`
+            : `${base}/login?error=${encodeURIComponent(msg)}`,
       );
 
     if (error) return fail(error === 'access_denied' ? 'Google sign-in was cancelled.' : error);
@@ -72,6 +116,14 @@ export class GoogleController {
       if (mode === 'connect') {
         await this.google.saveConnection(tokens.refresh_token, profile);
         return res.redirect(`${base}/settings?tab=google&connected=${encodeURIComponent(profile.email)}`);
+      }
+
+      if (mode === 'my-calendar') {
+        if (!tokens.refresh_token) {
+          return fail('Google did not grant a refresh token. Remove Origami from your Google account’s connected apps and try again.');
+        }
+        await this.auth.connectMyCalendar(String(parsed.userId), tokens.refresh_token, profile.email);
+        return res.redirect(`${base}/settings?tab=my-calendar&connected=${encodeURIComponent(profile.email)}`);
       }
 
       const session = await this.auth.loginWithGoogle(profile);

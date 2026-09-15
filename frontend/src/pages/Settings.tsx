@@ -7,6 +7,7 @@ import { NotificationSettings } from './NotificationSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
 import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
+import { MyCalendarSettings } from './MyCalendarSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -31,6 +32,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   ] },
   { group: 'Personal', items: [
     { key: 'notifications', label: 'Notifications' },
+    { key: 'my-calendar', label: 'My Calendar' },
   ] },
   { group: 'Integrations', items: [
     { key: 'google', label: 'Google Workspace' },
@@ -41,8 +43,11 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
 export function Settings() {
   const isMobile = useWindowWidth() < 768;
   const [params] = useSearchParams();
-  // The Google OAuth callback lands back here with ?tab=google.
-  const [active, setActive] = useState(params.get('tab') === 'google' ? 'google' : 'lead-scoring');
+  // OAuth callbacks (Google Workspace, My Calendar) land back here with ?tab=<key>.
+  const tabParam = params.get('tab');
+  const [active, setActive] = useState(
+    tabParam === 'google' || tabParam === 'my-calendar' ? tabParam : 'lead-scoring',
+  );
 
   const nav = (
     <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>
@@ -71,6 +76,7 @@ export function Settings() {
           {active === 'sla' && <PipelineSlaSettings />}
           {active === 'scheduling' && <SchedulingSettings />}
           {active === 'notifications' && <NotificationSettings />}
+          {active === 'my-calendar' && <MyCalendarSettings />}
           {active === 'sms' && <SmsSettings />}
           {active === 'google' && <GoogleSettings />}
         </div>

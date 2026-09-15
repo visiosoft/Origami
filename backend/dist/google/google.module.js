@@ -10,13 +10,14 @@ exports.GoogleModule = void 0;
 const common_1 = require("@nestjs/common");
 const google_service_1 = require("./google.service");
 const attachments_service_1 = require("./attachments.service");
+const calendar_service_1 = require("./calendar.service");
 let GoogleModule = class GoogleModule {
 };
 exports.GoogleModule = GoogleModule;
 exports.GoogleModule = GoogleModule = __decorate([
     (0, common_1.Module)({
-        providers: [google_service_1.GoogleService, attachments_service_1.AttachmentsService],
-        exports: [google_service_1.GoogleService, attachments_service_1.AttachmentsService],
+        providers: [google_service_1.GoogleService, attachments_service_1.AttachmentsService, calendar_service_1.CalendarService],
+        exports: [google_service_1.GoogleService, attachments_service_1.AttachmentsService, calendar_service_1.CalendarService],
     })
 ], GoogleModule);
 //# sourceMappingURL=google.module.js.map

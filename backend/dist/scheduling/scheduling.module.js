@@ -9,7 +9,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SchedulingModule = void 0;
 const common_1 = require("@nestjs/common");
 const scheduling_controller_1 = require("./scheduling.controller");
-const calendar_service_1 = require("../google/calendar.service");
 const google_module_1 = require("../google/google.module");
 const settings_module_1 = require("../settings/settings.module");
 let SchedulingModule = class SchedulingModule {
@@ -19,8 +18,6 @@ exports.SchedulingModule = SchedulingModule = __decorate([
     (0, common_1.Module)({
         imports: [google_module_1.GoogleModule, settings_module_1.SettingsModule],
         controllers: [scheduling_controller_1.SchedulingController],
-        providers: [calendar_service_1.CalendarService],
-        exports: [calendar_service_1.CalendarService],
     })
 ], SchedulingModule);
 //# sourceMappingURL=scheduling.module.js.map

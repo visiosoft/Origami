@@ -18,8 +18,8 @@ const RESET_TTL_HOURS = 2;
 
 /** The shape of a user the client is allowed to see — no secrets. */
 export function publicUser(u: UserEntity) {
-  const { passwordHash, inviteToken, ...rest } = u as any;
-  return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken };
+  const { passwordHash, inviteToken, calendarRefreshToken, ...rest } = u as any;
+  return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken };
 }
 
 @Injectable()
@@ -285,6 +285,41 @@ export class AuthService {
     }
     await this.users.save(user);
     return publicUser(user);
+  }
+
+  /** Store the caller's own Google Calendar connection -- distinct from the
+   *  one shared workspace connection GoogleService manages. */
+  async connectMyCalendar(userId: string, refreshToken: string, email: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) return;
+    user.calendarRefreshToken = refreshToken;
+    user.calendarEmail = email;
+    user.calendarConnectedAt = new Date().toISOString();
+    await this.users.save(user);
+  }
+
+  async disconnectMyCalendar(userId: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    if (!user) return;
+    user.calendarRefreshToken = '';
+    user.calendarEmail = '';
+    user.calendarConnectedAt = '';
+    await this.users.save(user);
+  }
+
+  async myCalendarStatus(userId: string) {
+    const user = await this.users.findOneBy({ id: userId });
+    return {
+      connected: !!user?.calendarRefreshToken,
+      email: user?.calendarEmail || '',
+      connectedAt: user?.calendarConnectedAt || '',
+    };
+  }
+
+  /** The bits CalendarService needs to read this person's own events. */
+  async myCalendarCredentials(userId: string): Promise<{ refreshToken: string } | null> {
+    const user = await this.users.findOneBy({ id: userId });
+    return user?.calendarRefreshToken ? { refreshToken: user.calendarRefreshToken } : null;
   }
 
   findByEmail(email: string) {

@@ -69,5 +69,15 @@ export declare class AuthService {
         notifyOnMilestone?: boolean;
         digestFrequency?: string;
     }): Promise<any>;
+    connectMyCalendar(userId: string, refreshToken: string, email: string): Promise<void>;
+    disconnectMyCalendar(userId: string): Promise<void>;
+    myCalendarStatus(userId: string): Promise<{
+        connected: boolean;
+        email: string;
+        connectedAt: string;
+    }>;
+    myCalendarCredentials(userId: string): Promise<{
+        refreshToken: string;
+    } | null>;
     findByEmail(email: string): Promise<UserEntity | null>;
 }

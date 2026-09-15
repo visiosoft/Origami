@@ -305,6 +305,10 @@ export function Pipeline() {
   const [scheduleCalendars, setScheduleCalendars] = useState<{ name: string; email: string }[]>([]);
   const [availability, setAvailability] = useState<{ name: string; email: string; busy: { start: string; end: string }[] | null; error?: string }[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  // The logged-in user's own calendar -- separate from the office calendars
+  // above, shown as one more row so whoever is booking sees their own day too.
+  const [myCalendarConnected, setMyCalendarConnected] = useState(false);
+  const [myEvents, setMyEvents] = useState<{ start: string; end: string; allDay: boolean }[] | null>(null);
   const [visitByDeal, setVisitByDeal] = useState<Record<string, { when: string }>>({});
   const [visitWhen, setVisitWhen] = useState('');
   const [scoringTemplate, setScoringTemplate] = useState<ScoringCriterion[]>([]);
@@ -348,7 +352,20 @@ export function Pipeline() {
 
   useEffect(() => {
     api.scheduling.calendars().then((res: any) => { if (Array.isArray(res)) setScheduleCalendars(res); }).catch(() => { });
+    api.google.myCalendar.status().then((res: any) => setMyCalendarConnected(!!res?.connected)).catch(() => { });
   }, []);
+
+  // The signed-in user's own busy blocks for the picked day, same shape as
+  // the office-calendar availability below so both render in one strip.
+  useEffect(() => {
+    const day = meetWhen.slice(0, 10);
+    if (!day || !myCalendarConnected) { setMyEvents(null); return; }
+    const from = `${day}T00:00:00`;
+    const to = `${day}T23:59:59`;
+    api.google.myCalendar.events(from, to)
+      .then((res: any) => setMyEvents(Array.isArray(res) ? res.map((e: any) => ({ start: e.start, end: e.end, allDay: e.allDay })) : []))
+      .catch(() => setMyEvents([]));
+  }, [meetWhen.slice(0, 10), myCalendarConnected]);
 
   // Re-checked whenever the picked date changes, so a time is chosen knowing
   // the day's conflicts, not discovered after saving.
@@ -1213,7 +1230,7 @@ export function Pipeline() {
                     />
                   )}
 
-                  {meetWhen && scheduleCalendars.length > 0 && (
+                  {meetWhen && (scheduleCalendars.length > 0 || myCalendarConnected) && (
                     <div style={{ marginBottom: 10, padding: '8px 10px', background: 'white', borderRadius: 8 }}>
                       <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                         Availability on {new Date(meetWhen).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -1222,6 +1239,19 @@ export function Pipeline() {
                         <div style={{ fontSize: 11, color: '#9AA39D' }}>Checking…</div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {myCalendarConnected && (() => {
+                            const pickedMs = new Date(meetWhen).getTime();
+                            const conflict = myEvents?.some((b) => !b.allDay && pickedMs < new Date(b.end).getTime() && pickedMs + 30 * 60000 > new Date(b.start).getTime());
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: myEvents === null ? '#D6DED8' : conflict ? '#C0392B' : '#2F7D4A' }} />
+                                <span style={{ fontWeight: 600, color: '#0B1A12' }}>You</span>
+                                <span style={{ color: '#7E9B93', marginLeft: 'auto' }}>
+                                  {myEvents === null ? "can't check" : conflict ? 'busy at this time' : 'free'}
+                                </span>
+                              </div>
+                            );
+                          })()}
                           {availability.map((a) => {
                             const pickedMs = new Date(meetWhen).getTime();
                             const conflict = a.busy?.some((b) => pickedMs < new Date(b.end).getTime() && pickedMs + 30 * 60000 > new Date(b.start).getTime());
@@ -1235,6 +1265,11 @@ export function Pipeline() {
                               </div>
                             );
                           })}
+                        </div>
+                      )}
+                      {!myCalendarConnected && (
+                        <div style={{ fontSize: 10, color: '#7E9B93', marginTop: 6 }}>
+                          Connect your own calendar under Settings → My Calendar to see your availability here too.
                         </div>
                       )}
                     </div>

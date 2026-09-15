@@ -352,6 +352,9 @@ export declare class UserEntity {
     digestFrequency: string;
     notifyOnOverdue: boolean | null;
     notifyOnMilestone: boolean | null;
+    calendarRefreshToken: string;
+    calendarEmail: string;
+    calendarConnectedAt: string;
 }
 export declare class AppSettingEntity {
     key: string;

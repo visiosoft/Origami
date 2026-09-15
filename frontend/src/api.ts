@@ -148,6 +148,16 @@ export const api = {
     },
     testDrive: () => request<{ ok: boolean; folderId: string }>('/google/drive/test', { method: 'POST' }),
     driveFiles: (q?: string) => request<DriveFile[]>(`/google/drive/files${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    myCalendar: {
+      status: () => request<{ connected: boolean; email: string; connectedAt: string }>('/google/my-calendar/status'),
+      connectUrl: () => `${API_BASE}/google/my-calendar/connect`,
+      disconnect: () => request<{ connected: boolean }>('/google/my-calendar/disconnect', { method: 'POST' }),
+      /** The signed-in user's own events for a window -- their real calendar. */
+      events: (from: string, to: string) =>
+        request<{ id: string; summary: string; start: string; end: string; allDay: boolean; htmlLink?: string }[]>(
+          `/google/my-calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        ),
+    },
   },
   dashboard: {
     kpis: () => request('/dashboard/kpis'),

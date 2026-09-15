@@ -1,6 +1,7 @@
 import { SettingsService } from '../settings/settings.service';
 export declare const WORKSPACE_SCOPES: string[];
 export declare const LOGIN_SCOPES: string[];
+export declare const MY_CALENDAR_SCOPES: string[];
 export interface GoogleProfile {
     sub: string;
     email: string;
@@ -32,7 +33,7 @@ export declare class GoogleService {
     }>;
     isConfigured(): Promise<boolean>;
     redirectUri(): Promise<string>;
-    consentUrl(mode: 'connect' | 'login', state: string): Promise<string>;
+    consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string>;
     exchangeCode(code: string): Promise<{
         access_token: string;
         refresh_token?: string;

@@ -3,6 +3,16 @@ import { GoogleService } from './google.service';
 
 const FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+export interface MyCalendarEvent {
+  id: string;
+  summary: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  htmlLink?: string;
+}
 
 export interface BusyBlock { start: string; end: string }
 export interface CalendarAvailability {
@@ -33,8 +43,57 @@ export interface ScheduleEventInput {
 @Injectable()
 export class CalendarService {
   private readonly log = new Logger('CalendarService');
+  /** One access token per user, refreshed on demand -- separate from
+   *  GoogleService's single cached token, which is for the one shared
+   *  workspace connection, not any particular person's own calendar. */
+  private userTokens = new Map<string, { value: string; expiresAt: number }>();
 
   constructor(private readonly google: GoogleService) {}
+
+  /** A person's own access token, refreshed from their stored refresh token. */
+  private async userToken(userId: string, refreshToken: string): Promise<string> {
+    const cached = this.userTokens.get(userId);
+    if (cached && cached.expiresAt > Date.now() + 60_000) return cached.value;
+    const { clientId, clientSecret } = await this.google.credentials();
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ refresh_token: refreshToken, client_id: clientId, client_secret: clientSecret, grant_type: 'refresh_token' }).toString(),
+    });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      this.log.error(`Personal calendar refresh failed for ${userId}: ${JSON.stringify(body)}`);
+      throw new BadRequestException('Your calendar connection expired. Reconnect it under your account settings.');
+    }
+    const token = { value: body.access_token, expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000 };
+    this.userTokens.set(userId, token);
+    return token.value;
+  }
+
+  /**
+   * One person's own events for a window -- their real calendar, not a
+   * busy/free strip. Read-only: this never writes anything to their calendar.
+   */
+  async myEvents(userId: string, refreshToken: string, timeMin: string, timeMax: string): Promise<MyCalendarEvent[]> {
+    const token = await this.userToken(userId, refreshToken);
+    const params = new URLSearchParams({
+      timeMin, timeMax, singleEvents: 'true', orderBy: 'startTime', maxResults: '50',
+    });
+    const res = await fetch(`${EVENTS_URL}?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      this.log.error(`myEvents failed: ${JSON.stringify(body)}`);
+      throw new BadRequestException(body?.error?.message || 'Could not read your calendar.');
+    }
+    return (body.items || []).map((e: any) => ({
+      id: e.id,
+      summary: e.summary || '(no title)',
+      start: e.start?.dateTime || e.start?.date,
+      end: e.end?.dateTime || e.end?.date,
+      allDay: !e.start?.dateTime,
+      htmlLink: e.htmlLink,
+    }));
+  }
 
   /**
    * Free/busy for a list of calendars over one window. A calendar the

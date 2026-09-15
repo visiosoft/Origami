@@ -1,12 +1,15 @@
 import type { Response } from 'express';
 import { GoogleService } from './google.service';
+import { CalendarService } from './calendar.service';
 import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
+import type { AuthedRequest } from '../auth/guards/session.guard';
 export declare class GoogleController {
     private readonly google;
     private readonly settings;
     private readonly auth;
-    constructor(google: GoogleService, settings: SettingsService, auth: AuthService);
+    private readonly calendar;
+    constructor(google: GoogleService, settings: SettingsService, auth: AuthService, calendar: CalendarService);
     status(): Promise<{
         configured: boolean;
         connected: boolean;
@@ -17,6 +20,19 @@ export declare class GoogleController {
         scopes: string[];
     }>;
     connect(res: Response): Promise<void>;
+    connectMyCalendar(req: AuthedRequest, res: Response): Promise<void>;
+    disconnectMyCalendar(req: AuthedRequest): Promise<{
+        connected: boolean;
+    }>;
+    myCalendarStatus(req: AuthedRequest): Promise<{
+        connected: boolean;
+        email: string;
+        connectedAt: string;
+    } | {
+        connected: boolean;
+        email: string;
+    }>;
+    myCalendarEvents(req: AuthedRequest, from: string, to: string): Promise<import("./calendar.service").MyCalendarEvent[]>;
     login(res: Response): Promise<void>;
     callback(code: string, state: string, error: string, res: Response): Promise<void>;
     disconnect(): Promise<{

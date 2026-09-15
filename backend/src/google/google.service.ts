@@ -31,6 +31,19 @@ export const WORKSPACE_SCOPES = [
 /** Scopes for "Sign in with Google" — identity only. */
 export const LOGIN_SCOPES = ['openid', 'email', 'profile'];
 
+/**
+ * Scopes for a staff member connecting their OWN calendar -- read-only, and
+ * deliberately not the workspace scopes: this account may not even be the
+ * same one the office's shared connection uses, and nothing here should be
+ * able to send mail or touch Drive as that person.
+ */
+export const MY_CALENDAR_SCOPES = [
+  'openid',
+  'email',
+  'profile',
+  'https://www.googleapis.com/auth/calendar.readonly',
+];
+
 export interface GoogleProfile {
   sub: string;
   email: string;
@@ -90,17 +103,18 @@ export class GoogleService {
   }
 
   /** Where the browser should be sent to start a consent flow. */
-  async consentUrl(mode: 'connect' | 'login', state: string): Promise<string> {
+  async consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string> {
     const { clientId, redirectUri } = await this.credentials();
+    const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : LOGIN_SCOPES;
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
-      scope: (mode === 'connect' ? WORKSPACE_SCOPES : LOGIN_SCOPES).join(' '),
+      scope: scopes.join(' '),
       state,
       include_granted_scopes: 'true',
     });
-    if (mode === 'connect') {
+    if (mode === 'connect' || mode === 'my-calendar') {
       // Offline + forced consent is the only way Google hands back a refresh token.
       params.set('access_type', 'offline');
       params.set('prompt', 'consent');

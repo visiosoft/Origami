@@ -28,8 +28,8 @@ const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const INVITE_TTL_DAYS = 7;
 const RESET_TTL_HOURS = 2;
 function publicUser(u) {
-    const { passwordHash, inviteToken, ...rest } = u;
-    return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken };
+    const { passwordHash, inviteToken, calendarRefreshToken, ...rest } = u;
+    return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken };
 }
 let AuthService = class AuthService {
     constructor(users, roles, settings, google) {
@@ -226,6 +226,36 @@ let AuthService = class AuthService {
         }
         await this.users.save(user);
         return publicUser(user);
+    }
+    async connectMyCalendar(userId, refreshToken, email) {
+        const user = await this.users.findOneBy({ id: userId });
+        if (!user)
+            return;
+        user.calendarRefreshToken = refreshToken;
+        user.calendarEmail = email;
+        user.calendarConnectedAt = new Date().toISOString();
+        await this.users.save(user);
+    }
+    async disconnectMyCalendar(userId) {
+        const user = await this.users.findOneBy({ id: userId });
+        if (!user)
+            return;
+        user.calendarRefreshToken = '';
+        user.calendarEmail = '';
+        user.calendarConnectedAt = '';
+        await this.users.save(user);
+    }
+    async myCalendarStatus(userId) {
+        const user = await this.users.findOneBy({ id: userId });
+        return {
+            connected: !!user?.calendarRefreshToken,
+            email: user?.calendarEmail || '',
+            connectedAt: user?.calendarConnectedAt || '',
+        };
+    }
+    async myCalendarCredentials(userId) {
+        const user = await this.users.findOneBy({ id: userId });
+        return user?.calendarRefreshToken ? { refreshToken: user.calendarRefreshToken } : null;
     }
     findByEmail(email) {
         return this.users
