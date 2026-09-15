@@ -19,6 +19,7 @@ import { DesignProject } from './pages/DesignProject';
 import { Library } from './pages/Library';
 import { FileRoom } from './pages/FileRoom';
 import { MyProjectProgram } from './pages/MyProjectProgram';
+import { MyCalendar } from './pages/MyCalendar';
 import { SignProposal } from './pages/SignProposal';
 import { GuestEntry } from './pages/GuestEntry';
 import { useApp } from './AppContext';
@@ -48,6 +49,7 @@ export default function App() {
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />
+        <Route path="/my-calendar" element={<MyCalendar />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />

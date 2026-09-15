@@ -17,7 +17,10 @@ export interface NavGroup {
 }
 
 export const NAV_GROUPS: NavGroup[] = [
-  { key: 'main', label: 'Main', items: [{ label: 'Dashboard', route: 'dashboard', icon: 'dash' }] },
+  { key: 'main', label: 'Main', items: [
+    { label: 'Dashboard', route: 'dashboard', icon: 'dash' },
+    { label: 'My Calendar', route: 'my-calendar', icon: 'cal' },
+  ] },
   {
     key: 'crm',
     label: 'Projects & CRM',
