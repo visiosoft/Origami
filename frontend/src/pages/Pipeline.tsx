@@ -42,6 +42,8 @@ const DOT = '·';
 interface AdditionalContact {
   id: string; firstName: string; lastName: string; goByName: string; pronouns: string;
   namePronunciation: string; phone: string; email: string; preferredContactMethod: string;
+  /** Same Primary/Secondary/No matrix as the primary contact; preferredContactMethod is derived from it. */
+  preferredContactMatrix?: Record<string, string>;
   /** Owner's Rep, Contract Authority, Approver, etc. -- same codes as the Contacts tab's Roles picker. */
   roles?: string[];
   /** The same role-per-row table as the primary contact, scoped to this contact -- folded into `roles` at submit. */
@@ -49,7 +51,7 @@ interface AdditionalContact {
 }
 const blankAdditionalContact = (): AdditionalContact => ({
   id: 'AC-' + Math.random().toString(36).slice(2, 9),
-  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '', roles: [], roleAssignments: {},
+  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '', preferredContactMatrix: {}, roles: [], roleAssignments: {},
 });
 
 /** An ad-hoc label/value pair, for something a section's fixed fields don't cover. */
@@ -1798,7 +1800,7 @@ export function Pipeline() {
                         <FormField label="Name Pronunciation"><input value={c.namePronunciation} onChange={(e) => updateContact(c.id, { namePronunciation: e.target.value })} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
                         <FormField label="Phone Number"><input type="tel" value={c.phone} onChange={(e) => updateContact(c.id, { phone: e.target.value })} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                         <FormField label="Email"><input type="email" value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} placeholder="email@example.com" style={inputStyle} /></FormField>
-                        <FormField label="Preferred Contact Method"><select value={c.preferredContactMethod} onChange={(e) => updateContact(c.id, { preferredContactMethod: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                        <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={c.preferredContactMatrix} onChange={(mx) => updateContact(c.id, { preferredContactMatrix: mx, preferredContactMethod: primaryContactMethod(mx) })} /></div>
                         <RoleAssignmentTable
                           assignments={c.roleAssignments || {}}
                           onChange={(next) => updateContact(c.id, { roleAssignments: next })}
