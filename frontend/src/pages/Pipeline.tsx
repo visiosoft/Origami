@@ -63,6 +63,13 @@ interface NewLead {
   additionalContacts?: AdditionalContact[];
   /** Roles the primary contact holds beyond just being the primary contact -- e.g. also the Owner, also the Approver. */
   primaryContactRoles?: string[];
+  /**
+   * One row per role (Owner's Rep, Contract Authority, ...): either it's the
+   * primary contact wearing that hat too, or it's someone else, named here.
+   * Folded into primaryContactRoles / additionalContacts at submit time --
+   * see withRoleAssignments -- so storage never changes shape.
+   */
+  roleAssignments?: Record<string, { sameAsPrimary: boolean; name: string }>;
   // Every section carries its own notes and ad-hoc fields, keyed by the
   // section's key (below) rather than its numbered title -- a section
   // getting renumbered or renamed must not orphan what was written here.
@@ -138,6 +145,7 @@ const BLANK_LEAD: NewLead = {
   namePronunciation: '', phone: '', email: '',
   additionalContacts: [],
   primaryContactRoles: ['PC'],
+  roleAssignments: {},
   sectionNotes: {}, sectionCustomFields: {},
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
@@ -179,6 +187,42 @@ function addMonths(from: Date, months: number) {
 }
 
 const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
+
+/**
+ * Folds the per-role "same as primary / or this person" table into the
+ * existing primaryContactRoles + additionalContacts shape, so nothing about
+ * storage has to change for this to work -- run once, at submit.
+ */
+function withRoleAssignments(nl: NewLead): NewLead {
+  const assignments = nl.roleAssignments || {};
+  const primaryExtra: string[] = [];
+  const byName = new Map<string, string[]>();
+  for (const [code, a] of Object.entries(assignments)) {
+    if (!a) continue;
+    if (a.sameAsPrimary) primaryExtra.push(code);
+    else if (a.name?.trim()) {
+      const key = a.name.trim();
+      byName.set(key, [...(byName.get(key) || []), code]);
+    }
+  }
+  if (!primaryExtra.length && !byName.size) return nl;
+
+  const additionalContacts = [...(nl.additionalContacts || [])];
+  for (const [name, roles] of byName) {
+    const existing = additionalContacts.find((c) => [c.firstName, c.lastName].filter(Boolean).join(' ').trim().toLowerCase() === name.toLowerCase());
+    if (existing) {
+      existing.roles = Array.from(new Set([...(existing.roles || []), ...roles]));
+    } else {
+      const parts = name.split(/\s+/);
+      additionalContacts.push({ ...blankAdditionalContact(), firstName: parts[0] || '', lastName: parts.slice(1).join(' '), roles });
+    }
+  }
+  return {
+    ...nl,
+    primaryContactRoles: Array.from(new Set([...(nl.primaryContactRoles || ['PC']), ...primaryExtra])),
+    additionalContacts,
+  };
+}
 
 type FieldKind = 'text' | 'tel' | 'email' | 'select' | 'textarea' | 'pills' | 'checkbox' | 'matrix';
 interface FieldSpec {
@@ -496,9 +540,10 @@ export function Pipeline() {
     if (nl.leadName.trim().length < 2 || !nl.phone.trim()) return;
     if (editingId) {
       const id = editingId;
-      setLeadDetails((prev) => ({ ...prev, [id]: { ...nl } }));
+      const resolved = withRoleAssignments(nl);
+      setLeadDetails((prev) => ({ ...prev, [id]: resolved }));
       setDeals((prev) => prev.map((d) => d.id === id ? { ...d, name: nl.leadName.trim(), client: nl.leadName.trim(), phone: nl.phone.trim(), email: nl.email.trim(), source: nl.leadSource || d.source, notes: nl.projectVision.trim() } : d));
-      api.leads.update(id, nl).then(() => toast('Lead updated')).catch(() => toast('⚠ Failed to update'));
+      api.leads.update(id, resolved).then(() => toast('Lead updated')).catch(() => toast('⚠ Failed to update'));
       setShowNew(false);
       setEditingId(null);
       setNl({ ...BLANK_LEAD });
@@ -520,6 +565,7 @@ export function Pipeline() {
 
   const createLead = () => {
     if (nl.leadName.trim().length < 2 || !nl.phone.trim()) return;
+    const resolved = withRoleAssignments(nl);
     const deal: Deal = {
       id: 'PL-' + String(1000 + deals.length + 1),
       name: nl.leadName.trim(),
@@ -541,14 +587,14 @@ export function Pipeline() {
       notes: nl.projectVision.trim(),
     };
     setDeals((prev) => [deal, ...prev]);
-    setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...nl } }));
+    setLeadDetails((prev) => ({ ...prev, [deal.id]: resolved }));
     setShowNew(false);
     setNl({ ...BLANK_LEAD });
     setFormTab(1);
     setSelectedId(deal.id);
     setDetailTab('overview');
     toast(`${deal.name} added to the pipeline`);
-    api.leads.create({ ...nl, id: deal.id }).catch((err) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
+    api.leads.create({ ...resolved, id: deal.id }).catch((err) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
     void api.pipeline.create(deal).catch(() => undefined);
   };
 
@@ -1731,7 +1777,11 @@ export function Pipeline() {
                     <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                     <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={nl.preferredContactMatrix} onChange={(mx) => setField('preferredContactMatrix', mx)} /></div>
-                    <IntakeRolePicker roles={nl.primaryContactRoles || ['PC']} onToggle={(code) => toggleIntakeRole('primary', code)} hide={['PC']} />
+                    <RoleAssignmentTable
+                      assignments={nl.roleAssignments || {}}
+                      onChange={(next) => setField('roleAssignments', next)}
+                      primaryName={[nl.firstName, nl.lastName].filter(Boolean).join(' ') || nl.goByName}
+                    />
                   </FormGrid>
 
                   {(nl.additionalContacts || []).map((c, i) => (
@@ -1938,6 +1988,56 @@ const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box'
 function SectionTitle({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, fontWeight: 700, color: '#173326', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>{children}</div>; }
 function FormGrid({ children }: { children: React.ReactNode }) { return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>{children}</div>; }
 function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return (<div><div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{label}</div>{children}{hint && <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}</div>); }
+
+/**
+ * One row per role: either the primary contact holds it too, or someone
+ * else does, typed in by name -- matches the office's own roster sheet
+ * (role, how many, who) rather than asking for a full contact card per
+ * person just to note who's the Approver.
+ */
+function RoleAssignmentTable({
+  assignments, onChange, primaryName,
+}: {
+  assignments: Record<string, { sameAsPrimary: boolean; name: string }>;
+  onChange: (next: Record<string, { sameAsPrimary: boolean; name: string }>) => void;
+  primaryName: string;
+}) {
+  const row = (code: string) => assignments[code] || { sameAsPrimary: false, name: '' };
+  const patch = (code: string, p: Partial<{ sameAsPrimary: boolean; name: string }>) =>
+    onChange({ ...assignments, [code]: { ...row(code), ...p } });
+
+  return (
+    <div style={{ gridColumn: '1 / -1' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Roles</div>
+      <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflow: 'hidden' }}>
+        {CONTACT_ROLES.filter((r) => r.code !== 'PC').map((r, i) => {
+          const a = row(r.code);
+          return (
+            <div key={r.code} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderTop: i ? '1px solid rgba(20,8,31,0.05)' : 'none', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 170px', minWidth: 150 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12' }}>{r.label}</span>
+                {r.required && <span style={{ color: '#8E2E0A' }}> *</span>}
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#43514D', cursor: 'pointer', flexShrink: 0 }}>
+                <input type="checkbox" checked={a.sameAsPrimary} onChange={(e) => patch(r.code, { sameAsPrimary: e.target.checked, name: e.target.checked ? '' : a.name })} />
+                Same as {primaryName.trim() || 'Primary Contact'}
+              </label>
+              {!a.sameAsPrimary && (
+                <input
+                  value={a.name}
+                  onChange={(e) => patch(r.code, { name: e.target.value })}
+                  placeholder="Person's name"
+                  style={{ ...inputStyle, flex: '1 1 160px', width: 'auto', padding: '6px 9px' }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 5, lineHeight: 1.5 }}>Roles marked <b>*</b> are required somewhere on the lead before it converts. Full contact details for anyone named here can be filled in on the Contacts tab once the lead is saved.</div>
+    </div>
+  );
+}
 
 /** The same role chips as the Contacts tab, so a role picked at intake doesn't have to be re-picked once the lead is saved. */
 function IntakeRolePicker({ roles, onToggle, hide }: { roles: string[]; onToggle: (code: string) => void; hide: string[] }) {
