@@ -434,13 +434,10 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
   }, [startTime, duration]);
 
   // Teammates whose email isn't already added, so the picker only offers people left to add.
-  const teamMatches = useMemo(() => {
-    const q = guestInput.trim().toLowerCase();
-    return users
-      .filter((u) => u.email && u.id !== currentUser?.id && !guests.includes(u.email))
-      .filter((u) => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [users, guestInput, guests, currentUser]);
+  const teamMatches = useMemo(
+    () => users.filter((u) => u.email && u.id !== currentUser?.id && !guests.includes(u.email)),
+    [users, guests, currentUser],
+  );
 
   const addGuestEmail = (email: string) => {
     if (!EMAIL_RE.test(email)) { toast('Enter a valid email address'); return; }
@@ -508,13 +505,13 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
         </div>
 
         {/* Guests */}
-        <div style={fieldRow}>
-          <div style={iconWrap}>
+        <div style={{ ...fieldRow, alignItems: 'flex-start' }}>
+          <div style={{ ...iconWrap, marginTop: 8 }}>
             <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx={9} cy={7} r={4} /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             {guests.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: guestInput || guests.length ? 6 : 0 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                 {guests.map((g) => (
                   <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EFEDE8', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 12 }}>
                     {g}
@@ -523,33 +520,30 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
                 ))}
               </div>
             )}
-            <input
-              value={guestInput}
-              onChange={(e) => setGuestInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addGuest(); } }}
-              placeholder="Add guests -- type a name from your team, or an email"
-              style={{ ...plainInput, padding: '2px 0' }}
-            />
-            {teamMatches.length > 0 && (
-              <div style={{ marginTop: 6, border: '1px solid rgba(20,8,31,0.08)', borderRadius: 9, overflow: 'hidden' }}>
-                {teamMatches.map((u) => (
-                  <div
-                    key={u.id}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => addGuestEmail(u.email)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12.5 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F1EC')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <span style={{ width: 20, height: 20, borderRadius: 999, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                      {u.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span style={{ fontWeight: 600, color: '#0B1A12' }}>{u.name}</span>
-                    <span style={{ color: '#9AA39D' }}>{u.email}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+
+            {/* From the team -- pick internal people by name, no email to type. */}
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>From your team</div>
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) addGuestEmail(e.target.value); }}
+              style={{ boxSizing: 'border-box', width: '100%', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', background: 'white', color: teamMatches.length ? '#0B1A12' : '#9AA39D', marginBottom: 10 }}
+            >
+              <option value="">{teamMatches.length ? 'Select a teammate…' : 'Everyone on the team is already added'}</option>
+              {teamMatches.map((u) => <option key={u.id} value={u.email}>{u.name} — {u.email}</option>)}
+            </select>
+
+            {/* Anyone outside the team -- client, consultant, sub. */}
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>External guest</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={guestInput}
+                onChange={(e) => setGuestInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addGuest(); } }}
+                placeholder="name@company.com"
+                style={{ boxSizing: 'border-box', flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none' }}
+              />
+              <div onClick={addGuest} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', background: 'white', color: '#173326', flexShrink: 0 }}>Add</div>
+            </div>
           </div>
         </div>
 
