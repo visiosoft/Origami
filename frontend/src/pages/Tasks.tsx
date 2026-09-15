@@ -11,6 +11,7 @@ import { LabelPicker } from '../components/LabelPicker';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from '../components/TaskScope';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { TaskBoard } from '../components/TaskBoard';
+import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab } from '../data/tasks';
 
 const BG = "'Bricolage Grotesque', serif";
@@ -20,9 +21,6 @@ const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 const PROJECT_KEY = 'origami.tasksProjectId';
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
-
-interface NewTask { tab: TaskTab; meetingType: string; meetingDate: string; assignedTo: string; originator: string; topicType: string; status: string; dueDate: string; project: string; description: string; linkedFile: string }
-const blankTask = (tab: TaskTab): NewTask => ({ tab, meetingType: 'Internal', meetingDate: '', assignedTo: '', originator: '', topicType: 'Task', status: 'Open', dueDate: '', project: '', description: '', linkedFile: '' });
 
 export function Tasks() {
   const { toast, can, users } = useApp();
@@ -46,7 +44,6 @@ export function Tasks() {
     } catch { return null; }
   });
   const [logTasks, setLogTasks] = useState<Task[]>([]);
-  const [nt, setNt] = useState<NewTask>(blankTask('internal'));
 
   // Deep link from an assignment email or the notification bell:
   //   /tasks?task=<id>&project=<id>   board
@@ -143,18 +140,7 @@ export function Tasks() {
   // Labels already in use, offered as suggestions.
   const allLabels = Array.from(new Set(logTasks.flatMap((t) => t.labels ?? []))).sort();
 
-  const openNew = () => {
-    // Default the assignee to you when filtered to "My tasks", so a new request
-    // doesn't disappear the moment it's created.
-    const draft = blankTask(tab);
-    if (scope === 'mine' && currentUser) draft.assignedTo = currentUser.name;
-    setNt(draft);
-    setShowNew(true);
-  };
-  const createTask = () => {
-    if (nt.description.trim().length < 3) { toast('Add a task description'); return; }
-    api.tasks.create({ ...nt }).then(() => { toast('Task created'); setShowNew(false); reloadLog(); }).catch(() => toast('⚠ Failed to create task'));
-  };
+  const openNew = () => setShowNew(true);
 
   const taskProjects: string[] = [];
   logTasks.forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); });
@@ -437,46 +423,16 @@ export function Tasks() {
         </div>
       )}
 
-      {/* New task — right-side drawer */}
+      {/* New task — right-side drawer, shared with every other "add task" entry point */}
       {showNew && (
-        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: 460, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.18)', animation: 'scaleIn 0.2s ease', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>New Task</div>
-              <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>
-                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
-              </div>
-            </div>
-            <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, flex: 1 }}>
-              <Fld label="Meeting Type"><select value={nt.meetingType} onChange={(e) => setNt({ ...nt, meetingType: e.target.value })} style={inputStyle}>{['Internal', 'Owner', 'Subcontractor'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
-              <Fld label="Meeting Date"><input type="date" value={nt.meetingDate} onChange={(e) => setNt({ ...nt, meetingDate: e.target.value })} style={inputStyle} /></Fld>
-              <Fld label="Assigned To"><select value={nt.assignedTo} onChange={(e) => setNt({ ...nt, assignedTo: e.target.value })} style={inputStyle}><option value="">Select person…</option>{users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}</select></Fld>
-              <Fld label="Originator"><select value={nt.originator} onChange={(e) => setNt({ ...nt, originator: e.target.value })} style={inputStyle}><option value="">Select person…</option>{users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}</select></Fld>
-              <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
-              <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{['Open', 'In Progress', 'Closed'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
-              <Fld label="Due Date"><input type="date" value={nt.dueDate} onChange={(e) => setNt({ ...nt, dueDate: e.target.value })} style={inputStyle} /></Fld>
-              <Fld label="Project"><select value={nt.project} onChange={(e) => setNt({ ...nt, project: e.target.value })} style={inputStyle}><option value="">Select project…</option>{projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Fld>
-              <Fld label="Description *" span><textarea value={nt.description} onChange={(e) => setNt({ ...nt, description: e.target.value })} rows={4} placeholder="Describe the task…" style={{ ...inputStyle, resize: 'vertical' }} /></Fld>
-              <Fld label="Link to File" span><input value={nt.linkedFile} onChange={(e) => setNt({ ...nt, linkedFile: e.target.value })} placeholder="Attach or paste link" style={inputStyle} /></Fld>
-            </div>
-            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', gap: 12, justifyContent: 'flex-end', flexShrink: 0 }}>
-              <div onClick={() => setShowNew(false)} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-              <div onClick={createTask} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Create Task</div>
-            </div>
-          </div>
-        </div>
+        <NewTaskDrawer
+          onClose={() => setShowNew(false)}
+          onCreated={reloadLog}
+          defaultAssignedTo={scope === 'mine' ? currentUser?.name : undefined}
+        />
       )}
       </>
       )}
-    </div>
-  );
-}
-
-function Fld({ label, span, children }: { label: string; span?: boolean; children: React.ReactNode }) {
-  return (
-    <div style={span ? { gridColumn: '1 / -1' } : undefined}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
-      {children}
     </div>
   );
 }

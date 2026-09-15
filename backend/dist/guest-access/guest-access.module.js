@@ -15,12 +15,13 @@ const guest_access_controller_1 = require("./guest-access.controller");
 const auth_module_1 = require("../auth/auth.module");
 const settings_module_1 = require("../settings/settings.module");
 const people_module_1 = require("../people/people.module");
+const google_module_1 = require("../google/google.module");
 let GuestAccessModule = class GuestAccessModule {
 };
 exports.GuestAccessModule = GuestAccessModule;
 exports.GuestAccessModule = GuestAccessModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.GuestAccessEntity, entities_1.UserEntity, entities_1.ProjectEntity]), auth_module_1.AuthModule, settings_module_1.SettingsModule, people_module_1.PeopleModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.GuestAccessEntity, entities_1.UserEntity, entities_1.ProjectEntity]), auth_module_1.AuthModule, settings_module_1.SettingsModule, people_module_1.PeopleModule, google_module_1.GoogleModule],
         controllers: [guest_access_controller_1.GuestAccessController],
         providers: [guest_access_service_1.GuestAccessService],
         exports: [guest_access_service_1.GuestAccessService],

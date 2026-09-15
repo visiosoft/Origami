@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
-import { useApp } from '../AppContext';
+import { NewTaskDrawer } from './NewTaskDrawer';
 import type { Task } from '../data/tasks';
 
 const input: React.CSSProperties = {
@@ -30,15 +30,9 @@ export function DealTasksPanel({
   /** Every stage name the lead could have a task filed under -- the picker's options. */
   stages: string[];
 }) {
-  const { toast } = useApp();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [description, setDescription] = useState('');
-  const [assignedTo, setAssignedTo] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [section, setSection] = useState(currentStageName);
-  const [creating, setCreating] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
   const [openNotes, setOpenNotes] = useState<Record<string, boolean>>({});
 
@@ -50,27 +44,8 @@ export function DealTasksPanel({
       .finally(() => setLoading(false));
   };
   useEffect(load, [dealId]);
-  useEffect(() => setSection(currentStageName), [currentStageName]);
 
   const sectionOf = (t: Task) => (t.labels || []).find((l) => l.startsWith(SECTION_PREFIX))?.slice(SECTION_PREFIX.length) || 'Other';
-
-  const openAdd = () => { setAdding(true); setSection(currentStageName); };
-  const cancelAdd = () => { setAdding(false); setDescription(''); setAssignedTo(''); setDueDate(''); };
-
-  const create = () => {
-    if (!description.trim()) { toast('What needs to happen?'); return; }
-    setCreating(true);
-    api.tasks.create({
-      project: dealId,
-      description: description.trim(),
-      assignedTo: assignedTo.trim(),
-      dueDate,
-      labels: [`${SECTION_PREFIX}${section}`],
-    })
-      .then(() => { cancelAdd(); toast('Task added'); load(); })
-      .catch((e: Error) => toast('⚠ ' + e.message))
-      .finally(() => setCreating(false));
-  };
 
   const setStatus = (t: Task, status: string) => {
     setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: status as Task['status'] } : x)));
@@ -114,46 +89,22 @@ export function DealTasksPanel({
           <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tasks for {dealName}</div>
           <div style={{ fontSize: 11.5, color: '#9AA39D', marginTop: 2 }}>Each section of the pipeline keeps its own list.</div>
         </div>
-        {!adding && (
-          <div onClick={openAdd} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', flexShrink: 0 }}>
-            + Add task
-          </div>
-        )}
+        <div onClick={() => setAdding(true)} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', flexShrink: 0 }}>
+          + Add task
+        </div>
       </div>
 
       {adding && (
-        <div style={{ marginTop: 12, marginBottom: 14, padding: 12, background: '#FBF8F2', borderRadius: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#173326', marginBottom: 8 }}>New task on {dealName}</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: '1 1 220px', minWidth: 160 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>What needs to happen</div>
-              <input autoFocus value={description} onChange={(e) => setDescription(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') create(); }} placeholder="e.g. Call to confirm site visit time" style={{ ...input, width: '100%' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Section</div>
-              <select value={section} onChange={(e) => setSection(e.target.value)} style={{ ...input, width: 160 }}>
-                {stages.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Assign to</div>
-              <input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Name" style={{ ...input, width: 130 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Due</div>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ ...input, width: 140 }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <div onClick={creating ? undefined : create} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: creating ? 'default' : 'pointer', background: creating ? '#9AB0A4' : '#173326', color: 'white' }}>
-              {creating ? 'Adding…' : 'Add task'}
-            </div>
-            <div onClick={cancelAdd} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
-          </div>
-        </div>
+        <NewTaskDrawer
+          onClose={() => setAdding(false)}
+          onCreated={load}
+          fixedProject={{ id: dealId, name: dealName }}
+          sections={stages}
+          defaultSection={currentStageName}
+        />
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: adding ? 0 : 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: 14 }}>
         <span onClick={() => setShowClosed((v) => !v)} style={{ fontSize: 11, fontWeight: 700, color: '#7E9B93', cursor: 'pointer' }}>{showClosed ? 'Hide closed' : 'Show closed'}</span>
       </div>
 
