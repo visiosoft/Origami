@@ -119,7 +119,11 @@ export function MyCalendar() {
             start: `${t.dueDate}T${t.dueTime}:00`,
             end: `${t.dueDate}T${t.dueTime}:00`,
           }));
-        setMyTasks(mine);
+        // Keep any not-yet-confirmed optimistic entries around rather than
+        // wiping them the instant this fetch lands -- unless the real one
+        // (same slot) has now shown up, in which case drop the stand-in.
+        const starts = new Set(mine.map((m) => m.start));
+        setMyTasks((prev) => [...mine, ...prev.filter((p) => p.id.startsWith('task-pending-') && !starts.has(p.start))]);
       })
       .catch(() => { });
   };
@@ -302,7 +306,14 @@ export function MyCalendar() {
                       target={e.isTask ? undefined : '_blank'}
                       rel={e.isTask ? undefined : 'noopener noreferrer'}
                       title={e.summary}
-                      onClick={(ev) => { ev.stopPropagation(); if (e.isTask) { ev.preventDefault(); navigate('/tasks'); } }}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        if (e.isTask) {
+                          ev.preventDefault();
+                          const realId = e.id.replace(/^task-(pending-)?/, '');
+                          navigate(e.id.startsWith('task-pending-') ? '/tasks' : `/tasks?task=${encodeURIComponent(realId)}&type=log`);
+                        }
+                      }}
                       style={{
                         position: 'absolute', top: e.top, left: `calc(${(e.col / e.cols) * 100}% + 1px)`, width: `calc(${100 / e.cols}% - 3px)`,
                         height: e.height, background: e.isTask ? '#173326' : colorFor(e.id), color: 'white', borderRadius: 6, padding: '3px 6px',
@@ -406,7 +417,7 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
     setSaving(true);
     api.google.myCalendar.createEvent({ summary: title.trim(), start: start.toISOString(), end: end.toISOString(), video: true })
       .then((res: any) => onCreated({ id: res.id, summary: res.summary || title.trim(), start: res.start || start.toISOString(), end: res.end || end.toISOString(), allDay: false, htmlLink: res.htmlLink }))
-      .catch(() => toast('⚠ Could not create the Google Meet'))
+      .catch((err: any) => toast(`⚠ ${err?.message || 'Could not create the Google Meet'}`))
       .finally(() => setSaving(false));
   };
 

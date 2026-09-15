@@ -15,8 +15,8 @@ interface NewTask {
   topicType: string; status: string; dueDate: string; dueTime: string; project: string; description: string;
   linkedFile: string; labels: string[];
 }
-const blank = (project: string, labels: string[], dueDate = '', dueTime = ''): NewTask => ({
-  tab: 'internal', meetingType: 'Internal', meetingDate: '', assignedTo: '', originator: '',
+const blank = (project: string, labels: string[], dueDate = '', dueTime = '', assignedTo = ''): NewTask => ({
+  tab: 'internal', meetingType: 'Internal', meetingDate: '', assignedTo, originator: '',
   topicType: 'Task', status: 'Open', dueDate, dueTime, project, description: '', linkedFile: '', labels,
 });
 
@@ -46,13 +46,13 @@ export function NewTaskDrawer({
     defaultSection ? [`section:${defaultSection}`] : [],
     defaultDueDate || '',
     defaultDueTime || '',
+    defaultAssignedTo || '',
   ));
   const [section, setSection] = useState(defaultSection || sections?.[0] || '');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (defaultAssignedTo) setNt((p) => ({ ...p, assignedTo: defaultAssignedTo }));
     if (!fixedProject) {
       api.projects.list()
         .then((r: any) => { if (Array.isArray(r)) setProjects(r.filter((p: any) => p.stage !== 'Kickoff').map((p: any) => ({ id: p.id, name: p.name }))); })
@@ -71,7 +71,7 @@ export function NewTaskDrawer({
     };
     api.tasks.create(payload)
       .then(() => { toast('Task created'); onCreated({ dueDate: nt.dueDate, dueTime: nt.dueTime, description: nt.description }); onClose(); })
-      .catch(() => toast('⚠ Failed to create task'))
+      .catch((err: any) => toast(`⚠ ${err?.message || 'Failed to create task'}`))
       .finally(() => setCreating(false));
   };
 

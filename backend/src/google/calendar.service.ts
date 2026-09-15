@@ -120,7 +120,12 @@ export class CalendarService {
     });
     const json: any = await res.json().catch(() => ({}));
     if (!res.ok) {
-      this.log.error(`createMyEvent failed: ${JSON.stringify(json)}`);
+      this.log.error(`createMyEvent failed (${res.status}): ${JSON.stringify(json)}`);
+      // A connection made before write access existed only has the read-only
+      // scope -- Google rejects the write with 403 rather than upgrading it.
+      if (res.status === 403) {
+        throw new BadRequestException('Your calendar connection needs to be reconnected to create events. Go to Settings → My Calendar, disconnect, and connect again.');
+      }
       throw new BadRequestException(json?.error?.message || 'Google Calendar rejected the event.');
     }
     const meetLink = json?.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri;
