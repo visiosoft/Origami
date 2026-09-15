@@ -1,7 +1,7 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
-import { type TemplatePhase } from '../seed-data/programme-template';
+import { type ProgrammeTemplateDef } from '../seed-data/programme-template';
 import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
 export declare class PhasesService implements OnApplicationBootstrap {
@@ -12,15 +12,17 @@ export declare class PhasesService implements OnApplicationBootstrap {
     private readonly settings;
     private readonly log;
     constructor(repo: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, sections: SectionsService, settings: SettingsService);
-    private programme;
+    private library;
+    private programmeFor;
     applyTemplate(projectId: number): Promise<{
         phasesAdded: number;
         tasksAdded: number;
         tasksEnriched: number;
         phasesNotInTemplate: string[];
     }>;
-    getTemplate(): Promise<TemplatePhase[]>;
-    saveTemplate(body: unknown): Promise<TemplatePhase[]>;
+    listTemplates(): Promise<ProgrammeTemplateDef[]>;
+    saveTemplateEntry(key: string | undefined, name: string, phases: unknown): Promise<ProgrammeTemplateDef>;
+    deleteTemplateEntry(key: string): Promise<ProgrammeTemplateDef[]>;
     onApplicationBootstrap(): Promise<void>;
     private seedChecklists;
     overview(): Promise<{
@@ -59,6 +61,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
     board(projectId: number): Promise<{
         phases: {
             gated: boolean;
+            dependsOn: string[];
             weeks: number;
             id: string;
             projectId: number;

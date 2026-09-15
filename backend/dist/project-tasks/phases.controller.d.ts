@@ -4,9 +4,13 @@ export declare class PhasesController {
     private readonly service;
     constructor(service: PhasesService);
     findAll(projectId: string): Promise<import("../database/entities").ProjectPhaseEntity[]>;
-    getTemplate(): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
-    saveTemplate(body: unknown): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
-    resetTemplate(): Promise<import("../seed-data/programme-template").TemplatePhase[]>;
+    listTemplates(): Promise<import("../seed-data/programme-template").ProgrammeTemplateDef[]>;
+    saveTemplate(body: {
+        key?: string;
+        name: string;
+        phases: unknown;
+    }): Promise<import("../seed-data/programme-template").ProgrammeTemplateDef>;
+    deleteTemplate(key: string): Promise<import("../seed-data/programme-template").ProgrammeTemplateDef[]>;
     applyTemplate(projectId: string): Promise<{
         phasesAdded: number;
         tasksAdded: number;
@@ -48,6 +52,7 @@ export declare class PhasesController {
     board(projectId: string): Promise<{
         phases: {
             gated: boolean;
+            dependsOn: string[];
             weeks: number;
             id: string;
             projectId: number;

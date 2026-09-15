@@ -32,6 +32,8 @@ const file_room_module_1 = require("./file-room/file-room.module");
 const notifications_module_1 = require("./notifications/notifications.module");
 const sms_module_1 = require("./sms/sms.module");
 const project_program_module_1 = require("./project-program/project-program.module");
+const proposal_module_1 = require("./proposals/proposal.module");
+const guest_access_module_1 = require("./guest-access/guest-access.module");
 const scheduling_module_1 = require("./scheduling/scheduling.module");
 const session_guard_1 = require("./auth/guards/session.guard");
 const roles_guard_1 = require("./auth/guards/roles.guard");
@@ -71,6 +73,8 @@ exports.AppModule = AppModule = __decorate([
             people_module_1.PeopleModule,
             tasks_module_1.TasksModule,
             pipeline_module_1.PipelineModule,
+            proposal_module_1.ProposalModule,
+            guest_access_module_1.GuestAccessModule,
             leads_module_1.LeadsModule,
             scoring_module_1.ScoringModule,
             users_module_1.UsersModule,

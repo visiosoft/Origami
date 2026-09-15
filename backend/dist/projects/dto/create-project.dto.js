@@ -108,4 +108,14 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateProjectDto.prototype, "introLetterSentAt", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateProjectDto.prototype, "contractApproved", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateProjectDto.prototype, "templateKey", void 0);
 //# sourceMappingURL=create-project.dto.js.map

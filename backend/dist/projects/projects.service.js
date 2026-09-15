@@ -20,6 +20,21 @@ const entities_1 = require("../database/entities");
 let ProjectsService = class ProjectsService {
     constructor(repo) {
         this.repo = repo;
+        this.log = new common_1.Logger('ProjectsService');
+    }
+    async onApplicationBootstrap() {
+        try {
+            const stale = await this.repo.findBy({ stage: 'Leads' });
+            if (!stale.length)
+                return;
+            for (const p of stale)
+                p.stage = 'Kickoff';
+            await this.repo.save(stale);
+            this.log.log(`Renamed ${stale.length} project(s) from stage "Leads" to "Kickoff"`);
+        }
+        catch (err) {
+            this.log.warn('Kickoff stage migration failed: ' + err.message);
+        }
     }
     findAll() {
         return this.repo.find({ order: { id: 'ASC' } });
@@ -35,7 +50,7 @@ let ProjectsService = class ProjectsService {
         const id = Number(dto.id) || rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
         const project = {
             priority: 'Medium', location: '', typeOfWork: '', contractType: '', contractAmt: '$0',
-            estStart: '', duration: '', scope: '', stage: 'Leads', progress: 0, referral: '',
+            estStart: '', duration: '', scope: '', stage: 'Kickoff', progress: 0, referral: '',
             contactedBy: '', imgColor: '#173326', img: '',
             ...dto, id,
         };
@@ -50,7 +65,7 @@ let ProjectsService = class ProjectsService {
             return existing;
         return this.create({
             name: deal.name,
-            stage: 'Leads',
+            stage: 'Kickoff',
             contractAmt: deal.value || '$0',
             referral: deal.source || '',
             contactedBy: (deal.assignee && deal.assignee !== 'Unassigned') ? deal.assignee : '',

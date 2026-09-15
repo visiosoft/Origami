@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserEntity, RoleEntity } from '../database/entities';
+import { UserEntity, RoleEntity, GuestAccessEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { inviteEmail, resetEmail } from './email.templates';
@@ -29,6 +29,7 @@ export class AuthService {
   constructor(
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @InjectRepository(RoleEntity) private readonly roles: Repository<RoleEntity>,
+    @InjectRepository(GuestAccessEntity) private readonly guestAccess: Repository<GuestAccessEntity>,
     private readonly settings: SettingsService,
     private readonly google: GoogleService,
   ) {}
@@ -214,7 +215,8 @@ export class AuthService {
     return this.issueSession(user);
   }
 
-  private async issueSession(user: UserEntity) {
+  /** Also used to log a guest access grant straight into a session -- see GuestAccessService. */
+  async issueSession(user: UserEntity) {
     if (user.status === 'suspended') throw new UnauthorizedException('This account is suspended.');
     if (user.status === 'pending') {
       throw new UnauthorizedException('This account is not active yet — use the invitation link to set a password.');
@@ -236,7 +238,20 @@ export class AuthService {
   async verify(bearer: string | undefined): Promise<SessionClaims | null> {
     const raw = bearer?.startsWith('Bearer ') ? bearer.slice(7) : bearer;
     if (!raw) return null;
-    return verifyJwt(raw, await this.settings.jwtSecret());
+    const claims = verifyJwt(raw, await this.settings.jwtSecret());
+    if (!claims) return null;
+    // A guest's JWT is only as good as the grant it came from -- checked
+    // fresh here rather than trusted for the token's full 12h life, so a
+    // revoke actually ends an already-open session instead of only blocking
+    // the next time someone opens the link.
+    if (claims.sub.startsWith('GUEST-') && !(await this.guestGrantLive(claims.sub))) return null;
+    return claims;
+  }
+
+  /** A guest keeps working as long as at least one of their grants is still live -- not just their most recent one. */
+  private async guestGrantLive(userId: string): Promise<boolean> {
+    const grants = await this.guestAccess.find({ where: { userId } });
+    return grants.some((g) => !g.revokedAt && Date.now() <= Date.parse(g.expiresAt));
   }
 
   /**

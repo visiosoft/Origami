@@ -60,7 +60,7 @@ export const STAGES: Stage[] = [
   { key: 'site_visit', name: 'Schedule Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#6E7A18', colorBg: '#E6E9C6' },
   { key: 'zoning', name: 'Project Programming', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
   { key: 'proposal', name: 'Proposal Sent', idx: 7, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#A34718', colorBg: '#F7DCCC' },
-  { key: 'client_approval', name: 'Client Approval', idx: 8, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
+  { key: 'client_approval', name: 'Client Review', idx: 8, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
   { key: 'rfp', name: 'RFP to Consultants', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#3C5C8A', colorBg: '#D8E2F0' },
   // Parked leads. Each hold sets a follow-up date so the lead resurfaces
   // instead of going quiet -- see HOLD_MONTHS.

@@ -5,7 +5,7 @@ import { useApp } from '../AppContext';
 const BG = "'Bricolage Grotesque', serif";
 
 export interface TemplateTask { id: string; title: string; team: string; labels: string[]; days?: number }
-export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; weeks?: number; tasks: TemplateTask[] }
+export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; dependsOn?: string[]; weeks?: number; tasks: TemplateTask[] }
 
 /**
  * Not a person: marks work meant to run by itself. Everything else in the list
@@ -44,8 +44,12 @@ const slug = (name: string) =>
  * the next project is built with; projects already running keep what they have,
  * except that a newly added phase appears on them too.
  */
+interface LibraryEntry { key: string; name: string; phases: TemplatePhase[] }
+
 export function ProgrammeTemplate() {
   const { toast } = useApp();
+  const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [activeKey, setActiveKey] = useState('');
   const [phases, setPhases] = useState<TemplatePhase[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
   const [openPhase, setOpenPhase] = useState<string | null>(null);
@@ -54,8 +58,16 @@ export function ProgrammeTemplate() {
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
 
-  const load = () => api.programmeTemplate.get()
-    .then((res: any) => { setPhases(res as TemplatePhase[]); setOpenPhase((res as TemplatePhase[])[0]?.key ?? null); })
+  const load = (preferredKey?: string) => api.programmeTemplate.list()
+    .then((res: any) => {
+      const lib: LibraryEntry[] = Array.isArray(res) ? res : [];
+      setLibrary(lib);
+      const active = lib.find((t) => t.key === (preferredKey ?? activeKey)) || lib[0];
+      setActiveKey(active?.key || '');
+      setPhases(active?.phases || []);
+      setOpenPhase(active?.phases?.[0]?.key ?? null);
+      setDirty(false);
+    })
     .catch((e: Error) => setError(e.message))
     .finally(() => setLoading(false));
 
@@ -68,7 +80,56 @@ export function ProgrammeTemplate() {
         setTeams([...res.filter((r: any) => r.tier === 'internal').map((r: any) => r.name as string), AUTOMATION]);
       })
       .catch(() => setTeams([AUTOMATION]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const activeName = library.find((t) => t.key === activeKey)?.name || 'Template';
+
+  const switchTo = (key: string) => {
+    if (key === activeKey) return;
+    if (dirty && !confirm('Switch templates? Unsaved changes to this one will be lost.')) return;
+    const t = library.find((x) => x.key === key);
+    if (!t) return;
+    setActiveKey(key);
+    setPhases(t.phases);
+    setOpenPhase(t.phases[0]?.key ?? null);
+    setDirty(false);
+    setError('');
+  };
+
+  const newTemplate = (duplicate: boolean) => {
+    const name = (prompt(duplicate ? `Name for the copy of "${activeName}":` : 'Name this template:') || '').trim();
+    if (!name) return;
+    const basePhases = duplicate ? phases : [{ key: 'kickoff', name: 'Kickoff', color: COLORS[0], tasks: [] }];
+    setSaving(true);
+    setError('');
+    api.programmeTemplate.save(undefined, name, basePhases)
+      .then((res: any) => { toast(`Created "${name}"`); return load(res?.key); })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const renameTemplate = () => {
+    const name = (prompt('Rename this template:', activeName) || '').trim();
+    if (!name || name === activeName) return;
+    setSaving(true);
+    setError('');
+    api.programmeTemplate.save(activeKey, name, phases)
+      .then(() => { toast('Renamed'); return load(activeKey); })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  const deleteTemplate = () => {
+    if (library.length <= 1) { toast('At least one template must remain'); return; }
+    if (!confirm(`Delete the "${activeName}" template? Any project using it falls back to another.`)) return;
+    setSaving(true);
+    setError('');
+    api.programmeTemplate.remove(activeKey)
+      .then(() => { toast('Deleted'); return load(); })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setSaving(false));
+  };
 
   const edit = (next: TemplatePhase[]) => { setPhases(next); setDirty(true); };
   const patchPhase = (key: string, patch: Partial<TemplatePhase>) =>
@@ -112,17 +173,8 @@ export function ProgrammeTemplate() {
     if (bad) { setError('Every phase needs a name.'); return; }
     setSaving(true);
     setError('');
-    api.programmeTemplate.save(phases.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.title.trim()) })))
-      .then(() => { toast('Programme template saved'); setDirty(false); return load(); })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setSaving(false));
-  };
-
-  const restore = () => {
-    if (!confirm('Replace the template with the shipped default? Projects already running keep what they have.')) return;
-    setSaving(true);
-    api.programmeTemplate.reset()
-      .then(() => { toast('Template restored to the default'); setDirty(false); return load(); })
+    api.programmeTemplate.save(activeKey, activeName, phases.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.title.trim()) })))
+      .then(() => { toast(`"${activeName}" saved`); return load(activeKey); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
   };
@@ -133,13 +185,29 @@ export function ProgrammeTemplate() {
 
   return (
     <div>
-      <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Programme Template</div>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Programme Templates</div>
         <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 660, lineHeight: 1.6 }}>
-          The phases and tasks every new project starts from — {phases.length} phases, {totalTasks} tasks. Editing here
-          changes what the next project is built with. Projects already running keep what they have, except that a phase
-          added here also appears on them.
+          The phases and tasks a project starts from — a kitchen remodel and a ground-up build don't need the same shape.
+          Every project picks one when it's created. "{activeName}" has {phases.length} phases, {totalTasks} tasks.
+          Editing here changes what a project built from it gets next; a project already running keeps what it has,
+          except that a phase added here also appears on it.
         </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        {library.map((t) => (
+          <div
+            key={t.key}
+            onClick={() => switchTo(t.key)}
+            style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: t.key === activeKey ? '#173326' : 'white', color: t.key === activeKey ? 'white' : '#7E9B93', border: '1px solid ' + (t.key === activeKey ? '#173326' : 'rgba(20,8,31,0.08)') }}
+          >{t.name}</div>
+        ))}
+        <div onClick={() => newTemplate(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px dashed rgba(20,8,31,0.2)', color: '#173326', whiteSpace: 'nowrap' }}>+ New template</div>
+        <div style={{ flex: 1 }} />
+        <div onClick={() => newTemplate(true)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Duplicate</div>
+        <div onClick={renameTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Rename</div>
+        <div onClick={deleteTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Delete</div>
       </div>
 
       {error && (
@@ -198,6 +266,27 @@ export function ProgrammeTemplate() {
 
               {open && (
                 <div style={{ padding: '6px 12px 12px' }}>
+                  {phases.length > 1 && (
+                    <div style={{ marginBottom: 12, padding: '9px 11px', background: '#FBF8F2', borderRadius: 9 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Depends on</div>
+                      <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 7, lineHeight: 1.5 }}>
+                        Waits for these phases' last task before it can start — pick more than one for phases that run in parallel off the same predecessor.
+                        {!phase.dependsOn?.length && <> Nothing picked, so it falls back to the "Locks" checkbox above (the phase right before it).</>}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {phases.filter((p) => p.key !== phase.key).map((p) => {
+                          const on = !!phase.dependsOn?.includes(p.key);
+                          return (
+                            <span
+                              key={p.key}
+                              onClick={() => patchPhase(phase.key, { dependsOn: on ? (phase.dependsOn || []).filter((k) => k !== p.key) : [...(phase.dependsOn || []), p.key] })}
+                              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#43514D', fontWeight: on ? 700 : 400 }}
+                            >{p.name}</span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {phase.tasks.length === 0 && (
                     <div style={{ padding: '12px 4px', fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No tasks in this phase yet.</div>
                   )}
@@ -246,7 +335,6 @@ export function ProgrammeTemplate() {
         <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
           {saving ? 'Saving…' : 'Save template'}
         </div>
-        <div onClick={restore} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#8E2E0A' }}>Restore default</div>
         {dirty && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#93520F' }}>Unsaved changes</span>}
       </div>
     </div>

@@ -9,7 +9,7 @@ export interface Project {
     estStart: string;
     duration: string;
     scope: string;
-    stage: 'Leads' | 'Design' | 'Construction' | 'Closeout';
+    stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout';
     progress: number;
     referral: string;
     contactedBy: string;
@@ -18,7 +18,7 @@ export interface Project {
 }
 export declare const PROJECTS: Project[];
 export declare const STAGE_CONFIG: readonly [{
-    readonly name: "Leads";
+    readonly name: "Kickoff";
     readonly color: "#7E9B93";
 }, {
     readonly name: "Design";

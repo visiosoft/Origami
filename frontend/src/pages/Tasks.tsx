@@ -64,15 +64,20 @@ export function Tasks() {
   const reloadLog = () => { api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
   useEffect(() => {
     api.projects.list().then((r: any) => {
-      if (Array.isArray(r) && r.length) {
-        setProjects(r.map((p) => ({ id: p.id, name: p.name })));
+      // A lead gets a placeholder row the moment it exists so it has a place
+      // on the Projects page (sitting in "Kickoff"), but there's no real
+      // phase/task work to board until it's actually converted -- so it has
+      // no business in this picker.
+      const real = Array.isArray(r) ? r.filter((p: any) => p.stage !== 'Kickoff') : [];
+      if (real.length) {
+        setProjects(real.map((p: any) => ({ id: p.id, name: p.name })));
         // Keep the remembered project only while it still exists, so a deleted
         // one doesn't leave the board pointing at nothing.
         // A project named in the URL wins over both the remembered one and the
         // first-project fallback, or a deep link would land on the wrong board.
         setBoardProjectId((cur) => {
           const wanted = linkedProjectId ?? cur;
-          return wanted != null && r.some((p: any) => p.id === wanted) ? wanted : r[0].id;
+          return wanted != null && real.some((p: any) => p.id === wanted) ? wanted : real[0].id;
         });
       }
     }).catch(() => { });

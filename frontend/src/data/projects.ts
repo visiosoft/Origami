@@ -11,7 +11,7 @@ export interface Project {
   estStart: string;
   duration: string;
   scope: string;
-  stage: 'Leads' | 'Design' | 'Construction' | 'Closeout';
+  stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout';
   progress: number;
   referral: string;
   contactedBy: string;
@@ -19,6 +19,10 @@ export interface Project {
   img: string;
   leadId?: string; // originating lead (intake questionnaire) shown on the Project Info task
   introLetterSentAt?: string; // ISO timestamp when the Introduction Letter was sent (marks that step complete)
+  /** Set once the client has signed. Locks the AEC Team roster in the Project Program. */
+  contractApproved?: boolean;
+  /** Which entry of the programme template library this project's Phase Board is built from. */
+  templateKey?: string;
 }
 
 export const PROJECTS: Project[] = [
@@ -32,7 +36,7 @@ export const PROJECTS: Project[] = [
 ];
 
 export const STAGE_CONFIG = [
-  { name: 'Leads', color: '#7E9B93' },
+  { name: 'Kickoff', color: '#7E9B93' },
   { name: 'Design', color: '#245C3A' },
   { name: 'Construction', color: '#173326' },
   { name: 'Closeout', color: '#0F2417' },
@@ -130,7 +134,7 @@ export interface ComputedPhase extends WfPhase {
 }
 
 /** A phase row as the board needs it, built from the project's real data. */
-export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; weeks?: number }
+export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; dependsOn?: string[]; weeks?: number }
 export interface BoardTask {
   id: string; phaseId?: string; title: string; status?: string; completed?: boolean; order?: number;
   assignee?: string; team?: string; auto?: boolean; autoLabel?: string;
@@ -145,20 +149,33 @@ export interface BoardTask {
  * the programme template put there.
  */
 export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): ComputedPhase[] {
-  // The gate is the previous phase's *last* task, not all of them. Phases on a
-  // real job overlap; the last card is the handover that lets the next start.
-  // An empty phase gates nothing and passes the previous phase's gate through.
-  let gateOpen = true;
+  const sorted = [...phases].sort((a, b) => a.order - b.order);
+  const isDone = (t: BoardTask) => !!t.completed || t.status === 'Done';
+  // Pass 1: whether each phase has handed off -- its *last* task done, not all
+  // of them, since real phases overlap and the last card is the handover. An
+  // empty phase has nothing to hand off, so it gates nothing named against it.
+  // Computed for every phase up front, independent of locking, so a dependency
+  // can point anywhere rather than only at the phase immediately before it.
+  const handedOffByKey = new Map<string, boolean>(
+    sorted.map((ph) => {
+      const own = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
+      if (!own.length) return [ph.key, true];
+      const ordered = [...own].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      return [ph.key, isDone(ordered[ordered.length - 1])];
+    }),
+  );
   // Where each phase falls in the run, by adding up the estimates before it.
   let weekCursor = 0;
-  return [...phases].sort((a, b) => a.order - b.order).map((ph, idx) => {
+  return sorted.map((ph, idx) => {
     const own = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
-    const isDone = (t: BoardTask) => !!t.completed || t.status === 'Done';
     const done = own.filter(isDone).length;
     const allDone = own.length > 0 && done === own.length;
     const hasInProgress = own.some((t) => t.status === 'In progress' || t.status === 'In Progress');
-    // Only phases marked as gating in the programme template ever lock.
-    const locked = idx > 0 && !!ph.gated && !gateOpen;
+    // Pass 2: an explicit dependency list lets two phases share a predecessor
+    // and run in parallel; without one, `gated` falls back to just the phase
+    // immediately before it, for a template saved before this existed.
+    const deps = ph.dependsOn?.length ? ph.dependsOn : ph.gated && idx > 0 ? [sorted[idx - 1].key] : [];
+    const locked = deps.length > 0 && !deps.every((k) => handedOffByKey.get(k));
     const phaseStatus = allDone
       ? 'Complete'
       : hasInProgress || (done > 0 && !allDone) ? 'In Progress' : locked ? 'Locked' : 'Not Started';
@@ -199,8 +216,6 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
       headerOpacity: locked ? '0.55' : '1',
     };
     weekCursor += Number(ph.weeks) || 0;
-    const ordered = [...own].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    if (ordered.length) gateOpen = isDone(ordered[ordered.length - 1]);
     return result;
   });
 }

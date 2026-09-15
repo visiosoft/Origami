@@ -13,6 +13,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // Azure App Service terminates TLS and proxies every request, so without
+  // this every req.ip would be the proxy's own address -- which is exactly
+  // what the e-signature features (Project Program, proposals) record as
+  // part of the certification. Trusting one hop reads it off X-Forwarded-For.
+  app.set('trust proxy', 1);
+
   // The SPA is served by this same process, so the app itself never makes a
   // cross-origin call. Allow only what CORS_ORIGINS names -- a wide-open policy
   // would let any page on the internet read authenticated responses.

@@ -29,12 +29,19 @@ export const PUBLIC_KEYS = [
   // hardcoded to specific people.
   'scheduling.calendars',
   'tasks.labels',
+  // Named filter combinations on the Projects board -- JSON
+  // [{ name, filters: { priority?, contractType?, typeOfWork?, contactedBy?, q? } }],
+  // shared office-wide rather than per-user, same as the calendars list above.
+  'projects.savedFilters',
   // Workspace kill switch for assignment emails; per-user opt-out lives on the user row.
   'notifications.assignmentEmail',
   // Response-time target per pipeline stage, as JSON { stageKey: days }.
   'pipeline.slaDays',
-  // The phase-and-task programme new projects are built from.
+  // The phase-and-task programme new projects are built from. 'programme.templates'
+  // is the current library (JSON array of { key, name, phases }); 'programme.template'
+  // is the legacy single-template shape, read as a fallback and migrated on first use.
   'programme.template',
+  'programme.templates',
   // --- SMS (Twilio) ---
   'sms.enabled',
   'sms.accountSid',

@@ -82,7 +82,7 @@ export class PipelineService implements OnApplicationBootstrap {
           try {
             await this.projects.ensureForLead(deal);
           } catch (err) {
-            this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${(err as Error).message}`);
+            this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${(err as Error).message}`);
           }
         }
         this.log.log(`Created ${missing.length} Leads-stage project(s) for existing leads`);
@@ -142,12 +142,14 @@ export class PipelineService implements OnApplicationBootstrap {
   async create(dto: any) {
     const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
     // Every lead gets a place on the Projects page from the moment it exists
-    // -- sitting in the "Leads" stage -- rather than only once it converts.
-    // Best effort: a failure here must not stop the lead itself from saving.
+    // -- sitting in the "Kickoff" stage, not yet assigned to Design or any
+    // real work -- rather than only once a client reviews and accepts the
+    // proposal and it's actually converted. Best effort: a failure here must
+    // not stop the lead itself from saving.
     try {
       await this.projects.ensureForLead(deal);
     } catch (err) {
-      this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${(err as Error).message}`);
+      this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${(err as Error).message}`);
     }
     return deal;
   }

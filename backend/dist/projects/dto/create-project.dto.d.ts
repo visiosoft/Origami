@@ -18,4 +18,6 @@ export declare class CreateProjectDto {
     designPhase?: string;
     leadId?: string;
     introLetterSentAt?: string;
+    contractApproved?: boolean;
+    templateKey?: string;
 }

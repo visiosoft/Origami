@@ -271,6 +271,13 @@ export const api = {
     get: (projectId: number) => request(`/project-program?projectId=${projectId}`),
     save: (projectId: number, data: unknown) => request('/project-program', { method: 'PUT', body: JSON.stringify({ projectId, data }) }),
     complete: (projectId: number, complete: boolean) => request('/project-program/complete', { method: 'PUT', body: JSON.stringify({ projectId, complete }) }),
+    /** The client's own read of their project's program, gated by the People directory. */
+    mine: (projectId: number) => request<{
+      data: unknown; updatedAt: string; sentAt: string; signedAt: string; signedByName: string; signedByEmail: string;
+    }>(`/project-program/mine?projectId=${projectId}`),
+    /** The client's e-signature -- image is a base64 PNG from the signature pad. */
+    sign: (projectId: number, name: string, image: string) =>
+      request<{ signedAt: string; signedByName: string }>('/project-program/sign', { method: 'POST', body: JSON.stringify({ projectId, name, image }) }),
     /** Same document, held against a lead -- the programme is produced before conversion. */
     getForLead: (leadId: string) => request(`/project-program?leadId=${encodeURIComponent(leadId)}`),
     saveForLead: (leadId: string, data: unknown) => request('/project-program', { method: 'PUT', body: JSON.stringify({ leadId, data }) }),
@@ -292,6 +299,44 @@ export const api = {
     /** Email it to the client with that same PDF attached. */
     send: (payload: unknown) =>
       request<{ ok: boolean; filename: string; to: string }>('/project-program/send', { method: 'POST', body: JSON.stringify(payload) }),
+    /** Every past save, newest first -- the living document's history. */
+    versions: (owner: { projectId?: number; leadId?: string }) =>
+      request<{ id: number; savedAt: string; savedBy: string }[]>(
+        `/project-program/versions?${owner.leadId ? `leadId=${encodeURIComponent(owner.leadId)}` : `projectId=${owner.projectId}`}`,
+      ),
+    getVersion: (id: number, owner: { projectId?: number; leadId?: string }) =>
+      request<{ id: number; savedAt: string; savedBy: string; data: unknown }>(
+        `/project-program/versions/${id}?${owner.leadId ? `leadId=${encodeURIComponent(owner.leadId)}` : `projectId=${owner.projectId}`}`,
+      ),
+    restoreVersion: (id: number, owner: { projectId?: number; leadId?: string }) =>
+      request(`/project-program/versions/${id}/restore`, { method: 'POST', body: JSON.stringify(owner) }),
+  },
+  proposals: {
+    get: (dealId: string) => request(`/proposals?dealId=${encodeURIComponent(dealId)}`),
+    save: (dealId: string, body: { subject?: string; html?: string; amount?: string }) =>
+      request('/proposals', { method: 'PUT', body: JSON.stringify({ dealId, ...body }) }),
+    /** Emails the proposal with the letterhead PDF attached, plus a 10-day signing link. */
+    send: (dealId: string, to: string, cc?: string) =>
+      request<{ ok: boolean; to: string; link: string }>('/proposals/send', { method: 'POST', body: JSON.stringify({ dealId, to, cc }) }),
+    /** The prospect's own view, no account needed -- gated by the signed link's token. */
+    public: {
+      get: (token: string) => request(`/proposals/public?token=${encodeURIComponent(token)}`),
+      sign: (token: string, name: string, email: string, image: string) =>
+        request('/proposals/public/sign', { method: 'POST', body: JSON.stringify({ token, name, email, image }) }),
+    },
+  },
+  guestAccess: {
+    /** Time-limited logins granted to clients/consultants, in place of standing passwords. */
+    list: (projectId?: number) => request<{
+      id: number; name: string; email: string; tier: string; projectId: number; createdAt: string;
+      expiresAt: string; createdBy: string; revokedAt: string; lastUsedAt: string; expired: boolean; hasFullAccount: boolean;
+    }[]>(`/guest-access${projectId ? `?projectId=${projectId}` : ''}`),
+    create: (body: { name: string; email: string; tier: 'client' | 'consultant'; projectId: number; days?: number }) =>
+      request<{ id: number; link: string; expiresAt: string; emailSent: boolean; emailError?: string }>('/guest-access', { method: 'POST', body: JSON.stringify(body) }),
+    revoke: (id: number) => request(`/guest-access/${id}/revoke`, { method: 'POST' }),
+    promote: (id: number) => request<{ sent: boolean; to?: string }>(`/guest-access/${id}/promote`, { method: 'POST' }),
+    /** The guest's own step, off the token in their emailed link -- no account needed until this resolves. */
+    resolve: (token: string) => request<{ token: string; expiresIn: number; user: unknown }>('/guest-access/resolve', { method: 'POST', body: JSON.stringify({ token }) }),
   },
   scheduling: {
     /** Whose calendars show up when checking availability -- the office's own configured list. */
@@ -350,9 +395,12 @@ export const api = {
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
   },
   programmeTemplate: {
-    get: () => request('/project-phases/template'),
-    save: (phases: unknown) => request('/project-phases/template', { method: 'PUT', body: JSON.stringify(phases) }),
-    reset: () => request('/project-phases/template', { method: 'DELETE' }),
+    /** The whole library -- a kitchen remodel and a ground-up build don't share one shape. */
+    list: () => request<{ key: string; name: string; phases: unknown[] }[]>('/project-phases/templates'),
+    /** Create (omit key) or replace (pass key) one named template. */
+    save: (key: string | undefined, name: string, phases: unknown) =>
+      request<{ key: string; name: string; phases: unknown[] }>('/project-phases/templates', { method: 'PUT', body: JSON.stringify({ key, name, phases }) }),
+    remove: (key: string) => request(`/project-phases/templates/${encodeURIComponent(key)}`, { method: 'DELETE' }),
   },
 
   projectSections: {

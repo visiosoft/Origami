@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState } from '../data/pipeline';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -19,6 +19,8 @@ import { useApp } from '../AppContext';
 import { api } from '../api';
 import { ProjectProgram } from './ProjectProgram';
 import { buildPrefill } from '../data/projectProgram';
+import { ProposalPanel } from '../components/ProposalPanel';
+import { DealTasksPanel } from '../components/DealTasksPanel';
 
 const BG = "'Bricolage Grotesque', serif";
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -272,7 +274,7 @@ export function Pipeline() {
   const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts' | 'tasks'>('overview');
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   // The lead as last saved, so an edit can say which fields moved.
@@ -848,7 +850,15 @@ export function Pipeline() {
                       <div style={{ fontSize: 11, fontWeight: 700, color: stage.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</div>
                       <span style={{ fontSize: 10, fontWeight: 700, color: stage.color, background: 'rgba(255,255,255,0.7)', padding: '1px 6px', borderRadius: 999 }}>{cards.length}</span>
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 600, color: stage.ownerColor, background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>{stage.owner}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: stage.ownerColor, background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>{stage.owner}</span>
+                      {!slaExempt(stage) && !!slaDays[stage.key] && (
+                        <span title="Response-time target for this stage — set under Settings → CRM Response Times" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 600, color: '#7E9B93', background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>
+                          <svg width={7} height={7} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><circle cx={12} cy={12} r={10} /><polyline points="12 6 12 12 16 14" /></svg>
+                          {slaDays[stage.key]}d target
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ padding: 6, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {cards.map((d) => {
@@ -970,12 +980,14 @@ export function Pipeline() {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'details'] as const).map((t) => (
-              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : 'Full Details'}</div>
+            {(['overview', 'details', 'tasks'] as const).map((t) => (
+              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'details' ? 'Full Details' : 'Tasks'}</div>
             ))}
           </div>
 
-          {detailTab === 'contacts' ? (
+          {detailTab === 'tasks' ? (
+            <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} />
+          ) : detailTab === 'contacts' ? (
             (() => {
               const ld = leadDetails[selected.id];
               // A lead captured before the directory existed starts from its
@@ -1310,6 +1322,8 @@ export function Pipeline() {
                     </div>
                   );
                 })()
+              ) : selected.stage === 'proposal' ? (
+                <ProposalPanel dealId={selected.id} dealEmail={selected.email} />
               ) : selected.stage === 'project_fit' ? (
                 (() => {
                   const sel = fitByDeal[selected.id] || {};

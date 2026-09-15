@@ -59,7 +59,7 @@ let PipelineService = class PipelineService {
                         await this.projects.ensureForLead(deal);
                     }
                     catch (err) {
-                        this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${err.message}`);
+                        this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${err.message}`);
                     }
                 }
                 this.log.log(`Created ${missing.length} Leads-stage project(s) for existing leads`);
@@ -109,7 +109,7 @@ let PipelineService = class PipelineService {
             await this.projects.ensureForLead(deal);
         }
         catch (err) {
-            this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${err.message}`);
+            this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${err.message}`);
         }
         return deal;
     }

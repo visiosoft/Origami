@@ -25,7 +25,7 @@ export const FINANCE: FinanceRow[] = [
   { name: 'Cole Valley', exec: 'DBB', contract: 'T&M NTE', labor: 'PW', phase: 'Design', base: 1200000, co: 0, reimb: 55000, baseUsed: 240000, coUsed: 0, reimbUsed: 11000, timePct: 24 },
   { name: 'Hayes Valley', exec: 'D', contract: 'LS', labor: 'CP', phase: 'Design', base: 380000, co: 48000, reimb: 9000, baseUsed: 361000, coUsed: 31000, reimbUsed: 8000, timePct: 88 },
   { name: 'Pacific Heights', exec: 'DB', contract: 'CS', labor: 'CP', phase: 'Design', base: 950000, co: 0, reimb: 20000, baseUsed: 47500, coUsed: 0, reimbUsed: 2000, timePct: 9 },
-  { name: 'Marina Duplex', exec: 'B', contract: 'LS', labor: 'PW', phase: 'Leads', base: 680000, co: 0, reimb: 15000, baseUsed: 0, coUsed: 0, reimbUsed: 0, timePct: 0 },
+  { name: 'Marina Duplex', exec: 'B', contract: 'LS', labor: 'PW', phase: 'Kickoff', base: 680000, co: 0, reimb: 15000, baseUsed: 0, coUsed: 0, reimbUsed: 0, timePct: 0 },
   { name: 'Perez Cottage', exec: 'DB', contract: 'T&M NTE', labor: 'CP', phase: 'Construction', base: 520000, co: 64000, reimb: 18000, baseUsed: 292000, coUsed: 22000, reimbUsed: 9000, timePct: 54 },
 ];
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
+import { GuestAccessPanel } from '../components/GuestAccessPanel';
 import { ProjectProgram } from './ProjectProgram';
 import { stepForTaskId, buildPrefill } from '../data/projectProgram';
 import { AssigneePicker } from '../components/AssigneePicker';
@@ -16,15 +17,22 @@ const BG = "'Bricolage Grotesque', serif";
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
-const STAGES = ['Leads', 'Design', 'Construction', 'Closeout'];
-const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Leads', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
+const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
+const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
+
+interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string }
+interface SavedView { name: string; filters: ProjectFilters }
+const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
 export function Projects() {
   const { can, toast } = useApp();
   const canManage = can('projects', 'manage');
   const [projects, setProjects] = useState<Project[]>([]);
+  const [filters, setFilters] = useState<ProjectFilters>(BLANK_FILTERS);
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [activeView, setActiveView] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks'>('overview');
+  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'guests'>('overview');
   // The Phase Board reads either as columns or as a grouped list.
   const [phaseView, setPhaseView] = useState<'board' | 'list'>('board');
   const [shutPhases, setShutPhases] = useState<string[]>([]);
@@ -50,7 +58,48 @@ export function Projects() {
     reload();
     api.leads.list().then((r: any) => { if (Array.isArray(r)) setLeads(r); }).catch(() => { });
     api.emailTemplates.list().then((r: any) => { if (Array.isArray(r)) setTemplates(r); }).catch(() => { });
+    api.settings.get()
+      .then((res: any) => {
+        try {
+          const parsed = JSON.parse(res?.['projects.savedFilters'] || '[]');
+          if (Array.isArray(parsed)) setSavedViews(parsed);
+        } catch { /* keep none */ }
+      })
+      .catch(() => { });
   }, []);
+
+  const matchesFilters = (p: Project) => {
+    if (filters.priority && p.priority !== filters.priority) return false;
+    if (filters.contractType && p.contractType !== filters.contractType) return false;
+    if (filters.typeOfWork && p.typeOfWork !== filters.typeOfWork) return false;
+    if (filters.contactedBy && p.contactedBy !== filters.contactedBy) return false;
+    const q = filters.q.trim().toLowerCase();
+    if (q && !p.name.toLowerCase().includes(q) && !p.location.toLowerCase().includes(q)) return false;
+    return true;
+  };
+  const distinctValues = (key: 'priority' | 'contractType' | 'typeOfWork' | 'contactedBy') =>
+    Array.from(new Set(projects.map((p) => p[key]).filter(Boolean))).sort();
+  const filtersActive = JSON.stringify(filters) !== JSON.stringify(BLANK_FILTERS);
+
+  const setFilter = (key: keyof ProjectFilters, value: string) => { setFilters((f) => ({ ...f, [key]: value })); setActiveView(''); };
+  const clearFilters = () => { setFilters(BLANK_FILTERS); setActiveView(''); };
+  const applyView = (v: SavedView) => { setFilters({ ...BLANK_FILTERS, ...v.filters }); setActiveView(v.name); };
+  const persistViews = (next: SavedView[]) => {
+    setSavedViews(next);
+    api.settings.save({ 'projects.savedFilters': JSON.stringify(next) }).catch(() => toast('⚠ Could not save that view'));
+  };
+  const saveCurrentView = () => {
+    const name = (prompt('Name this view:') || '').trim();
+    if (!name) return;
+    persistViews([...savedViews.filter((v) => v.name !== name), { name, filters }]);
+    setActiveView(name);
+    toast(`Saved view "${name}"`);
+  };
+  const deleteView = (name: string) => {
+    if (!confirm(`Delete the saved view "${name}"?`)) return;
+    persistViews(savedViews.filter((v) => v.name !== name));
+    if (activeView === name) clearFilters();
+  };
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
   const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
@@ -76,8 +125,10 @@ export function Projects() {
   // carries older names ("Architecture" for "Architect"), so it is the wrong
   // thing to offer as choices.
   const [teams, setTeams] = useState<string[]>(['Automation']);
+  const [templateLibrary, setTemplateLibrary] = useState<{ key: string; name: string }[]>([]);
   useEffect(() => {
     api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
+    api.programmeTemplate.list().then((r: any) => { if (Array.isArray(r)) setTemplateLibrary(r.map((t: any) => ({ key: t.key, name: t.name }))); }).catch(() => { });
     api.roles.list()
       .then((res: any) => {
         if (!Array.isArray(res)) return;
@@ -332,20 +383,63 @@ export function Projects() {
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {['All', 'High Priority', 'Design + Build', 'Build Only'].map((f) => (
-            <div key={f} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, background: f === 'All' ? '#173326' : 'white', color: f === 'All' ? 'white' : '#7E9B93', border: '1px solid ' + (f === 'All' ? '#173326' : 'rgba(20,8,31,0.08)'), cursor: 'pointer' }}>{f}</div>
-          ))}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <input
+          value={filters.q}
+          onChange={(e) => setFilter('q', e.target.value)}
+          placeholder="Search name or location…"
+          style={{ ...inputStyle, width: 200, background: 'white' }}
+        />
+        <select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)} style={{ ...inputStyle, width: 130, background: 'white' }}>
+          <option value="">Any priority</option>
+          {distinctValues('priority').map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <select value={filters.contractType} onChange={(e) => setFilter('contractType', e.target.value)} style={{ ...inputStyle, width: 160, background: 'white' }}>
+          <option value="">Any contract type</option>
+          {distinctValues('contractType').map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <select value={filters.typeOfWork} onChange={(e) => setFilter('typeOfWork', e.target.value)} style={{ ...inputStyle, width: 160, background: 'white' }}>
+          <option value="">Any project type</option>
+          {distinctValues('typeOfWork').map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <select value={filters.contactedBy} onChange={(e) => setFilter('contactedBy', e.target.value)} style={{ ...inputStyle, width: 160, background: 'white' }}>
+          <option value="">Anyone responsible</option>
+          {distinctValues('contactedBy').map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        {filtersActive && <div onClick={clearFilters} style={{ fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear</div>}
         <div style={{ flex: 1 }} />
-        {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>+ New Project</div>}
+        {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)', whiteSpace: 'nowrap' }}>+ New Project</div>}
+      </div>
+
+      {/* Saved views */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div
+          onClick={clearFilters}
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: !activeView && !filtersActive ? '#173326' : 'white', color: !activeView && !filtersActive ? 'white' : '#7E9B93', border: '1px solid ' + (!activeView && !filtersActive ? '#173326' : 'rgba(20,8,31,0.08)'), cursor: 'pointer' }}
+        >All</div>
+        {savedViews.map((v) => (
+          <div
+            key={v.name}
+            onClick={() => applyView(v)}
+            title="Click to apply. Right-click to delete."
+            onContextMenu={(e) => { e.preventDefault(); deleteView(v.name); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: activeView === v.name ? '#173326' : 'white', color: activeView === v.name ? 'white' : '#7E9B93', border: '1px solid ' + (activeView === v.name ? '#173326' : 'rgba(20,8,31,0.08)'), cursor: 'pointer' }}
+          >
+            {v.name}
+            <span onClick={(e) => { e.stopPropagation(); deleteView(v.name); }} style={{ opacity: 0.6 }}>×</span>
+          </div>
+        ))}
+        {filtersActive && (
+          <div onClick={saveCurrentView} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', border: '1px dashed rgba(20,8,31,0.2)', color: '#173326', cursor: 'pointer' }}>
+            + Save this view
+          </div>
+        )}
       </div>
 
       {/* Pipeline columns */}
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
         {STAGE_CONFIG.map((st) => {
-          const stageProjects = projects.filter((p) => p.stage === st.name);
+          const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
           return (
             <div key={st.name} style={{ flex: '0 0 280px' }}>
               <div style={{ height: 4, borderRadius: 999, background: st.color, margin: '0 4px 8px' }} />
@@ -413,6 +507,14 @@ export function Projects() {
                   Tasks
                 </span>
               </div>
+              {canManage && (
+                <div onClick={() => setTab('guests')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'guests' ? '#173326' : 'transparent'), color: tab === 'guests' ? '#0B1A12' : '#7E9B93' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx={12} cy={7} r={4} /></svg>
+                    Guest Access
+                  </span>
+                </div>
+              )}
             </div>
 
             {tab === 'overview' ? (
@@ -452,6 +554,7 @@ export function Projects() {
                 <ProjectProgram
                   projectId={sel.id}
                   projectName={sel.name}
+                  contractApproved={sel.contractApproved}
                   defaultTo={introLead?.email || ''}
                   initialStep={programStep}
                   prefill={buildPrefill(sel, introLead)}
@@ -466,6 +569,10 @@ export function Projects() {
             ) : tab === 'tasks' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                 <TaskBoard projectId={sel.id} />
+              </div>
+            ) : tab === 'guests' ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <GuestAccessPanel projectId={sel.id} />
               </div>
             ) : (
               <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>
@@ -1000,18 +1107,30 @@ export function Projects() {
                 ['Contacted by', 'contactedBy', 'text'],
                 ['Progress %', 'progress', 'number'],
                 ['Linked lead (intake)', 'leadId', 'select-lead', '1 / -1'],
+                ['Programme Template', 'templateKey', 'select-template', '1 / -1'],
                 ['Scope of work', 'scope', 'textarea', '1 / -1'],
+                ['Contract Approved', 'contractApproved', 'checkbox', '1 / -1'],
               ].map(([label, key, kind, span]) => (
                 <div key={key as string} style={{ gridColumn: (span as string) || 'auto' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
-                  {kind === 'select-priority' ? (
+                  {kind === 'checkbox' ? (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', padding: '9px 0' }}>
+                      <input type="checkbox" checked={!!(np as any)[key as string]} onChange={(e) => setNp({ ...np, [key as string]: e.target.checked })} />
+                      Client has signed — lock the AEC Team roster in the Project Program
+                    </label>
+                  ) : kind === 'select-priority' ? (
                     <select value={(np as any)[key as string] || 'Medium'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{PRIORITIES.map((o) => <option key={o}>{o}</option>)}</select>
                   ) : kind === 'select-stage' ? (
-                    <select value={(np as any)[key as string] || 'Leads'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{STAGES.map((o) => <option key={o}>{o}</option>)}</select>
+                    <select value={(np as any)[key as string] || 'Kickoff'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{STAGES.map((o) => <option key={o}>{o}</option>)}</select>
                   ) : kind === 'select-lead' ? (
                     <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>
                       <option value="">— None —</option>
                       {leads.map((l) => <option key={l.id} value={l.id}>{l.leadName}{l.projectCity ? ` · ${l.projectCity}` : ''}</option>)}
+                    </select>
+                  ) : kind === 'select-template' ? (
+                    <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>
+                      <option value="">Library default</option>
+                      {templateLibrary.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
                     </select>
                   ) : kind === 'textarea' ? (
                     <textarea value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />

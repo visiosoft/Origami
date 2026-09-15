@@ -27,7 +27,7 @@ export class DashboardService {
 
   async getKpis() {
     const fin = await this.finRows();
-    const active = fin.filter((f) => f.phase !== 'Leads');
+    const active = fin.filter((f) => f.phase !== 'Kickoff');
     const contractValue = active.reduce((t, f) => t + f.base + f.co + f.reimb, 0);
     const internal = await this.internalInvoices();
     const outstandingInvoices = internal.reduce((t, i) => t + (i.amount - i.paid), 0);

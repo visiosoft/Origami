@@ -1,0 +1,209 @@
+import { useEffect, useMemo, useState } from 'react';
+import { api } from '../api';
+import { useApp } from '../AppContext';
+import type { Task } from '../data/tasks';
+
+const input: React.CSSProperties = {
+  boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
+  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5,
+  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+};
+
+const STATUSES = ['Open', 'In Progress', 'Closed'];
+/** Labels are free tags on the task -- this one records which pipeline stage it was filed under. */
+const SECTION_PREFIX = 'section:';
+
+/**
+ * Action items tied to this lead, one list per pipeline stage -- a lead
+ * passes through several sections before it's won, and a follow-up made
+ * sense for "Virtual F2F meeting" doesn't belong mixed in with one from
+ * "Proposal Sent". Same underlying task log as the Full Details tab
+ * elsewhere (filtered to this card's id as its "project"), tagged by stage
+ * via its labels, so nothing new had to be built on the backend.
+ */
+export function DealTasksPanel({
+  dealId, dealName, currentStageName, stages,
+}: {
+  dealId: string;
+  dealName: string;
+  currentStageName: string;
+  /** Every stage name the lead could have a task filed under -- the picker's options. */
+  stages: string[];
+}) {
+  const { toast } = useApp();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [description, setDescription] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [section, setSection] = useState(currentStageName);
+  const [creating, setCreating] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
+  const [openNotes, setOpenNotes] = useState<Record<string, boolean>>({});
+
+  const load = () => {
+    setLoading(true);
+    api.tasks.list(undefined, dealId)
+      .then((r: any) => setTasks(Array.isArray(r) ? r : []))
+      .catch(() => { })
+      .finally(() => setLoading(false));
+  };
+  useEffect(load, [dealId]);
+  useEffect(() => setSection(currentStageName), [currentStageName]);
+
+  const sectionOf = (t: Task) => (t.labels || []).find((l) => l.startsWith(SECTION_PREFIX))?.slice(SECTION_PREFIX.length) || 'Other';
+
+  const openAdd = () => { setAdding(true); setSection(currentStageName); };
+  const cancelAdd = () => { setAdding(false); setDescription(''); setAssignedTo(''); setDueDate(''); };
+
+  const create = () => {
+    if (!description.trim()) { toast('What needs to happen?'); return; }
+    setCreating(true);
+    api.tasks.create({
+      project: dealId,
+      description: description.trim(),
+      assignedTo: assignedTo.trim(),
+      dueDate,
+      labels: [`${SECTION_PREFIX}${section}`],
+    })
+      .then(() => { cancelAdd(); toast('Task added'); load(); })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setCreating(false));
+  };
+
+  const setStatus = (t: Task, status: string) => {
+    setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: status as Task['status'] } : x)));
+    api.tasks.update(t.id, { status, dateClosed: status === 'Closed' ? new Date().toISOString().slice(0, 10) : '' }).catch(() => load());
+  };
+
+  const remove = (t: Task) => {
+    if (!confirm('Remove this task?')) return;
+    setTasks((prev) => prev.filter((x) => x.id !== t.id));
+    api.tasks.remove(t.id).catch(() => load());
+  };
+
+  const toggleNotes = (id: string) => setOpenNotes((prev) => ({ ...prev, [id]: !prev[id] }));
+  const saveNotes = (t: Task, notes: string) => {
+    if (notes === (t.resolution || '')) return;
+    setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, resolution: notes } : x)));
+    api.tasks.update(t.id, { resolution: notes }).catch(() => load());
+  };
+
+  const visible = tasks.filter((t) => showClosed || t.status !== 'Closed');
+
+  // Grouped by section, in the order the lead actually moves through the
+  // board -- current stage first, everything else after, "Other" last.
+  const grouped = useMemo(() => {
+    const bySection = new Map<string, Task[]>();
+    for (const t of visible) {
+      const key = sectionOf(t);
+      if (!bySection.has(key)) bySection.set(key, []);
+      bySection.get(key)!.push(t);
+    }
+    const order = [currentStageName, ...stages.filter((s) => s !== currentStageName), 'Other'];
+    return order
+      .filter((s) => bySection.has(s))
+      .map((s) => ({ section: s, tasks: bySection.get(s)! }));
+  }, [visible, stages, currentStageName]);
+
+  return (
+    <div style={{ padding: '18px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tasks for {dealName}</div>
+          <div style={{ fontSize: 11.5, color: '#9AA39D', marginTop: 2 }}>Each section of the pipeline keeps its own list.</div>
+        </div>
+        {!adding && (
+          <div onClick={openAdd} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', flexShrink: 0 }}>
+            + Add task
+          </div>
+        )}
+      </div>
+
+      {adding && (
+        <div style={{ marginTop: 12, marginBottom: 14, padding: 12, background: '#FBF8F2', borderRadius: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#173326', marginBottom: 8 }}>New task on {dealName}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 220px', minWidth: 160 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>What needs to happen</div>
+              <input autoFocus value={description} onChange={(e) => setDescription(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') create(); }} placeholder="e.g. Call to confirm site visit time" style={{ ...input, width: '100%' }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Section</div>
+              <select value={section} onChange={(e) => setSection(e.target.value)} style={{ ...input, width: 160 }}>
+                {stages.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Assign to</div>
+              <input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Name" style={{ ...input, width: 130 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Due</div>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{ ...input, width: 140 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <div onClick={creating ? undefined : create} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: creating ? 'default' : 'pointer', background: creating ? '#9AB0A4' : '#173326', color: 'white' }}>
+              {creating ? 'Adding…' : 'Add task'}
+            </div>
+            <div onClick={cancelAdd} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8, marginTop: adding ? 0 : 14 }}>
+        <span onClick={() => setShowClosed((v) => !v)} style={{ fontSize: 11, fontWeight: 700, color: '#7E9B93', cursor: 'pointer' }}>{showClosed ? 'Hide closed' : 'Show closed'}</span>
+      </div>
+
+      {loading ? (
+        <div style={{ fontSize: 12, color: '#9AA39D' }}>Loading…</div>
+      ) : grouped.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No tasks on this lead yet.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {grouped.map(({ section: sec, tasks: secTasks }) => (
+            <div key={sec}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: sec === currentStageName ? '#173326' : '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{sec}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', background: '#EFEDE8', padding: '1px 7px', borderRadius: 999 }}>{secTasks.length}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {secTasks.map((t) => (
+                  <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, opacity: t.status === 'Closed' ? 0.6 : 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', textDecoration: t.status === 'Closed' ? 'line-through' : 'none' }}>{t.description || t.id}</div>
+                        <div style={{ fontSize: 11, color: '#7E9B93' }}>{t.assignedTo || 'Unassigned'}{t.dueDate ? ` · Due ${t.dueDate}` : ''}</div>
+                      </div>
+                      <select value={t.status} onChange={(e) => setStatus(t, e.target.value)} style={{ ...input, width: 'auto', padding: '5px 8px', fontSize: 11.5 }}>
+                        {STATUSES.map((s) => <option key={s}>{s}</option>)}
+                      </select>
+                      <span onClick={() => toggleNotes(t.id)} style={{ fontSize: 11, fontWeight: 700, color: t.resolution ? '#173326' : '#7E9B93', cursor: 'pointer' }}>
+                        {openNotes[t.id] ? 'Hide notes' : t.resolution ? 'Notes' : '+ Notes'}
+                      </span>
+                      <span onClick={() => remove(t)} style={{ fontSize: 11, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer' }}>Remove</span>
+                    </div>
+                    {openNotes[t.id] && (
+                      <div style={{ padding: '0 12px 10px' }}>
+                        <textarea
+                          key={'notes' + t.id}
+                          defaultValue={t.resolution || ''}
+                          onBlur={(e) => saveNotes(t, e.target.value)}
+                          placeholder="Notes on this task…"
+                          rows={2}
+                          style={{ ...input, width: '100%', resize: 'vertical', lineHeight: 1.5 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

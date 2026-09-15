@@ -18,6 +18,9 @@ import { Design } from './pages/Design';
 import { DesignProject } from './pages/DesignProject';
 import { Library } from './pages/Library';
 import { FileRoom } from './pages/FileRoom';
+import { MyProjectProgram } from './pages/MyProjectProgram';
+import { SignProposal } from './pages/SignProposal';
+import { GuestEntry } from './pages/GuestEntry';
 import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
@@ -38,6 +41,10 @@ export default function App() {
       {/* Public on purpose — Google must be able to read these without signing in. */}
       <Route path="/home" element={<Home />} />
       <Route path="/privacy" element={<Privacy />} />
+      {/* Public on purpose — a prospect signs a proposal from an emailed link, no account. */}
+      <Route path="/sign-proposal" element={<SignProposal />} />
+      {/* Public on purpose — where a guest access link logs a client/consultant in. */}
+      <Route path="/guest" element={<GuestEntry />} />
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />
@@ -53,6 +60,7 @@ export default function App() {
         <Route path="/pm/:projectId" element={<DesignProject />} />
         <Route path="/library" element={<Library />} />
         <Route path="/planroom" element={<FileRoom />} />
+        <Route path="/my-program" element={<MyProjectProgram />} />
         <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>

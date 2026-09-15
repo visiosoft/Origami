@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -91,6 +91,14 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "introLetterSentAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "contractApproved", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "templateKey", void 0);
 exports.ProjectEntity = ProjectEntity = __decorate([
     (0, typeorm_1.Entity)('projects')
 ], ProjectEntity);
@@ -404,6 +412,68 @@ __decorate([
 exports.DealEntity = DealEntity = __decorate([
     (0, typeorm_1.Entity)('deals')
 ], DealEntity);
+let ProposalEntity = class ProposalEntity {
+};
+exports.ProposalEntity = ProposalEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "dealId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "subject", void 0);
+__decorate([
+    (0, typeorm_1.Column)('nvarchar', { length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "html", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "updatedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "sentAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "sentTo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signedByEmail", void 0);
+__decorate([
+    (0, typeorm_1.Column)('nvarchar', { length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signatureImage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signerIp", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signerUserAgent", void 0);
+exports.ProposalEntity = ProposalEntity = __decorate([
+    (0, typeorm_1.Entity)('proposals')
+], ProposalEntity);
 let InvoiceEntity = class InvoiceEntity {
 };
 exports.InvoiceEntity = InvoiceEntity;
@@ -1237,6 +1307,30 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectProgramEntity.prototype, "sentTo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "signedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "signedByEmail", void 0);
+__decorate([
+    (0, typeorm_1.Column)('nvarchar', { length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "signatureImage", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "signerIp", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramEntity.prototype, "signerUserAgent", void 0);
 exports.ProjectProgramEntity = ProjectProgramEntity = __decorate([
     (0, typeorm_1.Entity)('project_programs')
 ], ProjectProgramEntity);
@@ -1274,6 +1368,70 @@ __decorate([
 exports.LeadProgramEntity = LeadProgramEntity = __decorate([
     (0, typeorm_1.Entity)('lead_programs')
 ], LeadProgramEntity);
+let GuestAccessEntity = class GuestAccessEntity {
+};
+exports.GuestAccessEntity = GuestAccessEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)(),
+    __metadata("design:type", Number)
+], GuestAccessEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], GuestAccessEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], GuestAccessEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], GuestAccessEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], GuestAccessEntity.prototype, "expiresAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], GuestAccessEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], GuestAccessEntity.prototype, "revokedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], GuestAccessEntity.prototype, "lastUsedAt", void 0);
+exports.GuestAccessEntity = GuestAccessEntity = __decorate([
+    (0, typeorm_1.Entity)('guest_access')
+], GuestAccessEntity);
+let ProjectProgramVersionEntity = class ProjectProgramVersionEntity {
+};
+exports.ProjectProgramVersionEntity = ProjectProgramVersionEntity;
+__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)(),
+    __metadata("design:type", Number)
+], ProjectProgramVersionEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProjectProgramVersionEntity.prototype, "ownerKey", void 0);
+__decorate([
+    (0, typeorm_1.Column)('nvarchar', { length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramVersionEntity.prototype, "data", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProjectProgramVersionEntity.prototype, "savedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectProgramVersionEntity.prototype, "savedBy", void 0);
+exports.ProjectProgramVersionEntity = ProjectProgramVersionEntity = __decorate([
+    (0, typeorm_1.Entity)('project_program_versions')
+], ProjectProgramVersionEntity);
 let UserEntity = class UserEntity {
 };
 exports.UserEntity = UserEntity;

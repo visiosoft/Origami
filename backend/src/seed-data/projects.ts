@@ -11,7 +11,7 @@ export interface Project {
   estStart: string;
   duration: string;
   scope: string;
-  stage: 'Leads' | 'Design' | 'Construction' | 'Closeout';
+  stage: 'Kickoff' | 'Design' | 'Construction' | 'Closeout';
   progress: number;
   referral: string;
   contactedBy: string;
@@ -30,7 +30,7 @@ export const PROJECTS: Project[] = [
 ];
 
 export const STAGE_CONFIG = [
-  { name: 'Leads', color: '#7E9B93' },
+  { name: 'Kickoff', color: '#7E9B93' },
   { name: 'Design', color: '#245C3A' },
   { name: 'Construction', color: '#173326' },
   { name: 'Closeout', color: '#0F2417' },

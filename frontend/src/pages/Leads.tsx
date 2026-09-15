@@ -6,7 +6,7 @@ import { ContactMethodMatrix } from '../components/ContactMethodMatrix';
 import { countyForCity } from '../data/californiaCounties';
 import { useApp } from '../AppContext';
 import { ContactsDirectory } from '../components/ContactsDirectory';
-import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
+import { seedContactsFromLead, CONTACT_ROLES, roleByCode, type LeadContact } from '../data/leadContacts';
 import { api } from '../api';
 import './Leads.css';
 
@@ -48,6 +48,25 @@ export function Leads() {
     const [tab, setTab] = useState(1);
     const [form, setForm] = useState<NewLead>({ ...BLANK });
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    // Roles for the two people captured during intake, before the lead (and
+    // its full Contacts directory) even exists yet. 'PC'/'SC' are implicit;
+    // anything else — Owner, Contract Authority, Approver, etc. — is picked
+    // here so a person who wears more than one hat doesn't need re-entering
+    // later in the Contacts tab.
+    const [introRoles, setIntroRoles] = useState<{ primary: string[]; second: string[] }>({ primary: ['PC'], second: ['SC'] });
+    const toggleIntroRole = (which: 'primary' | 'second', code: string) => {
+        const role = roleByCode(code);
+        setIntroRoles((prev) => {
+            const adding = !prev[which].includes(code);
+            const other = which === 'primary' ? 'second' : 'primary';
+            return {
+                ...prev,
+                [which]: adding ? [...prev[which], code] : prev[which].filter((r) => r !== code),
+                // A single-holder role moves off whoever had it, same rule as the Contacts tab.
+                [other]: adding && role?.single ? prev[other].filter((r) => r !== code) : prev[other],
+            };
+        });
+    };
 
     const set = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setForm((f) => {
         const next = { ...f, [k]: v } as NewLead;
@@ -63,17 +82,24 @@ export function Leads() {
     });
     const toggleHomework = (v: string) => set('homeworkCompleted', form.homeworkCompleted.includes(v) ? form.homeworkCompleted.filter((x) => x !== v) : [...form.homeworkCompleted, v]);
 
-    const openNew = () => { setForm({ ...BLANK }); setTab(1); setShowForm(true); };
+    const openNew = () => { setForm({ ...BLANK }); setIntroRoles({ primary: ['PC'], second: ['SC'] }); setTab(1); setShowForm(true); };
     const close = () => setShowForm(false);
 
     const submit = () => {
         if (!form.leadName.trim() || !form.phone.trim()) return;
-        const lead: Lead = { ...form, id: 'LD-' + String(1000 + leads.length + 1), createdAt: new Date().toISOString().slice(0, 10) };
+        // Carry whatever roles were picked in Contact Info / Second Contact
+        // onto the seeded directory, so they don't have to be re-picked once
+        // the lead is saved and the full Contacts tab is available.
+        const contacts = seedContactsFromLead(form).map((c) =>
+            c.id === 'C-primary' ? { ...c, roles: introRoles.primary } : c.id === 'C-second' ? { ...c, roles: introRoles.second } : c,
+        );
+        const formWithContacts = { ...form, contacts };
+        const lead: Lead = { ...formWithContacts, id: 'LD-' + String(1000 + leads.length + 1), createdAt: new Date().toISOString().slice(0, 10) };
         setLeads((prev) => [lead, ...prev]);
         setShowForm(false);
         setSelectedId(lead.id);
         toast(`Lead "${lead.leadName}" created`);
-        void api.leads.create(form).catch(() => undefined);
+        void api.leads.create(formWithContacts).catch(() => undefined);
     };
 
     const selected = selectedId ? leads.find((l) => l.id === selectedId) : null;
@@ -188,8 +214,8 @@ export function Leads() {
                         </div>
 
                         <div className="leads-form-body">
-                            {tab === 1 && <TabContact form={form} set={set} />}
-                            {tab === 2 && <TabSecondContact form={form} set={set} />}
+                            {tab === 1 && <TabContact form={form} set={set} roles={introRoles.primary} toggleRole={(code) => toggleIntroRole('primary', code)} />}
+                            {tab === 2 && <TabSecondContact form={form} set={set} roles={introRoles.second} toggleRole={(code) => toggleIntroRole('second', code)} />}
                             {tab === 3 && <TabCommunication form={form} set={set} />}
                             {tab === 4 && <TabLocation form={form} set={set} />}
                             {tab === 5 && <TabProjectDetails form={form} set={set} toggleHomework={toggleHomework} />}
@@ -223,7 +249,37 @@ function Field({ label, value }: { label: string; value: string }) {
 
 /* --- Tab Sections --- */
 
-function TabContact({ form, set }: { form: NewLead; set: <K extends keyof NewLead>(k: K, v: NewLead[K]) => void }) {
+function RolePicker({ roles, toggleRole, hide }: { roles: string[]; toggleRole: (code: string) => void; hide: string[] }) {
+    return (
+        <div className="leads-field full">
+            <label>Also responsible for</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 3 }}>
+                {CONTACT_ROLES.filter((r) => !hide.includes(r.code)).map((r) => {
+                    const on = roles.includes(r.code);
+                    return (
+                        <div
+                            key={r.code}
+                            onClick={() => toggleRole(r.code)}
+                            title={r.hint || r.label}
+                            style={{
+                                padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none',
+                                border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.14)'),
+                                background: on ? '#D2EAD3' : 'white',
+                                color: on ? '#173326' : '#43514D',
+                                fontWeight: on ? 700 : 400,
+                            }}
+                        >
+                            {r.label}
+                        </div>
+                    );
+                })}
+            </div>
+            <span className="hint">Pick anything else this person is, beyond this section — e.g. also the Owner or the Approver &amp; Lead Decision Maker. Full roles live on the Contacts tab once the lead is saved.</span>
+        </div>
+    );
+}
+
+function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K extends keyof NewLead>(k: K, v: NewLead[K]) => void; roles: string[]; toggleRole: (code: string) => void }) {
     return (<>
         <div className="leads-form-section-title">1. Contact Information</div>
         <div className="leads-form-grid">
@@ -276,11 +332,25 @@ function TabContact({ form, set }: { form: NewLead; set: <K extends keyof NewLea
                     {OPT.primaryPointOfContact.map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
             </div>
+            <RolePicker roles={roles} toggleRole={toggleRole} hide={['PC', 'SC']} />
         </div>
     </>);
 }
 
-function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof NewLead>(k: K, v: NewLead[K]) => void }) {
+function TabSecondContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K extends keyof NewLead>(k: K, v: NewLead[K]) => void; roles: string[]; toggleRole: (code: string) => void }) {
+    const [sameAsPrimary, setSameAsPrimary] = useState(false);
+
+    const applySameAsPrimary = (checked: boolean) => {
+        setSameAsPrimary(checked);
+        if (checked) {
+            set('nameOfSecondContact', [form.firstName, form.lastName].filter(Boolean).join(' ') || form.leadName);
+            set('phoneOfSecondContact', form.phone);
+            set('emailOfSecondContact', form.email);
+            set('pronounsOfSecondContact', form.pronouns);
+            set('preferredContactMethodOfSecondContact', form.preferredContactMethod);
+        }
+    };
+
     return (<>
         <div className="leads-form-section-title">2. Second Point of Contact</div>
         <div className="leads-form-grid">
@@ -293,18 +363,25 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                 <span className="hint">Indicate whether there is another person to include in communications.</span>
             </div>
             {form.secondPointOfContact === 'Yes' && <>
+                <div className="leads-field full">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={sameAsPrimary} onChange={(e) => applySameAsPrimary(e.target.checked)} />
+                        Same as Primary Contact
+                    </label>
+                    <span className="hint">Fills this section from Section 1 — for when the same person also holds another role, like Owner or Approver.</span>
+                </div>
                 <div className="leads-field">
                     <label>Name of Second Contact</label>
-                    <input value={form.nameOfSecondContact} onChange={(e) => set('nameOfSecondContact', e.target.value)} placeholder="Full name" />
+                    <input value={form.nameOfSecondContact} onChange={(e) => set('nameOfSecondContact', e.target.value)} placeholder="Full name" disabled={sameAsPrimary} />
                 </div>
                 <div className="leads-field">
                     <label>Phone of Second Contact</label>
-                    <input type="tel" value={form.phoneOfSecondContact} onChange={(e) => set('phoneOfSecondContact', e.target.value)} placeholder="(555) 123-4567" />
+                    <input type="tel" value={form.phoneOfSecondContact} onChange={(e) => set('phoneOfSecondContact', e.target.value)} placeholder="(555) 123-4567" disabled={sameAsPrimary} />
                     <span className="hint">Include area code.</span>
                 </div>
                 <div className="leads-field">
                     <label>Email of Second Contact</label>
-                    <input type="email" value={form.emailOfSecondContact} onChange={(e) => set('emailOfSecondContact', e.target.value)} placeholder="email@example.com" />
+                    <input type="email" value={form.emailOfSecondContact} onChange={(e) => set('emailOfSecondContact', e.target.value)} placeholder="email@example.com" disabled={sameAsPrimary} />
                 </div>
                 <div className="leads-field">
                     <label>Relationship of Second Contact</label>
@@ -316,7 +393,7 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                 </div>
                 <div className="leads-field">
                     <label>Pronouns</label>
-                    <select value={form.pronounsOfSecondContact} onChange={(e) => set('pronounsOfSecondContact', e.target.value)}>
+                    <select value={form.pronounsOfSecondContact} onChange={(e) => set('pronounsOfSecondContact', e.target.value)} disabled={sameAsPrimary}>
                         <option value="">Select...</option>
                         {OPT.pronouns.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
@@ -325,12 +402,13 @@ function TabSecondContact({ form, set }: { form: NewLead; set: <K extends keyof 
                 </div>
                 <div className="leads-field">
                     <label>Preferred Contact Method</label>
-                    <select value={form.preferredContactMethodOfSecondContact} onChange={(e) => set('preferredContactMethodOfSecondContact', e.target.value)}>
+                    <select value={form.preferredContactMethodOfSecondContact} onChange={(e) => set('preferredContactMethodOfSecondContact', e.target.value)} disabled={sameAsPrimary}>
                         <option value="">Select...</option>
                         {OPT.preferredContactMethod.map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                     <span className="hint">How this person prefers to be reached.</span>
                 </div>
+                <RolePicker roles={roles} toggleRole={toggleRole} hide={['PC', 'SC']} />
             </>}
         </div>
     </>);

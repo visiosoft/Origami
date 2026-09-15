@@ -1,13 +1,28 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity } from '../database/entities';
 
 @Injectable()
-export class ProjectsService {
+export class ProjectsService implements OnApplicationBootstrap {
+  private readonly log = new Logger('ProjectsService');
+
   constructor(
     @InjectRepository(ProjectEntity) private readonly repo: Repository<ProjectEntity>,
   ) {}
+
+  /** The "Leads" stage was renamed to "Kickoff" -- carry any row saved under the old name forward. */
+  async onApplicationBootstrap() {
+    try {
+      const stale = await this.repo.findBy({ stage: 'Leads' });
+      if (!stale.length) return;
+      for (const p of stale) p.stage = 'Kickoff';
+      await this.repo.save(stale);
+      this.log.log(`Renamed ${stale.length} project(s) from stage "Leads" to "Kickoff"`);
+    } catch (err) {
+      this.log.warn('Kickoff stage migration failed: ' + (err as Error).message);
+    }
+  }
 
   findAll() {
     return this.repo.find({ order: { id: 'ASC' } });
@@ -25,7 +40,7 @@ export class ProjectsService {
     // Fill NOT NULL columns so a minimal form doesn't violate the schema.
     const project = {
       priority: 'Medium', location: '', typeOfWork: '', contractType: '', contractAmt: '$0',
-      estStart: '', duration: '', scope: '', stage: 'Leads', progress: 0, referral: '',
+      estStart: '', duration: '', scope: '', stage: 'Kickoff', progress: 0, referral: '',
       contactedBy: '', imgColor: '#173326', img: '',
       ...dto, id,
     };
@@ -38,7 +53,7 @@ export class ProjectsService {
 
   /**
    * Give a lead its place on the Projects page from the moment it exists,
-   * sitting in the "Leads" stage, rather than only once it is approved and
+   * sitting in the "Kickoff" stage, rather than only once it is approved and
    * converted. Safe to call more than once -- a lead that already has a
    * project row (this one, or the one conversion later updates in place) is
    * left untouched.
@@ -48,7 +63,7 @@ export class ProjectsService {
     if (existing) return existing;
     return this.create({
       name: deal.name,
-      stage: 'Leads',
+      stage: 'Kickoff',
       contractAmt: deal.value || '$0',
       referral: deal.source || '',
       contactedBy: (deal.assignee && deal.assignee !== 'Unassigned') ? deal.assignee : '',

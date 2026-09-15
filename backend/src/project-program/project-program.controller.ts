@@ -1,11 +1,15 @@
-import { Body, Controller, Get, Post, Put, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { ProjectProgramService } from './project-program.service';
+import { ProjectProgramService, type ProgramActor } from './project-program.service';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, safeFilename } from '../documents/letterhead';
 import { buildProgramHtml, type DocStep } from '../documents/program-document';
+import type { AuthedRequest } from '../auth/guards/session.guard';
+
+/** Who did it, off the verified session -- never off anything the client claims. */
+const actorFrom = (req: AuthedRequest): ProgramActor => ({ id: req.claims?.sub, name: req.claims?.name });
 
 interface DocumentInput {
   projectId?: number;
@@ -30,11 +34,32 @@ export class ProjectProgramController {
     return leadId ? this.service.getLead(leadId) : this.service.get(Number(projectId));
   }
 
+  /** The client's own read of their project's program -- gated by the People directory, not just tier. */
+  @Tiers('internal', 'client')
+  @Get('mine')
+  getMine(@Query('projectId') projectId: string, @Req() req: AuthedRequest) {
+    if (!req.claims?.email) throw new ForbiddenException('Sign in to continue.');
+    return this.service.getForClient(Number(projectId), req.claims.email);
+  }
+
+  /** The client's e-signature -- timestamp, IP and user agent are the server's own record, not anything the browser claims. */
+  @Tiers('internal', 'client')
+  @Post('sign')
+  sign(@Body() body: { projectId: number; name: string; image: string }, @Req() req: AuthedRequest) {
+    if (!req.claims?.email) throw new ForbiddenException('Sign in to continue.');
+    return this.service.sign(
+      Number(body?.projectId),
+      { name: body?.name, email: req.claims.email },
+      body?.image,
+      { ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') },
+    );
+  }
+
   @Put()
-  save(@Body() body: { projectId?: number; leadId?: string; data: unknown }, @Req() req: any) {
+  save(@Body() body: { projectId?: number; leadId?: string; data: unknown }, @Req() req: AuthedRequest) {
     return body?.leadId
-      ? this.service.saveLead(body.leadId, body.data, req?.user)
-      : this.service.save(Number(body?.projectId), body?.data, req?.user);
+      ? this.service.saveLead(body.leadId, body.data, actorFrom(req))
+      : this.service.save(Number(body?.projectId), body?.data, actorFrom(req));
   }
 
   @Put('complete')
@@ -42,6 +67,26 @@ export class ProjectProgramController {
     return body?.leadId
       ? this.service.setCompleteLead(body.leadId, body.complete !== false)
       : this.service.setComplete(Number(body?.projectId), body.complete !== false);
+  }
+
+  /** Every past save, newest first -- the living document's history. */
+  @Get('versions')
+  listVersions(@Query('projectId') projectId?: string, @Query('leadId') leadId?: string) {
+    return leadId ? this.service.listVersionsForLead(leadId) : this.service.listVersionsFor(Number(projectId));
+  }
+
+  /** One past save in full, to preview before deciding whether to restore it. */
+  @Get('versions/:id')
+  getVersion(@Param('id') id: string, @Query('projectId') projectId?: string, @Query('leadId') leadId?: string) {
+    return leadId ? this.service.getVersionForLead(leadId, Number(id)) : this.service.getVersionFor(Number(projectId), Number(id));
+  }
+
+  /** Copies an old version's answers back over the current document. */
+  @Post('versions/:id/restore')
+  restoreVersion(@Param('id') id: string, @Body() body: { projectId?: number; leadId?: string }, @Req() req: AuthedRequest) {
+    return body?.leadId
+      ? this.service.restoreVersionLead(body.leadId, Number(id), actorFrom(req))
+      : this.service.restoreVersion(Number(body?.projectId), Number(id), actorFrom(req));
   }
 
   /** The program on the company letterhead, as a PDF to read or download. */
@@ -57,7 +102,7 @@ export class ProjectProgramController {
   @Post('send')
   async send(
     @Body() body: DocumentInput & { to: string; cc?: string; subject: string; html: string },
-    @Req() req: any,
+    @Req() req: AuthedRequest,
   ) {
     const { pdf, filename } = await this.render(body);
     await this.google.sendMail({
@@ -67,8 +112,8 @@ export class ProjectProgramController {
       html: body.html,
       attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
     });
-    if (body.leadId) await this.service.markSentLead(body.leadId, body.to, req?.user);
-    else await this.service.markSent(Number(body.projectId), body.to, req?.user);
+    if (body.leadId) await this.service.markSentLead(body.leadId, body.to, actorFrom(req));
+    else await this.service.markSent(Number(body.projectId), body.to, actorFrom(req));
     return { ok: true, filename, to: body.to };
   }
 

@@ -14,21 +14,21 @@ export class PhasesController {
 
   /** { phases, tasks } for the Phase Board. */
   /** Every project's design progress, for the Design board. */
-  /** The programme template new projects are built from. */
-  @Get('template')
-  getTemplate() {
-    return this.service.getTemplate();
+  /** The office's library of named programmes new projects are built from. */
+  @Get('templates')
+  listTemplates() {
+    return this.service.listTemplates();
   }
 
-  @Put('template')
-  saveTemplate(@Body() body: unknown) {
-    return this.service.saveTemplate(body);
+  /** Create (omit key) or replace (pass key) one named template. */
+  @Put('templates')
+  saveTemplate(@Body() body: { key?: string; name: string; phases: unknown }) {
+    return this.service.saveTemplateEntry(body?.key, body?.name, body?.phases);
   }
 
-  /** Back to the shipped default. */
-  @Delete('template')
-  resetTemplate() {
-    return this.service.saveTemplate(null);
+  @Delete('templates/:key')
+  deleteTemplate(@Param('key') key: string) {
+    return this.service.deleteTemplateEntry(key);
   }
 
   /** Bring one project's board up to the current template. */

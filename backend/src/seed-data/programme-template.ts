@@ -36,6 +36,14 @@ export interface TemplatePhase {
    */
   gated?: boolean;
   /**
+   * Explicit phase keys this one waits on, for real parallel/serial
+   * scheduling rather than just "the one before it" -- two phases naming the
+   * same dependency can run side by side; a chain of them stays serial.
+   * Empty/absent falls back to `gated` (wait on the immediately preceding
+   * phase) for templates saved before this existed.
+   */
+  dependsOn?: string[];
+  /**
    * How long this phase is expected to take, in weeks.
    *
    * An estimate carried by the template, so every project starts with the
@@ -225,6 +233,7 @@ export function parseProgramme(raw: string | null | undefined): TemplatePhase[] 
         name: String(p.name),
         color: typeof p.color === 'string' && p.color ? p.color : '#173326',
         gated: !!p.gated,
+        dependsOn: Array.isArray(p.dependsOn) ? p.dependsOn.filter((k: unknown) => typeof k === 'string') : [],
         weeks: Number.isFinite(Number(p.weeks)) && Number(p.weeks) > 0 ? Number(p.weeks) : 0,
         order: i,
         tasks: Array.isArray(p.tasks)
@@ -240,6 +249,38 @@ export function parseProgramme(raw: string | null | undefined): TemplatePhase[] 
           : [],
       }));
     return phases.length ? phases : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One named programme, so a job can be built from the shape that fits its scope. */
+export interface ProgrammeTemplateDef {
+  key: string;
+  name: string;
+  phases: TemplatePhase[];
+}
+
+export const DEFAULT_TEMPLATE_KEY = 'default';
+export const DEFAULT_LIBRARY: ProgrammeTemplateDef[] = [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: DEFAULT_PROGRAMME }];
+
+export const slugifyTemplateKey = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'template';
+
+/** Reject anything that is not a usable library, same spirit as parseProgramme. */
+export function parseLibrary(raw: string | null | undefined): ProgrammeTemplateDef[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.length) return null;
+    const out: ProgrammeTemplateDef[] = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry.key !== 'string' || typeof entry.name !== 'string') continue;
+      const phases = parseProgramme(JSON.stringify(entry.phases));
+      if (!phases) continue;
+      out.push({ key: entry.key, name: entry.name, phases });
+    }
+    return out.length ? out : null;
   } catch {
     return null;
   }

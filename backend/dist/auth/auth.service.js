@@ -32,9 +32,10 @@ function publicUser(u) {
     return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken };
 }
 let AuthService = class AuthService {
-    constructor(users, roles, settings, google) {
+    constructor(users, roles, guestAccess, settings, google) {
         this.users = users;
         this.roles = roles;
+        this.guestAccess = guestAccess;
         this.settings = settings;
         this.google = google;
         this.log = new common_1.Logger('AuthService');
@@ -192,7 +193,16 @@ let AuthService = class AuthService {
         const raw = bearer?.startsWith('Bearer ') ? bearer.slice(7) : bearer;
         if (!raw)
             return null;
-        return (0, crypto_util_1.verifyJwt)(raw, await this.settings.jwtSecret());
+        const claims = (0, crypto_util_1.verifyJwt)(raw, await this.settings.jwtSecret());
+        if (!claims)
+            return null;
+        if (claims.sub.startsWith('GUEST-') && !(await this.guestGrantLive(claims.sub)))
+            return null;
+        return claims;
+    }
+    async guestGrantLive(userId) {
+        const grants = await this.guestAccess.find({ where: { userId } });
+        return grants.some((g) => !g.revokedAt && Date.now() <= Date.parse(g.expiresAt));
     }
     async actor(bearer) {
         const claims = await this.verify(bearer);
@@ -269,7 +279,9 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.GuestAccessEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         settings_service_1.SettingsService,
         google_service_1.GoogleService])

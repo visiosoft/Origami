@@ -23,14 +23,14 @@ let PhasesController = class PhasesController {
     findAll(projectId) {
         return this.service.forProject(Number(projectId));
     }
-    getTemplate() {
-        return this.service.getTemplate();
+    listTemplates() {
+        return this.service.listTemplates();
     }
     saveTemplate(body) {
-        return this.service.saveTemplate(body);
+        return this.service.saveTemplateEntry(body?.key, body?.name, body?.phases);
     }
-    resetTemplate() {
-        return this.service.saveTemplate(null);
+    deleteTemplate(key) {
+        return this.service.deleteTemplateEntry(key);
     }
     applyTemplate(projectId) {
         return this.service.applyTemplate(Number(projectId));
@@ -63,24 +63,25 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "findAll", null);
 __decorate([
-    (0, common_1.Get)('template'),
+    (0, common_1.Get)('templates'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
-], PhasesController.prototype, "getTemplate", null);
+], PhasesController.prototype, "listTemplates", null);
 __decorate([
-    (0, common_1.Put)('template'),
+    (0, common_1.Put)('templates'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "saveTemplate", null);
 __decorate([
-    (0, common_1.Delete)('template'),
+    (0, common_1.Delete)('templates/:key'),
+    __param(0, (0, common_1.Param)('key')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], PhasesController.prototype, "resetTemplate", null);
+], PhasesController.prototype, "deleteTemplate", null);
 __decorate([
     (0, common_1.Post)('apply-template'),
     __param(0, (0, common_1.Query)('projectId')),

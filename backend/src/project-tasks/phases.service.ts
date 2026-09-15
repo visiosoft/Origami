@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
 import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
-import { DEFAULT_PROGRAMME, parseProgramme, type TemplatePhase } from '../seed-data/programme-template';
+import {
+  DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey,
+  type TemplatePhase, type ProgrammeTemplateDef,
+} from '../seed-data/programme-template';
 import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
 import { event, subId } from '../database/task.types';
@@ -36,19 +39,32 @@ export class PhasesService implements OnApplicationBootstrap {
   ) {}
 
   /**
-   * The programme a new project is built from.
+   * The office's library of named programmes -- a kitchen remodel and a
+   * ground-up build don't share one shape.
    *
    * Read from settings rather than baked in, so the office can reshape it in
-   * the app. Falls back to the shipped default when nothing is saved, or when
-   * what is saved cannot be parsed -- seeding must never be the thing that
-   * breaks because a template was mangled.
+   * the app. Falls back to the legacy single-template setting (wrapped as a
+   * one-entry library) for an install saved before this existed, and to the
+   * shipped default when neither is usable -- seeding must never be the thing
+   * that breaks because a template was mangled.
    */
-  private async programme(): Promise<TemplatePhase[]> {
+  private async library(): Promise<ProgrammeTemplateDef[]> {
     try {
-      return parseProgramme(await this.settings.get('programme.template')) || DEFAULT_PROGRAMME;
-    } catch {
-      return DEFAULT_PROGRAMME;
-    }
+      const lib = parseLibrary(await this.settings.get('programme.templates'));
+      if (lib) return lib;
+    } catch { /* fall through to the legacy setting */ }
+    try {
+      const legacy = parseProgramme(await this.settings.get('programme.template'));
+      if (legacy) return [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: legacy }];
+    } catch { /* fall through to the shipped default */ }
+    return DEFAULT_LIBRARY;
+  }
+
+  /** The specific programme a project is built from -- its own pick, or the library's first entry. */
+  private async programmeFor(projectId: number): Promise<TemplatePhase[]> {
+    const [lib, project] = await Promise.all([this.library(), this.projects.findOneBy({ id: projectId })]);
+    const found = project?.templateKey ? lib.find((t) => t.key === project.templateKey) : undefined;
+    return (found || lib[0])?.phases || DEFAULT_PROGRAMME;
   }
 
   /**
@@ -65,7 +81,7 @@ export class PhasesService implements OnApplicationBootstrap {
       throw new NotFoundException(`Project ${projectId} not found`);
     }
 
-    const plan = await this.programme();
+    const plan = await this.programmeFor(projectId);
     const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
 
     // Phases the template has that the project does not.
@@ -123,26 +139,46 @@ export class PhasesService implements OnApplicationBootstrap {
     };
   }
 
-  /** The live template, for the editor. */
-  async getTemplate() {
-    return this.programme();
+  /** The whole library, for the editor -- a kitchen remodel and a ground-up build don't share one shape. */
+  async listTemplates() {
+    return this.library();
   }
 
   /**
-   * Replace the template, or clear it back to the default with null.
+   * Create or replace one named template.
    *
-   * Parsed before it is stored, so what comes back is always usable: a template
-   * that fails to parse would leave every new project with no programme.
+   * Parsed before it is stored, so what comes back is always usable -- a
+   * template that fails to parse would leave every project pointing at it
+   * with no programme. Pass `key` to update an existing entry in place (a
+   * rename keeps its key, so projects pointing at it are unaffected); omit it
+   * to create a new one, keyed from the name and disambiguated if it collides.
    */
-  async saveTemplate(body: unknown) {
-    if (body === null) {
-      await this.settings.set('programme.template', '');
-      return DEFAULT_PROGRAMME;
+  async saveTemplateEntry(key: string | undefined, name: string, phases: unknown) {
+    const parsedPhases = parseProgramme(JSON.stringify(phases));
+    if (!parsedPhases) throw new BadRequestException('That is not a usable programme template.');
+    const cleanName = (name || '').trim() || 'Untitled';
+    const lib = await this.library();
+    let cleanKey = key;
+    if (!cleanKey) {
+      const base = slugifyTemplateKey(cleanName);
+      cleanKey = base;
+      let n = 2;
+      while (lib.some((t) => t.key === cleanKey)) cleanKey = `${base}-${n++}`;
     }
-    const parsed = parseProgramme(JSON.stringify(body));
-    if (!parsed) throw new BadRequestException('That is not a usable programme template.');
-    await this.settings.set('programme.template', JSON.stringify(parsed));
-    return parsed;
+    const entry: ProgrammeTemplateDef = { key: cleanKey, name: cleanName, phases: parsedPhases };
+    const idx = lib.findIndex((t) => t.key === cleanKey);
+    const next = idx >= 0 ? lib.map((t, i) => (i === idx ? entry : t)) : [...lib, entry];
+    await this.settings.set('programme.templates', JSON.stringify(next));
+    return entry;
+  }
+
+  /** Remove one named template. At least one must remain, so seeding never has nothing to build from. */
+  async deleteTemplateEntry(key: string) {
+    const lib = await this.library();
+    if (lib.length <= 1) throw new BadRequestException('At least one template must remain.');
+    const next = lib.filter((t) => t.key !== key);
+    await this.settings.set('programme.templates', JSON.stringify(next));
+    return next;
   }
 
   /**
@@ -195,7 +231,7 @@ export class PhasesService implements OnApplicationBootstrap {
    * it is not undone on the next boot.
    */
   private async seedChecklists(projectId: number, phases: ProjectPhaseEntity[], programme?: TemplatePhase[]) {
-    const plan = programme || (await this.programme());
+    const plan = programme || (await this.programmeFor(projectId));
     const tasksFor = (key: string) => plan.find((ph) => ph.key === key)?.tasks || [];
     const pending = phases.filter((ph) => !ph.seededAt && tasksFor(ph.key).length);
     if (!pending.length) return;
@@ -248,7 +284,7 @@ export class PhasesService implements OnApplicationBootstrap {
    * filed under. Done in one pass instead of a request per project.
    */
   async overview() {
-    const plan = await this.programme();
+    const lib = await this.library();
     const [projects, phases, tasks] = await Promise.all([
       this.projects.find({ order: { id: 'ASC' } }),
       this.repo.find({ order: { order: 'ASC' } }),
@@ -266,6 +302,8 @@ export class PhasesService implements OnApplicationBootstrap {
     }
 
     return projects.map((project) => {
+      // Each project reads its own pick from the library, not one shared plan.
+      const plan = (project.templateKey && lib.find((t) => t.key === project.templateKey)?.phases) || lib[0]?.phases || DEFAULT_PROGRAMME;
       const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !RETIRED_PHASE_KEYS.includes(ph.key));
       const byKey = new Map(rows.map((ph) => [ph.key, ph]));
 
@@ -337,10 +375,10 @@ export class PhasesService implements OnApplicationBootstrap {
    * Mirrors SectionsService.forProject, which lazily creates board sections.
    */
   async forProject(projectId: number): Promise<ProjectPhaseEntity[]> {
-    const plan = await this.programme();
     if (!Number.isFinite(projectId)) return [];
     // Don't create phases for a project that isn't there.
     if (!(await this.projects.findOneBy({ id: projectId }))) return [];
+    const plan = await this.programmeFor(projectId);
 
     const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     if (existing.length) {
@@ -379,7 +417,7 @@ export class PhasesService implements OnApplicationBootstrap {
   }
 
   async board(projectId: number) {
-    const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programme()]);
+    const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programmeFor(projectId)]);
     const rows = await this.tasks.find({ order: { order: 'ASC' } });
     const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
     // Which phases gate the next one is read off the template every time rather
@@ -387,7 +425,14 @@ export class PhasesService implements OnApplicationBootstrap {
     // effect everywhere at once instead of only where the template was applied.
     const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
     const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
-    const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), weeks: weeks.get(ph.key) || 0 }));
+    // Effective dependencies: an explicit list lets two phases name the same
+    // predecessor and run side by side; without one, `gated` falls back to
+    // just the phase immediately before it in the template's own order --
+    // the only relationship a template saved before this existed could mean.
+    const dependsOn = new Map<string, string[]>(
+      plan.map((d, i) => [d.key, d.dependsOn?.length ? d.dependsOn : d.gated && i > 0 ? [plan[i - 1].key] : []]),
+    );
+    const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
 
     // How long each task is meant to take, read off the template by its stable
     // id so a change in the Library reaches every project at once. A task with

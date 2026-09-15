@@ -3,6 +3,7 @@ import { ProjectProgramService } from './project-program.service';
 import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { type DocStep } from '../documents/program-document';
+import type { AuthedRequest } from '../auth/guards/session.guard';
 interface DocumentInput {
     projectId?: number;
     leadId?: string;
@@ -32,12 +33,46 @@ export declare class ProjectProgramController {
         completedAt: string;
         sentAt: string;
         sentTo: string;
+        signedAt: string;
+        signedByName: string;
+        signedByEmail: string;
+        signatureImage: string;
+    }>;
+    getMine(projectId: string, req: AuthedRequest): Promise<{
+        projectId: number;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+        signedAt: string;
+        signedByName: string;
+        signedByEmail: string;
+        signatureImage: string;
+    }>;
+    sign(body: {
+        projectId: number;
+        name: string;
+        image: string;
+    }, req: AuthedRequest): Promise<{
+        projectId: number;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+        signedAt: string;
+        signedByName: string;
+        signedByEmail: string;
+        signatureImage: string;
     }>;
     save(body: {
         projectId?: number;
         leadId?: string;
         data: unknown;
-    }, req: any): Promise<{
+    }, req: AuthedRequest): Promise<{
         leadId: string;
         data: Record<string, any>;
         updatedAt: string;
@@ -53,6 +88,10 @@ export declare class ProjectProgramController {
         completedAt: string;
         sentAt: string;
         sentTo: string;
+        signedAt: string;
+        signedByName: string;
+        signedByEmail: string;
+        signatureImage: string;
     }>;
     complete(body: {
         projectId?: number;
@@ -74,6 +113,45 @@ export declare class ProjectProgramController {
         completedAt: string;
         sentAt: string;
         sentTo: string;
+        signedAt: string;
+        signedByName: string;
+        signedByEmail: string;
+        signatureImage: string;
+    }>;
+    listVersions(projectId?: string, leadId?: string): Promise<{
+        id: number;
+        savedAt: string;
+        savedBy: string;
+    }[]>;
+    getVersion(id: string, projectId?: string, leadId?: string): Promise<{
+        id: number;
+        savedAt: string;
+        savedBy: string;
+        data: Record<string, any>;
+    }>;
+    restoreVersion(id: string, body: {
+        projectId?: number;
+        leadId?: string;
+    }, req: AuthedRequest): Promise<{
+        leadId: string;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+    }> | Promise<{
+        projectId: number;
+        data: Record<string, any>;
+        updatedAt: string;
+        updatedBy: string;
+        completedAt: string;
+        sentAt: string;
+        sentTo: string;
+        signedAt: string;
+        signedByName: string;
+        signedByEmail: string;
+        signatureImage: string;
     }>;
     pdf(body: DocumentInput, res: Response): Promise<Response<any, Record<string, any>>>;
     send(body: DocumentInput & {
@@ -81,7 +159,7 @@ export declare class ProjectProgramController {
         cc?: string;
         subject: string;
         html: string;
-    }, req: any): Promise<{
+    }, req: AuthedRequest): Promise<{
         ok: boolean;
         filename: string;
         to: string;

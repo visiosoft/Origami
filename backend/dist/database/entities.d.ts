@@ -19,6 +19,8 @@ export declare class ProjectEntity {
     designPhase: string;
     leadId: string;
     introLetterSentAt: string;
+    contractApproved: boolean | null;
+    templateKey: string;
 }
 export declare class PersonEntity {
     id: number;
@@ -98,6 +100,22 @@ export declare class DealEntity {
     roles: Record<string, string>;
     followUps: unknown[];
     stageNotes: unknown[];
+}
+export declare class ProposalEntity {
+    dealId: string;
+    subject: string;
+    html: string;
+    amount: string;
+    updatedAt: string;
+    updatedBy: string;
+    sentAt: string;
+    sentTo: string;
+    signedAt: string;
+    signedByName: string;
+    signedByEmail: string;
+    signatureImage: string;
+    signerIp: string;
+    signerUserAgent: string;
 }
 export declare class InvoiceEntity {
     pk: number;
@@ -320,6 +338,12 @@ export declare class ProjectProgramEntity {
     completedAt: string;
     sentAt: string;
     sentTo: string;
+    signedAt: string;
+    signedByName: string;
+    signedByEmail: string;
+    signatureImage: string;
+    signerIp: string;
+    signerUserAgent: string;
 }
 export declare class LeadProgramEntity {
     leadId: string;
@@ -329,6 +353,23 @@ export declare class LeadProgramEntity {
     completedAt: string;
     sentAt: string;
     sentTo: string;
+}
+export declare class GuestAccessEntity {
+    id: number;
+    userId: string;
+    projectId: number;
+    createdAt: string;
+    expiresAt: string;
+    createdBy: string;
+    revokedAt: string;
+    lastUsedAt: string;
+}
+export declare class ProjectProgramVersionEntity {
+    id: number;
+    ownerKey: string;
+    data: string;
+    savedAt: string;
+    savedBy: string;
 }
 export declare class UserEntity {
     id: string;

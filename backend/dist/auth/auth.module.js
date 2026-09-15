@@ -19,7 +19,7 @@ let AuthModule = class AuthModule {
 exports.AuthModule = AuthModule;
 exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity]), google_module_1.GoogleModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.RoleEntity, entities_1.GuestAccessEntity]), google_module_1.GoogleModule],
         controllers: [auth_controller_1.AuthController, google_controller_1.GoogleController],
         providers: [auth_service_1.AuthService],
         exports: [auth_service_1.AuthService],

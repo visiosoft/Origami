@@ -20,6 +20,7 @@ const google_service_1 = require("../google/google.service");
 const settings_service_1 = require("../settings/settings.service");
 const letterhead_1 = require("../documents/letterhead");
 const program_document_1 = require("../documents/program-document");
+const actorFrom = (req) => ({ id: req.claims?.sub, name: req.claims?.name });
 let ProjectProgramController = class ProjectProgramController {
     constructor(service, google, settings) {
         this.service = service;
@@ -29,15 +30,36 @@ let ProjectProgramController = class ProjectProgramController {
     get(projectId, leadId) {
         return leadId ? this.service.getLead(leadId) : this.service.get(Number(projectId));
     }
+    getMine(projectId, req) {
+        if (!req.claims?.email)
+            throw new common_1.ForbiddenException('Sign in to continue.');
+        return this.service.getForClient(Number(projectId), req.claims.email);
+    }
+    sign(body, req) {
+        if (!req.claims?.email)
+            throw new common_1.ForbiddenException('Sign in to continue.');
+        return this.service.sign(Number(body?.projectId), { name: body?.name, email: req.claims.email }, body?.image, { ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') });
+    }
     save(body, req) {
         return body?.leadId
-            ? this.service.saveLead(body.leadId, body.data, req?.user)
-            : this.service.save(Number(body?.projectId), body?.data, req?.user);
+            ? this.service.saveLead(body.leadId, body.data, actorFrom(req))
+            : this.service.save(Number(body?.projectId), body?.data, actorFrom(req));
     }
     complete(body) {
         return body?.leadId
             ? this.service.setCompleteLead(body.leadId, body.complete !== false)
             : this.service.setComplete(Number(body?.projectId), body.complete !== false);
+    }
+    listVersions(projectId, leadId) {
+        return leadId ? this.service.listVersionsForLead(leadId) : this.service.listVersionsFor(Number(projectId));
+    }
+    getVersion(id, projectId, leadId) {
+        return leadId ? this.service.getVersionForLead(leadId, Number(id)) : this.service.getVersionFor(Number(projectId), Number(id));
+    }
+    restoreVersion(id, body, req) {
+        return body?.leadId
+            ? this.service.restoreVersionLead(body.leadId, Number(id), actorFrom(req))
+            : this.service.restoreVersion(Number(body?.projectId), Number(id), actorFrom(req));
     }
     async pdf(body, res) {
         const { pdf, filename } = await this.render(body);
@@ -55,9 +77,9 @@ let ProjectProgramController = class ProjectProgramController {
             attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
         });
         if (body.leadId)
-            await this.service.markSentLead(body.leadId, body.to, req?.user);
+            await this.service.markSentLead(body.leadId, body.to, actorFrom(req));
         else
-            await this.service.markSent(Number(body.projectId), body.to, req?.user);
+            await this.service.markSent(Number(body.projectId), body.to, actorFrom(req));
         return { ok: true, filename, to: body.to };
     }
     async render(body) {
@@ -87,6 +109,24 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ProjectProgramController.prototype, "get", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal', 'client'),
+    (0, common_1.Get)('mine'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ProjectProgramController.prototype, "getMine", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal', 'client'),
+    (0, common_1.Post)('sign'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", void 0)
+], ProjectProgramController.prototype, "sign", null);
+__decorate([
     (0, common_1.Put)(),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Req)()),
@@ -101,6 +141,32 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], ProjectProgramController.prototype, "complete", null);
+__decorate([
+    (0, common_1.Get)('versions'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Query)('leadId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ProjectProgramController.prototype, "listVersions", null);
+__decorate([
+    (0, common_1.Get)('versions/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('projectId')),
+    __param(2, (0, common_1.Query)('leadId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], ProjectProgramController.prototype, "getVersion", null);
+__decorate([
+    (0, common_1.Post)('versions/:id/restore'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], ProjectProgramController.prototype, "restoreVersion", null);
 __decorate([
     (0, common_1.Post)('pdf'),
     __param(0, (0, common_1.Body)()),

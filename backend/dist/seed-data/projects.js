@@ -12,7 +12,7 @@ exports.PROJECTS = [
     { id: 7, priority: 'Low', name: 'Design & Permit Sequence DETAILED DATES', location: 'Program-wide', typeOfWork: 'Design · Permitting Program', contractType: 'Consulting', contractAmt: '$68,000', estStart: 'Ongoing', duration: 'Rolling', scope: 'Master permit and design milestone tracking across all active jobs', stage: 'Design', progress: 40, referral: '', contactedBy: 'Edward', imgColor: '#2C5F58', img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=200&fit=crop' },
 ];
 exports.STAGE_CONFIG = [
-    { name: 'Leads', color: '#7E9B93' },
+    { name: 'Kickoff', color: '#7E9B93' },
     { name: 'Design', color: '#245C3A' },
     { name: 'Construction', color: '#173326' },
     { name: 'Closeout', color: '#0F2417' },

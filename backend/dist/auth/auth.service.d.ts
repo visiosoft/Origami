@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { UserEntity, RoleEntity } from '../database/entities';
+import { UserEntity, RoleEntity, GuestAccessEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { type SessionClaims } from './crypto.util';
@@ -7,10 +7,11 @@ export declare function publicUser(u: UserEntity): any;
 export declare class AuthService {
     private readonly users;
     private readonly roles;
+    private readonly guestAccess;
     private readonly settings;
     private readonly google;
     private readonly log;
-    constructor(users: Repository<UserEntity>, roles: Repository<RoleEntity>, settings: SettingsService, google: GoogleService);
+    constructor(users: Repository<UserEntity>, roles: Repository<RoleEntity>, guestAccess: Repository<GuestAccessEntity>, settings: SettingsService, google: GoogleService);
     private ensureFounderAdmin;
     ensureBootstrapAdmin(): Promise<void>;
     sendInvite(user: UserEntity, kind?: 'invite' | 'reset'): Promise<{
@@ -50,8 +51,13 @@ export declare class AuthService {
         expiresIn: number;
         user: any;
     }>;
-    private issueSession;
+    issueSession(user: UserEntity): Promise<{
+        token: string;
+        expiresIn: number;
+        user: any;
+    }>;
     verify(bearer: string | undefined): Promise<SessionClaims | null>;
+    private guestGrantLive;
     actor(bearer: string | undefined): Promise<{
         name: string;
         id?: string;

@@ -10,6 +10,7 @@ const app_module_1 = require("./app.module");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.setGlobalPrefix('api');
+    app.set('trust proxy', 1);
     const origins = (process.env.CORS_ORIGINS ?? '')
         .split(',')
         .map((o) => o.trim())

@@ -31,6 +31,36 @@ let PeopleService = class PeopleService {
             throw new common_1.NotFoundException(`Person ${id} not found`);
         return person;
     }
+    async isClientOnProject(email, projectName) {
+        if (!email || !projectName)
+            return false;
+        const person = await this.repo
+            .createQueryBuilder('p')
+            .where('LOWER(p.email) = :email', { email: email.trim().toLowerCase() })
+            .andWhere('p.tier = :tier', { tier: 'Client' })
+            .getOne();
+        return !!person?.projects?.includes(projectName);
+    }
+    async linkToProject(email, name, tier, projectName) {
+        const clean = (email || '').trim().toLowerCase();
+        const existing = await this.repo
+            .createQueryBuilder('p')
+            .where('LOWER(p.email) = :email', { email: clean })
+            .getOne();
+        if (existing) {
+            if (!(existing.projects || []).includes(projectName)) {
+                existing.projects = [...(existing.projects || []), projectName];
+                await this.repo.save(existing);
+            }
+            return existing;
+        }
+        const id = await this.nextId();
+        const person = this.repo.create({
+            id, name: name || clean, email: clean, tier, kind: tier, company: '', phone: '',
+            projects: [projectName], openTasks: 0, since: new Date().toISOString().slice(0, 10), comply: null, last: 'Guest invited',
+        });
+        return this.repo.save(person);
+    }
     async nextId() {
         const rows = await this.repo.find();
         return rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;

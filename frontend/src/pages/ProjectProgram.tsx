@@ -24,7 +24,7 @@ const input: React.CSSProperties = {
  */
 export interface LinkedTask { stepKey: string; id: string; title: string; done: boolean }
 
-export function ProjectProgram({ projectId, leadId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill, clientPersonality, clientName }: {
+export function ProjectProgram({ projectId, leadId, projectName, defaultTo, initialStep, linkedTasks, onToggleTask, prefill, clientPersonality, clientName, contractApproved }: {
   /** Exactly one of projectId / leadId is given -- a project once converted, a lead before. */
   projectId?: number;
   leadId?: string;
@@ -39,6 +39,9 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   /** How this client communicates, from the intake -- picks the message tone. */
   clientPersonality?: string;
   clientName?: string;
+  /** Set once the client has signed. Locks the AEC Team step -- a lead has no
+   * contract yet, so this is always undefined (unlocked) there. */
+  contractApproved?: boolean;
   onToggleTask?: (id: string, done: boolean) => void;
 }) {
   const { can, toast } = useApp();
@@ -57,6 +60,10 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   const [note, setNote] = useState('');
   const [tone, setTone] = useState('');
   const [templates, setTemplates] = useState<any[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState<{ id: number; savedAt: string; savedBy: string }[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
   const loadedFor = useRef<string | null>(null);
   // Which document this is -- reused by every save/pdf/send call below.
   const owner = leadId ? { leadId } : { projectId };
@@ -122,6 +129,10 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
 
   const step = PROGRAM_STEPS[stepIdx];
   const values = data[step.key] || {};
+  // Provisional while programming a lead's or an unsigned project's job --
+  // final, and no longer editable here, once the client has signed.
+  const aecFinalized = step.key === 'aec' && !!contractApproved;
+  const stepCanManage = canManage && !aecFinalized;
 
   const put = (key: string, value: any) => {
     setDirty(true);
@@ -147,6 +158,33 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       toast('⚠ ' + (e.message || 'Could not save the program'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadVersions = () => {
+    setLoadingVersions(true);
+    api.projectProgram.versions(owner)
+      .then((r: any) => setVersions(Array.isArray(r) ? r : []))
+      .catch(() => setVersions([]))
+      .finally(() => setLoadingVersions(false));
+  };
+  const openVersions = () => { setShowVersions(true); loadVersions(); };
+
+  const restoreVersion = async (id: number) => {
+    if (!canManage) return;
+    if (!confirm('Replace the current answers with this saved version? This is itself saved as a new version, so nothing is destroyed -- but any unsaved edits on screen right now will be lost.')) return;
+    setRestoringId(id);
+    try {
+      const res: any = await api.projectProgram.restoreVersion(id, owner);
+      setData(withPrefill(res?.data || {}, prefill || {}));
+      setMeta({ updatedAt: res?.updatedAt || '', updatedBy: res?.updatedBy || '', completedAt: res?.completedAt || '', sentAt: res?.sentAt || '', sentTo: res?.sentTo || '' });
+      setDirty(false);
+      setShowVersions(false);
+      toast('Restored — this is now the current version');
+    } catch (e: any) {
+      toast('⚠ ' + (e.message || 'Could not restore that version'));
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -259,12 +297,12 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
     const v = values[key] ?? '';
     const set = (x: string) => put(key, x);
     if (fld.kind === 'textarea') {
-      return <textarea disabled={!canManage} value={v} onChange={(e) => set(e.target.value)} rows={3} style={{ ...input, resize: 'vertical', lineHeight: 1.5 }} />;
+      return <textarea disabled={!stepCanManage} value={v} onChange={(e) => set(e.target.value)} rows={3} style={{ ...input, resize: 'vertical', lineHeight: 1.5 }} />;
     }
     if (fld.kind === 'select') {
       const opts = PICKLISTS[fld.options || ''] || [];
       return (
-        <select disabled={!canManage} value={v} onChange={(e) => set(e.target.value)} style={input}>
+        <select disabled={!stepCanManage} value={v} onChange={(e) => set(e.target.value)} style={input}>
           <option value="">Not set</option>
           {/* A value chosen before the list changed stays selectable. */}
           {v && !opts.includes(v) && <option value={v}>{v} (not in the current list)</option>}
@@ -273,7 +311,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       );
     }
     const type = fld.kind === 'date' ? 'date' : fld.kind === 'number' ? 'number' : fld.kind === 'phone' ? 'tel' : 'text';
-    return <input disabled={!canManage} type={type} value={v} onChange={(e) => set(e.target.value)} style={input} />;
+    return <input disabled={!stepCanManage} type={type} value={v} onChange={(e) => set(e.target.value)} style={input} />;
   };
 
   const renderSection = (section: PSection) => (
@@ -310,9 +348,9 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
             return (
               <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
                 <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
-                <input disabled={!canManage} value={cell.rangeLow ?? ''} onChange={(e) => putCell(row.key, 'rangeLow', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
-                <input disabled={!canManage} value={cell.rangeHigh ?? ''} onChange={(e) => putCell(row.key, 'rangeHigh', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
-                <input disabled={!canManage} value={cell.notes ?? ''} onChange={(e) => putCell(row.key, 'notes', e.target.value)} style={{ ...input, padding: '6px 8px' }} />
+                <input disabled={!stepCanManage} value={cell.rangeLow ?? ''} onChange={(e) => putCell(row.key, 'rangeLow', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
+                <input disabled={!stepCanManage} value={cell.rangeHigh ?? ''} onChange={(e) => putCell(row.key, 'rangeHigh', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
+                <input disabled={!stepCanManage} value={cell.notes ?? ''} onChange={(e) => putCell(row.key, 'notes', e.target.value)} style={{ ...input, padding: '6px 8px' }} />
               </div>
             );
           })}
@@ -390,6 +428,12 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
             </div>
             <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: '#0B1A12', marginTop: 3 }}>{step.name}</div>
             {step.blurb && <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 4, lineHeight: 1.55, maxWidth: 620 }}>{step.blurb}</div>}
+            {aecFinalized && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 8, padding: '8px 12px', borderRadius: 9, background: '#FBF3E4', color: '#8A6A0E', fontSize: 11.5, fontWeight: 600, maxWidth: 620 }}>
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><rect x={5} y={11} width={14} height={9} rx={2} /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                Finalized — the client has signed, so this roster is locked. To make a change, clear "Contract Approved" on the project first.
+              </div>
+            )}
           </div>
           <div
             onClick={rendering ? undefined : openPdf}
@@ -398,6 +442,14 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           >
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1={12} y1={15} x2={12} y2={3} /></svg>
             {rendering ? 'Rendering…' : 'Download PDF'}
+          </div>
+          <div
+            onClick={openVersions}
+            title="Every past save of this document."
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={12} r={9} /><polyline points="12 7 12 12 16 14" /></svg>
+            Version history
           </div>
           {canManage && (
             <div
@@ -554,6 +606,43 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           </div>
         </div>
       </div>
+
+      {showVersions && (
+        <div onClick={() => setShowVersions(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 480, maxWidth: '92vw', maxHeight: '80vh', overflowY: 'auto', background: 'white', borderRadius: 16, boxShadow: '0 24px 60px rgba(20,8,31,0.24)' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700 }}>Version history</div>
+                <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>Every save of this Project Program, newest first.</div>
+              </div>
+              <div onClick={() => setShowVersions(false)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>×</div>
+            </div>
+            <div style={{ padding: '10px 14px' }}>
+              {loadingVersions ? (
+                <div style={{ fontSize: 12.5, color: '#9AA39D', padding: '14px 8px' }}>Loading…</div>
+              ) : versions.length === 0 ? (
+                <div style={{ fontSize: 12.5, color: '#9AA39D', padding: '14px 8px' }}>No saves recorded yet — this becomes populated the next time it's saved.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {versions.map((v, i) => (
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: i === 0 ? '#EDF4EC' : '#FBF8F2' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12' }}>{new Date(v.savedAt).toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: '#7E9B93' }}>{v.savedBy || 'System'}{i === 0 ? ' · current' : ''}</div>
+                      </div>
+                      {i !== 0 && canManage && (
+                        <div onClick={restoringId ? undefined : () => restoreVersion(v.id)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: restoringId ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
+                          {restoringId === v.id ? 'Restoring…' : 'Restore'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

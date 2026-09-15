@@ -38,13 +38,25 @@ let PhasesService = class PhasesService {
         this.settings = settings;
         this.log = new common_1.Logger('PhasesService');
     }
-    async programme() {
+    async library() {
         try {
-            return (0, programme_template_1.parseProgramme)(await this.settings.get('programme.template')) || programme_template_1.DEFAULT_PROGRAMME;
+            const lib = (0, programme_template_1.parseLibrary)(await this.settings.get('programme.templates'));
+            if (lib)
+                return lib;
         }
-        catch {
-            return programme_template_1.DEFAULT_PROGRAMME;
+        catch { }
+        try {
+            const legacy = (0, programme_template_1.parseProgramme)(await this.settings.get('programme.template'));
+            if (legacy)
+                return [{ key: programme_template_1.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: legacy }];
         }
+        catch { }
+        return programme_template_1.DEFAULT_LIBRARY;
+    }
+    async programmeFor(projectId) {
+        const [lib, project] = await Promise.all([this.library(), this.projects.findOneBy({ id: projectId })]);
+        const found = project?.templateKey ? lib.find((t) => t.key === project.templateKey) : undefined;
+        return (found || lib[0])?.phases || programme_template_1.DEFAULT_PROGRAMME;
     }
     async applyTemplate(projectId) {
         if (!Number.isFinite(projectId))
@@ -52,7 +64,7 @@ let PhasesService = class PhasesService {
         if (!(await this.projects.findOneBy({ id: projectId }))) {
             throw new common_1.NotFoundException(`Project ${projectId} not found`);
         }
-        const plan = await this.programme();
+        const plan = await this.programmeFor(projectId);
         const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
         const missingPhases = plan.filter((d) => !existing.some((ph) => ph.key === d.key));
         if (missingPhases.length) {
@@ -109,19 +121,36 @@ let PhasesService = class PhasesService {
             phasesNotInTemplate: extraPhases,
         };
     }
-    async getTemplate() {
-        return this.programme();
+    async listTemplates() {
+        return this.library();
     }
-    async saveTemplate(body) {
-        if (body === null) {
-            await this.settings.set('programme.template', '');
-            return programme_template_1.DEFAULT_PROGRAMME;
-        }
-        const parsed = (0, programme_template_1.parseProgramme)(JSON.stringify(body));
-        if (!parsed)
+    async saveTemplateEntry(key, name, phases) {
+        const parsedPhases = (0, programme_template_1.parseProgramme)(JSON.stringify(phases));
+        if (!parsedPhases)
             throw new common_1.BadRequestException('That is not a usable programme template.');
-        await this.settings.set('programme.template', JSON.stringify(parsed));
-        return parsed;
+        const cleanName = (name || '').trim() || 'Untitled';
+        const lib = await this.library();
+        let cleanKey = key;
+        if (!cleanKey) {
+            const base = (0, programme_template_1.slugifyTemplateKey)(cleanName);
+            cleanKey = base;
+            let n = 2;
+            while (lib.some((t) => t.key === cleanKey))
+                cleanKey = `${base}-${n++}`;
+        }
+        const entry = { key: cleanKey, name: cleanName, phases: parsedPhases };
+        const idx = lib.findIndex((t) => t.key === cleanKey);
+        const next = idx >= 0 ? lib.map((t, i) => (i === idx ? entry : t)) : [...lib, entry];
+        await this.settings.set('programme.templates', JSON.stringify(next));
+        return entry;
+    }
+    async deleteTemplateEntry(key) {
+        const lib = await this.library();
+        if (lib.length <= 1)
+            throw new common_1.BadRequestException('At least one template must remain.');
+        const next = lib.filter((t) => t.key !== key);
+        await this.settings.set('programme.templates', JSON.stringify(next));
+        return next;
     }
     async onApplicationBootstrap() {
         try {
@@ -158,7 +187,7 @@ let PhasesService = class PhasesService {
         }
     }
     async seedChecklists(projectId, phases, programme) {
-        const plan = programme || (await this.programme());
+        const plan = programme || (await this.programmeFor(projectId));
         const tasksFor = (key) => plan.find((ph) => ph.key === key)?.tasks || [];
         const pending = phases.filter((ph) => !ph.seededAt && tasksFor(ph.key).length);
         if (!pending.length)
@@ -199,7 +228,7 @@ let PhasesService = class PhasesService {
             this.log.log(`Seeded ${rows.length} checklist step(s) for project ${projectId}`);
     }
     async overview() {
-        const plan = await this.programme();
+        const lib = await this.library();
         const [projects, phases, tasks] = await Promise.all([
             this.projects.find({ order: { id: 'ASC' } }),
             this.repo.find({ order: { order: 'ASC' } }),
@@ -216,6 +245,7 @@ let PhasesService = class PhasesService {
             byPhase.set(task.phaseId, bucket);
         }
         return projects.map((project) => {
+            const plan = (project.templateKey && lib.find((t) => t.key === project.templateKey)?.phases) || lib[0]?.phases || programme_template_1.DEFAULT_PROGRAMME;
             const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
             const byKey = new Map(rows.map((ph) => [ph.key, ph]));
             const source = [
@@ -268,11 +298,11 @@ let PhasesService = class PhasesService {
         });
     }
     async forProject(projectId) {
-        const plan = await this.programme();
         if (!Number.isFinite(projectId))
             return [];
         if (!(await this.projects.findOneBy({ id: projectId })))
             return [];
+        const plan = await this.programmeFor(projectId);
         const existing = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
         if (existing.length) {
             const missing = plan.filter((d) => !existing.some((ph) => ph.key === d.key));
@@ -303,12 +333,13 @@ let PhasesService = class PhasesService {
         return this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     }
     async board(projectId) {
-        const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programme()]);
+        const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programmeFor(projectId)]);
         const rows = await this.tasks.find({ order: { order: 'ASC' } });
         const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
         const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
         const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
-        const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), weeks: weeks.get(ph.key) || 0 }));
+        const dependsOn = new Map(plan.map((d, i) => [d.key, d.dependsOn?.length ? d.dependsOn : d.gated && i > 0 ? [plan[i - 1].key] : []]));
+        const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
         const target = new Map();
         for (const phase of plan) {
             const split = phase.tasks.length && phase.weeks

@@ -26,6 +26,16 @@ export class ProjectEntity {
   @Column({ nullable: true }) designPhase!: string;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
+  // Set once the client has signed. Locks the AEC Team roster in the Project
+  // Program against further edits -- it's assembled provisionally during
+  // programming, but who's actually on the job is only final once there's a
+  // signed contract to hold them to.
+  @Column({ type: 'bit', nullable: true }) contractApproved!: boolean | null;
+  // Which entry of the programme template library (settings key
+  // 'programme.templates') this project's Phase Board is built from -- a
+  // kitchen remodel and a ground-up build don't share one shape. Unset falls
+  // back to the library's first entry.
+  @Column({ nullable: true }) templateKey!: string;
 }
 
 @Entity('people')
@@ -131,6 +141,33 @@ export class DealEntity {
   // Stage notes. Held here rather than only in the browser, which is where
   // they used to live -- and where they were lost on every reload.
   @Column({ type: 'simple-json', nullable: true }) stageNotes!: unknown[];
+}
+
+/**
+ * The proposal/contract sent to a lead for e-signature -- one per deal.
+ *
+ * Signing it is the "formal contract signature" the rest of the CRM treats
+ * as the moment a lead becomes a real job: the signing endpoint is what
+ * triggers PipelineService.convertToProject. signedAt/signerIp/signerUserAgent
+ * are always the server's own record of the request, never anything the
+ * signer's browser claims.
+ */
+@Entity('proposals')
+export class ProposalEntity {
+  @PrimaryColumn() dealId!: string;
+  @Column({ nullable: true }) subject!: string;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) html!: string;
+  @Column({ nullable: true }) amount!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+  @Column({ nullable: true }) sentAt!: string;
+  @Column({ nullable: true }) sentTo!: string;
+  @Column({ nullable: true }) signedAt!: string;
+  @Column({ nullable: true }) signedByName!: string;
+  @Column({ nullable: true }) signedByEmail!: string;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) signatureImage!: string;
+  @Column({ nullable: true }) signerIp!: string;
+  @Column({ nullable: true }) signerUserAgent!: string;
 }
 
 @Entity('invoices')
@@ -431,6 +468,15 @@ export class ProjectProgramEntity {
   @Column({ nullable: true }) completedAt!: string;
   @Column({ nullable: true }) sentAt!: string;
   @Column({ nullable: true }) sentTo!: string;
+  // The client's e-signature. Timestamp, IP and user agent are always the
+  // server's own record of the request, never anything the client claims --
+  // that's what makes this worth calling a certification.
+  @Column({ nullable: true }) signedAt!: string;
+  @Column({ nullable: true }) signedByName!: string;
+  @Column({ nullable: true }) signedByEmail!: string;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) signatureImage!: string; // base64 PNG from the pad
+  @Column({ nullable: true }) signerIp!: string;
+  @Column({ nullable: true }) signerUserAgent!: string;
 }
 
 /**
@@ -450,6 +496,41 @@ export class LeadProgramEntity {
   @Column({ nullable: true }) completedAt!: string;
   @Column({ nullable: true }) sentAt!: string;
   @Column({ nullable: true }) sentTo!: string;
+}
+
+/**
+ * A time-limited login granted to an external client or consultant, instead
+ * of a permanent password account -- the office's alternative to emailing
+ * out standing credentials. Logs in as a real (passwordless) UserEntity row
+ * so the rest of the app needs no separate guest code path; expiry and
+ * revocation are enforced here, off the grant, each time the link resolves.
+ */
+@Entity('guest_access')
+export class GuestAccessEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column() userId!: string;
+  @Column('int') projectId!: number;
+  @Column() createdAt!: string;
+  @Column() expiresAt!: string;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column({ nullable: true }) revokedAt!: string;
+  @Column({ nullable: true }) lastUsedAt!: string;
+}
+
+/**
+ * A snapshot of a Project Program document taken on every save, so the
+ * living document has a history as requirements evolve rather than only the
+ * current answers. One table serves both projects and leads -- a version is
+ * an inert timestamped copy, not a live row with its own foreign-key needs --
+ * keyed by `ownerKey`: 'project:<id>' or 'lead:<id>'.
+ */
+@Entity('project_program_versions')
+export class ProjectProgramVersionEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column() ownerKey!: string;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) data!: string;
+  @Column() savedAt!: string;
+  @Column({ nullable: true }) savedBy!: string;
 }
 
 @Entity('users')

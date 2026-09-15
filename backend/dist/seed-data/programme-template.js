@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TEMPLATE_LABELS = exports.TEMPLATE_TEAMS = exports.DEFAULT_PROGRAMME = void 0;
+exports.slugifyTemplateKey = exports.DEFAULT_LIBRARY = exports.DEFAULT_TEMPLATE_KEY = exports.TEMPLATE_LABELS = exports.TEMPLATE_TEAMS = exports.DEFAULT_PROGRAMME = void 0;
 exports.parseProgramme = parseProgramme;
+exports.parseLibrary = parseLibrary;
 const t = (id, title, team = '', labels = [], days = 0) => ({ id, title, team, labels, days });
 exports.DEFAULT_PROGRAMME = [
     {
@@ -174,6 +175,7 @@ function parseProgramme(raw) {
             name: String(p.name),
             color: typeof p.color === 'string' && p.color ? p.color : '#173326',
             gated: !!p.gated,
+            dependsOn: Array.isArray(p.dependsOn) ? p.dependsOn.filter((k) => typeof k === 'string') : [],
             weeks: Number.isFinite(Number(p.weeks)) && Number(p.weeks) > 0 ? Number(p.weeks) : 0,
             order: i,
             tasks: Array.isArray(p.tasks)
@@ -189,6 +191,32 @@ function parseProgramme(raw) {
                 : [],
         }));
         return phases.length ? phases : null;
+    }
+    catch {
+        return null;
+    }
+}
+exports.DEFAULT_TEMPLATE_KEY = 'default';
+exports.DEFAULT_LIBRARY = [{ key: exports.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: exports.DEFAULT_PROGRAMME }];
+const slugifyTemplateKey = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'template';
+exports.slugifyTemplateKey = slugifyTemplateKey;
+function parseLibrary(raw) {
+    if (!raw)
+        return null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed) || !parsed.length)
+            return null;
+        const out = [];
+        for (const entry of parsed) {
+            if (!entry || typeof entry.key !== 'string' || typeof entry.name !== 'string')
+                continue;
+            const phases = parseProgramme(JSON.stringify(entry.phases));
+            if (!phases)
+                continue;
+            out.push({ key: entry.key, name: entry.name, phases });
+        }
+        return out.length ? out : null;
     }
     catch {
         return null;

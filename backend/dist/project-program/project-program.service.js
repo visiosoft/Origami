@@ -17,13 +17,29 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const people_service_1 = require("../people/people.service");
 let ProjectProgramService = class ProjectProgramService {
-    constructor(repo, projects, leadRepo, leads) {
+    constructor(repo, projects, leadRepo, leads, versions, people) {
         this.repo = repo;
         this.projects = projects;
         this.leadRepo = leadRepo;
         this.leads = leads;
+        this.versions = versions;
+        this.people = people;
         this.log = new common_1.Logger('ProjectProgramService');
+    }
+    async snapshot(ownerKey, data, savedAt, savedBy) {
+        await this.versions.save(this.versions.create({ ownerKey, data, savedAt, savedBy }));
+    }
+    async listVersions(ownerKey) {
+        const rows = await this.versions.find({ where: { ownerKey }, order: { id: 'DESC' } });
+        return rows.map((v) => ({ id: v.id, savedAt: v.savedAt, savedBy: v.savedBy }));
+    }
+    async getVersion(ownerKey, id) {
+        const v = await this.versions.findOneBy({ id, ownerKey });
+        if (!v)
+            throw new common_1.BadRequestException('That version no longer exists.');
+        return { id: v.id, savedAt: v.savedAt, savedBy: v.savedBy, data: this.parse(v.data) };
     }
     parse(raw) {
         if (!raw)
@@ -48,7 +64,41 @@ let ProjectProgramService = class ProjectProgramService {
             completedAt: row?.completedAt || '',
             sentAt: row?.sentAt || '',
             sentTo: row?.sentTo || '',
+            signedAt: row?.signedAt || '',
+            signedByName: row?.signedByName || '',
+            signedByEmail: row?.signedByEmail || '',
+            signatureImage: row?.signatureImage || '',
         };
+    }
+    async assertClientAccess(projectId, email) {
+        const project = await this.projects.findOneBy({ id: projectId });
+        if (!project || !(await this.people.isClientOnProject(email, project.name))) {
+            throw new common_1.ForbiddenException('This project is not linked to your account.');
+        }
+        return project;
+    }
+    async getForClient(projectId, email) {
+        await this.assertClientAccess(projectId, email);
+        return this.get(projectId);
+    }
+    async sign(projectId, signer, image, meta) {
+        if (!signer.name?.trim())
+            throw new common_1.BadRequestException('Type your name to certify the signature.');
+        if (!image?.trim())
+            throw new common_1.BadRequestException('Draw your signature before submitting.');
+        await this.assertClientAccess(projectId, signer.email);
+        const row = await this.repo.findOneBy({ projectId });
+        if (!row)
+            throw new common_1.BadRequestException('There is nothing to sign yet.');
+        row.signedAt = new Date().toISOString();
+        row.signedByName = signer.name.trim();
+        row.signedByEmail = signer.email;
+        row.signatureImage = image;
+        row.signerIp = meta.ip || '';
+        row.signerUserAgent = meta.userAgent || '';
+        await this.repo.save(row);
+        await this.snapshot(`project:${projectId}`, row.data, row.signedAt, `${row.signedByName} (signed)`);
+        return this.get(projectId);
     }
     async save(projectId, data, actor) {
         if (!Number.isFinite(projectId))
@@ -65,7 +115,18 @@ let ProjectProgramService = class ProjectProgramService {
         row.updatedAt = new Date().toISOString();
         row.updatedBy = actor?.name || 'System';
         await this.repo.save(row);
+        await this.snapshot(`project:${projectId}`, row.data, row.updatedAt, row.updatedBy);
         return this.get(projectId);
+    }
+    async listVersionsFor(projectId) {
+        return this.listVersions(`project:${projectId}`);
+    }
+    async getVersionFor(projectId, id) {
+        return this.getVersion(`project:${projectId}`, id);
+    }
+    async restoreVersion(projectId, id, actor) {
+        const v = await this.getVersion(`project:${projectId}`, id);
+        return this.save(projectId, v.data, actor);
     }
     async markSent(projectId, to, actor) {
         const row = await this.repo.findOneBy({ projectId });
@@ -113,7 +174,18 @@ let ProjectProgramService = class ProjectProgramService {
         row.updatedAt = new Date().toISOString();
         row.updatedBy = actor?.name || 'System';
         await this.leadRepo.save(row);
+        await this.snapshot(`lead:${leadId}`, row.data, row.updatedAt, row.updatedBy);
         return this.getLead(leadId);
+    }
+    async listVersionsForLead(leadId) {
+        return this.listVersions(`lead:${leadId}`);
+    }
+    async getVersionForLead(leadId, id) {
+        return this.getVersion(`lead:${leadId}`, id);
+    }
+    async restoreVersionLead(leadId, id, actor) {
+        const v = await this.getVersion(`lead:${leadId}`, id);
+        return this.saveLead(leadId, v.data, actor);
     }
     async markSentLead(leadId, to, actor) {
         const row = await this.leadRepo.findOneBy({ leadId });
@@ -140,9 +212,12 @@ exports.ProjectProgramService = ProjectProgramService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.LeadProgramEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __param(4, (0, typeorm_1.InjectRepository)(entities_1.ProjectProgramVersionEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        people_service_1.PeopleService])
 ], ProjectProgramService);
 //# sourceMappingURL=project-program.service.js.map
