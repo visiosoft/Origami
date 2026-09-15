@@ -6,6 +6,7 @@ import { BrandingSettings } from './BrandingSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { PipelineSlaSettings } from './PipelineSlaSettings';
 import { SmsSettings } from './SmsSettings';
+import { SchedulingSettings } from './SchedulingSettings';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -26,6 +27,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   ] },
   { group: 'Pipeline', items: [
     { key: 'sla', label: 'CRM Response Times' },
+    { key: 'scheduling', label: 'Calendars' },
   ] },
   { group: 'Personal', items: [
     { key: 'notifications', label: 'Notifications' },
@@ -67,6 +69,7 @@ export function Settings() {
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
           {active === 'branding' && <BrandingSettings />}
           {active === 'sla' && <PipelineSlaSettings />}
+          {active === 'scheduling' && <SchedulingSettings />}
           {active === 'notifications' && <NotificationSettings />}
           {active === 'sms' && <SmsSettings />}
           {active === 'google' && <GoogleSettings />}

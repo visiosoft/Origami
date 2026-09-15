@@ -176,6 +176,9 @@ export declare class LeadEntity {
     clientPersonality: string;
     virtualMeetingAt: string;
     siteVisitAt: string;
+    meetingType: string;
+    meetingAgenda: string;
+    meetingEventId: string;
     fitScore: number;
     fitSelections: Record<string, string>;
     zoningImages: string;

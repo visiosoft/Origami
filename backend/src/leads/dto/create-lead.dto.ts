@@ -53,6 +53,9 @@ export class CreateLeadDto {
     @IsString() @IsOptional() clientPersonality?: string;
     @IsString() @IsOptional() virtualMeetingAt?: string;
     @IsString() @IsOptional() siteVisitAt?: string;
+    @IsString() @IsOptional() meetingType?: string;
+    @IsString() @IsOptional() meetingAgenda?: string;
+    @IsString() @IsOptional() meetingEventId?: string;
     @IsNumber() @IsOptional() fitScore?: number;
     @IsObject() @IsOptional() fitSelections?: Record<string, string>;
     @IsString() @IsOptional() zoningImages?: string; // JSON string of [{name,dataUrl}]

@@ -24,6 +24,10 @@ export const PUBLIC_KEYS = [
   // Blank/zero disables it -- the actual figure is the office's call, not a
   // guessed default.
   'reminders.overstretchThreshold',
+  // Whose calendars show up when checking availability while booking a
+  // meeting -- JSON [{ name, email }], configured by the office rather than
+  // hardcoded to specific people.
+  'scheduling.calendars',
   'tasks.labels',
   // Workspace kill switch for assignment emails; per-user opt-out lives on the user row.
   'notifications.assignmentEmail',

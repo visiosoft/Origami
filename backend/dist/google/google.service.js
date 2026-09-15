@@ -28,6 +28,8 @@ exports.WORKSPACE_SCOPES = [
     'profile',
     'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/calendar.events',
+    'https://www.googleapis.com/auth/calendar.freebusy',
 ];
 exports.LOGIN_SCOPES = ['openid', 'email', 'profile'];
 let GoogleService = class GoogleService {

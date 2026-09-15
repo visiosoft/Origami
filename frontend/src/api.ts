@@ -283,6 +283,22 @@ export const api = {
     send: (payload: unknown) =>
       request<{ ok: boolean; filename: string; to: string }>('/project-program/send', { method: 'POST', body: JSON.stringify(payload) }),
   },
+  scheduling: {
+    /** Whose calendars show up when checking availability -- the office's own configured list. */
+    calendars: () => request<{ name: string; email: string }[]>('/scheduling/calendars'),
+    setCalendars: (calendars: { name: string; email: string }[]) =>
+      request<{ name: string; email: string }[]>('/scheduling/calendars', { method: 'POST', body: JSON.stringify(calendars) }),
+    /** Busy blocks for the configured calendars (or an explicit list) between two ISO timestamps. */
+    availability: (from: string, to: string, emails?: string[]) =>
+      request<{ email: string; busy: { start: string; end: string }[] | null; error?: string }[]>(
+        `/scheduling/availability?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${emails?.length ? `&emails=${encodeURIComponent(emails.join(','))}` : ''}`,
+      ),
+    /** Create or update the real calendar event a booking represents. */
+    createEvent: (payload: {
+      eventId?: string; summary: string; description?: string; start: string; end: string;
+      location?: string; attendees?: string[]; video?: boolean;
+    }) => request<{ id: string; htmlLink: string; meetLink?: string }>('/scheduling/events', { method: 'POST', body: JSON.stringify(payload) }),
+  },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     upload: (projectId: number, path: string[], files: File[] | FileList) => {

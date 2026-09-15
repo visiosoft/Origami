@@ -62,6 +62,10 @@ interface NewLead {
   // getting renumbered or renamed must not orphan what was written here.
   sectionNotes?: Record<string, string>;
   sectionCustomFields?: Record<string, CustomField[]>;
+  /** 'video' (Google Meet) or 'phone' (no video, no location, just a call). */
+  meetingType?: string;
+  meetingAgenda?: string;
+  meetingEventId?: string;
   preferredContactMethodOfSecondContact: string; pronounsOfSecondContact: string;
   leadSourceReferrerName: string; leadSourceReferrerPhone: string; leadSourceEventDetail: string;
   otherDetails?: Record<string, string>;
@@ -290,6 +294,17 @@ export function Pipeline() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [meetByDeal, setMeetByDeal] = useState<Record<string, { when: string }>>({});
   const [meetWhen, setMeetWhen] = useState('');
+  // Video (Google Meet, the original flow) or a phone-only consultation --
+  // no location, no video link, just a call and an agenda.
+  const [meetingType, setMeetingType] = useState<'video' | 'phone'>('video');
+  const [meetingAgenda, setMeetingAgenda] = useState('');
+  const [creatingMeet, setCreatingMeet] = useState(false);
+  // Whoever the office configured in Settings -> Calendars, and their busy
+  // blocks for whatever date is currently picked -- so a time is chosen
+  // knowing it's actually clear, not after the fact.
+  const [scheduleCalendars, setScheduleCalendars] = useState<{ name: string; email: string }[]>([]);
+  const [availability, setAvailability] = useState<{ name: string; email: string; busy: { start: string; end: string }[] | null; error?: string }[]>([]);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [visitByDeal, setVisitByDeal] = useState<Record<string, { when: string }>>({});
   const [visitWhen, setVisitWhen] = useState('');
   const [scoringTemplate, setScoringTemplate] = useState<ScoringCriterion[]>([]);
@@ -330,6 +345,27 @@ export function Pipeline() {
     const t = setInterval(() => setTick((v) => v + 1), 60_000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    api.scheduling.calendars().then((res: any) => { if (Array.isArray(res)) setScheduleCalendars(res); }).catch(() => { });
+  }, []);
+
+  // Re-checked whenever the picked date changes, so a time is chosen knowing
+  // the day's conflicts, not discovered after saving.
+  useEffect(() => {
+    const day = meetWhen.slice(0, 10);
+    if (!day || !scheduleCalendars.length) { setAvailability([]); return; }
+    setAvailabilityLoading(true);
+    const from = `${day}T00:00:00`;
+    const to = `${day}T23:59:59`;
+    api.scheduling.availability(from, to)
+      .then((res: any) => {
+        const byEmail = new Map((Array.isArray(res) ? res : []).map((r: any) => [r.email, r]));
+        setAvailability(scheduleCalendars.map((c) => ({ ...c, ...(byEmail.get(c.email) || { busy: null, error: 'not checked' }) })));
+      })
+      .catch(() => setAvailability([]))
+      .finally(() => setAvailabilityLoading(false));
+  }, [meetWhen.slice(0, 10), scheduleCalendars]);
 
   useEffect(() => {
     api.pipeline.list(showArchived).then((res) => {
@@ -540,20 +576,60 @@ export function Pipeline() {
     if (editingNoteId === nid) { setEditingNoteId(null); setNoteDraft(''); }
   };
 
-  const scheduleMeet = (deal: Deal, stageName: string) => {
-    if (!meetWhen) return;
-    const start = new Date(meetWhen);
+  /** The popup-link fallback -- used only when the real Calendar API call fails or isn't connected. */
+  const openMeetPopup = (deal: Deal, start: Date, video: boolean) => {
     const end = new Date(start.getTime() + 30 * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const text = encodeURIComponent(`Virtual F2F Meeting — ${deal.name}`);
-    const details = encodeURIComponent('Virtual F2F meeting via Origami CRM. Turn on "Add Google Meet video conferencing" in the event to generate the Meet link.');
+    const label = video ? 'Virtual F2F Meeting' : 'Phone Consultation';
+    const text = encodeURIComponent(`${label} — ${deal.name}`);
+    const details = encodeURIComponent(
+      (video ? 'Virtual F2F meeting via Origami CRM. Turn on "Add Google Meet video conferencing" in the event to generate the Meet link.' : 'Phone consultation via Origami CRM.')
+      + (meetingAgenda.trim() ? `\n\nAgenda: ${meetingAgenda.trim()}` : ''),
+    );
     const guests = deal.email ? `&add=${encodeURIComponent(deal.email)}` : '';
     const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}${guests}&details=${details}`;
     window.open(url, '_blank', 'noopener');
-    setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Google Meet scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen }).catch(() => { });
-    toast('Google Meet invite opened & saved');
+  };
+
+  /**
+   * Creates the real calendar event through the Calendar API when Google is
+   * connected -- the office no longer has to click Save themselves in a
+   * popup tab. Falls back to that popup only if the API call fails (not
+   * connected, a scope not yet granted, a transient error).
+   */
+  const scheduleMeet = async (deal: Deal, stageName: string) => {
+    if (!meetWhen) return;
+    const video = meetingType === 'video';
+    const start = new Date(meetWhen);
+    const end = new Date(start.getTime() + 30 * 60000);
+    const label = video ? 'Virtual F2F Meeting' : 'Phone Consultation';
+    const existingEventId = leadDetails[deal.id]?.meetingEventId as string | undefined;
+
+    setCreatingMeet(true);
+    try {
+      const res: any = await api.scheduling.createEvent({
+        eventId: existingEventId,
+        summary: `${label} — ${deal.name}`,
+        description: [video ? 'Virtual F2F meeting via Origami CRM.' : 'Phone consultation via Origami CRM.', meetingAgenda.trim() ? `Agenda: ${meetingAgenda.trim()}` : ''].filter(Boolean).join('\n\n'),
+        start: start.toISOString(),
+        end: end.toISOString(),
+        attendees: deal.email ? [deal.email] : [],
+        video,
+      });
+      setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
+      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}${res?.meetLink ? ' — Meet link attached' : ''}`, stageName, date: 'Today' }] }));
+      setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda, meetingEventId: res?.id } as NewLead }));
+      api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }).catch(() => { });
+      toast(existingEventId ? 'Calendar event updated' : `${label} created on your calendar`);
+    } catch (e: any) {
+      openMeetPopup(deal, start, video);
+      setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
+      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
+      api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }).catch(() => { });
+      toast('⚠ Could not create it directly — opened Google Calendar to finish it there');
+    } finally {
+      setCreatingMeet(false);
+    }
   };
 
   const scheduleSiteVisit = (deal: Deal, stageName: string) => {
@@ -578,9 +654,11 @@ export function Pipeline() {
   // Persist the chosen time to the DB without opening Google Calendar.
   const saveMeet = (deal: Deal, stageName: string) => {
     if (!meetWhen) return;
+    const label = meetingType === 'phone' ? 'Phone consultation' : 'Virtual F2F meeting';
     setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Virtual F2F meeting saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen }).catch(() => { });
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
+    setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda } as NewLead }));
+    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }).catch(() => { });
     toast('Meeting time saved');
   };
   const saveVisit = (deal: Deal, stageName: string) => {
@@ -765,7 +843,7 @@ export function Pipeline() {
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} className={sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} className={sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -1106,17 +1184,74 @@ export function Pipeline() {
                 <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x={1} y={5} width={15} height={14} rx={2} ry={2} /></svg>
-                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Virtual F &amp; F — Schedule Google Meet</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Virtual F &amp; F — Schedule the meeting</span>
                   </div>
-                  <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10 }}>PC schedules the virtual meeting. Full lead details are in the “Full Details” tab.</div>
-                  {meetByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(meetByDeal[selected.id].when).toLocaleString()}</div>}
+                  <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10 }}>PC schedules the meeting. Full lead details are in the “Full Details” tab.</div>
+                  {meetByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(meetByDeal[selected.id].when).toLocaleString()} ({meetingType === 'phone' ? 'Phone call' : 'Video call'})</div>}
+
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 8, background: 'white', padding: 3, borderRadius: 999, width: 'fit-content' }}>
+                    {(['video', 'phone'] as const).map((t) => (
+                      <div
+                        key={t}
+                        onClick={() => setMeetingType(t)}
+                        style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: meetingType === t ? '#173326' : 'transparent', color: meetingType === t ? 'white' : '#7E9B93' }}
+                      >
+                        {t === 'video' ? 'Video call' : 'Phone call'}
+                      </div>
+                    ))}
+                  </div>
+
                   <input type="datetime-local" value={meetWhen} onChange={(e) => setMeetWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+
+                  {meetingType === 'phone' && (
+                    <textarea
+                      value={meetingAgenda}
+                      onChange={(e) => setMeetingAgenda(e.target.value)}
+                      placeholder="Agenda — what this call needs to cover"
+                      rows={2}
+                      style={{ ...inputStyle, marginBottom: 8, resize: 'vertical' }}
+                    />
+                  )}
+
+                  {meetWhen && scheduleCalendars.length > 0 && (
+                    <div style={{ marginBottom: 10, padding: '8px 10px', background: 'white', borderRadius: 8 }}>
+                      <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                        Availability on {new Date(meetWhen).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </div>
+                      {availabilityLoading ? (
+                        <div style={{ fontSize: 11, color: '#9AA39D' }}>Checking…</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {availability.map((a) => {
+                            const pickedMs = new Date(meetWhen).getTime();
+                            const conflict = a.busy?.some((b) => pickedMs < new Date(b.end).getTime() && pickedMs + 30 * 60000 > new Date(b.start).getTime());
+                            return (
+                              <div key={a.email} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                                <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: a.busy === null ? '#D6DED8' : conflict ? '#C0392B' : '#2F7D4A' }} />
+                                <span style={{ fontWeight: 600, color: '#0B1A12' }}>{a.name || a.email}</span>
+                                <span style={{ color: '#7E9B93', marginLeft: 'auto' }}>
+                                  {a.busy === null ? "can't check" : conflict ? 'busy at this time' : 'free'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <div onClick={() => saveMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#2F7D4A' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>Save schedule</div>
-                    <div onClick={() => scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#173326' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>Save &amp; create Google Meet</div>
-                    <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>Start instant Meet</a>
+                    <div onClick={() => !creatingMeet && scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen && !creatingMeet ? 'pointer' : 'not-allowed', background: meetWhen ? '#173326' : '#D6DED8', color: meetWhen ? 'white' : '#9AA39D' }}>
+                      {creatingMeet ? 'Creating…' : meetingType === 'video' ? 'Save & create Google Meet' : 'Save & add to calendar'}
+                    </div>
+                    {meetingType === 'video' && <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>Start instant Meet</a>}
                   </div>
-                  <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited — enable "Add Google Meet" to attach the video link. Logged to Activity.</div>
+                  <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>
+                    {meetingType === 'video'
+                      ? 'Creates a real calendar event with a Google Meet link and invites the lead. Logged to Activity.'
+                      : 'Creates a real calendar event and invites the lead — no video link, no location. Logged to Activity.'}
+                  </div>
                 </div>
               ) : selected.stage === 'site_visit' ? (
                 (() => {

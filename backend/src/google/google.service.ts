@@ -20,6 +20,12 @@ export const WORKSPACE_SCOPES = [
   'profile',
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/drive',
+  // calendar.events: create/update the real events scheduling writes.
+  // calendar.freebusy: read only whether a calendar is busy at a time, for
+  // anyone whose calendar the connected account can see -- not their event
+  // details or attendees, just yes/no availability.
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.freebusy',
 ];
 
 /** Scopes for "Sign in with Google" — identity only. */

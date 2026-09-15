@@ -239,6 +239,14 @@ export class LeadEntity {
   @Column({ nullable: true }) clientPersonality!: string;
   @Column({ nullable: true }) virtualMeetingAt!: string;
   @Column({ nullable: true }) siteVisitAt!: string;
+  // The virtual meeting's kind -- 'video' (the existing Google Meet flow) or
+  // 'phone' (no video, no location, just a call and an agenda). Site visits
+  // are always in person, so they don't need this.
+  @Column({ nullable: true }) meetingType!: string;
+  @Column({ ...TEXT, nullable: true }) meetingAgenda!: string;
+  // The real Calendar event id once one is created -- lets a re-save update
+  // the same event instead of leaving duplicates on the calendar.
+  @Column({ nullable: true }) meetingEventId!: string;
   @Column({ type: 'int', nullable: true }) fitScore!: number;
   @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
   @Column({ ...TEXT, nullable: true }) zoningImages!: string; // JSON string of [{name,dataUrl}] (data URLs)

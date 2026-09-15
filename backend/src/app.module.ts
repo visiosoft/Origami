@@ -23,6 +23,7 @@ import { FileRoomModule } from './file-room/file-room.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SmsModule } from './sms/sms.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
+import { SchedulingModule } from './scheduling/scheduling.module';
 import { SessionGuard } from './auth/guards/session.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -58,6 +59,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     FileRoomModule,
     ProjectsModule,
     ProjectProgramModule,
+    SchedulingModule,
     PeopleModule,
     TasksModule,
     PipelineModule,
