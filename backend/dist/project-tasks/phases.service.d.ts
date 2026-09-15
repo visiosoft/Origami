@@ -21,7 +21,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
         phasesNotInTemplate: string[];
     }>;
     listTemplates(): Promise<ProgrammeTemplateDef[]>;
-    saveTemplateEntry(key: string | undefined, name: string, phases: unknown): Promise<ProgrammeTemplateDef>;
+    saveTemplateEntry(key: string | undefined, name: string, phases: unknown, projectTypes?: unknown): Promise<ProgrammeTemplateDef>;
     deleteTemplateEntry(key: string): Promise<ProgrammeTemplateDef[]>;
     onApplicationBootstrap(): Promise<void>;
     private seedChecklists;

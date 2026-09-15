@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel } from '../data/projectTypes';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -44,13 +45,15 @@ const slug = (name: string) =>
  * the next project is built with; projects already running keep what they have,
  * except that a newly added phase appears on them too.
  */
-interface LibraryEntry { key: string; name: string; phases: TemplatePhase[] }
+interface LibraryEntry { key: string; name: string; phases: TemplatePhase[]; projectTypes?: string[] }
 
 export function ProgrammeTemplate() {
   const { toast } = useApp();
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
   const [activeKey, setActiveKey] = useState('');
   const [phases, setPhases] = useState<TemplatePhase[]>([]);
+  const [projectTypes, setProjectTypes] = useState<string[]>([]);
+  const [typesOpen, setTypesOpen] = useState(false);
   const [teams, setTeams] = useState<string[]>([]);
   const [openPhase, setOpenPhase] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +68,7 @@ export function ProgrammeTemplate() {
       const active = lib.find((t) => t.key === (preferredKey ?? activeKey)) || lib[0];
       setActiveKey(active?.key || '');
       setPhases(active?.phases || []);
+      setProjectTypes(active?.projectTypes || []);
       setOpenPhase(active?.phases?.[0]?.key ?? null);
       setDirty(false);
     })
@@ -92,6 +96,7 @@ export function ProgrammeTemplate() {
     if (!t) return;
     setActiveKey(key);
     setPhases(t.phases);
+    setProjectTypes(t.projectTypes || []);
     setOpenPhase(t.phases[0]?.key ?? null);
     setDirty(false);
     setError('');
@@ -114,7 +119,7 @@ export function ProgrammeTemplate() {
     if (!name || name === activeName) return;
     setSaving(true);
     setError('');
-    api.programmeTemplate.save(activeKey, name, phases)
+    api.programmeTemplate.save(activeKey, name, phases, projectTypes)
       .then(() => { toast('Renamed'); return load(activeKey); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -173,7 +178,7 @@ export function ProgrammeTemplate() {
     if (bad) { setError('Every phase needs a name.'); return; }
     setSaving(true);
     setError('');
-    api.programmeTemplate.save(activeKey, activeName, phases.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.title.trim()) })))
+    api.programmeTemplate.save(activeKey, activeName, phases.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.title.trim()) })), projectTypes)
       .then(() => { toast(`"${activeName}" saved`); return load(activeKey); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -208,6 +213,48 @@ export function ProgrammeTemplate() {
         <div onClick={() => newTemplate(true)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Duplicate</div>
         <div onClick={renameTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Rename</div>
         <div onClick={deleteTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Delete</div>
+      </div>
+
+      <div style={{ position: 'relative', marginBottom: 18, maxWidth: 420 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Potential Project Type</div>
+        <div
+          onClick={() => setTypesOpen((v) => !v)}
+          style={{ ...input, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', minHeight: 34 }}
+        >
+          <span style={{ color: projectTypes.length ? '#0B1A12' : '#9AA39D' }}>
+            {projectTypes.length ? `${projectTypes.length} type${projectTypes.length === 1 ? '' : 's'} selected` : 'Not tied to a project type yet'}
+          </span>
+          <span style={{ fontSize: 9, color: '#9AA39D', transform: typesOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+        </div>
+        {typesOpen && (
+          <>
+            <div onClick={() => setTypesOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'white', border: '1px solid rgba(20,8,31,0.12)', borderRadius: 10, boxShadow: '0 12px 30px rgba(20,8,31,0.14)', maxHeight: 340, overflowY: 'auto', zIndex: 10, padding: 10 }}>
+              <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 8, lineHeight: 1.5 }}>
+                Which project types "{activeName}" is built for — a kitchen remodel skips steps a ground-up build needs. Duplicate this template and pick a different set to make a type-specific variant.
+              </div>
+              {PROJECT_TYPE_GROUPS.map((g) => (
+                <div key={g} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{g}</div>
+                  {PROJECT_TYPES.filter((t) => t.group === g).map((t) => {
+                    const label = projectTypeLabel(t);
+                    const on = projectTypes.includes(label);
+                    return (
+                      <label key={t.code} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px', fontSize: 12, color: '#0B1A12', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => { setProjectTypes((prev) => (on ? prev.filter((x) => x !== label) : [...prev, label])); setDirty(true); }}
+                        />
+                        {label}
+                      </label>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {error && (

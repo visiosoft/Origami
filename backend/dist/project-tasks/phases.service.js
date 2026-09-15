@@ -124,11 +124,12 @@ let PhasesService = class PhasesService {
     async listTemplates() {
         return this.library();
     }
-    async saveTemplateEntry(key, name, phases) {
+    async saveTemplateEntry(key, name, phases, projectTypes) {
         const parsedPhases = (0, programme_template_1.parseProgramme)(JSON.stringify(phases));
         if (!parsedPhases)
             throw new common_1.BadRequestException('That is not a usable programme template.');
         const cleanName = (name || '').trim() || 'Untitled';
+        const cleanTypes = Array.isArray(projectTypes) ? projectTypes.filter((t) => typeof t === 'string') : [];
         const lib = await this.library();
         let cleanKey = key;
         if (!cleanKey) {
@@ -138,7 +139,7 @@ let PhasesService = class PhasesService {
             while (lib.some((t) => t.key === cleanKey))
                 cleanKey = `${base}-${n++}`;
         }
-        const entry = { key: cleanKey, name: cleanName, phases: parsedPhases };
+        const entry = { key: cleanKey, name: cleanName, phases: parsedPhases, projectTypes: cleanTypes };
         const idx = lib.findIndex((t) => t.key === cleanKey);
         const next = idx >= 0 ? lib.map((t, i) => (i === idx ? entry : t)) : [...lib, entry];
         await this.settings.set('programme.templates', JSON.stringify(next));

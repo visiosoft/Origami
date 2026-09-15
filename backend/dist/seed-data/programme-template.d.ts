@@ -22,6 +22,7 @@ export interface ProgrammeTemplateDef {
     key: string;
     name: string;
     phases: TemplatePhase[];
+    projectTypes?: string[];
 }
 export declare const DEFAULT_TEMPLATE_KEY = "default";
 export declare const DEFAULT_LIBRARY: ProgrammeTemplateDef[];

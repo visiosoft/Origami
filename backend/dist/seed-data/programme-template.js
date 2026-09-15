@@ -214,7 +214,8 @@ function parseLibrary(raw) {
             const phases = parseProgramme(JSON.stringify(entry.phases));
             if (!phases)
                 continue;
-            out.push({ key: entry.key, name: entry.name, phases });
+            const projectTypes = Array.isArray(entry.projectTypes) ? entry.projectTypes.filter((t) => typeof t === 'string') : [];
+            out.push({ key: entry.key, name: entry.name, phases, projectTypes });
         }
         return out.length ? out : null;
     }

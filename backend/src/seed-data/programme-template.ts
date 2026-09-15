@@ -259,6 +259,13 @@ export interface ProgrammeTemplateDef {
   key: string;
   name: string;
   phases: TemplatePhase[];
+  /**
+   * Which "Potential Project Type" picks this template (the same list used
+   * at lead intake) -- a kitchen remodel and a ground-up build don't skip
+   * the same steps, so a template is built for a set of project types, not
+   * a single global shape. Empty/absent means "not tied to a type yet".
+   */
+  projectTypes?: string[];
 }
 
 export const DEFAULT_TEMPLATE_KEY = 'default';
@@ -278,7 +285,8 @@ export function parseLibrary(raw: string | null | undefined): ProgrammeTemplateD
       if (!entry || typeof entry.key !== 'string' || typeof entry.name !== 'string') continue;
       const phases = parseProgramme(JSON.stringify(entry.phases));
       if (!phases) continue;
-      out.push({ key: entry.key, name: entry.name, phases });
+      const projectTypes = Array.isArray(entry.projectTypes) ? entry.projectTypes.filter((t: unknown) => typeof t === 'string') : [];
+      out.push({ key: entry.key, name: entry.name, phases, projectTypes });
     }
     return out.length ? out : null;
   } catch {

@@ -27,7 +27,7 @@ let PhasesController = class PhasesController {
         return this.service.listTemplates();
     }
     saveTemplate(body) {
-        return this.service.saveTemplateEntry(body?.key, body?.name, body?.phases);
+        return this.service.saveTemplateEntry(body?.key, body?.name, body?.phases, body?.projectTypes);
     }
     deleteTemplate(key) {
         return this.service.deleteTemplateEntry(key);

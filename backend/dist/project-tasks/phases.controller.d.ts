@@ -9,6 +9,7 @@ export declare class PhasesController {
         key?: string;
         name: string;
         phases: unknown;
+        projectTypes?: unknown;
     }): Promise<import("../seed-data/programme-template").ProgrammeTemplateDef>;
     deleteTemplate(key: string): Promise<import("../seed-data/programme-template").ProgrammeTemplateDef[]>;
     applyTemplate(projectId: string): Promise<{

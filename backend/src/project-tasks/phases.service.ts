@@ -153,10 +153,11 @@ export class PhasesService implements OnApplicationBootstrap {
    * rename keeps its key, so projects pointing at it are unaffected); omit it
    * to create a new one, keyed from the name and disambiguated if it collides.
    */
-  async saveTemplateEntry(key: string | undefined, name: string, phases: unknown) {
+  async saveTemplateEntry(key: string | undefined, name: string, phases: unknown, projectTypes?: unknown) {
     const parsedPhases = parseProgramme(JSON.stringify(phases));
     if (!parsedPhases) throw new BadRequestException('That is not a usable programme template.');
     const cleanName = (name || '').trim() || 'Untitled';
+    const cleanTypes = Array.isArray(projectTypes) ? projectTypes.filter((t): t is string => typeof t === 'string') : [];
     const lib = await this.library();
     let cleanKey = key;
     if (!cleanKey) {
@@ -165,7 +166,7 @@ export class PhasesService implements OnApplicationBootstrap {
       let n = 2;
       while (lib.some((t) => t.key === cleanKey)) cleanKey = `${base}-${n++}`;
     }
-    const entry: ProgrammeTemplateDef = { key: cleanKey, name: cleanName, phases: parsedPhases };
+    const entry: ProgrammeTemplateDef = { key: cleanKey, name: cleanName, phases: parsedPhases, projectTypes: cleanTypes };
     const idx = lib.findIndex((t) => t.key === cleanKey);
     const next = idx >= 0 ? lib.map((t, i) => (i === idx ? entry : t)) : [...lib, entry];
     await this.settings.set('programme.templates', JSON.stringify(next));

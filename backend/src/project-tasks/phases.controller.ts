@@ -22,8 +22,8 @@ export class PhasesController {
 
   /** Create (omit key) or replace (pass key) one named template. */
   @Put('templates')
-  saveTemplate(@Body() body: { key?: string; name: string; phases: unknown }) {
-    return this.service.saveTemplateEntry(body?.key, body?.name, body?.phases);
+  saveTemplate(@Body() body: { key?: string; name: string; phases: unknown; projectTypes?: unknown }) {
+    return this.service.saveTemplateEntry(body?.key, body?.name, body?.phases, body?.projectTypes);
   }
 
   @Delete('templates/:key')
