@@ -124,7 +124,7 @@ export function MyCalendar() {
       .catch(() => { });
   };
 
-  useEffect(() => { if (connected) reloadTasks(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [connected]);
+  useEffect(() => { if (connected && currentUser) reloadTasks(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [connected, currentUser]);
 
   useEffect(() => {
     if (!connected) { setLoading(false); return; }
@@ -357,7 +357,17 @@ export function MyCalendar() {
       {taskDrawerSlot && (
         <NewTaskDrawer
           onClose={() => setTaskDrawerSlot(null)}
-          onCreated={() => reloadTasks()}
+          onCreated={(created) => {
+            // Optimistic: show it on the grid immediately rather than waiting on a
+            // refetch + the "am I the assignee" match to land.
+            if (created?.dueDate && created?.dueTime) {
+              setMyTasks((prev) => [...prev, {
+                id: `task-pending-${Date.now()}`, summary: created.description || 'Task', isTask: true, allDay: false,
+                start: `${created.dueDate}T${created.dueTime}:00`, end: `${created.dueDate}T${created.dueTime}:00`,
+              }]);
+            }
+            reloadTasks();
+          }}
           defaultAssignedTo={currentUser?.name}
           defaultDueDate={taskDrawerSlot.dateKey}
           defaultDueTime={taskDrawerSlot.time}
