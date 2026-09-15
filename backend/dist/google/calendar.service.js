@@ -60,6 +60,41 @@ let CalendarService = class CalendarService {
             htmlLink: e.htmlLink,
         }));
     }
+    async createMyEvent(userId, refreshToken, input) {
+        const token = await this.userToken(userId, refreshToken);
+        const body = {
+            summary: input.summary,
+            description: input.description || '',
+            start: { dateTime: input.start },
+            end: { dateTime: input.end },
+        };
+        if (input.video) {
+            body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
+        }
+        const params = new URLSearchParams();
+        if (input.video)
+            params.set('conferenceDataVersion', '1');
+        const res = await fetch(`${EVENTS_URL}?${params.toString()}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            this.log.error(`createMyEvent failed: ${JSON.stringify(json)}`);
+            throw new common_1.BadRequestException(json?.error?.message || 'Google Calendar rejected the event.');
+        }
+        const meetLink = json?.conferenceData?.entryPoints?.find((e) => e.entryPointType === 'video')?.uri;
+        return {
+            id: json.id,
+            summary: json.summary || input.summary,
+            start: json.start?.dateTime || json.start?.date,
+            end: json.end?.dateTime || json.end?.date,
+            allDay: !json.start?.dateTime,
+            htmlLink: json.htmlLink,
+            meetLink,
+        };
+    }
     async freeBusy(emails, timeMin, timeMax) {
         const clean = [...new Set(emails.map((e) => e.trim()).filter(Boolean))];
         if (!clean.length)

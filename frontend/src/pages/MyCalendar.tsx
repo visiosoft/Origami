@@ -1,11 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
+import { useApp } from '../AppContext';
+import { isMine } from '../components/TaskScope';
+import { NewTaskDrawer } from '../components/NewTaskDrawer';
+import type { Task } from '../data/tasks';
 
 const BG = "'Bricolage Grotesque', serif";
 
-interface CalEvent { id: string; summary: string; start: string; end: string; allDay: boolean; htmlLink?: string }
+interface CalEvent {
+  id: string; summary: string; start: string; end: string; allDay: boolean; htmlLink?: string;
+  /** A task with a due time, merged in alongside the real Google events. */
+  isTask?: boolean;
+}
 interface Positioned extends CalEvent { top: number; height: number; col: number; cols: number; startMin: number; endMin: number }
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_TIME = /^\d{2}:\d{2}$/;
+const pad = (n: number) => String(n).padStart(2, '0');
 
 const HOUR_H = 48; // px per hour, same rhythm Google's own week view uses
 const GUTTER_W = 52;
@@ -77,17 +89,42 @@ function layoutDay(events: CalEvent[]): Positioned[] {
  */
 export function MyCalendar() {
   const navigate = useNavigate();
+  const { currentUser, toast } = useApp();
   const [connected, setConnected] = useState<boolean | null>(null);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [events, setEvents] = useState<CalEvent[]>([]);
+  const [myTasks, setMyTasks] = useState<CalEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(() => new Date());
   const gridRef = useRef<HTMLDivElement | null>(null);
   const scrolledRef = useRef(false);
 
+  // Click-to-create: a small popover offering "Task" or "Google Meet" at the slot the user clicked.
+  const [quickCreate, setQuickCreate] = useState<{ dateKey: string; time: string; x: number; y: number } | null>(null);
+  const [taskDrawerSlot, setTaskDrawerSlot] = useState<{ dateKey: string; time: string } | null>(null);
+  const [meetSlot, setMeetSlot] = useState<{ dateKey: string; time: string } | null>(null);
+
   useEffect(() => {
     api.google.myCalendar.status().then((res: any) => setConnected(!!res?.connected)).catch(() => setConnected(false));
   }, []);
+
+  const reloadTasks = () => {
+    api.tasks.list()
+      .then((res: any) => {
+        const rows: Task[] = Array.isArray(res) ? res : [];
+        const mine = rows
+          .filter((t) => isMine(t, currentUser) && ISO_DATE.test(t.dueDate) && ISO_TIME.test(t.dueTime || ''))
+          .map((t) => ({
+            id: `task-${t.id}`, summary: t.description || 'Task', isTask: true, allDay: false,
+            start: `${t.dueDate}T${t.dueTime}:00`,
+            end: `${t.dueDate}T${t.dueTime}:00`,
+          }));
+        setMyTasks(mine);
+      })
+      .catch(() => { });
+  };
+
+  useEffect(() => { if (connected) reloadTasks(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [connected]);
 
   useEffect(() => {
     if (!connected) { setLoading(false); return; }
@@ -111,10 +148,11 @@ export function MyCalendar() {
   }, [loading]);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const allItems = useMemo(() => [...events, ...myTasks], [events, myTasks]);
   const byDay = useMemo(() => {
     const m = new Map<string, CalEvent[]>();
     for (const d of days) m.set(dayKey(d), []);
-    for (const e of events) {
+    for (const e of allItems) {
       const key = dayKey(new Date(e.start));
       if (m.has(key)) m.get(key)!.push(e);
     }
@@ -237,7 +275,18 @@ export function MyCalendar() {
               const isToday = key === today;
               const dayEvents = laidOut.get(key) || [];
               return (
-                <div key={key} style={{ flex: 1, minWidth: 0, position: 'relative', borderLeft: '1px solid rgba(20,8,31,0.06)', background: isToday ? '#FBFCFA' : 'transparent' }}>
+                <div
+                  key={key}
+                  onClick={(ev) => {
+                    const rect = ev.currentTarget.getBoundingClientRect();
+                    const y = ev.clientY - rect.top;
+                    const rawMin = Math.max(0, Math.min(24 * 60 - 15, (y / HOUR_H) * 60));
+                    const snapped = Math.round(rawMin / 15) * 15;
+                    const time = `${pad(Math.floor(snapped / 60))}:${pad(snapped % 60)}`;
+                    setQuickCreate({ dateKey: key, time, x: ev.clientX, y: ev.clientY });
+                  }}
+                  style={{ flex: 1, minWidth: 0, position: 'relative', borderLeft: '1px solid rgba(20,8,31,0.06)', background: isToday ? '#FBFCFA' : 'transparent', cursor: 'pointer' }}
+                >
                   {Array.from({ length: 24 }, (_, h) => (
                     <div key={h} style={{ height: HOUR_H, borderTop: h ? '1px solid rgba(20,8,31,0.05)' : 'none' }} />
                   ))}
@@ -249,23 +298,137 @@ export function MyCalendar() {
                   {dayEvents.map((e) => (
                     <a
                       key={e.id}
-                      href={e.htmlLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={e.isTask ? undefined : e.htmlLink}
+                      target={e.isTask ? undefined : '_blank'}
+                      rel={e.isTask ? undefined : 'noopener noreferrer'}
                       title={e.summary}
+                      onClick={(ev) => { ev.stopPropagation(); if (e.isTask) { ev.preventDefault(); navigate('/tasks'); } }}
                       style={{
                         position: 'absolute', top: e.top, left: `calc(${(e.col / e.cols) * 100}% + 1px)`, width: `calc(${100 / e.cols}% - 3px)`,
-                        height: e.height, background: colorFor(e.id), color: 'white', borderRadius: 6, padding: '3px 6px',
+                        height: e.height, background: e.isTask ? '#173326' : colorFor(e.id), color: 'white', borderRadius: 6, padding: '3px 6px',
                         fontSize: 10.5, lineHeight: 1.3, overflow: 'hidden', textDecoration: 'none', boxShadow: '0 1px 3px rgba(20,8,31,0.15)', zIndex: 2,
+                        border: e.isTask ? '1px dashed rgba(255,255,255,0.5)' : 'none', cursor: 'pointer',
                       }}
                     >
-                      <div style={{ fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{e.summary}</div>
+                      <div style={{ fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{e.isTask ? '✓ ' : ''}{e.summary}</div>
                       {e.height > 30 && <div style={{ opacity: 0.85 }}>{fmtTime(e.start)}</div>}
                     </a>
                   ))}
                 </div>
               );
             })}
+          </div>
+        </div>
+      </div>
+
+      {quickCreate && (
+        <div onClick={() => setQuickCreate(null)} style={{ position: 'fixed', inset: 0, zIndex: 300 }}>
+          <div
+            onClick={(ev) => ev.stopPropagation()}
+            style={{
+              position: 'fixed', left: Math.min(quickCreate.x, window.innerWidth - 200), top: Math.min(quickCreate.y, window.innerHeight - 120),
+              background: 'white', borderRadius: 10, boxShadow: '0 8px 28px rgba(20,8,31,0.22)', border: '1px solid rgba(20,8,31,0.08)',
+              padding: 8, width: 188, display: 'flex', flexDirection: 'column', gap: 2,
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#7E9B93', padding: '2px 8px 6px' }}>
+              {new Date(`${quickCreate.dateKey}T${quickCreate.time}:00`).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </div>
+            <div
+              onClick={() => { setTaskDrawerSlot({ dateKey: quickCreate.dateKey, time: quickCreate.time }); setQuickCreate(null); }}
+              style={{ padding: '8px 10px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#0B1A12' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F1EC')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              ✓ Create Task
+            </div>
+            <div
+              onClick={() => { setMeetSlot({ dateKey: quickCreate.dateKey, time: quickCreate.time }); setQuickCreate(null); }}
+              style={{ padding: '8px 10px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#0B1A12' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F1EC')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              📹 Create Google Meet
+            </div>
+          </div>
+        </div>
+      )}
+
+      {taskDrawerSlot && (
+        <NewTaskDrawer
+          onClose={() => setTaskDrawerSlot(null)}
+          onCreated={() => reloadTasks()}
+          defaultAssignedTo={currentUser?.name}
+          defaultDueDate={taskDrawerSlot.dateKey}
+          defaultDueTime={taskDrawerSlot.time}
+        />
+      )}
+
+      {meetSlot && (
+        <CreateMeetModal
+          dateKey={meetSlot.dateKey}
+          time={meetSlot.time}
+          onClose={() => setMeetSlot(null)}
+          onCreated={(ev) => { setEvents((prev) => [...prev, ev]); toast('Google Meet created'); setMeetSlot(null); }}
+          toast={toast}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Small modal for the click-to-create "Google Meet" path — title + duration, then it appears on the grid. */
+function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
+  dateKey: string;
+  time: string;
+  onClose: () => void;
+  onCreated: (ev: CalEvent) => void;
+  toast: (msg: string) => void;
+}) {
+  const [title, setTitle] = useState('Meeting');
+  const [duration, setDuration] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  const create = () => {
+    if (!title.trim()) { toast('Add a title'); return; }
+    const start = new Date(`${dateKey}T${time}:00`);
+    const end = new Date(start.getTime() + duration * 60_000);
+    setSaving(true);
+    api.google.myCalendar.createEvent({ summary: title.trim(), start: start.toISOString(), end: end.toISOString(), video: true })
+      .then((res: any) => onCreated({ id: res.id, summary: res.summary || title.trim(), start: res.start || start.toISOString(), end: res.end || end.toISOString(), allDay: false, htmlLink: res.htmlLink }))
+      .catch(() => toast('⚠ Could not create the Google Meet'))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 14, padding: 22, width: 340, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, color: '#0B1A12', marginBottom: 2 }}>New Google Meet</div>
+        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 16 }}>
+          {new Date(`${dateKey}T${time}:00`).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Title</div>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+          style={{ boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', marginBottom: 14 }}
+        />
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Duration</div>
+        <select
+          value={duration}
+          onChange={(e) => setDuration(Number(e.target.value))}
+          style={{ boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', marginBottom: 18, background: 'white' }}
+        >
+          <option value={15}>15 minutes</option>
+          <option value={30}>30 minutes</option>
+          <option value={60}>1 hour</option>
+          <option value={90}>1.5 hours</option>
+        </select>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
+          <div onClick={saving ? undefined : create} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+            {saving ? 'Creating…' : 'Create with Meet link'}
           </div>
         </div>
       </div>

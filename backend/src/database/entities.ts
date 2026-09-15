@@ -89,6 +89,9 @@ export class TaskEntity {
   @Column() topicType!: string;
   @Column(TEXT) description!: string;
   @Column({ nullable: true }) dueDate!: string;
+  // HH:mm, set when a task is created from a specific slot on My Calendar --
+  // absent means "sometime that day", same as before this existed.
+  @Column({ nullable: true }) dueTime!: string;
   @Column({ nullable: true }) dateClosed!: string;
   @Column('int') daysOpen!: number;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) resolution!: string;
@@ -571,9 +574,10 @@ export class UserEntity {
   @Column({ type: 'bit', nullable: true }) notifyOnMilestone!: boolean | null;
   // A staff member's OWN Google Calendar -- separate from the one shared
   // workspace connection everything else in this file (mail, Drive, the
-  // office-wide calendars checked while booking) uses. Read-only: this is
-  // for a person to see their own schedule, not for the app to act on their
-  // behalf. Never returned to the client -- see publicUser() in auth.service.
+  // office-wide calendars checked while booking) uses. Scoped to
+  // calendar.events only: Origami can create/update events this person makes
+  // from My Calendar, but never reads or touches their calendar list.
+  // Never returned to the client -- see publicUser() in auth.service.
   @Column({ nullable: true }) calendarRefreshToken!: string;
   @Column({ nullable: true }) calendarEmail!: string;
   @Column({ nullable: true }) calendarConnectedAt!: string;

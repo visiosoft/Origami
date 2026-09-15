@@ -254,6 +254,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], TaskEntity.prototype, "dueTime", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], TaskEntity.prototype, "dateClosed", void 0);
 __decorate([
     (0, typeorm_1.Column)('int'),

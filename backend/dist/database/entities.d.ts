@@ -60,6 +60,7 @@ export declare class TaskEntity {
     topicType: string;
     description: string;
     dueDate: string;
+    dueTime: string;
     dateClosed: string;
     daysOpen: number;
     resolution: string;

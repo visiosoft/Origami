@@ -18,6 +18,7 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() topicType?: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
+  @IsString() @IsOptional() dueTime?: string;
   @IsString() @IsOptional() dateClosed?: string;
   @IsString() @IsOptional() resolution?: string;
   @IsString() @IsOptional() linkedFile?: string;

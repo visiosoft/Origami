@@ -13,6 +13,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() topicType?: string;
   @IsString() description: string;
   @IsString() @IsOptional() dueDate?: string;
+  @IsString() @IsOptional() dueTime?: string;
   @IsString() @IsOptional() linkedFile?: string;
   @IsString() @IsOptional() project?: string;
   @IsArray() @IsOptional() labels?: string[];

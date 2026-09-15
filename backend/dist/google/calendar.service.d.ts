@@ -33,6 +33,9 @@ export declare class CalendarService {
     constructor(google: GoogleService);
     private userToken;
     myEvents(userId: string, refreshToken: string, timeMin: string, timeMax: string): Promise<MyCalendarEvent[]>;
+    createMyEvent(userId: string, refreshToken: string, input: ScheduleEventInput): Promise<MyCalendarEvent & {
+        meetLink?: string;
+    }>;
     freeBusy(emails: string[], timeMin: string, timeMax: string): Promise<CalendarAvailability[]>;
     scheduleEvent(input: ScheduleEventInput): Promise<{
         id: string;

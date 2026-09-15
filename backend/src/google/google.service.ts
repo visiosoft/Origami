@@ -32,16 +32,18 @@ export const WORKSPACE_SCOPES = [
 export const LOGIN_SCOPES = ['openid', 'email', 'profile'];
 
 /**
- * Scopes for a staff member connecting their OWN calendar -- read-only, and
- * deliberately not the workspace scopes: this account may not even be the
- * same one the office's shared connection uses, and nothing here should be
- * able to send mail or touch Drive as that person.
+ * Scopes for a staff member connecting their OWN calendar -- deliberately not
+ * the workspace scopes: this account may not even be the same one the
+ * office's shared connection uses, and nothing here should be able to send
+ * mail or touch Drive as that person. `calendar.events` (rather than the
+ * full `calendar` scope) lets Origami create/update events the person makes
+ * from My Calendar without being able to see or touch their calendar list.
  */
 export const MY_CALENDAR_SCOPES = [
   'openid',
   'email',
   'profile',
-  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
 ];
 
 export interface GoogleProfile {

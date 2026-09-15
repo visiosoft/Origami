@@ -96,6 +96,46 @@ export class CalendarService {
   }
 
   /**
+   * Create an event on the signed-in user's OWN primary calendar, using
+   * their personal refresh token (not the shared workspace one). Used by My
+   * Calendar's click-to-create "Google Meet" flow.
+   */
+  async createMyEvent(userId: string, refreshToken: string, input: ScheduleEventInput): Promise<MyCalendarEvent & { meetLink?: string }> {
+    const token = await this.userToken(userId, refreshToken);
+    const body: any = {
+      summary: input.summary,
+      description: input.description || '',
+      start: { dateTime: input.start },
+      end: { dateTime: input.end },
+    };
+    if (input.video) {
+      body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
+    }
+    const params = new URLSearchParams();
+    if (input.video) params.set('conferenceDataVersion', '1');
+    const res = await fetch(`${EVENTS_URL}?${params.toString()}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const json: any = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      this.log.error(`createMyEvent failed: ${JSON.stringify(json)}`);
+      throw new BadRequestException(json?.error?.message || 'Google Calendar rejected the event.');
+    }
+    const meetLink = json?.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri;
+    return {
+      id: json.id,
+      summary: json.summary || input.summary,
+      start: json.start?.dateTime || json.start?.date,
+      end: json.end?.dateTime || json.end?.date,
+      allDay: !json.start?.dateTime,
+      htmlLink: json.htmlLink,
+      meetLink,
+    };
+  }
+
+  /**
    * Free/busy for a list of calendars over one window. A calendar the
    * connected account cannot see into (no sharing, wrong domain, a bad
    * address) comes back with `busy: null` and an error, not a thrown

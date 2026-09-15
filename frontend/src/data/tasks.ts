@@ -12,6 +12,8 @@ export interface Task {
   topicType: 'Task' | 'FYI' | 'RFI';
   description: string;
   dueDate: string;
+  /** HH:mm, set when created from a specific slot on My Calendar. */
+  dueTime?: string;
   dateClosed: string;
   daysOpen: number;
   resolution: string;

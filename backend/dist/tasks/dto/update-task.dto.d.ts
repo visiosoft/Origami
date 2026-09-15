@@ -9,6 +9,7 @@ export declare class UpdateTaskDto {
     topicType?: string;
     description?: string;
     dueDate?: string;
+    dueTime?: string;
     dateClosed?: string;
     resolution?: string;
     linkedFile?: string;

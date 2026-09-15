@@ -33,6 +33,15 @@ export declare class GoogleController {
         email: string;
     }>;
     myCalendarEvents(req: AuthedRequest, from: string, to: string): Promise<import("./calendar.service").MyCalendarEvent[]>;
+    createMyCalendarEvent(req: AuthedRequest, body: {
+        summary: string;
+        start: string;
+        end: string;
+        description?: string;
+        video?: boolean;
+    }): Promise<import("./calendar.service").MyCalendarEvent & {
+        meetLink?: string;
+    }>;
     login(res: Response): Promise<void>;
     callback(code: string, state: string, error: string, res: Response): Promise<void>;
     disconnect(): Promise<{

@@ -12,12 +12,12 @@ const inputStyle: React.CSSProperties = {
 
 interface NewTask {
   tab: TaskTab; meetingType: string; meetingDate: string; assignedTo: string; originator: string;
-  topicType: string; status: string; dueDate: string; project: string; description: string;
+  topicType: string; status: string; dueDate: string; dueTime: string; project: string; description: string;
   linkedFile: string; labels: string[];
 }
-const blank = (project: string, labels: string[]): NewTask => ({
+const blank = (project: string, labels: string[], dueDate = '', dueTime = ''): NewTask => ({
   tab: 'internal', meetingType: 'Internal', meetingDate: '', assignedTo: '', originator: '',
-  topicType: 'Task', status: 'Open', dueDate: '', project, description: '', linkedFile: '', labels,
+  topicType: 'Task', status: 'Open', dueDate, dueTime, project, description: '', linkedFile: '', labels,
 });
 
 /**
@@ -26,21 +26,26 @@ const blank = (project: string, labels: string[]): NewTask => ({
  * so adding a task looks and works the same regardless of where it started.
  */
 export function NewTaskDrawer({
-  onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo,
+  onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo, defaultDueDate, defaultDueTime,
 }: {
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (created?: { dueDate: string; dueTime: string; description: string }) => void;
   /** Opened from a specific lead/project: the Project field is fixed and hidden. */
   fixedProject?: { id: string; name: string };
   /** Opened from a lead: shows a Section field tagging which pipeline stage this task belongs to. */
   sections?: string[];
   defaultSection?: string;
   defaultAssignedTo?: string;
+  /** Opened from a My Calendar time-slot click -- pre-fills and locks in the slot's date/time. */
+  defaultDueDate?: string;
+  defaultDueTime?: string;
 }) {
   const { toast, users } = useApp();
   const [nt, setNt] = useState<NewTask>(() => blank(
     fixedProject?.id || '',
     defaultSection ? [`section:${defaultSection}`] : [],
+    defaultDueDate || '',
+    defaultDueTime || '',
   ));
   const [section, setSection] = useState(defaultSection || sections?.[0] || '');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
@@ -65,7 +70,7 @@ export function NewTaskDrawer({
       labels: sections ? [`section:${section}`] : nt.labels,
     };
     api.tasks.create(payload)
-      .then(() => { toast('Task created'); onCreated(); onClose(); })
+      .then(() => { toast('Task created'); onCreated({ dueDate: nt.dueDate, dueTime: nt.dueTime, description: nt.description }); onClose(); })
       .catch(() => toast('⚠ Failed to create task'))
       .finally(() => setCreating(false));
   };
@@ -85,6 +90,7 @@ export function NewTaskDrawer({
         <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, flex: 1 }}>
           <Fld label="Assigned To"><select value={nt.assignedTo} onChange={(e) => setNt({ ...nt, assignedTo: e.target.value })} style={inputStyle}><option value="">Select person…</option>{users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}</select></Fld>
           <Fld label="Due Date"><input type="date" value={nt.dueDate} onChange={(e) => setNt({ ...nt, dueDate: e.target.value })} style={inputStyle} /></Fld>
+          <Fld label="Due Time"><input type="time" value={nt.dueTime} onChange={(e) => setNt({ ...nt, dueTime: e.target.value })} style={inputStyle} /></Fld>
           {sections ? (
             <Fld label="Section"><select value={section} onChange={(e) => setSection(e.target.value)} style={inputStyle}>{sections.map((s) => <option key={s} value={s}>{s}</option>)}</select></Fld>
           ) : (

@@ -157,6 +157,11 @@ export const api = {
         request<{ id: string; summary: string; start: string; end: string; allDay: boolean; htmlLink?: string }[]>(
           `/google/my-calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
         ),
+      /** Creates a real event (optionally with a Meet link) on the signed-in user's own calendar. */
+      createEvent: (body: { summary: string; start: string; end: string; description?: string; video?: boolean }) =>
+        request<{ id: string; summary: string; start: string; end: string; allDay: boolean; htmlLink?: string; meetLink?: string }>(
+          '/google/my-calendar/events', { method: 'POST', body: JSON.stringify(body) },
+        ),
     },
   },
   dashboard: {

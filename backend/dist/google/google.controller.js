@@ -67,6 +67,19 @@ let GoogleController = class GoogleController {
             return [];
         return this.calendar.myEvents(userId, creds.refreshToken, from, to);
     }
+    async createMyCalendarEvent(req, body) {
+        const userId = req.claims?.sub;
+        if (!userId)
+            throw new common_1.BadRequestException('Sign in to continue.');
+        if (!body?.summary?.trim() || !body?.start || !body?.end)
+            throw new common_1.BadRequestException('Title, start and end are required.');
+        const creds = await this.auth.myCalendarCredentials(userId);
+        if (!creds)
+            throw new common_1.BadRequestException('Connect your calendar first, under your account settings.');
+        return this.calendar.createMyEvent(userId, creds.refreshToken, {
+            summary: body.summary, start: body.start, end: body.end, description: body.description, video: body.video,
+        });
+    }
     async login(res) {
         const secret = await this.settings.jwtSecret();
         const url = await this.google.consentUrl('login', (0, crypto_util_1.signState)({ mode: 'login' }, secret));
@@ -212,6 +225,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], GoogleController.prototype, "myCalendarEvents", null);
+__decorate([
+    (0, common_1.Post)('my-calendar/events'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], GoogleController.prototype, "createMyCalendarEvent", null);
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Get)('login'),

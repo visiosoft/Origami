@@ -10,6 +10,7 @@ export declare class CreateTaskDto {
     topicType?: string;
     description: string;
     dueDate?: string;
+    dueTime?: string;
     linkedFile?: string;
     project?: string;
     labels?: string[];
