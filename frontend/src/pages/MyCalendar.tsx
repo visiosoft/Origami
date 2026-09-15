@@ -415,6 +415,7 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
   onCreated: (ev: CalEvent) => void;
   toast: (msg: string) => void;
 }) {
+  const { users, currentUser } = useApp();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(dateKey);
   const [startTime, setStartTime] = useState(time);
@@ -432,12 +433,24 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
     return `${pad(Math.floor(total / 60) % 24)}:${pad(total % 60)}`;
   }, [startTime, duration]);
 
-  const addGuest = () => {
-    const email = guestInput.trim();
-    if (!email) return;
+  // Teammates whose email isn't already added, so the picker only offers people left to add.
+  const teamMatches = useMemo(() => {
+    const q = guestInput.trim().toLowerCase();
+    return users
+      .filter((u) => u.email && u.id !== currentUser?.id && !guests.includes(u.email))
+      .filter((u) => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [users, guestInput, guests, currentUser]);
+
+  const addGuestEmail = (email: string) => {
     if (!EMAIL_RE.test(email)) { toast('Enter a valid email address'); return; }
     if (!guests.includes(email)) setGuests((g) => [...g, email]);
     setGuestInput('');
+  };
+  const addGuest = () => {
+    const email = guestInput.trim();
+    if (!email) return;
+    addGuestEmail(email);
   };
   const removeGuest = (email: string) => setGuests((g) => g.filter((e) => e !== email));
 
@@ -514,10 +527,29 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
               value={guestInput}
               onChange={(e) => setGuestInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addGuest(); } }}
-              onBlur={addGuest}
-              placeholder="Add guests"
+              placeholder="Add guests -- type a name from your team, or an email"
               style={{ ...plainInput, padding: '2px 0' }}
             />
+            {teamMatches.length > 0 && (
+              <div style={{ marginTop: 6, border: '1px solid rgba(20,8,31,0.08)', borderRadius: 9, overflow: 'hidden' }}>
+                {teamMatches.map((u) => (
+                  <div
+                    key={u.id}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => addGuestEmail(u.email)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', cursor: 'pointer', fontSize: 12.5 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F1EC')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ width: 20, height: 20, borderRadius: 999, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                      {u.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span style={{ fontWeight: 600, color: '#0B1A12' }}>{u.name}</span>
+                    <span style={{ color: '#9AA39D' }}>{u.email}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
