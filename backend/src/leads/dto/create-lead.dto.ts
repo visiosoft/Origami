@@ -19,6 +19,7 @@ export class CreateLeadDto {
     @IsString() @IsOptional() preferredContactMethodOfSecondContact?: string;
     @IsString() @IsOptional() pronounsOfSecondContact?: string;
     @IsArray() @IsOptional() additionalContacts?: unknown[];
+    @IsArray() @IsOptional() primaryContactRoles?: string[];
     @IsObject() @IsOptional() sectionNotes?: Record<string, string>;
     @IsObject() @IsOptional() sectionCustomFields?: Record<string, unknown[]>;
     @IsArray() @IsOptional() contacts?: unknown[];

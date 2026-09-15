@@ -120,9 +120,10 @@ export function seedContactsFromLead(lead: Record<string, any>): LeadContact[] {
       email: lead.email || '',
       preferredContactMethod: lead.preferredContactMethod || '',
       clientPersonality: lead.clientPersonality || '',
-      // The person who called is the primary contact; whether they can also
-      // sign or decide is for someone to confirm, so no other role is assumed.
-      roles: ['PC'],
+      // Whatever was picked at intake, plus PC itself -- the person who
+      // called is always the primary contact even if that checkbox wasn't
+      // explicitly ticked.
+      roles: Array.from(new Set(['PC', ...(Array.isArray(lead.primaryContactRoles) ? lead.primaryContactRoles : [])])),
       notes: '',
     });
     // Fall back to splitting the single name for leads predating the split.
@@ -147,6 +148,28 @@ export function seedContactsFromLead(lead: Record<string, any>): LeadContact[] {
       preferredContactMethod: lead.preferredContactMethodOfSecondContact || '',
       title: lead.relationshipOfSecondContact || '',
       roles: ['SC'],
+      notes: '',
+    });
+  }
+
+  // The live intake form's "+ Add another contact" -- each one carries
+  // whatever roles were picked for it there, so nothing has to be re-picked
+  // once the lead is saved and the full Contacts tab is available.
+  const additional = Array.isArray(lead.additionalContacts) ? lead.additionalContacts : [];
+  for (const c of additional) {
+    const named = (c?.firstName || c?.lastName || c?.goByName || '').trim();
+    if (!named) continue;
+    out.push({
+      ...blankContact(),
+      id: c.id ? `C-${c.id}` : `C-${Math.random().toString(36).slice(2, 9)}`,
+      firstName: c.firstName || '',
+      lastName: c.lastName || '',
+      goByName: c.goByName || '',
+      pronouns: c.pronouns || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      preferredContactMethod: c.preferredContactMethod || '',
+      roles: Array.isArray(c.roles) ? c.roles : [],
       notes: '',
     });
   }

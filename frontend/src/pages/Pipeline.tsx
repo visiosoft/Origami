@@ -10,7 +10,7 @@ import { countyForCity, regionForCounty, REGION_BY_COUNTY, type Region } from '.
 import { type Address, blankAddress } from '../data/personProfile';
 import { ContactsDirectory } from '../components/ContactsDirectory';
 import { FollowUpPanel, type FollowUp } from '../components/FollowUpPanel';
-import { seedContactsFromLead, type LeadContact } from '../data/leadContacts';
+import { seedContactsFromLead, CONTACT_ROLES, type LeadContact } from '../data/leadContacts';
 import { LEAD_DROPDOWN_OPTIONS, composeLeadName, splitLeadName, optionsWith, isReferralSource, isEventSource, sourceDetailLabel, primaryContactMethod, contactMatrixSummary } from '../data/leads';
 import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
@@ -42,10 +42,12 @@ const DOT = '·';
 interface AdditionalContact {
   id: string; firstName: string; lastName: string; goByName: string; pronouns: string;
   namePronunciation: string; phone: string; email: string; preferredContactMethod: string;
+  /** Owner's Rep, Contract Authority, Approver, etc. -- same codes as the Contacts tab's Roles picker. */
+  roles?: string[];
 }
 const blankAdditionalContact = (): AdditionalContact => ({
   id: 'AC-' + Math.random().toString(36).slice(2, 9),
-  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '',
+  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '', roles: [],
 });
 
 /** An ad-hoc label/value pair, for something a section's fixed fields don't cover. */
@@ -59,6 +61,8 @@ interface NewLead {
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
   preferredContactMatrix?: Record<string, string>;
   additionalContacts?: AdditionalContact[];
+  /** Roles the primary contact holds beyond just being the primary contact -- e.g. also the Owner, also the Approver. */
+  primaryContactRoles?: string[];
   // Every section carries its own notes and ad-hoc fields, keyed by the
   // section's key (below) rather than its numbered title -- a section
   // getting renumbered or renamed must not orphan what was written here.
@@ -133,6 +137,7 @@ const BLANK_LEAD: NewLead = {
   leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
   namePronunciation: '', phone: '', email: '',
   additionalContacts: [],
+  primaryContactRoles: ['PC'],
   sectionNotes: {}, sectionCustomFields: {},
   primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
   phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
@@ -440,6 +445,32 @@ export function Pipeline() {
   const updateContact = (id: string, patch: Partial<AdditionalContact>) =>
     setField('additionalContacts', (nl.additionalContacts || []).map((c) => (c.id === id ? { ...c, ...patch } : c)));
   const removeContact = (id: string) => setField('additionalContacts', (nl.additionalContacts || []).filter((c) => c.id !== id));
+  // A single-holder role (Contract Authority, Approver, ...) moves off
+  // whoever had it -- same rule the Contacts tab enforces after the lead is
+  // saved, so intake and post-save behave the same way.
+  const toggleIntakeRole = (holder: 'primary' | string, code: string) => {
+    const single = CONTACT_ROLES.find((r) => r.code === code)?.single;
+    const primaryRoles = nl.primaryContactRoles || ['PC'];
+    const contacts = nl.additionalContacts || [];
+    const holderHasIt = holder === 'primary' ? primaryRoles.includes(code) : !!contacts.find((c) => c.id === holder)?.roles?.includes(code);
+    const adding = !holderHasIt;
+    // Both sides update together so a single-holder role moving off its
+    // previous holder can never be clobbered by a second, stale write.
+    setField(
+      'primaryContactRoles',
+      holder === 'primary'
+        ? (adding ? [...primaryRoles, code] : primaryRoles.filter((r) => r !== code))
+        : (adding && single ? primaryRoles.filter((r) => r !== code) : primaryRoles),
+    );
+    setField(
+      'additionalContacts',
+      contacts.map((c) => {
+        if (c.id === holder) return { ...c, roles: adding ? [...(c.roles || []), code] : (c.roles || []).filter((r) => r !== code) };
+        if (adding && single && c.roles?.includes(code)) return { ...c, roles: c.roles.filter((r) => r !== code) };
+        return c;
+      }),
+    );
+  };
   const sectionExtrasProps = (key: string) => ({
     notes: nl.sectionNotes?.[key] || '',
     fields: nl.sectionCustomFields?.[key] || [],
@@ -1700,6 +1731,7 @@ export function Pipeline() {
                     <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                     <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={nl.preferredContactMatrix} onChange={(mx) => setField('preferredContactMatrix', mx)} /></div>
+                    <IntakeRolePicker roles={nl.primaryContactRoles || ['PC']} onToggle={(code) => toggleIntakeRole('primary', code)} hide={['PC']} />
                   </FormGrid>
 
                   {(nl.additionalContacts || []).map((c, i) => (
@@ -1717,6 +1749,7 @@ export function Pipeline() {
                         <FormField label="Phone Number"><input type="tel" value={c.phone} onChange={(e) => updateContact(c.id, { phone: e.target.value })} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                         <FormField label="Email"><input type="email" value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} placeholder="email@example.com" style={inputStyle} /></FormField>
                         <FormField label="Preferred Contact Method"><select value={c.preferredContactMethod} onChange={(e) => updateContact(c.id, { preferredContactMethod: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                        <IntakeRolePicker roles={c.roles || []} onToggle={(code) => toggleIntakeRole(c.id, code)} hide={['PC']} />
                       </FormGrid>
                     </div>
                   ))}
@@ -1905,6 +1938,29 @@ const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box'
 function SectionTitle({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, fontWeight: 700, color: '#173326', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>{children}</div>; }
 function FormGrid({ children }: { children: React.ReactNode }) { return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>{children}</div>; }
 function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return (<div><div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{label}</div>{children}{hint && <div style={{ fontSize: 10, color: '#9AA39D', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}</div>); }
+
+/** The same role chips as the Contacts tab, so a role picked at intake doesn't have to be re-picked once the lead is saved. */
+function IntakeRolePicker({ roles, onToggle, hide }: { roles: string[]; onToggle: (code: string) => void; hide: string[] }) {
+  return (
+    <div style={{ gridColumn: '1 / -1' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Roles</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {CONTACT_ROLES.filter((r) => !hide.includes(r.code)).map((r) => {
+          const on = roles.includes(r.code);
+          return (
+            <div
+              key={r.code}
+              onClick={() => onToggle(r.code)}
+              title={r.hint || r.label}
+              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#43514D', fontWeight: on ? 700 : 400 }}
+            >{r.label}</div>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 5, lineHeight: 1.5 }}>Anything this person is beyond this section — e.g. also the Owner or the Approver. More roles are on the Contacts tab once the lead is saved.</div>
+    </div>
+  );
+}
 
 /**
  * Every section's escape hatch: a free-text Notes box plus any number of

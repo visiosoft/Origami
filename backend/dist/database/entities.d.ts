@@ -160,6 +160,7 @@ export declare class LeadEntity {
     preferredContactMethodOfSecondContact: string;
     pronounsOfSecondContact: string;
     additionalContacts: unknown[];
+    primaryContactRoles: string[];
     sectionNotes: Record<string, string>;
     sectionCustomFields: Record<string, unknown[]>;
     contacts: unknown[];

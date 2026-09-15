@@ -226,6 +226,10 @@ export class LeadEntity {
   // still read correctly, but no longer edited. Replaced by this repeatable
   // list: same columns as the primary contact, as many as the lead needs.
   @Column({ type: 'simple-json', nullable: true }) additionalContacts!: unknown[];
+  // Roles the primary contact holds beyond just being the primary contact --
+  // e.g. also the Owner, also the Approver -- picked at intake, same codes as
+  // the Contacts tab's Roles picker.
+  @Column({ type: 'simple-json', nullable: true }) primaryContactRoles!: string[];
   // Every intake section carries its own free-text notes and ad-hoc
   // label/value fields, keyed by the section's stable key (see LEAD_SECTIONS
   // on the frontend) rather than its numbered title.
