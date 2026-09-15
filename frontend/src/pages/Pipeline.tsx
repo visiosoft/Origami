@@ -44,10 +44,12 @@ interface AdditionalContact {
   namePronunciation: string; phone: string; email: string; preferredContactMethod: string;
   /** Owner's Rep, Contract Authority, Approver, etc. -- same codes as the Contacts tab's Roles picker. */
   roles?: string[];
+  /** The same role-per-row table as the primary contact, scoped to this contact -- folded into `roles` at submit. */
+  roleAssignments?: Record<string, { sameAsPrimary: boolean; name: string }>;
 }
 const blankAdditionalContact = (): AdditionalContact => ({
   id: 'AC-' + Math.random().toString(36).slice(2, 9),
-  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '', roles: [],
+  firstName: '', lastName: '', goByName: '', pronouns: '', namePronunciation: '', phone: '', email: '', preferredContactMethod: '', roles: [], roleAssignments: {},
 });
 
 /** An ad-hoc label/value pair, for something a section's fixed fields don't cover. */
@@ -189,38 +191,62 @@ function addMonths(from: Date, months: number) {
 const baseLead = (deal: Deal): NewLead => ({ ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
 
 /**
- * Folds the per-role "same as primary / or this person" table into the
- * existing primaryContactRoles + additionalContacts shape, so nothing about
- * storage has to change for this to work -- run once, at submit.
+ * Folds every role-per-row table on the form -- the primary contact's, and
+ * each additional contact's own -- into the existing primaryContactRoles /
+ * additionalContacts shape, so nothing about storage has to change for this
+ * to work. Run once, at submit.
  */
 function withRoleAssignments(nl: NewLead): NewLead {
-  const assignments = nl.roleAssignments || {};
   const primaryExtra: string[] = [];
+  // Keyed by lowercased full name -- a role named for someone already
+  // captured elsewhere on the form merges onto that person instead of
+  // spawning a duplicate.
   const byName = new Map<string, string[]>();
-  for (const [code, a] of Object.entries(assignments)) {
-    if (!a) continue;
-    if (a.sameAsPrimary) primaryExtra.push(code);
-    else if (a.name?.trim()) {
-      const key = a.name.trim();
-      byName.set(key, [...(byName.get(key) || []), code]);
-    }
-  }
-  if (!primaryExtra.length && !byName.size) return nl;
+  const contacts = nl.additionalContacts || [];
+  const nameOf = (c: { firstName: string; lastName: string; goByName?: string }) =>
+    ([c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || '').trim().toLowerCase();
 
-  const additionalContacts = [...(nl.additionalContacts || [])];
+  const collect = (assignments: Record<string, { sameAsPrimary: boolean; name: string }> | undefined, ownName: string, ownExtra: string[]) => {
+    for (const [code, a] of Object.entries(assignments || {})) {
+      if (!a) continue;
+      if (a.sameAsPrimary) ownExtra.push(code);
+      else if (a.name?.trim()) {
+        const key = a.name.trim();
+        // Naming yourself is the same as checking "Same as [you]".
+        if (key.toLowerCase() === ownName) ownExtra.push(code);
+        else byName.set(key, [...(byName.get(key) || []), code]);
+      }
+    }
+  };
+
+  collect(nl.roleAssignments, '', primaryExtra);
+  const contactExtras = new Map<string, string[]>();
+  for (const c of contacts) {
+    const extra: string[] = [];
+    collect(c.roleAssignments, nameOf(c), extra);
+    if (extra.length) contactExtras.set(c.id, extra);
+  }
+
+  if (!primaryExtra.length && !byName.size && !contactExtras.size) return nl;
+
+  let nextContacts = contacts.map((c) => {
+    const extra = contactExtras.get(c.id);
+    return extra?.length ? { ...c, roles: Array.from(new Set([...(c.roles || []), ...extra])) } : c;
+  });
   for (const [name, roles] of byName) {
-    const existing = additionalContacts.find((c) => [c.firstName, c.lastName].filter(Boolean).join(' ').trim().toLowerCase() === name.toLowerCase());
-    if (existing) {
-      existing.roles = Array.from(new Set([...(existing.roles || []), ...roles]));
+    const idx = nextContacts.findIndex((c) => nameOf(c) === name.toLowerCase());
+    if (idx >= 0) {
+      const existing = nextContacts[idx];
+      nextContacts = nextContacts.map((c, i) => (i === idx ? { ...existing, roles: Array.from(new Set([...(existing.roles || []), ...roles])) } : c));
     } else {
       const parts = name.split(/\s+/);
-      additionalContacts.push({ ...blankAdditionalContact(), firstName: parts[0] || '', lastName: parts.slice(1).join(' '), roles });
+      nextContacts = [...nextContacts, { ...blankAdditionalContact(), firstName: parts[0] || '', lastName: parts.slice(1).join(' '), roles }];
     }
   }
   return {
     ...nl,
     primaryContactRoles: Array.from(new Set([...(nl.primaryContactRoles || ['PC']), ...primaryExtra])),
-    additionalContacts,
+    additionalContacts: nextContacts,
   };
 }
 
@@ -489,32 +515,6 @@ export function Pipeline() {
   const updateContact = (id: string, patch: Partial<AdditionalContact>) =>
     setField('additionalContacts', (nl.additionalContacts || []).map((c) => (c.id === id ? { ...c, ...patch } : c)));
   const removeContact = (id: string) => setField('additionalContacts', (nl.additionalContacts || []).filter((c) => c.id !== id));
-  // A single-holder role (Contract Authority, Approver, ...) moves off
-  // whoever had it -- same rule the Contacts tab enforces after the lead is
-  // saved, so intake and post-save behave the same way.
-  const toggleIntakeRole = (holder: 'primary' | string, code: string) => {
-    const single = CONTACT_ROLES.find((r) => r.code === code)?.single;
-    const primaryRoles = nl.primaryContactRoles || ['PC'];
-    const contacts = nl.additionalContacts || [];
-    const holderHasIt = holder === 'primary' ? primaryRoles.includes(code) : !!contacts.find((c) => c.id === holder)?.roles?.includes(code);
-    const adding = !holderHasIt;
-    // Both sides update together so a single-holder role moving off its
-    // previous holder can never be clobbered by a second, stale write.
-    setField(
-      'primaryContactRoles',
-      holder === 'primary'
-        ? (adding ? [...primaryRoles, code] : primaryRoles.filter((r) => r !== code))
-        : (adding && single ? primaryRoles.filter((r) => r !== code) : primaryRoles),
-    );
-    setField(
-      'additionalContacts',
-      contacts.map((c) => {
-        if (c.id === holder) return { ...c, roles: adding ? [...(c.roles || []), code] : (c.roles || []).filter((r) => r !== code) };
-        if (adding && single && c.roles?.includes(code)) return { ...c, roles: c.roles.filter((r) => r !== code) };
-        return c;
-      }),
-    );
-  };
   const sectionExtrasProps = (key: string) => ({
     notes: nl.sectionNotes?.[key] || '',
     fields: nl.sectionCustomFields?.[key] || [],
@@ -1207,7 +1207,7 @@ export function Pipeline() {
                                           <span style={{ fontSize: 10, fontWeight: 600, color: '#9AA39D', display: 'block', marginBottom: 3 }}>{label}</span>
                                           {kind === 'select' ? (
                                             <select
-                                              value={c[key]}
+                                              value={c[key] as string}
                                               onChange={(e) => up('additionalContacts', (ld.additionalContacts || []).map((x) => (x.id === c.id ? { ...x, [key]: e.target.value } : x)) as never)}
                                               style={inputStyle}
                                             >
@@ -1217,7 +1217,7 @@ export function Pipeline() {
                                           ) : (
                                             <input
                                               type={kind}
-                                              value={c[key]}
+                                              value={c[key] as string}
                                               onChange={(e) => up('additionalContacts', (ld.additionalContacts || []).map((x) => (x.id === c.id ? { ...x, [key]: e.target.value } : x)) as never)}
                                               style={inputStyle}
                                             />
@@ -1799,7 +1799,11 @@ export function Pipeline() {
                         <FormField label="Phone Number"><input type="tel" value={c.phone} onChange={(e) => updateContact(c.id, { phone: e.target.value })} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                         <FormField label="Email"><input type="email" value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} placeholder="email@example.com" style={inputStyle} /></FormField>
                         <FormField label="Preferred Contact Method"><select value={c.preferredContactMethod} onChange={(e) => updateContact(c.id, { preferredContactMethod: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.preferredContactMethod.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                        <IntakeRolePicker roles={c.roles || []} onToggle={(code) => toggleIntakeRole(c.id, code)} hide={['PC']} />
+                        <RoleAssignmentTable
+                          assignments={c.roleAssignments || {}}
+                          onChange={(next) => updateContact(c.id, { roleAssignments: next })}
+                          primaryName={[c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || `Contact ${i + 1}`}
+                        />
                       </FormGrid>
                     </div>
                   ))}
@@ -2035,29 +2039,6 @@ function RoleAssignmentTable({
         })}
       </div>
       <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 5, lineHeight: 1.5 }}>Roles marked <b>*</b> are required somewhere on the lead before it converts. Full contact details for anyone named here can be filled in on the Contacts tab once the lead is saved.</div>
-    </div>
-  );
-}
-
-/** The same role chips as the Contacts tab, so a role picked at intake doesn't have to be re-picked once the lead is saved. */
-function IntakeRolePicker({ roles, onToggle, hide }: { roles: string[]; onToggle: (code: string) => void; hide: string[] }) {
-  return (
-    <div style={{ gridColumn: '1 / -1' }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Roles</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-        {CONTACT_ROLES.filter((r) => !hide.includes(r.code)).map((r) => {
-          const on = roles.includes(r.code);
-          return (
-            <div
-              key={r.code}
-              onClick={() => onToggle(r.code)}
-              title={r.hint || r.label}
-              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#43514D', fontWeight: on ? 700 : 400 }}
-            >{r.label}</div>
-          );
-        })}
-      </div>
-      <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 5, lineHeight: 1.5 }}>Anything this person is beyond this section — e.g. also the Owner or the Approver. More roles are on the Contacts tab once the lead is saved.</div>
     </div>
   );
 }
