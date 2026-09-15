@@ -142,9 +142,12 @@ export function Tasks() {
 
   const openNew = () => setShowNew(true);
 
+  const GENERAL_PF = 'General (no project)';
   const taskProjects: string[] = [];
   logTasks.forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); });
-  const byProject = (list: Task[]) => (pf === 'All projects' ? list : list.filter((x) => x.project === pf));
+  const hasGeneral = logTasks.some((x) => !x.project);
+  const byProject = (list: Task[]) =>
+    pf === 'All projects' ? list : pf === GENERAL_PF ? list.filter((x) => !x.project) : list.filter((x) => x.project === pf);
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
   TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(logTasks.filter((x) => (x as any).tab === t))).length; });
   const inTab = byProject(logTasks.filter((x) => (x as any).tab === tab));
@@ -202,7 +205,7 @@ export function Tasks() {
           </div>
           {projOpen && (
             <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 60, minWidth: 200, background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.08)', boxShadow: '0 12px 30px rgba(11,26,18,0.16)', padding: 5, maxHeight: 260, overflowY: 'auto' }}>
-              {['All projects', ...taskProjects].map((pr) => (
+              {['All projects', ...(hasGeneral ? [GENERAL_PF] : []), ...taskProjects].map((pr) => (
                 <div key={pr} onClick={() => { setPf(pr); setProjOpen(false); }} style={{ padding: '8px 11px', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: pf === pr ? 700 : 500, color: pf === pr ? '#173326' : '#43514D', background: pf === pr ? '#DCE7DE' : 'transparent' }}>{pr}</div>
               ))}
             </div>
@@ -295,7 +298,7 @@ export function Tasks() {
                 </div>
                 <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Project</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#173326' }}>{sel.project}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#173326' }}>{sel.project || 'General (no project)'}</div>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 12 }}>

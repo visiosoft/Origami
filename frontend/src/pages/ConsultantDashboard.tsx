@@ -6,6 +6,7 @@ import { MyTasks } from '../components/MyTasks';
 import type { Project } from '../data/projects';
 import type { Person } from '../data/people';
 import type { ProjectTask } from '../data/projectTasks';
+import './Dashboard.css';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -61,11 +62,17 @@ export function ConsultantDashboard() {
   }, [boardTasks, projectsById, currentUser]);
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: '#0B1A12' }}>Welcome{currentUser ? `, ${currentUser.name}` : ''}</div>
-        <div style={{ fontSize: 13, color: '#5C6B65' }}>Your assigned scopes and open items.</div>
-      </div>
+    <div className="dashboard-page dashboard-role-page" style={{ animation: 'fadeIn 0.3s ease' }}>
+      <section className="dashboard-intro">
+        <div>
+          <div className="dashboard-eyebrow">Your work queue</div>
+          <h2>Your next commitments.</h2>
+          <p>A short list of the scopes and decisions closest to you.</p>
+        </div>
+        <button className="dashboard-primary-action" onClick={() => navigate('/prequal')}>
+          Review scopes
+        </button>
+      </section>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '16px 0' }}>
         <Stat label="Assigned Scopes" value={String(assigned.length)} />
@@ -100,7 +107,7 @@ export function ConsultantDashboard() {
         )}
       </div>
 
-      <div onClick={() => navigate('/prequal')} style={{ display: 'inline-block', padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>View prequalification &amp; scopes</div>
+      <button className="dashboard-secondary-action" onClick={() => navigate('/prequal')}>View prequalification and scopes</button>
     </div>
   );
 }

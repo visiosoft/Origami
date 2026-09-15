@@ -54,7 +54,7 @@ export function MyTasks() {
         .map((t) => ({
           key: 'l' + t.id,
           title: t.description?.length > 80 ? t.description.slice(0, 80) + '…' : t.description || t.id,
-          context: t.project || 'Request Log',
+          context: t.project || 'General task',
           dueDate: t.dueDate,
           where: 'log' as const,
         })),

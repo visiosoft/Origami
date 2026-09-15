@@ -6,6 +6,7 @@ import {
   FINANCE, INVOICES, REVENUE_BASE, FUNNEL, TEAM, DEADLINES, ACTIVITY, HELP_CONTENT,
   enrichInvoices, money, type EnrichedInvoice,
 } from '../data/dashboard';
+import './Dashboard.css';
 
 const BG = "'Bricolage Grotesque', serif";
 const ocRamp = ['#C7D8CB', '#8AAE95', '#3E8558', '#173326'];
@@ -190,6 +191,7 @@ export function Dashboard() {
   // ── Deadlines / Activity ──
   const dl = kpi === 'all' ? DEADLINES : DEADLINES.filter((d) => d.domain === kpi);
   const act = kpi === 'all' ? ACTIVITY : ACTIVITY.filter((x) => x.domain === kpi);
+  const attentionItems = DEADLINES.filter((d) => d.past || d.due === 'In 2 days').slice(0, 3);
 
   const dlCard = (title: string, items: typeof DEADLINES, accent: string) => (
     <Card>
@@ -223,11 +225,43 @@ export function Dashboard() {
   const drawerTot = drawerItems.reduce((t, x) => t + x.unpaid, 0);
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {bandLabel(isClient ? 'Your project at a glance' : 'Filter the dashboard')}
+    <div className="dashboard-page" style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
+      <section className="dashboard-intro">
+        <div>
+          <div className="dashboard-eyebrow">{isClient ? 'Project pulse' : isCons ? 'Your work queue' : 'Morning check'}</div>
+          <h2>{isClient ? 'Keep your projects moving.' : isCons ? 'Your next commitments.' : 'What needs attention today.'}</h2>
+          <p>{isClient ? 'Approvals, milestones, and project progress in one place.' : isCons ? 'A short list of the scopes and decisions closest to you.' : 'A focused view of deadlines, delivery risk, and cash exposure across the portfolio.'}</p>
+        </div>
+        <button className="dashboard-primary-action" onClick={() => navigate(isClient ? '/my-program' : '/tasks')}>
+          {isClient ? 'Review projects' : 'Open task queue'}
+        </button>
+      </section>
+
+      {!isClient && (
+        <section className="attention-strip" aria-label="Items needing attention">
+          <div className="attention-heading">
+            <span className="attention-mark" aria-hidden="true" />
+            <div>
+              <div className="dashboard-eyebrow">Needs attention</div>
+              <strong>{attentionItems.length} items are closest to slipping</strong>
+            </div>
+          </div>
+          <div className="attention-items">
+            {attentionItems.map((item) => (
+              <button key={item.task} className="attention-item" onClick={() => navigate('/tasks')}>
+                <span className={item.past ? 'attention-status overdue' : 'attention-status'}>{item.past ? 'Overdue' : 'Due soon'}</span>
+                <span className="attention-task">{item.task}</span>
+                <span className="attention-context">{item.project} · {item.due}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {bandLabel(isClient ? 'Your project at a glance' : 'Portfolio signals')}
 
       {/* KPI row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 10 }}>
+      <div className="dashboard-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 10 }}>
         {kpiDefs.map((st) => (
           <div key={st.k} onClick={setKpi(st.k)} style={{ position: 'relative', background: 'white', borderRadius: 14, padding: '15px 16px', cursor: 'pointer', transition: 'all 0.15s', border: kpi === st.k ? '1px solid ' + st.color : '1px solid rgba(20,8,31,0.06)', boxShadow: kpi === st.k ? '0 0 0 3px ' + st.color + '18' : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
@@ -247,7 +281,7 @@ export function Dashboard() {
       <div style={{ height: 5 }} />
       {bandLabel('Money · Schedule — high level')}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 12, alignItems: 'start' }}>
+      <div className="dashboard-evidence-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 12, alignItems: 'start' }}>
         {/* Budget card */}
         <Card>
           <Hdr

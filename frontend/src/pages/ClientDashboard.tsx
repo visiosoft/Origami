@@ -5,6 +5,7 @@ import { api } from '../api';
 import { MyTasks } from '../components/MyTasks';
 import { PR_COLORS, type Project } from '../data/projects';
 import type { Person } from '../data/people';
+import './Dashboard.css';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -51,11 +52,17 @@ export function ClientDashboard() {
   const avg = projects.length ? Math.round(projects.reduce((s, p) => s + p.progress, 0) / projects.length) : 0;
 
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: '#0B1A12' }}>Welcome{currentUser ? `, ${currentUser.name}` : ''}</div>
-        <div style={{ fontSize: 13, color: '#5C6B65' }}>Your projects, approvals and documents at a glance.</div>
-      </div>
+    <div className="dashboard-page dashboard-role-page" style={{ animation: 'fadeIn 0.3s ease' }}>
+      <section className="dashboard-intro">
+        <div>
+          <div className="dashboard-eyebrow">Project pulse</div>
+          <h2>Keep your projects moving.</h2>
+          <p>Approvals, milestones, and project progress in one place.</p>
+        </div>
+        <button className="dashboard-primary-action" onClick={() => navigate(projects[0] ? `/my-program?projectId=${projects[0].id}` : '/projects')}>
+          Review projects
+        </button>
+      </section>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '16px 0' }}>
         <Stat label="My Projects" value={String(projects.length)} />
