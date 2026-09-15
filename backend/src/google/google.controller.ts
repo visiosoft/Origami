@@ -76,14 +76,17 @@ export class GoogleController {
 
   /** Create an event -- optionally with a Google Meet link -- on the signed-in user's own calendar. */
   @Post('my-calendar/events')
-  async createMyCalendarEvent(@Req() req: AuthedRequest, @Body() body: { summary: string; start: string; end: string; description?: string; video?: boolean }) {
+  async createMyCalendarEvent(@Req() req: AuthedRequest, @Body() body: {
+    summary: string; start: string; end: string; description?: string; video?: boolean; location?: string; attendees?: string[];
+  }) {
     const userId = req.claims?.sub;
     if (!userId) throw new BadRequestException('Sign in to continue.');
     if (!body?.summary?.trim() || !body?.start || !body?.end) throw new BadRequestException('Title, start and end are required.');
     const creds = await this.auth.myCalendarCredentials(userId);
     if (!creds) throw new BadRequestException('Connect your calendar first, under your account settings.');
     return this.calendar.createMyEvent(userId, creds.refreshToken, {
-      summary: body.summary, start: body.start, end: body.end, description: body.description, video: body.video,
+      summary: body.summary, start: body.start, end: body.end, description: body.description,
+      video: body.video, location: body.location, attendees: body.attendees,
     });
   }
 

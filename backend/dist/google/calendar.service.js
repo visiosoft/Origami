@@ -68,10 +68,14 @@ let CalendarService = class CalendarService {
             start: { dateTime: input.start },
             end: { dateTime: input.end },
         };
+        if (input.location)
+            body.location = input.location;
+        if (input.attendees?.length)
+            body.attendees = input.attendees.map((email) => ({ email }));
         if (input.video) {
             body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
         }
-        const params = new URLSearchParams();
+        const params = new URLSearchParams({ sendUpdates: 'all' });
         if (input.video)
             params.set('conferenceDataVersion', '1');
         const res = await fetch(`${EVENTS_URL}?${params.toString()}`, {

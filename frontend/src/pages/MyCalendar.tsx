@@ -398,7 +398,16 @@ export function MyCalendar() {
   );
 }
 
-/** Small modal for the click-to-create "Google Meet" path — title + duration, then it appears on the grid. */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const fieldRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0' };
+const iconWrap: React.CSSProperties = { width: 20, flexShrink: 0, display: 'flex', justifyContent: 'center', color: '#7E9B93' };
+const plainInput: React.CSSProperties = { flex: 1, minWidth: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, color: '#0B1A12', background: 'transparent' };
+
+/**
+ * Quick-create modal for the calendar's own "Google Meet" option, styled
+ * after Google Calendar's own compact event popup -- title up top, then the
+ * usual icon rows for time / guests / video / location / description.
+ */
 function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
   dateKey: string;
   time: string;
@@ -406,50 +415,149 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
   onCreated: (ev: CalEvent) => void;
   toast: (msg: string) => void;
 }) {
-  const [title, setTitle] = useState('Meeting');
-  const [duration, setDuration] = useState(30);
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(dateKey);
+  const [startTime, setStartTime] = useState(time);
+  const [duration, setDuration] = useState(60);
+  const [guestInput, setGuestInput] = useState('');
+  const [guests, setGuests] = useState<string[]>([]);
+  const [addMeet, setAddMeet] = useState(true);
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const endTime = useMemo(() => {
+    const [h, m] = startTime.split(':').map(Number);
+    const total = h * 60 + m + duration;
+    return `${pad(Math.floor(total / 60) % 24)}:${pad(total % 60)}`;
+  }, [startTime, duration]);
+
+  const addGuest = () => {
+    const email = guestInput.trim();
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) { toast('Enter a valid email address'); return; }
+    if (!guests.includes(email)) setGuests((g) => [...g, email]);
+    setGuestInput('');
+  };
+  const removeGuest = (email: string) => setGuests((g) => g.filter((e) => e !== email));
 
   const create = () => {
     if (!title.trim()) { toast('Add a title'); return; }
-    const start = new Date(`${dateKey}T${time}:00`);
-    const end = new Date(start.getTime() + duration * 60_000);
+    const start = new Date(`${date}T${startTime}:00`);
+    const end = new Date(`${date}T${endTime}:00`);
+    if (end <= start) end.setDate(end.getDate() + 1); // crossed midnight
     setSaving(true);
-    api.google.myCalendar.createEvent({ summary: title.trim(), start: start.toISOString(), end: end.toISOString(), video: true })
-      .then((res: any) => onCreated({ id: res.id, summary: res.summary || title.trim(), start: res.start || start.toISOString(), end: res.end || end.toISOString(), allDay: false, htmlLink: res.htmlLink }))
-      .catch((err: any) => toast(`⚠ ${err?.message || 'Could not create the Google Meet'}`))
+    api.google.myCalendar.createEvent({
+      summary: title.trim(), start: start.toISOString(), end: end.toISOString(),
+      video: addMeet, location: location.trim() || undefined, description: description.trim() || undefined,
+      attendees: guests.length ? guests : undefined,
+    })
+      .then((res: any) => {
+        onCreated({ id: res.id, summary: res.summary || title.trim(), start: res.start || start.toISOString(), end: res.end || end.toISOString(), allDay: false, htmlLink: res.htmlLink });
+        if (guests.length) toast(`Invite emailed to ${guests.length} guest${guests.length > 1 ? 's' : ''}`);
+      })
+      .catch((err: any) => toast(`⚠ ${err?.message || 'Could not create the event'}`))
       .finally(() => setSaving(false));
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 14, padding: 22, width: 340, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, color: '#0B1A12', marginBottom: 2 }}>New Google Meet</div>
-        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 16 }}>
-          {new Date(`${dateKey}T${time}:00`).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 14, padding: '18px 22px 20px', width: 420, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -6 }}>
+          <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
+          </div>
         </div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Title</div>
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder="Add title"
           autoFocus
-          style={{ boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', marginBottom: 14 }}
+          style={{ boxSizing: 'border-box', width: '100%', border: 'none', borderBottom: '1px solid rgba(20,8,31,0.14)', outline: 'none', fontFamily: BG, fontSize: 19, fontWeight: 600, color: '#0B1A12', padding: '4px 0 10px' }}
         />
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Duration</div>
-        <select
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
-          style={{ boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', marginBottom: 18, background: 'white' }}
-        >
-          <option value={15}>15 minutes</option>
-          <option value={30}>30 minutes</option>
-          <option value={60}>1 hour</option>
-          <option value={90}>1.5 hours</option>
-        </select>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+
+        {/* Date + time */}
+        <div style={fieldRow}>
+          <div style={iconWrap}>
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={12} r={9} /><polyline points="12 7 12 12 15 14" /></svg>
+          </div>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...plainInput, flex: 'none', width: 132 }} />
+          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ ...plainInput, flex: 'none', width: 90 }} />
+          <span style={{ color: '#9AA39D', fontSize: 13 }}>–</span>
+          <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} style={{ ...plainInput, flex: 'none', width: 96, cursor: 'pointer' }}>
+            <option value={15}>15 min</option>
+            <option value={30}>30 min</option>
+            <option value={45}>45 min</option>
+            <option value={60}>1 hour</option>
+            <option value={90}>1.5 hours</option>
+            <option value={120}>2 hours</option>
+          </select>
+        </div>
+
+        {/* Guests */}
+        <div style={fieldRow}>
+          <div style={iconWrap}>
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx={9} cy={7} r={4} /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {guests.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: guestInput || guests.length ? 6 : 0 }}>
+                {guests.map((g) => (
+                  <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EFEDE8', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 12 }}>
+                    {g}
+                    <span onClick={() => removeGuest(g)} style={{ cursor: 'pointer', color: '#7E9B93', fontSize: 14, lineHeight: 1 }}>×</span>
+                  </span>
+                ))}
+              </div>
+            )}
+            <input
+              value={guestInput}
+              onChange={(e) => setGuestInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addGuest(); } }}
+              onBlur={addGuest}
+              placeholder="Add guests"
+              style={{ ...plainInput, padding: '2px 0' }}
+            />
+          </div>
+        </div>
+
+        {/* Google Meet toggle */}
+        <div style={fieldRow}>
+          <div style={iconWrap}>
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={2} y={6} width={14} height={12} rx={2} /><polygon points="23 7 16 12 23 17 23 7" /></svg>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13.5, color: '#0B1A12' }}>
+            <input type="checkbox" checked={addMeet} onChange={(e) => setAddMeet(e.target.checked)} />
+            Add Google Meet video conferencing
+          </label>
+        </div>
+
+        {/* Location */}
+        <div style={fieldRow}>
+          <div style={iconWrap}>
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
+          </div>
+          <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Add location" style={plainInput} />
+        </div>
+
+        {/* Description */}
+        <div style={fieldRow}>
+          <div style={iconWrap}>
+            <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={21} y1={10} x2={3} y2={10} /><line x1={21} y1={6} x2={3} y2={6} /><line x1={21} y1={14} x2={3} y2={14} /><line x1={17} y1={18} x2={3} y2={18} /></svg>
+          </div>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add description" style={plainInput} />
+        </div>
+
+        {guests.length > 0 && (
+          <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 4, paddingLeft: 34 }}>
+            Guests are emailed an invite as soon as this is saved.
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
           <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-          <div onClick={saving ? undefined : create} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
-            {saving ? 'Creating…' : 'Create with Meet link'}
+          <div onClick={saving ? undefined : create} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+            {saving ? 'Saving…' : 'Save'}
           </div>
         </div>
       </div>

@@ -39,6 +39,8 @@ export declare class GoogleController {
         end: string;
         description?: string;
         video?: boolean;
+        location?: string;
+        attendees?: string[];
     }): Promise<import("./calendar.service").MyCalendarEvent & {
         meetLink?: string;
     }>;

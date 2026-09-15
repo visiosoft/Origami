@@ -77,7 +77,8 @@ let GoogleController = class GoogleController {
         if (!creds)
             throw new common_1.BadRequestException('Connect your calendar first, under your account settings.');
         return this.calendar.createMyEvent(userId, creds.refreshToken, {
-            summary: body.summary, start: body.start, end: body.end, description: body.description, video: body.video,
+            summary: body.summary, start: body.start, end: body.end, description: body.description,
+            video: body.video, location: body.location, attendees: body.attendees,
         });
     }
     async login(res) {
