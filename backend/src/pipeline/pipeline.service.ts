@@ -70,6 +70,23 @@ export class PipelineService implements OnApplicationBootstrap {
         await this.repo.save(undated);
         this.log.log(`Backfilled stageEnteredAt on ${undated.length} deal(s)`);
       }
+
+      // Top up rather than seed-once: every lead created before this feature
+      // existed still needs its place on the Projects page. A converted or
+      // archived lead is left alone -- it either already has its real
+      // project, or was never meant to show up there.
+      const existingLeadIds = new Set((await this.projects.findAll()).map((p) => p.leadId).filter(Boolean));
+      const missing = deals.filter((d) => !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id));
+      if (missing.length) {
+        for (const deal of missing) {
+          try {
+            await this.projects.ensureForLead(deal);
+          } catch (err) {
+            this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${(err as Error).message}`);
+          }
+        }
+        this.log.log(`Created ${missing.length} Leads-stage project(s) for existing leads`);
+      }
     } catch (err) {
       this.log.warn('Stage index repair failed: ' + (err as Error).message);
     }
@@ -122,8 +139,17 @@ export class PipelineService implements OnApplicationBootstrap {
     return deal;
   }
 
-  create(dto: any) {
-    return this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+  async create(dto: any) {
+    const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+    // Every lead gets a place on the Projects page from the moment it exists
+    // -- sitting in the "Leads" stage -- rather than only once it converts.
+    // Best effort: a failure here must not stop the lead itself from saving.
+    try {
+      await this.projects.ensureForLead(deal);
+    } catch (err) {
+      this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${(err as Error).message}`);
+    }
+    return deal;
   }
 
   async updateStage(id: string, stage: string, actor?: DealActor) {
@@ -309,7 +335,7 @@ export class PipelineService implements OnApplicationBootstrap {
     const location = [lead?.projectCity, lead?.countyLocation].filter(Boolean).join(', ')
       || [lead?.projectStreetAddress, lead?.projectStreetName].filter(Boolean).join(' ');
 
-    const project = await this.projects.create({
+    const fields = {
       name: opts.name?.trim() || deal.name,
       stage: opts.stage || 'Design',
       contractAmt: opts.contractAmt?.trim() || deal.value || '$0',
@@ -323,7 +349,15 @@ export class PipelineService implements OnApplicationBootstrap {
       leadId: id,
       priority: 'Medium',
       progress: 0,
-    });
+    };
+    // The lead already has a "Leads"-stage placeholder project from the
+    // moment it was created (see PipelineService.create) -- carry it forward
+    // into the real stage rather than creating a second row for the same
+    // lead.
+    const placeholder = await this.projects.findByLeadId(id);
+    const project = placeholder
+      ? await this.projects.update(String(placeholder.id), fields)
+      : await this.projects.create(fields);
 
     deal.convertedProjectId = Number(project.id);
     deal.archived = true;

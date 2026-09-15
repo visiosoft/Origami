@@ -32,6 +32,30 @@ export class ProjectsService {
     return this.repo.save(this.repo.create(project as Partial<ProjectEntity>));
   }
 
+  findByLeadId(leadId: string) {
+    return this.repo.findOneBy({ leadId });
+  }
+
+  /**
+   * Give a lead its place on the Projects page from the moment it exists,
+   * sitting in the "Leads" stage, rather than only once it is approved and
+   * converted. Safe to call more than once -- a lead that already has a
+   * project row (this one, or the one conversion later updates in place) is
+   * left untouched.
+   */
+  async ensureForLead(deal: { id: string; name: string; value?: string; source?: string; assignee?: string }) {
+    const existing = await this.findByLeadId(deal.id);
+    if (existing) return existing;
+    return this.create({
+      name: deal.name,
+      stage: 'Leads',
+      contractAmt: deal.value || '$0',
+      referral: deal.source || '',
+      contactedBy: (deal.assignee && deal.assignee !== 'Unassigned') ? deal.assignee : '',
+      leadId: deal.id,
+    });
+  }
+
   async update(id: string, dto: any) {
     await this.repo.update({ id: Number(id) }, dto as Partial<ProjectEntity>);
     return this.findOne(id);

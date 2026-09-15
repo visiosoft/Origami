@@ -41,6 +41,22 @@ let ProjectsService = class ProjectsService {
         };
         return this.repo.save(this.repo.create(project));
     }
+    findByLeadId(leadId) {
+        return this.repo.findOneBy({ leadId });
+    }
+    async ensureForLead(deal) {
+        const existing = await this.findByLeadId(deal.id);
+        if (existing)
+            return existing;
+        return this.create({
+            name: deal.name,
+            stage: 'Leads',
+            contractAmt: deal.value || '$0',
+            referral: deal.source || '',
+            contactedBy: (deal.assignee && deal.assignee !== 'Unassigned') ? deal.assignee : '',
+            leadId: deal.id,
+        });
+    }
     async update(id, dto) {
         await this.repo.update({ id: Number(id) }, dto);
         return this.findOne(id);

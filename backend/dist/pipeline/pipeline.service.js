@@ -51,6 +51,19 @@ let PipelineService = class PipelineService {
                 await this.repo.save(undated);
                 this.log.log(`Backfilled stageEnteredAt on ${undated.length} deal(s)`);
             }
+            const existingLeadIds = new Set((await this.projects.findAll()).map((p) => p.leadId).filter(Boolean));
+            const missing = deals.filter((d) => !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id));
+            if (missing.length) {
+                for (const deal of missing) {
+                    try {
+                        await this.projects.ensureForLead(deal);
+                    }
+                    catch (err) {
+                        this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${err.message}`);
+                    }
+                }
+                this.log.log(`Created ${missing.length} Leads-stage project(s) for existing leads`);
+            }
         }
         catch (err) {
             this.log.warn('Stage index repair failed: ' + err.message);
@@ -90,8 +103,15 @@ let PipelineService = class PipelineService {
             throw new common_1.NotFoundException(`Deal ${id} not found`);
         return deal;
     }
-    create(dto) {
-        return this.repo.save(this.repo.create(dto));
+    async create(dto) {
+        const deal = await this.repo.save(this.repo.create(dto));
+        try {
+            await this.projects.ensureForLead(deal);
+        }
+        catch (err) {
+            this.log.warn(`Could not create the Leads-stage project for ${deal.id}: ${err.message}`);
+        }
+        return deal;
     }
     async updateStage(id, stage, actor) {
         const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);
@@ -211,7 +231,7 @@ let PipelineService = class PipelineService {
         const lead = await this.leads.findOneBy({ id });
         const location = [lead?.projectCity, lead?.countyLocation].filter(Boolean).join(', ')
             || [lead?.projectStreetAddress, lead?.projectStreetName].filter(Boolean).join(' ');
-        const project = await this.projects.create({
+        const fields = {
             name: opts.name?.trim() || deal.name,
             stage: opts.stage || 'Design',
             contractAmt: opts.contractAmt?.trim() || deal.value || '$0',
@@ -225,7 +245,11 @@ let PipelineService = class PipelineService {
             leadId: id,
             priority: 'Medium',
             progress: 0,
-        });
+        };
+        const placeholder = await this.projects.findByLeadId(id);
+        const project = placeholder
+            ? await this.projects.update(String(placeholder.id), fields)
+            : await this.projects.create(fields);
         deal.convertedProjectId = Number(project.id);
         deal.archived = true;
         deal.archivedAt = new Date().toISOString();
