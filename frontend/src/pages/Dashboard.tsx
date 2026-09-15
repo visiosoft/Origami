@@ -224,7 +224,6 @@ export function Dashboard() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
-      <MyTasks />
       {bandLabel(isClient ? 'Your project at a glance' : 'Filter the dashboard')}
 
       {/* KPI row */}
@@ -421,6 +420,8 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+
+      <MyTasks />
 
       <div style={{ height: 5 }} />
       {bandLabel('Time on target · tasks')}
