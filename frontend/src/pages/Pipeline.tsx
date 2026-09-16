@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
@@ -393,6 +393,21 @@ export function Pipeline() {
   const [scoringTemplate, setScoringTemplate] = useState<ScoringCriterion[]>([]);
   const [fitByDeal, setFitByDeal] = useState<Record<string, Record<string, string>>>({});
   const [panelWidth, setPanelWidth] = useState(420);
+  // Remembers the width from before Project Programming auto-expanded it, so
+  // switching to another tab puts it back rather than leaving it stuck wide.
+  const prevPanelWidthRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const max = Math.min(window.innerWidth - 120, 1100);
+    if (detailTab === 'programming') {
+      if (prevPanelWidthRef.current === null) prevPanelWidthRef.current = panelWidth;
+      setPanelWidth((w) => Math.max(w, Math.min(820, max)));
+    } else if (prevPanelWidthRef.current !== null) {
+      setPanelWidth(prevPanelWidthRef.current);
+      prevPanelWidthRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailTab]);
 
   // Drag the panel's left edge to resize its width (persists while the app is open).
   const startResize = (e: React.MouseEvent) => {
@@ -1059,8 +1074,8 @@ export function Pipeline() {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'details', 'tasks', 'programming'] as const).map((t) => (
-              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'details' ? 'Full Details' : t === 'tasks' ? 'Tasks' : 'Project Programming'}</div>
+            {(['overview', 'tasks', 'programming'] as const).map((t) => (
+              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'tasks' ? 'Tasks' : 'Project Programming'}</div>
             ))}
           </div>
 
