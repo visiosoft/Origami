@@ -68,19 +68,30 @@ let ProjectProgramController = class ProjectProgramController {
         return res.end(pdf);
     }
     async send(body, req) {
-        const { pdf, filename } = await this.render(body);
+        const attachments = [];
+        let filename = '';
+        if (body.includeProgram !== false) {
+            const rendered = await this.render(body);
+            attachments.push({ filename: rendered.filename, mimeType: 'application/pdf', content: rendered.pdf });
+            filename = rendered.filename;
+        }
+        for (const f of body.extraAttachments || []) {
+            if (!f?.filename || !f?.contentBase64)
+                continue;
+            attachments.push({ filename: f.filename, mimeType: f.mimeType || 'application/octet-stream', content: Buffer.from(f.contentBase64, 'base64') });
+        }
         await this.google.sendMail({
             to: body.to,
             cc: body.cc,
             subject: body.subject,
             html: body.html,
-            attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
+            attachments,
         });
         if (body.leadId)
             await this.service.markSentLead(body.leadId, body.to, actorFrom(req));
         else
             await this.service.markSent(Number(body.projectId), body.to, actorFrom(req));
-        return { ok: true, filename, to: body.to };
+        return { ok: true, filename, to: body.to, attachmentCount: attachments.length };
     }
     async render(body) {
         const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));

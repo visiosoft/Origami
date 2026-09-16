@@ -59,6 +59,9 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   const [subject, setSubject] = useState('');
   const [note, setNote] = useState('');
   const [tone, setTone] = useState('');
+  const [includeProgram, setIncludeProgram] = useState(true);
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
   const [showVersions, setShowVersions] = useState(false);
   const [versions, setVersions] = useState<{ id: number; savedAt: string; savedBy: string }[]>([]);
@@ -255,15 +258,39 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
     }
   };
 
+  /** Base64 of the file's raw bytes (no data: prefix), for the JSON attachment payload. */
+  const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const addFiles = (files: FileList | null) => {
+    if (!files) return;
+    setExtraFiles((prev) => [...prev, ...Array.from(files)]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+  const removeFile = (i: number) => setExtraFiles((prev) => prev.filter((_, idx) => idx !== i));
+
   const sendToClient = async () => {
     if (!to.trim()) { toast('⚠ Who should it go to?'); return; }
+    if (!includeProgram && !extraFiles.length) { toast('⚠ Include the program or attach at least one file'); return; }
     setSending(true);
     try {
       const html = note.trim()
         ? note.trim().split(/\n{2,}/).map((para) => `<p>${para.replace(/\n/g, '<br/>')}</p>`).join('')
         : `<p>Please find the Project Program for ${projectName || 'your project'} attached.</p>`;
-      const res: any = await api.projectProgram.send({ ...docPayload(), to: to.trim(), cc: cc.trim() || undefined, subject: subject.trim() || `Project Program — ${projectName || ''}`.trim(), html });
+      const extraAttachments = await Promise.all(extraFiles.map(async (f) => ({
+        filename: f.name, mimeType: f.type || 'application/octet-stream', contentBase64: await fileToBase64(f),
+      })));
+      const res: any = await api.projectProgram.send({
+        ...docPayload(), to: to.trim(), cc: cc.trim() || undefined,
+        subject: subject.trim() || `Project Program — ${projectName || ''}`.trim(), html,
+        includeProgram, extraAttachments,
+      });
       setMeta((m) => ({ ...m, sentAt: new Date().toISOString(), sentTo: res?.to || to.trim() }));
+      setExtraFiles([]);
       toast(`Sent to ${res?.to || to.trim()}`);
     } catch (e: any) {
       toast('⚠ ' + (e.message || 'Could not send it'));
@@ -578,6 +605,27 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
                   rows={12}
                   style={{ ...input, resize: 'vertical', lineHeight: 1.55 }}
                 />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                {label('Attachments')}
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12.5, color: '#0B1A12', marginBottom: 8 }}>
+                  <input type="checkbox" checked={includeProgram} onChange={(e) => setIncludeProgram(e.target.checked)} />
+                  Attach the Project Program PDF
+                </label>
+                {extraFiles.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {extraFiles.map((f, i) => (
+                      <span key={f.name + i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EFEDE8', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 11.5 }}>
+                        {f.name}
+                        <span onClick={() => removeFile(i)} style={{ cursor: 'pointer', color: '#7E9B93', fontSize: 14, lineHeight: 1 }}>×</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" multiple accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={(e) => addFiles(e.target.files)} />
+                <div onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326', background: 'white' }}>
+                  + Attach PDF{extraFiles.length ? 's' : ''}
+                </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

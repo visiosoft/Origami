@@ -159,10 +159,17 @@ export declare class ProjectProgramController {
         cc?: string;
         subject: string;
         html: string;
+        includeProgram?: boolean;
+        extraAttachments?: {
+            filename: string;
+            mimeType?: string;
+            contentBase64: string;
+        }[];
     }, req: AuthedRequest): Promise<{
         ok: boolean;
         filename: string;
         to: string;
+        attachmentCount: number;
     }>;
     private render;
 }

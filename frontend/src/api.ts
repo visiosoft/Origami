@@ -301,9 +301,9 @@ export const api = {
       }
       return res.blob();
     },
-    /** Email it to the client with that same PDF attached. */
+    /** Email it to the client with that same PDF attached -- plus any extra files chosen. */
     send: (payload: unknown) =>
-      request<{ ok: boolean; filename: string; to: string }>('/project-program/send', { method: 'POST', body: JSON.stringify(payload) }),
+      request<{ ok: boolean; filename: string; to: string; attachmentCount: number }>('/project-program/send', { method: 'POST', body: JSON.stringify(payload) }),
     /** Every past save, newest first -- the living document's history. */
     versions: (owner: { projectId?: number; leadId?: string }) =>
       request<{ id: number; savedAt: string; savedBy: string }[]>(
