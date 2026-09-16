@@ -197,7 +197,7 @@ function parseProgramme(raw) {
     }
 }
 exports.DEFAULT_TEMPLATE_KEY = 'default';
-exports.DEFAULT_LIBRARY = [{ key: exports.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: exports.DEFAULT_PROGRAMME }];
+exports.DEFAULT_LIBRARY = [{ key: exports.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: exports.DEFAULT_PROGRAMME, category: 'design' }];
 const slugifyTemplateKey = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'template';
 exports.slugifyTemplateKey = slugifyTemplateKey;
 function parseLibrary(raw) {
@@ -215,7 +215,8 @@ function parseLibrary(raw) {
             if (!phases)
                 continue;
             const projectTypes = Array.isArray(entry.projectTypes) ? entry.projectTypes.filter((t) => typeof t === 'string') : [];
-            out.push({ key: entry.key, name: entry.name, phases, projectTypes });
+            const category = entry.category === 'construction' ? 'construction' : 'design';
+            out.push({ key: entry.key, name: entry.name, phases, projectTypes, category });
         }
         return out.length ? out : null;
     }

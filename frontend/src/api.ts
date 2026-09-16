@@ -401,10 +401,10 @@ export const api = {
   },
   programmeTemplate: {
     /** The whole library -- a kitchen remodel and a ground-up build don't share one shape. */
-    list: () => request<{ key: string; name: string; phases: unknown[]; projectTypes?: string[] }[]>('/project-phases/templates'),
+    list: () => request<{ key: string; name: string; phases: unknown[]; projectTypes?: string[]; category?: string }[]>('/project-phases/templates'),
     /** Create (omit key) or replace (pass key) one named template. */
-    save: (key: string | undefined, name: string, phases: unknown, projectTypes?: string[]) =>
-      request<{ key: string; name: string; phases: unknown[]; projectTypes?: string[] }>('/project-phases/templates', { method: 'PUT', body: JSON.stringify({ key, name, phases, projectTypes }) }),
+    save: (key: string | undefined, name: string, phases: unknown, projectTypes?: string[], category?: string) =>
+      request<{ key: string; name: string; phases: unknown[]; projectTypes?: string[]; category?: string }>('/project-phases/templates', { method: 'PUT', body: JSON.stringify({ key, name, phases, projectTypes, category }) }),
     remove: (key: string) => request(`/project-phases/templates/${encodeURIComponent(key)}`, { method: 'DELETE' }),
   },
 

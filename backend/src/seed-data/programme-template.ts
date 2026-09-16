@@ -254,6 +254,9 @@ export function parseProgramme(raw: string | null | undefined): TemplatePhase[] 
   }
 }
 
+/** Which section of the template library picker a template is filed under. */
+export type TemplateCategory = 'design' | 'construction';
+
 /** One named programme, so a job can be built from the shape that fits its scope. */
 export interface ProgrammeTemplateDef {
   key: string;
@@ -266,10 +269,17 @@ export interface ProgrammeTemplateDef {
    * a single global shape. Empty/absent means "not tied to a type yet".
    */
   projectTypes?: string[];
+  /**
+   * Organizes the picker into Design / Construction sections -- purely a
+   * grouping for staff browsing/creating templates. A project still picks
+   * exactly one template overall regardless of category. Absent means
+   * 'design' (every template that predates this field).
+   */
+  category?: TemplateCategory;
 }
 
 export const DEFAULT_TEMPLATE_KEY = 'default';
-export const DEFAULT_LIBRARY: ProgrammeTemplateDef[] = [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: DEFAULT_PROGRAMME }];
+export const DEFAULT_LIBRARY: ProgrammeTemplateDef[] = [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: DEFAULT_PROGRAMME, category: 'design' }];
 
 export const slugifyTemplateKey = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'template';
@@ -286,7 +296,8 @@ export function parseLibrary(raw: string | null | undefined): ProgrammeTemplateD
       const phases = parseProgramme(JSON.stringify(entry.phases));
       if (!phases) continue;
       const projectTypes = Array.isArray(entry.projectTypes) ? entry.projectTypes.filter((t: unknown) => typeof t === 'string') : [];
-      out.push({ key: entry.key, name: entry.name, phases, projectTypes });
+      const category: TemplateCategory = entry.category === 'construction' ? 'construction' : 'design';
+      out.push({ key: entry.key, name: entry.name, phases, projectTypes, category });
     }
     return out.length ? out : null;
   } catch {

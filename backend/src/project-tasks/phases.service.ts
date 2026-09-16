@@ -5,7 +5,7 @@ import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../databas
 import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import {
   DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey,
-  type TemplatePhase, type ProgrammeTemplateDef,
+  type TemplatePhase, type ProgrammeTemplateDef, type TemplateCategory,
 } from '../seed-data/programme-template';
 import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
@@ -55,7 +55,7 @@ export class PhasesService implements OnApplicationBootstrap {
     } catch { /* fall through to the legacy setting */ }
     try {
       const legacy = parseProgramme(await this.settings.get('programme.template'));
-      if (legacy) return [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: legacy }];
+      if (legacy) return [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: legacy, category: 'design' }];
     } catch { /* fall through to the shipped default */ }
     return DEFAULT_LIBRARY;
   }
@@ -153,11 +153,12 @@ export class PhasesService implements OnApplicationBootstrap {
    * rename keeps its key, so projects pointing at it are unaffected); omit it
    * to create a new one, keyed from the name and disambiguated if it collides.
    */
-  async saveTemplateEntry(key: string | undefined, name: string, phases: unknown, projectTypes?: unknown) {
+  async saveTemplateEntry(key: string | undefined, name: string, phases: unknown, projectTypes?: unknown, category?: unknown) {
     const parsedPhases = parseProgramme(JSON.stringify(phases));
     if (!parsedPhases) throw new BadRequestException('That is not a usable programme template.');
     const cleanName = (name || '').trim() || 'Untitled';
     const cleanTypes = Array.isArray(projectTypes) ? projectTypes.filter((t): t is string => typeof t === 'string') : [];
+    const cleanCategory: TemplateCategory = category === 'construction' ? 'construction' : 'design';
     const lib = await this.library();
     let cleanKey = key;
     if (!cleanKey) {
@@ -166,7 +167,7 @@ export class PhasesService implements OnApplicationBootstrap {
       let n = 2;
       while (lib.some((t) => t.key === cleanKey)) cleanKey = `${base}-${n++}`;
     }
-    const entry: ProgrammeTemplateDef = { key: cleanKey, name: cleanName, phases: parsedPhases, projectTypes: cleanTypes };
+    const entry: ProgrammeTemplateDef = { key: cleanKey, name: cleanName, phases: parsedPhases, projectTypes: cleanTypes, category: cleanCategory };
     const idx = lib.findIndex((t) => t.key === cleanKey);
     const next = idx >= 0 ? lib.map((t, i) => (i === idx ? entry : t)) : [...lib, entry];
     await this.settings.set('programme.templates', JSON.stringify(next));

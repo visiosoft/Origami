@@ -48,7 +48,7 @@ let PhasesService = class PhasesService {
         try {
             const legacy = (0, programme_template_1.parseProgramme)(await this.settings.get('programme.template'));
             if (legacy)
-                return [{ key: programme_template_1.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: legacy }];
+                return [{ key: programme_template_1.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: legacy, category: 'design' }];
         }
         catch { }
         return programme_template_1.DEFAULT_LIBRARY;
@@ -124,12 +124,13 @@ let PhasesService = class PhasesService {
     async listTemplates() {
         return this.library();
     }
-    async saveTemplateEntry(key, name, phases, projectTypes) {
+    async saveTemplateEntry(key, name, phases, projectTypes, category) {
         const parsedPhases = (0, programme_template_1.parseProgramme)(JSON.stringify(phases));
         if (!parsedPhases)
             throw new common_1.BadRequestException('That is not a usable programme template.');
         const cleanName = (name || '').trim() || 'Untitled';
         const cleanTypes = Array.isArray(projectTypes) ? projectTypes.filter((t) => typeof t === 'string') : [];
+        const cleanCategory = category === 'construction' ? 'construction' : 'design';
         const lib = await this.library();
         let cleanKey = key;
         if (!cleanKey) {
@@ -139,7 +140,7 @@ let PhasesService = class PhasesService {
             while (lib.some((t) => t.key === cleanKey))
                 cleanKey = `${base}-${n++}`;
         }
-        const entry = { key: cleanKey, name: cleanName, phases: parsedPhases, projectTypes: cleanTypes };
+        const entry = { key: cleanKey, name: cleanName, phases: parsedPhases, projectTypes: cleanTypes, category: cleanCategory };
         const idx = lib.findIndex((t) => t.key === cleanKey);
         const next = idx >= 0 ? lib.map((t, i) => (i === idx ? entry : t)) : [...lib, entry];
         await this.settings.set('programme.templates', JSON.stringify(next));

@@ -45,11 +45,12 @@ const slug = (name: string) =>
  * the next project is built with; projects already running keep what they have,
  * except that a newly added phase appears on them too.
  */
-interface LibraryEntry { key: string; name: string; phases: TemplatePhase[]; projectTypes?: string[] }
+interface LibraryEntry { key: string; name: string; phases: TemplatePhase[]; projectTypes?: string[]; category?: 'design' | 'construction' }
 
 export function ProgrammeTemplate() {
   const { toast } = useApp();
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
+  const [categoryTab, setCategoryTab] = useState<'design' | 'construction'>('design');
   const [activeKey, setActiveKey] = useState('');
   const [phases, setPhases] = useState<TemplatePhase[]>([]);
   const [projectTypes, setProjectTypes] = useState<string[]>([]);
@@ -88,6 +89,21 @@ export function ProgrammeTemplate() {
   }, []);
 
   const activeName = library.find((t) => t.key === activeKey)?.name || 'Template';
+  const activeCategory = library.find((t) => t.key === activeKey)?.category || 'design';
+  const visibleLibrary = library.filter((t) => (t.category || 'design') === categoryTab);
+
+  const switchCategory = (next: 'design' | 'construction') => {
+    if (next === categoryTab) return;
+    if (dirty && !confirm('Switch sections? Unsaved changes to this template will be lost.')) return;
+    setCategoryTab(next);
+    const first = library.find((t) => (t.category || 'design') === next);
+    setActiveKey(first?.key || '');
+    setPhases(first?.phases || []);
+    setProjectTypes(first?.projectTypes || []);
+    setOpenPhase(first?.phases?.[0]?.key ?? null);
+    setDirty(false);
+    setError('');
+  };
 
   const switchTo = (key: string) => {
     if (key === activeKey) return;
@@ -108,7 +124,7 @@ export function ProgrammeTemplate() {
     const basePhases = duplicate ? phases : [{ key: 'kickoff', name: 'Kickoff', color: COLORS[0], tasks: [] }];
     setSaving(true);
     setError('');
-    api.programmeTemplate.save(undefined, name, basePhases)
+    api.programmeTemplate.save(undefined, name, basePhases, undefined, categoryTab)
       .then((res: any) => { toast(`Created "${name}"`); return load(res?.key); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -119,7 +135,7 @@ export function ProgrammeTemplate() {
     if (!name || name === activeName) return;
     setSaving(true);
     setError('');
-    api.programmeTemplate.save(activeKey, name, phases, projectTypes)
+    api.programmeTemplate.save(activeKey, name, phases, projectTypes, activeCategory)
       .then(() => { toast('Renamed'); return load(activeKey); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -178,7 +194,7 @@ export function ProgrammeTemplate() {
     if (bad) { setError('Every phase needs a name.'); return; }
     setSaving(true);
     setError('');
-    api.programmeTemplate.save(activeKey, activeName, phases.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.title.trim()) })), projectTypes)
+    api.programmeTemplate.save(activeKey, activeName, phases.map((p) => ({ ...p, tasks: p.tasks.filter((t) => t.title.trim()) })), projectTypes, activeCategory)
       .then(() => { toast(`"${activeName}" saved`); return load(activeKey); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
@@ -200,8 +216,21 @@ export function ProgrammeTemplate() {
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999, marginBottom: 12, width: 'fit-content' }}>
+        {(['design', 'construction'] as const).map((c) => (
+          <div
+            key={c}
+            onClick={() => switchCategory(c)}
+            style={{ padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: categoryTab === c ? 'white' : 'transparent', color: categoryTab === c ? '#0B1A12' : '#7E9B93', boxShadow: categoryTab === c ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
+          >{c === 'design' ? 'Design' : 'Construction'}</div>
+        ))}
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
-        {library.map((t) => (
+        {visibleLibrary.length === 0 && (
+          <div style={{ fontSize: 12, color: '#9AA39D', padding: '7px 4px' }}>No {categoryTab === 'design' ? 'Design' : 'Construction'} templates yet.</div>
+        )}
+        {visibleLibrary.map((t) => (
           <div
             key={t.key}
             onClick={() => switchTo(t.key)}
@@ -210,11 +239,13 @@ export function ProgrammeTemplate() {
         ))}
         <div onClick={() => newTemplate(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px dashed rgba(20,8,31,0.2)', color: '#173326', whiteSpace: 'nowrap' }}>+ New template</div>
         <div style={{ flex: 1 }} />
-        <div onClick={() => newTemplate(true)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Duplicate</div>
-        <div onClick={renameTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Rename</div>
-        <div onClick={deleteTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Delete</div>
+        {activeKey && <div onClick={() => newTemplate(true)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Duplicate</div>}
+        {activeKey && <div onClick={renameTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Rename</div>}
+        {activeKey && <div onClick={deleteTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Delete</div>}
       </div>
 
+      {activeKey && (
+      <>
       <div style={{ position: 'relative', marginBottom: 18, maxWidth: 420 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Potential Project Type</div>
         <div
@@ -384,6 +415,7 @@ export function ProgrammeTemplate() {
         </div>
         {dirty && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#93520F' }}>Unsaved changes</span>}
       </div>
+      </>)}
     </div>
   );
 }
