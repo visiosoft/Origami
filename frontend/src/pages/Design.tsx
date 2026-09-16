@@ -27,6 +27,8 @@ interface DesignProject {
   scope: string;
   referral: string;
   projectProgress: number;
+  /** Which section of the Programme Template library the project's template is filed under. */
+  templateCategory?: 'design' | 'construction';
   designPhase?: string;
   currentPhaseKey: string | null;
   phases: PhaseProgress[];
@@ -72,13 +74,18 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
   const columns = useMemo(() => {
     const seen = new Map<string, { key: string; name: string; color: string; order: number }>();
     rows.forEach((p) => p.phases.forEach((ph) => {
+      // A purely-construction template's phases belong on this board wholesale
+      // -- its own keys were never going to match the legacy design/construction
+      // allowlist below, which only knows the Default template's phase keys.
+      const inScope = scope === 'construction' && p.templateCategory === 'construction'
+        ? true
+        : view.keys.includes(ph.key);
+      if (!inScope) return;
       if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order });
     }));
     // Only this board's phases, in the template's order.
-    return [...seen.values()]
-      .filter((c) => view.keys.includes(c.key))
-      .sort((a, b) => a.order - b.order);
-  }, [rows, view]);
+    return [...seen.values()].sort((a, b) => a.order - b.order);
+  }, [rows, view, scope]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();

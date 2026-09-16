@@ -305,7 +305,9 @@ export class PhasesService implements OnApplicationBootstrap {
 
     return projects.map((project) => {
       // Each project reads its own pick from the library, not one shared plan.
-      const plan = (project.templateKey && lib.find((t) => t.key === project.templateKey)?.phases) || lib[0]?.phases || DEFAULT_PROGRAMME;
+      const template = (project.templateKey && lib.find((t) => t.key === project.templateKey)) || lib[0];
+      const plan = template?.phases || DEFAULT_PROGRAMME;
+      const templateCategory = template?.category || 'design';
       const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !RETIRED_PHASE_KEYS.includes(ph.key));
       const byKey = new Map(rows.map((ph) => [ph.key, ph]));
 
@@ -361,6 +363,10 @@ export class PhasesService implements OnApplicationBootstrap {
         scope: project.scope,
         referral: project.referral,
         projectProgress: project.progress,
+        // So the board can tell a purely-construction template's phases apart
+        // from the mixed Default template's, instead of relying only on a
+        // fixed phase-key allowlist that a new template's own keys won't match.
+        templateCategory,
         // Echoed so the board can mark a card as placed by hand.
         designPhase: project.designPhase || null,
         currentPhaseKey: current?.key ?? null,

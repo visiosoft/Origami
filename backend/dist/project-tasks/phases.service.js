@@ -247,7 +247,9 @@ let PhasesService = class PhasesService {
             byPhase.set(task.phaseId, bucket);
         }
         return projects.map((project) => {
-            const plan = (project.templateKey && lib.find((t) => t.key === project.templateKey)?.phases) || lib[0]?.phases || programme_template_1.DEFAULT_PROGRAMME;
+            const template = (project.templateKey && lib.find((t) => t.key === project.templateKey)) || lib[0];
+            const plan = template?.phases || programme_template_1.DEFAULT_PROGRAMME;
+            const templateCategory = template?.category || 'design';
             const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
             const byKey = new Map(rows.map((ph) => [ph.key, ph]));
             const source = [
@@ -290,6 +292,7 @@ let PhasesService = class PhasesService {
                 scope: project.scope,
                 referral: project.referral,
                 projectProgress: project.progress,
+                templateCategory,
                 designPhase: project.designPhase || null,
                 currentPhaseKey: current?.key ?? null,
                 phases: own,

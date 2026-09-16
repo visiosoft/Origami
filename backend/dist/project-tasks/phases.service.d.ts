@@ -1,7 +1,7 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
-import { type ProgrammeTemplateDef } from '../seed-data/programme-template';
+import { type ProgrammeTemplateDef, type TemplateCategory } from '../seed-data/programme-template';
 import { SettingsService } from '../settings/settings.service';
 import { SectionsService } from './sections.service';
 export declare class PhasesService implements OnApplicationBootstrap {
@@ -40,6 +40,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
         scope: string;
         referral: string;
         projectProgress: number;
+        templateCategory: TemplateCategory;
         designPhase: string | null;
         currentPhaseKey: string;
         phases: {
