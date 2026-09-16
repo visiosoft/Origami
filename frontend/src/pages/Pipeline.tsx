@@ -351,7 +351,7 @@ export function Pipeline() {
   const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts' | 'tasks'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts' | 'tasks' | 'programming'>('overview');
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   // The lead as last saved, so an edit can say which fields moved.
@@ -1059,8 +1059,8 @@ export function Pipeline() {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'details', 'tasks'] as const).map((t) => (
-              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'details' ? 'Full Details' : 'Tasks'}</div>
+            {(['overview', 'details', 'tasks', 'programming'] as const).map((t) => (
+              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'details' ? 'Full Details' : t === 'tasks' ? 'Tasks' : 'Project Programming'}</div>
             ))}
           </div>
 
@@ -1086,6 +1086,25 @@ export function Pipeline() {
             })()
           ) : detailTab === 'roles' ? (
             <RoleAssignments deal={selected} users={users} draft={rolesDraft[selected.id]} onChange={(r) => setRolesDraft((p) => ({ ...p, [selected.id]: r }))} onSaved={(roles) => { setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, roles } : d)); toast('Role assignments saved'); }} />
+          ) : detailTab === 'programming' ? (
+            // Its own tab, independent of pipeline stage -- a programme can be
+            // drafted, revised (multiple saved versions), and sent to the
+            // client well before the lead converts into a project.
+            <div style={{ padding: '20px 24px' }}>
+              {(() => {
+                const ld = leadDetails[selected.id] || baseLead(selected);
+                return (
+                  <ProjectProgram
+                    leadId={selected.id}
+                    projectName={selected.name}
+                    defaultTo={selected.email || ld.email || ''}
+                    prefill={buildPrefill({ name: selected.name }, ld)}
+                    clientPersonality={ld.clientPersonality || ''}
+                    clientName={ld.goByName || selected.name}
+                  />
+                );
+              })()}
+            </div>
           ) : detailTab === 'overview' ? (
             <>
               {selected.stage === 'initial_questions' ? (
@@ -1630,25 +1649,6 @@ export function Pipeline() {
                 </div>
               </div>
             </>
-          ) : selected.stage === 'zoning' ? (
-            // The stage is named Project Programming -- opening a card sitting
-            // here starts that document directly, on the lead itself, since the
-            // programme is produced before the lead converts into a project.
-            <div style={{ padding: '20px 24px' }}>
-              {(() => {
-                const ld = leadDetails[selected.id] || baseLead(selected);
-                return (
-                  <ProjectProgram
-                    leadId={selected.id}
-                    projectName={selected.name}
-                    defaultTo={selected.email || ld.email || ''}
-                    prefill={buildPrefill({ name: selected.name }, ld)}
-                    clientPersonality={ld.clientPersonality || ''}
-                    clientName={ld.goByName || selected.name}
-                  />
-                );
-              })()}
-            </div>
           ) : (
             <div style={{ padding: '14px 20px' }}>
               {(() => {
