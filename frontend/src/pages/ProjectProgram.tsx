@@ -335,43 +335,47 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       )}
 
       {section.kind === 'table' && (
-        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, padding: '8px 12px', background: '#F7F9F7', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
-            <span>Description</span><span>Range low</span><span>Range high</span><span>Notes</span>
+        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflowX: 'auto' }}>
+          <div style={{ minWidth: 540 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, padding: '8px 12px', background: '#F7F9F7', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+              <span>Description</span><span>Range low</span><span>Range high</span><span>Notes</span>
+            </div>
+            {(section.rows || []).map((row) => {
+              const cell = values[row.key] || {};
+              // A figure saved before ranges existed still shows -- as the
+              // placeholder for both ends, so it reads at a glance without
+              // being silently carried into the new fields as if re-entered.
+              const legacy = String(cell.budget ?? '').trim();
+              return (
+                <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
+                  <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
+                  <input disabled={!stepCanManage} value={cell.rangeLow ?? ''} onChange={(e) => putCell(row.key, 'rangeLow', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
+                  <input disabled={!stepCanManage} value={cell.rangeHigh ?? ''} onChange={(e) => putCell(row.key, 'rangeHigh', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
+                  <input disabled={!stepCanManage} value={cell.notes ?? ''} onChange={(e) => putCell(row.key, 'notes', e.target.value)} style={{ ...input, padding: '6px 8px' }} />
+                </div>
+              );
+            })}
           </div>
-          {(section.rows || []).map((row) => {
-            const cell = values[row.key] || {};
-            // A figure saved before ranges existed still shows -- as the
-            // placeholder for both ends, so it reads at a glance without
-            // being silently carried into the new fields as if re-entered.
-            const legacy = String(cell.budget ?? '').trim();
-            return (
-              <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
-                <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
-                <input disabled={!stepCanManage} value={cell.rangeLow ?? ''} onChange={(e) => putCell(row.key, 'rangeLow', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
-                <input disabled={!stepCanManage} value={cell.rangeHigh ?? ''} onChange={(e) => putCell(row.key, 'rangeHigh', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
-                <input disabled={!stepCanManage} value={cell.notes ?? ''} onChange={(e) => putCell(row.key, 'notes', e.target.value)} style={{ ...input, padding: '6px 8px' }} />
-              </div>
-            );
-          })}
         </div>
       )}
 
       {section.kind === 'weeks' && (
-        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, padding: '6px 12px', background: '#F7F9F7', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
-            <span>Stage</span><span>Weeks</span><span>or a range, e.g. "3–6 months"</span>
+        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflowX: 'auto' }}>
+          <div style={{ minWidth: 460 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, padding: '6px 12px', background: '#F7F9F7', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+              <span>Stage</span><span>Weeks</span><span>or a range, e.g. "3–6 months"</span>
+            </div>
+            {(section.rows || []).map((row) => {
+              const cell = weeksValue(values[row.key]);
+              return (
+                <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
+                  <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
+                  <input disabled={!canManage} type="number" min={0} value={cell.weeks ?? ''} onChange={(e) => put(row.key, { ...cell, weeks: e.target.value })} placeholder="0" style={{ ...input, padding: '6px 8px' }} />
+                  <input disabled={!canManage} value={cell.rangeText ?? ''} onChange={(e) => put(row.key, { ...cell, rangeText: e.target.value })} placeholder="e.g. 3–6 months" style={{ ...input, padding: '6px 8px' }} />
+                </div>
+              );
+            })}
           </div>
-          {(section.rows || []).map((row) => {
-            const cell = weeksValue(values[row.key]);
-            return (
-              <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
-                <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
-                <input disabled={!canManage} type="number" min={0} value={cell.weeks ?? ''} onChange={(e) => put(row.key, { ...cell, weeks: e.target.value })} placeholder="0" style={{ ...input, padding: '6px 8px' }} />
-                <input disabled={!canManage} value={cell.rangeText ?? ''} onChange={(e) => put(row.key, { ...cell, rangeText: e.target.value })} placeholder="e.g. 3–6 months" style={{ ...input, padding: '6px 8px' }} />
-              </div>
-            );
-          })}
         </div>
       )}
 
@@ -387,9 +391,9 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   );
 
   return (
-    <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
       {/* Step rail */}
-      <div style={{ width: 214, flexShrink: 0 }}>
+      <div style={{ width: 214, flexShrink: 0, maxWidth: '100%' }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
           {answered} of {questions} answered
         </div>
@@ -420,7 +424,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       </div>
 
       {/* Step body */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 260 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
