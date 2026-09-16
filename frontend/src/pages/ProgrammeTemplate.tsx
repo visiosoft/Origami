@@ -302,7 +302,13 @@ export function ProgrammeTemplate() {
                 <input
                   value={phase.name}
                   onChange={(e) => patchPhase(phase.key, { name: e.target.value })}
-                  style={{ ...input, flex: 1, fontWeight: 700, border: '1px solid transparent', background: 'transparent' }}
+                  onClick={(e) => e.stopPropagation()}
+                  title="Click to rename this phase"
+                  style={{ ...input, flex: 1, fontWeight: 700, border: '1px solid transparent', background: 'transparent', cursor: 'text' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.border = '1px solid rgba(20,8,31,0.14)'; e.currentTarget.style.background = 'white'; }}
+                  onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; } }}
+                  onFocus={(e) => { e.currentTarget.style.border = '1px solid #173326'; e.currentTarget.style.background = 'white'; }}
+                  onBlur={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; }}
                 />
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', flexShrink: 0 }}>{phase.tasks.length} tasks</span>
                 <select value={phase.color} onChange={(e) => patchPhase(phase.key, { color: e.target.value })} style={{ ...input, width: 74, flexShrink: 0 }}>
