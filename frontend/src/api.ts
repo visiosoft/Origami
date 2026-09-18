@@ -342,6 +342,8 @@ export const api = {
       get: (token: string) => request(`/proposals/public?token=${encodeURIComponent(token)}`),
       sign: (token: string, name: string, email: string, image: string) =>
         request('/proposals/public/sign', { method: 'POST', body: JSON.stringify({ token, name, email, image }) }),
+      /** A real, scrollable PDF -- for an <iframe>/<embed>, not a fetch call. */
+      pdfUrl: (token: string) => `${API_BASE}/proposals/public/pdf?token=${encodeURIComponent(token)}`,
     },
   },
   guestAccess: {

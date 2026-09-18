@@ -64,6 +64,7 @@ export declare class ProposalController {
         link: string;
         attachmentCount: number;
     }>;
+    private renderPdf;
     getByToken(token: string): Promise<{
         dealId: string;
         dealName: string;
@@ -79,6 +80,7 @@ export declare class ProposalController {
         signedByEmail: string;
         signatureImage: string;
     }>;
+    pdfByToken(token: string, res: Response): Promise<Response<any, Record<string, any>>>;
     signByToken(body: {
         token: string;
         name: string;

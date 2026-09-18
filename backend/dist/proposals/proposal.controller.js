@@ -33,14 +33,7 @@ let ProposalController = class ProposalController {
         return this.service.save(body?.dealId, body, { id: req.claims?.sub, name: req.claims?.name });
     }
     async pdf(body, res) {
-        const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
-        const bodyWithAmount = [
-            body.amount ? `<p><strong>Proposed contract amount:</strong> ${body.amount}</p>` : '',
-            body.html || '',
-        ].filter(Boolean).join('\n');
-        const html = (0, letterhead_1.buildLetterHtml)({ brand, title: body.subject, recipient: body.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
-        const filename = (0, letterhead_1.safeFilename)(body.subject || 'Document') + '.pdf';
-        const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Document'));
+        const { pdf, filename } = await this.renderPdf(body.subject, body.html || '', body.amount, body.dealName);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
         return res.end(pdf);
@@ -48,33 +41,58 @@ let ProposalController = class ProposalController {
     async send(body, req) {
         const doc = await this.service.get(body.dealId);
         const link = await this.service.signingLink(body.dealId);
-        const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
-        const bodyWithAmount = [
-            doc.amount ? `<p><strong>Proposed contract amount:</strong> ${doc.amount}</p>` : '',
-            doc.html,
-            `<p><a href="${link}">Review and sign the proposal</a> — this link is valid for 10 days.</p>`,
-        ].filter(Boolean).join('\n');
-        const html = (0, letterhead_1.buildLetterHtml)({ brand, title: doc.subject, recipient: doc.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
-        const filename = (0, letterhead_1.safeFilename)(doc.subject || 'Proposal') + '.pdf';
-        const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(doc.subject || 'Proposal'));
+        const { pdf, filename } = await this.renderPdf(doc.subject, doc.html, doc.amount, doc.dealName);
         const attachments = [{ filename, mimeType: 'application/pdf', content: pdf }];
         for (const f of body.extraAttachments || []) {
             if (!f?.filename || !f?.contentBase64)
                 continue;
             attachments.push({ filename: f.filename, mimeType: f.mimeType || 'application/octet-stream', content: Buffer.from(f.contentBase64, 'base64') });
         }
+        const noteBody = [
+            `<p>Hi${doc.dealName ? ` ${doc.dealName}` : ''},</p>`,
+            `<p>Attached is <strong>${doc.subject}</strong>${doc.amount ? ` (proposed amount: ${doc.amount})` : ''} for your review.</p>`,
+            `<p><a href="${link}" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#173326;color:#ffffff;text-decoration:none;font-weight:700;">Review and sign the proposal</a></p>`,
+            `<p style="color:#7E9B93;font-size:12px;">This link is valid for 10 days. No account needed to sign.</p>`,
+        ].join('\n');
         await this.google.sendMail({
             to: body.to,
             cc: body.cc,
             subject: doc.subject,
-            html: bodyWithAmount,
+            html: noteBody,
             attachments,
         });
         await this.service.markSent(body.dealId, body.to, { id: req.claims?.sub, name: req.claims?.name });
         return { ok: true, to: body.to, link, attachmentCount: attachments.length };
     }
+    async renderPdf(subject, docHtml, amount, dealName) {
+        const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
+        const bodyWithAmount = [
+            amount ? `<p><strong>Proposed contract amount:</strong> ${amount}</p>` : '',
+            docHtml || '',
+        ].filter(Boolean).join('\n');
+        const html = (0, letterhead_1.buildLetterHtml)({ brand, title: subject, recipient: dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
+        const filename = (0, letterhead_1.safeFilename)(subject || 'Document') + '.pdf';
+        const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(subject || 'Document'));
+        return { pdf, filename: `${filename}` };
+    }
     getByToken(token) {
         return this.service.getByToken(token);
+    }
+    async pdfByToken(token, res) {
+        const doc = await this.service.getByToken(token);
+        const signedDate = doc.signedAt
+            ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+            : '____________________';
+        const clientSignature = doc.signatureImage
+            ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+            : '__________________________________';
+        const merged = String(doc.html || '')
+            .replace(/\{\{clientSignature\}\}/g, clientSignature)
+            .replace(/\{\{signedDate\}\}/g, signedDate);
+        const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.end(pdf);
     }
     signByToken(body, req) {
         return this.service.signByToken(body?.token, { name: body?.name, email: body?.email || '' }, body?.image, { ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') });
@@ -124,6 +142,15 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProposalController.prototype, "getByToken", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('public/pdf'),
+    __param(0, (0, common_1.Query)('token')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ProposalController.prototype, "pdfByToken", null);
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Post)('public/sign'),

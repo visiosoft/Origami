@@ -34,20 +34,13 @@ export class ProposalController {
   @Tiers('internal')
   @Post('pdf')
   async pdf(@Body() body: { subject?: string; html?: string; amount?: string; dealName?: string }, @Res() res: Response) {
-    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
-    const bodyWithAmount = [
-      body.amount ? `<p><strong>Proposed contract amount:</strong> ${body.amount}</p>` : '',
-      body.html || '',
-    ].filter(Boolean).join('\n');
-    const html = buildLetterHtml({ brand, title: body.subject, recipient: body.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
-    const filename = safeFilename(body.subject || 'Document') + '.pdf';
-    const pdf = await this.google.htmlToPdf(html, safeFilename(body.subject || 'Document'));
+    const { pdf, filename } = await this.renderPdf(body.subject, body.html || '', body.amount, body.dealName);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     return res.end(pdf);
   }
 
-  /** Emails the proposal with the letterhead PDF attached, plus a signing link the prospect can open without an account. */
+  /** Emails a short note -- the document itself only lives in the PDF and the signing page, never pasted into the email body. */
   @Tiers('internal')
   @Post('send')
   async send(
@@ -60,29 +53,40 @@ export class ProposalController {
   ) {
     const doc = await this.service.get(body.dealId);
     const link = await this.service.signingLink(body.dealId);
-    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
-    const bodyWithAmount = [
-      doc.amount ? `<p><strong>Proposed contract amount:</strong> ${doc.amount}</p>` : '',
-      doc.html,
-      `<p><a href="${link}">Review and sign the proposal</a> — this link is valid for 10 days.</p>`,
-    ].filter(Boolean).join('\n');
-    const html = buildLetterHtml({ brand, title: doc.subject, recipient: doc.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
-    const filename = safeFilename(doc.subject || 'Proposal') + '.pdf';
-    const pdf = await this.google.htmlToPdf(html, safeFilename(doc.subject || 'Proposal'));
+    const { pdf, filename } = await this.renderPdf(doc.subject, doc.html, doc.amount, doc.dealName);
     const attachments = [{ filename, mimeType: 'application/pdf', content: pdf }];
     for (const f of body.extraAttachments || []) {
       if (!f?.filename || !f?.contentBase64) continue;
       attachments.push({ filename: f.filename, mimeType: f.mimeType || 'application/octet-stream', content: Buffer.from(f.contentBase64, 'base64') });
     }
+    const noteBody = [
+      `<p>Hi${doc.dealName ? ` ${doc.dealName}` : ''},</p>`,
+      `<p>Attached is <strong>${doc.subject}</strong>${doc.amount ? ` (proposed amount: ${doc.amount})` : ''} for your review.</p>`,
+      `<p><a href="${link}" style="display:inline-block;padding:11px 22px;border-radius:999px;background:#173326;color:#ffffff;text-decoration:none;font-weight:700;">Review and sign the proposal</a></p>`,
+      `<p style="color:#7E9B93;font-size:12px;">This link is valid for 10 days. No account needed to sign.</p>`,
+    ].join('\n');
     await this.google.sendMail({
       to: body.to,
       cc: body.cc,
       subject: doc.subject,
-      html: bodyWithAmount,
+      html: noteBody,
       attachments,
     });
     await this.service.markSent(body.dealId, body.to, { id: req.claims?.sub, name: req.claims?.name });
     return { ok: true, to: body.to, link, attachmentCount: attachments.length };
+  }
+
+  /** Shared by the internal preview and the send -- neither can drift from the other. */
+  private async renderPdf(subject: string | undefined, docHtml: string, amount?: string, dealName?: string) {
+    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
+    const bodyWithAmount = [
+      amount ? `<p><strong>Proposed contract amount:</strong> ${amount}</p>` : '',
+      docHtml || '',
+    ].filter(Boolean).join('\n');
+    const html = buildLetterHtml({ brand, title: subject, recipient: dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
+    const filename = safeFilename(subject || 'Document') + '.pdf';
+    const pdf = await this.google.htmlToPdf(html, safeFilename(subject || 'Document'));
+    return { pdf, filename: `${filename}` };
   }
 
   // --- Public side: the prospect's own signing page, no account needed ---
@@ -91,6 +95,26 @@ export class ProposalController {
   @Get('public')
   getByToken(@Query('token') token: string) {
     return this.service.getByToken(token);
+  }
+
+  /** The document as a real, scrollable PDF -- the client's own signature (once captured) rendered in place, not pasted into an email or a plain HTML block. */
+  @Public()
+  @Get('public/pdf')
+  async pdfByToken(@Query('token') token: string, @Res() res: Response) {
+    const doc: any = await this.service.getByToken(token);
+    const signedDate = doc.signedAt
+      ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '____________________';
+    const clientSignature = doc.signatureImage
+      ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+      : '__________________________________';
+    const merged = String(doc.html || '')
+      .replace(/\{\{clientSignature\}\}/g, clientSignature)
+      .replace(/\{\{signedDate\}\}/g, signedDate);
+    const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.end(pdf);
   }
 
   @Public()

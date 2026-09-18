@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { SignaturePad } from '../components/SignaturePad';
-import { mergeTokens } from '../data/clientPersonality';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -45,41 +44,33 @@ export function SignProposal() {
 
   const shell = (children: React.ReactNode) => (
     <div style={{ minHeight: '100vh', background: '#FBF8F2', padding: '24px 16px', boxSizing: 'border-box' }}>
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ maxWidth: 780, margin: '0 auto' }}>
         <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 18, color: '#173326', marginBottom: 18 }}>Origami Design + Build</div>
         {children}
       </div>
     </div>
   );
 
-  // A template's own signature line ({{clientSignature}} / {{signedDate}})
-  // renders the real drawn signature in place, right where the document put
-  // it -- blank until signed, rather than only appearing in a separate box
-  // below the document.
-  const renderedHtml = useMemo(() => {
-    if (!doc) return '';
-    return mergeTokens(doc.html, {
-      clientSignature: doc.signatureImage
-        ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
-        : '__________________________________',
-      signedDate: doc.signedAt ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '____________________',
-    });
-  }, [doc]);
+  // The real, rendered PDF -- a template's own {{clientSignature}}/{{signedDate}}
+  // tokens are merged in server-side, so the drawn signature appears right
+  // where the document put it once signed. Cache-busted on signedAt so the
+  // just-submitted signature shows immediately instead of the cached blank copy.
+  const pdfUrl = token ? `${api.proposals.public.pdfUrl(token)}&v=${encodeURIComponent(doc?.signedAt || '0')}` : '';
 
   if (loading) return shell(<div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>);
   if (!doc) return shell(<div style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600 }}>{error || 'This proposal could not be found.'}</div>);
 
   return shell(
     <div>
-      <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 22, marginBottom: 16 }}>
+      <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18, marginBottom: 16 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{doc.dealName}</div>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 21, color: '#0B1A12', marginTop: 4, marginBottom: 12 }}>{doc.subject}</div>
-        {doc.amount && (
-          <div style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 10, background: '#EEF3EE', fontSize: 13, fontWeight: 700, color: '#173326', marginBottom: 14 }}>
-            Proposed contract amount: {doc.amount}
-          </div>
-        )}
-        <div style={{ fontSize: 13.5, color: '#0B1A12', lineHeight: 1.7, whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 21, color: '#0B1A12', marginTop: 4, marginBottom: 4 }}>{doc.subject}</div>
+        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 14 }}>Scroll through the document below — the signing section is at the end.</div>
+        <iframe
+          title={doc.subject}
+          src={pdfUrl}
+          style={{ width: '100%', height: '70vh', minHeight: 420, border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, display: 'block' }}
+        />
       </div>
 
       <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 22 }}>
