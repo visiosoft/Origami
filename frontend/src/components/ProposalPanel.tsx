@@ -109,14 +109,36 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
     setHtml(mergeTokens(tpl.body, tokens));
   };
 
-  const preview = () => {
-    setPreviewing(true);
-    api.proposals.pdf({ subject, html, amount, dealName })
+  const openPdf = (renderHtml: string) =>
+    api.proposals.pdf({ subject, html: renderHtml, amount, dealName })
       .then((blob) => {
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-      })
+      });
+
+  const preview = () => {
+    setPreviewing(true);
+    openPdf(html)
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setPreviewing(false));
+  };
+
+  /**
+   * Nothing is stored as a finished PDF -- there is no separate "signed
+   * copy" on disk. This regenerates the document on demand from what's on
+   * file (the saved html, plus the signature/date captured at signing),
+   * the same way the client's own signing page shows it, so it always
+   * reflects the real record rather than a stale export.
+   */
+  const viewSigned = () => {
+    setPreviewing(true);
+    openPdf(mergeTokens(html, {
+      clientSignature: signatureImage
+        ? `<img src="${signatureImage}" alt="Signature of ${signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+        : '__________________________________',
+      signedDate: signedAt ? new Date(signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '____________________',
+    }))
       .catch((e: Error) => toast('⚠ ' + e.message))
       .finally(() => setPreviewing(false));
   };
@@ -161,12 +183,15 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
 
       {signedAt ? (
         <div style={{ padding: '10px 12px', borderRadius: 9, background: '#D2EAD3', marginBottom: 10 }}>
-          <div style={{ color: '#1C5230', fontSize: 12, fontWeight: 700, marginBottom: signatureImage ? 8 : 0 }}>
-            Signed by {signedByName} on {new Date(signedAt).toLocaleString()} — converted to a project.
+          <div style={{ color: '#1C5230', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+            Signed by {signedByName} on {new Date(signedAt).toLocaleString()} — moved to Client Review for a final check before converting.
           </div>
           {signatureImage && (
-            <img src={signatureImage} alt={`Signature of ${signedByName}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 6 }} />
+            <img src={signatureImage} alt={`Signature of ${signedByName}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 6, marginBottom: 8, display: 'block' }} />
           )}
+          <div onClick={previewing ? undefined : viewSigned} style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: previewing ? 'default' : 'pointer', textDecoration: 'underline' }}>
+            {previewing ? 'Rendering…' : '📄 View the signed document'}
+          </div>
         </div>
       ) : sentAt ? (
         <div style={{ padding: '10px 12px', borderRadius: 9, background: '#FBE9AE', color: '#8A6D12', fontSize: 12, fontWeight: 700, marginBottom: 10 }}>

@@ -16,7 +16,7 @@ export interface Deal {
   nextAction: string;
   nextDue: string;
   source: string;
-  status: 'overdue' | 'awaiting_pm' | 'awaiting_client' | 'in_progress';
+  status: 'overdue' | 'awaiting_pm' | 'awaiting_client' | 'in_progress' | 'accepted';
   phone: string;
   email: string;
   timeline: TimelineEvent[];
@@ -83,6 +83,8 @@ export const STATUS_STYLES: Record<string, { label: string; bg: string; color: s
   awaiting_pm: { label: 'Awaiting PM', bg: '#DCE7DE', color: '#173326', dot: '#245C3A' },
   awaiting_client: { label: 'Awaiting Client', bg: '#FBE9AE', color: '#93520F', dot: '#E39A22' },
   in_progress: { label: 'In Progress', bg: '#D6E8E5', color: '#2F6F68', dot: '#7E9B93' },
+  /** Client just e-signed -- flagged for a person to confirm and convert. */
+  accepted: { label: 'Accepted ✓', bg: '#D2EAD3', color: '#1C5230', dot: '#2F7D4A' },
 };
 
 export const DEALS: Deal[] = [

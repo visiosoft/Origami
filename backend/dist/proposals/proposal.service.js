@@ -113,10 +113,11 @@ let ProposalService = class ProposalService {
         await this.repo.save(row);
         const actor = { name: `${row.signedByName} (e-signature)` };
         try {
-            await this.pipeline.convertToProject(parsed.dealId, { contractAmt: row.amount }, actor);
+            await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
+            await this.deals.update(parsed.dealId, { status: 'accepted' });
         }
         catch (err) {
-            this.log.warn(`Post-signature conversion for deal ${parsed.dealId}: ${err.message}`);
+            this.log.warn(`Post-signature stage move for deal ${parsed.dealId}: ${err.message}`);
         }
         return this.get(parsed.dealId);
     }

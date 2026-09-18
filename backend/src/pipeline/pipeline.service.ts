@@ -178,6 +178,11 @@ export class PipelineService implements OnApplicationBootstrap {
     // Restart the response clock: the target is time in *this* stage.
     deal.stageEnteredAt = new Date().toISOString();
     deal.daysInStage = 0;
+    // "Accepted" (the blinking flag a signature sets) only means anything
+    // while the deal is actually sitting in Client Review -- moving it
+    // anywhere else, for any reason, clears it rather than leaving a stale
+    // card blinking forever.
+    if (deal.status === 'accepted' && stage !== 'client_approval') deal.status = 'in_progress';
 
     // A hold stage parks the lead until a date, so it can be brought back.
     if (target?.isHold && target.holdMonths) {

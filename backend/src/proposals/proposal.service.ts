@@ -14,8 +14,10 @@ export interface ProposalActor { id?: string; name?: string }
 /**
  * The proposal/contract sent to a lead, and its e-signature.
  *
- * Signing it is the "formal contract signature" the rest of the CRM treats as
- * the moment a lead becomes a real job -- see `signByToken`.
+ * Signing it moves the deal to Client Review, flagged as accepted so the
+ * board can call it out -- a person still confirms and converts it to a
+ * project deliberately, rather than the signature doing that on its own.
+ * See `signByToken`.
  */
 @Injectable()
 export class ProposalService {
@@ -120,13 +122,15 @@ export class ProposalService {
     row.signerUserAgent = meta.userAgent || '';
     await this.repo.save(row);
 
+    // Signing no longer converts the deal straight to a project -- it moves
+    // to Client Review, flagged "accepted" so the board can call it out
+    // (a blinking card) for a person to confirm and convert deliberately.
     const actor: DealActor = { name: `${row.signedByName} (e-signature)` };
     try {
-      await this.pipeline.convertToProject(parsed.dealId, { contractAmt: row.amount }, actor);
+      await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
+      await this.deals.update(parsed.dealId, { status: 'accepted' });
     } catch (err) {
-      // Already converted is fine -- the signature still stands. Anything
-      // else is worth knowing about without failing the signature itself.
-      this.log.warn(`Post-signature conversion for deal ${parsed.dealId}: ${(err as Error).message}`);
+      this.log.warn(`Post-signature stage move for deal ${parsed.dealId}: ${(err as Error).message}`);
     }
 
     return this.get(parsed.dealId);

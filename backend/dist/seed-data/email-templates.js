@@ -90,7 +90,7 @@ const SAMPLE_AGREEMENT_BODY = `<h1>Design + Build Services Agreement</h1>
 
 <h2>Signatures</h2>
 <p>By signing below, both parties agree to the terms of this Agreement.</p>
-<p>__________________________________<br/>{{clientName}}, Client<br/>Date: ____________________</p>
+<p>{{clientSignature}}<br/>{{clientName}}, Client<br/>Date: {{signedDate}}</p>
 <p>__________________________________<br/>Origami Design + Build<br/>Date: ____________________</p>`;
 exports.DEFAULT_EMAIL_TEMPLATES = [
     {

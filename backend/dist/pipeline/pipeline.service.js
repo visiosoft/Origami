@@ -127,6 +127,8 @@ let PipelineService = class PipelineService {
             deal.stageIdx = idx;
         deal.stageEnteredAt = new Date().toISOString();
         deal.daysInStage = 0;
+        if (deal.status === 'accepted' && stage !== 'client_approval')
+            deal.status = 'in_progress';
         if (target?.isHold && target.holdMonths) {
             deal.holdUntil = addMonths(new Date(), target.holdMonths).toISOString().slice(0, 10);
         }

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { SignaturePad } from '../components/SignaturePad';
+import { mergeTokens } from '../data/clientPersonality';
 
 const BG = "'Bricolage Grotesque', serif";
 
@@ -51,6 +52,20 @@ export function SignProposal() {
     </div>
   );
 
+  // A template's own signature line ({{clientSignature}} / {{signedDate}})
+  // renders the real drawn signature in place, right where the document put
+  // it -- blank until signed, rather than only appearing in a separate box
+  // below the document.
+  const renderedHtml = useMemo(() => {
+    if (!doc) return '';
+    return mergeTokens(doc.html, {
+      clientSignature: doc.signatureImage
+        ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+        : '__________________________________',
+      signedDate: doc.signedAt ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '____________________',
+    });
+  }, [doc]);
+
   if (loading) return shell(<div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>);
   if (!doc) return shell(<div style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600 }}>{error || 'This proposal could not be found.'}</div>);
 
@@ -64,19 +79,17 @@ export function SignProposal() {
             Proposed contract amount: {doc.amount}
           </div>
         )}
-        <div style={{ fontSize: 13.5, color: '#0B1A12', lineHeight: 1.7, whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: doc.html }} />
+        <div style={{ fontSize: 13.5, color: '#0B1A12', lineHeight: 1.7, whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
       </div>
 
       <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 22 }}>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#0B1A12', marginBottom: 4 }}>Approval</div>
         {doc.signedAt ? (
           <div>
-            <div style={{ fontSize: 13, color: '#1C5230', fontWeight: 600, marginBottom: doc.signatureImage ? 10 : 0 }}>
+            <div style={{ fontSize: 13, color: '#1C5230', fontWeight: 600 }}>
               Signed by {doc.signedByName} on {new Date(doc.signedAt).toLocaleString()}. Your project team has been notified.
             </div>
-            {doc.signatureImage && (
-              <img src={doc.signatureImage} alt={`Signature of ${doc.signedByName}`} style={{ maxWidth: 260, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 8 }} />
-            )}
+            <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 4 }}>Your signature now appears on the document above.</div>
           </div>
         ) : (
           <>
