@@ -23,6 +23,17 @@ const settings_service_1 = require("../settings/settings.service");
 const sections_service_1 = require("./sections.service");
 const task_types_1 = require("../database/task.types");
 const DEMO_PROJECT_ID = 1;
+function addWorkingDays(from, days) {
+    const out = new Date(from);
+    let remaining = days;
+    while (remaining > 0) {
+        out.setDate(out.getDate() + 1);
+        const day = out.getDay();
+        if (day !== 0 && day !== 6)
+            remaining -= 1;
+    }
+    return out;
+}
 const SECTION_FOR_STATUS = {
     'Not started': 0,
     'In progress': 1,
@@ -201,8 +212,12 @@ let PhasesService = class PhasesService {
         const rows = [];
         for (const phase of pending) {
             const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
+            let cursor = new Date(stamp);
             tasksFor(phase.key).forEach((tpl, i) => {
                 const title = tpl.title;
+                const days = Number(tpl.days) || 0;
+                if (days > 0)
+                    cursor = addWorkingDays(cursor, days);
                 if (already.has(title))
                     return;
                 rows.push(this.tasks.create({
@@ -211,6 +226,7 @@ let PhasesService = class PhasesService {
                     sectionId,
                     phaseId: phase.id,
                     title,
+                    dueDate: days > 0 ? cursor.toISOString().slice(0, 10) : '',
                     status: 'Not started',
                     completed: false,
                     order: i,

@@ -403,7 +403,7 @@ export function ProgrammeTemplate() {
                           value={task.days || ''}
                           onChange={(e) => patchTask(phase.key, task.id, { days: e.target.value === '' ? 0 : Number(e.target.value) })}
                           placeholder="d"
-                          title="Working days this task should take. Left blank, the phase's week estimate is split evenly across its tasks."
+                          title="Working days this task should take. Used to set its estimated due date when it's created on a project (stacked after any earlier tasks in the phase). Left blank, the phase's week estimate is split evenly across its tasks instead, and no due date is set."
                           style={{ ...input, width: 46, flexShrink: 0, textAlign: 'right' }}
                         />
                         <span

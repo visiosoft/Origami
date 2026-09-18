@@ -18,6 +18,18 @@ import { event, subId } from '../database/task.types';
  */
 const DEMO_PROJECT_ID = 1;
 
+/** Advances a date by N working days (skipping Sat/Sun), for template-derived due dates. */
+function addWorkingDays(from: Date, days: number): Date {
+  const out = new Date(from);
+  let remaining = days;
+  while (remaining > 0) {
+    out.setDate(out.getDate() + 1);
+    const day = out.getDay();
+    if (day !== 0 && day !== 6) remaining -= 1;
+  }
+  return out;
+}
+
 /** Board sections a phase task is filed under, by status. */
 const SECTION_FOR_STATUS: Record<string, number> = {
   'Not started': 0,   // To Do
@@ -247,8 +259,15 @@ export class PhasesService implements OnApplicationBootstrap {
 
     for (const phase of pending) {
       const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
+      // A rough deadline: each task's own "days" estimate, stacked one after
+      // another from the day the phase is seeded -- the closest thing to a
+      // start date a reusable template has. Purely a starting estimate;
+      // whoever runs the task can still move it by hand.
+      let cursor = new Date(stamp);
       tasksFor(phase.key).forEach((tpl, i) => {
         const title = tpl.title;
+        const days = Number(tpl.days) || 0;
+        if (days > 0) cursor = addWorkingDays(cursor, days);
         if (already.has(title)) return;
         rows.push(this.tasks.create({
           // Keyed by the template task, not its position. Position collided
@@ -259,6 +278,7 @@ export class PhasesService implements OnApplicationBootstrap {
           sectionId,
           phaseId: phase.id,
           title,
+          dueDate: days > 0 ? cursor.toISOString().slice(0, 10) : '',
           status: 'Not started',
           completed: false,
           order: i,
