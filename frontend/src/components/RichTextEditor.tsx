@@ -28,7 +28,10 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
   // Only push `value` into the DOM when it changes from *outside* (e.g.
   // switching templates or applying merge tokens) -- never while the user is
   // actively typing, or the cursor jumps to the start on every keystroke.
-  const lastEmitted = useRef(value);
+  // Starts as a sentinel (not `value`) so the real initial content -- an
+  // existing template's saved body -- still paints into the editor on the
+  // very first mount, instead of only on a later change.
+  const lastEmitted = useRef<string | null>(null);
 
   useEffect(() => {
     if (ref.current && value !== lastEmitted.current) {
