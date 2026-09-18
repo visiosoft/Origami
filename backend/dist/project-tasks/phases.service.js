@@ -210,23 +210,31 @@ let PhasesService = class PhasesService {
         const existing = await this.tasks.find({ where: { projectId } });
         const stamp = new Date().toISOString();
         const rows = [];
+        const touched = [];
         for (const phase of pending) {
-            const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
+            const byTitle = new Map(existing.filter((t) => t.phaseId === phase.id).map((t) => [t.title, t]));
             let cursor = new Date(stamp);
             tasksFor(phase.key).forEach((tpl, i) => {
                 const title = tpl.title;
                 const days = Number(tpl.days) || 0;
                 if (days > 0)
                     cursor = addWorkingDays(cursor, days);
-                if (already.has(title))
+                const dueDate = days > 0 ? cursor.toISOString().slice(0, 10) : '';
+                const already = byTitle.get(title);
+                if (already) {
+                    if (dueDate && !already.dueDate && !already.completed && already.status === 'Not started') {
+                        already.dueDate = dueDate;
+                        touched.push(already);
+                    }
                     return;
+                }
                 rows.push(this.tasks.create({
                     id: `T-${projectId}-${tpl.id}`,
                     projectId,
                     sectionId,
                     phaseId: phase.id,
                     title,
-                    dueDate: days > 0 ? cursor.toISOString().slice(0, 10) : '',
+                    dueDate,
                     status: 'Not started',
                     completed: false,
                     order: i,
@@ -241,9 +249,13 @@ let PhasesService = class PhasesService {
         }
         if (rows.length)
             await this.tasks.save(rows);
+        if (touched.length)
+            await this.tasks.save(touched);
         await this.repo.save(pending);
         if (rows.length)
             this.log.log(`Seeded ${rows.length} checklist step(s) for project ${projectId}`);
+        if (touched.length)
+            this.log.log(`Backfilled ${touched.length} due date(s) for project ${projectId}`);
     }
     async overview() {
         const lib = await this.library();

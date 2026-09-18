@@ -256,9 +256,10 @@ export class PhasesService implements OnApplicationBootstrap {
     const existing = await this.tasks.find({ where: { projectId } });
     const stamp = new Date().toISOString();
     const rows: ProjectTaskEntity[] = [];
+    const touched: ProjectTaskEntity[] = [];
 
     for (const phase of pending) {
-      const already = new Set(existing.filter((t) => t.phaseId === phase.id).map((t) => t.title));
+      const byTitle = new Map(existing.filter((t) => t.phaseId === phase.id).map((t) => [t.title, t]));
       // A rough deadline: each task's own "days" estimate, stacked one after
       // another from the day the phase is seeded -- the closest thing to a
       // start date a reusable template has. Purely a starting estimate;
@@ -268,7 +269,18 @@ export class PhasesService implements OnApplicationBootstrap {
         const title = tpl.title;
         const days = Number(tpl.days) || 0;
         if (days > 0) cursor = addWorkingDays(cursor, days);
-        if (already.has(title)) return;
+        const dueDate = days > 0 ? cursor.toISOString().slice(0, 10) : '';
+        const already = byTitle.get(title);
+        if (already) {
+          // A task from before this existed (or added since the last sync)
+          // gets the same backfill, as long as nobody has touched it yet --
+          // work already under way keeps whatever date it has.
+          if (dueDate && !already.dueDate && !already.completed && already.status === 'Not started') {
+            already.dueDate = dueDate;
+            touched.push(already);
+          }
+          return;
+        }
         rows.push(this.tasks.create({
           // Keyed by the template task, not its position. Position collided
           // with ids already on a project seeded before the template, so a
@@ -278,7 +290,7 @@ export class PhasesService implements OnApplicationBootstrap {
           sectionId,
           phaseId: phase.id,
           title,
-          dueDate: days > 0 ? cursor.toISOString().slice(0, 10) : '',
+          dueDate,
           status: 'Not started',
           completed: false,
           order: i,
@@ -293,8 +305,10 @@ export class PhasesService implements OnApplicationBootstrap {
     }
 
     if (rows.length) await this.tasks.save(rows);
+    if (touched.length) await this.tasks.save(touched);
     await this.repo.save(pending);
     if (rows.length) this.log.log(`Seeded ${rows.length} checklist step(s) for project ${projectId}`);
+    if (touched.length) this.log.log(`Backfilled ${touched.length} due date(s) for project ${projectId}`);
   }
 
   /**
