@@ -2,7 +2,7 @@ import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailTemplateEntity } from '../database/entities';
-import { DEFAULT_EMAIL_TEMPLATES, LEGACY_INTRODUCTION_LETTER_BODY_V1, LEGACY_INTRODUCTION_LETTER_BODY_V2 } from '../seed-data/email-templates';
+import { DEFAULT_EMAIL_TEMPLATES, LEGACY_INTRODUCTION_LETTER_BODY_V1, LEGACY_INTRODUCTION_LETTER_BODY_V2, LEGACY_INTRODUCTION_LETTER_BODY_V3 } from '../seed-data/email-templates';
 
 @Injectable()
 export class EmailTemplatesService implements OnApplicationBootstrap {
@@ -37,7 +37,8 @@ export class EmailTemplatesService implements OnApplicationBootstrap {
       // only for an install that still has the earlier placeholder body
       // verbatim, or an emptied-out one (e.g. cleared while testing).
       // An install where someone already wrote real content is left alone.
-      if (intro && (intro.body === LEGACY_INTRODUCTION_LETTER_BODY_V1 || intro.body === LEGACY_INTRODUCTION_LETTER_BODY_V2 || !intro.body || !intro.body.trim())) {
+      const legacyIntroBodies = [LEGACY_INTRODUCTION_LETTER_BODY_V1, LEGACY_INTRODUCTION_LETTER_BODY_V2, LEGACY_INTRODUCTION_LETTER_BODY_V3];
+      if (intro && (legacyIntroBodies.includes(intro.body) || !intro.body || !intro.body.trim())) {
         intro.body = DEFAULT_EMAIL_TEMPLATES.find((t) => t.id === 'TPL-introduction-letter')!.body;
         await this.repo.save(intro);
         this.log.log('Updated Introduction Letter template body to the reference wording');

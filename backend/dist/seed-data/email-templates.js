@@ -1,7 +1,48 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEFAULT_EMAIL_TEMPLATES = exports.LEGACY_INTRODUCTION_LETTER_BODY_V1 = exports.LEGACY_INTRODUCTION_LETTER_BODY_V2 = void 0;
-const INTRODUCTION_LETTER_BODY = `<p>{{clientName}},</p>
+exports.DEFAULT_EMAIL_TEMPLATES = exports.LEGACY_INTRODUCTION_LETTER_BODY_V1 = exports.LEGACY_INTRODUCTION_LETTER_BODY_V2 = exports.LEGACY_INTRODUCTION_LETTER_BODY_V3 = void 0;
+const INTRODUCTION_LETTER_BODY = `<p style="margin:0 0 8pt 0;">{{clientName}},</p>
+
+<p style="margin:0 0 8pt 0;">Greetings! I hope this letter finds you well.</p>
+
+<p style="margin:0 0 8pt 0;">Origami D+B looks forward to the possibility of working with you. Prior to our official start, we have begun our preliminary "homework" (zoning analysis and permit history research). We hope to create a long-term working relationship with you (&amp; your referrals).</p>
+
+<p style="margin:0 0 8pt 0;">Our Design + Build group has a specific method to manage client goals expectations:</p>
+
+<ol style="margin:0 0 8pt 0;">
+<li>Phone interview, goal summary &amp; project fit (complete)</li>
+<li>Zoning Analysis and Building Permit History Review</li>
+<li>Project Program DRAFT (w/ Milestone schedule &amp; Project Budget Projection). Revision following site meeting.</li>
+<li>Schedule of Services/Fee Proposal (following Project Program client review)</li>
+<li>Project Program Final</li>
+<li>Client meeting and site review</li>
+</ol>
+
+<p style="margin:0 0 8pt 0;">Currently we are finalizing the Zoning Analysis, Building Code research, and municipality's updated review/approval process. We will be sending the project program draft towards the end of the week. Please note this is a "living document" summarizes your project goals, and will be adjusted following our Site Visit &amp; throughout the design + build process.</p>
+
+<p style="margin:0 0 8pt 0;">Following your review and approval of the Project Program, you will be presented with your Schedule of Services (fee proposal). This will define the entire process from "napkin sketches" through the front door key hand off.</p>
+
+<p style="margin:0 0 8pt 0;">If you have any questions or comments, please feel free to call or email any time.</p>
+
+<p style="margin:0 0 6pt 0;">Sincerely,</p>
+
+<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:6pt;">
+<tr>
+<td style="width:50%;vertical-align:top;padding-right:10pt;border:none;">
+<div style="font-size:8.5pt;color:#7E9B93;text-transform:uppercase;letter-spacing:0.06em;">Architect of Record</div>
+<div style="font-weight:bold;">J Langston Ewell</div>
+<div>P.O. Box 66518, Scotts Valley, CA</div>
+<div>650.315.5763 &middot; langston@origamidb.com</div>
+</td>
+<td style="width:50%;vertical-align:top;border:none;">
+<div style="font-size:8.5pt;color:#7E9B93;text-transform:uppercase;letter-spacing:0.06em;">General Contractor of Record</div>
+<div style="font-weight:bold;">Edward Ciccarelli</div>
+<div>405 El Camino Real, Suite 357, Menlo Park CA</div>
+<div>650.283.9838 &middot; edward@origamidb.com</div>
+</td>
+</tr>
+</table>`;
+exports.LEGACY_INTRODUCTION_LETTER_BODY_V3 = `<p>{{clientName}},</p>
 
 <p>Greetings! I hope this letter finds you well.</p>
 
