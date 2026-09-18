@@ -42,6 +42,15 @@ let EmailTemplatesService = class EmailTemplatesService {
                 await this.repo.save(intro);
                 this.log.log('Updated Introduction Letter template body to the reference wording');
             }
+            const introRows = (await this.repo.find()).filter((t) => t.kind === 'introduction');
+            if (introRows.length > 1) {
+                const populated = introRows.filter((t) => t.body && t.body.trim());
+                const empties = introRows.filter((t) => !t.body || !t.body.trim());
+                if (populated.length && empties.length) {
+                    await this.repo.remove(empties);
+                    this.log.log(`Removed ${empties.length} empty Introduction Letter placeholder(s)`);
+                }
+            }
         }
         catch (err) {
             this.log.error('Email template seed failed: ' + err.message);
