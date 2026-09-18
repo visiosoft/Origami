@@ -5,7 +5,7 @@ import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel } from '../data/pr
 
 const BG = "'Bricolage Grotesque', serif";
 
-export interface TemplateTask { id: string; title: string; team: string; labels: string[]; days?: number }
+export interface TemplateTask { id: string; title: string; team: string; labels: string[]; days?: number; dependsOn?: string[] }
 export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; dependsOn?: string[]; weeks?: number; tasks: TemplateTask[] }
 
 /**
@@ -57,6 +57,7 @@ export function ProgrammeTemplate() {
   const [typesOpen, setTypesOpen] = useState(false);
   const [teams, setTeams] = useState<string[]>([]);
   const [openPhase, setOpenPhase] = useState<string | null>(null);
+  const [openTaskDeps, setOpenTaskDeps] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -374,38 +375,81 @@ export function ProgrammeTemplate() {
                   {phase.tasks.length === 0 && (
                     <div style={{ padding: '12px 4px', fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No tasks in this phase yet.</div>
                   )}
-                  {phase.tasks.map((task, ti) => (
-                    <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 0', borderTop: ti ? '1px solid rgba(20,8,31,0.04)' : 'none' }}>
-                      <span style={{ width: 20, fontSize: 10.5, color: '#9AA39D', flexShrink: 0 }}>{ti + 1}</span>
-                      <input value={task.title} onChange={(e) => patchTask(phase.key, task.id, { title: e.target.value })} placeholder="Task title" style={{ ...input, flex: 1 }} />
-                      <select value={task.team} onChange={(e) => patchTask(phase.key, task.id, { team: e.target.value })} style={{ ...input, width: 132, flexShrink: 0, ...(TEAM_TONE[task.team] ? { background: TEAM_TONE[task.team].bg, color: TEAM_TONE[task.team].c, fontWeight: 600 } : {}) }}>
-                        <option value="">No team</option>
-                        {/* Keep a value the roles list no longer offers, rather than losing it. */}
-                        {task.team && !teams.includes(task.team) && <option value={task.team}>{task.team} (not a current role)</option>}
-                        {teams.map((t) => <option key={t}>{t}</option>)}
-                      </select>
-                      <select
-                        value={task.labels[0] || ''}
-                        onChange={(e) => patchTask(phase.key, task.id, { labels: e.target.value ? [e.target.value] : [] })}
-                        style={{ ...input, width: 106, flexShrink: 0 }}
-                      >
-                        <option value="">No tag</option>
-                        {LABELS.map((l) => <option key={l}>{l}</option>)}
-                      </select>
-                      <input
-                        type="number"
-                        min={0}
-                        value={task.days || ''}
-                        onChange={(e) => patchTask(phase.key, task.id, { days: e.target.value === '' ? 0 : Number(e.target.value) })}
-                        placeholder="d"
-                        title="Working days this task should take. Left blank, the phase's week estimate is split evenly across its tasks."
-                        style={{ ...input, width: 46, flexShrink: 0, textAlign: 'right' }}
-                      />
-                      <span onClick={() => moveTask(phase.key, ti, -1)} style={{ cursor: 'pointer', color: ti ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↑</span>
-                      <span onClick={() => moveTask(phase.key, ti, 1)} style={{ cursor: 'pointer', color: ti < phase.tasks.length - 1 ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↓</span>
-                      <span onClick={() => patchPhase(phase.key, { tasks: phase.tasks.filter((t) => t.id !== task.id) })} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 14, flexShrink: 0 }}>×</span>
+                  {phase.tasks.map((task, ti) => {
+                    const depsOpen = openTaskDeps === task.id;
+                    const depCount = task.dependsOn?.length || 0;
+                    return (
+                    <div key={task.id}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 0', borderTop: ti ? '1px solid rgba(20,8,31,0.04)' : 'none' }}>
+                        <span style={{ width: 20, fontSize: 10.5, color: '#9AA39D', flexShrink: 0 }}>{ti + 1}</span>
+                        <input value={task.title} onChange={(e) => patchTask(phase.key, task.id, { title: e.target.value })} placeholder="Task title" style={{ ...input, flex: 1 }} />
+                        <select value={task.team} onChange={(e) => patchTask(phase.key, task.id, { team: e.target.value })} style={{ ...input, width: 132, flexShrink: 0, ...(TEAM_TONE[task.team] ? { background: TEAM_TONE[task.team].bg, color: TEAM_TONE[task.team].c, fontWeight: 600 } : {}) }}>
+                          <option value="">No team</option>
+                          {/* Keep a value the roles list no longer offers, rather than losing it. */}
+                          {task.team && !teams.includes(task.team) && <option value={task.team}>{task.team} (not a current role)</option>}
+                          {teams.map((t) => <option key={t}>{t}</option>)}
+                        </select>
+                        <select
+                          value={task.labels[0] || ''}
+                          onChange={(e) => patchTask(phase.key, task.id, { labels: e.target.value ? [e.target.value] : [] })}
+                          style={{ ...input, width: 106, flexShrink: 0 }}
+                        >
+                          <option value="">No tag</option>
+                          {LABELS.map((l) => <option key={l}>{l}</option>)}
+                        </select>
+                        <input
+                          type="number"
+                          min={0}
+                          value={task.days || ''}
+                          onChange={(e) => patchTask(phase.key, task.id, { days: e.target.value === '' ? 0 : Number(e.target.value) })}
+                          placeholder="d"
+                          title="Working days this task should take. Left blank, the phase's week estimate is split evenly across its tasks."
+                          style={{ ...input, width: 46, flexShrink: 0, textAlign: 'right' }}
+                        />
+                        <span
+                          onClick={() => setOpenTaskDeps(depsOpen ? null : task.id)}
+                          title="Depends on other tasks in this phase"
+                          style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, color: depCount ? '#173326' : '#9AA39D', flexShrink: 0, whiteSpace: 'nowrap' }}
+                        >⛓{depCount ? ` ${depCount}` : ''}</span>
+                        <span onClick={() => moveTask(phase.key, ti, -1)} style={{ cursor: 'pointer', color: ti ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↑</span>
+                        <span onClick={() => moveTask(phase.key, ti, 1)} style={{ cursor: 'pointer', color: ti < phase.tasks.length - 1 ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↓</span>
+                        <span
+                          onClick={() => patchPhase(phase.key, {
+                            tasks: phase.tasks
+                              .filter((t) => t.id !== task.id)
+                              .map((t) => (t.dependsOn?.includes(task.id) ? { ...t, dependsOn: t.dependsOn.filter((x) => x !== task.id) } : t)),
+                          })}
+                          style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 14, flexShrink: 0 }}
+                        >×</span>
+                      </div>
+                      {depsOpen && (
+                        <div style={{ margin: '0 0 8px 27px', padding: '8px 10px', background: '#FBF8F2', borderRadius: 8 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
+                            Depends on (this phase)
+                          </div>
+                          <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 7, lineHeight: 1.5 }}>
+                            Can't start until these tasks are done.
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {phase.tasks.filter((t) => t.id !== task.id && t.title.trim()).map((t) => {
+                              const on = !!task.dependsOn?.includes(t.id);
+                              return (
+                                <span
+                                  key={t.id}
+                                  onClick={() => patchTask(phase.key, task.id, { dependsOn: on ? (task.dependsOn || []).filter((x) => x !== t.id) : [...(task.dependsOn || []), t.id] })}
+                                  style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#43514D', fontWeight: on ? 700 : 400 }}
+                                >{t.title}</span>
+                              );
+                            })}
+                            {phase.tasks.filter((t) => t.id !== task.id && t.title.trim()).length === 0 && (
+                              <span style={{ fontSize: 11, color: '#9AA39D' }}>Add another task first.</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                   <div onClick={() => addTask(phase.key)} style={{ marginTop: 8, fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>+ Add task</div>
                 </div>
               )}

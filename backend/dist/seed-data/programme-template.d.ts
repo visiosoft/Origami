@@ -4,6 +4,7 @@ export interface TemplateTask {
     days?: number;
     team: string;
     labels: string[];
+    dependsOn?: string[];
 }
 export interface TemplatePhase {
     key: string;

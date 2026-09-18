@@ -21,6 +21,8 @@ export interface TemplateTask {
   team: string;
   /** Free tags shown on the card: Deliverable, Approval, Auto, … */
   labels: string[];
+  /** Other task ids, within the same phase, that must finish before this one can start. */
+  dependsOn?: string[];
 }
 
 export interface TemplatePhase {
@@ -245,6 +247,7 @@ export function parseProgramme(raw: string | null | undefined): TemplatePhase[] 
                 team: String(task.team || ''),
                 days: Number.isFinite(Number(task.days)) && Number(task.days) > 0 ? Number(task.days) : 0,
                 labels: Array.isArray(task.labels) ? task.labels.map(String) : [],
+                dependsOn: Array.isArray(task.dependsOn) ? task.dependsOn.filter((k: unknown) => typeof k === 'string') : [],
               }))
           : [],
       }));
