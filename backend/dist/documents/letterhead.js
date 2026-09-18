@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BRAND_KEYS = void 0;
+exports.PAGE_BREAK = exports.BRAND_KEYS = void 0;
 exports.brandingFrom = brandingFrom;
 exports.safeFilename = safeFilename;
 exports.accentOf = accentOf;
@@ -70,6 +70,7 @@ function accentOf(brand) {
 function pageNumberHtml(brand, n) {
     return `<div style="text-align:right;font-size:10pt;font-weight:bold;color:${accentOf(brand)};margin-top:20pt;">${n}</div>`;
 }
+exports.PAGE_BREAK = '<p style="page-break-before:always;margin:0;line-height:1pt;">&nbsp;</p>';
 function footerBarHtml(brand) {
     const accent = accentOf(brand);
     const line = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).map(esc).join('  &middot;  ');
@@ -103,7 +104,7 @@ function aboutUsPageHtml(brand, pageBreakBefore = true, pageNumber) {
         </td></tr><tr><td style="border:none;font-weight:bold;font-size:10.5pt;color:#0B1A12;">${esc(m.name)}</td></tr><tr><td style="border:none;font-size:9pt;color:${accent};">${esc(m.title)}</td></tr></table>
       </td>`).join('')}${pair.length < 2 ? '<td style="width:50%;border:none;"></td>' : ''}</tr>`);
     }
-    return `<div${pageBreakBefore ? ' style="page-break-before:always;"' : ''}>
+    return `${pageBreakBefore ? exports.PAGE_BREAK : ''}<div${pageBreakBefore ? ' style="page-break-before:always;"' : ''}>
     <h1 style="font-size:17pt;color:${accent};text-align:center;margin:0 0 14pt 0;">About ${esc(brand.companyName)}</h1>
     <div style="font-size:10.5pt;">${paragraphs}</div>
     ${members.length ? `<h2 style="font-size:15pt;color:${accent};text-align:center;margin:18pt 0 16pt 0;">Team</h2>
@@ -166,6 +167,7 @@ function buildLetterHtml(opts) {
 <body style="font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.65;color:#1E2B25;margin:0;">
 
   ${cover}${about}
+  ${(cover || about) ? exports.PAGE_BREAK : ''}
   <div${cover || about ? ' style="page-break-before:always;"' : ''}>
   <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-bottom:3px solid ${accent};padding-bottom:10pt;margin-bottom:8pt;">
     <tr>

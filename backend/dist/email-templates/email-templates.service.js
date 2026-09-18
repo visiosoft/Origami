@@ -37,7 +37,7 @@ let EmailTemplatesService = class EmailTemplatesService {
                 await this.repo.save(intro);
                 this.log.log('Moved Introduction Letter template to the introduction kind');
             }
-            if (intro && (intro.body === email_templates_1.LEGACY_INTRODUCTION_LETTER_BODY_V1 || !intro.body || !intro.body.trim())) {
+            if (intro && (intro.body === email_templates_1.LEGACY_INTRODUCTION_LETTER_BODY_V1 || intro.body === email_templates_1.LEGACY_INTRODUCTION_LETTER_BODY_V2 || !intro.body || !intro.body.trim())) {
                 intro.body = email_templates_1.DEFAULT_EMAIL_TEMPLATES.find((t) => t.id === 'TPL-introduction-letter').body;
                 await this.repo.save(intro);
                 this.log.log('Updated Introduction Letter template body to the reference wording');

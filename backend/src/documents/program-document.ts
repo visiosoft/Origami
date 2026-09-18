@@ -12,7 +12,7 @@
  * band onto it.
  */
 
-import { accentOf, aboutUsPageHtml, footerBarHtml, type Branding } from './letterhead';
+import { accentOf, aboutUsPageHtml, footerBarHtml, PAGE_BREAK, type Branding } from './letterhead';
 
 export interface DocRow {
   label: string;
@@ -143,7 +143,7 @@ export function buildProgramHtml(opts: {
           </tr>
         </table>`
       : '';
-    return `<div style="page-break-before:always;">
+    return `${PAGE_BREAK}<div style="page-break-before:always;">
       ${bandHtml(b, `${esc(opts.projectName)}  &middot;  ${i + 1} of ${opts.steps.length}`)}
       <div style="font-size:8.5pt;color:#7E9B93;letter-spacing:0.08em;text-transform:uppercase;">Section ${i + 1}</div>
       <div style="font-size:15pt;font-weight:bold;color:#0B1A12;margin:2pt 0 4pt 0;">${esc(step.name)}</div>

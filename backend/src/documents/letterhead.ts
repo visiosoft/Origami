@@ -116,6 +116,14 @@ function pageNumberHtml(brand: Branding, n: string | number) {
 }
 
 /**
+ * A page break, between sections rather than only as a style on the
+ * following wrapper -- Google Docs' HTML import is inconsistent about
+ * honouring `page-break-before` on an empty/wrapping <div>, but reliably
+ * respects it on an actual paragraph carrying visible (if blank) content.
+ */
+export const PAGE_BREAK = '<p style="page-break-before:always;margin:0;line-height:1pt;">&nbsp;</p>';
+
+/**
  * The branded footer bar: a solid accent-colour band carrying the contact
  * line, with the crane mark sitting just above it. Shared by every generated
  * document so the footer never drifts between the letterhead and the
@@ -165,7 +173,7 @@ export function aboutUsPageHtml(brand: Branding, pageBreakBefore = true, pageNum
       </td>`).join('')}${pair.length < 2 ? '<td style="width:50%;border:none;"></td>' : ''}</tr>`);
   }
 
-  return `<div${pageBreakBefore ? ' style="page-break-before:always;"' : ''}>
+  return `${pageBreakBefore ? PAGE_BREAK : ''}<div${pageBreakBefore ? ' style="page-break-before:always;"' : ''}>
     <h1 style="font-size:17pt;color:${accent};text-align:center;margin:0 0 14pt 0;">About ${esc(brand.companyName)}</h1>
     <div style="font-size:10.5pt;">${paragraphs}</div>
     ${members.length ? `<h2 style="font-size:15pt;color:${accent};text-align:center;margin:18pt 0 16pt 0;">Team</h2>
@@ -274,6 +282,7 @@ export function buildLetterHtml(opts: {
 <body style="font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.65;color:#1E2B25;margin:0;">
 
   ${cover}${about}
+  ${(cover || about) ? PAGE_BREAK : ''}
   <div${cover || about ? ' style="page-break-before:always;"' : ''}>
   <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-bottom:3px solid ${accent};padding-bottom:10pt;margin-bottom:8pt;">
     <tr>

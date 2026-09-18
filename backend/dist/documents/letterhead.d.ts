@@ -25,6 +25,7 @@ export declare const BRAND_KEYS: string[];
 export declare function brandingFrom(settings: Record<string, string>): Branding;
 export declare function safeFilename(name: string, fallback?: string): string;
 export declare function accentOf(brand: Branding): string;
+export declare const PAGE_BREAK = "<p style=\"page-break-before:always;margin:0;line-height:1pt;\">&nbsp;</p>";
 export declare function footerBarHtml(brand: Branding): string;
 export declare function aboutUsPageHtml(brand: Branding, pageBreakBefore?: boolean, pageNumber?: string | number): string;
 export declare function coverPageHtml(brand: Branding, opts: {
