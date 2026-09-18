@@ -131,6 +131,16 @@ export function DesignProject() {
     .then((b: any) => { setPhases((b?.phases ?? []) as Phase[]); setTasks((b?.tasks ?? []) as ProjectTask[]); })
     .catch(() => { });
 
+  // A Construction phase's checklist is only ever seeded from the template at
+  // the moment it's adopted onto the project -- a task added to the template
+  // afterward otherwise never shows up. Re-adopting (idempotent, skips tasks
+  // already there) each time the phase is actually viewed keeps it current.
+  useEffect(() => {
+    if (board !== '/pm' || phaseFilter === 'all' || !constructionKeys?.has(phaseFilter)) return;
+    api.projectPhases.adopt(id, phaseFilter).then(reload).catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, phaseFilter, constructionKeys, id]);
+
   /** Ticking writes through — the board and reports read the same completion. */
   const toggle = (task: ProjectTask) => {
     if (!canManage) return;

@@ -490,6 +490,11 @@ export class PhasesService implements OnApplicationBootstrap {
         id: `PH-${projectId}-${key}`,
         projectId, key, name: source.name, color: source.color, order: count,
       } as Partial<ProjectPhaseEntity>));
+    } else if (phase.seededAt) {
+      // Already adopted once -- clear the stamp so a task added to the
+      // template since then gets topped up too (seedChecklists skips
+      // titles it already created, so this never duplicates existing ones).
+      phase.seededAt = '';
     }
     await this.seedChecklists(projectId, [phase], [source]);
     return phase;

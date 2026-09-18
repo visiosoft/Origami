@@ -384,6 +384,9 @@ let PhasesService = class PhasesService {
                 projectId, key, name: source.name, color: source.color, order: count,
             }));
         }
+        else if (phase.seededAt) {
+            phase.seededAt = '';
+        }
         await this.seedChecklists(projectId, [phase], [source]);
         return phase;
     }
