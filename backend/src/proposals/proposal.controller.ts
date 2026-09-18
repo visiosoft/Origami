@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, Req, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { ProposalService } from './proposal.service';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { Public } from '../auth/guards/public.decorator';
@@ -27,6 +28,23 @@ export class ProposalController {
   @Put()
   save(@Body() body: { dealId: string; subject?: string; html?: string; amount?: string }, @Req() req: AuthedRequest) {
     return this.service.save(body?.dealId, body, { id: req.claims?.sub, name: req.claims?.name });
+  }
+
+  /** Renders whatever is currently in the composer -- saved or not -- as a PDF, to preview before sending. */
+  @Tiers('internal')
+  @Post('pdf')
+  async pdf(@Body() body: { subject?: string; html?: string; amount?: string; dealName?: string }, @Res() res: Response) {
+    const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
+    const bodyWithAmount = [
+      body.amount ? `<p><strong>Proposed contract amount:</strong> ${body.amount}</p>` : '',
+      body.html || '',
+    ].filter(Boolean).join('\n');
+    const html = buildLetterHtml({ brand, title: body.subject, recipient: body.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
+    const filename = safeFilename(body.subject || 'Document') + '.pdf';
+    const pdf = await this.google.htmlToPdf(html, safeFilename(body.subject || 'Document'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.end(pdf);
   }
 
   /** Emails the proposal with the letterhead PDF attached, plus a signing link the prospect can open without an account. */

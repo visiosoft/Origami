@@ -32,6 +32,19 @@ let ProposalController = class ProposalController {
     save(body, req) {
         return this.service.save(body?.dealId, body, { id: req.claims?.sub, name: req.claims?.name });
     }
+    async pdf(body, res) {
+        const brand = (0, letterhead_1.brandingFrom)(await this.settings.getMany(letterhead_1.BRAND_KEYS));
+        const bodyWithAmount = [
+            body.amount ? `<p><strong>Proposed contract amount:</strong> ${body.amount}</p>` : '',
+            body.html || '',
+        ].filter(Boolean).join('\n');
+        const html = (0, letterhead_1.buildLetterHtml)({ brand, title: body.subject, recipient: body.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
+        const filename = (0, letterhead_1.safeFilename)(body.subject || 'Document') + '.pdf';
+        const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Document'));
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.end(pdf);
+    }
     async send(body, req) {
         const doc = await this.service.get(body.dealId);
         const link = await this.service.signingLink(body.dealId);
@@ -85,6 +98,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], ProposalController.prototype, "save", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Post)('pdf'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], ProposalController.prototype, "pdf", null);
 __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('send'),

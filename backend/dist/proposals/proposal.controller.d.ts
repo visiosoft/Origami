@@ -1,3 +1,4 @@
+import type { Response } from 'express';
 import { ProposalService } from './proposal.service';
 import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
@@ -42,6 +43,12 @@ export declare class ProposalController {
         signedByEmail: string;
         signatureImage: string;
     }>;
+    pdf(body: {
+        subject?: string;
+        html?: string;
+        amount?: string;
+        dealName?: string;
+    }, res: Response): Promise<Response<any, Record<string, any>>>;
     send(body: {
         dealId: string;
         to: string;

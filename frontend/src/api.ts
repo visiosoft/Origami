@@ -320,6 +320,20 @@ export const api = {
     get: (dealId: string) => request(`/proposals?dealId=${encodeURIComponent(dealId)}`),
     save: (dealId: string, body: { subject?: string; html?: string; amount?: string }) =>
       request('/proposals', { method: 'PUT', body: JSON.stringify({ dealId, ...body }) }),
+    /** Whatever is currently in the composer, rendered as a PDF to preview -- no save needed first. */
+    pdf: async (body: { subject?: string; html?: string; amount?: string; dealName?: string }): Promise<Blob> => {
+      const token = session.get();
+      const res = await fetch(`${API_BASE}/proposals/pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error((errBody && errBody.message) || `Could not render the PDF (${res.status})`);
+      }
+      return res.blob();
+    },
     /** Emails the proposal with the letterhead PDF attached, plus a 10-day signing link -- and any extra files chosen. */
     send: (dealId: string, to: string, cc?: string, extraAttachments?: { filename: string; mimeType?: string; contentBase64: string }[]) =>
       request<{ ok: boolean; to: string; link: string; attachmentCount: number }>('/proposals/send', { method: 'POST', body: JSON.stringify({ dealId, to, cc, extraAttachments }) }),

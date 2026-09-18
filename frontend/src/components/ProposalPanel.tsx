@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { mergeTokens } from '../data/clientPersonality';
+import { RichTextEditor } from './RichTextEditor';
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -43,7 +44,10 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
   const [signatureImage, setSignatureImage] = useState('');
   const [templates, setTemplates] = useState<ProposalTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
+  const [agreementTemplates, setAgreementTemplates] = useState<ProposalTemplate[]>([]);
+  const [agreementTemplateId, setAgreementTemplateId] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [previewing, setPreviewing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = () => {
@@ -51,7 +55,13 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
     api.proposals.get(dealId)
       .then((res: any) => {
         setSubject(res?.subject || '');
-        setHtml(res?.html || '');
+        // A proposal saved before the rich editor existed is plain text with
+        // blank-line paragraph breaks -- wrap it as real HTML once on load so
+        // it still displays (and sends) with those breaks intact.
+        const rawHtml: string = res?.html || '';
+        setHtml(rawHtml && !/<[a-z][\s\S]*>/i.test(rawHtml)
+          ? rawHtml.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('')
+          : rawHtml);
         setAmount(res?.amount || '');
         setSentAt(res?.sentAt || '');
         setSentTo(res?.sentTo || '');
@@ -67,7 +77,11 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
   useEffect(() => { setTo(dealEmail || ''); }, [dealEmail]);
   useEffect(() => {
     api.emailTemplates.list()
-      .then((res: any) => { if (Array.isArray(res)) setTemplates(res.filter((t: any) => t.kind === 'proposal')); })
+      .then((res: any) => {
+        if (!Array.isArray(res)) return;
+        setTemplates(res.filter((t: any) => t.kind === 'proposal'));
+        setAgreementTemplates(res.filter((t: any) => t.kind === 'agreement'));
+      })
       .catch(() => { });
   }, []);
 
@@ -79,10 +93,32 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
 
   const applyTemplate = (id: string) => {
     setTemplateId(id);
+    setAgreementTemplateId('');
     const tpl = templates.find((t) => t.id === id);
     if (!tpl) return;
     if (tpl.subject) setSubject(mergeTokens(tpl.subject, tokens));
     setHtml(mergeTokens(tpl.body, tokens));
+  };
+
+  const applyAgreementTemplate = (id: string) => {
+    setAgreementTemplateId(id);
+    setTemplateId('');
+    const tpl = agreementTemplates.find((t) => t.id === id);
+    if (!tpl) return;
+    if (tpl.subject) setSubject(mergeTokens(tpl.subject, tokens));
+    setHtml(mergeTokens(tpl.body, tokens));
+  };
+
+  const preview = () => {
+    setPreviewing(true);
+    api.proposals.pdf({ subject, html, amount, dealName })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setPreviewing(false));
   };
 
   const addFiles = (list: FileList | null) => {
@@ -138,15 +174,26 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
         </div>
       ) : null}
 
-      {templates.length > 0 && (
-        <div style={{ marginBottom: 8 }}>
-          <span style={label}>Proposal template</span>
-          <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} style={input}>
-            <option value="">Start from scratch…</option>
-            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </div>
-      )}
+      <div style={{ display: 'grid', gridTemplateColumns: templates.length && agreementTemplates.length ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 8 }}>
+        {templates.length > 0 && (
+          <div>
+            <span style={label}>Proposal template</span>
+            <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} style={input}>
+              <option value="">Start from scratch…</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        )}
+        {agreementTemplates.length > 0 && (
+          <div>
+            <span style={label}>Agreement</span>
+            <select value={agreementTemplateId} onChange={(e) => applyAgreementTemplate(e.target.value)} style={input}>
+              <option value="">None</option>
+              {agreementTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
       <div style={{ marginBottom: 8 }}>
         <span style={label}>Subject</span>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Proposal — [project]" style={input} />
@@ -156,8 +203,8 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
         <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="$0" style={input} />
       </div>
       <div style={{ marginBottom: 8 }}>
-        <span style={label}>Proposal body</span>
-        <textarea value={html} onChange={(e) => setHtml(e.target.value)} rows={5} placeholder="Scope, terms, and anything else the client should see before signing." style={{ ...input, resize: 'vertical', lineHeight: 1.5 }} />
+        <span style={label}>{agreementTemplateId ? 'Agreement body' : 'Proposal body'}</span>
+        <RichTextEditor value={html} onChange={setHtml} minHeight={160} />
       </div>
       <div style={{ marginBottom: 8 }}>
         <span style={label}>Send to</span>
@@ -182,6 +229,9 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div onClick={previewing ? undefined : preview} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: previewing ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}>
+          {previewing ? 'Rendering…' : '👁 Preview PDF'}
+        </div>
         <div onClick={saving ? undefined : save} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: saving ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}>
           {saving ? 'Saving…' : 'Save draft'}
         </div>
@@ -190,7 +240,9 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
         </div>
       </div>
       <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>
-        Emails the proposal with a letterhead PDF and a signing link valid for 10 days — no account needed to sign. Signing moves this deal to a project automatically.
+        {agreementTemplateId
+          ? 'Emails the agreement as a letterhead PDF with a signing link valid for 10 days — no account needed to sign. Signing moves this deal to a project automatically.'
+          : 'Emails the proposal with a letterhead PDF and a signing link valid for 10 days — no account needed to sign. Signing moves this deal to a project automatically.'}
       </div>
     </div>
   );
