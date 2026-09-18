@@ -19,6 +19,8 @@ export declare class ProjectEntity {
     designPhase: string;
     leadId: string;
     introLetterSentAt: string;
+    introLetterSubject: string;
+    introLetterHtml: string;
     contractApproved: boolean | null;
     templateKey: string;
 }

@@ -8,6 +8,7 @@ import { Attachments, filesFromClipboard, nameClipboardFile } from '../component
 import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
+import { RichTextEditor } from '../components/RichTextEditor';
 import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -211,15 +212,23 @@ export function Projects() {
     setEmailSubject(mergeIntro(t?.subject || ''));
     setEmailBody(mergeIntro(t?.body || ''));
   };
-  // Populate the compose fields once when the Introduction Letter task opens for a project.
+  // Populate the compose fields once when the Introduction Letter task opens for
+  // a project -- from the saved draft if there is one, otherwise from the template.
   useEffect(() => {
     if (selPt?.pt?.title === 'Introduction Letter' && sel && templates.length) {
       const keyId = String(sel.id);
       if (introInitFor.current !== keyId) {
         introInitFor.current = keyId;
-        const t = templates.find((x) => x.key === 'introduction_letter') || templates[0];
         setEmailTo(introLead?.email || '');
-        if (t) { setTplId(t.id); setEmailSubject(mergeIntro(t.subject || '')); setEmailBody(mergeIntro(t.body || '')); }
+        if (sel.introLetterHtml) {
+          setEmailSubject(sel.introLetterSubject || '');
+          setEmailBody(sel.introLetterHtml);
+          const t = templates.find((x) => x.key === 'introduction_letter') || templates[0];
+          if (t) setTplId(t.id);
+        } else {
+          const t = templates.find((x) => x.key === 'introduction_letter') || templates[0];
+          if (t) { setTplId(t.id); setEmailSubject(mergeIntro(t.subject || '')); setEmailBody(mergeIntro(t.body || '')); }
+        }
       }
     } else if (!selPt) {
       introInitFor.current = null;
@@ -277,7 +286,24 @@ export function Projects() {
     includeAboutUs: true,
     contactName: introLead?.contactName || introLead?.leadName || undefined,
     contactPhone: introLead?.phone || undefined,
+    // A short note instead of pasting the whole letter into the email body —
+    // the letter itself only lives in the attached, branded PDF.
+    noteHtml: [
+      `<p>Hi${introLead?.leadName ? ` ${introLead.leadName}` : ''},</p>`,
+      `<p>Attached is your <strong>Introduction Letter</strong> from Origami Design + Build${sel?.name ? ` for ${sel.name}` : ''}.</p>`,
+      `<p>If you have any questions or comments, please feel free to call or email any time.</p>`,
+    ].join('\n'),
   });
+
+  const [savingDraft, setSavingDraft] = useState(false);
+  const saveIntroDraft = () => {
+    if (!sel) return;
+    setSavingDraft(true);
+    api.projects.update(sel.id, { name: sel.name, introLetterSubject: emailSubject, introLetterHtml: emailBody })
+      .then(() => { setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, introLetterSubject: emailSubject, introLetterHtml: emailBody } : p))); toast('Draft saved'); })
+      .catch(() => toast('⚠ Failed to save draft'))
+      .finally(() => setSavingDraft(false));
+  };
 
   /** Open the branded PDF in a new tab, exactly as the recipient will get it. */
   const previewIntroLetter = () => {
@@ -305,9 +331,6 @@ export function Projects() {
         toast('⚠ ' + (e.message || 'Gmail unavailable') + ' — opened your email app instead');
       })
       .finally(() => setSendingLetter(false));
-  };
-  const copyIntroLetter = () => {
-    navigator.clipboard.writeText((emailSubject ? emailSubject + '\n\n' : '') + emailBody).then(() => toast('Copied')).catch(() => toast('⚠ Copy failed'));
   };
 
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); loadBoard(id); };
@@ -991,21 +1014,21 @@ export function Projects() {
                         <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Message</div>
-                        <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={14} style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.5, whiteSpace: 'pre-wrap' }} />
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Letter (goes into the attached PDF, not the email body)</div>
+                        <RichTextEditor value={emailBody} onChange={setEmailBody} minHeight={280} />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <div onClick={sendingLetter ? undefined : sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sendingLetter ? 'default' : 'pointer', background: sendingLetter ? '#9AB0A4' : '#173326', color: 'white' }}>
-                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
-                          {sendingLetter ? 'Sending…' : sel?.introLetterSentAt ? 'Re-send' : 'Send'}
-                        </div>
+                        <div onClick={savingDraft ? undefined : saveIntroDraft} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: savingDraft ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>{savingDraft ? 'Saving…' : 'Save draft'}</div>
                         <div onClick={previewingLetter ? undefined : previewIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: previewingLetter ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
                           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                           {previewingLetter ? 'Rendering…' : 'Preview PDF'}
                         </div>
-                        <div onClick={copyIntroLetter} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>Copy email</div>
+                        <div onClick={sendingLetter ? undefined : sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sendingLetter ? 'default' : 'pointer', background: sendingLetter ? '#9AB0A4' : '#173326', color: 'white' }}>
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+                          {sendingLetter ? 'Sending…' : sel?.introLetterSentAt ? 'Re-send' : 'Send'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>“Send” delivers the message from the connected Google Workspace account with the letter attached as a PDF on your letterhead, and marks this step complete. Header, footer and signature come from Settings → Branding &amp; Letterhead.</div>
+                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>Edit and save the letter above, then preview it as a PDF before sending. “Send” emails a short note with the letter attached as a branded PDF (cover page + About Us) and marks this step complete. Header, footer, team and cover photo come from Settings → Branding &amp; Letterhead.</div>
                     </div>
                   )}
                 </div>

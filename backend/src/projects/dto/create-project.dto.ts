@@ -21,6 +21,8 @@ export class CreateProjectDto {
   @IsString() @IsOptional() designPhase?: string;
   @IsString() @IsOptional() leadId?: string;
   @IsString() @IsOptional() introLetterSentAt?: string;
+  @IsString() @IsOptional() introLetterSubject?: string;
+  @IsString() @IsOptional() introLetterHtml?: string;
   @IsBoolean() @IsOptional() contractApproved?: boolean;
   @IsString() @IsOptional() templateKey?: string;
 }

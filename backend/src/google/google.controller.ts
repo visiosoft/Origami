@@ -203,6 +203,8 @@ export class GoogleController {
     to: string; subject: string; html: string; cc?: string; bcc?: string;
     recipient?: string; date?: string; filename?: string;
     includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string;
+    /** A short email note, sent instead of pasting the whole letter into the email body. */
+    noteHtml?: string;
   }) {
     const pdf = await this.renderLetter(body);
     const filename = safeFilename(body.filename || body.subject || 'Letter') + '.pdf';
@@ -211,7 +213,7 @@ export class GoogleController {
       cc: body.cc,
       bcc: body.bcc,
       subject: body.subject,
-      html: body.html,
+      html: body.noteHtml || body.html,
       attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
     });
     return { ok: true, filename };

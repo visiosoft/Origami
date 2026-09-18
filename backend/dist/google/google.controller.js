@@ -157,7 +157,7 @@ let GoogleController = class GoogleController {
             cc: body.cc,
             bcc: body.bcc,
             subject: body.subject,
-            html: body.html,
+            html: body.noteHtml || body.html,
             attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
         });
         return { ok: true, filename };

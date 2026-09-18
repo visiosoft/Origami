@@ -26,6 +26,11 @@ export class ProjectEntity {
   @Column({ nullable: true }) designPhase!: string;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
+  // The composed Introduction Letter, saved as a draft before it's sent --
+  // separate from the plain-text template default, so an edit survives a
+  // reload instead of re-merging from the template every time the tab opens.
+  @Column({ nullable: true }) introLetterSubject!: string;
+  @Column(TEXT) introLetterHtml!: string;
   // Set once the client has signed. Locks the AEC Team roster in the Project
   // Program against further edits -- it's assembled provisionally during
   // programming, but who's actually on the job is only final once there's a

@@ -19,6 +19,9 @@ export interface Project {
   img: string;
   leadId?: string; // originating lead (intake questionnaire) shown on the Project Info task
   introLetterSentAt?: string; // ISO timestamp when the Introduction Letter was sent (marks that step complete)
+  /** The composed Introduction Letter, saved as a draft before sending. */
+  introLetterSubject?: string;
+  introLetterHtml?: string;
   /** Set once the client has signed. Locks the AEC Team roster in the Project Program. */
   contractApproved?: boolean;
   /** Which entry of the programme template library this project's Phase Board is built from. */

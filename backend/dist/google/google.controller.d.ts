@@ -102,6 +102,7 @@ export declare class GoogleController {
         includeAboutUs?: boolean;
         contactName?: string;
         contactPhone?: string;
+        noteHtml?: string;
     }): Promise<{
         ok: boolean;
         filename: string;
