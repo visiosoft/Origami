@@ -71,7 +71,54 @@ J Langston Ewell                                        Edward Ciccarelli
 Origami Design + Build                                  Origami Design + Build
 Chief of Design                                         Chief of Construction`;
 
+// A sample agreement, styled as real formatted HTML rather than plain text --
+// the Agreements tab edits this kind of template with a rich text editor, and
+// sends it as-is (no paragraph-wrapping) since it's already proper markup.
+const SAMPLE_AGREEMENT_BODY = `<h1>Design + Build Services Agreement</h1>
+<p>This Agreement is made as of {{date}} between <strong>Origami Design + Build</strong> ("the Company") and <strong>{{clientName}}</strong> ("the Client") for the project known as <strong>{{projectTitle}}</strong>.</p>
+<p>The Company and the Client agree as follows:</p>
+
+<h2>1. Scope of Work</h2>
+<p>The Company will provide design and/or construction services for the Project as described in the Project Program, Schedule of Services, and any exhibits attached to or referenced by this Agreement. Work not described in those documents is outside the scope of this Agreement unless added by a written Change Order.</p>
+
+<h2>2. Compensation</h2>
+<p>The Client agrees to pay the Company the amounts set out in the attached fee proposal, invoiced according to the payment schedule described there. Fees for phases not yet contracted (e.g. construction, following a design-only agreement) will be the subject of a separate agreement once that scope is defined.</p>
+
+<h2>3. Schedule</h2>
+<p>The Company will perform the Work according to the milestone schedule provided at the start of each phase. Schedules are estimates based on information available at the time and may be affected by permitting, weather, material availability, and decisions pending from the Client.</p>
+
+<h2>4. Change Orders</h2>
+<p>Any change to the scope, schedule, or fee must be documented in a written Change Order signed by both parties before the change is performed. Verbal instructions are not a basis for additional compensation.</p>
+
+<h2>5. Payment Terms</h2>
+<ol>
+  <li>Invoices are due within 15 days of receipt unless otherwise agreed in writing.</li>
+  <li>A retainer, where applicable, is credited against the final invoice of the phase it was collected for.</li>
+  <li>Work may be paused if an invoice remains unpaid more than 30 days past its due date, after written notice.</li>
+</ol>
+
+<h2>6. Termination</h2>
+<p>Either party may terminate this Agreement with 14 days' written notice. The Client remains responsible for fees earned and reimbursable costs incurred up to the termination date.</p>
+
+<h2>7. Governing Law</h2>
+<p>This Agreement is governed by the laws of the state in which the Project is located.</p>
+
+<h2>Signatures</h2>
+<p>By signing below, both parties agree to the terms of this Agreement.</p>
+<p>__________________________________<br/>{{clientName}}, Client<br/>Date: ____________________</p>
+<p>__________________________________<br/>Origami Design + Build<br/>Date: ____________________</p>`;
+
 export const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
+  {
+    id: 'TPL-agreement-design-build',
+    key: 'agreement_design_build',
+    name: 'Design + Build Services Agreement',
+    subject: 'Agreement — {{projectTitle}}',
+    body: SAMPLE_AGREEMENT_BODY,
+    kind: 'agreement',
+    category: 'Sample',
+    updatedAt: '',
+  },
   {
     id: 'TPL-introduction-letter',
     key: 'introduction_letter',

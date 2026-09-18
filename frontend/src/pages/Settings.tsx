@@ -9,6 +9,7 @@ import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
 import { MyCalendarSettings } from './MyCalendarSettings';
 import { mergeTokens } from '../data/clientPersonality';
+import { RichTextEditor } from '../components/RichTextEditor';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -244,7 +245,10 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
     api.emailTemplates.delete(draft.id).then(() => { toast('Template deleted'); closeEditor(); reload(); }).catch(() => toast('⚠ Failed to delete'));
   };
 
-  const firstLine = (s: string) => (s || '').replace(/\{\{[^}]+\}\}/g, '…').split('\n').find((l) => l.trim()) || '';
+  const firstLine = (s: string, isRich?: boolean) => {
+    const plain = isRich ? (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : (s || '');
+    return plain.replace(/\{\{[^}]+\}\}/g, '…').split('\n').find((l) => l.trim()) || '';
+  };
 
   return (
     <div>
@@ -306,7 +310,11 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                   );
                 })()}
               </div>
-              <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
+              {draft.kind === 'agreement' ? (
+                <RichTextEditor value={draft.body} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} />
+              ) : (
+                <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
+              )}
               {draft.kind === 'sms' && (
                 <div style={{ fontSize: 10.5, color: '#9AA39D', marginTop: 4, lineHeight: 1.45 }}>
                   One segment is 160 characters, or 70 if any character is outside the GSM set. Longer messages are sent as several segments and billed as several.
@@ -333,7 +341,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                   {!filterKind && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#E7F0E8', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>}
                 </div>
                 {t.subject && <div style={{ fontSize: 11.5, color: '#43514D', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
-                <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body)}</div>
+                <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body, (t.kind || 'email') === 'agreement')}</div>
               </div>
               {sendable && (
                 <div onClick={() => setSendingTemplate(t)} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(20,8,31,0.06)', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
@@ -366,12 +374,16 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
   };
   useEffect(fill, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isRich = (template.kind || 'email') === 'agreement';
+
   const send = () => {
     if (!to.trim()) { toast('Who should it go to?'); return; }
     setSending(true);
     api.google.sendLetter({
       to: to.trim(), cc: cc.trim() || undefined, subject: subject.trim() || template.name,
-      html: body.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join(''),
+      // A rich (agreement) body is already real HTML; a plain one is still
+      // just text with blank-line paragraph breaks, same as before.
+      html: isRich ? body : body.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join(''),
       recipient: clientName.trim() || undefined,
       filename: template.name,
     })
@@ -382,7 +394,7 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, padding: 22, width: 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, padding: 22, width: isRich ? 640 : 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, color: '#0B1A12', marginBottom: 2 }}>Send "{template.name}"</div>
         <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 16 }}>Emailed as a letterhead PDF from the connected Google Workspace account.</div>
 
@@ -407,7 +419,11 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
           </div>
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Body</div>
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }} />
+            {isRich ? (
+              <RichTextEditor value={body} onChange={setBody} minHeight={320} />
+            ) : (
+              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }} />
+            )}
           </div>
         </div>
 
