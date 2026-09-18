@@ -187,7 +187,7 @@ export class GoogleController {
    */
   @Post('letter/pdf')
   async letterPdf(
-    @Body() body: { subject?: string; html?: string; recipient?: string; date?: string; filename?: string; includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string },
+    @Body() body: { subject?: string; html?: string; recipient?: string; date?: string; filename?: string; includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string; contactEmail?: string },
     @Res() res: Response,
   ) {
     const pdf = await this.renderLetter(body);
@@ -202,7 +202,7 @@ export class GoogleController {
   async sendLetter(@Body() body: {
     to: string; subject: string; html: string; cc?: string; bcc?: string;
     recipient?: string; date?: string; filename?: string;
-    includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string;
+    includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string; contactEmail?: string;
     /** A short email note, sent instead of pasting the whole letter into the email body. */
     noteHtml?: string;
   }) {
@@ -220,7 +220,7 @@ export class GoogleController {
   }
 
   /** Shared by the preview and the send, so neither can drift from the other. */
-  private async renderLetter(body: { subject?: string; html?: string; recipient?: string; date?: string; includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string }) {
+  private async renderLetter(body: { subject?: string; html?: string; recipient?: string; date?: string; includeCoverPage?: boolean; includeAboutUs?: boolean; contactName?: string; contactPhone?: string; contactEmail?: string }) {
     const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
     const html = buildLetterHtml({
       brand,
@@ -232,6 +232,7 @@ export class GoogleController {
       includeAboutUs: body.includeAboutUs,
       contactName: body.contactName,
       contactPhone: body.contactPhone,
+      contactEmail: body.contactEmail,
     });
     return this.google.htmlToPdf(html, safeFilename(body.subject || 'Letter'));
   }

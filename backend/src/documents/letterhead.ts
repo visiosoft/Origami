@@ -110,6 +110,11 @@ export function accentOf(brand: Branding) {
   return /^#[0-9a-f]{3,8}$/i.test(brand.accentColor) ? brand.accentColor : '#173326';
 }
 
+/** A fixed page number for the cover+About Us+letter flow, where the page order is always known. */
+function pageNumberHtml(brand: Branding, n: string | number) {
+  return `<div style="text-align:right;font-size:10pt;font-weight:bold;color:${accentOf(brand)};margin-top:20pt;">${n}</div>`;
+}
+
 /**
  * The branded footer bar: a solid accent-colour band carrying the contact
  * line, with the crane mark sitting just above it. Shared by every generated
@@ -136,7 +141,7 @@ export function footerBarHtml(brand: Branding) {
  * The "About Origami" + "Team" page, inserted into a document so the
  * company introduction and headshots never have to be retyped per document.
  */
-export function aboutUsPageHtml(brand: Branding, pageBreakBefore = true) {
+export function aboutUsPageHtml(brand: Branding, pageBreakBefore = true, pageNumber?: string | number) {
   const accent = accentOf(brand);
   const paragraphs = brand.aboutUsText
     .split(/\n{2,}/)
@@ -161,6 +166,7 @@ export function aboutUsPageHtml(brand: Branding, pageBreakBefore = true) {
     <div style="font-size:10.5pt;">${paragraphs}</div>
     ${members.length ? `<h2 style="font-size:15pt;color:${accent};text-align:center;margin:18pt 0 16pt 0;">Team</h2>
     <table width="100%" cellpadding="0" cellspacing="0">${rows.join('')}</table>` : ''}
+    ${pageNumber !== undefined ? pageNumberHtml(brand, pageNumber) : ''}
     ${footerBarHtml(brand)}
   </div>`;
 }
@@ -220,6 +226,7 @@ export function buildLetterHtml(opts: {
   includeAboutUs?: boolean;
   contactName?: string;
   contactPhone?: string;
+  contactEmail?: string;
 }) {
   const b = opts.brand;
   const accent = accentOf(b);
@@ -240,7 +247,17 @@ export function buildLetterHtml(opts: {
   const cover = opts.includeCoverPage
     ? coverPageHtml(b, { title: opts.title || b.companyName, date: opts.date, contactName: opts.contactName, contactPhone: opts.contactPhone })
     : '';
-  const about = opts.includeAboutUs ? aboutUsPageHtml(b, true) : '';
+  const about = opts.includeAboutUs ? aboutUsPageHtml(b, true, opts.includeCoverPage ? 1 : undefined) : '';
+
+  // With a cover page, the date/recipient reads as a proper letterhead
+  // attention block (Date / Attention / phone / email) rather than two
+  // bare lines -- matching the office's own paper Introduction Letter.
+  const dateAttention = opts.includeCoverPage
+    ? `<table cellpadding="0" cellspacing="0" style="margin-top:18pt;font-size:10pt;color:#43514D;">
+        ${opts.date ? `<tr><td style="padding:1pt 10pt 1pt 0;font-weight:bold;">Date</td><td style="padding:1pt 0;">${esc(opts.date)}</td></tr>` : ''}
+        ${opts.recipient ? `<tr><td style="padding:1pt 10pt 1pt 0;font-weight:bold;vertical-align:top;">Attention</td><td style="padding:1pt 0;">${esc(opts.recipient)}${opts.contactPhone ? `<br/>${esc(opts.contactPhone)}` : ''}${opts.contactEmail ? `<br/>${esc(opts.contactEmail)}` : ''}</td></tr>` : ''}
+      </table>`
+    : `${opts.date ? `<p style="margin:18pt 0 0 0;font-size:10pt;color:#5C6B65;">${esc(opts.date)}</p>` : ''}${opts.recipient ? `<p style="margin:12pt 0 0 0;">${esc(opts.recipient)}</p>` : ''}`;
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" /><title>${esc(opts.title || b.companyName)}</title></head>
@@ -258,14 +275,14 @@ export function buildLetterHtml(opts: {
     </tr>
   </table>
 
-  ${opts.date ? `<p style="margin:18pt 0 0 0;font-size:10pt;color:#5C6B65;">${esc(opts.date)}</p>` : ''}
-  ${opts.recipient ? `<p style="margin:12pt 0 0 0;">${esc(opts.recipient)}</p>` : ''}
+  ${dateAttention}
   ${opts.title ? `<h1 style="font-size:13pt;color:#0B1A12;margin:20pt 0 10pt 0;">${esc(opts.title)}</h1>` : '<div style="height:14pt;"></div>'}
 
   <div>${bodyHtml(opts.body)}</div>
 
   ${signature ? `<div style="margin-top:26pt;">${signature}</div>` : ''}
 
+  ${opts.includeCoverPage ? pageNumberHtml(b, 2) : ''}
   ${footerBarHtml(b)}
   </div>
 

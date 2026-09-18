@@ -286,6 +286,7 @@ export function Projects() {
     includeAboutUs: true,
     contactName: introLead?.contactName || introLead?.leadName || undefined,
     contactPhone: introLead?.phone || undefined,
+    contactEmail: introLead?.email || undefined,
     // A short note instead of pasting the whole letter into the email body —
     // the letter itself only lives in the attached, branded PDF.
     noteHtml: [

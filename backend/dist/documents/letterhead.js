@@ -67,6 +67,9 @@ function safeFilename(name, fallback = 'document') {
 function accentOf(brand) {
     return /^#[0-9a-f]{3,8}$/i.test(brand.accentColor) ? brand.accentColor : '#173326';
 }
+function pageNumberHtml(brand, n) {
+    return `<div style="text-align:right;font-size:10pt;font-weight:bold;color:${accentOf(brand)};margin-top:20pt;">${n}</div>`;
+}
 function footerBarHtml(brand) {
     const accent = accentOf(brand);
     const line = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).map(esc).join('  &middot;  ');
@@ -82,7 +85,7 @@ function footerBarHtml(brand) {
     </table>
   </div>`;
 }
-function aboutUsPageHtml(brand, pageBreakBefore = true) {
+function aboutUsPageHtml(brand, pageBreakBefore = true, pageNumber) {
     const accent = accentOf(brand);
     const paragraphs = brand.aboutUsText
         .split(/\n{2,}/)
@@ -105,6 +108,7 @@ function aboutUsPageHtml(brand, pageBreakBefore = true) {
     <div style="font-size:10.5pt;">${paragraphs}</div>
     ${members.length ? `<h2 style="font-size:15pt;color:${accent};text-align:center;margin:18pt 0 16pt 0;">Team</h2>
     <table width="100%" cellpadding="0" cellspacing="0">${rows.join('')}</table>` : ''}
+    ${pageNumber !== undefined ? pageNumberHtml(brand, pageNumber) : ''}
     ${footerBarHtml(brand)}
   </div>`;
 }
@@ -149,7 +153,13 @@ function buildLetterHtml(opts) {
     const cover = opts.includeCoverPage
         ? coverPageHtml(b, { title: opts.title || b.companyName, date: opts.date, contactName: opts.contactName, contactPhone: opts.contactPhone })
         : '';
-    const about = opts.includeAboutUs ? aboutUsPageHtml(b, true) : '';
+    const about = opts.includeAboutUs ? aboutUsPageHtml(b, true, opts.includeCoverPage ? 1 : undefined) : '';
+    const dateAttention = opts.includeCoverPage
+        ? `<table cellpadding="0" cellspacing="0" style="margin-top:18pt;font-size:10pt;color:#43514D;">
+        ${opts.date ? `<tr><td style="padding:1pt 10pt 1pt 0;font-weight:bold;">Date</td><td style="padding:1pt 0;">${esc(opts.date)}</td></tr>` : ''}
+        ${opts.recipient ? `<tr><td style="padding:1pt 10pt 1pt 0;font-weight:bold;vertical-align:top;">Attention</td><td style="padding:1pt 0;">${esc(opts.recipient)}${opts.contactPhone ? `<br/>${esc(opts.contactPhone)}` : ''}${opts.contactEmail ? `<br/>${esc(opts.contactEmail)}` : ''}</td></tr>` : ''}
+      </table>`
+        : `${opts.date ? `<p style="margin:18pt 0 0 0;font-size:10pt;color:#5C6B65;">${esc(opts.date)}</p>` : ''}${opts.recipient ? `<p style="margin:12pt 0 0 0;">${esc(opts.recipient)}</p>` : ''}`;
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" /><title>${esc(opts.title || b.companyName)}</title></head>
 <body style="font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.65;color:#1E2B25;margin:0;">
@@ -166,14 +176,14 @@ function buildLetterHtml(opts) {
     </tr>
   </table>
 
-  ${opts.date ? `<p style="margin:18pt 0 0 0;font-size:10pt;color:#5C6B65;">${esc(opts.date)}</p>` : ''}
-  ${opts.recipient ? `<p style="margin:12pt 0 0 0;">${esc(opts.recipient)}</p>` : ''}
+  ${dateAttention}
   ${opts.title ? `<h1 style="font-size:13pt;color:#0B1A12;margin:20pt 0 10pt 0;">${esc(opts.title)}</h1>` : '<div style="height:14pt;"></div>'}
 
   <div>${bodyHtml(opts.body)}</div>
 
   ${signature ? `<div style="margin-top:26pt;">${signature}</div>` : ''}
 
+  ${opts.includeCoverPage ? pageNumberHtml(b, 2) : ''}
   ${footerBarHtml(b)}
   </div>
 

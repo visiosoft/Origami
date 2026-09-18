@@ -88,6 +88,7 @@ export declare class GoogleController {
         includeAboutUs?: boolean;
         contactName?: string;
         contactPhone?: string;
+        contactEmail?: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     sendLetter(body: {
         to: string;
@@ -102,6 +103,7 @@ export declare class GoogleController {
         includeAboutUs?: boolean;
         contactName?: string;
         contactPhone?: string;
+        contactEmail?: string;
         noteHtml?: string;
     }): Promise<{
         ok: boolean;

@@ -26,7 +26,7 @@ export declare function brandingFrom(settings: Record<string, string>): Branding
 export declare function safeFilename(name: string, fallback?: string): string;
 export declare function accentOf(brand: Branding): string;
 export declare function footerBarHtml(brand: Branding): string;
-export declare function aboutUsPageHtml(brand: Branding, pageBreakBefore?: boolean): string;
+export declare function aboutUsPageHtml(brand: Branding, pageBreakBefore?: boolean, pageNumber?: string | number): string;
 export declare function coverPageHtml(brand: Branding, opts: {
     title: string;
     subtitle?: string;
@@ -44,4 +44,5 @@ export declare function buildLetterHtml(opts: {
     includeAboutUs?: boolean;
     contactName?: string;
     contactPhone?: string;
+    contactEmail?: string;
 }): string;

@@ -16,6 +16,7 @@ export interface LetterInput {
   includeAboutUs?: boolean;
   contactName?: string;
   contactPhone?: string;
+  contactEmail?: string;
   /** A short email note, sent instead of pasting the whole letter into the email body. */
   noteHtml?: string;
 }

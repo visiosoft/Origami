@@ -174,6 +174,7 @@ let GoogleController = class GoogleController {
             includeAboutUs: body.includeAboutUs,
             contactName: body.contactName,
             contactPhone: body.contactPhone,
+            contactEmail: body.contactEmail,
         });
         return this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Letter'));
     }
