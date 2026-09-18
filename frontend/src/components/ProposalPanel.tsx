@@ -174,25 +174,24 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
         </div>
       ) : null}
 
-      <div style={{ display: 'grid', gridTemplateColumns: templates.length && agreementTemplates.length ? '1fr 1fr' : '1fr', gap: 8, marginBottom: 8 }}>
-        {templates.length > 0 && (
-          <div>
-            <span style={label}>Proposal template</span>
-            <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} style={input}>
-              <option value="">Start from scratch…</option>
-              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
-        )}
-        {agreementTemplates.length > 0 && (
-          <div>
-            <span style={label}>Agreement</span>
-            <select value={agreementTemplateId} onChange={(e) => applyAgreementTemplate(e.target.value)} style={input}>
-              <option value="">None</option>
-              {agreementTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
-        )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+        <div>
+          <span style={label}>Agreement</span>
+          <select value={agreementTemplateId} onChange={(e) => applyAgreementTemplate(e.target.value)} style={input}>
+            <option value="">{agreementTemplates.length ? 'Select an agreement…' : 'No agreement templates yet'}</option>
+            {agreementTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+          {agreementTemplates.length === 0 && (
+            <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 3 }}>Create one under Document &amp; Template Library → Agreements.</div>
+          )}
+        </div>
+        <div>
+          <span style={label}>Proposal template</span>
+          <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} style={input}>
+            <option value="">{templates.length ? 'Start from scratch…' : 'No proposal templates yet'}</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
       </div>
       <div style={{ marginBottom: 8 }}>
         <span style={label}>Subject</span>
