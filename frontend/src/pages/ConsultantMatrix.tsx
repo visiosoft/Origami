@@ -104,7 +104,7 @@ export function ConsultantMatrix() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                 <thead>
                   <tr>
-                    {['Firm', 'Contact', 'Phone', 'Email', 'Address', 'RFP', 'Bid interest', 'Proposal $', 'Signed', ''].map((h) => (
+                    {['Firm', 'Contact', 'Phone', 'Email', 'Address', ''].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #EDEFEC', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -117,10 +117,6 @@ export function ConsultantMatrix() {
                       <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line' }}>{c.phone || '—'}</td>
                       <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line' }}>{c.email || '—'}</td>
                       <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line', color: '#5C6B65' }}>{c.address || '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC' }}>{c.rfpSent ? '✓' : '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC' }}>{c.bidInterest ? '✓' : '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC' }}>{c.proposalAmount || '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC' }}>{c.signedContract ? '✓' : '—'}</td>
                       <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'nowrap' }}>
                         {canManage && (
                           <>
