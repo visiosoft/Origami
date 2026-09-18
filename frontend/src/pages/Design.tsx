@@ -245,7 +245,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                         draggable={canManage}
                         onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(p.projectId)); e.dataTransfer.effectAllowed = 'move'; setDragId(p.projectId); }}
                         onDragEnd={() => { setDragId(null); setDragOver(null); }}
-                        onClick={() => navigate(`/design/${p.projectId}`)}
+                        onClick={() => navigate(`${scope === 'construction' ? '/pm' : '/design'}/${p.projectId}`)}
                         title={canManage ? `${p.name} — drag to move phase, click to open` : `${p.name} — open`}
                         style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.projectId ? 0.4 : 1 }}
                       >
