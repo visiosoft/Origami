@@ -178,7 +178,8 @@ let GoogleController = class GoogleController {
             contactPhone: body.contactPhone,
             contactEmail: body.contactEmail,
         });
-        return this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Letter'));
+        const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
+        return this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Letter'), footer ? { footer } : undefined);
     }
     testDrive() {
         return this.google.testDrive();

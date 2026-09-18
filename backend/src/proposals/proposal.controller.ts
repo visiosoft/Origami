@@ -85,7 +85,10 @@ export class ProposalController {
     ].filter(Boolean).join('\n');
     const html = buildLetterHtml({ brand, title: subject, recipient: dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
     const filename = safeFilename(subject || 'Document') + '.pdf';
-    const pdf = await this.google.htmlToPdf(html, safeFilename(subject || 'Document'));
+    // A real running footer, not just one written into the HTML flow, so a
+    // proposal/agreement that overflows onto another page still carries it.
+    const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
+    const pdf = await this.google.htmlToPdf(html, safeFilename(subject || 'Document'), footer ? { footer } : undefined);
     return { pdf, filename: `${filename}` };
   }
 

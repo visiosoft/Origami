@@ -72,7 +72,8 @@ let ProposalController = class ProposalController {
         ].filter(Boolean).join('\n');
         const html = (0, letterhead_1.buildLetterHtml)({ brand, title: subject, recipient: dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
         const filename = (0, letterhead_1.safeFilename)(subject || 'Document') + '.pdf';
-        const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(subject || 'Document'));
+        const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
+        const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(subject || 'Document'), footer ? { footer } : undefined);
         return { pdf, filename: `${filename}` };
     }
     getByToken(token) {

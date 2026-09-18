@@ -236,7 +236,12 @@ export class GoogleController {
       contactPhone: body.contactPhone,
       contactEmail: body.contactEmail,
     });
-    return this.google.htmlToPdf(html, safeFilename(body.subject || 'Letter'));
+    // A footer written into the HTML only appears where it sits in the
+    // content flow -- once per section, not once per printed page. Setting
+    // it as a real running footer keeps it on every page a section
+    // overflows onto, same as the Project Program.
+    const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
+    return this.google.htmlToPdf(html, safeFilename(body.subject || 'Letter'), footer ? { footer } : undefined);
   }
 
   /** Create a folder, upload, read back and trash — proves Drive access works. */
