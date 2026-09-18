@@ -35,8 +35,9 @@ export class EmailTemplatesService implements OnApplicationBootstrap {
       }
       // Bring the wording up to the office's exact reference letter -- but
       // only for an install that still has the earlier placeholder body
-      // verbatim. An install where someone already edited it is left alone.
-      if (intro && intro.body === LEGACY_INTRODUCTION_LETTER_BODY_V1) {
+      // verbatim, or an emptied-out one (e.g. cleared while testing).
+      // An install where someone already wrote real content is left alone.
+      if (intro && (intro.body === LEGACY_INTRODUCTION_LETTER_BODY_V1 || !intro.body || !intro.body.trim())) {
         intro.body = DEFAULT_EMAIL_TEMPLATES.find((t) => t.id === 'TPL-introduction-letter')!.body;
         await this.repo.save(intro);
         this.log.log('Updated Introduction Letter template body to the reference wording');
