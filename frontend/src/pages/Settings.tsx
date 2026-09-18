@@ -270,7 +270,7 @@ export function EmailTemplatesEditor() {
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kind</div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {(['email', 'sms', 'document'] as const).map((k) => (
+                {(['email', 'sms', 'document', 'proposal'] as const).map((k) => (
                   <span key={k} onClick={() => canManage && setDraft({ ...draft, kind: k })} style={{
                     padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: canManage ? 'pointer' : 'default',
                     textTransform: 'uppercase', letterSpacing: '0.05em',

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { mergeTokens } from '../data/clientPersonality';
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -9,6 +10,16 @@ const input: React.CSSProperties = {
 };
 const label: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3, display: 'block' };
 
+interface ProposalTemplate { id: string; name: string; subject?: string; body: string; }
+
+/** Base64 of a file's raw bytes (no data: prefix), for the JSON attachment payload. */
+const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+  reader.onerror = () => reject(reader.error);
+  reader.readAsDataURL(file);
+});
+
 /**
  * Compose and send the proposal, and see whether the client has signed it.
  *
@@ -16,7 +27,7 @@ const label: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: '#7E9
  * here once it's sent except wait, since the signature is what moves the
  * deal to a project on its own (see ProposalService.signByToken).
  */
-export function ProposalPanel({ dealId, dealEmail }: { dealId: string; dealEmail: string }) {
+export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string; dealName?: string; dealEmail: string }) {
   const { toast } = useApp();
   const [subject, setSubject] = useState('');
   const [html, setHtml] = useState('');
@@ -30,6 +41,10 @@ export function ProposalPanel({ dealId, dealEmail }: { dealId: string; dealEmail
   const [signedAt, setSignedAt] = useState('');
   const [signedByName, setSignedByName] = useState('');
   const [signatureImage, setSignatureImage] = useState('');
+  const [templates, setTemplates] = useState<ProposalTemplate[]>([]);
+  const [templateId, setTemplateId] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -50,6 +65,32 @@ export function ProposalPanel({ dealId, dealEmail }: { dealId: string; dealEmail
   };
   useEffect(load, [dealId]);
   useEffect(() => { setTo(dealEmail || ''); }, [dealEmail]);
+  useEffect(() => {
+    api.emailTemplates.list()
+      .then((res: any) => { if (Array.isArray(res)) setTemplates(res.filter((t: any) => t.kind === 'proposal')); })
+      .catch(() => { });
+  }, []);
+
+  const tokens = useMemo(() => ({
+    clientName: dealName || 'there',
+    projectTitle: dealName || '',
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+  }), [dealName]);
+
+  const applyTemplate = (id: string) => {
+    setTemplateId(id);
+    const tpl = templates.find((t) => t.id === id);
+    if (!tpl) return;
+    if (tpl.subject) setSubject(mergeTokens(tpl.subject, tokens));
+    setHtml(mergeTokens(tpl.body, tokens));
+  };
+
+  const addFiles = (list: FileList | null) => {
+    if (!list) return;
+    setFiles((prev) => [...prev, ...Array.from(list)]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+  const removeFile = (i: number) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   const save = () => {
     setSaving(true);
@@ -62,9 +103,13 @@ export function ProposalPanel({ dealId, dealEmail }: { dealId: string; dealEmail
   const send = () => {
     if (!to.trim()) { toast('Who should it go to?'); return; }
     setSending(true);
-    api.proposals.save(dealId, { subject, html, amount })
-      .then(() => api.proposals.send(dealId, to.trim()))
-      .then((res: any) => { setSentAt(new Date().toISOString()); setSentTo(res?.to || to.trim()); toast(`Sent to ${res?.to || to.trim()}`); })
+    Promise.all(files.map(async (f) => ({ filename: f.name, mimeType: f.type || 'application/octet-stream', contentBase64: await fileToBase64(f) })))
+      .then((extraAttachments) => api.proposals.save(dealId, { subject, html, amount })
+        .then(() => api.proposals.send(dealId, to.trim(), undefined, extraAttachments)))
+      .then((res: any) => {
+        setSentAt(new Date().toISOString()); setSentTo(res?.to || to.trim()); setFiles([]);
+        toast(`Sent to ${res?.to || to.trim()}`);
+      })
       .catch((e: Error) => toast('⚠ ' + e.message))
       .finally(() => setSending(false));
   };
@@ -93,6 +138,15 @@ export function ProposalPanel({ dealId, dealEmail }: { dealId: string; dealEmail
         </div>
       ) : null}
 
+      {templates.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          <span style={label}>Proposal template</span>
+          <select value={templateId} onChange={(e) => applyTemplate(e.target.value)} style={input}>
+            <option value="">Start from scratch…</option>
+            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+      )}
       <div style={{ marginBottom: 8 }}>
         <span style={label}>Subject</span>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Proposal — [project]" style={input} />
@@ -105,9 +159,26 @@ export function ProposalPanel({ dealId, dealEmail }: { dealId: string; dealEmail
         <span style={label}>Proposal body</span>
         <textarea value={html} onChange={(e) => setHtml(e.target.value)} rows={5} placeholder="Scope, terms, and anything else the client should see before signing." style={{ ...input, resize: 'vertical', lineHeight: 1.5 }} />
       </div>
-      <div style={{ marginBottom: 10 }}>
+      <div style={{ marginBottom: 8 }}>
         <span style={label}>Send to</span>
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@example.com" style={input} />
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <span style={label}>Attach documents</span>
+        {files.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+            {files.map((f, i) => (
+              <span key={f.name + i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'white', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 999, padding: '3px 6px 3px 10px', fontSize: 11 }}>
+                {f.name}
+                <span onClick={() => removeFile(i)} style={{ cursor: 'pointer', color: '#7E9B93', fontSize: 13, lineHeight: 1 }}>×</span>
+              </span>
+            ))}
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => addFiles(e.target.files)} />
+        <div onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326', background: 'white' }}>
+          + Attach file{files.length ? 's' : ''}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

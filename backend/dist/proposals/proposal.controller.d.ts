@@ -46,10 +46,16 @@ export declare class ProposalController {
         dealId: string;
         to: string;
         cc?: string;
+        extraAttachments?: {
+            filename: string;
+            mimeType?: string;
+            contentBase64: string;
+        }[];
     }, req: AuthedRequest): Promise<{
         ok: boolean;
         to: string;
         link: string;
+        attachmentCount: number;
     }>;
     getByToken(token: string): Promise<{
         dealId: string;

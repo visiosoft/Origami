@@ -44,15 +44,21 @@ let ProposalController = class ProposalController {
         const html = (0, letterhead_1.buildLetterHtml)({ brand, title: doc.subject, recipient: doc.dealName, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), body: bodyWithAmount });
         const filename = (0, letterhead_1.safeFilename)(doc.subject || 'Proposal') + '.pdf';
         const pdf = await this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(doc.subject || 'Proposal'));
+        const attachments = [{ filename, mimeType: 'application/pdf', content: pdf }];
+        for (const f of body.extraAttachments || []) {
+            if (!f?.filename || !f?.contentBase64)
+                continue;
+            attachments.push({ filename: f.filename, mimeType: f.mimeType || 'application/octet-stream', content: Buffer.from(f.contentBase64, 'base64') });
+        }
         await this.google.sendMail({
             to: body.to,
             cc: body.cc,
             subject: doc.subject,
             html: bodyWithAmount,
-            attachments: [{ filename, mimeType: 'application/pdf', content: pdf }],
+            attachments,
         });
         await this.service.markSent(body.dealId, body.to, { id: req.claims?.sub, name: req.claims?.name });
-        return { ok: true, to: body.to, link };
+        return { ok: true, to: body.to, link, attachmentCount: attachments.length };
     }
     getByToken(token) {
         return this.service.getByToken(token);

@@ -320,9 +320,9 @@ export const api = {
     get: (dealId: string) => request(`/proposals?dealId=${encodeURIComponent(dealId)}`),
     save: (dealId: string, body: { subject?: string; html?: string; amount?: string }) =>
       request('/proposals', { method: 'PUT', body: JSON.stringify({ dealId, ...body }) }),
-    /** Emails the proposal with the letterhead PDF attached, plus a 10-day signing link. */
-    send: (dealId: string, to: string, cc?: string) =>
-      request<{ ok: boolean; to: string; link: string }>('/proposals/send', { method: 'POST', body: JSON.stringify({ dealId, to, cc }) }),
+    /** Emails the proposal with the letterhead PDF attached, plus a 10-day signing link -- and any extra files chosen. */
+    send: (dealId: string, to: string, cc?: string, extraAttachments?: { filename: string; mimeType?: string; contentBase64: string }[]) =>
+      request<{ ok: boolean; to: string; link: string; attachmentCount: number }>('/proposals/send', { method: 'POST', body: JSON.stringify({ dealId, to, cc, extraAttachments }) }),
     /** The prospect's own view, no account needed -- gated by the signed link's token. */
     public: {
       get: (token: string) => request(`/proposals/public?token=${encodeURIComponent(token)}`),

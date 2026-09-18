@@ -1436,7 +1436,7 @@ export function Pipeline() {
                   );
                 })()
               ) : selected.stage === 'proposal' ? (
-                <ProposalPanel dealId={selected.id} dealEmail={selected.email} />
+                <ProposalPanel dealId={selected.id} dealName={selected.name} dealEmail={selected.email} />
               ) : selected.stage === 'project_fit' ? (
                 (() => {
                   const sel = fitByDeal[selected.id] || {};
