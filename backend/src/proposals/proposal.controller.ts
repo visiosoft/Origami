@@ -101,20 +101,26 @@ export class ProposalController {
   @Public()
   @Get('public/pdf')
   async pdfByToken(@Query('token') token: string, @Res() res: Response) {
-    const doc: any = await this.service.getByToken(token);
-    const signedDate = doc.signedAt
-      ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      : '____________________';
-    const clientSignature = doc.signatureImage
-      ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
-      : '__________________________________';
-    const merged = String(doc.html || '')
-      .replace(/\{\{clientSignature\}\}/g, clientSignature)
-      .replace(/\{\{signedDate\}\}/g, signedDate);
-    const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    return res.end(pdf);
+    try {
+      const doc: any = await this.service.getByToken(token);
+      const signedDate = doc.signedAt
+        ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '____________________';
+      const clientSignature = doc.signatureImage
+        ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+        : '__________________________________';
+      const merged = String(doc.html || '')
+        .replace(/\{\{clientSignature\}\}/g, clientSignature)
+        .replace(/\{\{signedDate\}\}/g, signedDate);
+      const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      return res.end(pdf);
+    } catch (err) {
+      console.error('pdfByToken failed:', err);
+      res.status(500);
+      return res.end(String((err as Error)?.message || err));
+    }
   }
 
   @Public()

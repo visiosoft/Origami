@@ -342,6 +342,21 @@ export class FaqEntity {
   @Column('int') order!: number;
 }
 
+@Entity('consultants')
+export class ConsultantEntity {
+  @PrimaryColumn() id!: string;
+  @Column() type!: string;
+  @Column() firm!: string;
+  @Column({ nullable: true }) address!: string;
+  @Column({ nullable: true }) contact!: string;
+  @Column({ nullable: true }) phone!: string;
+  @Column({ nullable: true }) email!: string;
+  @Column({ default: false }) rfpSent!: boolean;
+  @Column({ default: false }) bidInterest!: boolean;
+  @Column({ nullable: true }) proposalAmount!: string;
+  @Column({ default: false }) signedContract!: boolean;
+}
+
 @Entity('email_templates')
 export class EmailTemplateEntity {
   @PrimaryColumn() id!: string;

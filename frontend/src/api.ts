@@ -458,6 +458,12 @@ export const api = {
     update: (id: string, data: unknown) => request(`/faqs/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/faqs/${id}`, { method: 'DELETE' }),
   },
+  consultants: {
+    list: () => request('/consultants'),
+    create: (data: unknown) => request('/consultants', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/consultants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/consultants/${id}`, { method: 'DELETE' }),
+  },
 };
 
 export interface GoogleStatus {

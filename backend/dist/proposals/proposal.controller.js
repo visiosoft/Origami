@@ -79,20 +79,27 @@ let ProposalController = class ProposalController {
         return this.service.getByToken(token);
     }
     async pdfByToken(token, res) {
-        const doc = await this.service.getByToken(token);
-        const signedDate = doc.signedAt
-            ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-            : '____________________';
-        const clientSignature = doc.signatureImage
-            ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
-            : '__________________________________';
-        const merged = String(doc.html || '')
-            .replace(/\{\{clientSignature\}\}/g, clientSignature)
-            .replace(/\{\{signedDate\}\}/g, signedDate);
-        const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-        return res.end(pdf);
+        try {
+            const doc = await this.service.getByToken(token);
+            const signedDate = doc.signedAt
+                ? new Date(doc.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                : '____________________';
+            const clientSignature = doc.signatureImage
+                ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+                : '__________________________________';
+            const merged = String(doc.html || '')
+                .replace(/\{\{clientSignature\}\}/g, clientSignature)
+                .replace(/\{\{signedDate\}\}/g, signedDate);
+            const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+            return res.end(pdf);
+        }
+        catch (err) {
+            console.error('pdfByToken failed:', err);
+            res.status(500);
+            return res.end(String(err?.message || err));
+        }
     }
     signByToken(body, req) {
         return this.service.signByToken(body?.token, { name: body?.name, email: body?.email || '' }, body?.image, { ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') });

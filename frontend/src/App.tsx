@@ -19,6 +19,7 @@ import { DesignProject } from './pages/DesignProject';
 import { Library } from './pages/Library';
 import { FileRoom } from './pages/FileRoom';
 import { MyProjectProgram } from './pages/MyProjectProgram';
+import { ConsultantMatrix } from './pages/ConsultantMatrix';
 import { MyCalendar } from './pages/MyCalendar';
 import { SignProposal } from './pages/SignProposal';
 import { GuestEntry } from './pages/GuestEntry';
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="/library" element={<Library />} />
         <Route path="/planroom" element={<FileRoom />} />
         <Route path="/my-program" element={<MyProjectProgram />} />
+        <Route path="/prequal" element={<ConsultantMatrix />} />
         <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>

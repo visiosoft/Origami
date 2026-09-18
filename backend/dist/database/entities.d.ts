@@ -246,6 +246,19 @@ export declare class FaqEntity {
     category: string;
     order: number;
 }
+export declare class ConsultantEntity {
+    id: string;
+    type: string;
+    firm: string;
+    address: string;
+    contact: string;
+    phone: string;
+    email: string;
+    rfpSent: boolean;
+    bidInterest: boolean;
+    proposalAmount: string;
+    signedContract: boolean;
+}
 export declare class EmailTemplateEntity {
     id: string;
     key: string;

@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { ProjectTasksModule } from './project-tasks/project-tasks.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { SupportModule } from './support/support.module';
+import { ConsultantsModule } from './consultants/consultants.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
@@ -73,6 +74,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     ProjectTasksModule,
     WorkflowsModule,
     SupportModule,
+    ConsultantsModule,
     EmailTemplatesModule,
     DashboardModule,
     NotificationsModule,
