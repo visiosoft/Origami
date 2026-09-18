@@ -25,7 +25,7 @@ export function Library() {
   return (
     <div style={{ padding: '18px 22px' }}>
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>Document &amp; Template Library</div>
+        <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#173326' }}>Document &amp; Template Library</div>
         <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3, maxWidth: 640, lineHeight: 1.6 }}>
           The things decided once and reused on every job — the delivery programme, how leads are scored, and the
           messages and documents sent out.

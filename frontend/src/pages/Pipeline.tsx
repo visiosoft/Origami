@@ -833,6 +833,12 @@ export function Pipeline() {
   const selected = selectedId ? data.find((d) => d.id === selectedId) : null;
   // Opening a different lead starts its trail at the most recent page.
   useEffect(() => { setAuditPage(0); }, [selectedId]);
+  // The Programming tab only exists while the lead is on that stage -- if it
+  // moves off (or a different lead is open) while that tab is showing, fall
+  // back rather than leaving the content area on a tab with no visible button.
+  useEffect(() => {
+    if (detailTab === 'programming' && selected?.stage !== 'zoning') setDetailTab('details');
+  }, [selected?.stage, detailTab]);
   const selectedStage = selected ? STAGES.find((st) => st.key === selected.stage) : null;
 
   const totalValue = data.reduce((s, d) => s + parseFloat(String(d.value).replace(/[^0-9.]/g, '') || '0') * 1000, 0);
@@ -1072,10 +1078,11 @@ export function Pipeline() {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Tabs -- Project Programming only while the lead is actually on that
+              stage; otherwise Full Details takes its place, as before. */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'tasks', 'programming'] as const).map((t) => (
-              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'tasks' ? 'Tasks' : 'Project Programming'}</div>
+            {(['overview', 'tasks', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => (
+              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'tasks' ? 'Tasks' : t === 'programming' ? 'Project Programming' : 'Full Details'}</div>
             ))}
           </div>
 
