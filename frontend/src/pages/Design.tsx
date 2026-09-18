@@ -136,15 +136,26 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
   /**
    * Dragging pins a project to a phase, overriding the position derived from
    * task progress — the team's word on where it is beats the arithmetic.
+   *
+   * A project dropped onto a phase from a template it isn't already using
+   * (e.g. any project dragged onto a Construction-only phase) gets that
+   * phase -- and its template tasks -- created on the fly first, so the
+   * checklist is there the moment you open it, not just an empty pin.
    */
   const moveTo = (projectId: number, phaseKey: string) => {
     const project = rows.find((p) => p.projectId === projectId);
     if (!project || project.currentPhaseKey === phaseKey) return;
     const previous = project.currentPhaseKey;
+    const hasPhase = project.phases.some((ph) => ph.key === phaseKey);
+    const col = columns.find((c) => c.key === phaseKey);
 
     setRows((prev) => prev.map((p) => (p.projectId === projectId ? { ...p, currentPhaseKey: phaseKey, designPhase: phaseKey } : p)));
-    api.projects.update(String(projectId), { name: project.name, designPhase: phaseKey })
-      .then(() => toast(`${project.name} moved to ${rows[0]?.phases.find((ph) => ph.key === phaseKey)?.name || phaseKey}`))
+    (hasPhase ? Promise.resolve() : api.projectPhases.adopt(projectId, phaseKey))
+      .then(() => api.projects.update(String(projectId), { name: project.name, designPhase: phaseKey }))
+      .then(() => {
+        toast(`${project.name} moved to ${col?.name || phaseKey}`);
+        if (!hasPhase) return api.projectPhases.overview().then((res: any) => { if (Array.isArray(res)) setRows(res as DesignProject[]); });
+      })
       .catch((e: Error) => {
         setRows((prev) => prev.map((p) => (p.projectId === projectId ? { ...p, currentPhaseKey: previous } : p)));
         toast('⚠ ' + e.message);

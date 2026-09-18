@@ -110,6 +110,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
             dependsOn: string[];
         }[];
     }>;
+    adoptPhase(projectId: number, key: string): Promise<ProjectPhaseEntity>;
     create(dto: any): Promise<ProjectPhaseEntity>;
     update(id: string, dto: any): Promise<ProjectPhaseEntity>;
     remove(id: string): Promise<{

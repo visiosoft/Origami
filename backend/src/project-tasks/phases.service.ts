@@ -465,6 +465,36 @@ export class PhasesService implements OnApplicationBootstrap {
     return { phases, tasks: withTargets };
   }
 
+  /**
+   * Give a project a phase it doesn't have yet, seeded from whichever
+   * template defines that phase key -- used when a project is dragged onto a
+   * board column (e.g. a Construction-template phase) that isn't part of its
+   * own assigned template. Idempotent: safe to call again for a phase the
+   * project already has, it just tops up any tasks it's still missing.
+   */
+  async adoptPhase(projectId: number, key: string) {
+    if (!Number.isFinite(projectId)) throw new BadRequestException('Which project?');
+    if (!key) throw new BadRequestException('Which phase?');
+    const lib = await this.library();
+    let source: TemplatePhase | undefined;
+    for (const t of lib) {
+      source = t.phases.find((p) => p.key === key);
+      if (source) break;
+    }
+    if (!source) throw new BadRequestException(`No template phase "${key}" found.`);
+
+    let phase = await this.repo.findOneBy({ projectId, key });
+    if (!phase) {
+      const count = await this.repo.count({ where: { projectId } });
+      phase = await this.repo.save(this.repo.create({
+        id: `PH-${projectId}-${key}`,
+        projectId, key, name: source.name, color: source.color, order: count,
+      } as Partial<ProjectPhaseEntity>));
+    }
+    await this.seedChecklists(projectId, [phase], [source]);
+    return phase;
+  }
+
   create(dto: any) {
     const projectId = Number(dto.projectId);
     const id = dto.id || `PH-${projectId}-${subId('p')}`;

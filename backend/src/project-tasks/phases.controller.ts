@@ -54,6 +54,12 @@ export class PhasesController {
     return this.service.create(dto);
   }
 
+  /** Give a project a phase (and its template tasks) it doesn't have yet. */
+  @Post('adopt')
+  adopt(@Body() body: { projectId: number; key: string }) {
+    return this.service.adoptPhase(Number(body?.projectId), body?.key);
+  }
+
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: Partial<CreatePhaseDto>) {
     return this.service.update(id, dto);

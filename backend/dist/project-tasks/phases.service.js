@@ -362,6 +362,31 @@ let PhasesService = class PhasesService {
         });
         return { phases, tasks: withTargets };
     }
+    async adoptPhase(projectId, key) {
+        if (!Number.isFinite(projectId))
+            throw new common_1.BadRequestException('Which project?');
+        if (!key)
+            throw new common_1.BadRequestException('Which phase?');
+        const lib = await this.library();
+        let source;
+        for (const t of lib) {
+            source = t.phases.find((p) => p.key === key);
+            if (source)
+                break;
+        }
+        if (!source)
+            throw new common_1.BadRequestException(`No template phase "${key}" found.`);
+        let phase = await this.repo.findOneBy({ projectId, key });
+        if (!phase) {
+            const count = await this.repo.count({ where: { projectId } });
+            phase = await this.repo.save(this.repo.create({
+                id: `PH-${projectId}-${key}`,
+                projectId, key, name: source.name, color: source.color, order: count,
+            }));
+        }
+        await this.seedChecklists(projectId, [phase], [source]);
+        return phase;
+    }
     create(dto) {
         const projectId = Number(dto.projectId);
         const id = dto.id || `PH-${projectId}-${(0, task_types_1.subId)('p')}`;

@@ -107,6 +107,10 @@ export declare class PhasesController {
         tasks: never[];
     };
     create(dto: CreatePhaseDto): Promise<import("../database/entities").ProjectPhaseEntity>;
+    adopt(body: {
+        projectId: number;
+        key: string;
+    }): Promise<import("../database/entities").ProjectPhaseEntity>;
     update(id: string, dto: Partial<CreatePhaseDto>): Promise<import("../database/entities").ProjectPhaseEntity>;
     remove(id: string): Promise<{
         id: string;

@@ -47,6 +47,9 @@ let PhasesController = class PhasesController {
     create(dto) {
         return this.service.create(dto);
     }
+    adopt(body) {
+        return this.service.adoptPhase(Number(body?.projectId), body?.key);
+    }
     update(id, dto) {
         return this.service.update(id, dto);
     }
@@ -109,6 +112,13 @@ __decorate([
     __metadata("design:paramtypes", [create_phase_dto_1.CreatePhaseDto]),
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('adopt'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PhasesController.prototype, "adopt", null);
 __decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),

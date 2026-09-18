@@ -398,6 +398,9 @@ export const api = {
     create: (data: unknown) => request('/project-phases', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-phases/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-phases/${id}`, { method: 'DELETE' }),
+    /** Give a project a phase (and its template tasks) it doesn't have yet -- e.g. dropping it onto a board column from a different template. */
+    adopt: (projectId: number, key: string) =>
+      request(`/project-phases/adopt`, { method: 'POST', body: JSON.stringify({ projectId, key }) }),
   },
   programmeTemplate: {
     /** The whole library -- a kitchen remodel and a ground-up build don't share one shape. */
