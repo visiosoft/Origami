@@ -30,7 +30,7 @@ export class ProjectEntity {
   // separate from the plain-text template default, so an edit survives a
   // reload instead of re-merging from the template every time the tab opens.
   @Column({ nullable: true }) introLetterSubject!: string;
-  @Column(TEXT) introLetterHtml!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) introLetterHtml!: string;
   // Set once the client has signed. Locks the AEC Team roster in the Project
   // Program against further edits -- it's assembled provisionally during
   // programming, but who's actually on the job is only final once there's a

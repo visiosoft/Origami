@@ -96,7 +96,7 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "introLetterSubject", void 0);
 __decorate([
-    (0, typeorm_1.Column)(TEXT),
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "introLetterHtml", void 0);
 __decorate([
