@@ -69,6 +69,10 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
       .finally(() => setLoading(false));
   }, []);
 
+  /** The Projects board's own coarse stage label for this scope -- "Design" or "Construction". */
+  const stageLabel = scope === 'construction' ? 'Construction' : 'Design';
+  const OTHER_COL = '__other';
+
   // Columns come from the projects themselves, so a renamed or added phase
   // needs no change here.
   const columns = useMemo(() => {
@@ -83,9 +87,18 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
       if (!inScope) return;
       if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order });
     }));
-    // Only this board's phases, in the template's order.
-    return [...seen.values()].sort((a, b) => a.order - b.order);
-  }, [rows, view, scope]);
+    const known = [...seen.values()].sort((a, b) => a.order - b.order);
+    // A project the Projects board already counts under this stage, but whose
+    // current phase isn't one of the keys above (an older template's phase,
+    // or none yet) -- still belongs on this board, so it gets a catch-all
+    // column instead of silently disappearing and throwing the counts out of sync.
+    const keySet = new Set(known.map((c) => c.key));
+    const hasStragglers = rows.some((p) => p.stage === stageLabel && (!p.currentPhaseKey || !keySet.has(p.currentPhaseKey)));
+    if (hasStragglers) known.push({ key: OTHER_COL, name: 'Other Steps', color: '#9AA39D', order: Number.MAX_SAFE_INTEGER });
+    return known;
+  }, [rows, view, scope, stageLabel]);
+
+  const columnKeys = useMemo(() => new Set(columns.map((c) => c.key)), [columns]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -96,11 +109,13 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
       || (p.typeOfWork || '').toLowerCase().includes(q));
   }, [rows, query]);
 
-  // Only projects sitting in one of this board's phases are on this board.
-  const onBoard = useMemo(() => {
-    const keys = new Set(columns.map((c) => c.key));
-    return visible.filter((p) => p.currentPhaseKey && keys.has(p.currentPhaseKey));
-  }, [visible, columns]);
+  // A project shows here if it's sitting in one of this board's phases, OR the
+  // Projects board already counts it under this stage -- keeps the two boards'
+  // counts in sync instead of a project quietly vanishing from both.
+  const onBoard = useMemo(
+    () => visible.filter((p) => (p.currentPhaseKey && columnKeys.has(p.currentPhaseKey)) || p.stage === stageLabel),
+    [visible, columnKeys, stageLabel],
+  );
   const planned = onBoard.filter((p) => p.taskTotal > 0).length;
 
   /**
@@ -170,13 +185,16 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
       ) : (
         <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flex: 1, minHeight: 0, paddingBottom: 6 }}>
           {columns.map((col) => {
-            const cards = visible.filter((p) => p.currentPhaseKey === col.key);
+            const isOther = col.key === OTHER_COL;
+            const cards = isOther
+              ? visible.filter((p) => p.stage === stageLabel && (!p.currentPhaseKey || !columnKeys.has(p.currentPhaseKey)))
+              : visible.filter((p) => p.currentPhaseKey === col.key);
             return (
               <div
                 key={col.key}
-                onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== col.key) setDragOver(col.key); }}
+                onDragOver={(e) => { if (!canManage || isOther) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== col.key) setDragOver(col.key); }}
                 onDragLeave={() => { if (dragOver === col.key) setDragOver(null); }}
-                onDrop={(e) => onDrop(e, col.key)}
+                onDrop={(e) => { if (isOther) return; onDrop(e, col.key); }}
                 style={{ width: 290, flexShrink: 0, display: 'flex', flexDirection: 'column', background: dragOver === col.key ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: dragOver === col.key ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', maxHeight: '100%', transition: 'background 0.15s, border 0.15s' }}
               >
                 <div style={{ padding: '10px 12px 9px', borderTop: `3px solid ${col.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(20,8,31,0.06)', background: 'white', flexShrink: 0 }}>
