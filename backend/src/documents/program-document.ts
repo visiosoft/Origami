@@ -12,7 +12,7 @@
  * band onto it.
  */
 
-import type { Branding } from './letterhead';
+import { accentOf, aboutUsPageHtml, footerBarHtml, type Branding } from './letterhead';
 
 export interface DocRow {
   label: string;
@@ -47,10 +47,6 @@ const val = (v?: string) => {
   return t ? esc(t) : '<span style="color:#B9C2BC;">&mdash;</span>';
 };
 
-function accentOf(brand: Branding) {
-  return /^#[0-9a-f]{3,8}$/i.test(brand.accentColor) ? brand.accentColor : '#173326';
-}
-
 /** The letterhead band, repeated at the top of each step. */
 function bandHtml(brand: Branding, right = '') {
   const accent = accentOf(brand);
@@ -65,15 +61,7 @@ function bandHtml(brand: Branding, right = '') {
   </table>`;
 }
 
-function footerHtml(brand: Branding) {
-  const line = [brand.address, brand.phone, brand.email, brand.website]
-    .filter(Boolean).map((x) => esc(x)).join('  &middot;  ');
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #D8DED9;margin-top:20pt;padding-top:6pt;">
-    <tr><td style="font-size:8pt;color:#7E9B93;text-align:center;">
-      ${line}${brand.footerNote ? `<div style="margin-top:2pt;">${esc(brand.footerNote)}</div>` : ''}
-    </td></tr>
-  </table>`;
-}
+const footerHtml = footerBarHtml;
 
 function blockHtml(block: DocBlock, accent: string) {
   const heading = block.title
@@ -183,6 +171,8 @@ export function buildProgramHtml(opts: {
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${contents}</table>
     ${footerHtml(b)}
   </div>
+
+  ${aboutUsPageHtml(b, true)}
 
   ${body}
 

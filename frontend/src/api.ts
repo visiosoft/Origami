@@ -10,6 +10,12 @@ export interface LetterInput {
   recipient?: string;
   date?: string;
   filename?: string;
+  /** Prepends a branded cover page before the letter. */
+  includeCoverPage?: boolean;
+  /** Inserts the "About Us" + "Team" page right after the cover. */
+  includeAboutUs?: boolean;
+  contactName?: string;
+  contactPhone?: string;
 }
 
 const TOKEN_KEY = 'origami.session';

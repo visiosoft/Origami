@@ -18,14 +18,18 @@ const card: React.CSSProperties = {
 type Brand = Record<
   | 'brand.companyName' | 'brand.tagline' | 'brand.logoDataUrl' | 'brand.accentColor'
   | 'brand.address' | 'brand.phone' | 'brand.email' | 'brand.website' | 'brand.footerNote'
-  | 'brand.signatureName' | 'brand.signatureTitle' | 'brand.signatureDataUrl',
+  | 'brand.signatureName' | 'brand.signatureTitle' | 'brand.signatureDataUrl'
+  | 'brand.footerLogoDataUrl' | 'brand.aboutUsText' | 'brand.team' | 'brand.coverPhotoDataUrl',
   string
 >;
+
+export interface TeamMember { name: string; title: string; photoDataUrl: string; }
 
 const EMPTY: Brand = {
   'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#173326',
   'brand.address': '', 'brand.phone': '', 'brand.email': '', 'brand.website': '', 'brand.footerNote': '',
   'brand.signatureName': '', 'brand.signatureTitle': '', 'brand.signatureDataUrl': '',
+  'brand.footerLogoDataUrl': '', 'brand.aboutUsText': '', 'brand.team': '[]', 'brand.coverPhotoDataUrl': '',
 };
 
 /** Images are held inline so a generated document needs nothing external. */
@@ -50,6 +54,25 @@ export function BrandingSettings() {
   }, []);
 
   const set = (k: keyof Brand, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const team: TeamMember[] = (() => {
+    try {
+      const parsed = JSON.parse(form['brand.team'] || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  })();
+  const setTeam = (next: TeamMember[]) => set('brand.team', JSON.stringify(next));
+  const addMember = () => setTeam([...team, { name: '', title: '', photoDataUrl: '' }]);
+  const updateMember = (i: number, patch: Partial<TeamMember>) => setTeam(team.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
+  const removeMember = (i: number) => setTeam(team.filter((_, idx) => idx !== i));
+  const readMemberPhoto = (file: File | undefined, i: number) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setError('That needs to be an image file.'); return; }
+    if (file.size > MAX_IMAGE_BYTES) { setError(`${file.name} is larger than ${MAX_IMAGE_BYTES / 1024} KB.`); return; }
+    const reader = new FileReader();
+    reader.onload = () => { updateMember(i, { photoDataUrl: String(reader.result || '') }); setError(''); };
+    reader.readAsDataURL(file);
+  };
 
   const readImage = (file: File | undefined, key: keyof Brand) => {
     if (!file) return;
@@ -160,6 +183,46 @@ export function BrandingSettings() {
           {field('Title', 'brand.signatureTitle', 'Principal')}
         </div>
         {imageField('Signature image', 'brand.signatureDataUrl', 'A scanned or drawn signature, placed above the name. Max 400 KB.', 54)}
+      </div>
+
+      <div style={card}>
+        <SectionTitle>About Us &amp; Team</SectionTitle>
+        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 12, lineHeight: 1.5 }}>
+          Inserted as its own page in the Project Program and, when a cover page is used, the Introduction Letter.
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Company description</label>
+          <textarea
+            value={form['brand.aboutUsText']}
+            onChange={(e) => set('brand.aboutUsText', e.target.value)}
+            rows={6}
+            placeholder="A short paragraph or two about the company — separate paragraphs with a blank line."
+            style={{ ...inputStyle, marginTop: 6, resize: 'vertical', lineHeight: 1.5 }}
+          />
+        </div>
+        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: 16 }}>
+          {imageField('Footer mark', 'brand.footerLogoDataUrl', 'A small mark shown above the footer bar. Max 400 KB.', 54)}
+          {imageField('Cover photo', 'brand.coverPhotoDataUrl', 'The photo band on a document’s cover page. Max 400 KB.', 54)}
+        </div>
+
+        <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Team</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+          {team.map((m, i) => (
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#FBF8F2', borderRadius: 10, padding: 10 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px dashed rgba(20,8,31,0.14)', background: 'white', display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                {m.photoDataUrl ? <img src={m.photoDataUrl} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 9, color: '#9AA39D' }}>None</span>}
+              </div>
+              <label style={{ padding: '6px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326', flexShrink: 0 }}>
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { readMemberPhoto(e.target.files?.[0], i); e.currentTarget.value = ''; }} />
+                Photo
+              </label>
+              <input value={m.name} onChange={(e) => updateMember(i, { name: e.target.value })} placeholder="Name" style={{ ...inputStyle, flex: 1 }} />
+              <input value={m.title} onChange={(e) => updateMember(i, { title: e.target.value })} placeholder="Title" style={{ ...inputStyle, flex: 1 }} />
+              <span onClick={() => removeMember(i)} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', flexShrink: 0 }}>Remove</span>
+            </div>
+          ))}
+        </div>
+        <div onClick={addMember} style={{ display: 'inline-block', marginTop: 10, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326' }}>+ Add team member</div>
       </div>
 
       {/* What the letterhead will look like on a document. */}

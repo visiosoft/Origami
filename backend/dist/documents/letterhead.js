@@ -3,14 +3,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BRAND_KEYS = void 0;
 exports.brandingFrom = brandingFrom;
 exports.safeFilename = safeFilename;
+exports.accentOf = accentOf;
+exports.footerBarHtml = footerBarHtml;
+exports.aboutUsPageHtml = aboutUsPageHtml;
+exports.coverPageHtml = coverPageHtml;
 exports.buildLetterHtml = buildLetterHtml;
 exports.BRAND_KEYS = [
     'brand.companyName', 'brand.tagline', 'brand.logoDataUrl', 'brand.accentColor',
     'brand.address', 'brand.phone', 'brand.email', 'brand.website', 'brand.footerNote',
     'brand.signatureName', 'brand.signatureTitle', 'brand.signatureDataUrl',
+    'brand.footerLogoDataUrl', 'brand.aboutUsText', 'brand.team', 'brand.coverPhotoDataUrl',
 ];
 function brandingFrom(settings) {
     const pick = (k) => (settings[`brand.${k}`] ?? '').trim();
+    let team = [];
+    try {
+        const parsed = JSON.parse(pick('team') || '[]');
+        if (Array.isArray(parsed))
+            team = parsed;
+    }
+    catch {
+        team = [];
+    }
     return {
         companyName: pick('companyName') || 'Origami',
         tagline: pick('tagline'),
@@ -24,6 +38,10 @@ function brandingFrom(settings) {
         signatureName: pick('signatureName'),
         signatureTitle: pick('signatureTitle'),
         signatureDataUrl: pick('signatureDataUrl'),
+        footerLogoDataUrl: pick('footerLogoDataUrl'),
+        aboutUsText: pick('aboutUsText'),
+        team,
+        coverPhotoDataUrl: pick('coverPhotoDataUrl'),
     };
 }
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -39,10 +57,77 @@ function safeFilename(name, fallback = 'document') {
     const clean = name.replace(/[\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
     return (clean || fallback).slice(0, 90);
 }
+function accentOf(brand) {
+    return /^#[0-9a-f]{3,8}$/i.test(brand.accentColor) ? brand.accentColor : '#173326';
+}
+function footerBarHtml(brand) {
+    const accent = accentOf(brand);
+    const line = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).map(esc).join('  &middot;  ');
+    const crane = brand.footerLogoDataUrl
+        ? `<img src="${brand.footerLogoDataUrl}" alt="" style="width:40pt;height:auto;display:block;" />`
+        : '';
+    return `<div style="margin-top:24pt;">
+    ${crane ? `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="width:50pt;">${crane}</td><td></td></tr></table>` : ''}
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${accent};margin-top:${crane ? '-10pt' : '0'};">
+      <tr><td style="padding:7pt 16pt;color:#ffffff;font-size:8.5pt;text-align:right;">
+        ${line}${brand.footerNote ? `<div style="margin-top:2pt;">${esc(brand.footerNote)}</div>` : ''}
+      </td></tr>
+    </table>
+  </div>`;
+}
+function aboutUsPageHtml(brand, pageBreakBefore = true) {
+    const accent = accentOf(brand);
+    const paragraphs = brand.aboutUsText
+        .split(/\n{2,}/)
+        .filter((p) => p.trim())
+        .map((p) => `<p style="margin:0 0 12pt 0;">${esc(p)}</p>`)
+        .join('');
+    const members = brand.team || [];
+    const rows = [];
+    for (let i = 0; i < members.length; i += 2) {
+        const pair = members.slice(i, i + 2);
+        rows.push(`<tr>${pair.map((m) => `
+      <td style="width:50%;padding:0 10pt 22pt 0;vertical-align:top;">
+        ${m.photoDataUrl ? `<img src="${m.photoDataUrl}" alt="${esc(m.name)}" style="width:90pt;height:90pt;object-fit:cover;border-radius:4pt;display:block;margin-bottom:6pt;" />` : ''}
+        <div style="font-weight:bold;font-size:10.5pt;color:#0B1A12;">${esc(m.name)}</div>
+        <div style="font-size:9pt;color:${accent};">${esc(m.title)}</div>
+      </td>`).join('')}${pair.length < 2 ? '<td style="width:50%;"></td>' : ''}</tr>`);
+    }
+    return `<div${pageBreakBefore ? ' style="page-break-before:always;"' : ''}>
+    <h1 style="font-size:17pt;color:${accent};text-align:center;margin:0 0 14pt 0;">About ${esc(brand.companyName)}</h1>
+    <div style="font-size:10.5pt;">${paragraphs}</div>
+    ${members.length ? `<h2 style="font-size:15pt;color:${accent};text-align:center;margin:18pt 0 16pt 0;">Team</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">${rows.join('')}</table>` : ''}
+    ${footerBarHtml(brand)}
+  </div>`;
+}
+function coverPageHtml(brand, opts) {
+    const accent = accentOf(brand);
+    const logo = brand.logoDataUrl
+        ? `<img src="${brand.logoDataUrl}" alt="" style="max-height:64px;max-width:220px;" />`
+        : '';
+    return `<div>
+    <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="text-align:right;">${logo}</td></tr></table>
+    <h1 style="font-size:26pt;color:${accent};margin:26pt 0 6pt 0;">${esc(opts.title)}</h1>
+    ${opts.subtitle ? `<div style="font-size:13pt;color:#43514D;margin-bottom:4pt;">${esc(opts.subtitle)}</div>` : ''}
+    ${opts.date ? `<div style="font-size:11pt;color:#7E9B93;">${esc(opts.date)}</div>` : ''}
+    ${(opts.contactName || opts.contactPhone) ? `<div style="margin-top:22pt;">
+      <div style="font-size:10pt;font-weight:bold;color:${accent};text-transform:uppercase;letter-spacing:0.06em;">Client Contact Information</div>
+      ${opts.contactName ? `<div style="font-size:11pt;margin-top:2pt;">${esc(opts.contactName)}</div>` : ''}
+      ${opts.contactPhone ? `<div style="font-size:11pt;">${esc(opts.contactPhone)}</div>` : ''}
+    </div>` : ''}
+    ${brand.coverPhotoDataUrl ? `<div style="margin-top:26pt;">
+      <img src="${brand.coverPhotoDataUrl}" alt="" style="width:100%;height:280pt;object-fit:cover;display:block;" />
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td style="padding:10pt 16pt;">
+        <div style="font-size:11pt;font-weight:bold;color:#0B1A12;">Presented by</div>
+        <div style="font-size:11pt;color:#43514D;">${esc(brand.companyName)}</div>
+      </td></tr></table>
+    </div>` : ''}
+  </div>`;
+}
 function buildLetterHtml(opts) {
     const b = opts.brand;
-    const accent = /^#[0-9a-f]{3,8}$/i.test(b.accentColor) ? b.accentColor : '#173326';
-    const footerLine = [b.address, b.phone, b.email, b.website].filter(Boolean).map(esc).join('  &middot;  ');
+    const accent = accentOf(b);
     const logo = b.logoDataUrl
         ? `<img src="${b.logoDataUrl}" alt="" style="max-height:56px;max-width:200px;" />`
         : '';
@@ -54,10 +139,16 @@ function buildLetterHtml(opts) {
         b.signatureTitle ? `<div style="font-size:10pt;color:#5C6B65;">${esc(b.signatureTitle)}</div>` : '',
         b.companyName ? `<div style="font-size:10pt;color:#5C6B65;">${esc(b.companyName)}</div>` : '',
     ].filter(Boolean).join('');
+    const cover = opts.includeCoverPage
+        ? coverPageHtml(b, { title: opts.title || b.companyName, date: opts.date, contactName: opts.contactName, contactPhone: opts.contactPhone })
+        : '';
+    const about = opts.includeAboutUs ? aboutUsPageHtml(b, true) : '';
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8" /><title>${esc(opts.title || b.companyName)}</title></head>
 <body style="font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.65;color:#1E2B25;margin:0;">
 
+  ${cover}${about}
+  <div${cover || about ? ' style="page-break-before:always;"' : ''}>
   <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:3px solid ${accent};padding-bottom:10pt;margin-bottom:8pt;">
     <tr>
       <td style="vertical-align:middle;">${logo}</td>
@@ -76,12 +167,8 @@ function buildLetterHtml(opts) {
 
   ${signature ? `<div style="margin-top:26pt;">${signature}</div>` : ''}
 
-  <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #D8DED9;margin-top:34pt;padding-top:8pt;">
-    <tr><td style="font-size:8.5pt;color:#7E9B93;text-align:center;">
-      ${footerLine}
-      ${b.footerNote ? `<div style="margin-top:3pt;">${esc(b.footerNote)}</div>` : ''}
-    </td></tr>
-  </table>
+  ${footerBarHtml(b)}
+  </div>
 
 </body></html>`;
 }

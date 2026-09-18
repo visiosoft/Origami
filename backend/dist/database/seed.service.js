@@ -22,14 +22,16 @@ const people_1 = require("../seed-data/people");
 const tasks_1 = require("../seed-data/tasks");
 const pipeline_1 = require("../seed-data/pipeline");
 const dashboard_1 = require("../seed-data/dashboard");
+const brand_defaults_1 = require("../seed-data/brand-defaults");
 let SeedService = class SeedService {
-    constructor(projects, people, tasks, deals, invoices, finance) {
+    constructor(projects, people, tasks, deals, invoices, finance, settings) {
         this.projects = projects;
         this.people = people;
         this.tasks = tasks;
         this.deals = deals;
         this.invoices = invoices;
         this.finance = finance;
+        this.settings = settings;
         this.log = new common_1.Logger('SeedService');
     }
     async onApplicationBootstrap() {
@@ -73,6 +75,22 @@ let SeedService = class SeedService {
             await this.finance.save(dashboard_1.FINANCE);
             this.log.log(`Seeded ${dashboard_1.FINANCE.length} finance rows`);
         }
+        await this.seedBrandDefaults();
+    }
+    async seedBrandDefaults() {
+        const defaults = {
+            'brand.footerLogoDataUrl': brand_defaults_1.DEFAULT_FOOTER_LOGO_DATA_URL,
+            'brand.coverPhotoDataUrl': brand_defaults_1.DEFAULT_COVER_PHOTO_DATA_URL,
+            'brand.aboutUsText': brand_defaults_1.DEFAULT_ABOUT_US_TEXT,
+            'brand.team': JSON.stringify(brand_defaults_1.DEFAULT_TEAM),
+        };
+        for (const [key, value] of Object.entries(defaults)) {
+            const existing = await this.settings.findOneBy({ key });
+            if (existing)
+                continue;
+            await this.settings.save(this.settings.create({ key, value, updatedAt: new Date().toISOString() }));
+            this.log.log(`Seeded default setting ${key}`);
+        }
     }
 };
 exports.SeedService = SeedService;
@@ -84,7 +102,9 @@ exports.SeedService = SeedService = __decorate([
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
     __param(4, (0, typeorm_1.InjectRepository)(entities_1.InvoiceEntity)),
     __param(5, (0, typeorm_1.InjectRepository)(entities_1.FinanceEntity)),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.AppSettingEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

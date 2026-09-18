@@ -1,4 +1,4 @@
-import type { Branding } from './letterhead';
+import { type Branding } from './letterhead';
 export interface DocRow {
     label: string;
     value?: string;

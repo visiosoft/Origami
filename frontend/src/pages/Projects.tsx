@@ -270,6 +270,13 @@ export function Projects() {
     recipient: introLead?.contactName || introLead?.leadName || undefined,
     date: new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),
     filename: `${sel?.name || 'Project'} — Introduction Letter`,
+    // A cover page and the About Us/Team page, same as the office's own
+    // Introduction Letter template — this is the one letter sent this way,
+    // so the flags are on unconditionally rather than per-template.
+    includeCoverPage: true,
+    includeAboutUs: true,
+    contactName: introLead?.contactName || introLead?.leadName || undefined,
+    contactPhone: introLead?.phone || undefined,
   });
 
   /** Open the branded PDF in a new tab, exactly as the recipient will get it. */

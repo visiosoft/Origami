@@ -60,6 +60,10 @@ export const PUBLIC_KEYS = [
   'brand.signatureName',
   'brand.signatureTitle',
   'brand.signatureDataUrl',
+  'brand.footerLogoDataUrl',
+  'brand.aboutUsText',
+  'brand.team',
+  'brand.coverPhotoDataUrl',
 ];
 
 export const MASK = '••••••••';

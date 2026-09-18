@@ -2,13 +2,14 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  ProjectEntity, PersonEntity, TaskEntity, DealEntity, InvoiceEntity, FinanceEntity,
+  ProjectEntity, PersonEntity, TaskEntity, DealEntity, InvoiceEntity, FinanceEntity, AppSettingEntity,
 } from './entities';
 import { PROJECTS } from '../seed-data/projects';
 import { PEOPLE } from '../seed-data/people';
 import { ALL_TASKS } from '../seed-data/tasks';
 import { DEALS } from '../seed-data/pipeline';
 import { INVOICES, FINANCE } from '../seed-data/dashboard';
+import { DEFAULT_FOOTER_LOGO_DATA_URL, DEFAULT_COVER_PHOTO_DATA_URL, DEFAULT_ABOUT_US_TEXT, DEFAULT_TEAM } from '../seed-data/brand-defaults';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -21,6 +22,7 @@ export class SeedService implements OnApplicationBootstrap {
     @InjectRepository(DealEntity) private deals: Repository<DealEntity>,
     @InjectRepository(InvoiceEntity) private invoices: Repository<InvoiceEntity>,
     @InjectRepository(FinanceEntity) private finance: Repository<FinanceEntity>,
+    @InjectRepository(AppSettingEntity) private settings: Repository<AppSettingEntity>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -63,6 +65,28 @@ export class SeedService implements OnApplicationBootstrap {
     if ((await this.finance.count()) === 0) {
       await this.finance.save(FINANCE as unknown as FinanceEntity[]);
       this.log.log(`Seeded ${FINANCE.length} finance rows`);
+    }
+    await this.seedBrandDefaults();
+  }
+
+  /**
+   * Seeds default branding assets (crane footer mark, About Us copy, team
+   * headshots, cover photo) once, key by key, so documents render fully
+   * branded out of the box without requiring a Settings visit first. Any
+   * key already set (including one explicitly cleared) is left alone.
+   */
+  private async seedBrandDefaults() {
+    const defaults: Record<string, string> = {
+      'brand.footerLogoDataUrl': DEFAULT_FOOTER_LOGO_DATA_URL,
+      'brand.coverPhotoDataUrl': DEFAULT_COVER_PHOTO_DATA_URL,
+      'brand.aboutUsText': DEFAULT_ABOUT_US_TEXT,
+      'brand.team': JSON.stringify(DEFAULT_TEAM),
+    };
+    for (const [key, value] of Object.entries(defaults)) {
+      const existing = await this.settings.findOneBy({ key });
+      if (existing) continue;
+      await this.settings.save(this.settings.create({ key, value, updatedAt: new Date().toISOString() }));
+      this.log.log(`Seeded default setting ${key}`);
     }
   }
 }

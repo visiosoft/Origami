@@ -1,16 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildProgramHtml = buildProgramHtml;
+const letterhead_1 = require("./letterhead");
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const val = (v) => {
     const t = String(v ?? '').trim();
     return t ? esc(t) : '<span style="color:#B9C2BC;">&mdash;</span>';
 };
-function accentOf(brand) {
-    return /^#[0-9a-f]{3,8}$/i.test(brand.accentColor) ? brand.accentColor : '#173326';
-}
 function bandHtml(brand, right = '') {
-    const accent = accentOf(brand);
+    const accent = (0, letterhead_1.accentOf)(brand);
     const logo = brand.logoDataUrl
         ? `<img src="${brand.logoDataUrl}" alt="" style="max-height:40px;max-width:150px;" />`
         : `<div style="font-size:12pt;font-weight:bold;color:#0B1A12;">${esc(brand.companyName)}</div>`;
@@ -21,15 +19,7 @@ function bandHtml(brand, right = '') {
     </tr>
   </table>`;
 }
-function footerHtml(brand) {
-    const line = [brand.address, brand.phone, brand.email, brand.website]
-        .filter(Boolean).map((x) => esc(x)).join('  &middot;  ');
-    return `<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #D8DED9;margin-top:20pt;padding-top:6pt;">
-    <tr><td style="font-size:8pt;color:#7E9B93;text-align:center;">
-      ${line}${brand.footerNote ? `<div style="margin-top:2pt;">${esc(brand.footerNote)}</div>` : ''}
-    </td></tr>
-  </table>`;
-}
+const footerHtml = letterhead_1.footerBarHtml;
 function blockHtml(block, accent) {
     const heading = block.title
         ? `<div style="font-size:11pt;font-weight:bold;color:${accent};margin:14pt 0 5pt 0;">${esc(block.title)}</div>`
@@ -73,7 +63,7 @@ function blockHtml(block, accent) {
 }
 function buildProgramHtml(opts) {
     const b = opts.brand;
-    const accent = accentOf(b);
+    const accent = (0, letterhead_1.accentOf)(b);
     const contents = opts.steps.map((s, i) => `<tr>
       <td style="padding:3pt 0;font-size:9.5pt;color:#7E9B93;width:24pt;">${i + 1}</td>
       <td style="padding:3pt 0;font-size:9.5pt;">${esc(s.name)}</td>
@@ -116,6 +106,8 @@ function buildProgramHtml(opts) {
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${contents}</table>
     ${footerHtml(b)}
   </div>
+
+  ${(0, letterhead_1.aboutUsPageHtml)(b, true)}
 
   ${body}
 

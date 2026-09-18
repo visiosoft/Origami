@@ -16,7 +16,7 @@ let SeedModule = class SeedModule {
 exports.SeedModule = SeedModule;
 exports.SeedModule = SeedModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectEntity, entities_1.PersonEntity, entities_1.TaskEntity, entities_1.DealEntity, entities_1.InvoiceEntity, entities_1.FinanceEntity])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectEntity, entities_1.PersonEntity, entities_1.TaskEntity, entities_1.DealEntity, entities_1.InvoiceEntity, entities_1.FinanceEntity, entities_1.AppSettingEntity])],
         providers: [seed_service_1.SeedService],
     })
 ], SeedModule);

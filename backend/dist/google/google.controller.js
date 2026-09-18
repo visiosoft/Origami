@@ -170,6 +170,10 @@ let GoogleController = class GoogleController {
             recipient: body.recipient,
             date: body.date,
             body: body.html || '',
+            includeCoverPage: body.includeCoverPage,
+            includeAboutUs: body.includeAboutUs,
+            contactName: body.contactName,
+            contactPhone: body.contactPhone,
         });
         return this.google.htmlToPdf(html, (0, letterhead_1.safeFilename)(body.subject || 'Letter'));
     }

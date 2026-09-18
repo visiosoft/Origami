@@ -84,6 +84,10 @@ export declare class GoogleController {
         recipient?: string;
         date?: string;
         filename?: string;
+        includeCoverPage?: boolean;
+        includeAboutUs?: boolean;
+        contactName?: string;
+        contactPhone?: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     sendLetter(body: {
         to: string;
@@ -94,6 +98,10 @@ export declare class GoogleController {
         recipient?: string;
         date?: string;
         filename?: string;
+        includeCoverPage?: boolean;
+        includeAboutUs?: boolean;
+        contactName?: string;
+        contactPhone?: string;
     }): Promise<{
         ok: boolean;
         filename: string;
