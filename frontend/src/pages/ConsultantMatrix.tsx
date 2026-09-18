@@ -26,6 +26,7 @@ export function ConsultantMatrix() {
   const canManage = can('prequal', 'manage');
   const [rows, setRows] = useState<Consultant[]>([]);
   const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [editing, setEditing] = useState<Consultant | null>(null);
 
   const reload = () => { api.consultants.list().then((r) => { if (Array.isArray(r)) setRows(r as Consultant[]); }).catch(() => { }); };
@@ -35,16 +36,17 @@ export function ConsultantMatrix() {
 
   const grouped = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = q
-      ? rows.filter((r) => [r.type, r.firm, r.contact, r.phone, r.email, r.address].some((v) => (v || '').toLowerCase().includes(q)))
-      : rows;
+    let filtered = typeFilter ? rows.filter((r) => r.type === typeFilter) : rows;
+    filtered = q
+      ? filtered.filter((r) => [r.type, r.firm, r.contact, r.phone, r.email, r.address].some((v) => (v || '').toLowerCase().includes(q)))
+      : filtered;
     const byType = new Map<string, Consultant[]>();
     for (const r of filtered) {
       if (!byType.has(r.type)) byType.set(r.type, []);
       byType.get(r.type)!.push(r);
     }
     return Array.from(byType.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [rows, query]);
+  }, [rows, query, typeFilter]);
 
   const addNew = (type?: string) => setEditing({ ...BLANK, id: '', type: type || '' });
 
@@ -73,12 +75,23 @@ export function ConsultantMatrix() {
         )}
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search by trade, firm, contact, phone or email…"
-        style={{ ...inputStyle, maxWidth: 380, margin: '16px 0 18px' }}
-      />
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '16px 0 18px' }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by trade, firm, contact, phone or email…"
+          style={{ ...inputStyle, maxWidth: 380 }}
+        />
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          style={{ ...inputStyle, width: 'auto', maxWidth: 240 }}
+        >
+          <option value="">All trades ({types.length})</option>
+          {types.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        {typeFilter && <span onClick={() => setTypeFilter('')} style={{ alignSelf: 'center', fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer' }}>Clear</span>}
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {grouped.map(([type, list]) => (
