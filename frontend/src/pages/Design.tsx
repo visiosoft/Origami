@@ -37,6 +37,9 @@ interface DesignProject {
   progress: number;
 }
 
+interface TemplatePhaseLite { key: string; name: string; color: string; order?: number }
+interface LibraryEntryLite { key: string; name: string; phases: TemplatePhaseLite[]; category?: 'design' | 'construction' }
+
 const PRIORITY_STYLE: Record<string, { bg: string; c: string }> = {
   High: { bg: '#F2DFD4', c: '#8E2E0A' },
   Medium: { bg: '#FBE9AE', c: '#93520F' },
@@ -58,6 +61,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [rows, setRows] = useState<DesignProject[]>([]);
+  const [templates, setTemplates] = useState<LibraryEntryLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
@@ -67,36 +71,47 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
       .then((res: any) => { if (Array.isArray(res)) setRows(res as DesignProject[]); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
+    api.programmeTemplate.list()
+      .then((res: any) => { if (Array.isArray(res)) setTemplates(res as LibraryEntryLite[]); })
+      .catch(() => { });
   }, []);
 
   /** The Projects board's own coarse stage label for this scope -- "Design" or "Construction". */
   const stageLabel = scope === 'construction' ? 'Construction' : 'Design';
   const OTHER_COL = '__other';
 
-  // Columns come from the projects themselves, so a renamed or added phase
-  // needs no change here.
+  // The Construction board's columns are the Construction-category template(s)'
+  // own phases from the Library -- so a phase shows up here the moment it's
+  // added to the template, not only once some project has already reached it.
+  // The Design board keeps the legacy behaviour (derived from projects' own
+  // phase rows): the Default template is filed under "design" but its phase
+  // list spans the whole lifecycle, so treating all of its phases as Design
+  // columns would be wrong.
   const columns = useMemo(() => {
     const seen = new Map<string, { key: string; name: string; color: string; order: number }>();
-    rows.forEach((p) => p.phases.forEach((ph) => {
-      // A purely-construction template's phases belong on this board wholesale
-      // -- its own keys were never going to match the legacy design/construction
-      // allowlist below, which only knows the Default template's phase keys.
-      const inScope = scope === 'construction' && p.templateCategory === 'construction'
-        ? true
-        : view.keys.includes(ph.key);
-      if (!inScope) return;
-      if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order });
-    }));
+    if (scope === 'construction') {
+      templates
+        .filter((t) => (t.category || 'design') === 'construction')
+        .forEach((t) => t.phases.forEach((ph, i) => {
+          if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order ?? i });
+        }));
+    } else {
+      rows.forEach((p) => p.phases.forEach((ph) => {
+        if (!view.keys.includes(ph.key)) return;
+        if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order });
+      }));
+    }
     const known = [...seen.values()].sort((a, b) => a.order - b.order);
     // A project the Projects board already counts under this stage, but whose
-    // current phase isn't one of the keys above (an older template's phase,
-    // or none yet) -- still belongs on this board, so it gets a catch-all
-    // column instead of silently disappearing and throwing the counts out of sync.
+    // current phase isn't one of the columns above (an older/other template's
+    // phase, or none yet) -- still belongs on this board, so it gets a
+    // catch-all column instead of silently disappearing and throwing the two
+    // views' counts out of sync.
     const keySet = new Set(known.map((c) => c.key));
     const hasStragglers = rows.some((p) => p.stage === stageLabel && (!p.currentPhaseKey || !keySet.has(p.currentPhaseKey)));
     if (hasStragglers) known.push({ key: OTHER_COL, name: 'Other Steps', color: '#9AA39D', order: Number.MAX_SAFE_INTEGER });
     return known;
-  }, [rows, view, scope, stageLabel]);
+  }, [rows, templates, view, scope, stageLabel]);
 
   const columnKeys = useMemo(() => new Set(columns.map((c) => c.key)), [columns]);
 
@@ -180,7 +195,9 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
 
       {columns.length === 0 ? (
         <div style={{ padding: '30px 20px', textAlign: 'center', fontSize: 13, color: '#9AA39D', background: '#FBF8F2', borderRadius: 12 }}>
-          No {view.title.toLowerCase()} phases yet. Open a project's Phase Board to create them.
+          {scope === 'construction'
+            ? 'No Construction template phases yet. Add them under Document & Template Library → Programme Template → Construction.'
+            : "No design phases yet. Open a project's Phase Board to create them."}
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flex: 1, minHeight: 0, paddingBottom: 6 }}>
