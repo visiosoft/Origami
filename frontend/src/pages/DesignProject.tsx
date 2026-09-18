@@ -64,6 +64,10 @@ export function DesignProject() {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Which phase keys belong to a Construction-category template -- so the
+  // Construction board's own project page shows only its own phases, not the
+  // rest of whatever lifecycle template the project happens to be on.
+  const [constructionKeys, setConstructionKeys] = useState<Set<string> | null>(null);
 
   const id = Number(projectId);
 
@@ -83,8 +87,35 @@ export function DesignProject() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (board !== '/pm') return;
+    api.programmeTemplate.list()
+      .then((res: any) => {
+        const keys = new Set<string>();
+        (Array.isArray(res) ? res : [])
+          .filter((t: any) => (t.category || 'design') === 'construction')
+          .forEach((t: any) => (t.phases || []).forEach((ph: any) => keys.add(ph.key)));
+        setConstructionKeys(keys);
+      })
+      .catch(() => setConstructionKeys(new Set()));
+  }, [board]);
+
   /** Tasks per phase, with the counts the header and tabs need. */
-  const stages = useMemo(() => phases.map((ph) => {
+  const scopedPhases = useMemo(
+    () => (board === '/pm' && constructionKeys ? phases.filter((ph) => constructionKeys.has(ph.key)) : phases),
+    [phases, board, constructionKeys],
+  );
+  // Once the Construction scope is known, make sure the open phase is one of
+  // this board's own -- the initial pick (above) had no way to know that yet.
+  useEffect(() => {
+    if (board !== '/pm' || !constructionKeys || phaseFilter === 'all') return;
+    if (constructionKeys.has(phaseFilter)) return;
+    const first = scopedPhases[0]?.key;
+    if (first) setPhaseFilter(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, constructionKeys, scopedPhases]);
+
+  const stages = useMemo(() => scopedPhases.map((ph) => {
     const items = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
     const done = items.filter((t) => t.completed || t.status === 'Done').length;
     const percent = items.length ? Math.round((done / items.length) * 100) : 0;
@@ -94,7 +125,7 @@ export function DesignProject() {
       complete: items.length > 0 && done === items.length,
       status: percent === 100 ? STATUS.complete : percent > 0 ? STATUS.progress : STATUS.none,
     };
-  }), [phases, tasks]);
+  }), [scopedPhases, tasks]);
 
   const reload = () => api.projectPhases.board(id)
     .then((b: any) => { setPhases((b?.phases ?? []) as Phase[]); setTasks((b?.tasks ?? []) as ProjectTask[]); })
