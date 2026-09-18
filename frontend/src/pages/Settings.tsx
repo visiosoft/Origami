@@ -203,6 +203,8 @@ function smsSegments(body: string) {
 
 interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }
 const BLANK_TEMPLATE: EmailTemplate = { id: '', name: 'New Template', subject: '', body: '', kind: 'email', category: '' };
+/** Kinds edited with the full rich text editor (tables, images, headings) rather than a plain textarea. */
+const isRichKind = (kind?: string) => kind === 'agreement' || kind === 'introduction';
 
 export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: string; sendable?: boolean } = {}) {
   const { toast, can } = useApp();
@@ -254,10 +256,12 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>{filterKind === 'agreement' ? 'Agreement Templates' : 'Email & Document Templates'}</div>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>{filterKind === 'agreement' ? 'Agreement Templates' : filterKind === 'introduction' ? 'Introduction Letter' : 'Email & Document Templates'}</div>
           <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
             {filterKind === 'agreement'
               ? <>Reusable agreements between us and a client -- draft one here, then use <strong>Send to client</strong> on any card to fill it in and email it. Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{date}}'}</code> — they fill in when you send.</>
+              : filterKind === 'introduction'
+              ? <>The one letter every new project starts with — built once here, then reused for each project with only the client's details swapped in. Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{clientPhone}}'}</code>, <code>{'{{projectTitle}}'}</code>, <code>{'{{projectScope}}'}</code>, <code>{'{{date}}'}</code> — they fill in from the linked lead when it's sent. Your branding's header, footer, cover page and About Us page are added automatically.</>
               : <>Reusable client emails and documents (e.g. the <strong>Introduction Letter</strong>). Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{clientPhone}}'}</code>, <code>{'{{projectTitle}}'}</code>, <code>{'{{projectScope}}'}</code>, <code>{'{{date}}'}</code> — they fill in from the linked lead &amp; project when the template is used.</>}
           </div>
         </div>
@@ -280,7 +284,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kind</div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {(['email', 'sms', 'document', 'proposal', 'agreement'] as const).map((k) => (
+                {(['email', 'sms', 'document', 'proposal', 'agreement', 'introduction'] as const).map((k) => (
                   <span key={k} onClick={() => canManage && setDraft({ ...draft, kind: k })} style={{
                     padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: canManage ? 'pointer' : 'default',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -310,7 +314,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                   );
                 })()}
               </div>
-              {draft.kind === 'agreement' ? (
+              {isRichKind(draft.kind) ? (
                 <RichTextEditor value={draft.body} onChange={(html) => setDraft({ ...draft, body: html })} minHeight={360} />
               ) : (
                 <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
@@ -341,7 +345,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                   {!filterKind && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#E7F0E8', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>}
                 </div>
                 {t.subject && <div style={{ fontSize: 11.5, color: '#43514D', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
-                <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body, (t.kind || 'email') === 'agreement')}</div>
+                <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body, isRichKind(t.kind))}</div>
               </div>
               {sendable && (
                 <div onClick={() => setSendingTemplate(t)} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(20,8,31,0.06)', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
@@ -374,7 +378,7 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
   };
   useEffect(fill, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isRich = (template.kind || 'email') === 'agreement';
+  const isRich = isRichKind(template.kind);
 
   const send = () => {
     if (!to.trim()) { toast('Who should it go to?'); return; }

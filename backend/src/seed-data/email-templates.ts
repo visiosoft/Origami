@@ -108,7 +108,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplate[] = [
     name: 'Introduction Letter',
     subject: 'Welcome to Origami Design + Build — {{projectTitle}}',
     body: INTRODUCTION_LETTER_BODY,
-    kind: 'email',
+    kind: 'introduction',
     category: 'Client Onboarding',
     updatedAt: '',
   },

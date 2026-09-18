@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
 
+/** Keeps a document's HTML size sane -- large embedded images slow every save and PDF render. */
+const MAX_IMAGE_BYTES = 500 * 1024;
+
 const BTN: React.CSSProperties = {
   width: 28, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center',
   cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#43514D', flexShrink: 0,
@@ -9,7 +12,8 @@ const BTN: React.CSSProperties = {
  * A small dependency-free rich text editor -- contentEditable plus a toolbar
  * over document.execCommand. Not a full word processor, but enough for a
  * formatted agreement or letter: headings, bold/italic/underline, lists, a
- * link, and clearing formatting back to plain text.
+ * link, an inserted image or table, and clearing formatting back to plain
+ * text.
  *
  * Controlled by `value`/`onChange` (an HTML string), the same shape a plain
  * textarea's body already was, so it drops into the same field.
@@ -20,6 +24,7 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
   minHeight?: number;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   // Only push `value` into the DOM when it changes from *outside* (e.g.
   // switching templates or applying merge tokens) -- never while the user is
   // actively typing, or the cursor jumps to the start on every keystroke.
@@ -49,6 +54,23 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
     if (url) run('createLink', url);
   };
 
+  const insertImage = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('That needs to be an image file.'); return; }
+    if (file.size > MAX_IMAGE_BYTES) { alert(`${file.name} is larger than ${MAX_IMAGE_BYTES / 1024} KB -- use a smaller image.`); return; }
+    const reader = new FileReader();
+    reader.onload = () => run('insertHTML', `<img src="${String(reader.result || '')}" style="max-width:100%;height:auto;display:block;margin:8px 0;" />`);
+    reader.readAsDataURL(file);
+  };
+
+  const insertTable = () => {
+    const rows = Math.max(1, Math.min(20, Number(prompt('Rows:', '3')) || 3));
+    const cols = Math.max(1, Math.min(10, Number(prompt('Columns:', '3')) || 3));
+    const cell = '<td style="border:1px solid rgba(20,8,31,0.18);padding:6px 8px;min-width:60px;">&nbsp;</td>';
+    const row = `<tr>${cell.repeat(cols)}</tr>`;
+    run('insertHTML', `<table style="border-collapse:collapse;width:100%;margin:8px 0;">${row.repeat(rows)}</table>`);
+  };
+
   const btn = (label: string, onClick: () => void, title: string) => (
     <span onClick={onClick} title={title} style={BTN} onMouseDown={(e) => e.preventDefault()}>{label}</span>
   );
@@ -68,6 +90,10 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
         {btn('•', () => run('insertUnorderedList'), 'Bullet list')}
         {btn('1.', () => run('insertOrderedList'), 'Numbered list')}
         {btn('🔗', link, 'Insert link')}
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,8,31,0.1)', margin: '0 3px' }} />
+        {btn('🖼', () => fileRef.current?.click(), 'Insert image')}
+        {btn('⊞', insertTable, 'Insert table')}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { insertImage(e.target.files?.[0]); e.currentTarget.value = ''; }} />
         <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,8,31,0.1)', margin: '0 3px' }} />
         {btn('✕', () => run('removeFormat'), 'Clear formatting')}
       </div>

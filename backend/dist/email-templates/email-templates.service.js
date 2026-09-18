@@ -31,6 +31,12 @@ let EmailTemplatesService = class EmailTemplatesService {
                 await this.repo.save(missing);
                 this.log.log(`Seeded ${missing.length} template(s)`);
             }
+            const intro = await this.repo.findOneBy({ id: 'TPL-introduction-letter' });
+            if (intro && intro.kind !== 'introduction') {
+                intro.kind = 'introduction';
+                await this.repo.save(intro);
+                this.log.log('Moved Introduction Letter template to the introduction kind');
+            }
         }
         catch (err) {
             this.log.error('Email template seed failed: ' + err.message);

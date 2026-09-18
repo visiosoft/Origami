@@ -24,6 +24,15 @@ export class EmailTemplatesService implements OnApplicationBootstrap {
         await this.repo.save(missing as unknown as EmailTemplateEntity[]);
         this.log.log(`Seeded ${missing.length} template(s)`);
       }
+      // The Introduction Letter moved from the generic 'email' kind to its own
+      // 'introduction' kind (its own Library tab) -- an install seeded before
+      // that change would otherwise keep the stale kind forever.
+      const intro = await this.repo.findOneBy({ id: 'TPL-introduction-letter' });
+      if (intro && intro.kind !== 'introduction') {
+        intro.kind = 'introduction';
+        await this.repo.save(intro);
+        this.log.log('Moved Introduction Letter template to the introduction kind');
+      }
     } catch (err) {
       this.log.error('Email template seed failed: ' + (err as Error).message);
     }
