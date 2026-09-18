@@ -75,11 +75,11 @@ function footerBarHtml(brand) {
     const accent = accentOf(brand);
     const line = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).map(esc).join('  &middot;  ');
     const crane = brand.footerLogoDataUrl
-        ? `<img src="${brand.footerLogoDataUrl}" alt="" style="width:40pt;height:auto;display:block;" />`
+        ? `<img src="${brand.footerLogoDataUrl}" alt="" style="width:80pt;height:auto;display:block;" />`
         : '';
     return `<div style="margin-top:24pt;">
-    ${crane ? `<table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="width:50pt;border:none;">${crane}</td><td style="border:none;"></td></tr></table>` : ''}
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${accent};margin-top:${crane ? '-10pt' : '0'};">
+    ${crane ? `<table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="width:90pt;border:none;">${crane}</td><td style="border:none;"></td></tr></table>` : ''}
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${accent};margin-top:${crane ? '-20pt' : '0'};">
       <tr><td style="padding:7pt 16pt;color:#ffffff;font-size:8.5pt;text-align:right;border:none;">
         ${line}${brand.footerNote ? `<div style="margin-top:2pt;">${esc(brand.footerNote)}</div>` : ''}
       </td></tr>

@@ -132,12 +132,16 @@ export const PAGE_BREAK = '<p style="page-break-before:always;margin:0;line-heig
 export function footerBarHtml(brand: Branding) {
   const accent = accentOf(brand);
   const line = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).map(esc).join('  &middot;  ');
+  // The reference design has the crane overlapping a diagonal gold wedge --
+  // Google Docs' HTML import has no clip-path/transform support for an
+  // angled shape, so this approximates it with a large crane overlapping a
+  // plain rectangular bar instead of a true diagonal cut.
   const crane = brand.footerLogoDataUrl
-    ? `<img src="${brand.footerLogoDataUrl}" alt="" style="width:40pt;height:auto;display:block;" />`
+    ? `<img src="${brand.footerLogoDataUrl}" alt="" style="width:80pt;height:auto;display:block;" />`
     : '';
   return `<div style="margin-top:24pt;">
-    ${crane ? `<table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="width:50pt;border:none;">${crane}</td><td style="border:none;"></td></tr></table>` : ''}
-    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${accent};margin-top:${crane ? '-10pt' : '0'};">
+    ${crane ? `<table width="100%" border="0" cellpadding="0" cellspacing="0"><tr><td style="width:90pt;border:none;">${crane}</td><td style="border:none;"></td></tr></table>` : ''}
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background:${accent};margin-top:${crane ? '-20pt' : '0'};">
       <tr><td style="padding:7pt 16pt;color:#ffffff;font-size:8.5pt;text-align:right;border:none;">
         ${line}${brand.footerNote ? `<div style="margin-top:2pt;">${esc(brand.footerNote)}</div>` : ''}
       </td></tr>
