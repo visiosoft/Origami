@@ -7,6 +7,7 @@ const BG = "'Bricolage Grotesque', serif";
 const TABS = [
   { key: 'programme', label: 'Programme Template', hint: 'Phases and tasks every new project starts from' },
   { key: 'scoring', label: 'Lead Qualification Scoring', hint: 'How a lead is scored for fit' },
+  { key: 'agreements', label: 'Agreements', hint: 'Agreement templates between us and clients, ready to send' },
   { key: 'messages', label: 'Email, SMS & Documents', hint: 'Message templates and standard documents' },
 ] as const;
 
@@ -55,6 +56,7 @@ export function Library() {
 
       {active === 'programme' && <ProgrammeTemplate />}
       {active === 'scoring' && <ScoringTemplateEditor />}
+      {active === 'agreements' && <EmailTemplatesEditor filterKind="agreement" sendable />}
       {active === 'messages' && <EmailTemplatesEditor />}
     </div>
   );

@@ -8,6 +8,7 @@ import { PipelineSlaSettings } from './PipelineSlaSettings';
 import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
 import { MyCalendarSettings } from './MyCalendarSettings';
+import { mergeTokens } from '../data/clientPersonality';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
@@ -202,7 +203,7 @@ function smsSegments(body: string) {
 interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }
 const BLANK_TEMPLATE: EmailTemplate = { id: '', name: 'New Template', subject: '', body: '', kind: 'email', category: '' };
 
-export function EmailTemplatesEditor() {
+export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: string; sendable?: boolean } = {}) {
   const { toast, can } = useApp();
   const canManage = can('settings', 'manage');
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -210,6 +211,7 @@ export function EmailTemplatesEditor() {
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<EmailTemplate | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState<EmailTemplate | null>(null);
 
   const reload = (selectId?: string) => {
     api.emailTemplates.list()
@@ -219,8 +221,10 @@ export function EmailTemplatesEditor() {
   };
   useEffect(() => { reload(); }, []);
 
+  const visible = filterKind ? templates.filter((t) => (t.kind || 'email') === filterKind) : templates;
+
   const openTemplate = (t: EmailTemplate) => { setDraft({ ...t }); setIsNew(false); };
-  const openNew = () => { setDraft({ ...BLANK_TEMPLATE }); setIsNew(true); };
+  const openNew = () => { setDraft({ ...BLANK_TEMPLATE, kind: filterKind || 'email' }); setIsNew(true); };
   const closeEditor = () => { setDraft(null); setIsNew(false); };
 
   const save = () => {
@@ -246,9 +250,11 @@ export function EmailTemplatesEditor() {
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Email &amp; Document Templates</div>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>{filterKind === 'agreement' ? 'Agreement Templates' : 'Email & Document Templates'}</div>
           <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
-            Reusable client emails and documents (e.g. the <strong>Introduction Letter</strong>). Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{clientPhone}}'}</code>, <code>{'{{projectTitle}}'}</code>, <code>{'{{projectScope}}'}</code>, <code>{'{{date}}'}</code> — they fill in from the linked lead &amp; project when the template is used.
+            {filterKind === 'agreement'
+              ? <>Reusable agreements between us and a client -- draft one here, then use <strong>Send to client</strong> on any card to fill it in and email it. Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{date}}'}</code> — they fill in when you send.</>
+              : <>Reusable client emails and documents (e.g. the <strong>Introduction Letter</strong>). Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{clientPhone}}'}</code>, <code>{'{{projectTitle}}'}</code>, <code>{'{{projectScope}}'}</code>, <code>{'{{date}}'}</code> — they fill in from the linked lead &amp; project when the template is used.</>}
           </div>
         </div>
         {canManage && <div onClick={openNew} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>+ New Template</div>}
@@ -270,7 +276,7 @@ export function EmailTemplatesEditor() {
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kind</div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {(['email', 'sms', 'document', 'proposal'] as const).map((k) => (
+                {(['email', 'sms', 'document', 'proposal', 'agreement'] as const).map((k) => (
                   <span key={k} onClick={() => canManage && setDraft({ ...draft, kind: k })} style={{
                     padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: canManage ? 'pointer' : 'default',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -315,22 +321,103 @@ export function EmailTemplatesEditor() {
             </div>
           )}
         </div>
-      ) : templates.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div style={{ fontSize: 13, color: '#9AA39D', fontStyle: 'italic', padding: '20px 0' }}>No templates yet. Click “+ New Template” to create one.</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-          {templates.map((t) => (
-            <div key={t.id} onClick={() => openTemplate(t)} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 16, cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1A12', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#E7F0E8', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>
+          {visible.map((t) => (
+            <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 16 }}>
+              <div onClick={() => openTemplate(t)} style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1A12', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                  {!filterKind && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#E7F0E8', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>}
+                </div>
+                {t.subject && <div style={{ fontSize: 11.5, color: '#43514D', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
+                <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body)}</div>
               </div>
-              {t.subject && <div style={{ fontSize: 11.5, color: '#43514D', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
-              <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body)}</div>
+              {sendable && (
+                <div onClick={() => setSendingTemplate(t)} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(20,8,31,0.06)', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
+                  ✉ Send to client
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
+      {sendingTemplate && <SendTemplateModal template={sendingTemplate} onClose={() => setSendingTemplate(null)} />}
+    </div>
+  );
+}
+
+/** Fills in a template's merge fields and emails it on the letterhead, as a one-off PDF -- no lead/project link required. */
+function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onClose: () => void }) {
+  const { toast } = useApp();
+  const [to, setTo] = useState('');
+  const [cc, setCc] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [subject, setSubject] = useState(template.subject || template.name);
+  const [body, setBody] = useState(template.body);
+  const [sending, setSending] = useState(false);
+
+  const fill = () => {
+    const tokens = { clientName: clientName || 'there', clientEmail: to, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) };
+    setSubject(mergeTokens(template.subject || template.name, tokens));
+    setBody(mergeTokens(template.body, tokens));
+  };
+  useEffect(fill, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const send = () => {
+    if (!to.trim()) { toast('Who should it go to?'); return; }
+    setSending(true);
+    api.google.sendLetter({
+      to: to.trim(), cc: cc.trim() || undefined, subject: subject.trim() || template.name,
+      html: body.split(/\n{2,}/).map((p) => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join(''),
+      recipient: clientName.trim() || undefined,
+      filename: template.name,
+    })
+      .then(() => { toast(`Sent to ${to.trim()}`); onClose(); })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setSending(false));
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, padding: 22, width: 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, color: '#0B1A12', marginBottom: 2 }}>Send "{template.name}"</div>
+        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 16 }}>Emailed as a letterhead PDF from the connected Google Workspace account.</div>
+
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>To</div>
+            <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@example.com" style={inputStyle} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Client name</div>
+              <input value={clientName} onChange={(e) => setClientName(e.target.value)} onBlur={fill} placeholder="Fills {{clientName}}" style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>CC</div>
+              <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Optional" style={inputStyle} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Subject</div>
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Body</div>
+            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={12} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+          <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
+          <div onClick={sending ? undefined : send} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? '#9AB0A4' : '#173326', color: 'white' }}>
+            {sending ? 'Sending…' : 'Send'}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
