@@ -236,20 +236,20 @@
 }
 
 .dashboard-kpi-grid > div:first-child {
-  background: var(--forest) !important;
-  border-color: var(--forest) !important;
+  background: linear-gradient(100deg, #DCEEF6 0%, #E4F1E4 38%, #F2ECD9 68%, #FBE7CE 100%) !important;
+  border-color: rgba(20, 8, 31, 0.06) !important;
 }
 
 .dashboard-kpi-grid > div:first-child * {
-  color: rgba(255, 255, 255, 0.78) !important;
+  color: #43514D !important;
 }
 
 .dashboard-kpi-grid > div:first-child > div:nth-child(2) {
-  color: white !important;
+  color: #0B1A12 !important;
 }
 
 .dashboard-kpi-grid > div:first-child > div:nth-child(1) > div:last-child {
-  color: var(--amber) !important;
+  color: #B96A22 !important;
 }
 
 .dashboard-evidence-grid {
