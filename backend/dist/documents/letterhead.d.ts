@@ -37,6 +37,8 @@ export declare function coverPageHtml(brand: Branding, opts: {
 export declare function buildLetterHtml(opts: {
     brand: Branding;
     title?: string;
+    docTitle?: string;
+    subtitle?: string;
     recipient?: string;
     date?: string;
     body: string;

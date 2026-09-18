@@ -167,6 +167,8 @@ let GoogleController = class GoogleController {
         const html = (0, letterhead_1.buildLetterHtml)({
             brand,
             title: body.subject,
+            docTitle: body.docTitle,
+            subtitle: body.subtitle,
             recipient: body.recipient,
             date: body.date,
             body: body.html || '',

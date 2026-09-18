@@ -275,6 +275,11 @@ export function Projects() {
   const letterInput = () => ({
     to: emailTo.trim(),
     subject: emailSubject,
+    // The email subject can be long ("Welcome to ... — {{projectTitle}}");
+    // the cover/letter heading stays a short, constant document label, with
+    // the project name as the cover's subtitle line underneath it.
+    docTitle: 'Introduction Letter',
+    subtitle: sel?.name || undefined,
     html: emailBody,
     recipient: introLead?.contactName || introLead?.leadName || undefined,
     date: new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }),

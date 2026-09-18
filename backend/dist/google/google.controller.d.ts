@@ -80,6 +80,8 @@ export declare class GoogleController {
     }>;
     letterPdf(body: {
         subject?: string;
+        docTitle?: string;
+        subtitle?: string;
         html?: string;
         recipient?: string;
         date?: string;
@@ -93,6 +95,8 @@ export declare class GoogleController {
     sendLetter(body: {
         to: string;
         subject: string;
+        docTitle?: string;
+        subtitle?: string;
         html: string;
         cc?: string;
         bcc?: string;

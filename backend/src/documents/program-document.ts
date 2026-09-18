@@ -53,10 +53,10 @@ function bandHtml(brand: Branding, right = '') {
   const logo = brand.logoDataUrl
     ? `<img src="${brand.logoDataUrl}" alt="" style="max-height:40px;max-width:150px;" />`
     : `<div style="font-size:12pt;font-weight:bold;color:#0B1A12;">${esc(brand.companyName)}</div>`;
-  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:2px solid ${accent};padding-bottom:6pt;margin-bottom:12pt;">
+  return `<table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-bottom:2px solid ${accent};padding-bottom:6pt;margin-bottom:12pt;">
     <tr>
-      <td style="vertical-align:middle;">${logo}</td>
-      <td style="vertical-align:middle;text-align:right;font-size:8.5pt;color:#7E9B93;">${esc(right)}</td>
+      <td style="vertical-align:middle;border:none;">${logo}</td>
+      <td style="vertical-align:middle;text-align:right;font-size:8.5pt;color:#7E9B93;border:none;">${esc(right)}</td>
     </tr>
   </table>`;
 }
@@ -80,12 +80,12 @@ function blockHtml(block: DocBlock, accent: string) {
       <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:9.5pt;text-align:right;">${val(r.actual)}</td>
       <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:9pt;color:#5C6B65;">${val(r.notes)}</td>
     </tr>`).join('');
-    return `${heading}${note}<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+    return `${heading}${note}<table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
       <tr style="background:#F4F6F4;">
-        <th style="padding:4pt 6pt;text-align:left;font-size:8pt;color:#7E9B93;">Description</th>
-        <th style="padding:4pt 6pt;text-align:right;font-size:8pt;color:#7E9B93;width:80pt;">Budget</th>
-        <th style="padding:4pt 6pt;text-align:right;font-size:8pt;color:#7E9B93;width:80pt;">Actual</th>
-        <th style="padding:4pt 6pt;text-align:left;font-size:8pt;color:#7E9B93;width:130pt;">Notes</th>
+        <th style="padding:4pt 6pt;text-align:left;font-size:8pt;color:#7E9B93;border:none;">Description</th>
+        <th style="padding:4pt 6pt;text-align:right;font-size:8pt;color:#7E9B93;width:80pt;border:none;">Budget</th>
+        <th style="padding:4pt 6pt;text-align:right;font-size:8pt;color:#7E9B93;width:80pt;border:none;">Actual</th>
+        <th style="padding:4pt 6pt;text-align:left;font-size:8pt;color:#7E9B93;width:130pt;border:none;">Notes</th>
       </tr>${rows}</table>`;
   }
 
@@ -100,7 +100,7 @@ function blockHtml(block: DocBlock, accent: string) {
         String(r.value ?? '').trim() ? esc(r.value) : val('')
       }</td>
     </tr>`).join('');
-    return `${heading}${note}<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>`;
+    return `${heading}${note}<table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>`;
   }
 
   if (block.kind === 'list') {
@@ -113,7 +113,7 @@ function blockHtml(block: DocBlock, accent: string) {
     <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:8.5pt;color:#7E9B93;width:170pt;vertical-align:top;">${esc(r.label)}</td>
     <td style="padding:4pt 6pt;border-bottom:1px solid #EDEFEC;font-size:9.5pt;">${val(r.value)}</td>
   </tr>`).join('');
-  return `${heading}${note}<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>`;
+  return `${heading}${note}<table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>`;
 }
 
 export function buildProgramHtml(opts: {
@@ -134,12 +134,12 @@ export function buildProgramHtml(opts: {
 
   const body = opts.steps.map((step, i) => {
     const totals = step.totals
-      ? `<table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10pt;background:#F4F6F4;">
+      ? `<table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-top:10pt;background:#F4F6F4;">
           <tr>
-            <td style="padding:6pt 8pt;font-size:9pt;color:#5C6B65;">Budget subtotal</td>
-            <td style="padding:6pt 8pt;font-size:11pt;font-weight:bold;text-align:right;color:${accent};">${esc(step.totals.budget)}</td>
-            <td style="padding:6pt 8pt;font-size:9pt;color:#5C6B65;">Actual to date</td>
-            <td style="padding:6pt 8pt;font-size:11pt;font-weight:bold;text-align:right;color:#0B1A12;">${esc(step.totals.actual)}</td>
+            <td style="padding:6pt 8pt;font-size:9pt;color:#5C6B65;border:none;">Budget subtotal</td>
+            <td style="padding:6pt 8pt;font-size:11pt;font-weight:bold;text-align:right;color:${accent};border:none;">${esc(step.totals.budget)}</td>
+            <td style="padding:6pt 8pt;font-size:9pt;color:#5C6B65;border:none;">Actual to date</td>
+            <td style="padding:6pt 8pt;font-size:11pt;font-weight:bold;text-align:right;color:#0B1A12;border:none;">${esc(step.totals.actual)}</td>
           </tr>
         </table>`
       : '';
@@ -168,7 +168,7 @@ export function buildProgramHtml(opts: {
 
     <div style="height:36pt;"></div>
     <div style="font-size:9pt;color:#7E9B93;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4pt;">Contents</div>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${contents}</table>
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${contents}</table>
     ${footerHtml(b)}
   </div>
 

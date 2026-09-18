@@ -10,6 +10,10 @@ export interface LetterInput {
   recipient?: string;
   date?: string;
   filename?: string;
+  /** The short document label shown as the cover/letter heading -- falls back to `subject`. */
+  docTitle?: string;
+  /** A line under the cover heading -- typically the project name/address. */
+  subtitle?: string;
   /** Prepends a branded cover page before the letter. */
   includeCoverPage?: boolean;
   /** Inserts the "About Us" + "Team" page right after the cover. */
