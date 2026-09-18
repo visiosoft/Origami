@@ -13,13 +13,18 @@ const BG = "'Bricolage Grotesque', serif";
 export function SignProposal() {
   const [params] = useSearchParams();
   const token = params.get('token') || '';
-  const [doc, setDoc] = useState<{ dealName: string; subject: string; html: string; amount: string; signedAt: string; signedByName: string; signatureImage?: string } | null>(null);
+  const [doc, setDoc] = useState<{
+    dealName: string; subject: string; html: string; amount: string;
+    signedAt: string; signedByName: string; signatureImage?: string;
+    requiresSecondSignatory?: boolean; signedAt2?: string; signedByName2?: string; signatureImage2?: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [image, setImage] = useState('');
   const [certified, setCertified] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -30,14 +35,26 @@ export function SignProposal() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // Which signature slot the form on screen is for -- the second signatory
+  // (e.g. a spouse) only signs once the first slot is filled, using the
+  // same link.
+  const slot: 1 | 2 = doc?.signedAt ? 2 : 1;
+  const needsSecondSignature = !!doc?.requiresSecondSignatory && !!doc?.signedAt && !doc?.signedAt2;
+  const fullySigned = !!doc?.signedAt && (!doc?.requiresSecondSignatory || !!doc?.signedAt2);
+
   const submit = () => {
     if (!name.trim()) { setError('Type your name to certify the signature.'); return; }
     if (!image) { setError('Draw your signature above.'); return; }
+    if (!reviewed) { setError('Confirm you have reviewed the entire document above.'); return; }
     if (!certified) { setError('Check the certification box first.'); return; }
     setError('');
     setSubmitting(true);
-    api.proposals.public.sign(token, name.trim(), email.trim(), image)
-      .then((res: any) => setDoc((d) => (d ? { ...d, signedAt: res?.signedAt || new Date().toISOString(), signedByName: res?.signedByName || name.trim(), signatureImage: image } : d)))
+    api.proposals.public.sign(token, name.trim(), email.trim(), image, reviewed, slot)
+      .then((res: any) => {
+        setDoc(res);
+        // Reset the form for a second signatory, who is not the same person.
+        setName(''); setEmail(''); setImage(''); setCertified(false); setReviewed(false);
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSubmitting(false));
   };
@@ -55,7 +72,7 @@ export function SignProposal() {
   // tokens are merged in server-side, so the drawn signature appears right
   // where the document put it once signed. Cache-busted on signedAt so the
   // just-submitted signature shows immediately instead of the cached blank copy.
-  const pdfUrl = token ? `${api.proposals.public.pdfUrl(token)}&v=${encodeURIComponent(doc?.signedAt || '0')}` : '';
+  const pdfUrl = token ? `${api.proposals.public.pdfUrl(token)}&v=${encodeURIComponent((doc?.signedAt || '0') + (doc?.signedAt2 || ''))}` : '';
 
   if (loading) return shell(<div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>);
   if (!doc) return shell(<div style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600 }}>{error || 'This proposal could not be found.'}</div>);
@@ -75,18 +92,24 @@ export function SignProposal() {
 
       <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 22 }}>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#0B1A12', marginBottom: 4 }}>Approval</div>
-        {doc.signedAt ? (
+        {fullySigned ? (
           <div>
             <div style={{ fontSize: 13, color: '#1C5230', fontWeight: 600 }}>
-              Signed by {doc.signedByName} on {new Date(doc.signedAt).toLocaleString()}. Your project team has been notified.
+              Signed by {doc.signedByName}{doc.signedByName2 ? ` and ${doc.signedByName2}` : ''} on {new Date(doc.signedAt).toLocaleString()}. Your project team has been notified.
             </div>
             <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 4 }}>Your signature now appears on the document above.</div>
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 12.5, color: '#7E9B93', marginBottom: 14, lineHeight: 1.6 }}>
-              Review the proposal above, then sign below to approve it and move your project forward.
-            </div>
+            {needsSecondSignature ? (
+              <div style={{ fontSize: 12.5, color: '#1C5230', marginBottom: 14, lineHeight: 1.6 }}>
+                Signed by {doc.signedByName}. This agreement needs a second signatory — sign below to complete it.
+              </div>
+            ) : (
+              <div style={{ fontSize: 12.5, color: '#7E9B93', marginBottom: 14, lineHeight: 1.6 }}>
+                Review the proposal above, then sign below to approve it and move your project forward.
+              </div>
+            )}
             {error && <div style={{ padding: '9px 12px', borderRadius: 9, background: '#F7E4DB', color: '#8E2E0A', fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{error}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
@@ -100,6 +123,10 @@ export function SignProposal() {
             </div>
             <SignaturePad onChange={setImage} />
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#43514D', marginTop: 12, cursor: 'pointer', lineHeight: 1.5 }}>
+              <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} style={{ marginTop: 2 }} />
+              I have reviewed the entire document above, page by page.
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#43514D', marginTop: 8, cursor: 'pointer', lineHeight: 1.5 }}>
               <input type="checkbox" checked={certified} onChange={(e) => setCertified(e.target.checked)} style={{ marginTop: 2 }} />
               I certify that this is my legal signature and that I intend to sign this document electronically.
             </label>

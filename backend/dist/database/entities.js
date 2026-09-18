@@ -483,6 +483,38 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProposalEntity.prototype, "signerUserAgent", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], ProposalEntity.prototype, "reviewedAllPages", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], ProposalEntity.prototype, "requiresSecondSignatory", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signedAt2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signedByName2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signedByEmail2", void 0);
+__decorate([
+    (0, typeorm_1.Column)('nvarchar', { length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signatureImage2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signerIp2", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProposalEntity.prototype, "signerUserAgent2", void 0);
 exports.ProposalEntity = ProposalEntity = __decorate([
     (0, typeorm_1.Entity)('proposals')
 ], ProposalEntity);

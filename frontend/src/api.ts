@@ -331,7 +331,7 @@ export const api = {
   },
   proposals: {
     get: (dealId: string) => request(`/proposals?dealId=${encodeURIComponent(dealId)}`),
-    save: (dealId: string, body: { subject?: string; html?: string; amount?: string }) =>
+    save: (dealId: string, body: { subject?: string; html?: string; amount?: string; requiresSecondSignatory?: boolean }) =>
       request('/proposals', { method: 'PUT', body: JSON.stringify({ dealId, ...body }) }),
     /** Whatever is currently in the composer, rendered as a PDF to preview -- no save needed first. */
     pdf: async (body: { subject?: string; html?: string; amount?: string; dealName?: string }): Promise<Blob> => {
@@ -353,8 +353,8 @@ export const api = {
     /** The prospect's own view, no account needed -- gated by the signed link's token. */
     public: {
       get: (token: string) => request(`/proposals/public?token=${encodeURIComponent(token)}`),
-      sign: (token: string, name: string, email: string, image: string) =>
-        request('/proposals/public/sign', { method: 'POST', body: JSON.stringify({ token, name, email, image }) }),
+      sign: (token: string, name: string, email: string, image: string, reviewedAllPages: boolean, slot: 1 | 2 = 1) =>
+        request('/proposals/public/sign', { method: 'POST', body: JSON.stringify({ token, name, email, image, reviewedAllPages, slot }) }),
       /** A real, scrollable PDF -- for an <iframe>/<embed>, not a fetch call. */
       pdfUrl: (token: string) => `${API_BASE}/proposals/public/pdf?token=${encodeURIComponent(token)}`,
     },

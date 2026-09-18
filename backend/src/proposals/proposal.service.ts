@@ -48,10 +48,16 @@ export class ProposalService {
       signedByName: row?.signedByName || '',
       signedByEmail: row?.signedByEmail || '',
       signatureImage: row?.signatureImage || '',
+      reviewedAllPages: !!row?.reviewedAllPages,
+      requiresSecondSignatory: !!row?.requiresSecondSignatory,
+      signedAt2: row?.signedAt2 || '',
+      signedByName2: row?.signedByName2 || '',
+      signedByEmail2: row?.signedByEmail2 || '',
+      signatureImage2: row?.signatureImage2 || '',
     };
   }
 
-  async save(dealId: string, body: { subject?: string; html?: string; amount?: string }, actor?: ProposalActor) {
+  async save(dealId: string, body: { subject?: string; html?: string; amount?: string; requiresSecondSignatory?: boolean }, actor?: ProposalActor) {
     if (!dealId) throw new BadRequestException('Which deal?');
     if (!(await this.deals.findOneBy({ id: dealId }))) throw new BadRequestException(`Deal ${dealId} not found`);
     const existing = await this.repo.findOneBy({ dealId });
@@ -59,6 +65,7 @@ export class ProposalService {
     row.subject = body.subject || row.subject || '';
     row.html = body.html || '';
     row.amount = body.amount || row.amount || '';
+    if (body.requiresSecondSignatory !== undefined) row.requiresSecondSignatory = body.requiresSecondSignatory;
     row.updatedAt = new Date().toISOString();
     row.updatedBy = actor?.name || 'System';
     await this.repo.save(row);
@@ -106,31 +113,55 @@ export class ProposalService {
    * captured by the controller from the socket and headers -- never anything
    * the signer's browser claims -- which is what makes this a certification.
    */
-  async signByToken(token: string, signer: { name: string; email: string }, image: string, meta: { ip: string; userAgent: string }) {
+  async signByToken(
+    token: string,
+    signer: { name: string; email: string },
+    image: string,
+    meta: { ip: string; userAgent: string },
+    reviewedAllPages: boolean,
+    slot: 1 | 2 = 1,
+  ) {
     const parsed = await this.readToken(token);
     if (!parsed) throw new ForbiddenException('This link has expired or is no longer valid. Ask your project contact to resend it.');
     if (!signer.name?.trim()) throw new BadRequestException('Type your name to certify the signature.');
     if (!image?.trim()) throw new BadRequestException('Draw your signature before submitting.');
+    if (!reviewedAllPages) throw new BadRequestException('Confirm you have reviewed the entire document before signing.');
 
     const row = await this.repo.findOneBy({ dealId: parsed.dealId });
     if (!row) throw new BadRequestException('There is nothing to sign yet.');
-    row.signedAt = new Date().toISOString();
-    row.signedByName = signer.name.trim();
-    row.signedByEmail = (signer.email || '').trim();
-    row.signatureImage = image;
-    row.signerIp = meta.ip || '';
-    row.signerUserAgent = meta.userAgent || '';
+    const now = new Date().toISOString();
+    if (slot === 2 && row.requiresSecondSignatory) {
+      row.signedAt2 = now;
+      row.signedByName2 = signer.name.trim();
+      row.signedByEmail2 = (signer.email || '').trim();
+      row.signatureImage2 = image;
+      row.signerIp2 = meta.ip || '';
+      row.signerUserAgent2 = meta.userAgent || '';
+    } else {
+      row.signedAt = now;
+      row.signedByName = signer.name.trim();
+      row.signedByEmail = (signer.email || '').trim();
+      row.signatureImage = image;
+      row.signerIp = meta.ip || '';
+      row.signerUserAgent = meta.userAgent || '';
+    }
+    row.reviewedAllPages = true;
     await this.repo.save(row);
 
-    // Signing no longer converts the deal straight to a project -- it moves
-    // to Client Review, flagged "accepted" so the board can call it out
-    // (a blinking card) for a person to confirm and convert deliberately.
-    const actor: DealActor = { name: `${row.signedByName} (e-signature)` };
-    try {
-      await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
-      await this.deals.update(parsed.dealId, { status: 'accepted' });
-    } catch (err) {
-      this.log.warn(`Post-signature stage move for deal ${parsed.dealId}: ${(err as Error).message}`);
+    // Only move the deal once every required signature is in -- a
+    // two-signatory agreement isn't "accepted" until both have signed.
+    const fullySigned = !row.requiresSecondSignatory || (!!row.signedAt && !!row.signedAt2);
+    if (fullySigned) {
+      // Signing no longer converts the deal straight to a project -- it moves
+      // to Client Review, flagged "accepted" so the board can call it out
+      // (a blinking card) for a person to confirm and convert deliberately.
+      const actor: DealActor = { name: `${row.signedByName} (e-signature)` };
+      try {
+        await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
+        await this.deals.update(parsed.dealId, { status: 'accepted' });
+      } catch (err) {
+        this.log.warn(`Post-signature stage move for deal ${parsed.dealId}: ${(err as Error).message}`);
+      }
     }
 
     return this.get(parsed.dealId);

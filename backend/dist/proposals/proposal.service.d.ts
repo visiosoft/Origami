@@ -27,11 +27,18 @@ export declare class ProposalService {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
     save(dealId: string, body: {
         subject?: string;
         html?: string;
         amount?: string;
+        requiresSecondSignatory?: boolean;
     }, actor?: ProposalActor): Promise<{
         dealId: string;
         dealName: string;
@@ -46,6 +53,12 @@ export declare class ProposalService {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
     signingLink(dealId: string): Promise<string>;
     markSent(dealId: string, to: string, actor?: ProposalActor): Promise<void>;
@@ -64,6 +77,12 @@ export declare class ProposalService {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
     signByToken(token: string, signer: {
         name: string;
@@ -71,7 +90,7 @@ export declare class ProposalService {
     }, image: string, meta: {
         ip: string;
         userAgent: string;
-    }): Promise<{
+    }, reviewedAllPages: boolean, slot?: 1 | 2): Promise<{
         dealId: string;
         dealName: string;
         subject: string;
@@ -85,5 +104,11 @@ export declare class ProposalService {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
 }

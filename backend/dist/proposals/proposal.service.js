@@ -48,6 +48,12 @@ let ProposalService = class ProposalService {
             signedByName: row?.signedByName || '',
             signedByEmail: row?.signedByEmail || '',
             signatureImage: row?.signatureImage || '',
+            reviewedAllPages: !!row?.reviewedAllPages,
+            requiresSecondSignatory: !!row?.requiresSecondSignatory,
+            signedAt2: row?.signedAt2 || '',
+            signedByName2: row?.signedByName2 || '',
+            signedByEmail2: row?.signedByEmail2 || '',
+            signatureImage2: row?.signatureImage2 || '',
         };
     }
     async save(dealId, body, actor) {
@@ -60,6 +66,8 @@ let ProposalService = class ProposalService {
         row.subject = body.subject || row.subject || '';
         row.html = body.html || '';
         row.amount = body.amount || row.amount || '';
+        if (body.requiresSecondSignatory !== undefined)
+            row.requiresSecondSignatory = body.requiresSecondSignatory;
         row.updatedAt = new Date().toISOString();
         row.updatedBy = actor?.name || 'System';
         await this.repo.save(row);
@@ -93,7 +101,7 @@ let ProposalService = class ProposalService {
             throw new common_1.ForbiddenException('This link has expired or is no longer valid. Ask your project contact to resend it.');
         return this.get(parsed.dealId);
     }
-    async signByToken(token, signer, image, meta) {
+    async signByToken(token, signer, image, meta, reviewedAllPages, slot = 1) {
         const parsed = await this.readToken(token);
         if (!parsed)
             throw new common_1.ForbiddenException('This link has expired or is no longer valid. Ask your project contact to resend it.');
@@ -101,23 +109,40 @@ let ProposalService = class ProposalService {
             throw new common_1.BadRequestException('Type your name to certify the signature.');
         if (!image?.trim())
             throw new common_1.BadRequestException('Draw your signature before submitting.');
+        if (!reviewedAllPages)
+            throw new common_1.BadRequestException('Confirm you have reviewed the entire document before signing.');
         const row = await this.repo.findOneBy({ dealId: parsed.dealId });
         if (!row)
             throw new common_1.BadRequestException('There is nothing to sign yet.');
-        row.signedAt = new Date().toISOString();
-        row.signedByName = signer.name.trim();
-        row.signedByEmail = (signer.email || '').trim();
-        row.signatureImage = image;
-        row.signerIp = meta.ip || '';
-        row.signerUserAgent = meta.userAgent || '';
-        await this.repo.save(row);
-        const actor = { name: `${row.signedByName} (e-signature)` };
-        try {
-            await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
-            await this.deals.update(parsed.dealId, { status: 'accepted' });
+        const now = new Date().toISOString();
+        if (slot === 2 && row.requiresSecondSignatory) {
+            row.signedAt2 = now;
+            row.signedByName2 = signer.name.trim();
+            row.signedByEmail2 = (signer.email || '').trim();
+            row.signatureImage2 = image;
+            row.signerIp2 = meta.ip || '';
+            row.signerUserAgent2 = meta.userAgent || '';
         }
-        catch (err) {
-            this.log.warn(`Post-signature stage move for deal ${parsed.dealId}: ${err.message}`);
+        else {
+            row.signedAt = now;
+            row.signedByName = signer.name.trim();
+            row.signedByEmail = (signer.email || '').trim();
+            row.signatureImage = image;
+            row.signerIp = meta.ip || '';
+            row.signerUserAgent = meta.userAgent || '';
+        }
+        row.reviewedAllPages = true;
+        await this.repo.save(row);
+        const fullySigned = !row.requiresSecondSignatory || (!!row.signedAt && !!row.signedAt2);
+        if (fullySigned) {
+            const actor = { name: `${row.signedByName} (e-signature)` };
+            try {
+                await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
+                await this.deals.update(parsed.dealId, { status: 'accepted' });
+            }
+            catch (err) {
+                this.log.warn(`Post-signature stage move for deal ${parsed.dealId}: ${err.message}`);
+            }
         }
         return this.get(parsed.dealId);
     }

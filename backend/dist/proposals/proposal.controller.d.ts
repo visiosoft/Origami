@@ -22,12 +22,19 @@ export declare class ProposalController {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
     save(body: {
         dealId: string;
         subject?: string;
         html?: string;
         amount?: string;
+        requiresSecondSignatory?: boolean;
     }, req: AuthedRequest): Promise<{
         dealId: string;
         dealName: string;
@@ -42,6 +49,12 @@ export declare class ProposalController {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
     pdf(body: {
         subject?: string;
@@ -79,6 +92,12 @@ export declare class ProposalController {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
     pdfByToken(token: string, res: Response): Promise<Response<any, Record<string, any>>>;
     signByToken(body: {
@@ -86,6 +105,8 @@ export declare class ProposalController {
         name: string;
         email?: string;
         image: string;
+        reviewedAllPages?: boolean;
+        slot?: 1 | 2;
     }, req: AuthedRequest): Promise<{
         dealId: string;
         dealName: string;
@@ -100,5 +121,11 @@ export declare class ProposalController {
         signedByName: string;
         signedByEmail: string;
         signatureImage: string;
+        reviewedAllPages: boolean;
+        requiresSecondSignatory: boolean;
+        signedAt2: string;
+        signedByName2: string;
+        signedByEmail2: string;
+        signatureImage2: string;
     }>;
 }

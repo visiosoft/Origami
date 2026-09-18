@@ -176,6 +176,21 @@ export class ProposalEntity {
   @Column('nvarchar', { length: 'MAX', nullable: true }) signatureImage!: string;
   @Column({ nullable: true }) signerIp!: string;
   @Column({ nullable: true }) signerUserAgent!: string;
+  // Confirms the signer scrolled through and reviewed the whole document,
+  // not just the signature block -- the checkbox alternative to a client
+  // initialing every physical page (which a paginated PDF can't reliably ask
+  // for, since exact page breaks aren't known until Google renders it).
+  @Column({ type: 'bit', nullable: true }) reviewedAllPages!: boolean | null;
+  // Set when sending, for an agreement that needs a second signatory (e.g. a
+  // husband and wife) -- both signature fields below must be filled before
+  // the agreement counts as signed.
+  @Column({ type: 'bit', nullable: true }) requiresSecondSignatory!: boolean | null;
+  @Column({ nullable: true }) signedAt2!: string;
+  @Column({ nullable: true }) signedByName2!: string;
+  @Column({ nullable: true }) signedByEmail2!: string;
+  @Column('nvarchar', { length: 'MAX', nullable: true }) signatureImage2!: string;
+  @Column({ nullable: true }) signerIp2!: string;
+  @Column({ nullable: true }) signerUserAgent2!: string;
 }
 
 @Entity('invoices')

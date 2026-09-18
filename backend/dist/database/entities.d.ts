@@ -119,6 +119,14 @@ export declare class ProposalEntity {
     signatureImage: string;
     signerIp: string;
     signerUserAgent: string;
+    reviewedAllPages: boolean | null;
+    requiresSecondSignatory: boolean | null;
+    signedAt2: string;
+    signedByName2: string;
+    signedByEmail2: string;
+    signatureImage2: string;
+    signerIp2: string;
+    signerUserAgent2: string;
 }
 export declare class InvoiceEntity {
     pk: number;

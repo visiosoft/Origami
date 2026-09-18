@@ -42,6 +42,10 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
   const [signedAt, setSignedAt] = useState('');
   const [signedByName, setSignedByName] = useState('');
   const [signatureImage, setSignatureImage] = useState('');
+  const [requiresSecondSignatory, setRequiresSecondSignatory] = useState(false);
+  const [signedAt2, setSignedAt2] = useState('');
+  const [signedByName2, setSignedByName2] = useState('');
+  const [signatureImage2, setSignatureImage2] = useState('');
   const [templates, setTemplates] = useState<ProposalTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
   const [agreementTemplates, setAgreementTemplates] = useState<ProposalTemplate[]>([]);
@@ -68,6 +72,10 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
         setSignedAt(res?.signedAt || '');
         setSignedByName(res?.signedByName || '');
         setSignatureImage(res?.signatureImage || '');
+        setRequiresSecondSignatory(!!res?.requiresSecondSignatory);
+        setSignedAt2(res?.signedAt2 || '');
+        setSignedByName2(res?.signedByName2 || '');
+        setSignatureImage2(res?.signatureImage2 || '');
         setTo((prev) => prev || res?.sentTo || dealEmail || '');
       })
       .catch(() => { })
@@ -138,6 +146,10 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
         ? `<img src="${signatureImage}" alt="Signature of ${signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
         : '__________________________________',
       signedDate: signedAt ? new Date(signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '____________________',
+      clientSignature2: signatureImage2
+        ? `<img src="${signatureImage2}" alt="Signature of ${signedByName2}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+        : '__________________________________',
+      signedDate2: signedAt2 ? new Date(signedAt2).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '____________________',
     }))
       .catch((e: Error) => toast('⚠ ' + e.message))
       .finally(() => setPreviewing(false));
@@ -152,7 +164,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
 
   const save = () => {
     setSaving(true);
-    api.proposals.save(dealId, { subject, html, amount })
+    api.proposals.save(dealId, { subject, html, amount, requiresSecondSignatory })
       .then(() => toast('Proposal saved'))
       .catch((e: Error) => toast('⚠ ' + e.message))
       .finally(() => setSaving(false));
@@ -182,12 +194,18 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
       </div>
 
       {signedAt ? (
-        <div style={{ padding: '10px 12px', borderRadius: 9, background: '#D2EAD3', marginBottom: 10 }}>
-          <div style={{ color: '#1C5230', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-            Signed by {signedByName} on {new Date(signedAt).toLocaleString()} — moved to Client Review for a final check before converting.
+        <div style={{ padding: '10px 12px', borderRadius: 9, background: requiresSecondSignatory && !signedAt2 ? '#FBE9AE' : '#D2EAD3', marginBottom: 10 }}>
+          <div style={{ color: requiresSecondSignatory && !signedAt2 ? '#8A6D12' : '#1C5230', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+            Signed by {signedByName} on {new Date(signedAt).toLocaleString()}
+            {requiresSecondSignatory && !signedAt2 && ' — waiting on the second signatory before this moves to Client Review.'}
+            {signedAt2 && ` and by ${signedByName2} on ${new Date(signedAt2).toLocaleString()}`}
+            {(!requiresSecondSignatory || signedAt2) && ' — moved to Client Review for a final check before converting.'}
           </div>
           {signatureImage && (
             <img src={signatureImage} alt={`Signature of ${signedByName}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 6, marginBottom: 8, display: 'block' }} />
+          )}
+          {signatureImage2 && (
+            <img src={signatureImage2} alt={`Signature of ${signedByName2}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 6, marginBottom: 8, display: 'block' }} />
           )}
           <div onClick={previewing ? undefined : viewSigned} style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: previewing ? 'default' : 'pointer', textDecoration: 'underline' }}>
             {previewing ? 'Rendering…' : '📄 View the signed document'}
@@ -208,6 +226,12 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
           </select>
           {agreementTemplates.length === 0 && (
             <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 3 }}>Create one under Document &amp; Template Library → Agreements.</div>
+          )}
+          {(agreementTemplateId || requiresSecondSignatory) && !signedAt && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#43514D', marginTop: 6, cursor: 'pointer' }}>
+              <input type="checkbox" checked={requiresSecondSignatory} onChange={(e) => setRequiresSecondSignatory(e.target.checked)} />
+              Requires a second signatory (e.g. husband and wife)
+            </label>
           )}
         </div>
         <div>

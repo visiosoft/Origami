@@ -88,9 +88,17 @@ let ProposalController = class ProposalController {
             const clientSignature = doc.signatureImage
                 ? `<img src="${doc.signatureImage}" alt="Signature of ${doc.signedByName}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
                 : '__________________________________';
+            const signedDate2 = doc.signedAt2
+                ? new Date(doc.signedAt2).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                : '____________________';
+            const clientSignature2 = doc.signatureImage2
+                ? `<img src="${doc.signatureImage2}" alt="Signature of ${doc.signedByName2}" style="max-width:220px;height:auto;display:block;margin-bottom:4px;" />`
+                : '__________________________________';
             const merged = String(doc.html || '')
                 .replace(/\{\{clientSignature\}\}/g, clientSignature)
-                .replace(/\{\{signedDate\}\}/g, signedDate);
+                .replace(/\{\{signedDate\}\}/g, signedDate)
+                .replace(/\{\{clientSignature2\}\}/g, clientSignature2)
+                .replace(/\{\{signedDate2\}\}/g, signedDate2);
             const { pdf, filename } = await this.renderPdf(doc.subject, merged, doc.amount, doc.dealName);
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
@@ -103,7 +111,7 @@ let ProposalController = class ProposalController {
         }
     }
     signByToken(body, req) {
-        return this.service.signByToken(body?.token, { name: body?.name, email: body?.email || '' }, body?.image, { ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') });
+        return this.service.signByToken(body?.token, { name: body?.name, email: body?.email || '' }, body?.image, { ip: req.ip || '', userAgent: String(req.headers['user-agent'] || '') }, !!body?.reviewedAllPages, body?.slot === 2 ? 2 : 1);
     }
 };
 exports.ProposalController = ProposalController;
