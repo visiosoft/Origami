@@ -2,7 +2,7 @@ import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailTemplateEntity } from '../database/entities';
-import { DEFAULT_EMAIL_TEMPLATES } from '../seed-data/email-templates';
+import { DEFAULT_EMAIL_TEMPLATES, LEGACY_INTRODUCTION_LETTER_BODY_V1 } from '../seed-data/email-templates';
 
 @Injectable()
 export class EmailTemplatesService implements OnApplicationBootstrap {
@@ -32,6 +32,14 @@ export class EmailTemplatesService implements OnApplicationBootstrap {
         intro.kind = 'introduction';
         await this.repo.save(intro);
         this.log.log('Moved Introduction Letter template to the introduction kind');
+      }
+      // Bring the wording up to the office's exact reference letter -- but
+      // only for an install that still has the earlier placeholder body
+      // verbatim. An install where someone already edited it is left alone.
+      if (intro && intro.body === LEGACY_INTRODUCTION_LETTER_BODY_V1) {
+        intro.body = DEFAULT_EMAIL_TEMPLATES.find((t) => t.id === 'TPL-introduction-letter')!.body;
+        await this.repo.save(intro);
+        this.log.log('Updated Introduction Letter template body to the reference wording');
       }
     } catch (err) {
       this.log.error('Email template seed failed: ' + (err as Error).message);
