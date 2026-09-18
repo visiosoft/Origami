@@ -368,8 +368,9 @@ let PhasesService = class PhasesService {
         if (!key)
             throw new common_1.BadRequestException('Which phase?');
         const lib = await this.library();
+        const ordered = [...lib].sort((a, b) => (a.category === 'construction' ? -1 : 0) - (b.category === 'construction' ? -1 : 0));
         let source;
-        for (const t of lib) {
+        for (const t of ordered) {
             source = t.phases.find((p) => p.key === key);
             if (source)
                 break;

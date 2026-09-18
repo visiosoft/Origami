@@ -476,8 +476,15 @@ export class PhasesService implements OnApplicationBootstrap {
     if (!Number.isFinite(projectId)) throw new BadRequestException('Which project?');
     if (!key) throw new BadRequestException('Which phase?');
     const lib = await this.library();
+    // Every template starts a brand-new phase keyed "kickoff" by default, so
+    // more than one template can define the same key with very different
+    // task lists -- search Construction-category templates first (this is
+    // only ever called for a Construction board phase today) before falling
+    // back to any template, rather than matching whichever comes first in
+    // the library and silently adopting the wrong one's tasks.
+    const ordered = [...lib].sort((a, b) => (a.category === 'construction' ? -1 : 0) - (b.category === 'construction' ? -1 : 0));
     let source: TemplatePhase | undefined;
-    for (const t of lib) {
+    for (const t of ordered) {
       source = t.phases.find((p) => p.key === key);
       if (source) break;
     }

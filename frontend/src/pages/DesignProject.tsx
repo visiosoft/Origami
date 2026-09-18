@@ -273,6 +273,12 @@ export function DesignProject() {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: ACCENT }}>Phase checklist</div>
                 <h2 style={{ fontFamily: HEADING, fontWeight: 700, letterSpacing: '-.02em', fontSize: 26, margin: '8px 0 0' }}>{heading}</h2>
+                {board === '/pm' && canManage && phaseFilter !== 'all' && (
+                  <span
+                    onClick={() => api.projectPhases.adopt(id, phaseFilter).then(reload).then(() => toast('Synced with the template')).catch((e: Error) => toast('⚠ ' + e.message))}
+                    style={{ display: 'inline-block', marginTop: 8, fontSize: 11.5, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}
+                  >↻ Sync from template</span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                 <div style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 34, letterSpacing: '-.03em', lineHeight: 1 }}>{donePct}%</div>
