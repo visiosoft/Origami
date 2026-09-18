@@ -54,7 +54,14 @@ function bodyHtml(body) {
         .join('');
 }
 function safeFilename(name, fallback = 'document') {
-    const clean = name.replace(/[\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const clean = name
+        .replace(/[‒-―]/g, '-')
+        .replace(/[‘’]/g, "'")
+        .replace(/[“”]/g, '"')
+        .replace(/[^\x20-\x7E]/g, '')
+        .replace(/[\/:*?"<>|]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
     return (clean || fallback).slice(0, 90);
 }
 function accentOf(brand) {

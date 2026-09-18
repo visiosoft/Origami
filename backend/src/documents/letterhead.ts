@@ -88,9 +88,21 @@ function bodyHtml(body: string) {
     .join('');
 }
 
-/** A document filename that is safe on every platform. */
+/**
+ * A document filename that is safe on every platform and, critically, safe
+ * to put straight into a Content-Disposition header -- which only accepts
+ * ASCII. An em dash or curly quote in a subject line ("Agreement — Ehsan")
+ * throws "Invalid character in header content" if passed through as-is.
+ */
 export function safeFilename(name: string, fallback = 'document') {
-  const clean = name.replace(/[\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const clean = name
+    .replace(/[‒-―]/g, '-') // en/em dashes -> hyphen
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[^\x20-\x7E]/g, '') // drop anything else non-ASCII
+    .replace(/[\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   return (clean || fallback).slice(0, 90);
 }
 
