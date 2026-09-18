@@ -504,6 +504,16 @@ export class PhasesService implements OnApplicationBootstrap {
       phase.seededAt = '';
     }
     await this.seedChecklists(projectId, [phase], [source]);
+
+    // A task removed from the template since this phase was last synced
+    // should leave the checklist too -- but only if nobody has touched it
+    // yet; work already marked done or in progress is never the template's
+    // to take back.
+    const templateTitles = new Set(source.tasks.map((t) => t.title));
+    const current = await this.tasks.find({ where: { phaseId: phase.id } });
+    const stale = current.filter((t) => !templateTitles.has(t.title) && !t.completed && t.status !== 'Done' && t.status !== 'In progress');
+    if (stale.length) await this.tasks.remove(stale);
+
     return phase;
   }
 

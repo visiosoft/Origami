@@ -389,6 +389,11 @@ let PhasesService = class PhasesService {
             phase.seededAt = '';
         }
         await this.seedChecklists(projectId, [phase], [source]);
+        const templateTitles = new Set(source.tasks.map((t) => t.title));
+        const current = await this.tasks.find({ where: { phaseId: phase.id } });
+        const stale = current.filter((t) => !templateTitles.has(t.title) && !t.completed && t.status !== 'Done' && t.status !== 'In progress');
+        if (stale.length)
+            await this.tasks.remove(stale);
         return phase;
     }
     create(dto) {
