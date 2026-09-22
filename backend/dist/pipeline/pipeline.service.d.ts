@@ -27,19 +27,64 @@ export declare class PipelineService implements OnApplicationBootstrap {
     private rehomeRetiredStages;
     getStages(): import("../seed-data/pipeline").Stage[];
     private overlayLead;
-    findAll(includeArchived?: boolean): Promise<DealEntity[]>;
-    findOne(id: string): Promise<DealEntity>;
-    create(dto: any): Promise<DealEntity>;
-    updateStage(id: string, stage: string, actor?: DealActor): Promise<DealEntity>;
-    setArchived(id: string, archived: boolean, actor?: DealActor): Promise<DealEntity>;
-    setRoles(id: string, roles: Record<string, string>, actor?: DealActor): Promise<DealEntity>;
-    logFollowUp(id: string, input: FollowUpInput, actor?: DealActor): Promise<DealEntity>;
+    findAll(includeArchived?: boolean): Promise<(DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    })[]>;
+    findOne(id: string): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
+    create(dto: any): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
+    updateStage(id: string, stage: string, actor?: DealActor): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
+    setArchived(id: string, archived: boolean, actor?: DealActor): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
+    setRoles(id: string, roles: Record<string, string>, actor?: DealActor): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
+    logFollowUp(id: string, input: FollowUpInput, actor?: DealActor): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
     setNotes(id: string, notes: unknown[], change: {
         action: string;
         stageName?: string;
         text?: string;
-    }, actor?: DealActor): Promise<DealEntity>;
-    addEvent(id: string, action: string, actor?: DealActor, type?: 'auto' | 'pc' | 'pm'): Promise<DealEntity>;
+    }, actor?: DealActor): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
+    addEvent(id: string, action: string, actor?: DealActor, type?: 'auto' | 'pc' | 'pm'): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
     private event;
     convertToProject(id: string, opts: {
         stage?: string;
@@ -47,7 +92,12 @@ export declare class PipelineService implements OnApplicationBootstrap {
         contractAmt?: string;
     }, actor?: DealActor): Promise<{
         project: import("../database/entities").ProjectEntity;
-        deal: DealEntity;
+        deal: DealEntity & {
+            name: string;
+            client: string;
+            phone: string;
+            email: string;
+        };
     }>;
     remove(id: string): Promise<{
         id: string;

@@ -59,14 +59,13 @@ describe('PipelineService', () => {
             await expect(service.findOne('PL-404')).rejects.toBeInstanceOf(NotFoundException);
         });
 
-        it("overlays the lead's name/client/phone/email onto the deal instead of trusting the deal's own stale copy", async () => {
+        it("merges in the lead's name/client/phone/email -- DealEntity no longer stores its own copy", async () => {
             // Regression test for the "Kellen Davies" / "Qamaria Coffee" / "Neon
-            // Project" drift bug: the deal row's own name/client/phone/email were
+            // Project" drift bug: these fields used to live on the deal row too,
             // written once at creation and never kept in sync with later lead
-            // edits. The lead is now the source of truth for these fields.
-            dealsRepo.findOneBy.mockResolvedValue({
-                id: 'PL-1004', name: 'Neon Project', client: 'Neon Project', phone: '111', email: 'old@example.com',
-            } as DealEntity);
+            // edits. DealEntity no longer has these columns at all -- the lead is
+            // the only place they're stored.
+            dealsRepo.findOneBy.mockResolvedValue({ id: 'PL-1004' } as DealEntity);
             leadsRepo.findOneBy.mockResolvedValue({
                 id: 'PL-1004', leadName: 'Qamaria Coffee', businessName: '', phone: '4083481867', email: 'shaquib@example.com',
             } as LeadEntity);
@@ -78,34 +77,33 @@ describe('PipelineService', () => {
         });
 
         it('prefers businessName for client when the lead has one', async () => {
-            dealsRepo.findOneBy.mockResolvedValue({ id: 'PL-1', name: 'x', client: 'x', phone: '', email: '' } as DealEntity);
+            dealsRepo.findOneBy.mockResolvedValue({ id: 'PL-1' } as DealEntity);
             leadsRepo.findOneBy.mockResolvedValue({ id: 'PL-1', leadName: 'Shaquib Rahimi', businessName: 'Qamaria Coffee', phone: '', email: '' } as LeadEntity);
             const deal = await service.findOne('PL-1');
             expect(deal.name).toBe('Shaquib Rahimi');
             expect(deal.client).toBe('Qamaria Coffee');
         });
 
-        it("falls back to the deal's own stored values when it has no matching lead", async () => {
-            dealsRepo.findOneBy.mockResolvedValue({ id: 'PL-9', name: 'Legacy Deal', client: 'Legacy Client', phone: '999', email: 'legacy@example.com' } as DealEntity);
+        it('returns blank name/client/phone/email rather than erroring when a deal has no matching lead', async () => {
+            dealsRepo.findOneBy.mockResolvedValue({ id: 'PL-9' } as DealEntity);
             leadsRepo.findOneBy.mockResolvedValue(null);
             const deal = await service.findOne('PL-9');
-            expect(deal).toEqual(expect.objectContaining({ name: 'Legacy Deal', client: 'Legacy Client', phone: '999', email: 'legacy@example.com' }));
+            expect(deal).toEqual(expect.objectContaining({ name: '', client: '', phone: '', email: '' }));
         });
     });
 
     describe('findAll', () => {
-        it('overlays each deal with its matching lead in one batch lookup', async () => {
+        it('merges each deal with its matching lead in one batch lookup', async () => {
             dealsRepo.find.mockResolvedValue([
-                { id: 'PL-1', name: 'Stale Name', client: 'Stale Client', phone: '', email: '', archived: false } as DealEntity,
-                { id: 'PL-2', name: 'No Lead Deal', client: 'No Lead Deal', phone: '', email: '', archived: false } as DealEntity,
+                { id: 'PL-1', archived: false } as DealEntity,
+                { id: 'PL-2', archived: false } as DealEntity,
             ]);
-            dealsRepo.findBy.mockResolvedValue([]);
             leadsRepo.findBy.mockResolvedValue([
                 { id: 'PL-1', leadName: 'Fresh Name', businessName: '', phone: '', email: '' } as LeadEntity,
             ]);
             const deals = await service.findAll();
             expect(deals.find((d) => d.id === 'PL-1')?.name).toBe('Fresh Name');
-            expect(deals.find((d) => d.id === 'PL-2')?.name).toBe('No Lead Deal');
+            expect(deals.find((d) => d.id === 'PL-2')?.name).toBe('');
         });
     });
 

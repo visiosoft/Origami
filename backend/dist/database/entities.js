@@ -328,14 +328,6 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
-], DealEntity.prototype, "name", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
-], DealEntity.prototype, "client", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
 ], DealEntity.prototype, "value", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
@@ -377,14 +369,6 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], DealEntity.prototype, "status", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
-], DealEntity.prototype, "phone", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", String)
-], DealEntity.prototype, "email", void 0);
 __decorate([
     (0, typeorm_1.Column)('simple-json'),
     __metadata("design:type", Array)

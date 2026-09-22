@@ -116,8 +116,11 @@ export class TaskEntity {
 @Entity('deals')
 export class DealEntity {
   @PrimaryColumn() id!: string;
-  @Column() name!: string;
-  @Column() client!: string;
+  // name/client/phone/email used to live here too, independently of the
+  // matching LeadEntity row -- the two copies drifted out of sync whenever
+  // one was updated without the other (the "Kellen Davies"/"Qamaria Coffee"/
+  // "Neon Project" bug). The lead is now the sole source of truth for these
+  // fields; PipelineService overlays them from the lead at read time.
   @Column() value!: string;
   @Column() stage!: string;
   @Column('int') stageIdx!: number;
@@ -129,8 +132,6 @@ export class DealEntity {
   @Column() nextDue!: string;
   @Column() source!: string;
   @Column() status!: string;
-  @Column() phone!: string;
-  @Column() email!: string;
   @Column('simple-json') timeline!: unknown[];
   @Column(TEXT) notes!: string;
   // Set when the deal is parked on a hold stage: the date to pick it back up.

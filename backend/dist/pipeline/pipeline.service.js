@@ -54,9 +54,11 @@ let PipelineService = class PipelineService {
             const existingLeadIds = new Set((await this.projects.findAll()).map((p) => p.leadId).filter(Boolean));
             const missing = deals.filter((d) => !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id));
             if (missing.length) {
+                const missingLeads = await this.leads.findBy({ id: (0, typeorm_2.In)(missing.map((d) => d.id)) });
+                const byId = new Map(missingLeads.map((l) => [l.id, l]));
                 for (const deal of missing) {
                     try {
-                        await this.projects.ensureForLead(deal);
+                        await this.projects.ensureForLead(this.overlayLead(deal, byId.get(deal.id)));
                     }
                     catch (err) {
                         this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${err.message}`);
@@ -94,13 +96,13 @@ let PipelineService = class PipelineService {
         return pipeline_1.STAGES;
     }
     overlayLead(deal, lead) {
-        if (!lead)
-            return deal;
-        deal.name = lead.leadName || deal.name;
-        deal.client = (lead.businessName || '').trim() || lead.leadName || deal.client;
-        deal.phone = lead.phone || deal.phone;
-        deal.email = lead.email || deal.email;
-        return deal;
+        return {
+            ...deal,
+            name: lead?.leadName || '',
+            client: (lead?.businessName || '').trim() || lead?.leadName || '',
+            phone: lead?.phone || '',
+            email: lead?.email || '',
+        };
     }
     async findAll(includeArchived = false) {
         const deals = await this.repo.find();
@@ -120,13 +122,14 @@ let PipelineService = class PipelineService {
             throw new common_1.ConflictException(`A deal with id ${dto.id} already exists`);
         }
         const deal = await this.repo.save(this.repo.create(dto));
+        const hydrated = this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
         try {
-            await this.projects.ensureForLead(deal);
+            await this.projects.ensureForLead(hydrated);
         }
         catch (err) {
             this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${err.message}`);
         }
-        return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
+        return hydrated;
     }
     async updateStage(id, stage, actor) {
         const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);

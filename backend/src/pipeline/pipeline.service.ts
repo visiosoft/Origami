@@ -78,9 +78,11 @@ export class PipelineService implements OnApplicationBootstrap {
       const existingLeadIds = new Set((await this.projects.findAll()).map((p) => p.leadId).filter(Boolean));
       const missing = deals.filter((d) => !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id));
       if (missing.length) {
+        const missingLeads = await this.leads.findBy({ id: In(missing.map((d) => d.id)) });
+        const byId = new Map(missingLeads.map((l) => [l.id, l]));
         for (const deal of missing) {
           try {
-            await this.projects.ensureForLead(deal);
+            await this.projects.ensureForLead(this.overlayLead(deal, byId.get(deal.id)));
           } catch (err) {
             this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${(err as Error).message}`);
           }
@@ -128,21 +130,21 @@ export class PipelineService implements OnApplicationBootstrap {
   }
 
   /**
-   * name/client/phone/email live on the lead now -- overlay them onto the deal
-   * in memory rather than trusting whatever's stored on the deal row itself,
-   * which was historically written once at creation and never kept in sync
-   * after that (the actual cause of deal cards drifting from their lead's
-   * real data). Falls back to the deal's own stored values if it has no
-   * matching lead -- shouldn't happen for a pipeline-created deal, but never
-   * blank out a card over it.
+   * name/client/phone/email don't live on DealEntity at all -- the lead is
+   * the sole source of truth for them, so every deal returned by this
+   * service carries them merged in from its matching lead at read time. A
+   * deal with no matching lead (shouldn't happen for a pipeline-created
+   * deal, since leads.create() always runs first) gets blank strings rather
+   * than an error, so a card never disappears over it.
    */
-  private overlayLead(deal: DealEntity, lead?: LeadEntity | null): DealEntity {
-    if (!lead) return deal;
-    deal.name = lead.leadName || deal.name;
-    deal.client = (lead.businessName || '').trim() || lead.leadName || deal.client;
-    deal.phone = lead.phone || deal.phone;
-    deal.email = lead.email || deal.email;
-    return deal;
+  private overlayLead(deal: DealEntity, lead?: LeadEntity | null): DealEntity & { name: string; client: string; phone: string; email: string } {
+    return {
+      ...deal,
+      name: lead?.leadName || '',
+      client: (lead?.businessName || '').trim() || lead?.leadName || '',
+      phone: lead?.phone || '',
+      email: lead?.email || '',
+    };
   }
 
   /** Archived deals are off the board unless they are explicitly asked for. */
@@ -168,17 +170,18 @@ export class PipelineService implements OnApplicationBootstrap {
       throw new ConflictException(`A deal with id ${dto.id} already exists`);
     }
     const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+    const hydrated = this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
     // Every lead gets a place on the Projects page from the moment it exists
     // -- sitting in the "Kickoff" stage, not yet assigned to Design or any
     // real work -- rather than only once a client reviews and accepts the
     // proposal and it's actually converted. Best effort: a failure here must
     // not stop the lead itself from saving.
     try {
-      await this.projects.ensureForLead(deal);
+      await this.projects.ensureForLead(hydrated);
     } catch (err) {
       this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${(err as Error).message}`);
     }
-    return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
+    return hydrated;
   }
 
   async updateStage(id: string, stage: string, actor?: DealActor) {

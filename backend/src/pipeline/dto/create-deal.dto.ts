@@ -2,8 +2,12 @@ import { IsString, IsNumber, IsOptional, IsArray, Allow } from 'class-validator'
 
 export class CreateDealDto {
   @IsString() @IsOptional() id?: string;
-  @IsString() name: string;
-  @IsString() client: string;
+  // name/client no longer persist onto the deal -- the lead is the sole
+  // source of truth for them (see PipelineService.overlayLead). Kept
+  // optional here rather than removed outright since older frontend
+  // payloads still send them; they're simply ignored on save.
+  @IsString() @IsOptional() name?: string;
+  @IsString() @IsOptional() client?: string;
   @IsString() value: string;
   @IsString() @IsOptional() stage?: string;
   @IsNumber() @IsOptional() stageIdx?: number;

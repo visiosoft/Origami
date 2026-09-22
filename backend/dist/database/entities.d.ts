@@ -79,8 +79,6 @@ export declare class TaskEntity {
 }
 export declare class DealEntity {
     id: string;
-    name: string;
-    client: string;
     value: string;
     stage: string;
     stageIdx: number;
@@ -92,8 +90,6 @@ export declare class DealEntity {
     nextDue: string;
     source: string;
     status: string;
-    phone: string;
-    email: string;
     timeline: unknown[];
     notes: string;
     stageEnteredAt: string;

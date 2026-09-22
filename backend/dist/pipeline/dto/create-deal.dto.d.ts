@@ -1,7 +1,7 @@
 export declare class CreateDealDto {
     id?: string;
-    name: string;
-    client: string;
+    name?: string;
+    client?: string;
     value: string;
     stage?: string;
     stageIdx?: number;

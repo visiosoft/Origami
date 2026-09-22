@@ -33,7 +33,9 @@ export class ProposalService {
   async get(dealId: string) {
     if (!dealId) throw new BadRequestException('Which deal?');
     const row = await this.repo.findOneBy({ dealId });
-    const deal = await this.deals.findOneBy({ id: dealId });
+    // name lives on the lead now -- go through PipelineService so it's hydrated,
+    // rather than reading the deal's own (no-longer-persisted) name column.
+    const deal = await this.pipeline.findOne(dealId).catch(() => null);
     return {
       dealId,
       dealName: deal?.name || '',

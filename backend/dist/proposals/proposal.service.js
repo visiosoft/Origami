@@ -33,7 +33,7 @@ let ProposalService = class ProposalService {
         if (!dealId)
             throw new common_1.BadRequestException('Which deal?');
         const row = await this.repo.findOneBy({ dealId });
-        const deal = await this.deals.findOneBy({ id: dealId });
+        const deal = await this.pipeline.findOne(dealId).catch(() => null);
         return {
             dealId,
             dealName: deal?.name || '',
