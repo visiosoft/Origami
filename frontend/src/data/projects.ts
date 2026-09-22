@@ -26,6 +26,8 @@ export interface Project {
   contractApproved?: boolean;
   /** Which entry of the programme template library this project's Phase Board is built from. */
   templateKey?: string;
+  /** Rolls over from the originating lead at conversion. */
+  website?: string;
 }
 
 export const PROJECTS: Project[] = [

@@ -4,6 +4,8 @@ import { CITIES_BY_COUNTY, COUNTY_BY_CITY } from './californiaCounties';
 export interface Lead {
     id: string;
     leadName: string;
+    /** The business/entity this lead represents, distinct from the contact person's name above. */
+    businessName?: string;
     firstName: string;
     lastName: string;
     goByName: string;
@@ -48,6 +50,9 @@ export interface Lead {
     expectedDuration: string;
     expectedLengthOfOwnership: string;
     clientPersonality: string;
+    website?: string;
+    /** Set on every successful write; sent back as expectedUpdatedAt to guard the next save. */
+    updatedAt?: string;
     createdAt: string;
 }
 

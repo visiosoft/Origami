@@ -17,6 +17,7 @@ import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring'
 import { useWindowWidth } from '../useWindowWidth';
 import { useApp } from '../AppContext';
 import { api } from '../api';
+import { saveLeadWithAudit } from '../data/leadAudit';
 import { ProjectProgram } from './ProjectProgram';
 import { buildPrefill } from '../data/projectProgram';
 import { ProposalPanel } from '../components/ProposalPanel';
@@ -60,7 +61,13 @@ interface CustomField { id: string; label: string; value: string }
 const blankCustomField = (): CustomField => ({ id: 'CF-' + Math.random().toString(36).slice(2, 9), label: '', value: '' });
 
 interface NewLead {
-  leadName: string; firstName: string; lastName: string; goByName: string; pronouns: string;
+  leadName: string;
+  /** The business/entity this lead represents, distinct from the contact person's name. */
+  businessName?: string;
+  website?: string;
+  /** Set on every successful load/save; sent back as expectedUpdatedAt to guard the next save. */
+  updatedAt?: string;
+  firstName: string; lastName: string; goByName: string; pronouns: string;
   namePronunciation: string; phone: string; email: string;
   primaryPointOfContact: string; secondPointOfContact: string; nameOfSecondContact: string;
   phoneOfSecondContact: string; emailOfSecondContact: string; relationshipOfSecondContact: string;
@@ -146,7 +153,7 @@ const ZONING_FORM: { title: string; fields: ZAField[] }[] = [
   ] },
 ];
 const BLANK_LEAD: NewLead = {
-  leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
+  leadName: '', businessName: '', website: '', firstName: '', lastName: '', goByName: '', pronouns: '',
   namePronunciation: '', phone: '', email: '',
   additionalContacts: [],
   primaryContactRoles: ['PC'],
@@ -277,6 +284,7 @@ const LEAD_SECTIONS: { key: string; title: string; fields: FieldSpec[]; gate?: {
     { key: 'firstName', label: 'First Name *', kind: 'text', ph: 'First name' },
     { key: 'lastName', label: 'Last Name *', kind: 'text', ph: 'Last name' },
     { key: 'goByName', label: 'Go-By Name', kind: 'text', ph: 'What they prefer to be called' },
+    { key: 'businessName', label: 'Business / Project Name', kind: 'text', ph: 'Optional — leave blank to use the contact name' },
     { key: 'pronouns', label: 'Pronouns', kind: 'select', optKey: 'pronouns' },
     { key: 'namePronunciation', label: 'Name Pronunciation', kind: 'text', ph: 'e.g. Mah-REE-ah' },
     { key: 'phone', label: 'Phone *', kind: 'tel', ph: '(555) 123-4567' },
@@ -306,6 +314,7 @@ const LEAD_SECTIONS: { key: string; title: string; fields: FieldSpec[]; gate?: {
     { key: 'contractType', label: 'Contract Type', kind: 'select', optKey: 'contractType' },
     { key: 'homeworkCompleted', label: 'Homework Completed', kind: 'pills', optKey: 'homeworkCompleted' },
     { key: 'projectVision', label: 'Project Vision / Scope', kind: 'textarea', ph: 'Describe what the client wants to accomplish…' },
+    { key: 'website', label: 'Website', kind: 'text', ph: 'https://example.com' },
   ] },
   { key: 'budget', title: '5. Budget & Timeline', fields: [
     { key: 'reasonForProject', label: 'Reason for Project', kind: 'select', optKey: 'reasonForProject' },
@@ -560,9 +569,12 @@ export function Pipeline() {
     if (editingId) {
       const id = editingId;
       const resolved = withRoleAssignments(nl);
+      const client = (nl.businessName || '').trim() || nl.leadName.trim();
       setLeadDetails((prev) => ({ ...prev, [id]: resolved }));
-      setDeals((prev) => prev.map((d) => d.id === id ? { ...d, name: nl.leadName.trim(), client: nl.leadName.trim(), phone: nl.phone.trim(), email: nl.email.trim(), source: nl.leadSource || d.source, notes: nl.projectVision.trim() } : d));
-      api.leads.update(id, resolved).then(() => toast('Lead updated')).catch(() => toast('⚠ Failed to update'));
+      setDeals((prev) => prev.map((d) => d.id === id ? { ...d, name: nl.leadName.trim(), client, phone: nl.phone.trim(), email: nl.email.trim(), source: nl.leadSource || d.source, notes: nl.projectVision.trim() } : d));
+      saveLeadWithAudit(id, { ...resolved, expectedUpdatedAt: nl.updatedAt }, 'Lead details edited', id)
+        .then((saved: any) => { setLeadDetails((prev) => ({ ...prev, [id]: { ...resolved, updatedAt: saved?.updatedAt } })); toast('Lead updated'); })
+        .catch((e: Error) => toast(e.message?.includes('updated by someone else') ? `⚠ ${e.message}` : '⚠ Failed to update'));
       setShowNew(false);
       setEditingId(null);
       setNl({ ...BLANK_LEAD });
@@ -588,7 +600,7 @@ export function Pipeline() {
     const deal: Deal = {
       id: 'PL-' + String(1000 + deals.length + 1),
       name: nl.leadName.trim(),
-      client: nl.leadName.trim(),
+      client: (nl.businessName || '').trim() || nl.leadName.trim(),
       value: '$0',
       stage: 'new_lead',
       stageIdx: 0,
@@ -734,13 +746,13 @@ export function Pipeline() {
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
       setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}${res?.meetLink ? ' — Meet link attached' : ''}`, stageName, date: 'Today' }] }));
       setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda, meetingEventId: res?.id } as NewLead }));
-      api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }).catch(() => { });
+      saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }, `${label} scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
       toast(existingEventId ? 'Calendar event updated' : `${label} created on your calendar`);
     } catch (e: any) {
       openMeetPopup(deal, start, video);
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
       setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
-      api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }).catch(() => { });
+      saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} scheduled for ${start.toLocaleString()} — via Google Calendar popup`, deal.id).catch(() => { });
       toast('⚠ Could not create it directly — opened Google Calendar to finish it there');
     } finally {
       setCreatingMeet(false);
@@ -762,7 +774,7 @@ export function Pipeline() {
     window.open(url, '_blank', 'noopener');
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: 'Today' }] }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }).catch(() => { });
+    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
     toast('Site visit invite opened & saved');
   };
 
@@ -773,14 +785,14 @@ export function Pipeline() {
     setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
     setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda } as NewLead }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }).catch(() => { });
+    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} saved for ${new Date(meetWhen).toLocaleString()}`, deal.id).catch(() => { });
     toast('Meeting time saved');
   };
   const saveVisit = (deal: Deal, stageName: string) => {
     if (!visitWhen) return;
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }).catch(() => { });
+    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, deal.id).catch(() => { });
     toast('Site visit time saved');
   };
 
@@ -789,7 +801,7 @@ export function Pipeline() {
   const saveZoningImages = (deal: Deal, imgs: { name: string; dataUrl: string }[]) => {
     const json = JSON.stringify(imgs);
     setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || BLANK_LEAD), zoningImages: json } }));
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningImages: json }).catch(() => { });
+    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningImages: json }, `Zoning images updated (${imgs.length} on file)`, deal.id).catch(() => { });
   };
   const addZoningFiles = (deal: Deal, files: FileList | null) => {
     if (!files || !files.length) return;
@@ -813,7 +825,7 @@ export function Pipeline() {
   };
   const saveZoningAnalysis = (deal: Deal) => {
     const json = (leadDetails[deal.id]?.zoningAnalysis) || '{}';
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningAnalysis: json })
+    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningAnalysis: json }, 'Zoning code analysis saved', deal.id)
       .then(() => toast('Zoning analysis saved'))
       .catch(() => toast('⚠ Failed to save'));
   };
@@ -823,7 +835,7 @@ export function Pipeline() {
   const saveFit = (deal: Deal) => {
     const selections = fitByDeal[deal.id] || {};
     const score = scoreFor(scoringTemplate, selections);
-    api.leads.update(deal.id, { leadName: deal.name, phone: deal.phone || '', fitScore: score, fitSelections: selections }).catch(() => { });
+    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', fitScore: score, fitSelections: selections }, `Fit score recorded: ${score} / ${totalPossible(scoringTemplate)}`, deal.id).catch(() => { });
     toast(`Fit score saved: ${score} / ${totalPossible(scoringTemplate)}`);
   };
 
@@ -1111,6 +1123,7 @@ export function Pipeline() {
               return (
                 <ContactsDirectory
                   leadId={selected.id}
+                  dealId={selected.id}
                   leadName={selected.name}
                   phone={selected.phone}
                   contacts={current}
@@ -1334,8 +1347,10 @@ export function Pipeline() {
                         }
                         const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                         const entry = { date: when, action: `${selectedStage.name} completed — lead details saved`, role: 'System', type: 'auto' as const };
-                        setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));
-                        api.leads.update(selected.id, cur).catch(() => { });
+                        setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: (cur.businessName || '').trim() || cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));
+                        api.leads.update(selected.id, { ...cur, expectedUpdatedAt: cur.updatedAt })
+                          .then((saved: any) => { setLeadDetails((p) => ({ ...p, [selected.id]: { ...cur, updatedAt: saved?.updatedAt } })); setLeadBaseline((p) => ({ ...p, [selected.id]: { ...cur, updatedAt: saved?.updatedAt } })); })
+                          .catch((e: Error) => toast(e.message?.includes('updated by someone else') ? `⚠ ${e.message}` : '⚠ Failed to save lead'));
                         toast('Lead details saved');
                       }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: missing.length ? '#9AB0A4' : '#173326', color: 'white' }}>Save Lead Details</div>
                     </div>

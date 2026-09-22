@@ -23,6 +23,7 @@ export declare class ProjectEntity {
     introLetterHtml: string;
     contractApproved: boolean | null;
     templateKey: string;
+    website: string;
 }
 export declare class PersonEntity {
     id: number;
@@ -155,6 +156,7 @@ export declare class FinanceEntity {
 export declare class LeadEntity {
     id: string;
     leadName: string;
+    businessName: string;
     firstName: string;
     lastName: string;
     goByName: string;
@@ -213,6 +215,8 @@ export declare class LeadEntity {
     fitSelections: Record<string, string>;
     zoningImages: string;
     zoningAnalysis: string;
+    website: string;
+    updatedAt: string;
     createdAt: string;
 }
 export declare class ScoringCriterionEntity {

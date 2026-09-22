@@ -3,6 +3,7 @@ import { IsString, IsOptional, IsArray, IsNumber, IsObject, Allow } from 'class-
 export class CreateLeadDto {
     @IsString() @IsOptional() id?: string;
     @IsString() leadName: string;
+    @IsString() @IsOptional() businessName?: string;
     @IsString() @IsOptional() firstName?: string;
     @IsString() @IsOptional() lastName?: string;
     @IsString() @IsOptional() goByName?: string;
@@ -61,4 +62,10 @@ export class CreateLeadDto {
     @IsObject() @IsOptional() fitSelections?: Record<string, string>;
     @IsString() @IsOptional() zoningImages?: string; // JSON string of [{name,dataUrl}]
     @IsString() @IsOptional() zoningAnalysis?: string; // JSON string of the Zoning Code Analysis field map
+    @IsString() @IsOptional() website?: string;
+    @IsString() @IsOptional() updatedAt?: string;
+    // Sent on update() only, as the client's guard value -- the server rejects
+    // the write if it no longer matches the row's current updatedAt. Not a
+    // real column; stripped out in LeadsService.update() before saving.
+    @IsString() @IsOptional() expectedUpdatedAt?: string;
 }

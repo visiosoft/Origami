@@ -412,7 +412,7 @@ export function Projects() {
     ? ([
         ['Priority', sel.priority], ['Stage', sel.stage], ['Contract Type', sel.contractType], ['Contract Amount', sel.contractAmt],
         ['Est. Start', sel.estStart], ['Duration', sel.duration], ['Location', sel.location], ['Type of Work', sel.typeOfWork],
-        ['Referral', sel.referral || '—'], ['Contacted By', sel.contactedBy],
+        ['Referral', sel.referral || '—'], ['Contacted By', sel.contactedBy], ['Website', sel.website || '—'],
       ] as [string, string][])
     : [];
 
@@ -828,7 +828,7 @@ export function Projects() {
         const isProgramDraft = pt.title === 'Project Program DRAFT';
         const lead = isIntake && sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
         const intakeSections: { title: string; rows: [string, string][] }[] = lead ? [
-          { title: '1. Contact', rows: [['Lead Name', lead.leadName], ['Pronunciation', lead.namePronunciation], ['Phone', lead.phone], ['Email', lead.email], ['Primary Point of Contact', lead.primaryPointOfContact]] },
+          { title: '1. Contact', rows: [['Lead Name', lead.leadName], ['Business / Project Name', lead.businessName || '—'], ['Pronunciation', lead.namePronunciation], ['Phone', lead.phone], ['Email', lead.email], ['Primary Point of Contact', lead.primaryPointOfContact]] },
           { title: '2. Second Contact', rows: [['Has second contact', lead.secondPointOfContact], ['Name', lead.nameOfSecondContact], ['Phone', lead.phoneOfSecondContact], ['Email', lead.emailOfSecondContact], ['Relationship', lead.relationshipOfSecondContact]] },
           { title: '3. Communication', rows: [['Decision Makers', lead.decisionMakers], ['Preferred Method', lead.preferredContactMethod], ['Lead Source', lead.leadSource]] },
           { title: '4. Location', rows: [['Street Address', lead.projectStreetAddress], ['Street Name', lead.projectStreetName], ['City', lead.projectCity], ['ZIP', lead.projectZipCode], ['County', lead.countyLocation]] },

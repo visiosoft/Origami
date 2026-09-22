@@ -1,6 +1,7 @@
 export declare class CreateLeadDto {
     id?: string;
     leadName: string;
+    businessName?: string;
     firstName?: string;
     lastName?: string;
     goByName?: string;
@@ -59,4 +60,7 @@ export declare class CreateLeadDto {
     fitSelections?: Record<string, string>;
     zoningImages?: string;
     zoningAnalysis?: string;
+    website?: string;
+    updatedAt?: string;
+    expectedUpdatedAt?: string;
 }

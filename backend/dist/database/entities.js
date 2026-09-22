@@ -107,6 +107,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "templateKey", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "website", void 0);
 exports.ProjectEntity = ProjectEntity = __decorate([
     (0, typeorm_1.Entity)('projects')
 ], ProjectEntity);
@@ -624,6 +628,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], LeadEntity.prototype, "businessName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], LeadEntity.prototype, "firstName", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -853,6 +861,14 @@ __decorate([
     (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "zoningAnalysis", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "website", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "updatedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)

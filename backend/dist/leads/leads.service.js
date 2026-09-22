@@ -36,17 +36,22 @@ let LeadsService = class LeadsService {
     }
     create(dto) {
         const id = dto.id || 'LD-' + String(1000 + Date.now() % 10000);
-        const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10) };
+        const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() };
         return this.repo.save(this.repo.create(lead));
     }
     async update(id, dto) {
         let lead = await this.repo.findOneBy({ id });
+        const now = new Date().toISOString();
         if (!lead) {
-            lead = this.repo.create({ ...dto, id, createdAt: new Date().toISOString().slice(0, 10) });
+            const { expectedUpdatedAt, ...patch } = dto;
+            lead = this.repo.create({ ...patch, id, createdAt: new Date().toISOString().slice(0, 10), updatedAt: now });
+            return this.repo.save(lead);
         }
-        else {
-            Object.assign(lead, dto);
+        if (dto.expectedUpdatedAt && lead.updatedAt && dto.expectedUpdatedAt !== lead.updatedAt) {
+            throw new common_1.ConflictException('This lead was updated by someone else since you loaded it. Reload and reapply your changes.');
         }
+        const { expectedUpdatedAt, ...patch } = dto;
+        Object.assign(lead, patch, { updatedAt: now });
         return this.repo.save(lead);
     }
     async remove(id) {

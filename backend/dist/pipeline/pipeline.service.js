@@ -244,6 +244,7 @@ let PipelineService = class PipelineService {
             estStart: lead?.desiredStart || '',
             referral: lead?.leadSource || deal.source || '',
             contactedBy: deal.assignee || '',
+            website: lead?.website || '',
             leadId: id,
             priority: 'Medium',
             progress: 0,

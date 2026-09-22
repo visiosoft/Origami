@@ -41,6 +41,7 @@ export class ProjectEntity {
   // kitchen remodel and a ground-up build don't share one shape. Unset falls
   // back to the library's first entry.
   @Column({ nullable: true }) templateKey!: string;
+  @Column({ nullable: true }) website!: string; // rolls over from the originating lead at conversion
 }
 
 @Entity('people')
@@ -228,6 +229,10 @@ export class LeadEntity {
   // everything downstream (deals, projects, letters) keeps working; the parts
   // are what the intake form actually collects.
   @Column() leadName!: string;
+  // The business/entity this lead represents, distinct from the contact
+  // person's name above. Optional -- blank falls back to leadName wherever
+  // DealEntity.client is set, same as before this field existed.
+  @Column({ nullable: true }) businessName!: string;
   @Column({ nullable: true }) firstName!: string;
   @Column({ nullable: true }) lastName!: string;
   @Column({ nullable: true }) goByName!: string;   // what they prefer to be called
@@ -315,6 +320,12 @@ export class LeadEntity {
   @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
   @Column({ ...TEXT, nullable: true }) zoningImages!: string; // JSON string of [{name,dataUrl}] (data URLs)
   @Column({ ...TEXT, nullable: true }) zoningAnalysis!: string; // JSON string of the Zoning Code Analysis field map
+  @Column({ nullable: true }) website!: string;
+  // Set on every successful write; compared against the client's
+  // expectedUpdatedAt to catch a save that started from a stale copy.
+  // Nullable so existing rows (written before this existed) don't fail
+  // the check -- see LeadsService.update().
+  @Column({ nullable: true }) updatedAt!: string;
   @Column() createdAt!: string;
 }
 

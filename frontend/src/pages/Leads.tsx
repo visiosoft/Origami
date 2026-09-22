@@ -12,7 +12,7 @@ import './Leads.css';
 
 type NewLead = Omit<Lead, 'id' | 'createdAt'>;
 const BLANK: NewLead = {
-    leadName: '', firstName: '', lastName: '', goByName: '', pronouns: '',
+    leadName: '', businessName: '', website: '', firstName: '', lastName: '', goByName: '', pronouns: '',
     namePronunciation: '', phone: '', email: '',
     primaryPointOfContact: '', secondPointOfContact: '', nameOfSecondContact: '',
     phoneOfSecondContact: '', emailOfSecondContact: '', relationshipOfSecondContact: '',
@@ -94,12 +94,18 @@ export function Leads() {
             c.id === 'C-primary' ? { ...c, roles: introRoles.primary } : c.id === 'C-second' ? { ...c, roles: introRoles.second } : c,
         );
         const formWithContacts = { ...form, contacts };
-        const lead: Lead = { ...formWithContacts, id: 'LD-' + String(1000 + leads.length + 1), createdAt: new Date().toISOString().slice(0, 10) };
+        // Mint the id once and use it in both the optimistic card AND the
+        // create request below -- sending it without an id let the server
+        // mint a *different* one, so the displayed lead and the DB row were
+        // two different records from the moment of creation.
+        const id = 'LD-' + String(1000 + leads.length + 1);
+        const lead: Lead = { ...formWithContacts, id, createdAt: new Date().toISOString().slice(0, 10) };
         setLeads((prev) => [lead, ...prev]);
         setShowForm(false);
         setSelectedId(lead.id);
         toast(`Lead "${lead.leadName}" created`);
-        void api.leads.create(formWithContacts).catch(() => undefined);
+        api.leads.create({ ...formWithContacts, id })
+            .catch((err: Error) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
     };
 
     const selected = selectedId ? leads.find((l) => l.id === selectedId) : null;
@@ -145,6 +151,8 @@ export function Leads() {
                         <Field label="Phone" value={selected.phone} />
                         <Field label="Email" value={selected.email} />
                         <Field label="Go-By Name" value={selected.goByName} />
+                        <Field label="Business / Project Name" value={selected.businessName} />
+                        <Field label="Website" value={selected.website} />
                         <Field label="Pronouns" value={selected.pronouns} />
                         <Field label="Primary Contact" value={selected.primaryPointOfContact} />
                         <Field label="Lead Source" value={selected.leadSource} />
@@ -157,6 +165,7 @@ export function Leads() {
                             <Field label="2nd Phone" value={selected.phoneOfSecondContact} />
                             <Field label="2nd Email" value={selected.emailOfSecondContact} />
                             <Field label="2nd Relationship" value={selected.relationshipOfSecondContact} />
+                            <Field label="2nd Preferred Contact" value={selected.preferredContactMethodOfSecondContact} />
                         </>}
                         <Field label="Address" value={`${selected.projectStreetAddress} ${selected.projectStreetName}`} />
                         <Field label="City" value={selected.projectCity} />
@@ -238,7 +247,7 @@ export function Leads() {
     );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value?: string }) {
     return (
         <div>
             <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
@@ -297,6 +306,11 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
                 <label>Go-By Name</label>
                 <input value={form.goByName} onChange={(e) => set('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" />
                 <span className="hint">What they prefer to be called, if it isn't their first name.</span>
+            </div>
+            <div className="leads-field">
+                <label>Business / Project Name</label>
+                <input value={form.businessName || ''} onChange={(e) => set('businessName', e.target.value)} placeholder="Optional — leave blank to use the contact name" />
+                <span className="hint">The business or project this lead represents, if different from their own name — shown as the second line on the pipeline card.</span>
             </div>
             <div className="leads-field full">
                 <ContactMethodMatrix value={form.preferredContactMatrix} onChange={(mx) => set('preferredContactMatrix', mx)} />
@@ -540,6 +554,11 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                 </select>
                 <OtherDetail value={form.potentialProjectType} field="potentialProjectType" details={form.otherDetails} onChange={(d) => set('otherDetails', d)} />
                 <span className="hint">Sets the property type and fills in the standard scope for that code.</span>
+            </div>
+            <div className="leads-field">
+                <label>Website</label>
+                <input value={form.website || ''} onChange={(e) => set('website', e.target.value)} placeholder="https://example.com" />
+                <span className="hint">Rolls over onto the project record once this lead converts.</span>
             </div>
             <div className="leads-field">
                 <label>Contract Type</label>

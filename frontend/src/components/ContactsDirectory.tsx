@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { api } from '../api';
 import { LEAD_DROPDOWN_OPTIONS as OPT } from '../data/leads';
+import { saveLeadWithAudit } from '../data/leadAudit';
 import {
   CONTACT_ROLES, blankContact, contactName, holdersOf, missingRoles, roleLabel,
   toggleRole, type LeadContact,
@@ -21,6 +21,8 @@ interface Props {
   /** Needed because leads are saved through a PUT that revalidates the whole row. */
   leadName: string;
   phone: string;
+  /** The corresponding pipeline deal id, if any -- lets a save log to that deal's Audit Trail. Omit for a standalone lead with no deal yet. */
+  dealId?: string;
 }
 
 /**
@@ -30,7 +32,7 @@ interface Props {
  * holds several — a lead is often both the primary contact and the decision
  * maker.
  */
-export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone }: Props) {
+export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone, dealId }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -60,7 +62,7 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone 
     setSaving(true);
     setError('');
     // leadName and phone are required by the update DTO, so they ride along.
-    api.leads.update(leadId, { leadName, phone, contacts } as any)
+    saveLeadWithAudit(leadId, { leadName, phone, contacts } as any, `Contacts updated (${contacts.length} on file)`, dealId)
       .then(() => setSaved(true))
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
