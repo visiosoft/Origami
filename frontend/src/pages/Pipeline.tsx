@@ -935,7 +935,11 @@ export function Pipeline() {
         {noteTask && (
           <NewTaskDrawer
             onClose={() => setNoteTask(null)}
-            onCreated={() => { setSelectedId(noteTask.dealId); setDetailTab('tasks'); }}
+            onCreated={() => {
+              api.pipeline.addEvent(noteTask.dealId, `Note converted to task: ${noteTask.text}`).catch(() => { });
+              setSelectedId(noteTask.dealId);
+              setDetailTab('tasks');
+            }}
             fixedProject={{ id: noteTask.dealId, name: noteTask.dealName }}
             sections={Array.from(new Set([...STAGES.map((s) => s.name), noteTask.stageName]))}
             defaultSection={noteTask.stageName}
