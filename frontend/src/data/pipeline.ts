@@ -65,7 +65,6 @@ export const STAGES: Stage[] = [
   { key: 'zoning', name: 'Project Programming', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
   { key: 'proposal', name: 'Proposal Sent', idx: 7, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#A34718', colorBg: '#F7DCCC' },
   { key: 'client_approval', name: 'Client Review', idx: 8, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
-  { key: 'rfp', name: 'RFP to Consultants', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#3C5C8A', colorBg: '#D8E2F0' },
   // Parked leads. Each hold sets a follow-up date so the lead resurfaces
   // instead of going quiet -- see HOLD_MONTHS.
   { key: 'hold_1m', name: 'Hold - 1 Month', idx: 10, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 1, color: '#B07A10', colorBg: '#FBECC4' },
@@ -76,7 +75,7 @@ export const STAGES: Stage[] = [
   { key: 'rejected', name: 'Cancelled / Rejected', idx: 15, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
 ];
 
-export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'initial_questions', 'virtual_ff', 'project_fit', 'site_visit', 'zoning', 'proposal', 'client_approval', 'rfp'];
+export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'initial_questions', 'virtual_ff', 'project_fit', 'site_visit', 'zoning', 'proposal', 'client_approval'];
 
 export const STATUS_STYLES: Record<string, { label: string; bg: string; color: string; dot: string }> = {
   overdue: { label: 'Overdue', bg: '#F2DFD4', color: '#8E2E0A', dot: '#B8410F' },
@@ -182,7 +181,7 @@ export const DEALS: Deal[] = [
  * review — a BO lead reaching them is a mistake, not a shortcut.
  */
 /** Stages taken out of the funnel. Deals on one are moved forward on boot. */
-export const RETIRED_STAGE_KEYS = ['f2f'];
+export const RETIRED_STAGE_KEYS = ['f2f', 'rfp'];
 
 export const BLOCKED_STAGES_BY_DELIVERY: Record<string, string[]> = {
   BO: ['virtual_ff', 'project_fit', 'zoning'],
@@ -216,7 +215,6 @@ export const DEFAULT_SLA_DAYS: Record<string, number> = {
   zoning: 7,
   proposal: 7,
   client_approval: 10,
-  rfp: 10,
 };
 
 /** Stages with no target: parked and closed work is not being chased. */

@@ -13,7 +13,6 @@ exports.STAGES = [
     { key: 'zoning', name: 'Project Programming', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
     { key: 'proposal', name: 'Proposal Sent', idx: 7, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#A34718', colorBg: '#F7DCCC' },
     { key: 'client_approval', name: 'Client Review', idx: 8, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
-    { key: 'rfp', name: 'RFP to Consultants', idx: 9, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#3C5C8A', colorBg: '#D8E2F0' },
     { key: 'hold_1m', name: 'Hold - 1 Month', idx: 10, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 1, color: '#B07A10', colorBg: '#FBECC4' },
     { key: 'hold_3m', name: 'Hold - 3 Months', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 3, color: '#A96A12', colorBg: '#F9E4C0' },
     { key: 'hold_6m', name: 'Hold - 6 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 6, color: '#A25A14', colorBg: '#F7DCBC' },
@@ -21,7 +20,7 @@ exports.STAGES = [
     { key: 'cold', name: 'Cold Lead', idx: 14, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true, color: '#4A6C7A', colorBg: '#DCE7EC' },
     { key: 'rejected', name: 'Cancelled / Rejected', idx: 15, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
 ];
-exports.STAGE_KEYS = ['new_lead', 'contact_attempted', 'contact_made', 'initial_questions', 'project_fit', 'site_visit', 'zoning', 'proposal', 'client_approval', 'rfp'];
+exports.STAGE_KEYS = ['new_lead', 'contact_attempted', 'contact_made', 'initial_questions', 'project_fit', 'site_visit', 'zoning', 'proposal', 'client_approval'];
 exports.STATUS_STYLES = {
     overdue: { label: 'Overdue', bg: '#F2DFD4', color: '#8E2E0A', dot: '#B8410F' },
     awaiting_pm: { label: 'Awaiting PM', bg: '#DCE7DE', color: '#173326', dot: '#245C3A' },
@@ -114,7 +113,7 @@ exports.DEALS = [
         ],
         notes: 'Café fit-out for Coffee Planet expansion. Good meeting, client wants to proceed quickly. Need to initiate ZA.' },
 ];
-exports.RETIRED_STAGE_KEYS = ['f2f'];
+exports.RETIRED_STAGE_KEYS = ['f2f', 'rfp'];
 exports.BLOCKED_STAGES_BY_DELIVERY = {
     BO: ['virtual_ff', 'project_fit', 'zoning'],
 };
