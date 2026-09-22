@@ -26,7 +26,7 @@ const blank = (project: string, labels: string[], dueDate = '', dueTime = '', as
  * so adding a task looks and works the same regardless of where it started.
  */
 export function NewTaskDrawer({
-  onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo, defaultDueDate, defaultDueTime,
+  onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo, defaultDueDate, defaultDueTime, defaultDescription,
 }: {
   onClose: () => void;
   onCreated: (created?: { dueDate: string; dueTime: string; description: string }) => void;
@@ -36,18 +36,19 @@ export function NewTaskDrawer({
   sections?: string[];
   defaultSection?: string;
   defaultAssignedTo?: string;
+  defaultDescription?: string;
   /** Opened from a My Calendar time-slot click -- pre-fills and locks in the slot's date/time. */
   defaultDueDate?: string;
   defaultDueTime?: string;
 }) {
   const { toast, users } = useApp();
-  const [nt, setNt] = useState<NewTask>(() => blank(
+  const [nt, setNt] = useState<NewTask>(() => ({ ...blank(
     fixedProject?.id || '',
     defaultSection ? [`section:${defaultSection}`] : [],
     defaultDueDate || '',
     defaultDueTime || '',
     defaultAssignedTo || '',
-  ));
+  ), description: defaultDescription || '' }));
   const [section, setSection] = useState(defaultSection || sections?.[0] || '');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [creating, setCreating] = useState(false);

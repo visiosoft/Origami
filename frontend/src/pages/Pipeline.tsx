@@ -21,6 +21,7 @@ import { ProjectProgram } from './ProjectProgram';
 import { buildPrefill } from '../data/projectProgram';
 import { ProposalPanel } from '../components/ProposalPanel';
 import { DealTasksPanel } from '../components/DealTasksPanel';
+import { NewTaskDrawer } from '../components/NewTaskDrawer';
 
 const BG = "'Bricolage Grotesque', serif";
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -371,6 +372,7 @@ export function Pipeline() {
   // left to run off the panel. Page 0 is the most recent ten.
   const [auditPage, setAuditPage] = useState(0);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteTask, setNoteTask] = useState<{ dealId: string; dealName: string; stageName: string; text: string } | null>(null);
   const [meetByDeal, setMeetByDeal] = useState<Record<string, { when: string }>>({});
   const [meetWhen, setMeetWhen] = useState('');
   // Video (Google Meet, the original flow) or a phone-only consultation --
@@ -896,6 +898,16 @@ export function Pipeline() {
   return (
     <div style={{ display: 'flex', gap: 0, height: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 64px - 56px)', margin: isMobile ? '-16px -14px' : '-28px -32px', animation: 'fadeIn 0.3s ease' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingTop: isMobile ? 12 : 20, minWidth: 0 }}>
+        {noteTask && (
+          <NewTaskDrawer
+            onClose={() => setNoteTask(null)}
+            onCreated={() => { setSelectedId(noteTask.dealId); setDetailTab('tasks'); }}
+            fixedProject={{ id: noteTask.dealId, name: noteTask.dealName }}
+            sections={Array.from(new Set([...STAGES.map((s) => s.name), noteTask.stageName]))}
+            defaultSection={noteTask.stageName}
+            defaultDescription={noteTask.text}
+          />
+        )}
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: 10, padding: isMobile ? '0 14px 12px' : '0 20px 12px', flexShrink: 0 }}>
           {stats.map((st) => (
@@ -1596,6 +1608,7 @@ export function Pipeline() {
                         </span>
                       </div>
                       <div style={{ fontSize: 12, color: '#43514D', lineHeight: 1.5 }}>{n.text}</div>
+                      <button type="button" onClick={() => setNoteTask({ dealId: selected.id, dealName: selected.name, stageName: n.stageName, text: n.text })} style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Convert to task</button>
                     </div>
                   ))}
                 </div>
