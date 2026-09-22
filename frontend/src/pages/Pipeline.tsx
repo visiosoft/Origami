@@ -1286,7 +1286,7 @@ export function Pipeline() {
                                         ['First Name', 'firstName', 'text'], ['Last Name', 'lastName', 'text'],
                                         ['Go-By Name', 'goByName', 'text'], ['Pronouns', 'pronouns', 'select'],
                                         ['Name Pronunciation', 'namePronunciation', 'text'], ['Phone Number', 'phone', 'tel'],
-                                        ['Email', 'email', 'email'], ['Preferred Contact Method', 'preferredContactMethod', 'select'],
+                                        ['Email', 'email', 'email'],
                                       ] as [string, keyof AdditionalContact, string][]).map(([label, key, kind]) => (
                                         <div key={key}>
                                           <span style={{ fontSize: 10, fontWeight: 600, color: '#9AA39D', display: 'block', marginBottom: 3 }}>{label}</span>
@@ -1309,6 +1309,13 @@ export function Pipeline() {
                                           )}
                                         </div>
                                       ))}
+                                      <div>
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: '#9AA39D', display: 'block', marginBottom: 3 }}>Preferred Contact Method</span>
+                                        <ContactMethodMatrix
+                                          value={c.preferredContactMatrix || {}}
+                                          onChange={(mx) => up('additionalContacts', (ld.additionalContacts || []).map((x) => (x.id === c.id ? { ...x, preferredContactMatrix: mx, preferredContactMethod: primaryContactMethod(mx) } : x)) as never)}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
