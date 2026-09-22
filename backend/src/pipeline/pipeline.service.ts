@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
@@ -140,6 +140,12 @@ export class PipelineService implements OnApplicationBootstrap {
   }
 
   async create(dto: any) {
+    // save() upserts by primary key -- a client-minted id that collided with
+    // an existing deal used to merge silently onto it instead of failing, so
+    // guard explicitly rather than relying on ids never colliding.
+    if (dto?.id && (await this.repo.findOneBy({ id: dto.id }))) {
+      throw new ConflictException(`A deal with id ${dto.id} already exists`);
+    }
     const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
     // Every lead gets a place on the Projects page from the moment it exists
     // -- sitting in the "Kickoff" stage, not yet assigned to Design or any

@@ -111,7 +111,11 @@ export function Leads() {
         // create request below -- sending it without an id let the server
         // mint a *different* one, so the displayed lead and the DB row were
         // two different records from the moment of creation.
-        const id = 'LD-' + String(1000 + leads.length + 1);
+        // leads.length is NOT a reliable "next free id" -- leads can be
+        // deleted, and the server upserts by primary key, so a length-based
+        // id regularly collided with an existing lead and silently merged
+        // this new lead's data onto it instead of creating a new record.
+        const id = 'LD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
         const lead: Lead = { ...formWithContacts, id, createdAt: new Date().toISOString().slice(0, 10) };
         setLeads((prev) => [lead, ...prev]);
         setShowForm(false);

@@ -104,6 +104,9 @@ let PipelineService = class PipelineService {
         return deal;
     }
     async create(dto) {
+        if (dto?.id && (await this.repo.findOneBy({ id: dto.id }))) {
+            throw new common_1.ConflictException(`A deal with id ${dto.id} already exists`);
+        }
         const deal = await this.repo.save(this.repo.create(dto));
         try {
             await this.projects.ensureForLead(deal);

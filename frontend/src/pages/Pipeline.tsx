@@ -604,7 +604,13 @@ export function Pipeline() {
     if (nl.leadName.trim().length < 2) return;
     const resolved = withRoleAssignments(nl);
     const deal: Deal = {
-      id: 'PL-' + String(1000 + deals.length + 1),
+      // deals.length is NOT a reliable "next free id" -- the board only ever
+      // loads non-archived deals, and deals/leads can be deleted, so this
+      // regularly landed on an id already used by an unrelated lead. Both
+      // leads.create and pipeline.create upsert by primary key, so a
+      // collision silently merged the new lead's data onto an existing one
+      // (both server-side and in local leadDetails/notesByDeal state).
+      id: 'PL-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
       name: nl.leadName.trim(),
       client: (nl.businessName || '').trim() || nl.leadName.trim(),
       value: '$0',

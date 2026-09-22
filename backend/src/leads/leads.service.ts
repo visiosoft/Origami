@@ -24,10 +24,17 @@ export class LeadsService {
         return lead;
     }
 
-    create(dto: any) {
+    async create(dto: any) {
         // Prefer a caller-supplied id so a lead links 1:1 with its pipeline deal
-        // (PL-…). Fall back to an LD- id only for standalone leads.
-        const id = dto.id || 'LD-' + String(1000 + Date.now() % 10000);
+        // (PL-…). Fall back to an LD- id only for standalone leads. The old
+        // `% 10000` truncation gave only 10,000 possible values -- collision-
+        // prone under normal use, and save() upserts by primary key, so a
+        // collision would silently merge onto an unrelated existing lead.
+        const id = dto.id || 'LD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+        // Guard explicitly rather than relying on ids never colliding -- see above.
+        if (await this.repo.findOneBy({ id })) {
+            throw new ConflictException(`A lead with id ${id} already exists`);
+        }
         const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() };
         return this.repo.save(this.repo.create(lead as Partial<LeadEntity>));
     }

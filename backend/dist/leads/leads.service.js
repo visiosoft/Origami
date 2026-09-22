@@ -34,8 +34,11 @@ let LeadsService = class LeadsService {
             throw new common_1.NotFoundException(`Lead ${id} not found`);
         return lead;
     }
-    create(dto) {
-        const id = dto.id || 'LD-' + String(1000 + Date.now() % 10000);
+    async create(dto) {
+        const id = dto.id || 'LD-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+        if (await this.repo.findOneBy({ id })) {
+            throw new common_1.ConflictException(`A lead with id ${id} already exists`);
+        }
         const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() };
         return this.repo.save(this.repo.create(lead));
     }
