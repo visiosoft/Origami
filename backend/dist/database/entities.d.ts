@@ -100,6 +100,11 @@ export declare class DealEntity {
     roles: Record<string, string>;
     followUps: unknown[];
     stageNotes: unknown[];
+    rejectionType: string;
+    rejectionReason: string;
+    referredToName: string;
+    referredToCompany: string;
+    referredToContact: string;
 }
 export declare class ProposalEntity {
     dealId: string;

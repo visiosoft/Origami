@@ -59,6 +59,15 @@ export class PipelineController {
     return this.pipelineService.setRoles(id, roles, await this.auth.actor(auth));
   }
 
+  @Put(':id/rejection')
+  async setRejection(
+    @Param('id') id: string,
+    @Body() rejection: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string },
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.pipelineService.setRejection(id, rejection, await this.auth.actor(auth));
+  }
+
   /** Record something in the audit trail that isn't a stage move. */
   @Put(':id/event')
   async addEvent(

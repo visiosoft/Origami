@@ -251,6 +251,35 @@ export class PipelineService implements OnApplicationBootstrap {
   }
 
   /**
+   * Record why a deal was rejected at Project Fit Review, and -- for a
+   * referral -- who it was handed off to. Distinct from `updateStage`, whose
+   * timeline entry only ever says "Moved to <stage>" with no room for a
+   * reason or referral contact.
+   */
+  async setRejection(id: string, rejection: {
+    rejectionType: 'internal' | 'client' | 'referred';
+    rejectionReason?: string;
+    referredToName?: string;
+    referredToCompany?: string;
+    referredToContact?: string;
+  }, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    deal.rejectionType = rejection.rejectionType;
+    deal.rejectionReason = rejection.rejectionReason || '';
+    deal.referredToName = rejection.referredToName || '';
+    deal.referredToCompany = rejection.referredToCompany || '';
+    deal.referredToContact = rejection.referredToContact || '';
+
+    const detail = rejection.rejectionType === 'referred'
+      ? `Referred to ${[rejection.referredToName, rejection.referredToCompany].filter(Boolean).join(', ') || 'an external contact'}${rejection.referredToContact ? ` (${rejection.referredToContact})` : ''}`
+      : rejection.rejectionType === 'client'
+        ? `Rejected — client declined${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
+        : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
+    deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    return this.repo.save(deal);
+  }
+
+  /**
    * Record a chase on a lead.
    *
    * The coordinator gets a fixed number of attempts; the last one hands the

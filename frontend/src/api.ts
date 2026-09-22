@@ -226,6 +226,8 @@ export const api = {
       request(`/pipeline/${id}/archived`, { method: 'PUT', body: JSON.stringify({ archived }) }),
     setRoles: (id: string, roles: Record<string, string>) =>
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
+    setRejection: (id: string, data: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string }) =>
+      request(`/pipeline/${id}/rejection`, { method: 'PUT', body: JSON.stringify(data) }),
     logFollowUp: (id: string, data: Record<string, unknown>) =>
       request(`/pipeline/${id}/follow-up`, { method: 'POST', body: JSON.stringify(data) }),
     setNotes: (id: string, data: { notes: unknown[]; action: string; stageName?: string; text?: string }) =>

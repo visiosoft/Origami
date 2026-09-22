@@ -177,6 +177,21 @@ let PipelineService = class PipelineService {
         }
         return this.repo.save(deal);
     }
+    async setRejection(id, rejection, actor) {
+        const deal = await this.findOne(id);
+        deal.rejectionType = rejection.rejectionType;
+        deal.rejectionReason = rejection.rejectionReason || '';
+        deal.referredToName = rejection.referredToName || '';
+        deal.referredToCompany = rejection.referredToCompany || '';
+        deal.referredToContact = rejection.referredToContact || '';
+        const detail = rejection.rejectionType === 'referred'
+            ? `Referred to ${[rejection.referredToName, rejection.referredToCompany].filter(Boolean).join(', ') || 'an external contact'}${rejection.referredToContact ? ` (${rejection.referredToContact})` : ''}`
+            : rejection.rejectionType === 'client'
+                ? `Rejected — client declined${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
+                : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
+        deal.timeline = [...(deal.timeline || []), this.event(detail, actor)];
+        return this.repo.save(deal);
+    }
     async logFollowUp(id, input, actor) {
         const deal = await this.findOne(id);
         const existing = (deal.followUps || []);

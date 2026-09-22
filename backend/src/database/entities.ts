@@ -151,6 +151,14 @@ export class DealEntity {
   // Stage notes. Held here rather than only in the browser, which is where
   // they used to live -- and where they were lost on every reload.
   @Column({ type: 'simple-json', nullable: true }) stageNotes!: unknown[];
+  // Set when a deal is closed as rejected -- which of the three outcomes, and
+  // (for a referral) who the lead was handed off to. Nullable: only set once a
+  // deal is actually rejected, and this table already has rows.
+  @Column({ nullable: true }) rejectionType!: string; // 'internal' | 'client' | 'referred'
+  @Column({ nullable: true }) rejectionReason!: string;
+  @Column({ nullable: true }) referredToName!: string;
+  @Column({ nullable: true }) referredToCompany!: string;
+  @Column({ nullable: true }) referredToContact!: string;
 }
 
 /**

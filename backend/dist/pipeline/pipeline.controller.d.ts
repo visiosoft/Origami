@@ -42,6 +42,18 @@ export declare class PipelineController {
         phone: string;
         email: string;
     }>;
+    setRejection(id: string, rejection: {
+        rejectionType: 'internal' | 'client' | 'referred';
+        rejectionReason?: string;
+        referredToName?: string;
+        referredToCompany?: string;
+        referredToContact?: string;
+    }, auth?: string): Promise<import("../database/entities").DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
     addEvent(id: string, action: string, auth?: string): Promise<import("../database/entities").DealEntity & {
         name: string;
         client: string;

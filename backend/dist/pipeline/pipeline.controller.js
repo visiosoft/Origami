@@ -44,6 +44,9 @@ let PipelineController = class PipelineController {
     async setRoles(id, roles, auth) {
         return this.pipelineService.setRoles(id, roles, await this.auth.actor(auth));
     }
+    async setRejection(id, rejection, auth) {
+        return this.pipelineService.setRejection(id, rejection, await this.auth.actor(auth));
+    }
     async addEvent(id, action, auth) {
         return this.pipelineService.addEvent(id, action, await this.auth.actor(auth));
     }
@@ -115,6 +118,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], PipelineController.prototype, "setRoles", null);
+__decorate([
+    (0, common_1.Put)(':id/rejection'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], PipelineController.prototype, "setRejection", null);
 __decorate([
     (0, common_1.Put)(':id/event'),
     __param(0, (0, common_1.Param)('id')),

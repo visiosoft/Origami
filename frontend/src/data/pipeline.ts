@@ -34,6 +34,13 @@ export interface Deal {
   followUps?: unknown[];
   /** When the deal entered its current stage — the response clock. */
   stageEnteredAt?: string;
+  /** Set when rejected at Project Fit Review -- which outcome, and (for a
+   *  referral) who the lead was handed off to. */
+  rejectionType?: 'internal' | 'client' | 'referred';
+  rejectionReason?: string;
+  referredToName?: string;
+  referredToCompany?: string;
+  referredToContact?: string;
 }
 
 export interface Stage {

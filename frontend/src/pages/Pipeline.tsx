@@ -184,6 +184,14 @@ const DELIVERY_STYLE: Record<string, { bg: string; c: string }> = {
 
 const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
 
+/** The three ways a Project Fit Review rejection can go, each its own color so
+ *  a "we said no" card reads differently from a "referred elsewhere" one. */
+const REJECTION_STYLE: Record<string, { bg: string; c: string; label: (d: Deal) => string }> = {
+  internal: { bg: '#F2DFD4', c: '#8E2E0A', label: () => 'We Declined' },
+  client: { bg: '#F6E0C4', c: '#93520F', label: () => 'Client Declined' },
+  referred: { bg: '#D8E2F0', c: '#3C5C8A', label: (d) => `Referred to ${d.referredToName || 'contact'}` },
+};
+
 /** Canonical index for a stage key, so no call site hardcodes a number. */
 const stageIndex = (key: string) => STAGES.findIndex((s) => s.key === key);
 
@@ -351,6 +359,10 @@ export function Pipeline() {
   const navigate = useNavigate();
   const [roleFilter, setRoleFilter] = useState<'all' | 'pc' | 'pm'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Reject — Not a Fit expands into three outcomes before it actually moves the
+  // deal: null = not started, 'choosing' = showing the three pills, an object
+  // = "Referred Out" picked, filling in who it was handed off to.
+  const [rejectChoice, setRejectChoice] = useState<null | 'choosing' | { name: string; company: string; contact: string }>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
@@ -671,6 +683,26 @@ export function Pipeline() {
         : d));
       api.pipeline.updateStage(id, o.stage).catch(() => { });
     }
+  };
+
+  /**
+   * Confirms one of the three Reject outcomes: moves the deal to Cancelled/
+   * Rejected (same stage as before), then persists the outcome + referral
+   * details so the card can show which of the three it was, distinctly, and
+   * the audit trail records why -- not just "Moved to Cancelled / Rejected".
+   */
+  const confirmReject = (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
+    applyOverride(deal.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0 });
+    api.pipeline.setRejection(deal.id, {
+      rejectionType: type,
+      referredToName: referral?.name.trim(),
+      referredToCompany: referral?.company.trim(),
+      referredToContact: referral?.contact.trim(),
+    })
+      .then((saved: any) => setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...saved } : d))))
+      .catch(() => toast('⚠ Rejected, but the reason could not be saved'));
+    setRejectChoice(null);
+    setSelectedId(null);
   };
 
   /** Take a parked or closed lead off the board without destroying it. */
@@ -1020,10 +1052,13 @@ export function Pipeline() {
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || ''); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || ''); setRejectChoice(null); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(20,8,31,0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{[leadDetails[d.id]?.firstName, leadDetails[d.id]?.lastName].filter(Boolean).join(' ') || d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                            {d.rejectionType && REJECTION_STYLE[d.rejectionType] && (
+                              <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: REJECTION_STYLE[d.rejectionType].bg, color: REJECTION_STYLE[d.rejectionType].c }}>{REJECTION_STYLE[d.rejectionType].label(d)}</span>
+                            )}
                             <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: ss.bg, color: ss.color }}>{ss.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: '#173326' }}>{d.value}</span>
                             {delivery && (
@@ -1117,6 +1152,9 @@ export function Pipeline() {
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#EDE3D0', color: '#0B1A12' }}>{selected.value}</span>
+              {selected.rejectionType && REJECTION_STYLE[selected.rejectionType] && (
+                <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: REJECTION_STYLE[selected.rejectionType].bg, color: REJECTION_STYLE[selected.rejectionType].c }}>{REJECTION_STYLE[selected.rejectionType].label(selected)}</span>
+              )}
               {selected.holdUntil && (
                 <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : '#FBE9AE', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                   {holdDue(selected.holdUntil) ? 'Follow up now' : `Follow up ${selected.holdUntil}`}
@@ -1815,10 +1853,35 @@ export function Pipeline() {
           {selectedStage.isDecision ? (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', flexShrink: 0, background: 'white' }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: stageIndex('site_visit'), daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>✓ Approve — Good Fit</div>
-                <div onClick={() => { applyOverride(selected.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0, status: 'overdue' }); setSelectedId(null); }} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
-              </div>
+              {!rejectChoice ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: stageIndex('site_visit'), daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>✓ Approve — Good Fit</div>
+                  <div onClick={() => setRejectChoice('choosing')} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
+                </div>
+              ) : rejectChoice === 'choosing' ? (
+                <div>
+                  <div style={{ fontSize: 11, color: '#7E9B93', marginBottom: 8 }}>What happened to this lead?</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Rejected — Not a Fit</div>
+                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Client Rejected</div>
+                    <div onClick={() => setRejectChoice({ name: '', company: '', contact: '' })} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#D8E2F0', color: '#3C5C8A' }}>Referred Out</div>
+                    <div onClick={() => setRejectChoice(null)} style={{ padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 11, color: '#7E9B93', marginBottom: 8 }}>Who was this lead referred to?</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                    <input value={rejectChoice.name} onChange={(e) => setRejectChoice({ ...rejectChoice, name: e.target.value })} placeholder="Name" style={inputStyle} />
+                    <input value={rejectChoice.company} onChange={(e) => setRejectChoice({ ...rejectChoice, company: e.target.value })} placeholder="Company / Firm" style={inputStyle} />
+                    <input value={rejectChoice.contact} onChange={(e) => setRejectChoice({ ...rejectChoice, contact: e.target.value })} placeholder="Phone or email" style={inputStyle} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div onClick={() => setRejectChoice('choosing')} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>Back</div>
+                    <div onClick={() => confirmReject(selected, 'referred', rejectChoice)} style={{ flex: 1, padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: rejectChoice.name.trim() ? 'pointer' : 'not-allowed', background: rejectChoice.name.trim() ? '#3C5C8A' : '#D6DED8', color: rejectChoice.name.trim() ? 'white' : '#9AA39D' }}>Confirm Referral</div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'white' }}>

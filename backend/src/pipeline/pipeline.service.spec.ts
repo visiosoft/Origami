@@ -141,4 +141,34 @@ describe('PipelineService', () => {
             expect(saved.status).toBe('awaiting_pm');
         });
     });
+
+    describe('setRejection', () => {
+        const baseDeal = () => ({ id: 'PL-1', name: 'Neon Project', client: 'Neon Project', timeline: [] }) as unknown as DealEntity;
+
+        it('records an internal rejection with the right fields and timeline text', async () => {
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            const saved = await service.setRejection('PL-1', { rejectionType: 'internal' });
+            expect(saved.rejectionType).toBe('internal');
+            expect((saved.timeline as any[])[0].action).toBe('Rejected — not a fit for us');
+        });
+
+        it('records a client rejection with an optional reason folded into the timeline text', async () => {
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            const saved = await service.setRejection('PL-1', { rejectionType: 'client', rejectionReason: 'Went with another firm' });
+            expect(saved.rejectionType).toBe('client');
+            expect((saved.timeline as any[])[0].action).toBe('Rejected — client declined: Went with another firm');
+        });
+
+        it('records a referral with the referred-to contact fields and a matching timeline entry', async () => {
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            const saved = await service.setRejection('PL-1', {
+                rejectionType: 'referred', referredToName: 'Jane Doe', referredToCompany: 'Acme Design Co.', referredToContact: 'jane@acme.com',
+            });
+            expect(saved.rejectionType).toBe('referred');
+            expect(saved.referredToName).toBe('Jane Doe');
+            expect(saved.referredToCompany).toBe('Acme Design Co.');
+            expect(saved.referredToContact).toBe('jane@acme.com');
+            expect((saved.timeline as any[])[0].action).toBe('Referred to Jane Doe, Acme Design Co. (jane@acme.com)');
+        });
+    });
 });

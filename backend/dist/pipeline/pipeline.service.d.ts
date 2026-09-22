@@ -63,6 +63,18 @@ export declare class PipelineService implements OnApplicationBootstrap {
         phone: string;
         email: string;
     }>;
+    setRejection(id: string, rejection: {
+        rejectionType: 'internal' | 'client' | 'referred';
+        rejectionReason?: string;
+        referredToName?: string;
+        referredToCompany?: string;
+        referredToContact?: string;
+    }, actor?: DealActor): Promise<DealEntity & {
+        name: string;
+        client: string;
+        phone: string;
+        email: string;
+    }>;
     logFollowUp(id: string, input: FollowUpInput, actor?: DealActor): Promise<DealEntity & {
         name: string;
         client: string;
