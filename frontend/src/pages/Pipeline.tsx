@@ -623,16 +623,26 @@ export function Pipeline() {
       timeline: [{ date: fmtWhen(), action: `New lead created — ${nl.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
       notes: nl.projectVision.trim(),
     };
-    setDeals((prev) => [deal, ...prev]);
-    setLeadDetails((prev) => ({ ...prev, [deal.id]: resolved }));
     setShowNew(false);
     setNl({ ...BLANK_LEAD });
     setFormTab(1);
-    setSelectedId(deal.id);
-    setDetailTab('overview');
-    toast(`${deal.name} added to the pipeline`);
-    api.leads.create({ ...resolved, id: deal.id }).catch((err) => { console.error('leads.create failed:', err); toast('⚠ Failed to save lead to database'); });
-    void api.pipeline.create(deal).catch(() => undefined);
+    // Save the lead record FIRST -- the pipeline card is only added once it's
+    // actually landed in the database, so a card can never exist on the board
+    // without a backing lead record (that used to happen silently whenever
+    // this leads.create call failed after the deal was already added).
+    api.leads.create({ ...resolved, id: deal.id })
+      .then(() => {
+        setDeals((prev) => [deal, ...prev]);
+        setLeadDetails((prev) => ({ ...prev, [deal.id]: resolved }));
+        setSelectedId(deal.id);
+        setDetailTab('overview');
+        toast(`${deal.name} added to the pipeline`);
+        void api.pipeline.create(deal).catch(() => undefined);
+      })
+      .catch((err) => {
+        console.error('leads.create failed:', err);
+        toast(`⚠ Failed to save "${deal.name}" — nothing was created. Please try again.`);
+      });
   };
 
   const applyOverride = (id: string, o: Override) => {

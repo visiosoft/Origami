@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { LEADS, LEAD_DROPDOWN_OPTIONS, type Lead, composeLeadName, optionsWith, isReferralSource, isEventSource, sourceDetailLabel, primaryContactMethod } from '../data/leads';
 import { OtherDetail } from '../components/OtherDetail';
@@ -44,6 +44,17 @@ export function Leads() {
     const [leads, setLeads] = useState<Lead[]>(LEADS);
     // Edited in place; seeded from the intake fields the first time it opens.
     const [contactsByLead, setContactsByLead] = useState<Record<string, LeadContact[]>>({});
+
+    // This page previously never read the leads table at all -- it only ever
+    // showed the hardcoded demo seed plus whatever was created in the current
+    // browser session, so leads saved elsewhere (e.g. the Pipeline intake
+    // form) never appeared here. Replace the seed with the real table once it
+    // loads, so this list matches what's actually in the database.
+    useEffect(() => {
+        api.leads.list().then((res) => {
+            if (Array.isArray(res)) setLeads(res as Lead[]);
+        }).catch(() => { });
+    }, []);
     const [showForm, setShowForm] = useState(false);
     const [tab, setTab] = useState(1);
     const [form, setForm] = useState<NewLead>({ ...BLANK });
