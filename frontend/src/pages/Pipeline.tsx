@@ -289,7 +289,7 @@ const LEAD_SECTIONS: { key: string; title: string; fields: FieldSpec[]; gate?: {
     { key: 'firstName', label: 'First Name *', kind: 'text', ph: 'First name' },
     { key: 'lastName', label: 'Last Name *', kind: 'text', ph: 'Last name' },
     { key: 'goByName', label: 'Go-By Name', kind: 'text', ph: 'What they prefer to be called' },
-    { key: 'businessName', label: 'Business / Project Name', kind: 'text', ph: 'Optional — leave blank to use the contact name' },
+    { key: 'leadName', label: 'Lead Name', kind: 'text', ph: 'e.g. a representative or business name' },
     { key: 'pronouns', label: 'Pronouns', kind: 'select', optKey: 'pronouns' },
     { key: 'namePronunciation', label: 'Name Pronunciation', kind: 'text', ph: 'e.g. Mah-REE-ah' },
     { key: 'phone', label: 'Phone *', kind: 'tel', ph: '(555) 123-4567' },
