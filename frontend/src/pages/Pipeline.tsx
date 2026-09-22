@@ -1850,11 +1850,13 @@ export function Pipeline() {
                 {formTab === 1 && (<>
                   <SectionTitle>1. Contact Information</SectionTitle>
                   <FormGrid>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <FormField label="Lead Name" hint="Defaults from First + Last Name below, but can be edited on its own.">
+                        <input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="e.g. a representative or business name" style={inputStyle} />
+                      </FormField>
+                    </div>
                     <FormField label="First Name" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
                     <FormField label="Last Name" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
-                    <FormField label="Lead Name" hint="Defaults from First + Last Name above, but can be edited on its own.">
-                      <input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="Defaults to First + Last Name" style={inputStyle} />
-                    </FormField>
                     <FormField label="Go-By Name" hint="What they prefer to be called, if it isn't their first name."><input value={nl.goByName} onChange={(e) => setField('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
                     <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronouns} onChange={(e) => setField('pronouns', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.pronouns} field="pronouns" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Name Pronunciation" hint="Phonetic spelling if difficult to pronounce."><input value={nl.namePronunciation} onChange={(e) => setField('namePronunciation', e.target.value)} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>

@@ -294,6 +294,11 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
     return (<>
         <div className="leads-form-section-title">1. Contact Information</div>
         <div className="leads-form-grid">
+            <div className="leads-field full">
+                <label>Lead Name</label>
+                <input value={form.leadName} onChange={(e) => set('leadName', e.target.value)} placeholder="e.g. a representative or business name" />
+                <span className="hint">Defaults from First + Last Name below, but can be edited on its own — e.g. to enter how the client prefers to be addressed.</span>
+            </div>
             <div className="leads-field">
                 <label>First Name</label>
                 <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="First name" />
@@ -308,11 +313,6 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
                 <label>Go-By Name</label>
                 <input value={form.goByName} onChange={(e) => set('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" />
                 <span className="hint">What they prefer to be called, if it isn't their first name.</span>
-            </div>
-            <div className="leads-field">
-                <label>Lead Name</label>
-                <input value={form.leadName} onChange={(e) => set('leadName', e.target.value)} placeholder="Defaults to First + Last Name" />
-                <span className="hint">Defaults from First + Last Name above, but can be edited on its own — e.g. to enter how the client prefers to be addressed.</span>
             </div>
             <div className="leads-field">
                 <label>Business / Project Name</label>
