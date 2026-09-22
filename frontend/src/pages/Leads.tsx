@@ -70,12 +70,14 @@ export function Leads() {
 
     const set = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setForm((f) => {
         const next = { ...f, [k]: v } as NewLead;
-        // leadName is the display name the rest of the app reads.
         if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
         // Picking a city settles the county; it stays editable for the edge cases.
         if (k === 'projectCity') { const c = countyForCity(String(v)); if (c) next.countyLocation = c; }
-        if (k === 'firstName' || k === 'lastName') {
-            next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
+        // Lead Name defaults from First + Last Name only while it's still blank --
+        // once it holds a value (typed, or loaded from a saved lead), edits to
+        // First/Last Name no longer touch it, so it's independently editable.
+        if ((k === 'firstName' || k === 'lastName') && !f.leadName.trim()) {
+            next.leadName = composeLeadName(next.firstName, next.lastName, '');
         }
         if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
         return next;
@@ -86,7 +88,7 @@ export function Leads() {
     const close = () => setShowForm(false);
 
     const submit = () => {
-        if (!form.leadName.trim() || !form.phone.trim()) return;
+        if (!form.leadName.trim()) return;
         // Carry whatever roles were picked in Contact Info / Second Contact
         // onto the seeded directory, so they don't have to be re-picked once
         // the lead is saved and the full Contacts tab is available.
@@ -237,7 +239,7 @@ export function Leads() {
                             {tab < 7 ? (
                                 <button className="leads-btn-submit" onClick={() => setTab(tab + 1)}>Next →</button>
                             ) : (
-                                <button className="leads-btn-submit" disabled={!form.leadName.trim() || !form.phone.trim()} onClick={submit}>Create Lead</button>
+                                <button className="leads-btn-submit" disabled={!form.leadName.trim()} onClick={submit}>Create Lead</button>
                             )}
                         </div>
                     </div>
@@ -293,12 +295,12 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
         <div className="leads-form-section-title">1. Contact Information</div>
         <div className="leads-form-grid">
             <div className="leads-field">
-                <label>First Name *</label>
+                <label>First Name</label>
                 <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="First name" />
                 <span className="hint">Given name of the primary person who contacted us or is leading the project.</span>
             </div>
             <div className="leads-field">
-                <label>Last Name *</label>
+                <label>Last Name</label>
                 <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Last name" />
                 <span className="hint">Family name.</span>
             </div>
@@ -309,8 +311,8 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
             </div>
             <div className="leads-field">
                 <label>Lead Name</label>
-                <input value={composeLeadName(form.firstName, form.lastName, form.leadName)} readOnly style={{ background: '#F4F6F4', color: '#5C6B65', cursor: 'default' }} />
-                <span className="hint">Composed from First + Last Name above — shown everywhere this lead appears. Not typed directly, so it can never drift out of sync.</span>
+                <input value={form.leadName} onChange={(e) => set('leadName', e.target.value)} placeholder="Defaults to First + Last Name" />
+                <span className="hint">Defaults from First + Last Name above, but can be edited on its own — e.g. to enter how the client prefers to be addressed.</span>
             </div>
             <div className="leads-field">
                 <label>Business / Project Name</label>
@@ -335,7 +337,7 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
                 <span className="hint">Simple phonetic spelling if the name may be difficult to pronounce.</span>
             </div>
             <div className="leads-field">
-                <label>Phone Number *</label>
+                <label>Phone Number</label>
                 <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="(555) 123-4567" />
                 <span className="hint">Primary lead's best phone number.</span>
             </div>

@@ -532,10 +532,11 @@ export function Pipeline() {
 
   const setField = <K extends keyof NewLead>(k: K, v: NewLead[K]) => setNl((f) => {
     const next = { ...f, [k]: v } as NewLead;
-    // Everything downstream -- deals, projects, letters -- reads leadName, so it
-    // tracks the separated parts instead of being typed on its own.
-    if (k === 'firstName' || k === 'lastName') {
-      next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
+    // Lead Name defaults from First + Last Name only while it's still blank --
+    // once it holds a value (typed, or loaded from a saved lead), edits to
+    // First/Last Name no longer touch it, so it's independently editable.
+    if ((k === 'firstName' || k === 'lastName') && !f.leadName.trim()) {
+      next.leadName = composeLeadName(next.firstName, next.lastName, '');
     }
     if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
     // The single headline answer is derived, never typed.
@@ -570,7 +571,7 @@ export function Pipeline() {
   };
 
   const saveLead = () => {
-    if (nl.leadName.trim().length < 2 || !nl.phone.trim()) return;
+    if (nl.leadName.trim().length < 2) return;
     if (editingId) {
       const id = editingId;
       const resolved = withRoleAssignments(nl);
@@ -600,7 +601,7 @@ export function Pipeline() {
   };
 
   const createLead = () => {
-    if (nl.leadName.trim().length < 2 || !nl.phone.trim()) return;
+    if (nl.leadName.trim().length < 2) return;
     const resolved = withRoleAssignments(nl);
     const deal: Deal = {
       id: 'PL-' + String(1000 + deals.length + 1),
@@ -1163,11 +1164,12 @@ export function Pipeline() {
                 (() => {
                   const ld = leadDetails[selected.id] || baseLead(selected);
                   const up = (k: keyof NewLead, v: string | string[]) => setLeadDetails((p) => {
-                    const next = { ...(p[selected.id] || baseLead(selected)), [k]: v } as NewLead;
-                    // leadName is the display name the rest of the app reads, so
-                    // it is kept in step with the parts rather than typed.
-                    if (k === 'firstName' || k === 'lastName') {
-                      next.leadName = composeLeadName(next.firstName, next.lastName, next.leadName);
+                    const prevLead = p[selected.id] || baseLead(selected);
+                    const next = { ...prevLead, [k]: v } as NewLead;
+                    // Same rule as the intake form: only auto-fill Lead Name from
+                    // First/Last while it's blank -- a saved value is never overwritten.
+                    if ((k === 'firstName' || k === 'lastName') && !prevLead.leadName?.trim()) {
+                      next.leadName = composeLeadName(next.firstName, next.lastName, '');
                     }
                     if (k === 'potentialProjectType') Object.assign(next, projectTypePatch(String(v), next.projectVision));
                     if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
@@ -1723,7 +1725,7 @@ export function Pipeline() {
               {(() => {
                 const ld = leadDetails[selected.id];
                 const sections: { title: string; rows: [string, string][] }[] = [
-                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
+                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Business / Project Name', ld?.businessName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
                     ...(ld?.additionalContacts || []).flatMap((c, i) => ([
                       [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || ''],
                       [`Contact ${i + 2} — Phone`, c.phone || ''],
@@ -1732,8 +1734,17 @@ export function Pipeline() {
                     ] as [string, string][])),
                   ] },
                   { key: 'source', title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || '']] },
-                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || '']] },
+                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || ''],
+                    ...(ld?.addresses?.businessMailing ? ([
+                      ['Business Mailing — Street', ld.addresses.businessMailing.street || ''],
+                      ['Business Mailing — Unit', ld.addresses.businessMailing.unit || ''],
+                      ['Business Mailing — City', ld.addresses.businessMailing.city || ''],
+                      ['Business Mailing — State', ld.addresses.businessMailing.state || ''],
+                      ['Business Mailing — ZIP', ld.addresses.businessMailing.zip || ''],
+                      ['Business Mailing — County', ld.addresses.businessMailing.county || ''],
+                    ] as [string, string][]) : []),
+                  ] },
+                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || ''], ['Website', ld?.website || '']] },
                   { key: 'budget', title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
                   { key: 'clientProfile', title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
                 ].map((s) => ({
@@ -1839,15 +1850,15 @@ export function Pipeline() {
                 {formTab === 1 && (<>
                   <SectionTitle>1. Contact Information</SectionTitle>
                   <FormGrid>
-                    <FormField label="First Name *" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
-                    <FormField label="Last Name *" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
-                    <FormField label="Lead Name" hint="Composed from First + Last Name above — shown everywhere this lead appears. Not typed directly, so it can never drift out of sync.">
-                      <input value={composeLeadName(nl.firstName, nl.lastName, nl.leadName)} readOnly style={{ ...inputStyle, background: '#F4F6F4', color: '#5C6B65', cursor: 'default' }} />
+                    <FormField label="First Name" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
+                    <FormField label="Last Name" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
+                    <FormField label="Lead Name" hint="Defaults from First + Last Name above, but can be edited on its own.">
+                      <input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="Defaults to First + Last Name" style={inputStyle} />
                     </FormField>
                     <FormField label="Go-By Name" hint="What they prefer to be called, if it isn't their first name."><input value={nl.goByName} onChange={(e) => setField('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
                     <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronouns} onChange={(e) => setField('pronouns', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.pronouns} field="pronouns" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Name Pronunciation" hint="Phonetic spelling if difficult to pronounce."><input value={nl.namePronunciation} onChange={(e) => setField('namePronunciation', e.target.value)} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
-                    <FormField label="Phone Number *" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
+                    <FormField label="Phone Number" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                     <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
                     <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={nl.preferredContactMatrix} onChange={(mx) => setField('preferredContactMatrix', mx)} /></div>
@@ -1996,6 +2007,7 @@ export function Pipeline() {
                     <FormField label="Property Type"><select value={nl.propertyType} onChange={(e) => setField('propertyType', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.propertyType.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.propertyType} field="propertyType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Potential Project Type" hint="Sets the property type and fills in the standard scope for that code."><select value={nl.potentialProjectType} onChange={(e) => setField('potentialProjectType', e.target.value)} style={inputStyle}><option value="">Select...</option>{PROJECT_TYPE_GROUPS.map((g) => (<optgroup key={g} label={g}>{PROJECT_TYPES.filter((t) => t.group === g).map((t) => <option key={t.code} value={projectTypeLabel(t)}>{projectTypeLabel(t)}</option>)}</optgroup>))}</select><OtherDetail value={nl.potentialProjectType} field="potentialProjectType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Contract Type" hint={findContractType(nl.contractType)?.detail || 'How the work is delivered: design only, build only, or design-build.'}><select value={nl.contractType} onChange={(e) => setField('contractType', e.target.value)} style={inputStyle}><option value="">Select...</option>{CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{contractTypeLabel(c)}</option>)}</select></FormField>
+                    <FormField label="Website" hint="Project or business website, if there is one."><input value={nl.website || ''} onChange={(e) => setField('website', e.target.value)} placeholder="https://example.com" style={inputStyle} /></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Homework Completed</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -2051,9 +2063,9 @@ export function Pipeline() {
 
             {/* Footer */}
             <div style={{ padding: '14px 28px 18px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
-              <span style={{ marginRight: 'auto', fontSize: 11, color: '#7E9B93' }}>{nl.leadName.trim().length < 2 || !nl.phone.trim() ? 'First name, last name & phone required' : 'Ready to save'}</span>
+              <span style={{ marginRight: 'auto', fontSize: 11, color: '#7E9B93' }}>{nl.leadName.trim().length < 2 ? 'Lead name required' : 'Ready to save'}</span>
               <div onClick={() => { setShowNew(false); setEditingId(null); }} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-              <div onClick={saveLead} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: nl.leadName.trim().length >= 2 && nl.phone.trim() ? 'pointer' : 'not-allowed', background: nl.leadName.trim().length >= 2 && nl.phone.trim() ? '#173326' : '#D6DED8', color: nl.leadName.trim().length >= 2 && nl.phone.trim() ? 'white' : '#9AA39D', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>{editingId ? 'Save Changes' : 'Create Lead'}</div>
+              <div onClick={saveLead} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: nl.leadName.trim().length >= 2 ? 'pointer' : 'not-allowed', background: nl.leadName.trim().length >= 2 ? '#173326' : '#D6DED8', color: nl.leadName.trim().length >= 2 ? 'white' : '#9AA39D', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>{editingId ? 'Save Changes' : 'Create Lead'}</div>
             </div>
           </div>
         </div>
