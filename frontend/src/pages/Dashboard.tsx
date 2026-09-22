@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { api } from '../api';
 import { MyTasks } from '../components/MyTasks';
+import type { ProjectTask } from '../data/projectTasks';
+import type { Task as LogTask } from '../data/tasks';
 import {
   FINANCE, INVOICES, REVENUE_BASE, FUNNEL, TEAM, DEADLINES, ACTIVITY, HELP_CONTENT,
   enrichInvoices, money, type EnrichedInvoice,
@@ -68,6 +71,14 @@ export function Dashboard() {
   const [tip, setTip] = useState<Tip | null>(null);
   const [invoiceMonth, setInvoiceMonth] = useState<string | null>(null);
 
+  // Real overdue/due-today tasks (both task systems) and today's scheduled
+  // Google Meetings, for the "Needs attention" strip -- this used to be
+  // static demo fixture data (DEADLINES), not anything actually happening.
+  const [attentionBoardTasks, setAttentionBoardTasks] = useState<ProjectTask[]>([]);
+  const [attentionLogTasks, setAttentionLogTasks] = useState<LogTask[]>([]);
+  const [attentionProjects, setAttentionProjects] = useState<Record<number, string>>({});
+  const [todayMeetings, setTodayMeetings] = useState<{ id: string; summary: string; start: string; allDay: boolean }[]>([]);
+
   const narrow = winW < 620;
   const swallowDoc = useRef(false);
 
@@ -76,6 +87,26 @@ export function Dashboard() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  useEffect(() => {
+    if (isClient) return;
+    api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionBoardTasks(r); }).catch(() => { });
+    api.tasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionLogTasks(r); }).catch(() => { });
+    api.projects.list().then((r: any) => {
+      if (!Array.isArray(r)) return;
+      const m: Record<number, string> = {};
+      r.forEach((p: any) => { m[p.id] = p.name; });
+      setAttentionProjects(m);
+    }).catch(() => { });
+    api.google.myCalendar.status().then((res: any) => {
+      if (!res?.connected) return;
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const end = new Date(); end.setHours(23, 59, 59, 999);
+      api.google.myCalendar.events(start.toISOString(), end.toISOString())
+        .then((evs: any) => { if (Array.isArray(evs)) setTodayMeetings(evs); })
+        .catch(() => { });
+    }).catch(() => { });
+  }, [isClient]);
 
   useEffect(() => {
     const onDoc = () => {
@@ -191,7 +222,25 @@ export function Dashboard() {
   // ── Deadlines / Activity ──
   const dl = kpi === 'all' ? DEADLINES : DEADLINES.filter((d) => d.domain === kpi);
   const act = kpi === 'all' ? ACTIVITY : ACTIVITY.filter((x) => x.domain === kpi);
-  const attentionItems = DEADLINES.filter((d) => d.past || d.due === 'In 2 days').slice(0, 3);
+  // Real overdue/due-today items -- tasks from both task systems, plus
+  // today's scheduled Google Meetings (My Calendar), not the demo fixture
+  // this used to read from.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const daysAgoLabel = (due: string) => {
+    const days = Math.round((Date.now() - new Date(due + 'T00:00:00').getTime()) / 86400000);
+    return days <= 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
+  };
+  const attentionItems = [
+    ...attentionBoardTasks
+      .filter((t) => !t.completed && t.status !== 'Done' && t.dueDate && t.dueDate <= todayStr)
+      .map((t) => ({ task: t.title, project: attentionProjects[t.projectId] || `Project ${t.projectId}`, due: daysAgoLabel(t.dueDate!), past: t.dueDate! < todayStr })),
+    ...attentionLogTasks
+      .filter((t) => t.status !== 'Closed' && t.dueDate && t.dueDate <= todayStr)
+      .map((t) => ({ task: t.description?.length > 60 ? t.description.slice(0, 60) + '…' : (t.description || t.id), project: t.project || 'General task', due: daysAgoLabel(t.dueDate), past: t.dueDate < todayStr })),
+    ...todayMeetings
+      .filter((m) => !m.allDay)
+      .map((m) => ({ task: `Meeting: ${m.summary}`, project: 'Google Calendar', due: new Date(m.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), past: new Date(m.start).getTime() < Date.now() })),
+  ].sort((a, b) => Number(b.past) - Number(a.past)).slice(0, 5);
 
   const dlCard = (title: string, items: typeof DEADLINES, accent: string) => (
     <Card>

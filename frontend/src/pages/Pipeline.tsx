@@ -184,6 +184,11 @@ const DELIVERY_STYLE: Record<string, { bg: string; c: string }> = {
 
 const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
 
+/** The active pipeline, excluding hold/closed terminal stages -- used to
+ *  label the end of the mini progress bar without hardcoding a stage name
+ *  that can drift out of date when stages are added or removed. */
+const ACTIVE_STAGES = STAGES.filter((s) => !s.isHold && !s.isClosed);
+
 /** The three ways a Project Fit Review rejection can go, each its own color so
  *  a "we said no" card reads differently from a "referred elsewhere" one. */
 const REJECTION_STYLE: Record<string, { bg: string; c: string; label: (d: Deal) => string }> = {
@@ -1143,9 +1148,9 @@ export function Pipeline() {
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#7E9B93' }}>
-              <span>New Lead</span>
+              <span>{STAGES[0]?.name}</span>
               <span style={{ fontWeight: 700, color: selectedStage.color }}>{STAGES[selected.stageIdx]?.name || `Stage ${selected.stageIdx + 1}`}</span>
-              <span>RFP</span>
+              <span>{ACTIVE_STAGES[ACTIVE_STAGES.length - 1]?.name}</span>
             </div>
           </div>
 
