@@ -187,6 +187,11 @@ const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().t
 /** Canonical index for a stage key, so no call site hardcodes a number. */
 const stageIndex = (key: string) => STAGES.findIndex((s) => s.key === key);
 
+// A real "22 Sept 2026, 18:43" stamp -- used for both timeline events and
+// notes, so the Audit Trail can sort the two together by actual time instead
+// of a note's literal "Today" always sorting above (or below) real dates.
+const fmtWhen = () => new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
 /** Clamps rather than rolling over: 31 Jan + 1 month is 28 Feb, not 3 Mar. */
 function addMonths(from: Date, months: number) {
   const day = from.getDate();
@@ -614,7 +619,7 @@ export function Pipeline() {
       status: 'in_progress',
       phone: nl.phone.trim(),
       email: nl.email.trim(),
-      timeline: [{ date: 'Today', action: `New lead created — ${nl.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
+      timeline: [{ date: fmtWhen(), action: `New lead created — ${nl.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
       notes: nl.projectVision.trim(),
     };
     setDeals((prev) => [deal, ...prev]);
@@ -689,7 +694,7 @@ export function Pipeline() {
       setEditingNoteId(null);
       toast('Note updated');
     } else {
-      const note: LeadNote = { id: String(Date.now()), text, stageName, date: 'Today' };
+      const note: LeadNote = { id: String(Date.now()), text, stageName, date: fmtWhen() };
       persistNotes(dealId, [...current, note], 'Note added', stageName, text);
       toast('Note added');
     }
@@ -744,14 +749,14 @@ export function Pipeline() {
         video,
       });
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
-      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}${res?.meetLink ? ' — Meet link attached' : ''}`, stageName, date: 'Today' }] }));
+      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}${res?.meetLink ? ' — Meet link attached' : ''}`, stageName, date: fmtWhen() }] }));
       setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda, meetingEventId: res?.id } as NewLead }));
       saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }, `${label} scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
       toast(existingEventId ? 'Calendar event updated' : `${label} created on your calendar`);
     } catch (e: any) {
       openMeetPopup(deal, start, video);
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
-      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}`, stageName, date: 'Today' }] }));
+      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}`, stageName, date: fmtWhen() }] }));
       saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} scheduled for ${start.toLocaleString()} — via Google Calendar popup`, deal.id).catch(() => { });
       toast('⚠ Could not create it directly — opened Google Calendar to finish it there');
     } finally {
@@ -773,7 +778,7 @@ export function Pipeline() {
     const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}${location}${guests}&details=${details}`;
     window.open(url, '_blank', 'noopener');
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: 'Today' }] }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: fmtWhen() }] }));
     saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
     toast('Site visit invite opened & saved');
   };
@@ -783,7 +788,7 @@ export function Pipeline() {
     if (!meetWhen) return;
     const label = meetingType === 'phone' ? 'Phone consultation' : 'Virtual F2F meeting';
     setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: fmtWhen() }] }));
     setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda } as NewLead }));
     saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} saved for ${new Date(meetWhen).toLocaleString()}`, deal.id).catch(() => { });
     toast('Meeting time saved');
@@ -791,7 +796,7 @@ export function Pipeline() {
   const saveVisit = (deal: Deal, stageName: string) => {
     if (!visitWhen) return;
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, stageName, date: 'Today' }] }));
+    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, stageName, date: fmtWhen() }] }));
     saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, deal.id).catch(() => { });
     toast('Site visit time saved');
   };
@@ -1641,11 +1646,25 @@ export function Pipeline() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {(() => {
                     const noteList = notesByDeal[selected.id] || [];
-                    const combined = [...selected.timeline, ...noteList.map((n) => ({ date: n.date, action: `Note (${n.stageName}): ${n.text}`, role: 'Note', type: 'pc' as const }))];
+                    // Timeline events and notes come from two separately-ordered
+                    // arrays -- concatenating them and reversing the whole thing
+                    // put every note above every timeline entry regardless of
+                    // when either actually happened. Give each entry a real
+                    // sortable timestamp instead: a note's id is already a
+                    // Date.now() epoch; a timeline entry's `date` is a
+                    // formatted "22 Sept 2026, 18:43" string that Date.parse
+                    // round-trips. Anything that fails to parse sorts to the
+                    // bottom rather than floating to the top.
+                    const combined = [
+                      ...selected.timeline.map((t) => ({ ...t, _at: Date.parse(t.date) })),
+                      ...noteList.map((n) => ({ date: n.date, action: `Note (${n.stageName}): ${n.text}`, role: 'Note', type: 'pc' as const, _at: Number(n.id) })),
+                    ];
                     const tc: Record<string, string> = { pc: '#2F7D4A', pm: '#173326', auto: '#D9B94F' };
                     const tb: Record<string, string> = { pc: '#D2EAD3', pm: '#DCE7DE', auto: '#FBE9AE' };
                     const PER_PAGE = 10;
-                    const rows = combined.slice().reverse();
+                    const rows = combined
+                      .slice()
+                      .sort((a, b) => (Number.isFinite(b._at) ? b._at : 0) - (Number.isFinite(a._at) ? a._at : 0));
                     const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
                     // A lead with a shorter history than the page you were on
                     // must not render blank.
@@ -1822,6 +1841,9 @@ export function Pipeline() {
                   <FormGrid>
                     <FormField label="First Name *" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
                     <FormField label="Last Name *" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
+                    <FormField label="Lead Name" hint="Composed from First + Last Name above — shown everywhere this lead appears. Not typed directly, so it can never drift out of sync.">
+                      <input value={composeLeadName(nl.firstName, nl.lastName, nl.leadName)} readOnly style={{ ...inputStyle, background: '#F4F6F4', color: '#5C6B65', cursor: 'default' }} />
+                    </FormField>
                     <FormField label="Go-By Name" hint="What they prefer to be called, if it isn't their first name."><input value={nl.goByName} onChange={(e) => setField('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
                     <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronouns} onChange={(e) => setField('pronouns', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.pronouns} field="pronouns" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <FormField label="Name Pronunciation" hint="Phonetic spelling if difficult to pronounce."><input value={nl.namePronunciation} onChange={(e) => setField('namePronunciation', e.target.value)} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>

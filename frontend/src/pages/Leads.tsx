@@ -308,6 +308,11 @@ function TabContact({ form, set, roles, toggleRole }: { form: NewLead; set: <K e
                 <span className="hint">What they prefer to be called, if it isn't their first name.</span>
             </div>
             <div className="leads-field">
+                <label>Lead Name</label>
+                <input value={composeLeadName(form.firstName, form.lastName, form.leadName)} readOnly style={{ background: '#F4F6F4', color: '#5C6B65', cursor: 'default' }} />
+                <span className="hint">Composed from First + Last Name above — shown everywhere this lead appears. Not typed directly, so it can never drift out of sync.</span>
+            </div>
+            <div className="leads-field">
                 <label>Business / Project Name</label>
                 <input value={form.businessName || ''} onChange={(e) => set('businessName', e.target.value)} placeholder="Optional — leave blank to use the contact name" />
                 <span className="hint">The business or project this lead represents, if different from their own name — shown as the second line on the pipeline card.</span>
