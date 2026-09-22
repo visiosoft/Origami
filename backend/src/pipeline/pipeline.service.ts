@@ -221,6 +221,19 @@ export class PipelineService implements OnApplicationBootstrap {
       deal.holdUntil = '';
     }
 
+    // A rejection outcome only means anything while the deal is actually
+    // sitting on Cancelled/Rejected -- moving it back into the active
+    // pipeline (e.g. brought back after being reconsidered) clears it,
+    // rather than leaving a stale "We Declined"/"Referred to..." badge on a
+    // lead that's back in play.
+    if (stage !== 'rejected' && deal.rejectionType) {
+      deal.rejectionType = '';
+      deal.rejectionReason = '';
+      deal.referredToName = '';
+      deal.referredToCompany = '';
+      deal.referredToContact = '';
+    }
+
     const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
     return this.repo.save(deal);

@@ -153,6 +153,13 @@ let PipelineService = class PipelineService {
         else {
             deal.holdUntil = '';
         }
+        if (stage !== 'rejected' && deal.rejectionType) {
+            deal.rejectionType = '';
+            deal.rejectionReason = '';
+            deal.referredToName = '';
+            deal.referredToCompany = '';
+            deal.referredToContact = '';
+        }
         const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
         deal.timeline = [...(deal.timeline || []), this.event(detail, actor)];
         return this.repo.save(deal);

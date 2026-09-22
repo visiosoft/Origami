@@ -678,8 +678,13 @@ export function Pipeline() {
         ? addMonths(new Date(), target.holdMonths).toISOString().slice(0, 10)
         : '';
       const action = holdUntil ? `Moved to ${stageName} — follow up ${holdUntil}` : `Moved to ${stageName}`;
+      // A rejection outcome only means anything while the deal is actually
+      // sitting on Cancelled/Rejected -- moving it anywhere else clears the
+      // badge instead of leaving a stale "We Declined"/"Referred to..." tag
+      // on a lead that's back in the active pipeline.
+      const clearRejection = o.stage !== 'rejected' ? { rejectionType: undefined, rejectionReason: undefined, referredToName: undefined, referredToCompany: undefined, referredToContact: undefined } : {};
       setDeals((prev) => prev.map((d) => d.id === id
-        ? { ...d, holdUntil, timeline: [...(d.timeline || []), { date: when, action, role: who, type: 'auto' as const }] }
+        ? { ...d, holdUntil, ...clearRejection, timeline: [...(d.timeline || []), { date: when, action, role: who, type: 'auto' as const }] }
         : d));
       api.pipeline.updateStage(id, o.stage).catch(() => { });
     }
