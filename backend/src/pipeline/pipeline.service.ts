@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
 import { STAGES, RETIRED_STAGE_KEYS, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
@@ -127,16 +127,37 @@ export class PipelineService implements OnApplicationBootstrap {
     return STAGES; // stage definitions are static config, not row data
   }
 
+  /**
+   * name/client/phone/email live on the lead now -- overlay them onto the deal
+   * in memory rather than trusting whatever's stored on the deal row itself,
+   * which was historically written once at creation and never kept in sync
+   * after that (the actual cause of deal cards drifting from their lead's
+   * real data). Falls back to the deal's own stored values if it has no
+   * matching lead -- shouldn't happen for a pipeline-created deal, but never
+   * blank out a card over it.
+   */
+  private overlayLead(deal: DealEntity, lead?: LeadEntity | null): DealEntity {
+    if (!lead) return deal;
+    deal.name = lead.leadName || deal.name;
+    deal.client = (lead.businessName || '').trim() || lead.leadName || deal.client;
+    deal.phone = lead.phone || deal.phone;
+    deal.email = lead.email || deal.email;
+    return deal;
+  }
+
   /** Archived deals are off the board unless they are explicitly asked for. */
   async findAll(includeArchived = false) {
     const deals = await this.repo.find();
-    return includeArchived ? deals : deals.filter((d) => !d.archived);
+    const visible = includeArchived ? deals : deals.filter((d) => !d.archived);
+    const leads = await this.leads.findBy({ id: In(visible.map((d) => d.id)) });
+    const byId = new Map(leads.map((l) => [l.id, l]));
+    return visible.map((d) => this.overlayLead(d, byId.get(d.id)));
   }
 
   async findOne(id: string) {
     const deal = await this.repo.findOneBy({ id });
     if (!deal) throw new NotFoundException(`Deal ${id} not found`);
-    return deal;
+    return this.overlayLead(deal, await this.leads.findOneBy({ id }));
   }
 
   async create(dto: any) {
@@ -157,7 +178,7 @@ export class PipelineService implements OnApplicationBootstrap {
     } catch (err) {
       this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${(err as Error).message}`);
     }
-    return deal;
+    return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
   }
 
   async updateStage(id: string, stage: string, actor?: DealActor) {

@@ -93,15 +93,27 @@ let PipelineService = class PipelineService {
     getStages() {
         return pipeline_1.STAGES;
     }
+    overlayLead(deal, lead) {
+        if (!lead)
+            return deal;
+        deal.name = lead.leadName || deal.name;
+        deal.client = (lead.businessName || '').trim() || lead.leadName || deal.client;
+        deal.phone = lead.phone || deal.phone;
+        deal.email = lead.email || deal.email;
+        return deal;
+    }
     async findAll(includeArchived = false) {
         const deals = await this.repo.find();
-        return includeArchived ? deals : deals.filter((d) => !d.archived);
+        const visible = includeArchived ? deals : deals.filter((d) => !d.archived);
+        const leads = await this.leads.findBy({ id: (0, typeorm_2.In)(visible.map((d) => d.id)) });
+        const byId = new Map(leads.map((l) => [l.id, l]));
+        return visible.map((d) => this.overlayLead(d, byId.get(d.id)));
     }
     async findOne(id) {
         const deal = await this.repo.findOneBy({ id });
         if (!deal)
             throw new common_1.NotFoundException(`Deal ${id} not found`);
-        return deal;
+        return this.overlayLead(deal, await this.leads.findOneBy({ id }));
     }
     async create(dto) {
         if (dto?.id && (await this.repo.findOneBy({ id: dto.id }))) {
@@ -114,7 +126,7 @@ let PipelineService = class PipelineService {
         catch (err) {
             this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${err.message}`);
         }
-        return deal;
+        return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
     }
     async updateStage(id, stage, actor) {
         const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);
