@@ -11,12 +11,13 @@ const common_1 = require("@nestjs/common");
 const scheduling_controller_1 = require("./scheduling.controller");
 const google_module_1 = require("../google/google.module");
 const settings_module_1 = require("../settings/settings.module");
+const auth_module_1 = require("../auth/auth.module");
 let SchedulingModule = class SchedulingModule {
 };
 exports.SchedulingModule = SchedulingModule;
 exports.SchedulingModule = SchedulingModule = __decorate([
     (0, common_1.Module)({
-        imports: [google_module_1.GoogleModule, settings_module_1.SettingsModule],
+        imports: [google_module_1.GoogleModule, settings_module_1.SettingsModule, auth_module_1.AuthModule],
         controllers: [scheduling_controller_1.SchedulingController],
     })
 ], SchedulingModule);
