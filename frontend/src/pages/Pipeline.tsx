@@ -1393,7 +1393,16 @@ export function Pipeline() {
                     <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Virtual F &amp; F — Schedule the meeting</span>
                   </div>
                   <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10 }}>PC schedules the meeting. Full lead details are in the “Full Details” tab.</div>
-                  {meetByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(meetByDeal[selected.id].when).toLocaleString()} ({meetingType === 'phone' ? 'Phone call' : 'Video call'})</div>}
+                  {meetByDeal[selected.id] && (() => {
+                    const missed = new Date(meetByDeal[selected.id].when).getTime() < Date.now();
+                    return (
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: missed ? '#8E2E0A' : '#173326', marginBottom: 8 }}>
+                        {missed ? '⚠ Missed — ' : 'Scheduled: '}
+                        {new Date(meetByDeal[selected.id].when).toLocaleString()} ({meetingType === 'phone' ? 'Phone call' : 'Video call'})
+                        {missed && <span style={{ fontWeight: 500, color: '#7E9B93' }}> — pick a new time below and save to reschedule</span>}
+                      </div>
+                    );
+                  })()}
 
                   <div style={{ display: 'flex', gap: 4, marginBottom: 8, background: 'white', padding: 3, borderRadius: 999, width: 'fit-content' }}>
                     {(['video', 'phone'] as const).map((t) => (

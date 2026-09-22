@@ -16,11 +16,13 @@ exports.SchedulingController = void 0;
 const common_1 = require("@nestjs/common");
 const calendar_service_1 = require("../google/calendar.service");
 const settings_service_1 = require("../settings/settings.service");
+const auth_service_1 = require("../auth/auth.service");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 let SchedulingController = class SchedulingController {
-    constructor(calendar, settings) {
+    constructor(calendar, settings, auth) {
         this.calendar = calendar;
         this.settings = settings;
+        this.auth = auth;
     }
     async calendars() {
         const raw = await this.settings.get('scheduling.calendars');
@@ -49,8 +51,14 @@ let SchedulingController = class SchedulingController {
             : (await this.calendars()).map((c) => c.email);
         return this.calendar.freeBusy(list, from, to);
     }
-    async createEvent(body) {
-        return this.calendar.scheduleEvent(body);
+    async createEvent(req, body) {
+        const userId = req.claims?.sub;
+        if (!userId)
+            throw new common_1.BadRequestException('Sign in to continue.');
+        const creds = await this.auth.myCalendarCredentials(userId);
+        if (!creds)
+            throw new common_1.BadRequestException('Connect your calendar first: Settings → My Calendar.');
+        return this.calendar.scheduleMyEvent(userId, creds.refreshToken, body);
     }
 };
 exports.SchedulingController = SchedulingController;
@@ -78,15 +86,17 @@ __decorate([
 ], SchedulingController.prototype, "availability", null);
 __decorate([
     (0, common_1.Post)('events'),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], SchedulingController.prototype, "createEvent", null);
 exports.SchedulingController = SchedulingController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('scheduling'),
     __metadata("design:paramtypes", [calendar_service_1.CalendarService,
-        settings_service_1.SettingsService])
+        settings_service_1.SettingsService,
+        auth_service_1.AuthService])
 ], SchedulingController);
 //# sourceMappingURL=scheduling.controller.js.map

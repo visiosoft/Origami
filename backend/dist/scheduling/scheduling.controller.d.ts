@@ -1,5 +1,7 @@
 import { CalendarService } from '../google/calendar.service';
 import { SettingsService } from '../settings/settings.service';
+import { AuthService } from '../auth/auth.service';
+import type { AuthedRequest } from '../auth/guards/session.guard';
 export interface ConfiguredCalendar {
     name: string;
     email: string;
@@ -7,14 +9,15 @@ export interface ConfiguredCalendar {
 export declare class SchedulingController {
     private readonly calendar;
     private readonly settings;
-    constructor(calendar: CalendarService, settings: SettingsService);
+    private readonly auth;
+    constructor(calendar: CalendarService, settings: SettingsService, auth: AuthService);
     calendars(): Promise<ConfiguredCalendar[]>;
     setCalendars(body: ConfiguredCalendar[]): Promise<{
         name: string;
         email: string;
     }[]>;
     availability(from: string, to: string, emails?: string): Promise<import("../google/calendar.service").CalendarAvailability[]>;
-    createEvent(body: {
+    createEvent(req: AuthedRequest, body: {
         eventId?: string;
         summary: string;
         description?: string;

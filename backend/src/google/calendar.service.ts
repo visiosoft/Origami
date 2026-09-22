@@ -174,12 +174,16 @@ export class CalendarService {
   }
 
   /**
-   * Create or update a real event on the connected account's primary
-   * calendar. Passing `eventId` (from a prior create) updates that event in
-   * place instead of leaving a duplicate on the calendar.
+   * Create or update a real event on the SIGNED-IN USER's own primary
+   * calendar -- so a meeting scheduled from a lead shows up on My Calendar,
+   * the same place any other personally-created event does, rather than on
+   * a separate shared workspace calendar nobody's My Calendar view reads
+   * from. Passing `eventId` (from a prior create) updates that event in
+   * place instead of leaving a duplicate on the calendar -- this is what
+   * lets a missed meeting be rescheduled rather than re-created each time.
    */
-  async scheduleEvent(input: ScheduleEventInput): Promise<{ id: string; htmlLink: string; meetLink?: string }> {
-    const token = await this.google.workspaceToken();
+  async scheduleMyEvent(userId: string, refreshToken: string, input: ScheduleEventInput): Promise<{ id: string; htmlLink: string; meetLink?: string }> {
+    const token = await this.userToken(userId, refreshToken);
     const body: any = {
       summary: input.summary,
       description: input.description || '',
@@ -204,6 +208,9 @@ export class CalendarService {
     const json: any = await res.json().catch(() => ({}));
     if (!res.ok) {
       this.log.error(`Calendar event ${input.eventId ? 'update' : 'create'} failed: ${JSON.stringify(json)}`);
+      if (res.status === 403) {
+        throw new BadRequestException('Your calendar connection needs to be reconnected to create events. Go to Settings → My Calendar, disconnect, and connect again.');
+      }
       throw new BadRequestException(json?.error?.message || 'Google Calendar rejected the event.');
     }
     const meetLink = json?.conferenceData?.entryPoints?.find((e: any) => e.entryPointType === 'video')?.uri;

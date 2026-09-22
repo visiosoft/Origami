@@ -126,8 +126,8 @@ let CalendarService = class CalendarService {
             return { email, busy: (cal.busy || []).map((b) => ({ start: b.start, end: b.end })) };
         });
     }
-    async scheduleEvent(input) {
-        const token = await this.google.workspaceToken();
+    async scheduleMyEvent(userId, refreshToken, input) {
+        const token = await this.userToken(userId, refreshToken);
         const body = {
             summary: input.summary,
             description: input.description || '',
@@ -153,6 +153,9 @@ let CalendarService = class CalendarService {
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
             this.log.error(`Calendar event ${input.eventId ? 'update' : 'create'} failed: ${JSON.stringify(json)}`);
+            if (res.status === 403) {
+                throw new common_1.BadRequestException('Your calendar connection needs to be reconnected to create events. Go to Settings → My Calendar, disconnect, and connect again.');
+            }
             throw new common_1.BadRequestException(json?.error?.message || 'Google Calendar rejected the event.');
         }
         const meetLink = json?.conferenceData?.entryPoints?.find((e) => e.entryPointType === 'video')?.uri;

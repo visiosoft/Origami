@@ -37,7 +37,7 @@ export declare class CalendarService {
         meetLink?: string;
     }>;
     freeBusy(emails: string[], timeMin: string, timeMax: string): Promise<CalendarAvailability[]>;
-    scheduleEvent(input: ScheduleEventInput): Promise<{
+    scheduleMyEvent(userId: string, refreshToken: string, input: ScheduleEventInput): Promise<{
         id: string;
         htmlLink: string;
         meetLink?: string;
