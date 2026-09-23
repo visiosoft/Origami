@@ -184,6 +184,10 @@ const DELIVERY_STYLE: Record<string, { bg: string; c: string }> = {
 
 const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
 
+/** Starting point for a scheduled meeting's agenda -- standardized per the
+ *  team's request, but always editable before or after scheduling. */
+const DEFAULT_MEETING_AGENDA = '5-minute introductions, then a walkthrough of the project and next steps.';
+
 /** The active pipeline, excluding hold/closed terminal stages -- used to
  *  label the end of the mini progress bar without hardcoding a stage name
  *  that can drift out of date when stages are added or removed. */
@@ -1062,7 +1066,7 @@ export function Pipeline() {
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || ''); setRejectChoice(null); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(20,8,31,0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? '#EEF3EE' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#7E9B93' : 'rgba(20,8,31,0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(20,8,31,0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(20,8,31,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 6 }}>{[leadDetails[d.id]?.firstName, leadDetails[d.id]?.lastName].filter(Boolean).join(' ') || d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -1470,15 +1474,13 @@ export function Pipeline() {
 
                   <input type="datetime-local" value={meetWhen} onChange={(e) => setMeetWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
 
-                  {meetingType === 'phone' && (
-                    <textarea
-                      value={meetingAgenda}
-                      onChange={(e) => setMeetingAgenda(e.target.value)}
-                      placeholder="Agenda — what this call needs to cover"
-                      rows={2}
-                      style={{ ...inputStyle, marginBottom: 8, resize: 'vertical' }}
-                    />
-                  )}
+                  <textarea
+                    value={meetingAgenda}
+                    onChange={(e) => setMeetingAgenda(e.target.value)}
+                    placeholder={meetingType === 'phone' ? 'Agenda — what this call needs to cover' : 'Agenda — what this meeting needs to cover'}
+                    rows={2}
+                    style={{ ...inputStyle, marginBottom: 8, resize: 'vertical' }}
+                  />
 
                   {meetWhen && (scheduleCalendars.length > 0 || myCalendarConnected) && (
                     <div style={{ marginBottom: 10, padding: '8px 10px', background: 'white', borderRadius: 8 }}>
