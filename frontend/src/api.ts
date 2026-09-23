@@ -87,7 +87,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -498,6 +498,45 @@ export const api = {
     create: (data: unknown) => request('/trades', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/trades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/trades/${id}`, { method: 'DELETE' }),
+  },
+  assignments: {
+    list: (opts?: { employeeId?: string; projectId?: number; status?: 'current' | 'ended'; workforceRequestId?: string }) => {
+      const q = new URLSearchParams();
+      if (opts?.employeeId) q.set('employeeId', opts.employeeId);
+      if (opts?.projectId != null) q.set('projectId', String(opts.projectId));
+      if (opts?.status) q.set('status', opts.status);
+      if (opts?.workforceRequestId) q.set('workforceRequestId', opts.workforceRequestId);
+      const qs = q.toString();
+      return request(`/assignments${qs ? `?${qs}` : ''}`);
+    },
+    assign: (data: unknown) => request('/assignments', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/assignments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    transfer: (id: string, data: unknown) => request(`/assignments/${id}/transfer`, { method: 'POST', body: JSON.stringify(data) }),
+    release: (id: string, data: unknown) => request(`/assignments/${id}/release`, { method: 'POST', body: JSON.stringify(data) }),
+    demobilize: (employeeId: string, data: unknown) => request(`/assignments/demobilize/${encodeURIComponent(employeeId)}`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  workforceRequests: {
+    list: () => request('/workforce-requests'),
+    get: (id: string) => request(`/workforce-requests/${id}`),
+    create: (data: unknown) => request('/workforce-requests', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/workforce-requests/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/workforce-requests/${id}`, { method: 'DELETE' }),
+    submit: (id: string) => request(`/workforce-requests/${id}/submit`, { method: 'POST' }),
+    approve: (id: string, note?: string) => request(`/workforce-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reject: (id: string, note?: string) => request(`/workforce-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    cancel: (id: string) => request(`/workforce-requests/${id}/cancel`, { method: 'POST' }),
+    fulfill: (id: string) => request(`/workforce-requests/${id}/fulfill`, { method: 'POST' }),
+    allocate: (id: string, data: { lineId: string; employeeIds: string[]; startDate?: string; workArea?: string }) =>
+      request(`/workforce-requests/${id}/allocate`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+  contractors: {
+    list: () => request('/contractors'),
+    create: (data: unknown) => request('/contractors', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/contractors/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/contractors/${id}`, { method: 'DELETE' }),
+    uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/contractors/${id}/attachments`, filesForm(files)),
+    addLink: (id: string, name: string, url: string) => request(`/contractors/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    removeAttachment: (id: string, attId: string) => request(`/contractors/${id}/attachments/${attId}`, { method: 'DELETE' }),
   },
   employeeRecords: {
     list: (employeeId: string, kind?: string) =>

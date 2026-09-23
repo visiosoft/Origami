@@ -736,6 +736,87 @@ export class EmployeeEntity {
   @Column({ type: 'float', nullable: true }) yearsExperience!: number;
   @Column({ type: 'simple-json', nullable: true }) equipmentCapabilities!: string[];
   @Column({ nullable: true }) updatedAt!: string;
+  // --- Contractor workforce ---
+  /** Set for a subcontractor's worker: same record, profile and deployment as staff, supplied by that company. */
+  @Column({ nullable: true }) contractorId!: string;
+  @Column({ nullable: true }) siteAccessStatus!: string; // pending | granted | revoked
+}
+
+/**
+ * One stint of an employee on a project. History is kept, never overwritten:
+ * a transfer ends the current row and opens a new one pointing back at it.
+ */
+@Entity('employee_assignments')
+export class EmployeeAssignmentEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column('int') projectId!: number;
+  /** Zone / block / area within the project's site, e.g. "Tower A". */
+  @Column({ nullable: true }) workArea!: string;
+  @Column({ nullable: true }) tradeId!: string;
+  @Column({ nullable: true }) designation!: string;
+  @Column({ default: 'regular' }) assignmentType!: string; // regular | temporary
+  @Column() startDate!: string;
+  @Column({ nullable: true }) endDate!: string;
+  @Column({ default: 'active' }) status!: string; // active | ended
+  @Column({ nullable: true }) endReason!: string; // transfer | completed | demobilized
+  @Column({ nullable: true }) transferredFromId!: string;
+  @Column({ nullable: true }) workforceRequestId!: string;
+  @Column({ nullable: true }) requestLineId!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column({ nullable: true }) endedByName!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+export interface WorkforceRequestLine { id: string; tradeId: string; designation?: string; quantity: number }
+
+/** A project's ask for labour -- "25 masons, 10 electricians by the 1st" -- filled by deploying workers against it. */
+@Entity('workforce_requests')
+export class WorkforceRequestEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ nullable: true }) workArea!: string;
+  @Column() requiredDate!: string;
+  @Column({ type: 'int', nullable: true }) durationDays!: number;
+  @Column({ type: 'simple-json' }) lines!: WorkforceRequestLine[];
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected | fulfilled | cancelled
+  @Column({ nullable: true }) requestedById!: string;
+  @Column({ nullable: true }) requestedByName!: string;
+  @Column({ nullable: true }) submittedAt!: string;
+  @Column({ nullable: true }) decidedByName!: string;
+  @Column({ nullable: true }) decidedAt!: string;
+  @Column({ ...TEXT, nullable: true }) decisionNote!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** A subcontractor / labour-supply company. Its workers are EmployeeEntity rows carrying its id. */
+@Entity('contractors')
+export class ContractorEntity {
+  @PrimaryColumn() id!: string;
+  @Column() companyName!: string;
+  /** The People-directory entry this came from, when it was created from one. */
+  @Column({ type: 'int', nullable: true }) personId!: number;
+  @Column({ nullable: true }) contactPerson!: string;
+  @Column({ nullable: true }) phone!: string;
+  @Column({ nullable: true }) email!: string;
+  @Column({ ...TEXT, nullable: true }) address!: string;
+  @Column({ nullable: true }) contractNumber!: string;
+  @Column({ nullable: true }) contractStart!: string;
+  @Column({ nullable: true }) contractEnd!: string;
+  @Column({ ...TEXT, nullable: true }) scopeOfWork!: string;
+  @Column({ ...TEXT, nullable: true }) agreedRates!: string;
+  @Column({ nullable: true }) insuranceProvider!: string;
+  @Column({ nullable: true }) insurancePolicyNumber!: string;
+  @Column({ nullable: true }) insuranceExpiry!: string;
+  @Column({ default: 'active' }) status!: string; // active | suspended | ended
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
 }
 
 /** Shared, admin-editable list of construction trades -- master data, not hardcoded. */

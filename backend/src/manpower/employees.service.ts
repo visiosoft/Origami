@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EmployeeEntity, TradeEntity } from '../database/entities';
+import { EmployeeAssignmentEntity, EmployeeEntity, TradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 
 /** Next free "W-0001"-style worker number, never reusing one a deleted employee held. */
@@ -19,6 +19,7 @@ export class EmployeesService {
     @InjectRepository(EmployeeEntity) private readonly repo: Repository<EmployeeEntity>,
     @InjectRepository(TradeEntity) private readonly trades: Repository<TradeEntity>,
     private readonly attachments: AttachmentsService,
+    @InjectRepository(EmployeeAssignmentEntity) private readonly assignments: Repository<EmployeeAssignmentEntity>,
   ) {}
 
   findAll() {
@@ -62,6 +63,9 @@ export class EmployeesService {
 
   async remove(id: string) {
     const employee = await this.repo.findOneBy({ id });
+    if (employee && (await this.assignments.count({ where: { employeeId: id } }))) {
+      throw new BadRequestException(`${employee.name} has deployment history -- set their status to Resigned, Terminated or Demobilized instead of deleting.`);
+    }
     if (employee) {
       await this.attachments.discard(employee.photo ?? undefined);
       await this.repo.remove(employee);

@@ -32,7 +32,7 @@ describe('EmployeesService', () => {
   beforeEach(() => {
     repo = mockRepo<EmployeeEntity>();
     trades = mockRepo<TradeEntity>();
-    service = new EmployeesService(repo, trades, { discard: jest.fn() } as unknown as AttachmentsService);
+    service = new EmployeesService(repo, trades, { discard: jest.fn() } as unknown as AttachmentsService, { count: jest.fn().mockResolvedValue(0) } as any);
   });
 
   it('creates an employee with the full master record and an auto worker id', async () => {

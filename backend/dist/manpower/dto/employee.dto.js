@@ -193,4 +193,14 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateEmployeeDto.prototype, "equipmentCapabilities", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateEmployeeDto.prototype, "contractorId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateEmployeeDto.prototype, "siteAccessStatus", void 0);
 //# sourceMappingURL=employee.dto.js.map

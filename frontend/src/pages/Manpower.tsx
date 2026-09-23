@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { EmployeeDirectory, type Employee, type Trade } from '../components/EmployeeDirectory';
+import { DeploymentBoard } from '../components/Deployment';
+import { WorkforceRequests } from '../components/WorkforceRequests';
+import { Contractors } from '../components/Contractors';
+import { localISO, type Assignment, type Contractor } from '../components/manpowerUi';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -32,15 +36,17 @@ interface LeaveRequest {
   decidedBy?: string; decidedAt?: string; note?: string;
 }
 
-const TABS = [
-  ['employees', 'Employees'], ['log', 'Daily Log'], ['approvals', 'Approvals'],
-  ['timesheets', 'Timesheets'], ['leave', 'Leave'], ['csi', 'Cost Codes'], ['trades', 'Trades'],
+const TAB_GROUPS = [
+  { label: 'People', tabs: [['employees', 'Employees'], ['contractors', 'Contractors']] },
+  { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
+  { label: 'Employee services', tabs: [['leave', 'Leave']] },
+  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades']] },
 ] as const;
+type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
 
 /** Who can still be logged against -- people who have left stay on record but out of the pickers. */
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
 const isWorking = (e: Employee) => !LEFT.includes(e.employmentStatus || '') && e.status !== 'inactive';
-type TabKey = typeof TABS[number][0];
 
 const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
   draft: { bg: '#EFEDE8', c: '#5C6B65' },
@@ -55,9 +61,9 @@ const StatusBadge = ({ status }: { status: string }) => {
   return <span style={{ display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: s.bg, color: s.c, fontSize: 10.5, fontWeight: 700, textTransform: 'capitalize' }}>{status}</span>;
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => localISO();
 const startOfWeek = (d: Date) => { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() - day); return x; };
-const fmt = (d: Date) => d.toISOString().slice(0, 10);
+const fmt = (d: Date) => localISO(d);
 
 export function Manpower() {
   const { toast, can, currentUser } = useApp();
@@ -67,6 +73,14 @@ export function Manpower() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [csiCodes, setCsiCodes] = useState<CsiCode[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [openEmployeeId, setOpenEmployeeId] = useState<string | null>(null);
+
+  const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});
+  const reloadContractors = () => api.contractors.list().then((r: any) => setContractors(Array.isArray(r) ? r : [])).catch(() => {});
+  /** Any screen can jump to someone's profile. */
+  const openEmployee = (id: string) => { setOpenEmployeeId(id); setTab('employees'); };
 
   const reloadEmployees = () => api.employees.list().then((r: any) => setEmployees(Array.isArray(r) ? r : [])).catch(() => {});
   const reloadCsiCodes = () => api.csiCodes.list().then((r: any) => setCsiCodes(Array.isArray(r) ? r : [])).catch(() => {});
@@ -80,6 +94,8 @@ export function Manpower() {
     reloadEmployees();
     reloadCsiCodes();
     reloadTrades();
+    reloadAssignments();
+    reloadContractors();
   }, []);
 
   const working = employees.filter(isWorking);
@@ -87,24 +103,46 @@ export function Manpower() {
   return (
     <div style={{ padding: '28px 32px', background: PAPER, minHeight: '100%' }}>
       <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>Manpower & Resources</h1>
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>Employee records, daily labor logs by cost code, timesheets and leave.</p>
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>Employees and contractor workers, project deployment, workforce requests, daily labor logs by cost code, timesheets and leave.</p>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 18, marginBottom: 20, flexWrap: 'wrap' }}>
-        {TABS.map(([key, label]) => (
-          <div
-            key={key}
-            onClick={() => setTab(key)}
-            style={{
-              padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-              background: tab === key ? ACCENT : '#fff', color: tab === key ? '#fff' : '#43514D',
-              border: '1px solid ' + (tab === key ? ACCENT : 'rgba(20,8,31,.14)'),
-            }}
-          >{label}</div>
+      <div style={{ display: 'flex', gap: 22, marginTop: 18, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        {TAB_GROUPS.map((g) => (
+          <div key={g.label}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#9AA39D', marginBottom: 6 }}>{g.label}</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {g.tabs.map(([key, label]) => (
+                <div
+                  key={key}
+                  onClick={() => { setTab(key); if (key === 'employees') setOpenEmployeeId(null); }}
+                  style={{
+                    padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                    background: tab === key ? ACCENT : '#fff', color: tab === key ? '#fff' : '#43514D',
+                    border: '1px solid ' + (tab === key ? ACCENT : 'rgba(20,8,31,.14)'),
+                  }}
+                >{label}</div>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 
-      {tab === 'employees' && <EmployeeDirectory employees={employees} trades={trades} reload={reloadEmployees} canManage={canManage} />}
-      {tab === 'log' && <DailyLogTab projects={projects} employees={working} csiCodes={csiCodes.filter((c) => c.active)} canManage={canManage} toast={toast} />}
+      {tab === 'employees' && (
+        <EmployeeDirectory employees={employees} trades={trades} projects={projects} assignments={assignments} contractors={contractors}
+          reload={reloadEmployees} reloadAssignments={reloadAssignments} canManage={canManage} openId={openEmployeeId} onOpen={setOpenEmployeeId} />
+      )}
+      {tab === 'contractors' && (
+        <Contractors employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
+          reloadEmployees={async () => { await reloadEmployees(); await reloadContractors(); }} onOpenEmployee={openEmployee} />
+      )}
+      {tab === 'deployment' && (
+        <DeploymentBoard employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
+          reload={reloadAssignments} onOpenEmployee={openEmployee} />
+      )}
+      {tab === 'requests' && (
+        <WorkforceRequests employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
+          reloadAssignments={reloadAssignments} onOpenEmployee={openEmployee} />
+      )}
+      {tab === 'log' && <DailyLogTab projects={projects} employees={working} assignments={assignments} csiCodes={csiCodes.filter((c) => c.active)} canManage={canManage} toast={toast} />}
       {tab === 'approvals' && <ApprovalsTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} currentUserId={currentUser?.id} />}
       {tab === 'timesheets' && <TimesheetsTab employees={employees} csiCodes={csiCodes} toast={toast} />}
       {tab === 'leave' && <LeaveTab employees={working} canManage={canManage} toast={toast} />}
@@ -116,8 +154,8 @@ export function Manpower() {
 
 // -------------------------------------------------------------- Daily Log
 
-function DailyLogTab({ projects, employees, csiCodes, canManage, toast }: {
-  projects: Project[]; employees: Employee[]; csiCodes: CsiCode[]; canManage: boolean; toast: (m: string) => void;
+function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, toast }: {
+  projects: Project[]; employees: Employee[]; assignments: Assignment[]; csiCodes: CsiCode[]; canManage: boolean; toast: (m: string) => void;
 }) {
   const [projectId, setProjectId] = useState<number | ''>('');
   const [date, setDate] = useState(todayISO());
@@ -141,6 +179,13 @@ function DailyLogTab({ projects, employees, csiCodes, canManage, toast }: {
   const addRow = () => setEntries((prev) => [...prev, { employeeId: '', csiCodeId: '', hours: undefined, taskDetail: '', taskStatus: 'start', team: '' }]);
   const patchRow = (i: number, patch: Partial<LaborEntry>) => setEntries((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
   const removeRow = (i: number) => setEntries((prev) => prev.filter((_, idx) => idx !== i));
+
+  // The crew deployed on this project that day comes first in the picker and can be added in one go.
+  const onSite = new Set(assignments.filter((a) => a.projectId === projectId && a.startDate <= date && (!a.endDate || a.endDate >= date)).map((a) => a.employeeId));
+  const crew = employees.filter((e) => onSite.has(e.id));
+  const others = employees.filter((e) => !onSite.has(e.id));
+  const missingCrew = crew.filter((e) => !entries.some((r) => r.employeeId === e.id));
+  const addCrew = () => setEntries((prev) => [...prev, ...missingCrew.map((e) => ({ employeeId: e.id, csiCodeId: '', hours: 8, taskDetail: '', taskStatus: 'continued', team: '' }))]);
 
   const save = async () => {
     if (!projectId) return;
@@ -192,7 +237,8 @@ function DailyLogTab({ projects, employees, csiCodes, canManage, toast }: {
             <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
               <select disabled={locked || !canManage} value={row.employeeId} onChange={(e) => patchRow(i, { employeeId: e.target.value })} style={input}>
                 <option value="">Select…</option>
-                {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                {crew.length > 0 && <optgroup label="Deployed on this project">{crew.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}</optgroup>}
+                <optgroup label={crew.length ? 'Others' : 'Employees'}>{others.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}</optgroup>
               </select>
               <select disabled={locked || !canManage} value={row.csiCodeId || ''} onChange={(e) => patchRow(i, { csiCodeId: e.target.value })} style={input}>
                 <option value="">Select…</option>
@@ -216,6 +262,7 @@ function DailyLogTab({ projects, employees, csiCodes, canManage, toast }: {
           {!locked && canManage && (
             <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
               <div onClick={addRow} style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: ACCENT }}>+ Add worker</div>
+              {missingCrew.length > 0 && <div onClick={addCrew} style={{ display: 'inline-block', marginLeft: 8, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>+ Add deployed crew ({missingCrew.length})</div>}
             </div>
           )}
 
@@ -434,7 +481,7 @@ function TimesheetsTab({ employees, csiCodes, toast }: { employees: Employee[]; 
   const [totalHours, setTotalHours] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const weekEnd = fmt(new Date(new Date(weekStart).getTime() + 6 * 86400000));
+  const weekEnd = fmt(new Date(new Date(weekStart + 'T00:00:00').getTime() + 6 * 86400000));
 
   useEffect(() => {
     if (!employeeId) { setRows([]); setTotalHours(0); return; }

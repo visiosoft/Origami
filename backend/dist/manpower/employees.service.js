@@ -27,10 +27,11 @@ function nextWorkerId(existing) {
     return 'W-' + String(max + 1).padStart(4, '0');
 }
 let EmployeesService = class EmployeesService {
-    constructor(repo, trades, attachments) {
+    constructor(repo, trades, attachments, assignments) {
         this.repo = repo;
         this.trades = trades;
         this.attachments = attachments;
+        this.assignments = assignments;
     }
     findAll() {
         return this.repo.find({ order: { name: 'ASC' } });
@@ -70,6 +71,9 @@ let EmployeesService = class EmployeesService {
     }
     async remove(id) {
         const employee = await this.repo.findOneBy({ id });
+        if (employee && (await this.assignments.count({ where: { employeeId: id } }))) {
+            throw new common_1.BadRequestException(`${employee.name} has deployment history -- set their status to Resigned, Terminated or Demobilized instead of deleting.`);
+        }
         if (employee) {
             await this.attachments.discard(employee.photo ?? undefined);
             await this.repo.remove(employee);
@@ -99,8 +103,10 @@ exports.EmployeesService = EmployeesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.TradeEntity)),
+    __param(3, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAssignmentEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        typeorm_2.Repository])
 ], EmployeesService);
 //# sourceMappingURL=employees.service.js.map

@@ -35,4 +35,6 @@ export declare class CreateEmployeeDto {
     yearsExperience?: number;
     expertise?: string[];
     equipmentCapabilities?: string[];
+    contractorId?: string | null;
+    siteAccessStatus?: string;
 }

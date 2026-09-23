@@ -26,6 +26,12 @@ const trades_controller_1 = require("./trades.controller");
 const trades_service_1 = require("./trades.service");
 const employee_records_controller_1 = require("./employee-records.controller");
 const employee_records_service_1 = require("./employee-records.service");
+const assignments_controller_1 = require("./assignments.controller");
+const assignments_service_1 = require("./assignments.service");
+const workforce_requests_controller_1 = require("./workforce-requests.controller");
+const workforce_requests_service_1 = require("./workforce-requests.service");
+const contractors_controller_1 = require("./contractors.controller");
+const contractors_service_1 = require("./contractors.service");
 let ManpowerModule = class ManpowerModule {
 };
 exports.ManpowerModule = ManpowerModule;
@@ -34,18 +40,18 @@ exports.ManpowerModule = ManpowerModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
                 entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.DailyLogEntity, entities_1.LaborLogEntryEntity, entities_1.LeaveRequestEntity, entities_1.ProjectEntity,
-                entities_1.TradeEntity, entities_1.EmployeeRecordEntity,
+                entities_1.TradeEntity, entities_1.EmployeeRecordEntity, entities_1.EmployeeAssignmentEntity, entities_1.WorkforceRequestEntity, entities_1.ContractorEntity,
             ]),
             auth_module_1.AuthModule,
             google_module_1.GoogleModule,
         ],
         controllers: [
             employees_controller_1.EmployeesController, csi_codes_controller_1.CsiCodesController, daily_logs_controller_1.DailyLogsController, timesheets_controller_1.TimesheetsController, leave_requests_controller_1.LeaveRequestsController,
-            trades_controller_1.TradesController, employee_records_controller_1.EmployeeRecordsController,
+            trades_controller_1.TradesController, employee_records_controller_1.EmployeeRecordsController, assignments_controller_1.AssignmentsController, workforce_requests_controller_1.WorkforceRequestsController, contractors_controller_1.ContractorsController,
         ],
         providers: [
             employees_service_1.EmployeesService, csi_codes_service_1.CsiCodesService, daily_logs_service_1.DailyLogsService, timesheets_service_1.TimesheetsService, leave_requests_service_1.LeaveRequestsService,
-            trades_service_1.TradesService, employee_records_service_1.EmployeeRecordsService,
+            trades_service_1.TradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService,
         ],
     })
 ], ManpowerModule);

@@ -1,12 +1,13 @@
 import { Repository } from 'typeorm';
-import { EmployeeEntity, TradeEntity } from '../database/entities';
+import { EmployeeAssignmentEntity, EmployeeEntity, TradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 export declare function nextWorkerId(existing: (string | null | undefined)[]): string;
 export declare class EmployeesService {
     private readonly repo;
     private readonly trades;
     private readonly attachments;
-    constructor(repo: Repository<EmployeeEntity>, trades: Repository<TradeEntity>, attachments: AttachmentsService);
+    private readonly assignments;
+    constructor(repo: Repository<EmployeeEntity>, trades: Repository<TradeEntity>, attachments: AttachmentsService, assignments: Repository<EmployeeAssignmentEntity>);
     findAll(): Promise<EmployeeEntity[]>;
     findOne(id: string): Promise<EmployeeEntity>;
     private withTradeName;

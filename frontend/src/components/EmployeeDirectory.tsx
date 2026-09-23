@@ -3,6 +3,8 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { Attachments } from './Attachments';
 import type { Attachment } from '../data/projectTasks';
+import { EmployeeDeploymentPanel } from './Deployment';
+import { todayISO, type Assignment, type Contractor, type Project } from './manpowerUi';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -33,13 +35,14 @@ export interface Employee {
   userId?: string; payType?: string; payRate?: number; bankName?: string; bankAccount?: string; taxNumber?: string;
   tradeId?: string; trade?: string; skillLevel?: string; yearsExperience?: number;
   expertise?: string[]; equipmentCapabilities?: string[]; createdAt?: string; updatedAt?: string;
+  contractorId?: string | null; siteAccessStatus?: string;
 }
 export interface Trade { id: string; name: string; active: boolean; order: number }
 
 type Opt = [string, string];
 export const EMPLOYMENT_TYPES: Opt[] = [
   ['permanent', 'Permanent'], ['contract', 'Contract'], ['daily_wage', 'Daily Wage'],
-  ['temporary', 'Temporary'], ['intern', 'Intern / Apprentice'],
+  ['temporary', 'Temporary'], ['intern', 'Intern / Apprentice'], ['contractor_worker', 'Contractor worker'],
 ];
 export const EMPLOYMENT_STATUSES: Opt[] = [
   ['active', 'Active'], ['on_leave', 'On Leave'], ['suspended', 'Suspended'], ['resigned', 'Resigned'],
@@ -78,8 +81,9 @@ function Photo({ emp, size }: { emp: Employee; size: number }) {
 
 // ------------------------------------------------------------------ fields
 
-type FieldKind = 'text' | 'date' | 'number' | 'textarea' | 'select' | 'employee' | 'trade' | 'list';
-interface FieldDef { key: keyof Employee; label: string; kind?: FieldKind; options?: Opt[]; wide?: boolean; placeholder?: string }
+type FieldKind = 'text' | 'date' | 'number' | 'textarea' | 'select' | 'employee' | 'trade' | 'list' | 'contractor';
+interface FieldDef { key: keyof Employee; label: string; kind?: FieldKind; options?: Opt[]; wide?: boolean; placeholder?: string; showIf?: (d: Partial<Employee>) => boolean }
+const isContractorWorker = (d: Partial<Employee>) => d.employmentType === 'contractor_worker' || !!d.contractorId;
 interface SectionDef { title: string; fields: FieldDef[] }
 
 const SECTIONS: Record<string, SectionDef> = {
@@ -122,6 +126,8 @@ const SECTIONS: Record<string, SectionDef> = {
       { key: 'grade', label: 'Grade / pay scale' },
       { key: 'supervisorId', label: 'Reporting manager', kind: 'employee' },
       { key: 'hrOfficerId', label: 'HR officer', kind: 'employee' },
+      { key: 'contractorId', label: 'Supplied by (contractor)', kind: 'contractor', showIf: isContractorWorker },
+      { key: 'siteAccessStatus', label: 'Site access', kind: 'select', options: [['pending', 'Pending'], ['granted', 'Granted'], ['revoked', 'Revoked']], showIf: isContractorWorker },
     ],
   },
   skills: {
@@ -150,11 +156,19 @@ function Label({ text }: { text: string }) {
   return <div style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{text}</div>;
 }
 
-function FieldInput({ def, value, onChange, disabled, employees, trades, selfId }: {
+function FieldInput({ def, value, onChange, disabled, employees, trades, contractors, selfId }: {
   def: FieldDef; value: any; onChange: (v: any) => void; disabled: boolean;
-  employees: Employee[]; trades: Trade[]; selfId?: string;
+  employees: Employee[]; trades: Trade[]; contractors: Contractor[]; selfId?: string;
 }) {
   const kind = def.kind || 'text';
+  if (kind === 'contractor') {
+    return (
+      <select disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value || null)} style={input}>
+        <option value="">—</option>
+        {contractors.filter((c) => c.status !== 'ended' || c.id === value).map((c) => <option key={c.id} value={c.id}>{c.companyName}</option>)}
+      </select>
+    );
+  }
   if (kind === 'textarea') return <textarea disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value)} rows={2} style={{ ...input, resize: 'vertical' }} />;
   if (kind === 'select') {
     return (
@@ -189,18 +203,18 @@ function FieldInput({ def, value, onChange, disabled, employees, trades, selfId 
   return <input disabled={disabled} type={kind === 'date' ? 'date' : 'text'} value={value || ''} placeholder={def.placeholder} onChange={(e) => onChange(e.target.value)} style={input} />;
 }
 
-function SectionForm({ section, draft, patch, disabled, employees, trades }: {
+function SectionForm({ section, draft, patch, disabled, employees, trades, contractors }: {
   section: SectionDef; draft: Partial<Employee>; patch: (p: Partial<Employee>) => void; disabled: boolean;
-  employees: Employee[]; trades: Trade[];
+  employees: Employee[]; trades: Trade[]; contractors: Contractor[];
 }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 10 }}>{section.title}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-        {section.fields.map((f) => (
+        {section.fields.filter((f) => !f.showIf || f.showIf(draft)).map((f) => (
           <div key={f.key} style={f.wide ? { gridColumn: '1 / -1' } : undefined}>
             <Label text={f.label} />
-            <FieldInput def={f} value={draft[f.key]} onChange={(v) => patch({ [f.key]: v } as Partial<Employee>)} disabled={disabled} employees={employees} trades={trades} selfId={draft.id} />
+            <FieldInput def={f} value={draft[f.key]} onChange={(v) => patch({ [f.key]: v } as Partial<Employee>)} disabled={disabled} employees={employees} trades={trades} contractors={contractors} selfId={draft.id} />
           </div>
         ))}
       </div>
@@ -210,17 +224,30 @@ function SectionForm({ section, draft, patch, disabled, employees, trades }: {
 
 // ------------------------------------------------------------------ directory
 
-export function EmployeeDirectory({ employees, trades, reload, canManage }: {
-  employees: Employee[]; trades: Trade[]; reload: () => Promise<unknown> | void; canManage: boolean;
-}) {
-  const [openId, setOpenId] = useState<string | null>(null);
+interface DirectoryProps {
+  employees: Employee[]; trades: Trade[]; projects: Project[]; assignments: Assignment[]; contractors: Contractor[];
+  reload: () => Promise<unknown> | void; reloadAssignments: () => Promise<unknown> | void; canManage: boolean;
+  /** Controlled so other screens (deployment, requests, contractors) can open a profile here. */
+  openId: string | null; onOpen: (id: string | null) => void;
+}
+
+export function EmployeeDirectory(props: DirectoryProps) {
+  const { employees, trades, projects, assignments, contractors, reload, canManage, openId, onOpen } = props;
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [tradeFilter, setTradeFilter] = useState('');
+  const [workforce, setWorkforce] = useState<'' | 'staff' | 'contractor'>('');
+  const [availability, setAvailability] = useState<'' | 'deployed' | 'available'>('');
 
   const tradeName = (e: Employee) => trades.find((t) => t.id === e.tradeId)?.name || e.trade || '—';
+  const projectName = (id: number) => projects.find((p) => p.id === id)?.name || `Project ${id}`;
+  const deployment = useMemo(() => {
+    const m = new Map<string, Assignment>();
+    for (const a of assignments) if (a.current && (a.assignmentType === 'regular' || !m.has(a.employeeId))) m.set(a.employeeId, a);
+    return m;
+  }, [assignments]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -228,58 +255,79 @@ export function EmployeeDirectory({ employees, trades, reload, canManage }: {
       (!q || [e.name, e.workerId, e.nationalId, e.phone, e.designation].some((v) => (v || '').toLowerCase().includes(q)))
       && (!statusFilter || statusOf(e) === statusFilter)
       && (!typeFilter || e.employmentType === typeFilter)
-      && (!tradeFilter || e.tradeId === tradeFilter));
-  }, [employees, query, statusFilter, typeFilter, tradeFilter]);
+      && (!tradeFilter || e.tradeId === tradeFilter)
+      && (!workforce || (workforce === 'contractor') === !!e.contractorId)
+      && (!availability || (availability === 'deployed' ? deployment.has(e.id) : statusOf(e) === 'active' && !deployment.has(e.id))));
+  }, [employees, query, statusFilter, typeFilter, tradeFilter, workforce, availability, deployment]);
 
   const open = employees.find((e) => e.id === openId);
   if (open) {
-    return <EmployeeProfile employee={open} employees={employees} trades={trades} canManage={canManage} onBack={() => setOpenId(null)} onChanged={reload} />;
+    return <EmployeeProfile {...props} employee={open} onBack={() => onOpen(null)} onChanged={reload} />;
   }
 
   const activeCount = employees.filter((e) => statusOf(e) === 'active').length;
-  const cols = '44px 90px minmax(180px,2fr) 1fr 1fr 120px 120px';
+  const cols = '44px 90px minmax(180px,2fr) 1fr 1fr minmax(150px,1.3fr) 120px';
+  const sel: React.CSSProperties = { ...input, width: 'auto' };
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, worker ID, CNIC, phone…" style={{ ...input, width: 280 }} />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ ...input, width: 'auto' }}>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, worker ID, CNIC, phone…" style={{ ...input, width: 260 }} />
+        <select value={workforce} onChange={(e) => setWorkforce(e.target.value as any)} style={sel}>
+          <option value="">Staff + contractor workers</option>
+          <option value="staff">Own staff only</option>
+          <option value="contractor">Contractor workers only</option>
+        </select>
+        <select value={availability} onChange={(e) => setAvailability(e.target.value as any)} style={sel}>
+          <option value="">Deployed or not</option>
+          <option value="deployed">Deployed</option>
+          <option value="available">Available</option>
+        </select>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={sel}>
           <option value="">All statuses</option>
           {EMPLOYMENT_STATUSES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={{ ...input, width: 'auto' }}>
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
           <option value="">All types</option>
           {EMPLOYMENT_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
-        <select value={tradeFilter} onChange={(e) => setTradeFilter(e.target.value)} style={{ ...input, width: 'auto' }}>
+        <select value={tradeFilter} onChange={(e) => setTradeFilter(e.target.value)} style={sel}>
           <option value="">All trades</option>
           {trades.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-        <span style={{ fontSize: 12, color: MUTED }}>{employees.length} employees · {activeCount} active</span>
+        <span style={{ fontSize: 12, color: MUTED }}>{employees.length} people · {activeCount} active · {deployment.size} deployed</span>
         <div style={{ flex: 1 }} />
         {canManage && <div onClick={() => setAdding(true)} style={btn(true)}>+ Add employee</div>}
       </div>
 
       <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 760 }}>
+          <div style={{ minWidth: 880 }}>
             <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
-              <span /><span>Worker ID</span><span>Name</span><span>Trade</span><span>Type</span><span>Status</span><span>Phone</span>
+              <span /><span>Worker ID</span><span>Name</span><span>Trade</span><span>Type</span><span>Deployed on</span><span>Status</span>
             </div>
-            {filtered.map((e) => (
-              <div key={e.id} onClick={() => setOpenId(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer' }}>
-                <Photo emp={e} size={30} />
-                <span style={{ fontSize: 12, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{e.workerId || '—'}</span>
-                <span style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</div>
-                  <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.designation || e.jobTitle || 'No designation'}{e.department ? ` · ${e.department}` : ''}</div>
-                </span>
-                <span style={{ fontSize: 12.5, color: INK }}>{tradeName(e)}</span>
-                <span style={{ fontSize: 12.5, color: INK }}>{labelOf(EMPLOYMENT_TYPES, e.employmentType)}</span>
-                <span><StatusPill status={statusOf(e)} /></span>
-                <span style={{ fontSize: 12, color: MUTED }}>{e.phone || '—'}</span>
-              </div>
-            ))}
+            {filtered.map((e) => {
+              const a = deployment.get(e.id);
+              const contractor = e.contractorId ? contractors.find((c) => c.id === e.contractorId) : undefined;
+              return (
+                <div key={e.id} onClick={() => onOpen(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer' }}>
+                  <Photo emp={e} size={30} />
+                  <span style={{ fontSize: 12, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{e.workerId || '—'}</span>
+                  <span style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</div>
+                    <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {contractor ? `via ${contractor.companyName}` : (e.designation || e.jobTitle || 'No designation')}{!contractor && e.department ? ` · ${e.department}` : ''}
+                    </div>
+                  </span>
+                  <span style={{ fontSize: 12.5, color: INK }}>{tradeName(e)}</span>
+                  <span style={{ fontSize: 12.5, color: INK }}>{labelOf(EMPLOYMENT_TYPES, e.employmentType)}</span>
+                  <span style={{ fontSize: 12.5, color: a ? INK : MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {a ? `${projectName(a.projectId)}${a.workArea ? ` · ${a.workArea}` : ''}${a.assignmentType === 'temporary' ? ' (temp)' : ''}` : statusOf(e) === 'active' ? 'Available' : '—'}
+                  </span>
+                  <span><StatusPill status={statusOf(e)} /></span>
+                </div>
+              );
+            })}
             {!filtered.length && (
               <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>
                 {employees.length ? 'No employees match these filters.' : 'No employees yet — add the first one to start building the roster.'}
@@ -291,9 +339,9 @@ export function EmployeeDirectory({ employees, trades, reload, canManage }: {
 
       {adding && (
         <AddEmployeeDrawer
-          employees={employees} trades={trades}
+          employees={employees} trades={trades} contractors={contractors}
           onClose={() => setAdding(false)}
-          onCreated={async (emp) => { setAdding(false); await reload(); setOpenId(emp.id); }}
+          onCreated={async (emp) => { setAdding(false); await reload(); onOpen(emp.id); }}
         />
       )}
     </div>
@@ -302,16 +350,18 @@ export function EmployeeDirectory({ employees, trades, reload, canManage }: {
 
 // ------------------------------------------------------------------ add drawer
 
-function AddEmployeeDrawer({ employees, trades, onClose, onCreated }: {
-  employees: Employee[]; trades: Trade[]; onClose: () => void; onCreated: (e: Employee) => void;
+export function AddEmployeeDrawer({ employees, trades, contractors, defaults, title, onClose, onCreated }: {
+  employees: Employee[]; trades: Trade[]; contractors: Contractor[]; defaults?: Partial<Employee>; title?: string;
+  onClose: () => void; onCreated: (e: Employee) => void;
 }) {
   const { toast } = useApp();
-  const [draft, setDraft] = useState<Partial<Employee>>({ employmentStatus: 'active', employmentType: 'permanent', hireDate: new Date().toISOString().slice(0, 10) });
+  const [draft, setDraft] = useState<Partial<Employee>>({ employmentStatus: 'active', employmentType: 'permanent', hireDate: todayISO(), ...defaults });
   const [saving, setSaving] = useState(false);
   const patch = (p: Partial<Employee>) => setDraft((d) => ({ ...d, ...p }));
 
   const create = async () => {
     if (!draft.name?.trim()) { toast('⚠ Full name is required'); return; }
+    if (draft.employmentType === 'contractor_worker' && !draft.contractorId) { toast('⚠ Pick which contractor supplies this worker'); return; }
     setSaving(true);
     try {
       const clean = Object.fromEntries(Object.entries(draft).filter(([, v]) => v !== '' && v != null));
@@ -327,14 +377,14 @@ function AddEmployeeDrawer({ employees, trades, onClose, onCreated }: {
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 100vw)', height: '100%', background: 'white', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: INK }}>Add employee</div>
+            <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: INK }}>{title || 'Add employee'}</div>
             <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Only the name is required — everything else can be filled in later from the profile.</div>
           </div>
           <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: MUTED, fontSize: 18 }}>×</div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>
           {(['identity', 'contact', 'emergency', 'employment', 'skills', 'payroll'] as const).map((k) => (
-            <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={patch} disabled={false} employees={employees} trades={trades} />
+            <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={patch} disabled={false} employees={employees} trades={trades} contractors={contractors} />
           ))}
         </div>
         <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -356,22 +406,20 @@ interface EmpRecord {
 }
 
 const PROFILE_TABS = [
-  ['overview', 'Overview'], ['personal', 'Personal Information'], ['employment', 'Employment'],
+  ['overview', 'Overview'], ['personal', 'Personal Information'], ['employment', 'Employment'], ['deployment', 'Deployment'],
   ['document', 'Documents'], ['certification', 'Certifications'], ['contract', 'Contracts'],
 ] as const;
 type ProfileTab = typeof PROFILE_TABS[number][0];
 
-function EmployeeProfile({ employee, employees, trades, canManage, onBack, onChanged }: {
-  employee: Employee; employees: Employee[]; trades: Trade[]; canManage: boolean;
-  onBack: () => void; onChanged: () => Promise<unknown> | void;
-}) {
+function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: () => void; onChanged: () => Promise<unknown> | void }) {
+  const { employee, employees, trades, projects, assignments, contractors, canManage, onBack, onChanged, reloadAssignments } = props;
   const { toast } = useApp();
   const [tab, setTab] = useState<ProfileTab>('overview');
   const [records, setRecords] = useState<EmpRecord[]>([]);
   const photoInput = useRef<HTMLInputElement | null>(null);
 
   const reloadRecords = () => api.employeeRecords.list(employee.id).then((r: any) => setRecords(Array.isArray(r) ? r : [])).catch(() => {});
-  useEffect(() => { reloadRecords(); }, [employee.id]);
+  useEffect(() => { reloadRecords(); setTab('overview'); }, [employee.id]);
 
   const uploadPhoto = async (file?: File) => {
     if (!file) return;
@@ -388,8 +436,21 @@ function EmployeeProfile({ employee, employees, trades, canManage, onBack, onCha
 
   const nameOf = (id?: string) => employees.find((e) => e.id === id)?.name;
   const tradeName = trades.find((t) => t.id === employee.tradeId)?.name || employee.trade;
+  const contractor = employee.contractorId ? contractors.find((c) => c.id === employee.contractorId) : undefined;
+  const current = assignments.filter((a) => a.current && a.employeeId === employee.id);
+  const projectName = (id: number) => projects.find((p) => p.id === id)?.name || `Project ${id}`;
   const byKind = (k: RecordKind) => records.filter((r) => r.kind === k);
   const alerts = records.filter((r) => r.expiryStatus === 'expired' || r.expiryStatus === 'expiring');
+  const glance: [string, string | undefined][] = [
+    ['Worker ID', employee.workerId],
+    ['Trade', tradeName ? `${tradeName}${employee.skillLevel ? ` (${labelOf(SKILL_LEVELS, employee.skillLevel)})` : ''}` : undefined],
+    ['Experience', employee.yearsExperience != null ? `${employee.yearsExperience} years` : undefined],
+    ['Deployed on', current.length ? current.map((a) => `${projectName(a.projectId)}${a.workArea ? ` · ${a.workArea}` : ''}`).join(', ') : (statusOf(employee) === 'active' ? 'Available' : undefined)],
+    ...(contractor ? [['Contractor', contractor.companyName] as [string, string]] : []),
+    ['Joined', employee.hireDate],
+    ['Reports to', nameOf(employee.supervisorId)],
+    ['HR officer', nameOf(employee.hrOfficerId)],
+  ];
 
   return (
     <div>
@@ -404,12 +465,17 @@ function EmployeeProfile({ employee, employees, trades, canManage, onBack, onCha
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontFamily: BG, fontSize: 22, fontWeight: 700, color: INK }}>{employee.name}</div>
           <div style={{ fontSize: 12.5, color: MUTED, marginTop: 3 }}>
-            {[employee.workerId, employee.designation || employee.jobTitle, employee.department].filter(Boolean).join(' · ') || 'No designation yet'}
+            {[employee.workerId, employee.designation || employee.jobTitle, employee.department, contractor && `via ${contractor.companyName}`].filter(Boolean).join(' · ') || 'No designation yet'}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
             <StatusPill status={statusOf(employee)} />
             {employee.employmentType && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#EFEDE8', color: '#43514D' }}>{labelOf(EMPLOYMENT_TYPES, employee.employmentType)}</span>}
             {tradeName && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: ACCENT_BG, color: ACCENT }}>{tradeName}{employee.skillLevel ? ` · ${labelOf(SKILL_LEVELS, employee.skillLevel)}` : ''}</span>}
+            {current.map((a) => (
+              <span key={a.id} onClick={() => setTab('deployment')} style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#D8E2F0', color: '#3C5C8A', cursor: 'pointer' }}>
+                On {projectName(a.projectId)}{a.workArea ? ` · ${a.workArea}` : ''}{a.assignmentType === 'temporary' ? ' (temp)' : ''}
+              </span>
+            ))}
           </div>
         </div>
         {canManage && <div onClick={remove} style={{ ...btn(), color: '#8E2E0A' }}>Delete</div>}
@@ -428,16 +494,7 @@ function EmployeeProfile({ employee, employees, trades, canManage, onBack, onCha
 
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-          <Card title="At a glance">
-            <Facts rows={[
-              ['Worker ID', employee.workerId],
-              ['Trade', tradeName ? `${tradeName}${employee.skillLevel ? ` (${labelOf(SKILL_LEVELS, employee.skillLevel)})` : ''}` : undefined],
-              ['Experience', employee.yearsExperience != null ? `${employee.yearsExperience} years` : undefined],
-              ['Joined', employee.hireDate],
-              ['Reports to', nameOf(employee.supervisorId)],
-              ['HR officer', nameOf(employee.hrOfficerId)],
-            ]} />
-          </Card>
+          <Card title="At a glance"><Facts rows={glance} /></Card>
           <Card title="Contact">
             <Facts rows={[
               ['Phone', employee.phone],
@@ -466,10 +523,14 @@ function EmployeeProfile({ employee, employees, trades, canManage, onBack, onCha
       )}
 
       {tab === 'personal' && (
-        <EditableSections sectionKeys={['identity', 'contact', 'emergency']} employee={employee} employees={employees} trades={trades} canManage={canManage} onSaved={onChanged} />
+        <EditableSections sectionKeys={['identity', 'contact', 'emergency']} employee={employee} employees={employees} trades={trades} contractors={contractors} canManage={canManage} onSaved={onChanged} />
       )}
       {tab === 'employment' && (
-        <EditableSections sectionKeys={['employment', 'skills', 'payroll']} employee={employee} employees={employees} trades={trades} canManage={canManage} onSaved={onChanged} />
+        <EditableSections sectionKeys={['employment', 'skills', 'payroll']} employee={employee} employees={employees} trades={trades} contractors={contractors} canManage={canManage} onSaved={onChanged} />
+      )}
+      {tab === 'deployment' && (
+        <EmployeeDeploymentPanel employee={employee} employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
+          onChanged={async () => { await reloadAssignments(); await onChanged(); }} />
       )}
       {(tab === 'document' || tab === 'certification' || tab === 'contract') && (
         <RecordsPanel kind={tab} employeeId={employee.id} records={byKind(tab)} canManage={canManage} onChanged={reloadRecords} />
@@ -509,8 +570,8 @@ function Chips({ items, empty }: { items?: string[]; empty: string }) {
   );
 }
 
-function EditableSections({ sectionKeys, employee, employees, trades, canManage, onSaved }: {
-  sectionKeys: string[]; employee: Employee; employees: Employee[]; trades: Trade[]; canManage: boolean;
+function EditableSections({ sectionKeys, employee, employees, trades, contractors, canManage, onSaved }: {
+  sectionKeys: string[]; employee: Employee; employees: Employee[]; trades: Trade[]; contractors: Contractor[]; canManage: boolean;
   onSaved: () => Promise<unknown> | void;
 }) {
   const { toast } = useApp();
@@ -536,7 +597,7 @@ function EditableSections({ sectionKeys, employee, employees, trades, canManage,
   return (
     <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, padding: '18px 20px' }}>
       {sectionKeys.map((k) => (
-        <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} employees={employees} trades={trades} />
+        <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} employees={employees} trades={trades} contractors={contractors} />
       ))}
       {canManage && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

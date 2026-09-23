@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
-  TradeEntity, EmployeeRecordEntity,
+  TradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
 } from '../database/entities';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
@@ -20,23 +20,29 @@ import { TradesController } from './trades.controller';
 import { TradesService } from './trades.service';
 import { EmployeeRecordsController } from './employee-records.controller';
 import { EmployeeRecordsService } from './employee-records.service';
+import { AssignmentsController } from './assignments.controller';
+import { AssignmentsService } from './assignments.service';
+import { WorkforceRequestsController } from './workforce-requests.controller';
+import { WorkforceRequestsService } from './workforce-requests.service';
+import { ContractorsController } from './contractors.controller';
+import { ContractorsService } from './contractors.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
-      TradeEntity, EmployeeRecordEntity,
+      TradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
     ]),
     AuthModule,
     GoogleModule,
   ],
   controllers: [
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController, LeaveRequestsController,
-    TradesController, EmployeeRecordsController,
+    TradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
   ],
   providers: [
     EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService, LeaveRequestsService,
-    TradesService, EmployeeRecordsService,
+    TradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
   ],
 })
 export class ManpowerModule {}

@@ -495,6 +495,75 @@ export declare class EmployeeEntity {
     yearsExperience: number;
     equipmentCapabilities: string[];
     updatedAt: string;
+    contractorId: string;
+    siteAccessStatus: string;
+}
+export declare class EmployeeAssignmentEntity {
+    id: string;
+    employeeId: string;
+    projectId: number;
+    workArea: string;
+    tradeId: string;
+    designation: string;
+    assignmentType: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    endReason: string;
+    transferredFromId: string;
+    workforceRequestId: string;
+    requestLineId: string;
+    notes: string;
+    createdByName: string;
+    endedByName: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface WorkforceRequestLine {
+    id: string;
+    tradeId: string;
+    designation?: string;
+    quantity: number;
+}
+export declare class WorkforceRequestEntity {
+    id: string;
+    projectId: number;
+    workArea: string;
+    requiredDate: string;
+    durationDays: number;
+    lines: WorkforceRequestLine[];
+    notes: string;
+    status: string;
+    requestedById: string;
+    requestedByName: string;
+    submittedAt: string;
+    decidedByName: string;
+    decidedAt: string;
+    decisionNote: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export declare class ContractorEntity {
+    id: string;
+    companyName: string;
+    personId: number;
+    contactPerson: string;
+    phone: string;
+    email: string;
+    address: string;
+    contractNumber: string;
+    contractStart: string;
+    contractEnd: string;
+    scopeOfWork: string;
+    agreedRates: string;
+    insuranceProvider: string;
+    insurancePolicyNumber: string;
+    insuranceExpiry: string;
+    status: string;
+    notes: string;
+    attachments: TaskAttachment[];
+    createdAt: string;
+    updatedAt: string;
 }
 export declare class TradeEntity {
     id: string;

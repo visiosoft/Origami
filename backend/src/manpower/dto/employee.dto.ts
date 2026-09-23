@@ -38,4 +38,6 @@ export class CreateEmployeeDto {
   @IsNumber() @IsOptional() yearsExperience?: number;
   @IsArray() @IsOptional() expertise?: string[];
   @IsArray() @IsOptional() equipmentCapabilities?: string[];
+  @IsString() @IsOptional() contractorId?: string | null;
+  @IsString() @IsOptional() siteAccessStatus?: string;
 }
