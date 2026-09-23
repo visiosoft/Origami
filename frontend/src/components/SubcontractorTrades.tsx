@@ -185,7 +185,7 @@ export function SubcontractorTradesSetup({ canManage }: { canManage: boolean }) 
 
 export function SampleDataPanel({ canManage, onChanged }: { canManage: boolean; onChanged: () => Promise<unknown> | void }) {
   const { toast } = useApp();
-  const [status, setStatus] = useState<{ loaded: boolean; employees: number; contractors: number } | null>(null);
+  const [status, setStatus] = useState<{ loaded: boolean; employees: number; contractors: number; payrollRuns?: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const load = () => api.sampleData.status().then((r: any) => setStatus(r)).catch(() => setStatus(null));
   useEffect(() => { load(); }, []);
@@ -202,17 +202,20 @@ export function SampleDataPanel({ canManage, onChanged }: { canManage: boolean; 
         Loads a realistic crew so every screen has something to try: 17 people (site staff, daily-wage workers, one who has resigned),
         two subcontractors with their licence classifications and workers, deployment on your first two projects, a workforce request,
         a week of daily logs by cost code, documents and certifications (some expiring), leave, overtime, advances and loans,
-        shift rosters, company assets, a labour camp with beds and complaints, and transport routes.
+        payroll (last month finalized and paid by direct deposit, this month as a draft), shift rosters, company assets, crew housing and transport routes.
         <br />Everything it creates is tagged, so <b>Remove sample data</b> deletes exactly that — and anything you later recorded against a sample person — without touching your real records.
         Worker IDs start with <b>SMP-</b> so sample people are easy to spot.
       </div>
       {status === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Checking…</div> : (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {status.loaded
-            ? <Badge tone="green">Loaded · {status.employees} people, {status.contractors} contractors</Badge>
+            ? <Badge tone="green">Loaded · {status.employees} people, {status.contractors} contractors, {status.payrollRuns || 0} payroll runs</Badge>
             : <Badge tone="grey">Not loaded</Badge>}
           <div style={{ flex: 1 }} />
           {canManage && !status.loaded && <div onClick={busy ? undefined : () => act(() => api.sampleData.load(), 'Sample data loaded')} style={btn(true, busy)}>{busy ? 'Loading…' : 'Load sample data'}</div>}
+          {canManage && status.loaded && !status.payrollRuns && (
+            <div onClick={busy ? undefined : () => act(() => api.sampleData.loadPayroll(), 'Sample payroll added')} style={btn(true, busy)}>{busy ? 'Adding…' : 'Add sample payroll'}</div>
+          )}
           {canManage && status.loaded && (
             <div onClick={busy ? undefined : () => { if (confirm('Remove all sample data, and anything recorded against sample people?')) act(() => api.sampleData.remove(), 'Sample data removed'); }}
               style={{ ...btn(false, busy), color: DANGER }}>{busy ? 'Removing…' : 'Remove sample data'}</div>

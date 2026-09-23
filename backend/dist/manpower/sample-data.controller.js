@@ -24,6 +24,7 @@ let SampleDataController = class SampleDataController {
     }
     status() { return this.service.status(); }
     async load(a) { return this.service.load(await this.access.actor(a)); }
+    async payroll(a) { return this.service.loadPayroll(await this.access.actor(a)); }
     async remove(a) { return this.service.remove(await this.access.actor(a)); }
 };
 exports.SampleDataController = SampleDataController;
@@ -40,6 +41,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], SampleDataController.prototype, "load", null);
+__decorate([
+    (0, common_1.Post)('payroll'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], SampleDataController.prototype, "payroll", null);
 __decorate([
     (0, common_1.Delete)(),
     __param(0, (0, common_1.Headers)('authorization')),

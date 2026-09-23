@@ -9,6 +9,7 @@ import {
 } from '../database/entities';
 import { HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
+import { PayrollService } from './payroll.service';
 import { nextAssetTag } from './assets.service';
 import { WORKER_TRADE_CODE } from './subcontractor-trades.service';
 import { addDays, weekday, workingDays } from './calendar.util';
@@ -18,10 +19,24 @@ import { todayISO } from './workforce.util';
 export const SAMPLE = 'DEMO-';
 const NOTE = 'Sample data for testing -- remove it from Setup › Sample Data.';
 
+/** Who logs what on the first project each working day: employee, cost code, hours, task. */
+const SAMPLE_WORK: [string, string, number, string][] = [
+  ['E06', '04 00 00', 8, 'CMU block walls, level 3'], ['E07', '03 00 00', 8, 'Column formwork, grid C'],
+  ['E10', '03 00 00', 8, 'Rebar placement, level 4 deck'], ['E11', '04 00 00', 8, 'Material handling for masons'],
+  ['E08', '26 00 00', 8, 'Conduit in deck'], ['E09', '05 00 00', 8, 'Stair rail welding'],
+  ['E13', '31 00 00', 8, 'Excavation for underground detention tank'], ['E14', '26 00 00', 8, 'Panel installs, parking structure'],
+  ['E16', '03 00 00', 8, 'Rebar placement, level 4 deck'],
+  ['E03', '01 00 00', 8, 'Crew supervision and daily coordination'], ['E12', '01 00 00', 8, 'Crew shuttle and material runs'],
+];
+
+const monthStart = (iso: string, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back, 1)).toISOString().slice(0, 10); };
+const monthEnd = (iso: string, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back + 1, 0)).toISOString().slice(0, 10); };
+const monthName = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
 /**
  * A realistic California crew across every HR screen, for trying the system out:
- * salaried staff and hourly craft workers, two CSLB-licensed subcontractors with their workers, deployment, a week
- * of daily logs, leave, overtime, advances, shifts, assets, housing and transport.
+ * salaried staff and hourly craft workers, two CSLB-licensed subcontractors with their workers, deployment, daily
+ * logs, leave, overtime, advances, payroll, shifts, assets, housing and transport.
  * Uses the existing projects, trades and cost codes; creates none of those.
  */
 @Injectable()
@@ -53,14 +68,16 @@ export class SampleDataService {
     @InjectRepository(PayrollRunEntity) private readonly runs: Repository<PayrollRunEntity>,
     private readonly setup: PayrollSetupService,
     private readonly access: ManpowerAccess,
+    private readonly payroll: PayrollService,
   ) {}
 
   async status() {
-    const [employees, contractors] = await Promise.all([
+    const [employees, contractors, payrollRuns] = await Promise.all([
       this.employees.count({ where: { id: Like(`${SAMPLE}%`) } }),
       this.contractors.count({ where: { id: Like(`${SAMPLE}%`) } }),
+      this.runs.count({ where: { id: Like(`${SAMPLE}%`) } }),
     ]);
-    return { loaded: employees > 0 || contractors > 0, employees, contractors };
+    return { loaded: employees > 0 || contractors > 0, employees, contractors, payrollRuns };
   }
 
   async load(actor: Actor) {
@@ -195,13 +212,7 @@ export class SampleDataService {
       // A week of daily logs on the first project: older days approved, the latest one waiting.
       const days: string[] = [];
       for (let n = 1; days.length < 6 && n < 20; n++) if (!weekendDays.includes(weekday(d(-n)))) days.unshift(d(-n));
-      const work: [string, string, number, string][] = [
-        ['E06', '04 00 00', 8, 'CMU block walls, level 3'], ['E07', '03 00 00', 8, 'Column formwork, grid C'],
-        ['E10', '03 00 00', 8, 'Rebar placement, level 4 deck'], ['E11', '04 00 00', 8, 'Material handling for masons'],
-        ['E08', '26 00 00', 8, 'Conduit in deck'], ['E09', '05 00 00', 10, 'Stair rail welding'],
-        ['E13', '31 00 00', 9, 'Excavation for underground detention tank'], ['E14', '26 00 00', 8, 'Panel installs, parking structure'],
-        ['E16', '03 00 00', 8, 'Rebar placement, level 4 deck'],
-      ];
+      const work = SAMPLE_WORK;
       const logRows: Partial<DailyLogEntity>[] = [];
       const entryRows: Partial<LaborLogEntryEntity>[] = [];
       days.forEach((date, i) => {
@@ -247,7 +258,7 @@ export class SampleDataService {
     // ---------------------------------------------------------------- advances & loans
     const approvals = (stages: string[]) => stages.map((stage) => ({ stage, decision: 'approved' as const, byName: stage === 'manager' ? 'David Williams' : stage === 'hr' ? 'Jennifer Martinez' : 'Finance Officer', at: now }));
     await this.advances.save([
-      { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 1500, requestDate: d(-20), reason: 'Car registration and repairs', installments: 3, installmentAmount: 500, deductionStart: d(-5), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: d(-18), disbursedByName: 'Finance Officer', paymentMethod: 'bank_transfer', repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
+      { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 1500, requestDate: addDays(monthStart(today, 1), -6), reason: 'Car registration and repairs', installments: 3, installmentAmount: 500, deductionStart: monthStart(today, 1), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: addDays(monthStart(today, 1), -3), disbursedByName: 'Finance Officer', paymentMethod: 'bank_transfer', repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
       { id: id('ADV2'), employeeId: id('E10'), type: 'emergency_advance', amount: 800, requestDate: d(-2), reason: 'Medical bill for a family member', installments: 2, installmentAmount: 400, deductionStart: d(20), status: 'pending_hr', approvals: approvals(['manager']), repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
       { id: id('ADV3'), employeeId: id('E01'), type: 'loan', amount: 6000, requestDate: d(-3), reason: 'Relocation costs', installments: 12, installmentAmount: 500, deductionStart: d(30), status: 'pending_finance', approvals: approvals(['manager', 'hr']), repayments: [], recovered: 0, createdByName: 'Michael Thompson', createdAt: now },
     ] as unknown as EmployeeAdvanceEntity[]);
@@ -306,7 +317,78 @@ export class SampleDataService {
     const riding: [string, string, string][] = [['E06', 'TR1', 'Extended Stay Suites'], ['E07', 'TR1', 'Extended Stay Suites'], ['E10', 'TR1', 'Extended Stay Suites'], ['E11', 'TR1', 'Extended Stay Suites'], ['E09', 'TR1', 'Extended Stay Suites'], ['E13', 'TR1', 'Elk Grove Park & Ride'], ['E08', 'TR1', 'Laguna Blvd'], ['E01', 'TR2', 'Downtown Sacramento'], ['E05', 'TR2', 'Natomas']];
     await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })) as unknown as TransportAssignmentEntity[]);
 
+    await this.loadPayroll(actor);
     return { ...(await this.status()), projectsUsed: [p1, p2].filter(Boolean).length };
+  }
+
+  /**
+   * Two sample payroll runs for the sample crew only: last month finalized and
+   * paid by direct deposit, this month as a draft. Calculated by the real
+   * payroll engine from the sample logs, overtime, leave and advances; daily
+   * logs back to the start of last month are filled in first so hourly pay has
+   * hours behind it. Can be added on its own to sample data loaded earlier.
+   */
+  async loadPayroll(actor: Actor) {
+    await this.access.require(actor, HR_MODULE, 'load sample data');
+    const st = await this.status();
+    if (!st.employees) throw new BadRequestException('Load the sample data first.');
+    if (st.payrollRuns) throw new BadRequestException('Sample payroll is already loaded.');
+
+    const sample = Like(`${SAMPLE}%`);
+    const today = todayISO();
+    const id = (x: string) => SAMPLE + x;
+    const prevStart = monthStart(today, 1), prevEnd = monthEnd(today, 1);
+    const curStart = monthStart(today), curEnd = monthEnd(today);
+    const { weekendDays } = await this.setup.settings();
+
+    // Daily logs from the start of last month up to the sample week already there.
+    const existing = await this.logs.find({ where: { id: sample } });
+    const logged = new Set(existing.map((l) => l.date));
+    const projectId = existing[0]?.projectId ?? (await this.assignments.find({ where: { id: sample } }))[0]?.projectId;
+    if (projectId != null) {
+      const csi = new Map((await this.csi.find()).map((c) => [c.code, c.id]));
+      const onLeave = (await this.leave.find({ where: { employeeId: sample } })).filter((r) => r.status === 'approved');
+      const away = (k: string, date: string) => onLeave.some((r) => r.employeeId === id(k) && r.startDate <= date && r.endDate >= date);
+      const first = existing.map((l) => l.date).sort()[0] || today;
+      const dates = workingDays(prevStart, addDays(first, -1), weekendDays, new Set()).filter((x) => !logged.has(x));
+      const logRows: Partial<DailyLogEntity>[] = [];
+      const entryRows: Partial<LaborLogEntryEntity>[] = [];
+      for (const date of dates) {
+        const logId = id(`DLP-${date}`);
+        logRows.push({ id: logId, projectId, date, supervisorName: 'David Williams', status: 'approved', submittedAt: `${date}T23:30:00.000Z`, approvedByName: 'Michael Thompson', approvedAt: `${addDays(date, 1)}T16:00:00.000Z`, createdAt: `${date}T23:00:00.000Z` });
+        SAMPLE_WORK.forEach(([k, code, hours, task], j) => {
+          if (away(k, date)) return;
+          if (k === 'E14' && date < addDays(today, -100)) return; // not on site yet
+          if (k === 'E16' && date < addDays(today, -55)) return;
+          entryRows.push({ id: id(`LEP-${date}-${j}`), dailyLogId: logId, employeeId: id(k), csiCodeId: csi.get(code) || csi.values().next().value, hours, taskDetail: task, taskStatus: 'continued', team: j < 4 ? 'A' : 'B' });
+        });
+      }
+      if (logRows.length) await this.logs.save(logRows as unknown as DailyLogEntity[]);
+      if (entryRows.length) await this.entries.save(entryRows as unknown as LaborLogEntryEntity[]);
+      // Nobody works a day they're on approved leave -- including in the sample week loaded earlier.
+      const dateOf = new Map([...existing, ...logRows].map((l) => [l.id, l.date!]));
+      const clash = (await this.entries.find({ where: { dailyLogId: sample } })).filter((e) => dateOf.has(e.dailyLogId) && away(e.employeeId.slice(SAMPLE.length), dateOf.get(e.dailyLogId)!));
+      for (const e of clash) await this.entries.delete({ id: e.id });
+
+      // Overtime worked last month, approved -- it lands on last month's payslip.
+      const otDay = workingDays(addDays(prevStart, 9), prevEnd, weekendDays, new Set())[0];
+      if (otDay) await this.overtime.save({
+        id: id('OT4'), employeeId: id('E13'), projectId, date: otDay, hours: 3, otType: 'normal', status: 'approved', source: 'manual',
+        reason: 'Finishing excavation before the inspector arrived', requestedByName: 'David Williams', decidedByName: 'Michael Thompson', decidedAt: new Date().toISOString(),
+        baseRate: 52, multiplier: 1.5, amount: 234, createdAt: new Date().toISOString(),
+      } as unknown as OvertimeRequestEntity);
+    }
+
+    // Runs cover only sample people; signing off is done here under an internal
+    // admin identity, since the sample has no separate finance user to do it.
+    const people = await this.employees.find({ where: { id: sample } });
+    const system: Actor = { id: actor.id, name: actor.name || 'Sample data', roleKey: 'admin' };
+    await this.payroll.createRunFor(people, { id: id('PR1'), label: monthName(prevStart), periodStart: prevStart, periodEnd: prevEnd, notes: NOTE }, 'Jennifer Martinez');
+    await this.payroll.finalize(id('PR1'), system);
+    const payday = workingDays(curStart, curEnd, weekendDays, new Set())[0] || curStart;
+    await this.payroll.markPaid(id('PR1'), 'all', { method: 'bank_transfer', ref: `ACH batch ${payday}`, date: payday }, system);
+    await this.payroll.createRunFor(people, { id: id('PR2'), label: monthName(curStart), periodStart: curStart, periodEnd: curEnd, notes: NOTE }, 'Jennifer Martinez');
+    return this.status();
   }
 
   /** Deletes every sample row, and anything anyone later recorded against a sample employee. */
@@ -316,11 +398,13 @@ export class SampleDataService {
     const slips = await this.payslips.find({ where: { employeeId: sample } });
     const runIds = Array.from(new Set(slips.map((s) => s.runId)));
     const runs = runIds.length ? (await this.runs.find()).filter((r) => runIds.includes(r.id)) : [];
-    const locked = runs.filter((r) => r.status === 'finalized');
+    const locked = runs.filter((r) => r.status === 'finalized' && !r.id.startsWith(SAMPLE));
     if (locked.length) throw new BadRequestException(`Finalized payroll (${locked.map((r) => r.label).join(', ')}) includes sample employees -- void it first.`);
 
     await this.payslips.delete({ employeeId: sample });
-    for (const run of runs) {
+    await this.payslips.delete({ runId: sample });
+    await this.runs.delete({ id: sample });
+    for (const run of runs.filter((r) => !r.id.startsWith(SAMPLE))) {
       const left = await this.payslips.find({ where: { runId: run.id } });
       const sum = (f: (s: PayslipEntity) => number) => Math.round(left.reduce((a, s) => a + f(s), 0) * 100) / 100;
       run.totals = { headcount: left.length, gross: sum((s) => s.gross), deductions: sum((s) => s.deductions), net: sum((s) => s.net), paid: sum((s) => (s.paymentStatus === 'paid' ? s.net : 0)) };

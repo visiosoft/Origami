@@ -10,5 +10,6 @@ export class SampleDataController {
 
   @Get() status() { return this.service.status(); }
   @Post() async load(@Headers('authorization') a?: string) { return this.service.load(await this.access.actor(a)); }
+  @Post('payroll') async payroll(@Headers('authorization') a?: string) { return this.service.loadPayroll(await this.access.actor(a)); }
   @Delete() async remove(@Headers('authorization') a?: string) { return this.service.remove(await this.access.actor(a)); }
 }

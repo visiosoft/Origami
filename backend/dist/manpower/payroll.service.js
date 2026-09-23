@@ -208,14 +208,23 @@ let PayrollService = class PayrollService {
         const everyone = (await this.employees.find()).filter((e) => (0, exports.onPayroll)(e, payGroup));
         if (!everyone.length)
             throw new common_1.BadRequestException('Nobody to pay: no active employees with a pay rate in this group.');
+        const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+            + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — wage workers');
+        return this.draftRun(everyone, { ...dto, id: (0, workforce_util_1.newId)('PR'), label, payGroup }, actor.name);
+    }
+    async createRunFor(people, dto, actorName) {
+        const everyone = people.filter((e) => (0, exports.onPayroll)(e, 'all'));
+        if (!everyone.length)
+            throw new common_1.BadRequestException('Nobody to pay.');
+        return this.draftRun(everyone, { ...dto, payGroup: 'all' }, actorName);
+    }
+    async draftRun(everyone, dto, actorName) {
         const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
         const src = await this.sources(everyone, dto.periodStart, dto.periodEnd);
         const now = new Date().toISOString();
-        const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-            + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — daily wage');
         const run = this.runs.create({
-            id: (0, workforce_util_1.newId)('PR'), label, periodStart: dto.periodStart, periodEnd: dto.periodEnd, payGroup, status: 'draft',
-            settingsSnapshot: s, notes: dto.notes, createdByName: actor.name, createdAt: now, updatedAt: now,
+            id: dto.id, label: dto.label, periodStart: dto.periodStart, periodEnd: dto.periodEnd, payGroup: dto.payGroup, status: 'draft',
+            settingsSnapshot: s, notes: dto.notes, createdByName: actorName, createdAt: now, updatedAt: now,
         });
         const slips = everyone.map((e) => {
             const r = this.compute(e, run, s, components, src);

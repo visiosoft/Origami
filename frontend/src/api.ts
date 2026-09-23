@@ -504,6 +504,7 @@ export const api = {
   sampleData: {
     status: () => request('/manpower/sample-data'),
     load: () => request('/manpower/sample-data', { method: 'POST' }),
+    loadPayroll: () => request('/manpower/sample-data/payroll', { method: 'POST' }),
     remove: () => request('/manpower/sample-data', { method: 'DELETE' }),
   },
   assignments: {

@@ -8,16 +8,25 @@ export declare class SampleDataController {
         loaded: boolean;
         employees: number;
         contractors: number;
+        payrollRuns: number;
     }>;
     load(a?: string): Promise<{
         projectsUsed: number;
         loaded: boolean;
         employees: number;
         contractors: number;
+        payrollRuns: number;
+    }>;
+    payroll(a?: string): Promise<{
+        loaded: boolean;
+        employees: number;
+        contractors: number;
+        payrollRuns: number;
     }>;
     remove(a?: string): Promise<{
         loaded: boolean;
         employees: number;
         contractors: number;
+        payrollRuns: number;
     }>;
 }

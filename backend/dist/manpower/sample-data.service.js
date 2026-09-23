@@ -19,14 +19,26 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const manpower_access_service_1 = require("./manpower-access.service");
 const payroll_setup_service_1 = require("./payroll-setup.service");
+const payroll_service_1 = require("./payroll.service");
 const assets_service_1 = require("./assets.service");
 const subcontractor_trades_service_1 = require("./subcontractor-trades.service");
 const calendar_util_1 = require("./calendar.util");
 const workforce_util_1 = require("./workforce.util");
 exports.SAMPLE = 'DEMO-';
 const NOTE = 'Sample data for testing -- remove it from Setup › Sample Data.';
+const SAMPLE_WORK = [
+    ['E06', '04 00 00', 8, 'CMU block walls, level 3'], ['E07', '03 00 00', 8, 'Column formwork, grid C'],
+    ['E10', '03 00 00', 8, 'Rebar placement, level 4 deck'], ['E11', '04 00 00', 8, 'Material handling for masons'],
+    ['E08', '26 00 00', 8, 'Conduit in deck'], ['E09', '05 00 00', 8, 'Stair rail welding'],
+    ['E13', '31 00 00', 8, 'Excavation for underground detention tank'], ['E14', '26 00 00', 8, 'Panel installs, parking structure'],
+    ['E16', '03 00 00', 8, 'Rebar placement, level 4 deck'],
+    ['E03', '01 00 00', 8, 'Crew supervision and daily coordination'], ['E12', '01 00 00', 8, 'Crew shuttle and material runs'],
+];
+const monthStart = (iso, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back, 1)).toISOString().slice(0, 10); };
+const monthEnd = (iso, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back + 1, 0)).toISOString().slice(0, 10); };
+const monthName = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 let SampleDataService = class SampleDataService {
-    constructor(employees, contractors, subTrades, projects, csi, records, assignments, requests, logs, entries, leave, leaveAdj, overtime, advances, shifts, assets, assetIssues, units, beds, complaints, routes, riders, payslips, runs, setup, access) {
+    constructor(employees, contractors, subTrades, projects, csi, records, assignments, requests, logs, entries, leave, leaveAdj, overtime, advances, shifts, assets, assetIssues, units, beds, complaints, routes, riders, payslips, runs, setup, access, payroll) {
         this.employees = employees;
         this.contractors = contractors;
         this.subTrades = subTrades;
@@ -53,13 +65,15 @@ let SampleDataService = class SampleDataService {
         this.runs = runs;
         this.setup = setup;
         this.access = access;
+        this.payroll = payroll;
     }
     async status() {
-        const [employees, contractors] = await Promise.all([
+        const [employees, contractors, payrollRuns] = await Promise.all([
             this.employees.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }),
             this.contractors.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }),
+            this.runs.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }),
         ]);
-        return { loaded: employees > 0 || contractors > 0, employees, contractors };
+        return { loaded: employees > 0 || contractors > 0, employees, contractors, payrollRuns };
     }
     async load(actor) {
         await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'load sample data');
@@ -177,13 +191,7 @@ let SampleDataService = class SampleDataService {
             for (let n = 1; days.length < 6 && n < 20; n++)
                 if (!weekendDays.includes((0, calendar_util_1.weekday)(d(-n))))
                     days.unshift(d(-n));
-            const work = [
-                ['E06', '04 00 00', 8, 'CMU block walls, level 3'], ['E07', '03 00 00', 8, 'Column formwork, grid C'],
-                ['E10', '03 00 00', 8, 'Rebar placement, level 4 deck'], ['E11', '04 00 00', 8, 'Material handling for masons'],
-                ['E08', '26 00 00', 8, 'Conduit in deck'], ['E09', '05 00 00', 10, 'Stair rail welding'],
-                ['E13', '31 00 00', 9, 'Excavation for underground detention tank'], ['E14', '26 00 00', 8, 'Panel installs, parking structure'],
-                ['E16', '03 00 00', 8, 'Rebar placement, level 4 deck'],
-            ];
+            const work = SAMPLE_WORK;
             const logRows = [];
             const entryRows = [];
             days.forEach((date, i) => {
@@ -224,7 +232,7 @@ let SampleDataService = class SampleDataService {
         ]);
         const approvals = (stages) => stages.map((stage) => ({ stage, decision: 'approved', byName: stage === 'manager' ? 'David Williams' : stage === 'hr' ? 'Jennifer Martinez' : 'Finance Officer', at: now }));
         await this.advances.save([
-            { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 1500, requestDate: d(-20), reason: 'Car registration and repairs', installments: 3, installmentAmount: 500, deductionStart: d(-5), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: d(-18), disbursedByName: 'Finance Officer', paymentMethod: 'bank_transfer', repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
+            { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 1500, requestDate: (0, calendar_util_1.addDays)(monthStart(today, 1), -6), reason: 'Car registration and repairs', installments: 3, installmentAmount: 500, deductionStart: monthStart(today, 1), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: (0, calendar_util_1.addDays)(monthStart(today, 1), -3), disbursedByName: 'Finance Officer', paymentMethod: 'bank_transfer', repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
             { id: id('ADV2'), employeeId: id('E10'), type: 'emergency_advance', amount: 800, requestDate: d(-2), reason: 'Medical bill for a family member', installments: 2, installmentAmount: 400, deductionStart: d(20), status: 'pending_hr', approvals: approvals(['manager']), repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
             { id: id('ADV3'), employeeId: id('E01'), type: 'loan', amount: 6000, requestDate: d(-3), reason: 'Relocation costs', installments: 12, installmentAmount: 500, deductionStart: d(30), status: 'pending_finance', approvals: approvals(['manager', 'hr']), repayments: [], recovered: 0, createdByName: 'Michael Thompson', createdAt: now },
         ]);
@@ -276,7 +284,70 @@ let SampleDataService = class SampleDataService {
         ]);
         const riding = [['E06', 'TR1', 'Extended Stay Suites'], ['E07', 'TR1', 'Extended Stay Suites'], ['E10', 'TR1', 'Extended Stay Suites'], ['E11', 'TR1', 'Extended Stay Suites'], ['E09', 'TR1', 'Extended Stay Suites'], ['E13', 'TR1', 'Elk Grove Park & Ride'], ['E08', 'TR1', 'Laguna Blvd'], ['E01', 'TR2', 'Downtown Sacramento'], ['E05', 'TR2', 'Natomas']];
         await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })));
+        await this.loadPayroll(actor);
         return { ...(await this.status()), projectsUsed: [p1, p2].filter(Boolean).length };
+    }
+    async loadPayroll(actor) {
+        await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'load sample data');
+        const st = await this.status();
+        if (!st.employees)
+            throw new common_1.BadRequestException('Load the sample data first.');
+        if (st.payrollRuns)
+            throw new common_1.BadRequestException('Sample payroll is already loaded.');
+        const sample = (0, typeorm_2.Like)(`${exports.SAMPLE}%`);
+        const today = (0, workforce_util_1.todayISO)();
+        const id = (x) => exports.SAMPLE + x;
+        const prevStart = monthStart(today, 1), prevEnd = monthEnd(today, 1);
+        const curStart = monthStart(today), curEnd = monthEnd(today);
+        const { weekendDays } = await this.setup.settings();
+        const existing = await this.logs.find({ where: { id: sample } });
+        const logged = new Set(existing.map((l) => l.date));
+        const projectId = existing[0]?.projectId ?? (await this.assignments.find({ where: { id: sample } }))[0]?.projectId;
+        if (projectId != null) {
+            const csi = new Map((await this.csi.find()).map((c) => [c.code, c.id]));
+            const onLeave = (await this.leave.find({ where: { employeeId: sample } })).filter((r) => r.status === 'approved');
+            const away = (k, date) => onLeave.some((r) => r.employeeId === id(k) && r.startDate <= date && r.endDate >= date);
+            const first = existing.map((l) => l.date).sort()[0] || today;
+            const dates = (0, calendar_util_1.workingDays)(prevStart, (0, calendar_util_1.addDays)(first, -1), weekendDays, new Set()).filter((x) => !logged.has(x));
+            const logRows = [];
+            const entryRows = [];
+            for (const date of dates) {
+                const logId = id(`DLP-${date}`);
+                logRows.push({ id: logId, projectId, date, supervisorName: 'David Williams', status: 'approved', submittedAt: `${date}T23:30:00.000Z`, approvedByName: 'Michael Thompson', approvedAt: `${(0, calendar_util_1.addDays)(date, 1)}T16:00:00.000Z`, createdAt: `${date}T23:00:00.000Z` });
+                SAMPLE_WORK.forEach(([k, code, hours, task], j) => {
+                    if (away(k, date))
+                        return;
+                    if (k === 'E14' && date < (0, calendar_util_1.addDays)(today, -100))
+                        return;
+                    if (k === 'E16' && date < (0, calendar_util_1.addDays)(today, -55))
+                        return;
+                    entryRows.push({ id: id(`LEP-${date}-${j}`), dailyLogId: logId, employeeId: id(k), csiCodeId: csi.get(code) || csi.values().next().value, hours, taskDetail: task, taskStatus: 'continued', team: j < 4 ? 'A' : 'B' });
+                });
+            }
+            if (logRows.length)
+                await this.logs.save(logRows);
+            if (entryRows.length)
+                await this.entries.save(entryRows);
+            const dateOf = new Map([...existing, ...logRows].map((l) => [l.id, l.date]));
+            const clash = (await this.entries.find({ where: { dailyLogId: sample } })).filter((e) => dateOf.has(e.dailyLogId) && away(e.employeeId.slice(exports.SAMPLE.length), dateOf.get(e.dailyLogId)));
+            for (const e of clash)
+                await this.entries.delete({ id: e.id });
+            const otDay = (0, calendar_util_1.workingDays)((0, calendar_util_1.addDays)(prevStart, 9), prevEnd, weekendDays, new Set())[0];
+            if (otDay)
+                await this.overtime.save({
+                    id: id('OT4'), employeeId: id('E13'), projectId, date: otDay, hours: 3, otType: 'normal', status: 'approved', source: 'manual',
+                    reason: 'Finishing excavation before the inspector arrived', requestedByName: 'David Williams', decidedByName: 'Michael Thompson', decidedAt: new Date().toISOString(),
+                    baseRate: 52, multiplier: 1.5, amount: 234, createdAt: new Date().toISOString(),
+                });
+        }
+        const people = await this.employees.find({ where: { id: sample } });
+        const system = { id: actor.id, name: actor.name || 'Sample data', roleKey: 'admin' };
+        await this.payroll.createRunFor(people, { id: id('PR1'), label: monthName(prevStart), periodStart: prevStart, periodEnd: prevEnd, notes: NOTE }, 'Jennifer Martinez');
+        await this.payroll.finalize(id('PR1'), system);
+        const payday = (0, calendar_util_1.workingDays)(curStart, curEnd, weekendDays, new Set())[0] || curStart;
+        await this.payroll.markPaid(id('PR1'), 'all', { method: 'bank_transfer', ref: `ACH batch ${payday}`, date: payday }, system);
+        await this.payroll.createRunFor(people, { id: id('PR2'), label: monthName(curStart), periodStart: curStart, periodEnd: curEnd, notes: NOTE }, 'Jennifer Martinez');
+        return this.status();
     }
     async remove(actor) {
         await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'remove sample data');
@@ -284,11 +355,13 @@ let SampleDataService = class SampleDataService {
         const slips = await this.payslips.find({ where: { employeeId: sample } });
         const runIds = Array.from(new Set(slips.map((s) => s.runId)));
         const runs = runIds.length ? (await this.runs.find()).filter((r) => runIds.includes(r.id)) : [];
-        const locked = runs.filter((r) => r.status === 'finalized');
+        const locked = runs.filter((r) => r.status === 'finalized' && !r.id.startsWith(exports.SAMPLE));
         if (locked.length)
             throw new common_1.BadRequestException(`Finalized payroll (${locked.map((r) => r.label).join(', ')}) includes sample employees -- void it first.`);
         await this.payslips.delete({ employeeId: sample });
-        for (const run of runs) {
+        await this.payslips.delete({ runId: sample });
+        await this.runs.delete({ id: sample });
+        for (const run of runs.filter((r) => !r.id.startsWith(exports.SAMPLE))) {
             const left = await this.payslips.find({ where: { runId: run.id } });
             const sum = (f) => Math.round(left.reduce((a, s) => a + f(s), 0) * 100) / 100;
             run.totals = { headcount: left.length, gross: sum((s) => s.gross), deductions: sum((s) => s.deductions), net: sum((s) => s.net), paid: sum((s) => (s.paymentStatus === 'paid' ? s.net : 0)) };
@@ -364,6 +437,7 @@ exports.SampleDataService = SampleDataService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         payroll_setup_service_1.PayrollSetupService,
-        manpower_access_service_1.ManpowerAccess])
+        manpower_access_service_1.ManpowerAccess,
+        payroll_service_1.PayrollService])
 ], SampleDataService);
 //# sourceMappingURL=sample-data.service.js.map

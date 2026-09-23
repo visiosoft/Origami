@@ -104,6 +104,39 @@ export declare class PayrollService {
         voidReason: string;
         updatedAt: string;
     }>;
+    createRunFor(people: EmployeeEntity[], dto: {
+        id: string;
+        label: string;
+        periodStart: string;
+        periodEnd: string;
+        notes?: string;
+    }, actorName: string): Promise<{
+        payslips: PayslipEntity[];
+        id: string;
+        label: string;
+        periodStart: string;
+        periodEnd: string;
+        payGroup: string;
+        status: string;
+        totals: {
+            headcount: number;
+            gross: number;
+            deductions: number;
+            net: number;
+            paid: number;
+        };
+        settingsSnapshot: Record<string, unknown>;
+        notes: string;
+        createdByName: string;
+        createdAt: string;
+        finalizedByName: string;
+        finalizedAt: string;
+        voidedByName: string;
+        voidedAt: string;
+        voidReason: string;
+        updatedAt: string;
+    }>;
+    private draftRun;
     private requireDraft;
     recalculate(runId: string, actor: Actor): Promise<{
         payslips: PayslipEntity[];

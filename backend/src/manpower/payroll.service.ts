@@ -219,15 +219,29 @@ export class PayrollService {
 
     const everyone = (await this.employees.find()).filter((e) => onPayroll(e, payGroup));
     if (!everyone.length) throw new BadRequestException('Nobody to pay: no active employees with a pay rate in this group.');
+    const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+      + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — wage workers');
+    return this.draftRun(everyone, { ...dto, id: newId('PR'), label, payGroup }, actor.name);
+  }
+
+  /**
+   * A draft run for exactly these people under a chosen id, skipping the period
+   * clash check -- how the sample-data loader makes runs that stay apart from
+   * real payroll. Same calculation as any other run.
+   */
+  async createRunFor(people: EmployeeEntity[], dto: { id: string; label: string; periodStart: string; periodEnd: string; notes?: string }, actorName: string) {
+    const everyone = people.filter((e) => onPayroll(e, 'all'));
+    if (!everyone.length) throw new BadRequestException('Nobody to pay.');
+    return this.draftRun(everyone, { ...dto, payGroup: 'all' }, actorName);
+  }
+
+  private async draftRun(everyone: EmployeeEntity[], dto: { id: string; label: string; periodStart: string; periodEnd: string; payGroup: string; notes?: string }, actorName: string) {
     const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
     const src = await this.sources(everyone, dto.periodStart, dto.periodEnd);
     const now = new Date().toISOString();
-    const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-      + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — daily wage');
-
     const run = this.runs.create({
-      id: newId('PR'), label, periodStart: dto.periodStart, periodEnd: dto.periodEnd, payGroup, status: 'draft',
-      settingsSnapshot: s as unknown as Record<string, unknown>, notes: dto.notes, createdByName: actor.name, createdAt: now, updatedAt: now,
+      id: dto.id, label: dto.label, periodStart: dto.periodStart, periodEnd: dto.periodEnd, payGroup: dto.payGroup, status: 'draft',
+      settingsSnapshot: s as unknown as Record<string, unknown>, notes: dto.notes, createdByName: actorName, createdAt: now, updatedAt: now,
     });
     const slips = everyone.map((e) => {
       const r = this.compute(e, run, s, components, src);
