@@ -3,7 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
 import {
-  ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, localISO, money, todayISO,
+  ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, localISO, methodLabel, money, PAYMENT_METHODS, todayISO,
   type PayComponent, type PayrollSettings,
 } from './manpowerUi';
 
@@ -24,7 +24,7 @@ const RUN_STATUS: Record<string, { label: string; tone: 'grey' | 'green' | 'red'
   draft: { label: 'Draft', tone: 'amber' }, finalized: { label: 'Finalized', tone: 'blue' }, void: { label: 'Void', tone: 'red' },
 };
 const GROUP_LABEL: Record<string, string> = { all: 'Everyone', monthly: 'Salaried staff', daily: 'Daily-wage workers' };
-const METHODS: [string, string][] = [['bank_transfer', 'Bank transfer'], ['cash', 'Cash'], ['cheque', 'Cheque']];
+const METHODS = PAYMENT_METHODS;
 
 const monthBounds = (offset = 0) => {
   const d = new Date();
@@ -62,7 +62,7 @@ table{width:100%;border-collapse:collapse}td{padding:6px 0;border-bottom:1px sol
 <h2>Earnings</h2><table>${rows('earning')}<tr><td><b>Gross pay</b></td><td class="r"><b>${esc(money(slip.gross, currency))}</b></td></tr></table>
 <h2>Deductions</h2><table>${rows('deduction')}<tr><td><b>Total deductions</b></td><td class="r"><b>${esc(money(slip.deductions, currency))}</b></td></tr></table>
 <div class="net"><span>Net pay</span><span>${esc(money(slip.net, currency))}</span></div>
-<p class="n">${slip.paymentStatus === 'paid' ? `Paid ${esc(fmtDate(slip.paidAt))} by ${esc(slip.paymentMethod?.replace('_', ' '))}${slip.paymentRef ? ' · ref ' + esc(slip.paymentRef) : ''}` : 'Not yet paid'}</p>
+<p class="n">${slip.paymentStatus === 'paid' ? `Paid ${esc(fmtDate(slip.paidAt))} by ${esc(methodLabel(slip.paymentMethod))}${slip.paymentRef ? ' · ref ' + esc(slip.paymentRef) : ''}` : 'Not yet paid'}</p>
 <script>window.onload=function(){window.print()}</script></body></html>`;
   const w = window.open('', '_blank');
   if (!w) return false;
@@ -310,7 +310,7 @@ function PayDrawer({ run, currency, onClose, onDone }: { run: Run; currency: str
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
         <div><Label text="Paid on" /><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={input} /></div>
         <div><Label text="Method" /><select value={method} onChange={(e) => setMethod(e.target.value)} style={input}>{METHODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-        <div><Label text="Reference" /><input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Batch / cheque no." style={input} /></div>
+        <div><Label text="Reference" /><input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="ACH batch / check no." style={input} /></div>
       </div>
       <div style={{ ...card, maxHeight: 420, overflowY: 'auto' }}>
         {unpaid.map((p) => (
@@ -387,7 +387,7 @@ export function PayslipDrawer({ slip, run, currency, canManage, canFinance, onCl
       </>}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
         {slip.paymentStatus === 'paid'
-          ? <Badge tone="green">Paid {fmtDate(slip.paidAt)} · {slip.paymentMethod?.replace('_', ' ')}{slip.paymentRef ? ` · ${slip.paymentRef}` : ''}</Badge>
+          ? <Badge tone="green">Paid {fmtDate(slip.paidAt)} · {methodLabel(slip.paymentMethod)}{slip.paymentRef ? ` · ${slip.paymentRef}` : ''}</Badge>
           : <Badge tone={run.status === 'draft' ? 'amber' : 'grey'}>{run.status === 'draft' ? 'Draft' : 'Unpaid'}</Badge>}
         <span style={{ fontSize: 12, color: MUTED }}>Worked: {basisText(b)}{b.otHours ? ` · OT ${b.otHours} h` : ''}</span>
         {b.recoveryShortfall && <Badge tone="amber">Some recovery deferred — net pay too low</Badge>}
@@ -490,7 +490,7 @@ export function PayrollSetup({ settings, onSettings, canManage }: { settings: Pa
           <div><Label text="Currency" /><input disabled={!canManage} value={draft.currency} onChange={(e) => setDraft({ ...draft, currency: e.target.value.toUpperCase() })} style={input} /></div>
           <div><Label text="Hours in a full day" /><input disabled={!canManage} type="number" value={draft.standardDayHours} onChange={(e) => setDraft({ ...draft, standardDayHours: nf(e.target.value) })} style={input} /></div>
           <div><Label text="Least hours for a half day" /><input disabled={!canManage} type="number" value={draft.halfDayHours} onChange={(e) => setDraft({ ...draft, halfDayHours: nf(e.target.value) })} style={input} /></div>
-          <div><Label text="Days a monthly salary covers" /><input disabled={!canManage} type="number" value={draft.monthDays} onChange={(e) => setDraft({ ...draft, monthDays: nf(e.target.value) })} style={input} /></div>
+          <div><Label text="Paid days a monthly salary covers" /><input disabled={!canManage} type="number" step={0.01} title="21.67 = 2,080 hours a year" value={draft.monthDays} onChange={(e) => setDraft({ ...draft, monthDays: nf(e.target.value) })} style={input} /></div>
           {(['normal', 'weekend', 'holiday', 'night'] as const).map((k) => (
             <div key={k}><Label text={`${k[0].toUpperCase() + k.slice(1)} overtime ×`} /><input disabled={!canManage} type="number" step={0.05} value={draft.otMultipliers[k]} onChange={(e) => setDraft({ ...draft, otMultipliers: { ...draft.otMultipliers, [k]: nf(e.target.value) } })} style={input} /></div>
           ))}
@@ -602,7 +602,7 @@ export function EmployeePayPanel({ employee, settings, canManage, canFinance, on
           <div>
             <Label text="Pay basis" />
             <select disabled={!canManage} value={draft.payType} onChange={(e) => setDraft({ ...draft, payType: e.target.value })} style={input}>
-              <option value="monthly">Monthly salary</option><option value="daily">Daily wage</option><option value="hourly">Hourly</option>
+              <option value="hourly">Hourly</option><option value="monthly">Salary (monthly)</option><option value="daily">Day rate</option>
             </select>
           </div>
           <div><Label text={draft.payType === 'monthly' ? `Monthly salary (${cur})` : draft.payType === 'daily' ? `Daily rate (${cur})` : `Hourly rate (${cur})`} /><input disabled={!canManage} type="number" min={0} value={draft.payRate} onChange={(e) => setDraft({ ...draft, payRate: e.target.value })} style={input} /></div>

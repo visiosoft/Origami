@@ -9,6 +9,7 @@ export interface PayrollSettings {
     weekendDays: number[];
 }
 export declare const DEFAULT_PAYROLL_SETTINGS: PayrollSettings;
+export declare const LEGACY_PAYROLL_SETTINGS: PayrollSettings;
 export declare const round2: (n: number) => number;
 type PayEmployee = Pick<EmployeeEntity, 'payType' | 'payRate' | 'overtimeRate' | 'hireDate' | 'payComponents'>;
 export declare const payGroupOf: (e: Pick<EmployeeEntity, "payType">) => "monthly" | "daily";

@@ -1,7 +1,7 @@
-import { calculatePayslip, DEFAULT_PAYROLL_SETTINGS, hourlyBase, workFromLogs, type CalcInput } from './payroll.calc';
+import { calculatePayslip, LEGACY_PAYROLL_SETTINGS, hourlyBase, workFromLogs, type CalcInput } from './payroll.calc';
 import type { PayComponentEntity } from '../database/entities';
 
-const s = DEFAULT_PAYROLL_SETTINGS;
+const s = LEGACY_PAYROLL_SETTINGS; // a 30-day month keeps the arithmetic readable
 const comp = (c: Partial<PayComponentEntity>): PayComponentEntity =>
   ({ id: 'C', name: 'X', kind: 'earning', calcType: 'fixed', defaultValue: 0, appliesTo: 'all', category: 'other', active: true, order: 0, ...c }) as PayComponentEntity;
 const noWork = { fullDays: 0, halfDays: 0, extraHours: 0, hoursWorked: 0, manual: false };

@@ -12,17 +12,60 @@ import { LEFT_STATUSES, lifecycleStatus, newId, todayISO } from './workforce.uti
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+/** US leave: vacation/PTO that can roll over and be paid out, personal days, and sick leave (California's minimum is 5 days). */
 export const DEFAULT_LEAVE_TYPES: Omit<LeaveTypeEntity, 'order'>[] = [
-  { id: 'LT-ANNUAL', name: 'Annual', paid: true, trackBalance: true, annualDays: 14, carryForwardMax: 7, encashable: true, color: '#2F7D4A', active: true },
-  { id: 'LT-CASUAL', name: 'Casual', paid: true, trackBalance: true, annualDays: 10, carryForwardMax: 0, encashable: false, color: '#3C5C8A', active: true },
-  { id: 'LT-SICK', name: 'Sick', paid: true, trackBalance: true, annualDays: 8, carryForwardMax: 0, encashable: false, color: '#B4532A', active: true },
+  { id: 'LT-ANNUAL', name: 'Vacation (PTO)', paid: true, trackBalance: true, annualDays: 10, carryForwardMax: 5, encashable: true, color: '#2F7D4A', active: true },
+  { id: 'LT-CASUAL', name: 'Personal', paid: true, trackBalance: true, annualDays: 3, carryForwardMax: 0, encashable: false, color: '#3C5C8A', active: true },
+  { id: 'LT-SICK', name: 'Sick', paid: true, trackBalance: true, annualDays: 5, carryForwardMax: 0, encashable: false, color: '#B4532A', active: true },
   { id: 'LT-EMERGENCY', name: 'Emergency', paid: true, trackBalance: true, annualDays: 3, carryForwardMax: 0, encashable: false, color: '#8A6D12', active: true },
   { id: 'LT-MATERNITY', name: 'Maternity', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#7A4FA0', active: true },
   { id: 'LT-PATERNITY', name: 'Paternity', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#5B6CB0', active: true },
   { id: 'LT-BEREAVEMENT', name: 'Bereavement', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#5C6B65', active: true },
   { id: 'LT-UNPAID', name: 'Unpaid', paid: false, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#9AA39D', active: true },
-  { id: 'LT-ROTATION', name: 'Site rotation', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#1F8A72', active: true },
+  { id: 'LT-FMLA', name: 'FMLA', paid: false, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#6B4FA0', active: true },
+  { id: 'LT-JURY', name: 'Jury duty', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#1F8A72', active: true },
 ];
+
+/** Leave types as first shipped -> the US version, applied only while a type is still exactly as shipped. */
+const LEGACY_LEAVE: Record<string, { name: string; annualDays: number; carryForwardMax: number }> = {
+  'LT-ANNUAL': { name: 'Annual', annualDays: 14, carryForwardMax: 7 },
+  'LT-CASUAL': { name: 'Casual', annualDays: 10, carryForwardMax: 0 },
+  'LT-SICK': { name: 'Sick', annualDays: 8, carryForwardMax: 0 },
+};
+
+/** The nth weekday (0 = Sunday) of a month, or the last one when n is -1. */
+function nthWeekday(year: number, month: number, dow: number, n: number) {
+  if (n > 0) {
+    const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
+    return new Date(Date.UTC(year, month, 1 + ((dow - first + 7) % 7) + (n - 1) * 7)).toISOString().slice(0, 10);
+  }
+  const last = new Date(Date.UTC(year, month + 1, 0));
+  return new Date(Date.UTC(year, month, last.getUTCDate() - ((last.getUTCDay() - dow + 7) % 7))).toISOString().slice(0, 10);
+}
+
+/** A fixed-date holiday on a weekend is observed on the Friday before or Monday after. */
+function observed(date: string) {
+  const d = new Date(date + 'T00:00:00Z');
+  const shift = d.getUTCDay() === 6 ? -1 : d.getUTCDay() === 0 ? 1 : 0;
+  return new Date(d.getTime() + shift * 86400000).toISOString().slice(0, 10);
+}
+
+/** The 11 US federal holidays for a year, on their observed dates. */
+export function usFederalHolidays(year: number): { date: string; name: string }[] {
+  return [
+    { date: observed(`${year}-01-01`), name: "New Year's Day" },
+    { date: nthWeekday(year, 0, 1, 3), name: 'Martin Luther King Jr. Day' },
+    { date: nthWeekday(year, 1, 1, 3), name: "Washington's Birthday (Presidents' Day)" },
+    { date: nthWeekday(year, 4, 1, -1), name: 'Memorial Day' },
+    { date: observed(`${year}-06-19`), name: 'Juneteenth' },
+    { date: observed(`${year}-07-04`), name: 'Independence Day' },
+    { date: nthWeekday(year, 8, 1, 1), name: 'Labor Day' },
+    { date: nthWeekday(year, 9, 1, 2), name: 'Columbus Day' },
+    { date: observed(`${year}-11-11`), name: 'Veterans Day' },
+    { date: nthWeekday(year, 10, 4, 4), name: 'Thanksgiving Day' },
+    { date: observed(`${year}-12-25`), name: 'Christmas Day' },
+  ];
+}
 
 /** Leave rows from before leave types existed carried a free-text type. */
 const LEGACY_TYPE: Record<string, string> = { PTO: 'LT-ANNUAL', Sick: 'LT-SICK', Unpaid: 'LT-UNPAID', Other: 'LT-CASUAL' };
@@ -93,6 +136,8 @@ export class LeaveService implements OnApplicationBootstrap {
       if ((await this.types.count()) === 0) {
         await this.types.save(DEFAULT_LEAVE_TYPES.map((t, i) => ({ ...t, order: i })) as LeaveTypeEntity[]);
         this.log.log(`Seeded ${DEFAULT_LEAVE_TYPES.length} leave types`);
+      } else {
+        await this.convertToUs();
       }
       // Requests from before leave types existed: give them a type and a day count.
       const legacy = (await this.requests.find()).filter((r) => !r.leaveTypeId);
@@ -109,6 +154,30 @@ export class LeaveService implements OnApplicationBootstrap {
       }
     } catch (err) {
       this.log.error('Leave bootstrap failed: ' + (err as Error).message);
+    }
+  }
+
+  /** Types still exactly as first shipped become their US version; US-only types are added; Site rotation retires if unused. */
+  async convertToUs() {
+    const rows = await this.types.find();
+    const changed: LeaveTypeEntity[] = [];
+    for (const r of rows) {
+      const old = LEGACY_LEAVE[r.id];
+      if (old && r.name === old.name && r.annualDays === old.annualDays && r.carryForwardMax === old.carryForwardMax) {
+        const us = DEFAULT_LEAVE_TYPES.find((t) => t.id === r.id)!;
+        Object.assign(r, { name: us.name, annualDays: us.annualDays, carryForwardMax: us.carryForwardMax });
+        changed.push(r);
+      }
+      if (r.id === 'LT-ROTATION' && r.name === 'Site rotation' && r.active && !(await this.requests.count({ where: { leaveTypeId: r.id } }))) {
+        r.active = false;
+        changed.push(r);
+      }
+    }
+    let order = rows.length;
+    for (const t of DEFAULT_LEAVE_TYPES) if (!rows.some((r) => r.id === t.id)) changed.push(this.types.create({ ...t, order: order++ }));
+    if (changed.length) {
+      await this.types.save(changed);
+      this.log.log(`Leave types set up for the US (${changed.length} changed)`);
     }
   }
 
@@ -162,6 +231,17 @@ export class LeaveService implements OnApplicationBootstrap {
     if (!ISO.test(dto.date || '') || !dto.name?.trim()) throw new BadRequestException('Give the holiday a date and a name.');
     if (await this.holidays.findOneBy({ date: dto.date })) throw new BadRequestException('There is already a holiday on that date.');
     return this.holidays.save(this.holidays.create({ id: newId('PH'), date: dto.date, name: dto.name.trim() }));
+  }
+
+  /** Adds the US federal holidays for a year, skipping dates already on the calendar. */
+  async addUsFederalHolidays(year: number, actor: Actor) {
+    await this.access.require(actor, HR_MODULE, 'change public holidays');
+    const y = Number(year);
+    if (!Number.isInteger(y) || y < 2000 || y > 2100) throw new BadRequestException('Which year?');
+    const taken = new Set((await this.holidays.find()).map((h) => h.date));
+    const rows = usFederalHolidays(y).filter((h) => !taken.has(h.date)).map((h) => this.holidays.create({ id: newId('PH'), ...h }));
+    if (rows.length) await this.holidays.save(rows);
+    return { year: y, added: rows.length };
   }
 
   async removeHoliday(id: string, actor: Actor) {

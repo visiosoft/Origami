@@ -1,16 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ADVANCE_LABEL = exports.daysInclusive = exports.overtimeBase = exports.payGroupOf = exports.round2 = exports.DEFAULT_PAYROLL_SETTINGS = void 0;
+exports.ADVANCE_LABEL = exports.daysInclusive = exports.overtimeBase = exports.payGroupOf = exports.round2 = exports.LEGACY_PAYROLL_SETTINGS = exports.DEFAULT_PAYROLL_SETTINGS = void 0;
 exports.hourlyBase = hourlyBase;
 exports.workFromLogs = workFromLogs;
 exports.calculatePayslip = calculatePayslip;
 exports.DEFAULT_PAYROLL_SETTINGS = {
-    currency: 'PKR',
+    currency: 'USD',
     standardDayHours: 8,
     halfDayHours: 4,
-    monthDays: 30,
-    otMultipliers: { normal: 1.5, weekend: 2, holiday: 2, night: 1.25 },
-    weekendDays: [0],
+    monthDays: 21.67,
+    otMultipliers: { normal: 1.5, weekend: 1.5, holiday: 2, night: 1.1 },
+    weekendDays: [0, 6],
+};
+exports.LEGACY_PAYROLL_SETTINGS = {
+    currency: 'PKR', standardDayHours: 8, halfDayHours: 4, monthDays: 30,
+    otMultipliers: { normal: 1.5, weekend: 2, holiday: 2, night: 1.25 }, weekendDays: [0],
 };
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 exports.round2 = round2;

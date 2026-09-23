@@ -3,7 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
 import {
-  ACCENT, ADVANCE_TYPES, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, money, todayISO,
+  ACCENT, ADVANCE_TYPES, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, methodLabel, money, PAYMENT_METHODS, todayISO,
   type PayrollSettings,
 } from './manpowerUi';
 
@@ -237,7 +237,7 @@ function DetailDrawer({ a, employee, settings, canManage, canFinance, onOpenEmpl
       <div style={{ ...card, padding: '12px 14px', fontSize: 12.5, lineHeight: 1.8, marginBottom: 16 }}>
         <div>Repayment: <b>{a.installments === 1 ? 'one deduction' : `${a.installments} instalments of ${money(a.installmentAmount, cur)}`}</b>, from the payroll period covering {fmtDate(a.deductionStart)}</div>
         {a.reason && <div>Reason: {a.reason}</div>}
-        {a.disbursedAt && <div>Paid out {fmtDate(a.disbursedAt)} by {a.disbursedByName} · {a.paymentMethod?.replace('_', ' ')}{a.paymentRef ? ` · ${a.paymentRef}` : ''}</div>}
+        {a.disbursedAt && <div>Paid out {fmtDate(a.disbursedAt)} by {a.disbursedByName} · {methodLabel(a.paymentMethod)}{a.paymentRef ? ` · ${a.paymentRef}` : ''}</div>}
         {['disbursed', 'settled'].includes(a.status) && <div>Recovered <b>{money(a.recovered, cur)}</b> · outstanding <b style={{ color: a.remaining ? DANGER : '#1E6B36' }}>{money(a.remaining, cur)}</b>{a.nextInstallment ? ` · next deduction ${money(a.nextInstallment, cur)}` : ''}</div>}
       </div>
 
@@ -254,7 +254,7 @@ function DetailDrawer({ a, employee, settings, canManage, canFinance, onOpenEmpl
           <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 8 }}>Pay out</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             <div><Label text="Date" /><input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} style={input} /></div>
-            <div><Label text="Method" /><select value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })} style={input}><option value="bank_transfer">Bank transfer</option><option value="cash">Cash</option><option value="cheque">Cheque</option></select></div>
+            <div><Label text="Method" /><select value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })} style={input}>{PAYMENT_METHODS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
             <div><Label text="Reference" /><input value={pay.ref} onChange={(e) => setPay({ ...pay, ref: e.target.value })} style={input} /></div>
           </div>
           <div style={{ marginTop: 10 }}><div onClick={busy ? undefined : () => act(() => api.advances.disburse(a.id, { ...pay, ref: pay.ref || undefined }), 'Paid out — recovery will start in payroll')} style={btn(true, busy)}>Mark as paid out</div></div>

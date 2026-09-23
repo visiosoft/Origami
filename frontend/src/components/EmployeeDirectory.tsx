@@ -4,7 +4,7 @@ import { useApp } from '../AppContext';
 import { Attachments } from './Attachments';
 import type { Attachment } from '../data/projectTasks';
 import { EmployeeDeploymentPanel } from './Deployment';
-import { todayISO, type Assignment, type Contractor, type PayrollSettings, type Project } from './manpowerUi';
+import { todayISO, US_STATES, type Assignment, type Contractor, type PayrollSettings, type Project } from './manpowerUi';
 import { EmployeePayPanel } from './Payroll';
 import { OvertimePanel } from './Overtime';
 import { AdvancesPanel } from './Advances';
@@ -41,6 +41,7 @@ export interface Employee {
   employmentType?: string; hireDate?: string; department?: string; designation?: string; jobTitle?: string;
   grade?: string; employmentStatus?: string; status: string; supervisorId?: string; hrOfficerId?: string;
   userId?: string; payType?: string; payRate?: number; bankName?: string; bankAccount?: string; taxNumber?: string;
+  bankRoutingNumber?: string; filingStatus?: string; taxState?: string; flsaStatus?: string; workersCompClass?: string;
   tradeId?: string; trade?: string; skillLevel?: string; yearsExperience?: number;
   expertise?: string[]; equipmentCapabilities?: string[]; createdAt?: string; updatedAt?: string;
   contractorId?: string | null; siteAccessStatus?: string;
@@ -50,8 +51,8 @@ export interface Trade { id: string; name: string; active: boolean; order: numbe
 
 type Opt = [string, string];
 export const EMPLOYMENT_TYPES: Opt[] = [
-  ['permanent', 'Permanent'], ['contract', 'Contract'], ['daily_wage', 'Daily Wage'],
-  ['temporary', 'Temporary'], ['intern', 'Intern / Apprentice'], ['contractor_worker', 'Contractor worker'],
+  ['permanent', 'Full-time'], ['part_time', 'Part-time'], ['daily_wage', 'Hourly craft'], ['contract', 'Contract'],
+  ['temporary', 'Temporary / seasonal'], ['intern', 'Apprentice / intern'], ['contractor_worker', 'Contractor worker'],
 ];
 export const EMPLOYMENT_STATUSES: Opt[] = [
   ['active', 'Active'], ['on_leave', 'On Leave'], ['suspended', 'Suspended'], ['resigned', 'Resigned'],
@@ -68,7 +69,9 @@ const STATUS_COLOR: Record<string, { bg: string; c: string }> = {
 };
 const SKILL_LEVELS: Opt[] = [['helper', 'Helper'], ['semi_skilled', 'Semi-skilled'], ['skilled', 'Skilled'], ['expert', 'Expert']];
 const GENDERS: Opt[] = [['male', 'Male'], ['female', 'Female'], ['other', 'Other']];
-const PAY_TYPES: Opt[] = [['monthly', 'Monthly salary'], ['daily', 'Daily wage'], ['hourly', 'Hourly']];
+const PAY_TYPES: Opt[] = [['hourly', 'Hourly'], ['monthly', 'Salary (monthly)'], ['daily', 'Day rate']];
+const FILING_STATUSES: Opt[] = [['single', 'Single or married filing separately'], ['married_jointly', 'Married filing jointly'], ['head_of_household', 'Head of household']];
+const FLSA: Opt[] = [['non_exempt', 'Non-exempt (overtime applies)'], ['exempt', 'Exempt (salaried)']];
 const labelOf = (opts: Opt[], v?: string) => opts.find(([k]) => k === v)?.[1] || v || '—';
 const statusOf = (e: Employee) => e.employmentStatus || (e.status === 'inactive' ? 'resigned' : 'active');
 
@@ -101,8 +104,7 @@ const SECTIONS: Record<string, SectionDef> = {
     fields: [
       { key: 'name', label: 'Full name *' },
       { key: 'workerId', label: 'Worker ID', placeholder: 'Assigned automatically if blank' },
-      { key: 'fatherOrSpouseName', label: 'Father / spouse name' },
-      { key: 'nationalId', label: 'CNIC / passport / national ID' },
+      { key: 'nationalId', label: 'SSN / ITIN', placeholder: '123-45-6789' },
       { key: 'dob', label: 'Date of birth', kind: 'date' },
       { key: 'gender', label: 'Gender', kind: 'select', options: GENDERS },
     ],
@@ -150,13 +152,22 @@ const SECTIONS: Record<string, SectionDef> = {
     ],
   },
   payroll: {
-    title: 'Pay & bank',
+    title: 'Pay & direct deposit',
     fields: [
       { key: 'payType', label: 'Pay basis', kind: 'select', options: PAY_TYPES },
-      { key: 'payRate', label: 'Rate / salary', kind: 'number' },
+      { key: 'payRate', label: 'Rate ($/hr, $/day or $/month)', kind: 'number' },
+      { key: 'flsaStatus', label: 'FLSA status', kind: 'select', options: FLSA },
+      { key: 'workersCompClass', label: "Workers' comp class code", placeholder: 'e.g. 5403' },
       { key: 'bankName', label: 'Bank' },
-      { key: 'bankAccount', label: 'Account number / IBAN' },
-      { key: 'taxNumber', label: 'Tax number (NTN)' },
+      { key: 'bankRoutingNumber', label: 'Routing number (ABA)' },
+      { key: 'bankAccount', label: 'Account number' },
+    ],
+  },
+  tax: {
+    title: 'Tax withholding',
+    fields: [
+      { key: 'filingStatus', label: 'Federal filing status (W-4)', kind: 'select', options: FILING_STATUSES },
+      { key: 'taxState', label: 'Work state (withholding)', kind: 'select', options: US_STATES.map((s) => [s, s] as Opt) },
     ],
   },
 };
@@ -282,7 +293,7 @@ export function EmployeeDirectory(props: DirectoryProps) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, worker ID, CNIC, phone…" style={{ ...input, width: 260 }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, worker ID, SSN, phone…" style={{ ...input, width: 260 }} />
         <select value={workforce} onChange={(e) => setWorkforce(e.target.value as any)} style={sel}>
           <option value="">Staff + contractor workers</option>
           <option value="staff">Own staff only</option>
@@ -538,7 +549,7 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
         <EditableSections sectionKeys={['identity', 'contact', 'emergency']} employee={employee} employees={employees} trades={trades} contractors={contractors} canManage={canManage} onSaved={onChanged} />
       )}
       {tab === 'employment' && (
-        <EditableSections sectionKeys={['employment', 'skills', 'payroll']} employee={employee} employees={employees} trades={trades} contractors={contractors} canManage={canManage} onSaved={onChanged} />
+        <EditableSections sectionKeys={['employment', 'skills', 'payroll', 'tax']} employee={employee} employees={employees} trades={trades} contractors={contractors} canManage={canManage} onSaved={onChanged} />
       )}
       {tab === 'deployment' && (
         <EmployeeDeploymentPanel employee={employee} employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
@@ -638,9 +649,9 @@ function EditableSections({ sectionKeys, employee, employees, trades, contractor
 // ------------------------------------------------------------------ records (documents / certifications / contracts)
 
 const RECORD_TYPES: Record<RecordKind, string[]> = {
-  document: ['CNIC / Passport', 'Employment contract', 'Offer letter', 'Experience certificate', 'Educational certificate', 'License', 'Certification', 'Bank document', 'Tax document', 'Insurance', 'Other'],
-  certification: ['Driving license', 'Crane license', 'Forklift license', 'Welding certification', 'Electrical certification', 'Scaffolding certification', 'First aid', 'Professional license', 'Other'],
-  contract: ['Permanent', 'Fixed-term', 'Project contract', 'Daily wage agreement', 'Temporary', 'Probation'],
+  document: ["Driver's license", 'Social Security card', 'Passport', 'Permanent resident card', 'Employment authorization (EAD)', 'Form I-9', 'Form W-4', 'State withholding form (DE 4)', 'Direct deposit authorization', 'Offer letter', 'Handbook acknowledgment', 'Other'],
+  certification: ['OSHA 10', 'OSHA 30', "Commercial driver's license", 'DOT medical card', 'Crane operator (NCCCO)', 'Forklift operator', 'Aerial / scissor lift', 'Welding certification', 'Electrical certification', 'First aid / CPR', 'Confined space', 'Fall protection', 'Professional license', 'Other'],
+  contract: ['Offer letter (at-will)', 'Fixed-term', 'Project agreement', 'Union / collective agreement', 'Temporary / seasonal', 'Apprenticeship agreement'],
 };
 const KIND_LABEL: Record<RecordKind, { one: string; many: string; issue: string; expiry: string }> = {
   document: { one: 'document', many: 'documents', issue: 'Issue date', expiry: 'Expiry date' },

@@ -247,7 +247,7 @@ function LeaveCalendar({ employees, projects, assignments, types, settings, onOp
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
         <div onClick={() => shiftMonth(-1)} style={{ ...btn(), padding: '6px 11px' }}>‹</div>
-        <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: INK, minWidth: 150, textAlign: 'center' }}>{new Date(month.y, month.m, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</div>
+        <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: INK, minWidth: 150, textAlign: 'center' }}>{new Date(month.y, month.m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
         <div onClick={() => shiftMonth(1)} style={{ ...btn(), padding: '6px 11px' }}>›</div>
         <select value={projectId} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : '')} style={{ ...input, width: 'auto' }}>
           <option value="">All projects</option>
@@ -511,6 +511,12 @@ export function LeaveSetup({ canManage }: { canManage: boolean }) {
               <input type="date" value={hol.date} onChange={(e) => setHol({ ...hol, date: e.target.value })} style={{ ...input, width: 150 }} />
               <input value={hol.name} onChange={(e) => setHol({ ...hol, name: e.target.value })} placeholder="e.g. Independence Day" style={input} />
               <div onClick={() => run(() => api.leave.addHoliday(hol), 'Holiday added', () => { setHol({ date: '', name: '' }); loadHolidays(); })} style={btn(true)}>Add</div>
+            </div>
+          )}
+          {canManage && (
+            <div style={{ padding: '0 16px 12px' }}>
+              <span onClick={() => run(async () => { const r: any = await api.leave.addUsFederalHolidays(year); toast(r.added ? `Added ${r.added} US federal holiday(s) for ${year}` : `All US federal holidays for ${year} are already on the calendar`); }, undefined, loadHolidays)}
+                style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ Add all US federal holidays for {year}</span>
             </div>
           )}
         </div>

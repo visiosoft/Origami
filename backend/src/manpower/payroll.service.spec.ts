@@ -4,7 +4,7 @@ import {
 import { AdvancesService } from './advances.service';
 import { OvertimeService } from './overtime.service';
 import { PayrollService } from './payroll.service';
-import { DEFAULT_PAYROLL_SETTINGS } from './payroll.calc';
+import { LEGACY_PAYROLL_SETTINGS as DEFAULT_PAYROLL_SETTINGS } from './payroll.calc';
 import type { Actor, ManpowerAccess } from './manpower-access.service';
 
 /** Just enough of a TypeORM repository, over an array. */

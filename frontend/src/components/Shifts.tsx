@@ -141,7 +141,7 @@ export function ShiftRoster({ employees, projects, assignments, settings, canMan
               const off = settings.weekendDays.includes(dt.getDay()) || holidayOn.has(d);
               return (
                 <span key={d} title={holidayOn.get(d) || ''} style={{ textAlign: 'center', color: holidayOn.has(d) ? DANGER : d === today ? ACCENT : off ? '#b5afbd' : undefined, textTransform: 'none', letterSpacing: 0 }}>
-                  {weeks === 1 ? dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }) : <>{'SMTWTFS'[dt.getDay()]}<br />{dt.getDate()}</>}
+                  {weeks === 1 ? dt.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }) : <>{'SMTWTFS'[dt.getDay()]}<br />{dt.getDate()}</>}
                 </span>
               );
             })}
@@ -263,7 +263,7 @@ export function AssignShiftDrawer({ employees, templates, preselected, onClose, 
           const t = byId.get(shiftOn({ templateIds: rotation.filter(Boolean), rotateEveryDays: every, startDate, endDate: endDate || null }, d) || '');
           return (
             <div key={d} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 8, background: '#F7F3EA' }}>
-              <div style={{ fontSize: 10, color: MUTED }}>{new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })}</div>
+              <div style={{ fontSize: 10, color: MUTED }}>{new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</div>
               <div style={{ marginTop: 3 }}>{t ? <Chip t={t} /> : <span style={{ color: '#ccc' }}>·</span>}</div>
             </div>
           );
@@ -368,7 +368,7 @@ export function EmployeeShiftPanel({ employee, employees, canManage, currency }:
               const t = a ? byId.get(shiftOn(a, d)!) : undefined;
               return (
                 <div key={d} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 8, background: d === today ? '#DCE7DE' : '#F7F3EA' }}>
-                  <div style={{ fontSize: 10, color: MUTED }}>{new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' })}</div>
+                  <div style={{ fontSize: 10, color: MUTED }}>{new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</div>
                   <div style={{ marginTop: 3 }}>{t ? <Chip t={t} /> : <span style={{ color: '#ccc' }}>·</span>}</div>
                 </div>
               );

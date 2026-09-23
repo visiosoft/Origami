@@ -78,7 +78,7 @@ export const fmtDate = (d?: string | null) => {
   if (!d) return '—';
   // A bare date is a calendar day; a full timestamp is converted to local time first.
   const x = d.length === 10 ? new Date(d + 'T00:00:00') : new Date(d);
-  return Number.isNaN(x.getTime()) ? d : x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return Number.isNaN(x.getTime()) ? d : x.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 // ----------------------------------------------------------------- shared types
@@ -114,12 +114,21 @@ export interface PayrollSettings {
   otMultipliers: Record<'normal' | 'weekend' | 'holiday' | 'night', number>; weekendDays: number[];
 }
 export const DEFAULT_SETTINGS: PayrollSettings = {
-  currency: 'PKR', standardDayHours: 8, halfDayHours: 4, monthDays: 30,
-  otMultipliers: { normal: 1.5, weekend: 2, holiday: 2, night: 1.25 }, weekendDays: [0],
+  currency: 'USD', standardDayHours: 8, halfDayHours: 4, monthDays: 21.67,
+  otMultipliers: { normal: 1.5, weekend: 1.5, holiday: 2, night: 1.1 }, weekendDays: [0, 6],
 };
 
-export const money = (n: number | null | undefined, currency = 'PKR') =>
-  `${currency} ${(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+/** $1,234.50 for USD (or any ISO currency); falls back to "CODE 1,234.5" for anything Intl doesn't know. */
+export const money = (n: number | null | undefined, currency = 'USD') => {
+  const v = Number(n) || 0;
+  try { return v.toLocaleString('en-US', { style: 'currency', currency, minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 }); }
+  catch { return `${currency} ${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}`; }
+};
+
+export const PAYMENT_METHODS: [string, string][] = [['bank_transfer', 'Direct deposit (ACH)'], ['cheque', 'Check'], ['cash', 'Cash']];
+export const methodLabel = (m?: string) => PAYMENT_METHODS.find(([k]) => k === m)?.[1] || m?.replace('_', ' ') || '';
+
+export const US_STATES = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'];
 
 export interface PayComponent {
   id: string; name: string; kind: 'earning' | 'deduction'; calcType: 'fixed' | 'percent_basic' | 'percent_gross';

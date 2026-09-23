@@ -36,9 +36,9 @@ describe('leave maths', () => {
   });
 
   it('prorates the allowance for someone who joined during the year, to the half day', () => {
-    expect(entitlementFor(annual, '2020-03-01', 2026)).toBe(14);
-    expect(entitlementFor(annual, '2026-07-15', 2026)).toBe(7);   // 6 of 12 months
-    expect(entitlementFor(annual, '2026-10-01', 2026)).toBe(3.5); // 3 of 12
+    expect(entitlementFor(annual, '2020-03-01', 2026)).toBe(10);
+    expect(entitlementFor(annual, '2026-07-15', 2026)).toBe(5);   // 6 of 12 months
+    expect(entitlementFor(annual, '2026-10-01', 2026)).toBe(2.5); // 3 of 12
     expect(entitlementFor(annual, '2027-01-01', 2026)).toBe(0);
   });
 
@@ -55,7 +55,7 @@ describe('leave maths', () => {
       { leaveTypeId: 'LT-ANNUAL', year: 2025, kind: 'manual', days: 10 },
     ];
     const b = computeBalance(annual, '2020-01-01', 2026, reqs, adjs, SUNDAY_ONLY, noHol);
-    expect(b).toMatchObject({ entitlement: 14, carriedForward: 4, adjusted: -1, encashed: 2, used: 3, pending: 0.5, available: 12 });
+    expect(b).toMatchObject({ entitlement: 10, carriedForward: 4, adjusted: -1, encashed: 2, used: 3, pending: 0.5, available: 8 });
   });
 });
 
@@ -76,7 +76,7 @@ describe('LeaveService', () => {
       { id: 'E1', name: 'Ali', status: 'active', employmentStatus: 'active', hireDate: hire, payType: 'monthly', payRate: 60000, userId: 'U-ALI' } as EmployeeEntity,
       { id: 'E2', name: 'Hamza', status: 'active', employmentStatus: 'active', contractorId: 'CTR-1' } as EmployeeEntity,
     ]);
-    const setupSvc = { settings: jest.fn(async () => ({ ...DEFAULT_PAYROLL_SETTINGS, weekendDays: SUNDAY_ONLY })) };
+    const setupSvc = { settings: jest.fn(async () => ({ ...DEFAULT_PAYROLL_SETTINGS, monthDays: 30, weekendDays: SUNDAY_ONLY })) };
     const svc = new LeaveService(types, requests, adjustments, holidays, employees, setupSvc as any, access);
     return { svc, requests, adjustments };
   };
@@ -85,7 +85,7 @@ describe('LeaveService', () => {
   it('books leave, counting working days', async () => {
     const { svc } = setup();
     const r = await svc.createRequest(ask(), clerk);
-    expect(r).toMatchObject({ status: 'pending', days: 3, type: 'Annual' });
+    expect(r).toMatchObject({ status: 'pending', days: 3, type: 'Vacation (PTO)' });
   });
 
   it('refuses overlapping leave, all-holiday dates, and more days than are left', async () => {
@@ -93,8 +93,8 @@ describe('LeaveService', () => {
     await svc.createRequest(ask(), clerk);
     await expect(svc.createRequest(ask({ startDate: '2026-10-07', endDate: '2026-10-08', leaveTypeId: 'LT-CASUAL' }), clerk)).rejects.toThrow(/overlaps/);
     await expect(svc.createRequest(ask({ startDate: '2026-12-25', endDate: '2026-12-25' }), clerk)).rejects.toThrow(/weekends or public holidays/);
-    // 14 allowance, 3 already pending: 12 more working days is one too many
-    await expect(svc.createRequest(ask({ startDate: '2026-11-02', endDate: '2026-11-14' }), clerk)).rejects.toThrow(/Not enough Annual leave for 2026: 12 day\(s\) asked, 11 available/);
+    // 10 allowance, 3 already pending: 8 more working days is one too many
+    await expect(svc.createRequest(ask({ startDate: '2026-11-02', endDate: '2026-11-10' }), clerk)).rejects.toThrow(/Not enough Vacation \(PTO\) leave for 2026: 8 day\(s\) asked, 7 available/);
   });
 
   it("doesn't cap untracked types like unpaid leave, and refuses contractors' workers", async () => {
@@ -115,9 +115,9 @@ describe('LeaveService', () => {
 
   it('carries forward unused days up to the cap, and can be re-run without doubling', async () => {
     const { svc, requests, adjustments } = setup();
-    requests.rows.push({ id: 'LR1', employeeId: 'E1', leaveTypeId: 'LT-ANNUAL', startDate: '2026-03-02', endDate: '2026-03-06', halfDay: false, status: 'approved' }); // 5 used -> 9 left
+    requests.rows.push({ id: 'LR1', employeeId: 'E1', leaveTypeId: 'LT-ANNUAL', startDate: '2026-03-02', endDate: '2026-03-06', halfDay: false, status: 'approved' }); // 5 used -> 5 left
     const first = await svc.carryForward(2026, hr);
-    expect(first).toMatchObject({ year: 2027, carried: 1, days: 7 }); // capped at 7
+    expect(first).toMatchObject({ year: 2027, carried: 1, days: 5 }); // 5 left, cap 5
     await svc.carryForward(2026, hr);
     expect(adjustments.rows.filter((a: any) => a.kind === 'carry_forward')).toHaveLength(1);
   });
@@ -125,7 +125,7 @@ describe('LeaveService', () => {
   it('encashes only encashable types, within the balance, at the daily rate', async () => {
     const { svc } = setup();
     await expect(svc.encash({ employeeId: 'E1', leaveTypeId: 'LT-CASUAL', year: 2026, days: 2 }, hr)).rejects.toThrow(/can't be encashed/);
-    await expect(svc.encash({ employeeId: 'E1', leaveTypeId: 'LT-ANNUAL', year: 2026, days: 20 }, hr)).rejects.toThrow(/Only 14/);
+    await expect(svc.encash({ employeeId: 'E1', leaveTypeId: 'LT-ANNUAL', year: 2026, days: 20 }, hr)).rejects.toThrow(/Only 10/);
     const e = await svc.encash({ employeeId: 'E1', leaveTypeId: 'LT-ANNUAL', year: 2026, days: 3 }, hr);
     expect(e).toMatchObject({ kind: 'encashment', days: -3, amount: 6000 }); // 60,000 / 30 = 2,000 a day
   });

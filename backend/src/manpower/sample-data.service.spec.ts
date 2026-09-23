@@ -40,7 +40,7 @@ describe('SampleDataService', () => {
     const svc = new (SampleDataService as any)(
       t.employees, t.contractors, t.subTrades, t.projects, t.csi, t.records, t.assignments, t.requests, t.logs, t.entries,
       t.leave, t.leaveAdj, t.overtime, t.advances, t.shifts, t.assets, t.assetIssues, t.units, t.beds, t.complaints, t.routes, t.riders,
-      t.payslips, t.runs, { settings: async () => DEFAULT_PAYROLL_SETTINGS }, access,
+      t.payslips, t.runs, { settings: async () => DEFAULT_PAYROLL_SETTINGS, listComponents: async () => [{ id: 'PC-FED', name: 'Federal income tax withholding' }, { id: 'PC-ST', name: 'State income tax' }] }, access,
     ) as SampleDataService;
     return { svc, t };
   };
@@ -53,6 +53,8 @@ describe('SampleDataService', () => {
     expect(t.contractors.rows.find((c: any) => c.id === 'DEMO-CTR1').tradeIds).toEqual(['SCT-C-10', 'SCT-C-7']);
     expect(t.employees.rows.find((e: any) => e.id === 'DEMO-E06').tradeId).toBe('SCT-C-29'); // Mason -> Masonry
     expect(t.employees.rows.find((e: any) => e.id === 'DEMO-E12')).toMatchObject({ trade: 'Driver', tradeId: undefined }); // not a licensed trade
+    expect(t.employees.rows.find((e: any) => e.id === 'DEMO-E01')).toMatchObject({ name: 'Michael Thompson', taxState: 'CA', payComponents: [{ componentId: 'PC-FED', value: 12 }, { componentId: 'PC-ST', value: 6 }] });
+    expect(t.employees.rows.every((e: any) => !e.nationalId || e.nationalId.startsWith('666-'))).toBe(true); // never-issued SSN range
     expect(t.assets.rows.find((a: any) => a.id === 'DEMO-AS1').assetTag).toBe('AST-0004'); // after the real AST-0003
     expect(t.logs.rows.length).toBe(6);
     expect(t.assignments.rows.every((a: any) => [7, 8].includes(a.projectId))).toBe(true);

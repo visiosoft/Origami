@@ -29,6 +29,11 @@ export declare class CreateEmployeeDto {
     bankName?: string;
     bankAccount?: string;
     taxNumber?: string;
+    bankRoutingNumber?: string;
+    filingStatus?: string;
+    taxState?: string;
+    flsaStatus?: string;
+    workersCompClass?: string;
     tradeId?: string | null;
     trade?: string;
     skillLevel?: string;

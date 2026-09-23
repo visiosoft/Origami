@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeaveController = exports.CarryForwardDto = exports.AdjustDto = exports.NoteDto = exports.LeaveRequestDto = exports.HolidayDto = exports.LeaveTypeDto = void 0;
+exports.LeaveController = exports.YearDto = exports.CarryForwardDto = exports.AdjustDto = exports.NoteDto = exports.LeaveRequestDto = exports.HolidayDto = exports.LeaveTypeDto = void 0;
 const common_1 = require("@nestjs/common");
 const class_validator_1 = require("class-validator");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
@@ -145,6 +145,13 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CarryForwardDto.prototype, "fromYear", void 0);
+class YearDto {
+}
+exports.YearDto = YearDto;
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], YearDto.prototype, "year", void 0);
 let LeaveController = class LeaveController {
     constructor(service, access) {
         this.service = service;
@@ -159,6 +166,7 @@ let LeaveController = class LeaveController {
     async removeType(id, a) { return this.service.removeType(id, await this.actor(a)); }
     holidays(year) { return this.service.listHolidays(year ? Number(year) : undefined); }
     async addHoliday(dto, a) { return this.service.addHoliday(dto, await this.actor(a)); }
+    async usFederal(dto, a) { return this.service.addUsFederalHolidays(dto.year, await this.actor(a)); }
     async removeHoliday(id, a) { return this.service.removeHoliday(id, await this.actor(a)); }
     requests(employeeId, status, from, to) {
         return this.service.findRequests({ employeeId, status, from, to });
@@ -225,6 +233,14 @@ __decorate([
     __metadata("design:paramtypes", [HolidayDto, String]),
     __metadata("design:returntype", Promise)
 ], LeaveController.prototype, "addHoliday", null);
+__decorate([
+    (0, common_1.Post)('holidays/us-federal'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [YearDto, String]),
+    __metadata("design:returntype", Promise)
+], LeaveController.prototype, "usFederal", null);
 __decorate([
     (0, common_1.Delete)('holidays/:id'),
     __param(0, (0, common_1.Param)('id')),

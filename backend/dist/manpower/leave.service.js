@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LeaveService = exports.DEFAULT_LEAVE_TYPES = void 0;
+exports.usFederalHolidays = usFederalHolidays;
 exports.requestDaysInYear = requestDaysInYear;
 exports.entitlementFor = entitlementFor;
 exports.computeBalance = computeBalance;
@@ -27,16 +28,50 @@ const payroll_calc_1 = require("./payroll.calc");
 const workforce_util_1 = require("./workforce.util");
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 exports.DEFAULT_LEAVE_TYPES = [
-    { id: 'LT-ANNUAL', name: 'Annual', paid: true, trackBalance: true, annualDays: 14, carryForwardMax: 7, encashable: true, color: '#2F7D4A', active: true },
-    { id: 'LT-CASUAL', name: 'Casual', paid: true, trackBalance: true, annualDays: 10, carryForwardMax: 0, encashable: false, color: '#3C5C8A', active: true },
-    { id: 'LT-SICK', name: 'Sick', paid: true, trackBalance: true, annualDays: 8, carryForwardMax: 0, encashable: false, color: '#B4532A', active: true },
+    { id: 'LT-ANNUAL', name: 'Vacation (PTO)', paid: true, trackBalance: true, annualDays: 10, carryForwardMax: 5, encashable: true, color: '#2F7D4A', active: true },
+    { id: 'LT-CASUAL', name: 'Personal', paid: true, trackBalance: true, annualDays: 3, carryForwardMax: 0, encashable: false, color: '#3C5C8A', active: true },
+    { id: 'LT-SICK', name: 'Sick', paid: true, trackBalance: true, annualDays: 5, carryForwardMax: 0, encashable: false, color: '#B4532A', active: true },
     { id: 'LT-EMERGENCY', name: 'Emergency', paid: true, trackBalance: true, annualDays: 3, carryForwardMax: 0, encashable: false, color: '#8A6D12', active: true },
     { id: 'LT-MATERNITY', name: 'Maternity', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#7A4FA0', active: true },
     { id: 'LT-PATERNITY', name: 'Paternity', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#5B6CB0', active: true },
     { id: 'LT-BEREAVEMENT', name: 'Bereavement', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#5C6B65', active: true },
     { id: 'LT-UNPAID', name: 'Unpaid', paid: false, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#9AA39D', active: true },
-    { id: 'LT-ROTATION', name: 'Site rotation', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#1F8A72', active: true },
+    { id: 'LT-FMLA', name: 'FMLA', paid: false, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#6B4FA0', active: true },
+    { id: 'LT-JURY', name: 'Jury duty', paid: true, trackBalance: false, annualDays: 0, carryForwardMax: 0, encashable: false, color: '#1F8A72', active: true },
 ];
+const LEGACY_LEAVE = {
+    'LT-ANNUAL': { name: 'Annual', annualDays: 14, carryForwardMax: 7 },
+    'LT-CASUAL': { name: 'Casual', annualDays: 10, carryForwardMax: 0 },
+    'LT-SICK': { name: 'Sick', annualDays: 8, carryForwardMax: 0 },
+};
+function nthWeekday(year, month, dow, n) {
+    if (n > 0) {
+        const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
+        return new Date(Date.UTC(year, month, 1 + ((dow - first + 7) % 7) + (n - 1) * 7)).toISOString().slice(0, 10);
+    }
+    const last = new Date(Date.UTC(year, month + 1, 0));
+    return new Date(Date.UTC(year, month, last.getUTCDate() - ((last.getUTCDay() - dow + 7) % 7))).toISOString().slice(0, 10);
+}
+function observed(date) {
+    const d = new Date(date + 'T00:00:00Z');
+    const shift = d.getUTCDay() === 6 ? -1 : d.getUTCDay() === 0 ? 1 : 0;
+    return new Date(d.getTime() + shift * 86400000).toISOString().slice(0, 10);
+}
+function usFederalHolidays(year) {
+    return [
+        { date: observed(`${year}-01-01`), name: "New Year's Day" },
+        { date: nthWeekday(year, 0, 1, 3), name: 'Martin Luther King Jr. Day' },
+        { date: nthWeekday(year, 1, 1, 3), name: "Washington's Birthday (Presidents' Day)" },
+        { date: nthWeekday(year, 4, 1, -1), name: 'Memorial Day' },
+        { date: observed(`${year}-06-19`), name: 'Juneteenth' },
+        { date: observed(`${year}-07-04`), name: 'Independence Day' },
+        { date: nthWeekday(year, 8, 1, 1), name: 'Labor Day' },
+        { date: nthWeekday(year, 9, 1, 2), name: 'Columbus Day' },
+        { date: observed(`${year}-11-11`), name: 'Veterans Day' },
+        { date: nthWeekday(year, 10, 4, 4), name: 'Thanksgiving Day' },
+        { date: observed(`${year}-12-25`), name: 'Christmas Day' },
+    ];
+}
 const LEGACY_TYPE = { PTO: 'LT-ANNUAL', Sick: 'LT-SICK', Unpaid: 'LT-UNPAID', Other: 'LT-CASUAL' };
 function requestDaysInYear(r, year, weekendDays, holidays) {
     const span = (0, calendar_util_1.overlap)(r.startDate, r.endDate, `${year}-01-01`, `${year}-12-31`);
@@ -89,6 +124,9 @@ let LeaveService = class LeaveService {
                 await this.types.save(exports.DEFAULT_LEAVE_TYPES.map((t, i) => ({ ...t, order: i })));
                 this.log.log(`Seeded ${exports.DEFAULT_LEAVE_TYPES.length} leave types`);
             }
+            else {
+                await this.convertToUs();
+            }
             const legacy = (await this.requests.find()).filter((r) => !r.leaveTypeId);
             if (legacy.length) {
                 const { weekendDays } = await this.setup.settings();
@@ -105,6 +143,30 @@ let LeaveService = class LeaveService {
         }
         catch (err) {
             this.log.error('Leave bootstrap failed: ' + err.message);
+        }
+    }
+    async convertToUs() {
+        const rows = await this.types.find();
+        const changed = [];
+        for (const r of rows) {
+            const old = LEGACY_LEAVE[r.id];
+            if (old && r.name === old.name && r.annualDays === old.annualDays && r.carryForwardMax === old.carryForwardMax) {
+                const us = exports.DEFAULT_LEAVE_TYPES.find((t) => t.id === r.id);
+                Object.assign(r, { name: us.name, annualDays: us.annualDays, carryForwardMax: us.carryForwardMax });
+                changed.push(r);
+            }
+            if (r.id === 'LT-ROTATION' && r.name === 'Site rotation' && r.active && !(await this.requests.count({ where: { leaveTypeId: r.id } }))) {
+                r.active = false;
+                changed.push(r);
+            }
+        }
+        let order = rows.length;
+        for (const t of exports.DEFAULT_LEAVE_TYPES)
+            if (!rows.some((r) => r.id === t.id))
+                changed.push(this.types.create({ ...t, order: order++ }));
+        if (changed.length) {
+            await this.types.save(changed);
+            this.log.log(`Leave types set up for the US (${changed.length} changed)`);
         }
     }
     listTypes() {
@@ -155,6 +217,17 @@ let LeaveService = class LeaveService {
         if (await this.holidays.findOneBy({ date: dto.date }))
             throw new common_1.BadRequestException('There is already a holiday on that date.');
         return this.holidays.save(this.holidays.create({ id: (0, workforce_util_1.newId)('PH'), date: dto.date, name: dto.name.trim() }));
+    }
+    async addUsFederalHolidays(year, actor) {
+        await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'change public holidays');
+        const y = Number(year);
+        if (!Number.isInteger(y) || y < 2000 || y > 2100)
+            throw new common_1.BadRequestException('Which year?');
+        const taken = new Set((await this.holidays.find()).map((h) => h.date));
+        const rows = usFederalHolidays(y).filter((h) => !taken.has(h.date)).map((h) => this.holidays.create({ id: (0, workforce_util_1.newId)('PH'), ...h }));
+        if (rows.length)
+            await this.holidays.save(rows);
+        return { year: y, added: rows.length };
     }
     async removeHoliday(id, actor) {
         await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'change public holidays');

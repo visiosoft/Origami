@@ -222,7 +222,7 @@ export class PayrollService {
     const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
     const src = await this.sources(everyone, dto.periodStart, dto.periodEnd);
     const now = new Date().toISOString();
-    const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
       + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — daily wage');
 
     const run = this.runs.create({

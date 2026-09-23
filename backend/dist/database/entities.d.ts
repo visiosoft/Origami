@@ -490,6 +490,11 @@ export declare class EmployeeEntity {
     bankName: string;
     bankAccount: string;
     taxNumber: string;
+    bankRoutingNumber: string;
+    filingStatus: string;
+    taxState: string;
+    flsaStatus: string;
+    workersCompClass: string;
     tradeId: string;
     skillLevel: string;
     yearsExperience: number;

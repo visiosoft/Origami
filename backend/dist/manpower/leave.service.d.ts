@@ -4,6 +4,10 @@ import { EmployeeEntity, LeaveAdjustmentEntity, LeaveRequestEntity, LeaveTypeEnt
 import { ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 export declare const DEFAULT_LEAVE_TYPES: Omit<LeaveTypeEntity, 'order'>[];
+export declare function usFederalHolidays(year: number): {
+    date: string;
+    name: string;
+}[];
 type Req = Pick<LeaveRequestEntity, 'startDate' | 'endDate' | 'halfDay' | 'status' | 'leaveTypeId'>;
 export declare function requestDaysInYear(r: Req, year: number, weekendDays: number[], holidays: Set<string>): number;
 export declare function entitlementFor(type: Pick<LeaveTypeEntity, 'annualDays' | 'trackBalance'>, hireDate: string | undefined, year: number): number;
@@ -33,6 +37,7 @@ export declare class LeaveService implements OnApplicationBootstrap {
     private readonly log;
     constructor(types: Repository<LeaveTypeEntity>, requests: Repository<LeaveRequestEntity>, adjustments: Repository<LeaveAdjustmentEntity>, holidays: Repository<PublicHolidayEntity>, employees: Repository<EmployeeEntity>, setup: PayrollSetupService, access: ManpowerAccess);
     onApplicationBootstrap(): Promise<void>;
+    convertToUs(): Promise<void>;
     listTypes(): Promise<LeaveTypeEntity[]>;
     private checkType;
     createType(dto: Partial<LeaveTypeEntity>, actor: Actor): Promise<LeaveTypeEntity>;
@@ -47,6 +52,10 @@ export declare class LeaveService implements OnApplicationBootstrap {
         date: string;
         name: string;
     }, actor: Actor): Promise<PublicHolidayEntity>;
+    addUsFederalHolidays(year: number, actor: Actor): Promise<{
+        year: number;
+        added: number;
+    }>;
     removeHoliday(id: string, actor: Actor): Promise<{
         id: string;
         deleted: boolean;

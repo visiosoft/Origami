@@ -32,6 +32,11 @@ export class CreateEmployeeDto {
   @IsString() @IsOptional() bankName?: string;
   @IsString() @IsOptional() bankAccount?: string;
   @IsString() @IsOptional() taxNumber?: string;
+  @IsString() @IsOptional() bankRoutingNumber?: string;
+  @IsString() @IsOptional() filingStatus?: string;
+  @IsString() @IsOptional() taxState?: string;
+  @IsString() @IsOptional() flsaStatus?: string;
+  @IsString() @IsOptional() workersCompClass?: string;
   @IsString() @IsOptional() tradeId?: string | null;
   @IsString() @IsOptional() trade?: string;
   @IsString() @IsOptional() skillLevel?: string;

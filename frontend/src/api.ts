@@ -600,6 +600,7 @@ export const api = {
     holidays: (year?: number) => request(`/leave/holidays${year ? `?year=${year}` : ''}`),
     addHoliday: (d: { date: string; name: string }) => request('/leave/holidays', { method: 'POST', body: JSON.stringify(d) }),
     removeHoliday: (id: string) => request(`/leave/holidays/${id}`, { method: 'DELETE' }),
+    addUsFederalHolidays: (year: number) => request('/leave/holidays/us-federal', { method: 'POST', body: JSON.stringify({ year }) }),
     requests: (o?: { employeeId?: string; status?: string; from?: string; to?: string }) => request(`/leave/requests${qs(o)}`),
     preview: (d: unknown) => request('/leave/requests/preview', { method: 'POST', body: JSON.stringify(d) }),
     create: (d: unknown) => request('/leave/requests', { method: 'POST', body: JSON.stringify(d) }),

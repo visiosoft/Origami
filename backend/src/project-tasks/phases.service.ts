@@ -204,7 +204,11 @@ export class PhasesService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     try {
       const stale = await this.repo.find();
-      const retired = stale.filter((ph) => RETIRED_PHASE_KEYS.includes(ph.key));
+      // A key a programme template uses again is live, not retired -- otherwise
+      // every boot would drop the phase, then re-add and re-seed it on top of
+      // its old task rows, wiping their progress.
+      const live = new Set([...DEFAULT_PROGRAMME, ...(await this.library()).flatMap((t) => t.phases)].map((ph) => ph.key));
+      const retired = stale.filter((ph) => RETIRED_PHASE_KEYS.includes(ph.key) && !live.has(ph.key));
       if (!retired.length) return;
 
       const ids = retired.map((ph) => ph.id);

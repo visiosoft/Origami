@@ -168,7 +168,8 @@ let PhasesService = class PhasesService {
     async onApplicationBootstrap() {
         try {
             const stale = await this.repo.find();
-            const retired = stale.filter((ph) => project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
+            const live = new Set([...programme_template_1.DEFAULT_PROGRAMME, ...(await this.library()).flatMap((t) => t.phases)].map((ph) => ph.key));
+            const retired = stale.filter((ph) => project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key) && !live.has(ph.key));
             if (!retired.length)
                 return;
             const ids = retired.map((ph) => ph.id);

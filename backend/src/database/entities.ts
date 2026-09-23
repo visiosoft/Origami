@@ -730,6 +730,15 @@ export class EmployeeEntity {
   @Column({ nullable: true }) bankName!: string;
   @Column({ nullable: true }) bankAccount!: string;
   @Column({ nullable: true }) taxNumber!: string;
+  // --- US payroll & tax ---
+  @Column({ nullable: true }) bankRoutingNumber!: string;
+  /** W-4 federal filing status: single | married_jointly | head_of_household */
+  @Column({ nullable: true }) filingStatus!: string;
+  /** Two-letter state whose income tax is withheld, e.g. CA. */
+  @Column({ nullable: true }) taxState!: string;
+  /** FLSA: non_exempt (overtime applies) | exempt */
+  @Column({ nullable: true }) flsaStatus!: string;
+  @Column({ nullable: true }) workersCompClass!: string;
   // --- Worker skills ---
   @Column({ nullable: true }) tradeId!: string;
   @Column({ nullable: true }) skillLevel!: string; // helper | semi_skilled | skilled | expert

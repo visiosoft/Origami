@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PayrollSetupService = void 0;
+exports.PayrollSetupService = exports.US_COMPONENTS = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -21,15 +21,31 @@ const settings_service_1 = require("../settings/settings.service");
 const payroll_calc_1 = require("./payroll.calc");
 const workforce_util_1 = require("./workforce.util");
 const SETTINGS_KEY = 'payroll.settings';
-const DEFAULT_COMPONENTS = [
-    { name: 'Site allowance', kind: 'earning', calcType: 'fixed', defaultValue: 0, appliesTo: 'all', category: 'allowance', active: true },
-    { name: 'Travel allowance', kind: 'earning', calcType: 'fixed', defaultValue: 0, appliesTo: 'all', category: 'allowance', active: true },
-    { name: 'Food allowance', kind: 'earning', calcType: 'fixed', defaultValue: 0, appliesTo: 'all', category: 'allowance', active: true },
-    { name: 'Accommodation allowance', kind: 'earning', calcType: 'fixed', defaultValue: 0, appliesTo: 'monthly', category: 'allowance', active: true },
-    { name: 'Income tax', kind: 'deduction', calcType: 'percent_gross', defaultValue: 0, appliesTo: 'monthly', category: 'tax', active: true },
-    { name: 'Social security (EOBI)', kind: 'deduction', calcType: 'percent_basic', defaultValue: 0, appliesTo: 'all', category: 'social_security', active: true },
-    { name: 'Insurance', kind: 'deduction', calcType: 'fixed', defaultValue: 0, appliesTo: 'all', category: 'insurance', active: true },
+const LOCALE_KEY = 'hr.locale';
+const c = (name, kind, calcType, defaultValue, category) => ({ name, kind, calcType, defaultValue, appliesTo: 'all', category, active: true });
+exports.US_COMPONENTS = [
+    c('Site allowance', 'earning', 'fixed', 0, 'allowance'),
+    c('Per diem', 'earning', 'fixed', 0, 'allowance'),
+    c('Tool allowance', 'earning', 'fixed', 0, 'allowance'),
+    c('Vehicle / mileage allowance', 'earning', 'fixed', 0, 'allowance'),
+    c('Federal income tax withholding', 'deduction', 'percent_gross', 0, 'tax'),
+    c('Social Security (OASDI)', 'deduction', 'percent_gross', 6.2, 'social_security'),
+    c('Medicare', 'deduction', 'percent_gross', 1.45, 'social_security'),
+    c('State income tax', 'deduction', 'percent_gross', 0, 'tax'),
+    c('State disability insurance (SDI)', 'deduction', 'percent_gross', 0, 'insurance'),
+    c('401(k) contribution', 'deduction', 'percent_basic', 0, 'retirement'),
+    c('Health insurance premium', 'deduction', 'fixed', 0, 'insurance'),
+    c('Union dues', 'deduction', 'fixed', 0, 'other'),
 ];
+const LEGACY_COMPONENTS = {
+    'PC-01': { name: 'Site allowance', to: 'Site allowance' },
+    'PC-02': { name: 'Travel allowance', to: 'Vehicle / mileage allowance' },
+    'PC-03': { name: 'Food allowance', to: 'Per diem' },
+    'PC-04': { name: 'Accommodation allowance', to: null },
+    'PC-05': { name: 'Income tax', to: 'Federal income tax withholding' },
+    'PC-06': { name: 'Social security (EOBI)', to: 'Social Security (OASDI)' },
+    'PC-07': { name: 'Insurance', to: 'Health insurance premium' },
+};
 let PayrollSetupService = class PayrollSetupService {
     constructor(components, store) {
         this.components = components;
@@ -39,13 +55,58 @@ let PayrollSetupService = class PayrollSetupService {
     async onApplicationBootstrap() {
         try {
             if ((await this.components.count()) === 0) {
-                await this.components.save(DEFAULT_COMPONENTS.map((c, i) => ({ ...c, id: 'PC-' + String(i + 1).padStart(2, '0'), order: i })));
-                this.log.log(`Seeded ${DEFAULT_COMPONENTS.length} pay components`);
+                await this.components.save(exports.US_COMPONENTS.map((x, i) => ({ ...x, id: 'PC-US-' + String(i + 1).padStart(2, '0'), order: i })));
+                this.log.log(`Seeded ${exports.US_COMPONENTS.length} pay components`);
             }
+            await this.convertToUs();
         }
         catch (err) {
-            this.log.error('Pay component seed failed: ' + err.message);
+            this.log.error('Payroll setup failed: ' + err.message);
         }
+    }
+    async convertToUs() {
+        if ((await this.store.get(LOCALE_KEY)) === 'US')
+            return;
+        const raw = await this.store.get(SETTINGS_KEY);
+        if (raw) {
+            let saved = {};
+            try {
+                saved = JSON.parse(raw);
+            }
+            catch {
+                saved = {};
+            }
+            const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+            const L = payroll_calc_1.LEGACY_PAYROLL_SETTINGS, U = payroll_calc_1.DEFAULT_PAYROLL_SETTINGS;
+            if (saved.currency === L.currency)
+                saved.currency = U.currency;
+            if (same(saved.weekendDays, L.weekendDays))
+                saved.weekendDays = U.weekendDays;
+            if (saved.monthDays === L.monthDays)
+                saved.monthDays = U.monthDays;
+            if (same(saved.otMultipliers, L.otMultipliers))
+                saved.otMultipliers = U.otMultipliers;
+            await this.store.set(SETTINGS_KEY, JSON.stringify(saved));
+        }
+        const rows = await this.components.find();
+        for (const r of rows) {
+            const legacy = LEGACY_COMPONENTS[r.id];
+            if (!legacy || r.name !== legacy.name)
+                continue;
+            if (legacy.to === null) {
+                if (!r.defaultValue)
+                    r.active = false;
+                continue;
+            }
+            const us = exports.US_COMPONENTS.find((x) => x.name === legacy.to);
+            Object.assign(r, { name: us.name, calcType: us.calcType, appliesTo: 'all', category: us.category, defaultValue: r.defaultValue || us.defaultValue });
+        }
+        let order = rows.length;
+        const add = exports.US_COMPONENTS.filter((x) => !rows.some((r) => r.name === x.name))
+            .map((x) => this.components.create({ ...x, id: (0, workforce_util_1.newId)('PC'), order: order++ }));
+        await this.components.save([...rows, ...add]);
+        await this.store.set(LOCALE_KEY, 'US');
+        this.log.log(`Payroll set up for the US: ${add.length} component(s) added`);
     }
     async settings() {
         const raw = await this.store.get(SETTINGS_KEY);

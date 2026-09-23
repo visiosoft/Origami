@@ -15,13 +15,20 @@ export interface PayrollSettings {
   weekendDays: number[];
 }
 
+/** US defaults: a monthly salary covers 21.67 working days (2,080 hours a year), Saturday-Sunday weekend, time-and-a-half overtime. */
 export const DEFAULT_PAYROLL_SETTINGS: PayrollSettings = {
-  currency: 'PKR',
+  currency: 'USD',
   standardDayHours: 8,
   halfDayHours: 4,
-  monthDays: 30,
-  otMultipliers: { normal: 1.5, weekend: 2, holiday: 2, night: 1.25 },
-  weekendDays: [0],
+  monthDays: 21.67,
+  otMultipliers: { normal: 1.5, weekend: 1.5, holiday: 2, night: 1.1 },
+  weekendDays: [0, 6],
+};
+
+/** The defaults this system shipped with before it was set up for the US -- recognised so they can be converted. */
+export const LEGACY_PAYROLL_SETTINGS: PayrollSettings = {
+  currency: 'PKR', standardDayHours: 8, halfDayHours: 4, monthDays: 30,
+  otMultipliers: { normal: 1.5, weekend: 2, holiday: 2, night: 1.25 }, weekendDays: [0],
 };
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

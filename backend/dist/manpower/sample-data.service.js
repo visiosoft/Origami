@@ -79,67 +79,78 @@ let SampleDataService = class SampleDataService {
         const { weekendDays } = await this.setup.settings();
         await this.contractors.save([
             {
-                id: id('CTR1'), companyName: 'Al-Noor Electrical Works', contactPerson: 'Rizwan Ahmed', phone: '0300-4567812', email: 'info@alnoor-electrical.pk',
-                address: '42 Industrial Estate, Kot Lakhpat, Lahore', contractNumber: 'SC-2026-014', contractStart: d(-120), contractEnd: d(240),
-                scopeOfWork: 'Electrical rough-in, conduiting, wiring and DB installation for the tower block.', agreedRates: 'Electrician PKR 2,600/day; helper PKR 1,700/day',
-                insuranceProvider: 'EFU General', insurancePolicyNumber: 'EFU-CAR-88213', insuranceExpiry: d(25),
-                tradeIds: ['C-10', 'C-7'].map((c) => sub.get(c)).filter(Boolean), licenseNumber: 'PEC-C4-11872', licenseExpiry: d(300),
+                id: id('CTR1'), companyName: 'Golden State Electric, Inc.', contactPerson: 'Mark Stevens', phone: '(916) 555-0142', email: 'office@goldenstateelectric.example',
+                address: '8120 Power Inn Rd, Sacramento, CA 95828', contractNumber: 'SC-2026-014', contractStart: d(-120), contractEnd: d(240),
+                scopeOfWork: 'Electrical rough-in, conduit, wire pulls and panel installs for the building.', agreedRates: 'Journeyman electrician $95/hr; apprentice $62/hr (billed)',
+                insuranceProvider: "Travelers (CGL & workers' comp)", insurancePolicyNumber: 'TRV-CGL-4471903', insuranceExpiry: d(25),
+                tradeIds: ['C-10', 'C-7'].map((c) => sub.get(c)).filter(Boolean), licenseNumber: 'CSLB #1043871', licenseExpiry: d(300),
                 status: 'active', notes: NOTE, attachments: [], createdAt: now, updatedAt: now,
             },
             {
-                id: id('CTR2'), companyName: 'Punjab Steel Fixers & Fabricators', contactPerson: 'Ghulam Mustafa', phone: '0321-7788991',
-                address: 'Plot 9, Sundar Industrial Estate, Lahore', contractNumber: 'SC-2026-021', contractStart: d(-60), contractEnd: d(20),
-                scopeOfWork: 'Rebar cutting, bending and fixing; structural steel erection for podium.', agreedRates: 'Per tonne: PKR 38,000 fixing',
-                insuranceProvider: 'Adamjee Insurance', insurancePolicyNumber: 'AI-7731-26', insuranceExpiry: d(-10),
-                tradeIds: ['C-50', 'C-51', 'C-60'].map((c) => sub.get(c)).filter(Boolean), licenseNumber: 'PEC-C5-20931', licenseExpiry: d(15),
+                id: id('CTR2'), companyName: 'Sierra Rebar & Steel, LLC', contactPerson: 'Greg Holloway', phone: '(916) 555-0177', email: 'bids@sierrarebar.example',
+                address: '4401 Florin Perkins Rd, Sacramento, CA 95826', contractNumber: 'SC-2026-021', contractStart: d(-60), contractEnd: d(20),
+                scopeOfWork: 'Rebar detailing, fabrication and placement; structural steel erection for the podium.', agreedRates: 'Rebar placing $1,150/ton; steel erection per bid',
+                insuranceProvider: 'Liberty Mutual', insurancePolicyNumber: 'LM-GL-88213-26', insuranceExpiry: d(-10),
+                tradeIds: ['C-50', 'C-51', 'C-60'].map((c) => sub.get(c)).filter(Boolean), licenseNumber: 'CSLB #987234', licenseExpiry: d(15),
                 status: 'active', notes: NOTE, attachments: [], createdAt: now, updatedAt: now,
             },
         ]);
+        const comps = await this.setup.listComponents();
+        const comp = (name) => comps.find((c) => c.name === name)?.id;
+        const withholding = (fed, extra = []) => [{ componentId: comp('Federal income tax withholding'), value: fed }, { componentId: comp('State income tax'), value: fed >= 12 ? 6 : 4 },
+            { componentId: comp('State disability insurance (SDI)'), value: 1.3 }, ...extra].filter((x) => x.componentId);
+        const benefits = [{ componentId: comp('401(k) contribution'), value: 5 }, { componentId: comp('Health insurance premium'), value: 180 }];
         const people = [
-            { k: 'E01', name: 'Imran Qureshi', t: 'Engineer', designation: 'Site Engineer', department: 'Projects', grade: 'E-3', employmentType: 'permanent', payType: 'monthly', payRate: 180000, gender: 'male', dob: '1988-04-12', hireDate: '2022-02-01', yearsExperience: 12, skillLevel: 'expert', expertise: ['Structural drawings', 'QA/QC'] },
-            { k: 'E02', name: 'Ayesha Malik', designation: 'HR Officer', department: 'Human Resources', grade: 'M-2', employmentType: 'permanent', payType: 'monthly', payRate: 120000, gender: 'female', dob: '1992-09-03', hireDate: '2023-05-15' },
-            { k: 'E03', name: 'Tariq Mehmood', t: 'Foreman', designation: 'Foreman', department: 'Site Operations', grade: 'S-2', employmentType: 'permanent', payType: 'monthly', payRate: 95000, gender: 'male', dob: '1981-01-20', hireDate: '2019-08-01', yearsExperience: 20, skillLevel: 'expert' },
-            { k: 'E04', name: 'Usman Ghani', t: 'Supervisor', designation: 'Site Supervisor', department: 'Site Operations', grade: 'S-3', employmentType: 'permanent', payType: 'monthly', payRate: 110000, gender: 'male', dob: '1985-06-11', hireDate: '2021-03-01', yearsExperience: 15, skillLevel: 'expert' },
-            { k: 'E05', name: 'Farhan Ahmed', t: 'Quantity Surveyor', designation: 'Quantity Surveyor', department: 'Commercial', grade: 'E-2', employmentType: 'contract', payType: 'monthly', payRate: 140000, gender: 'male', dob: '1990-11-30', hireDate: '2024-01-10', yearsExperience: 9, skillLevel: 'skilled' },
-            { k: 'E06', name: 'Muhammad Riaz', t: 'Mason', designation: 'Mason', department: 'Site Operations', employmentType: 'daily_wage', payType: 'daily', payRate: 2500, gender: 'male', dob: '1987-03-14', hireDate: '2023-09-01', yearsExperience: 14, skillLevel: 'skilled', expertise: ['Block work', 'Plaster'] },
-            { k: 'E07', name: 'Shahid Hussain', t: 'Carpenter', designation: 'Shuttering Carpenter', department: 'Site Operations', employmentType: 'daily_wage', payType: 'daily', payRate: 2400, gender: 'male', dob: '1991-07-22', hireDate: '2024-02-12', yearsExperience: 8, skillLevel: 'skilled', expertise: ['Formwork', 'Shuttering'] },
-            { k: 'E08', name: 'Zahid Iqbal', t: 'Electrician', designation: 'Electrician', department: 'MEP', employmentType: 'daily_wage', payType: 'daily', payRate: 2800, gender: 'male', dob: '1993-12-05', hireDate: '2024-06-01', yearsExperience: 7, skillLevel: 'skilled' },
-            { k: 'E09', name: 'Naveed Akhtar', t: 'Welder', designation: 'Welder', department: 'Site Operations', employmentType: 'daily_wage', payType: 'daily', payRate: 3000, gender: 'male', dob: '1986-02-18', hireDate: '2022-11-20', yearsExperience: 13, skillLevel: 'expert', expertise: ['MIG', 'TIG', 'ARC'] },
-            { k: 'E10', name: 'Kashif Ali', t: 'Steel Fixer', designation: 'Steel Fixer', department: 'Site Operations', employmentType: 'daily_wage', payType: 'daily', payRate: 2300, gender: 'male', dob: '1995-05-09', hireDate: '2025-01-06', yearsExperience: 5, skillLevel: 'semi_skilled' },
-            { k: 'E11', name: 'Asif Mehmood', t: 'Helper', designation: 'Helper', department: 'Site Operations', employmentType: 'daily_wage', payType: 'daily', payRate: 1600, gender: 'male', dob: '2000-10-01', hireDate: '2025-07-01', yearsExperience: 1, skillLevel: 'helper' },
-            { k: 'E12', name: 'Bilal Ahmed', t: 'Driver', designation: 'Driver (LTV/HTV)', department: 'Logistics', employmentType: 'contract', payType: 'monthly', payRate: 70000, gender: 'male', dob: '1984-08-27', hireDate: '2023-04-01', yearsExperience: 16, skillLevel: 'skilled', equipmentCapabilities: ['Coaster', 'Hilux', 'Dumper'] },
-            { k: 'E13', name: 'Sajid Khan', t: 'Equipment Operator', designation: 'Excavator Operator', department: 'Plant', employmentType: 'daily_wage', payType: 'daily', payRate: 3200, gender: 'male', dob: '1983-04-02', hireDate: '2021-10-11', yearsExperience: 18, skillLevel: 'expert', equipmentCapabilities: ['Excavator', 'Backhoe loader'] },
-            { k: 'E14', name: 'Waqas Anwar', t: 'Electrician', designation: 'Electrician', employmentType: 'contractor_worker', contractorId: id('CTR1'), siteAccessStatus: 'granted', payType: 'daily', payRate: 2600, gender: 'male', dob: '1994-03-19', hireDate: d(-100), skillLevel: 'skilled' },
-            { k: 'E15', name: 'Adnan Saleem', t: 'Electrician', designation: 'Electrician Helper', employmentType: 'contractor_worker', contractorId: id('CTR1'), siteAccessStatus: 'pending', payType: 'daily', payRate: 1700, gender: 'male', dob: '1999-09-09', hireDate: d(-10), skillLevel: 'helper' },
-            { k: 'E16', name: 'Rashid Mehmood', t: 'Steel Fixer', designation: 'Steel Fixer', employmentType: 'contractor_worker', contractorId: id('CTR2'), siteAccessStatus: 'granted', payType: 'daily', payRate: 2400, gender: 'male', dob: '1989-12-12', hireDate: d(-55), skillLevel: 'skilled' },
-            { k: 'E17', name: 'Hamid Raza', t: 'Painter', designation: 'Painter', department: 'Finishes', employmentType: 'daily_wage', employmentStatus: 'resigned', status: 'inactive', payType: 'daily', payRate: 2200, gender: 'male', dob: '1990-01-01', hireDate: '2023-01-02' },
+            { k: 'E01', name: 'Michael Thompson', t: 'Engineer', designation: 'Project Engineer', department: 'Projects', grade: 'PE-2', employmentType: 'permanent', flsaStatus: 'exempt', workersCompClass: '8227', payType: 'monthly', payRate: 8750, gender: 'male', dob: '1988-04-12', hireDate: '2022-02-01', yearsExperience: 12, skillLevel: 'expert', expertise: ['Submittals', 'RFIs', 'QA/QC'], filingStatus: 'married_jointly', payComponents: withholding(12, benefits) },
+            { k: 'E02', name: 'Jennifer Martinez', designation: 'HR Manager', department: 'Human Resources', grade: 'M-2', employmentType: 'permanent', flsaStatus: 'exempt', workersCompClass: '8810', payType: 'monthly', payRate: 7200, gender: 'female', dob: '1990-09-03', hireDate: '2023-05-15', filingStatus: 'head_of_household', payComponents: withholding(10, benefits) },
+            { k: 'E03', name: 'Robert Johnson', t: 'Foreman', designation: 'General Foreman', department: 'Field Operations', grade: 'F-1', employmentType: 'permanent', flsaStatus: 'non_exempt', workersCompClass: '5403', payType: 'hourly', payRate: 54, gender: 'male', dob: '1979-01-20', hireDate: '2019-08-01', yearsExperience: 22, skillLevel: 'expert', filingStatus: 'married_jointly', payComponents: withholding(12, benefits) },
+            { k: 'E04', name: 'David Williams', t: 'Supervisor', designation: 'Superintendent', department: 'Field Operations', grade: 'S-3', employmentType: 'permanent', flsaStatus: 'exempt', workersCompClass: '5606', payType: 'monthly', payRate: 9500, gender: 'male', dob: '1983-06-11', hireDate: '2021-03-01', yearsExperience: 18, skillLevel: 'expert', filingStatus: 'married_jointly', payComponents: withholding(14, benefits) },
+            { k: 'E05', name: 'Sarah Chen', t: 'Estimator', designation: 'Estimator', department: 'Preconstruction', grade: 'E-2', employmentType: 'contract', flsaStatus: 'exempt', workersCompClass: '8810', payType: 'monthly', payRate: 7900, gender: 'female', dob: '1991-11-30', hireDate: '2024-01-10', yearsExperience: 9, skillLevel: 'skilled', filingStatus: 'single', payComponents: withholding(12) },
+            { k: 'E06', name: 'Carlos Hernandez', t: 'Mason', designation: 'Mason', department: 'Field Operations', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '5022', payType: 'hourly', payRate: 38.5, gender: 'male', dob: '1987-03-14', hireDate: '2023-09-01', yearsExperience: 14, skillLevel: 'skilled', expertise: ['CMU block', 'Brick veneer'], filingStatus: 'married_jointly', payComponents: withholding(10) },
+            { k: 'E07', name: 'James Miller', t: 'Carpenter', designation: 'Carpenter (formwork)', department: 'Field Operations', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '5403', payType: 'hourly', payRate: 41, gender: 'male', dob: '1991-07-22', hireDate: '2024-02-12', yearsExperience: 8, skillLevel: 'skilled', expertise: ['Concrete forming', 'Framing'], filingStatus: 'single', payComponents: withholding(10) },
+            { k: 'E08', name: "Kevin O'Brien", t: 'Electrician', designation: 'Journeyman Electrician', department: 'MEP', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '5190', payType: 'hourly', payRate: 48, gender: 'male', dob: '1993-12-05', hireDate: '2024-06-01', yearsExperience: 7, skillLevel: 'skilled', filingStatus: 'single', payComponents: withholding(12) },
+            { k: 'E09', name: 'Luis Ramirez', t: 'Welder', designation: 'Certified Welder', department: 'Field Operations', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '3724', payType: 'hourly', payRate: 46, gender: 'male', dob: '1986-02-18', hireDate: '2022-11-20', yearsExperience: 13, skillLevel: 'expert', expertise: ['SMAW', 'FCAW', 'GMAW'], filingStatus: 'married_jointly', payComponents: withholding(10) },
+            { k: 'E10', name: 'Marcus Davis', t: 'Steel Fixer', designation: 'Rebar Ironworker', department: 'Field Operations', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '5225', payType: 'hourly', payRate: 44, gender: 'male', dob: '1995-05-09', hireDate: '2025-01-06', yearsExperience: 5, skillLevel: 'semi_skilled', filingStatus: 'single', payComponents: withholding(10) },
+            { k: 'E11', name: 'Tyler Anderson', t: 'Laborer', designation: 'Construction Laborer', department: 'Field Operations', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '5403', payType: 'hourly', payRate: 28, gender: 'male', dob: '2000-10-01', hireDate: '2025-07-01', yearsExperience: 1, skillLevel: 'helper', filingStatus: 'single', payComponents: withholding(8) },
+            { k: 'E12', name: 'Anthony Brown', t: 'Driver', designation: 'CDL Driver', department: 'Logistics', employmentType: 'contract', flsaStatus: 'non_exempt', workersCompClass: '7219', payType: 'hourly', payRate: 32, gender: 'male', dob: '1984-08-27', hireDate: '2023-04-01', yearsExperience: 16, skillLevel: 'skilled', equipmentCapabilities: ['Crew van', 'Pickup', 'Dump truck'], filingStatus: 'married_jointly', payComponents: withholding(10) },
+            { k: 'E13', name: 'Daniel Garcia', t: 'Equipment Operator', designation: 'Excavator Operator', department: 'Equipment', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '6217', payType: 'hourly', payRate: 52, gender: 'male', dob: '1981-04-02', hireDate: '2021-10-11', yearsExperience: 20, skillLevel: 'expert', equipmentCapabilities: ['Excavator', 'Backhoe', 'Skid steer'], filingStatus: 'married_jointly', payComponents: withholding(12) },
+            { k: 'E14', name: 'Ryan Wilson', t: 'Electrician', designation: 'Journeyman Electrician', employmentType: 'contractor_worker', contractorId: id('CTR1'), siteAccessStatus: 'granted', payType: 'hourly', payRate: 50, gender: 'male', dob: '1994-03-19', hireDate: d(-100), skillLevel: 'skilled' },
+            { k: 'E15', name: 'Jose Lopez', t: 'Electrician', designation: 'Electrician Apprentice', employmentType: 'contractor_worker', contractorId: id('CTR1'), siteAccessStatus: 'pending', payType: 'hourly', payRate: 26, gender: 'male', dob: '2001-09-09', hireDate: d(-10), skillLevel: 'helper' },
+            { k: 'E16', name: 'Brandon Taylor', t: 'Steel Fixer', designation: 'Rebar Ironworker', employmentType: 'contractor_worker', contractorId: id('CTR2'), siteAccessStatus: 'granted', payType: 'hourly', payRate: 45, gender: 'male', dob: '1989-12-12', hireDate: d(-55), skillLevel: 'skilled' },
+            { k: 'E17', name: 'Emily Clark', t: 'Painter', designation: 'Painter', department: 'Finishes', employmentType: 'daily_wage', flsaStatus: 'non_exempt', workersCompClass: '5474', employmentStatus: 'resigned', status: 'inactive', payType: 'hourly', payRate: 34, gender: 'female', dob: '1990-01-01', hireDate: '2023-01-02', filingStatus: 'single' },
         ];
-        const cnic = (i) => `35202-${String(4812000 + i * 1379).slice(0, 7)}-${i % 9 + 1}`;
+        const ssn = (i) => `666-${String(10 + i).padStart(2, '0')}-${String(4000 + i * 137).slice(-4)}`;
+        const phone = (i) => `(916) 555-01${String(10 + i).padStart(2, '0')}`;
         const staff = ['E01', 'E02', 'E03', 'E04', 'E05'];
+        const homes = ['2418 J St, Sacramento, CA 95816', '9120 Laguna Main St, Elk Grove, CA 95758', '1507 Pleasant Grove Blvd, Roseville, CA 95747', '410 Blue Ravine Rd, Folsom, CA 95630', '3200 Zinfandel Dr, Rancho Cordova, CA 95670', '5800 Stockton Blvd, Sacramento, CA 95824'];
+        const contacts = [['Laura Thompson', 'Spouse'], ['Maria Martinez', 'Mother'], ['Susan Johnson', 'Spouse'], ['Karen Williams', 'Spouse'], ['Kevin Chen', 'Brother'], ['Ana Hernandez', 'Spouse']];
+        const banks = [['Wells Fargo', '121000248'], ['Bank of America', '121000358'], ['Chase', '322271627'], ['Golden 1 Credit Union', '321175261']];
         await this.employees.save(people.map(({ k, t, ...p }, i) => ({
             id: id(k), workerId: `SMP-${String(i + 1).padStart(3, '0')}`, trade: t, tradeId: tradeOf(t), jobTitle: p.designation,
-            fatherOrSpouseName: ['Abdul Qadir', 'Khalid Malik', 'Mehmood Ahmed', 'Ghulam Nabi', 'Nisar Ahmed'][i % 5],
-            nationalId: cnic(i + 1), phone: `03${(i % 5) + 0}${i % 2}-${String(5550100 + i * 731).slice(0, 7)}`,
-            email: staff.includes(k) ? `${p.name.split(' ')[0].toLowerCase()}@example.com` : undefined,
-            emergencyContactName: ['Nasreen Bibi', 'Khalid Malik', 'Rukhsana', 'Sajida Parveen', 'Imtiaz Ahmed'][i % 5],
-            emergencyContactRelation: ['Mother', 'Father', 'Wife', 'Wife', 'Brother'][i % 5], emergencyContactPhone: `0345-${String(6660200 + i * 419).slice(0, 7)}`,
-            currentAddress: p.contractorId ? undefined : 'Sample Labour Camp, Block A, Raiwind Road, Lahore',
-            permanentAddress: ['Village Chak 42, Sheikhupura', 'House 12, Model Town, Lahore', 'Mohalla Islampura, Okara', 'Tehsil Kharian, Gujrat', 'Mardan, KPK'][i % 5],
-            bankName: staff.includes(k) || p.payType === 'monthly' ? 'Meezan Bank' : undefined, bankAccount: staff.includes(k) ? `PK36MEZN00${String(1022330000 + i * 77)}` : undefined,
+            nationalId: p.contractorId ? undefined : ssn(i + 1), phone: phone(i + 1),
+            email: staff.includes(k) ? `${p.name.toLowerCase().replace(/[^a-z ]/g, '').split(' ').join('.')}@example.com` : undefined,
+            emergencyContactName: contacts[i % contacts.length][0], emergencyContactRelation: contacts[i % contacts.length][1], emergencyContactPhone: phone(40 + i),
+            currentAddress: p.contractorId ? undefined : homes[i % homes.length],
+            bankName: p.contractorId ? undefined : banks[i % banks.length][0], bankRoutingNumber: p.contractorId ? undefined : banks[i % banks.length][1],
+            bankAccount: p.contractorId ? undefined : `00${String(4821330000 + i * 7919).slice(0, 10)}`, taxState: p.contractorId ? undefined : 'CA',
             supervisorId: staff.includes(k) ? (k === 'E03' ? id('E04') : k === 'E04' || k === 'E02' ? undefined : id('E04')) : id('E03'),
             hrOfficerId: k === 'E02' ? undefined : id('E02'), payComponents: [],
             status: 'active', employmentStatus: 'active', ...p, createdAt: now, updatedAt: now,
         })));
         const rec = (k, n, r) => ({ id: id(`R${k}${n}`), employeeId: id(k), attachments: [], verification: 'verified', createdAt: now, notes: NOTE, ...r });
         await this.records.save([
-            ...people.filter((p) => !p.contractorId).map((p, i) => rec(p.k, 1, { kind: 'document', type: 'CNIC', number: cnic(i + 1), issueDate: '2021-06-01', expiryDate: p.k === 'E11' ? d(-30) : '2031-06-01' })),
-            rec('E09', 2, { kind: 'certification', type: 'Welding certificate', title: '6G pipe welding (ASME IX)', number: 'WLD-6G-4471', issuer: 'TUV Austria Pakistan', issueDate: d(-700), expiryDate: d(20) }),
-            rec('E13', 2, { kind: 'certification', type: 'Heavy equipment licence', title: 'Excavator operator', number: 'HEO-9921', issuer: 'NAVTTC', issueDate: d(-1100), expiryDate: d(-5) }),
-            rec('E12', 2, { kind: 'certification', type: 'Driving licence', title: 'HTV licence', number: 'LHR-HTV-55120', issuer: 'Punjab Traffic Police', issueDate: d(-900), expiryDate: d(900) }),
-            rec('E08', 2, { kind: 'certification', type: 'Electrical licence', title: 'Electrician grade B', number: 'PEC-EL-3380', issuer: 'Pakistan Engineering Council', issueDate: d(-400), expiryDate: d(330) }),
-            rec('E01', 2, { kind: 'contract', type: 'permanent', title: 'Employment contract', number: 'EMP-2022-031', issueDate: '2022-02-01', rate: 180000, status: 'active', terms: 'Permanent; 1 month notice; site allowance as per policy.' }),
-            rec('E05', 2, { kind: 'contract', type: 'fixed_term', title: 'Fixed-term contract', number: 'EMP-2024-004', issueDate: '2024-01-10', expiryDate: d(40), rate: 140000, status: 'active', terms: 'Fixed term, renewable subject to project needs.' }),
-            rec('E12', 3, { kind: 'contract', type: 'project', title: 'Project contract — driver', number: 'EMP-2023-019', issueDate: '2023-04-01', expiryDate: d(-3), rate: 70000, status: 'active' }),
+            ...people.filter((p) => !p.contractorId).map((p, i) => rec(p.k, 1, { kind: 'document', type: "Driver's license", number: `D${String(5530000 + i * 4127).slice(0, 7)}`, issuer: 'California DMV', issueDate: '2022-06-01', expiryDate: p.k === 'E11' ? d(-30) : '2027-06-01' })),
+            rec('E09', 3, { kind: 'document', type: 'Employment authorization (EAD)', number: 'IOE-091-555-2231', issuer: 'USCIS', issueDate: d(-680), expiryDate: d(50) }),
+            rec('E01', 2, { kind: 'certification', type: 'OSHA 30', title: 'OSHA 30-Hour Construction', number: '30-0412-7781', issuer: 'OSHA Outreach Training Program', issueDate: d(-800) }),
+            rec('E06', 2, { kind: 'certification', type: 'OSHA 10', title: 'OSHA 10-Hour Construction', number: '10-2291-5530', issuer: 'OSHA Outreach Training Program', issueDate: d(-400) }),
+            rec('E09', 2, { kind: 'certification', type: 'Welding certification', title: 'AWS D1.1 structural steel', number: 'AWS-D11-44718', issuer: 'American Welding Society', issueDate: d(-700), expiryDate: d(20) }),
+            rec('E13', 2, { kind: 'certification', type: 'Equipment operator certification', title: 'Excavator operator', number: 'NCCER-HEO-9921', issuer: 'NCCER', issueDate: d(-1100), expiryDate: d(-5) }),
+            rec('E12', 2, { kind: 'certification', type: 'Commercial driver\'s license', title: 'CDL Class A', number: 'CDL-A-5512088', issuer: 'California DMV', issueDate: d(-900), expiryDate: d(900) }),
+            rec('E12', 4, { kind: 'certification', type: 'DOT medical card', title: 'DOT medical examiner\'s certificate', number: 'MEC-771203', issuer: 'FMCSA certified examiner', issueDate: d(-705), expiryDate: d(25) }),
+            rec('E08', 2, { kind: 'certification', type: 'Electrical certification', title: 'California General Electrician', number: 'GE-118273', issuer: 'CA DIR Electrician Certification Unit', issueDate: d(-400), expiryDate: d(330) }),
+            rec('E01', 3, { kind: 'contract', type: 'permanent', title: 'Offer letter (at-will)', number: 'EMP-2022-031', issueDate: '2022-02-01', rate: 8750, status: 'active', terms: 'At-will employment; exempt salaried; PTO and benefits per handbook.' }),
+            rec('E05', 2, { kind: 'contract', type: 'fixed_term', title: 'Fixed-term agreement', number: 'EMP-2024-004', issueDate: '2024-01-10', expiryDate: d(40), rate: 7900, status: 'active', terms: 'Fixed term, renewable subject to backlog.' }),
+            rec('E12', 3, { kind: 'contract', type: 'project', title: 'Project agreement — driver', number: 'EMP-2023-019', issueDate: '2023-04-01', expiryDate: d(-3), rate: 32, status: 'active' }),
         ]);
         if (p1) {
             const onP1 = ['E01', 'E03', 'E04', 'E06', 'E07', 'E08', 'E09', 'E10', 'E11', 'E13', 'E14', 'E15', 'E16'];
@@ -149,29 +160,29 @@ let SampleDataService = class SampleDataService {
                 designation: people.find((p) => p.k === k).designation, assignmentType: 'regular', startDate: d(-45), status: 'active', createdByName: by, createdAt: now, ...extra,
             });
             await this.assignments.save([
-                ...onP1.map((k) => assign(k, p1, { workArea: ['E06', 'E07', 'E10', 'E11'].includes(k) ? 'Tower A' : ['E08', 'E14', 'E15'].includes(k) ? 'Podium' : undefined })),
+                ...onP1.map((k) => assign(k, p1, { workArea: ['E06', 'E07', 'E10', 'E11'].includes(k) ? 'Building A' : ['E08', 'E14', 'E15'].includes(k) ? 'Parking structure' : undefined })),
                 ...onP2.map((k) => assign(k, p2)),
-                ...(p2 ? [assign('E09', p2, { id: id('ASE09T'), assignmentType: 'temporary', startDate: d(1), endDate: d(5), workArea: 'Villa 7', notes: 'Temporary cover for pipe welding' })] : []),
+                ...(p2 ? [assign('E09', p2, { id: id('ASE09T'), assignmentType: 'temporary', startDate: d(1), endDate: d(5), workArea: 'Lot 7', notes: 'Temporary cover for stair stringer welding' })] : []),
             ]);
             await this.requests.save({
-                id: id('WR1'), projectId: p2 || p1, workArea: 'Villas 1-8', requiredDate: d(7), durationDays: 30, status: 'submitted',
+                id: id('WR1'), projectId: p2 || p1, workArea: 'Lots 1-8', requiredDate: d(7), durationDays: 30, status: 'submitted',
                 lines: [
                     { id: 'L1', tradeId: sub.get('C-29') || '', designation: 'Mason', quantity: 4 },
                     { id: 'L2', tradeId: sub.get('C-33') || '', designation: 'Painter', quantity: 2 },
-                    { id: 'L3', tradeId: sub.get('C-54') || '', designation: 'Tile fixer', quantity: 2 },
+                    { id: 'L3', tradeId: sub.get('C-54') || '', designation: 'Tile setter', quantity: 2 },
                 ],
-                notes: 'Block masonry for boundary walls. ' + NOTE, requestedByName: 'Usman Ghani', submittedAt: now, createdAt: now,
+                notes: 'CMU site walls and finishes. ' + NOTE, requestedByName: 'David Williams', submittedAt: now, createdAt: now,
             });
             const days = [];
             for (let n = 1; days.length < 6 && n < 20; n++)
                 if (!weekendDays.includes((0, calendar_util_1.weekday)(d(-n))))
                     days.unshift(d(-n));
             const work = [
-                ['E06', '04 00 00', 8, 'Block masonry, 3rd floor partition walls'], ['E07', '03 00 00', 8, 'Column shuttering, grid C'],
-                ['E10', '03 00 00', 8, 'Rebar fixing, 4th floor slab'], ['E11', '04 00 00', 8, 'Material shifting for masonry'],
-                ['E08', '26 00 00', 8, 'Conduiting in slab'], ['E09', '05 00 00', 10, 'Staircase railing welding'],
-                ['E13', '31 00 00', 9, 'Excavation for UG water tank'], ['E14', '26 00 00', 8, 'DB installation, podium'],
-                ['E16', '03 00 00', 8, 'Rebar fixing, 4th floor slab'],
+                ['E06', '04 00 00', 8, 'CMU block walls, level 3'], ['E07', '03 00 00', 8, 'Column formwork, grid C'],
+                ['E10', '03 00 00', 8, 'Rebar placement, level 4 deck'], ['E11', '04 00 00', 8, 'Material handling for masons'],
+                ['E08', '26 00 00', 8, 'Conduit in deck'], ['E09', '05 00 00', 10, 'Stair rail welding'],
+                ['E13', '31 00 00', 9, 'Excavation for underground detention tank'], ['E14', '26 00 00', 8, 'Panel installs, parking structure'],
+                ['E16', '03 00 00', 8, 'Rebar placement, level 4 deck'],
             ];
             const logRows = [];
             const entryRows = [];
@@ -179,9 +190,9 @@ let SampleDataService = class SampleDataService {
                 const last = i === days.length - 1;
                 const logId = id(`DL${i + 1}`);
                 logRows.push({
-                    id: logId, projectId: p1, date, supervisorName: 'Usman Ghani', notes: last ? 'Slab casting prep on 4th floor.' : undefined,
-                    status: last ? 'submitted' : 'approved', submittedAt: `${date}T18:30:00.000Z`,
-                    approvedByName: last ? undefined : 'Imran Qureshi', approvedAt: last ? undefined : `${(0, calendar_util_1.addDays)(date, 1)}T09:00:00.000Z`, createdAt: `${date}T18:00:00.000Z`,
+                    id: logId, projectId: p1, date, supervisorName: 'David Williams', notes: last ? 'Deck pour prep on level 4.' : undefined,
+                    status: last ? 'submitted' : 'approved', submittedAt: `${date}T23:30:00.000Z`,
+                    approvedByName: last ? undefined : 'Michael Thompson', approvedAt: last ? undefined : `${(0, calendar_util_1.addDays)(date, 1)}T16:00:00.000Z`, createdAt: `${date}T23:00:00.000Z`,
                 });
                 work.forEach(([k, code, hours, task], j) => {
                     if (k === 'E06' && i === 2)
@@ -193,29 +204,29 @@ let SampleDataService = class SampleDataService {
             await this.logs.save(logRows);
             await this.entries.save(entryRows);
             await this.overtime.save([
-                { id: id('OT1'), employeeId: id('E09'), projectId: p1, date: days[days.length - 3], hours: 2, otType: 'normal', status: 'approved', source: 'daily_log', reason: 'Railing welding had to finish before handover', requestedByName: 'Usman Ghani', decidedByName: 'Imran Qureshi', decidedAt: now, baseRate: 375, multiplier: 1.5, amount: 1125, createdAt: now },
-                { id: id('OT2'), employeeId: id('E08'), projectId: p1, date: days[days.length - 1], hours: 3, otType: 'normal', status: 'pending', source: 'manual', reason: 'Conduiting before slab pour', requestedByName: 'Usman Ghani', createdAt: now },
-                { id: id('OT3'), employeeId: id('E13'), projectId: p1, date: days[days.length - 2], hours: 4, otType: 'night', status: 'pending', source: 'manual', reason: 'Dewatering the excavation overnight', requestedByName: 'Tariq Mehmood', createdAt: now },
+                { id: id('OT1'), employeeId: id('E09'), projectId: p1, date: days[days.length - 3], hours: 2, otType: 'normal', status: 'approved', source: 'daily_log', reason: 'Stair rails had to finish before inspection', requestedByName: 'David Williams', decidedByName: 'Michael Thompson', decidedAt: now, baseRate: 46, multiplier: 1.5, amount: 138, createdAt: now },
+                { id: id('OT2'), employeeId: id('E08'), projectId: p1, date: days[days.length - 1], hours: 3, otType: 'normal', status: 'pending', source: 'manual', reason: 'Conduit before the deck pour', requestedByName: 'David Williams', createdAt: now },
+                { id: id('OT3'), employeeId: id('E13'), projectId: p1, date: days[days.length - 2], hours: 4, otType: 'night', status: 'pending', source: 'manual', reason: 'Dewatering the excavation overnight', requestedByName: 'Robert Johnson', createdAt: now },
             ]);
         }
         const leaveDays = (a, b) => (0, calendar_util_1.workingDays)(a, b, weekendDays, new Set()).length;
         const lr = (n, k, typeId, type, a, b, status, reason, extra = {}) => ({
             id: id(`LR${n}`), employeeId: id(k), leaveTypeId: typeId, type, startDate: a, endDate: b, halfDay: false, days: leaveDays(a, b), status, reason,
-            requestedBy: 'Ayesha Malik', requestedAt: now, decidedBy: status === 'pending' ? undefined : 'Ayesha Malik', decidedAt: status === 'pending' ? undefined : now, ...extra,
+            requestedBy: 'Jennifer Martinez', requestedAt: now, decidedBy: status === 'pending' ? undefined : 'Jennifer Martinez', decidedAt: status === 'pending' ? undefined : now, ...extra,
         });
         await this.leave.save([
-            lr(1, 'E06', 'LT-ANNUAL', 'Annual', d(8), d(10), 'approved', 'Family wedding in Okara'),
-            lr(2, 'E07', 'LT-SICK', 'Sick', d(1), d(2), 'pending', 'Fever, doctor advised rest'),
-            lr(3, 'E03', 'LT-ANNUAL', 'Annual', d(-30), d(-26), 'approved', 'Annual leave'),
-            lr(4, 'E05', 'LT-CASUAL', 'Casual', d(3), d(3), 'pending', 'Bank work', { halfDay: true, days: 0.5 }),
-            lr(5, 'E11', 'LT-UNPAID', 'Unpaid', d(-12), d(-10), 'approved', 'Village visit'),
-            lr(6, 'E10', 'LT-EMERGENCY', 'Emergency', d(-3), d(-3), 'approved', 'Family emergency'),
+            lr(1, 'E06', 'LT-ANNUAL', 'Vacation (PTO)', d(8), d(10), 'approved', 'Family trip to Lake Tahoe'),
+            lr(2, 'E07', 'LT-SICK', 'Sick', d(1), d(2), 'pending', "Flu — doctor's note to follow"),
+            lr(3, 'E03', 'LT-ANNUAL', 'Vacation (PTO)', d(-30), d(-26), 'approved', 'Vacation'),
+            lr(4, 'E05', 'LT-CASUAL', 'Personal', d(3), d(3), 'pending', 'DMV appointment', { halfDay: true, days: 0.5 }),
+            lr(5, 'E11', 'LT-UNPAID', 'Unpaid', d(-12), d(-10), 'approved', 'Family matter out of state'),
+            lr(6, 'E10', 'LT-JURY', 'Jury duty', d(-3), d(-3), 'approved', 'Sacramento County jury summons'),
         ]);
-        const approvals = (stages) => stages.map((stage) => ({ stage, decision: 'approved', byName: stage === 'manager' ? 'Usman Ghani' : stage === 'hr' ? 'Ayesha Malik' : 'Finance Officer', at: now }));
+        const approvals = (stages) => stages.map((stage) => ({ stage, decision: 'approved', byName: stage === 'manager' ? 'David Williams' : stage === 'hr' ? 'Jennifer Martinez' : 'Finance Officer', at: now }));
         await this.advances.save([
-            { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 15000, requestDate: d(-20), reason: 'School fees', installments: 3, installmentAmount: 5000, deductionStart: d(-5), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: d(-18), disbursedByName: 'Finance Officer', paymentMethod: 'cash', repayments: [], recovered: 0, createdByName: 'Tariq Mehmood', createdAt: now },
-            { id: id('ADV2'), employeeId: id('E10'), type: 'emergency_advance', amount: 8000, requestDate: d(-2), reason: 'Medical treatment for father', installments: 2, installmentAmount: 4000, deductionStart: d(20), status: 'pending_hr', approvals: approvals(['manager']), repayments: [], recovered: 0, createdByName: 'Tariq Mehmood', createdAt: now },
-            { id: id('ADV3'), employeeId: id('E01'), type: 'loan', amount: 120000, requestDate: d(-3), reason: 'Motorcycle purchase', installments: 12, installmentAmount: 10000, deductionStart: d(30), status: 'pending_finance', approvals: approvals(['manager', 'hr']), repayments: [], recovered: 0, createdByName: 'Imran Qureshi', createdAt: now },
+            { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 1500, requestDate: d(-20), reason: 'Car registration and repairs', installments: 3, installmentAmount: 500, deductionStart: d(-5), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: d(-18), disbursedByName: 'Finance Officer', paymentMethod: 'bank_transfer', repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
+            { id: id('ADV2'), employeeId: id('E10'), type: 'emergency_advance', amount: 800, requestDate: d(-2), reason: 'Medical bill for a family member', installments: 2, installmentAmount: 400, deductionStart: d(20), status: 'pending_hr', approvals: approvals(['manager']), repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
+            { id: id('ADV3'), employeeId: id('E01'), type: 'loan', amount: 6000, requestDate: d(-3), reason: 'Relocation costs', installments: 12, installmentAmount: 500, deductionStart: d(30), status: 'pending_finance', approvals: approvals(['manager', 'hr']), repayments: [], recovered: 0, createdByName: 'Michael Thompson', createdAt: now },
         ]);
         const shift = (n, k, templateIds, extra = {}) => ({ id: id(`SA${n}`), employeeId: id(k), templateIds, startDate: d(-14), createdByName: by, createdAt: now, ...extra });
         await this.shifts.save([
@@ -229,42 +240,42 @@ let SampleDataService = class SampleDataService {
         const tags = (await this.assets.find()).map((a) => a.assetTag);
         const tag = () => { const t = (0, assets_service_1.nextAssetTag)(tags); tags.push(t); return t; };
         const assetRows = [
-            { k: 'AS1', name: 'Dell Latitude 5440', category: 'laptop', serialNumber: 'DEMO-SN-5440-01', condition: 'good', cost: 285000, purchaseDate: d(-400) },
-            { k: 'AS2', name: 'Samsung Galaxy A35', category: 'mobile', serialNumber: 'DEMO-IMEI-35-7781', condition: 'good', cost: 92000, purchaseDate: d(-200) },
-            { k: 'AS3', name: 'Bosch GBH 2-26 drill kit', category: 'tools', serialNumber: 'DEMO-BSH-2261', condition: 'fair', cost: 48000, purchaseDate: d(-500) },
-            { k: 'AS4', name: 'PPE kit (helmet, boots, vest)', category: 'uniform', condition: 'new', cost: 9500, purchaseDate: d(-30) },
-            { k: 'AS5', name: 'Toyota Hilux Revo', category: 'vehicle', serialNumber: 'DEMO-LEB-22-4410', condition: 'good', cost: 9800000, purchaseDate: d(-700) },
-            { k: 'AS6', name: 'Jazz SIM (site line)', category: 'sim', serialNumber: 'DEMO-SIM-0300-1122', condition: 'good', cost: 500, purchaseDate: d(-90) },
-            { k: 'AS7', name: 'Leica total station TS07', category: 'tools', serialNumber: 'DEMO-LCA-TS07', condition: 'damaged', cost: 1650000, purchaseDate: d(-900), status: 'in_repair' },
+            { k: 'AS1', name: 'Dell Latitude 5450', category: 'laptop', serialNumber: 'DEMO-SVC-5450-01', condition: 'good', cost: 1450, purchaseDate: d(-400) },
+            { k: 'AS2', name: 'Apple iPhone 15', category: 'mobile', serialNumber: 'DEMO-IMEI-3577-81', condition: 'good', cost: 799, purchaseDate: d(-200) },
+            { k: 'AS3', name: 'Milwaukee M18 hammer drill kit', category: 'tools', serialNumber: 'DEMO-MWK-2904', condition: 'fair', cost: 429, purchaseDate: d(-500) },
+            { k: 'AS4', name: 'PPE kit (hard hat, boots, hi-vis vest)', category: 'uniform', condition: 'new', cost: 180, purchaseDate: d(-30) },
+            { k: 'AS5', name: 'Ford F-150 XL (CA 8ABC123)', category: 'vehicle', serialNumber: 'DEMO-VIN-1FTFW1E5', condition: 'good', cost: 42000, purchaseDate: d(-700) },
+            { k: 'AS6', name: 'Verizon SIM (site line)', category: 'sim', serialNumber: 'DEMO-SIM-916-5550', condition: 'good', cost: 30, purchaseDate: d(-90) },
+            { k: 'AS7', name: 'Trimble robotic total station', category: 'tools', serialNumber: 'DEMO-TRM-S7', condition: 'damaged', cost: 18500, purchaseDate: d(-900), status: 'in_repair' },
         ];
         const issued = [['AS1', 'E01', d(-300)], ['AS2', 'E04', d(-150)], ['AS3', 'E08', d(-40), d(-7)], ['AS5', 'E12', d(-200)], ['AS6', 'E03', d(-80)]];
         await this.assets.save(assetRows.map(({ k, ...a }) => ({
             status: issued.some(([x]) => x === k) ? 'issued' : 'available', ...a, id: id(k), assetTag: tag(), notes: NOTE, createdAt: now, updatedAt: now,
         })));
         await this.assetIssues.save([
-            ...issued.map(([a, e, at, back], i) => ({ id: id(`AI${i + 1}`), assetId: id(a), employeeId: id(e), issuedAt: at, expectedReturn: back, status: 'open', issuedByName: 'Ayesha Malik' })),
-            { id: id('AI9'), assetId: id('AS4'), employeeId: id('E17'), issuedAt: '2023-01-02', status: 'returned', returnedAt: d(-60), returnCondition: 'fair', issuedByName: 'Ayesha Malik', closedByName: 'Ayesha Malik' },
+            ...issued.map(([a, e, at, back], i) => ({ id: id(`AI${i + 1}`), assetId: id(a), employeeId: id(e), issuedAt: at, expectedReturn: back, status: 'open', issuedByName: 'Jennifer Martinez' })),
+            { id: id('AI9'), assetId: id('AS4'), employeeId: id('E17'), issuedAt: '2023-01-02', status: 'returned', returnedAt: d(-60), returnCondition: 'fair', issuedByName: 'Jennifer Martinez', closedByName: 'Jennifer Martinez' },
         ]);
         const unit = (k, level, name, parentId) => ({ id: id(k), level, name, parentId, active: true, createdAt: now });
-        const unitRows = [unit('C1', 'camp', 'Raiwind Road Labour Camp'), unit('B1', 'building', 'Block A', id('C1')), unit('F1', 'floor', 'Ground floor', id('B1')),
-            unit('RM1', 'room', 'Room 101', id('F1')), unit('RM2', 'room', 'Room 102', id('F1')), unit('RM3', 'room', 'Supervisors room', id('B1'))];
+        const unitRows = [unit('C1', 'camp', 'Travel Crew Housing — Elk Grove'), unit('B1', 'building', 'Extended Stay Suites', id('C1')), unit('F1', 'floor', 'Floor 1', id('B1')),
+            unit('RM1', 'room', 'Suite 101', id('F1')), unit('RM2', 'room', 'Suite 102', id('F1')), unit('RM3', 'room', 'Supervisor suite', id('B1'))];
         for (const [room, n] of [['RM1', 4], ['RM2', 4], ['RM3', 2]])
             for (let b = 1; b <= n; b++)
                 unitRows.push(unit(`${room}B${b}`, 'bed', `Bed ${b}`, id(room)));
         await this.units.save(unitRows);
         const housed = [['E06', 'RM1B1'], ['E07', 'RM1B2'], ['E10', 'RM1B3'], ['E11', 'RM1B4'], ['E09', 'RM2B1'], ['E13', 'RM2B2'], ['E08', 'RM2B3'], ['E03', 'RM3B1']];
-        await this.beds.save(housed.map(([e, b], i) => ({ id: id(`BA${i + 1}`), bedId: id(b), employeeId: id(e), checkIn: d(-45), byName: 'Ayesha Malik' })));
+        await this.beds.save(housed.map(([e, b], i) => ({ id: id(`BA${i + 1}`), bedId: id(b), employeeId: id(e), checkIn: d(-45), byName: 'Jennifer Martinez' })));
         await this.complaints.save([
-            { id: id('AC1'), unitId: id('RM2'), title: 'Water leaking from ceiling', description: 'Leak above bed 3 after rain.', employeeId: id('E08'), status: 'open', reportedByName: 'Tariq Mehmood', reportedAt: now },
-            { id: id('AC2'), unitId: id('B1'), title: 'Washroom exhaust fan not working', status: 'in_progress', reportedByName: 'Tariq Mehmood', reportedAt: new Date(Date.now() - 4 * 864e5).toISOString() },
-            { id: id('AC3'), unitId: id('RM1'), title: 'Broken window latch', status: 'resolved', resolution: 'Latch replaced by camp maintenance.', reportedByName: 'Muhammad Riaz', reportedAt: new Date(Date.now() - 10 * 864e5).toISOString(), resolvedAt: new Date(Date.now() - 8 * 864e5).toISOString() },
+            { id: id('AC1'), unitId: id('RM2'), title: 'AC not cooling', description: 'Unit blows warm air in the afternoon.', employeeId: id('E08'), status: 'open', reportedByName: 'Robert Johnson', reportedAt: now },
+            { id: id('AC2'), unitId: id('B1'), title: 'Bathroom exhaust fan not working', status: 'in_progress', reportedByName: 'Robert Johnson', reportedAt: new Date(Date.now() - 4 * 864e5).toISOString() },
+            { id: id('AC3'), unitId: id('RM1'), title: 'Broken window latch', status: 'resolved', resolution: 'Latch replaced by property maintenance.', reportedByName: 'Carlos Hernandez', reportedAt: new Date(Date.now() - 10 * 864e5).toISOString(), resolvedAt: new Date(Date.now() - 8 * 864e5).toISOString() },
         ]);
         await this.routes.save([
-            { id: id('TR1'), name: 'Camp → Site (morning)', vehicle: 'Toyota Coaster LES-8841', capacity: 14, driverEmployeeId: id('E12'), projectId: p1, departureTime: '06:30', returnTime: '18:15', pickupPoints: ['Camp main gate', 'Raiwind Chowk', 'Thokar Niaz Baig'], status: 'active', notes: NOTE, createdAt: now },
-            { id: id('TR2'), name: 'City pick-up (staff)', vehicle: 'Toyota Hiace LEA-1207', capacity: 4, projectId: p2 || p1, departureTime: '07:45', returnTime: '17:30', pickupPoints: ['Johar Town', 'Model Town'], status: 'active', createdAt: now },
+            { id: id('TR1'), name: 'Crew shuttle — housing to site', vehicle: 'Ford Transit 350 (CA 7XYZ482)', capacity: 14, driverEmployeeId: id('E12'), projectId: p1, departureTime: '06:15', returnTime: '15:45', pickupPoints: ['Extended Stay Suites', 'Elk Grove Park & Ride', 'Laguna Blvd'], status: 'active', notes: NOTE, createdAt: now },
+            { id: id('TR2'), name: 'Office pickup (staff)', vehicle: 'Chevrolet Suburban (CA 8DEF915)', capacity: 4, projectId: p2 || p1, departureTime: '07:30', returnTime: '17:00', pickupPoints: ['Downtown Sacramento', 'Natomas'], status: 'active', createdAt: now },
         ]);
-        const riding = [['E06', 'TR1', 'Camp main gate'], ['E07', 'TR1', 'Camp main gate'], ['E10', 'TR1', 'Camp main gate'], ['E11', 'TR1', 'Camp main gate'], ['E09', 'TR1', 'Camp main gate'], ['E13', 'TR1', 'Raiwind Chowk'], ['E08', 'TR1', 'Thokar Niaz Baig'], ['E01', 'TR2', 'Johar Town'], ['E05', 'TR2', 'Model Town']];
-        await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Ayesha Malik' })));
+        const riding = [['E06', 'TR1', 'Extended Stay Suites'], ['E07', 'TR1', 'Extended Stay Suites'], ['E10', 'TR1', 'Extended Stay Suites'], ['E11', 'TR1', 'Extended Stay Suites'], ['E09', 'TR1', 'Extended Stay Suites'], ['E13', 'TR1', 'Elk Grove Park & Ride'], ['E08', 'TR1', 'Laguna Blvd'], ['E01', 'TR2', 'Downtown Sacramento'], ['E05', 'TR2', 'Natomas']];
+        await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })));
         return { ...(await this.status()), projectsUsed: [p1, p2].filter(Boolean).length };
     }
     async remove(actor) {

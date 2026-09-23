@@ -36,6 +36,9 @@ export declare class AdjustDto {
 export declare class CarryForwardDto {
     fromYear: number;
 }
+export declare class YearDto {
+    year: number;
+}
 export declare class LeaveController {
     private readonly service;
     private readonly access;
@@ -50,6 +53,10 @@ export declare class LeaveController {
     }>;
     holidays(year?: string): Promise<import("../database/entities").PublicHolidayEntity[]>;
     addHoliday(dto: HolidayDto, a?: string): Promise<import("../database/entities").PublicHolidayEntity>;
+    usFederal(dto: YearDto, a?: string): Promise<{
+        year: number;
+        added: number;
+    }>;
     removeHoliday(id: string, a?: string): Promise<{
         id: string;
         deleted: boolean;

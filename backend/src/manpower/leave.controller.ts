@@ -46,6 +46,10 @@ export class CarryForwardDto {
   @IsNumber() fromYear: number;
 }
 
+export class YearDto {
+  @IsNumber() year: number;
+}
+
 @Tiers('internal')
 @Controller('leave')
 export class LeaveController {
@@ -65,6 +69,7 @@ export class LeaveController {
 
   @Get('holidays') holidays(@Query('year') year?: string) { return this.service.listHolidays(year ? Number(year) : undefined); }
   @Post('holidays') async addHoliday(@Body() dto: HolidayDto, @Headers('authorization') a?: string) { return this.service.addHoliday(dto, await this.actor(a)); }
+  @Post('holidays/us-federal') async usFederal(@Body() dto: YearDto, @Headers('authorization') a?: string) { return this.service.addUsFederalHolidays(dto.year, await this.actor(a)); }
   @Delete('holidays/:id') async removeHoliday(@Param('id') id: string, @Headers('authorization') a?: string) { return this.service.removeHoliday(id, await this.actor(a)); }
 
   @Get('requests')
