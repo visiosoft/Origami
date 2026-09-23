@@ -156,7 +156,10 @@ export function Projects() {
     if (!title || !sel) return;
     setSubDraft('');
     try {
-      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, title, parentId: parent.id });
+      // loadBoard reads through the phaseId-filtered phase board endpoint --
+      // a subtask created without phaseId would save fine, then vanish on
+      // the next reload.
+      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, phaseId: parent.phaseId, title, parentId: parent.id });
       loadBoard(sel.id);
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };

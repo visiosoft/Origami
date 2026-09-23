@@ -73,7 +73,11 @@ export function PhaseTaskPanel({
     if (!title) return;
     setSubDraft('');
     try {
-      await api.projectTasks.create({ projectId: draft.projectId, sectionId: draft.sectionId, title, parentId: draft.id });
+      // The Phase Board's own fetch (PhasesService.board) only returns tasks
+      // that have a phaseId -- a subtask created without one would save fine
+      // but then vanish from every reload, making "Add" look broken even
+      // though it worked.
+      await api.projectTasks.create({ projectId: draft.projectId, sectionId: draft.sectionId, phaseId: draft.phaseId, title, parentId: draft.id });
       onReload?.();
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
