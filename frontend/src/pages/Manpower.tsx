@@ -1,0 +1,618 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api';
+import { useApp } from '../AppContext';
+
+const BG = "'Bricolage Grotesque', serif";
+const INK = '#0B1A12';
+const MUTED = '#7E9B93';
+const PAPER = '#FBF8F2';
+const ACCENT = '#173326';
+const ACCENT_BG = '#DCE7DE';
+
+const input: React.CSSProperties = {
+  boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
+  border: '1px solid rgba(20,8,31,0.13)', background: 'white', fontFamily: 'inherit',
+  fontSize: 13, color: '#0B1A12', outline: 'none',
+};
+
+interface Project { id: number; name: string }
+interface Employee {
+  id: string; name: string; jobTitle?: string; trade?: string; expertise?: string[];
+  payType?: string; payRate?: number; phone?: string; email?: string; hireDate?: string;
+  status: string; supervisorId?: string; userId?: string;
+}
+interface CsiCode { id: string; code: string; division: string; description?: string; active: boolean; order: number }
+interface LaborEntry {
+  id?: string; employeeId: string; csiCodeId?: string; hours?: number;
+  taskDetail?: string; taskStatus?: string; team?: string;
+}
+interface DailyLog {
+  id: string | null; projectId: number; date: string; status: string; notes?: string;
+  supervisorId?: string; supervisorName?: string; submittedAt?: string;
+  approvedById?: string; approvedByName?: string; approvedAt?: string; rejectionNote?: string;
+}
+interface LeaveRequest {
+  id: string; employeeId: string; type: string; startDate: string; endDate: string;
+  hours?: number; reason?: string; status: string; requestedBy?: string; requestedAt?: string;
+  decidedBy?: string; decidedAt?: string; note?: string;
+}
+
+const TABS = [
+  ['log', 'Daily Log'], ['approvals', 'Approvals'], ['employees', 'Employees'],
+  ['csi', 'CSI Codes'], ['timesheets', 'Timesheets'], ['leave', 'Leave'],
+] as const;
+type TabKey = typeof TABS[number][0];
+
+const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
+  draft: { bg: '#EFEDE8', c: '#5C6B65' },
+  submitted: { bg: '#FBE9AE', c: '#8A6D12' },
+  approved: { bg: '#D2EAD3', c: '#1E6B36' },
+  rejected: { bg: '#F2DFD4', c: '#8E2E0A' },
+  pending: { bg: '#FBE9AE', c: '#8A6D12' },
+  denied: { bg: '#F2DFD4', c: '#8E2E0A' },
+};
+const StatusBadge = ({ status }: { status: string }) => {
+  const s = STATUS_STYLE[status] || STATUS_STYLE.draft;
+  return <span style={{ display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: s.bg, color: s.c, fontSize: 10.5, fontWeight: 700, textTransform: 'capitalize' }}>{status}</span>;
+};
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+const startOfWeek = (d: Date) => { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() - day); return x; };
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+export function Manpower() {
+  const { toast, can, currentUser } = useApp();
+  const canManage = can('manpower_con', 'manage');
+  const [tab, setTab] = useState<TabKey>('log');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [csiCodes, setCsiCodes] = useState<CsiCode[]>([]);
+
+  const reloadEmployees = () => api.employees.list().then((r: any) => setEmployees(Array.isArray(r) ? r : [])).catch(() => {});
+  const reloadCsiCodes = () => api.csiCodes.list().then((r: any) => setCsiCodes(Array.isArray(r) ? r : [])).catch(() => {});
+
+  useEffect(() => {
+    api.projects.list().then((r: any) => {
+      const real = Array.isArray(r) ? r.filter((p: any) => p.stage !== 'Kickoff') : [];
+      setProjects(real.map((p: any) => ({ id: p.id, name: p.name })));
+    }).catch(() => {});
+    reloadEmployees();
+    reloadCsiCodes();
+  }, []);
+
+  return (
+    <div style={{ padding: '28px 32px', background: PAPER, minHeight: '100%' }}>
+      <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>Manpower & Resources</h1>
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>Workers, CSI-coded daily labor logs, timesheets and leave.</p>
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 18, marginBottom: 20, flexWrap: 'wrap' }}>
+        {TABS.map(([key, label]) => (
+          <div
+            key={key}
+            onClick={() => setTab(key)}
+            style={{
+              padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+              background: tab === key ? ACCENT : '#fff', color: tab === key ? '#fff' : '#43514D',
+              border: '1px solid ' + (tab === key ? ACCENT : 'rgba(20,8,31,.14)'),
+            }}
+          >{label}</div>
+        ))}
+      </div>
+
+      {tab === 'log' && <DailyLogTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} />}
+      {tab === 'approvals' && <ApprovalsTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} currentUserId={currentUser?.id} />}
+      {tab === 'employees' && <EmployeesTab employees={employees} reload={reloadEmployees} canManage={canManage} toast={toast} />}
+      {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
+      {tab === 'timesheets' && <TimesheetsTab employees={employees} csiCodes={csiCodes} toast={toast} />}
+      {tab === 'leave' && <LeaveTab employees={employees} canManage={canManage} toast={toast} />}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Daily Log
+
+function DailyLogTab({ projects, employees, csiCodes, canManage, toast }: {
+  projects: Project[]; employees: Employee[]; csiCodes: CsiCode[]; canManage: boolean; toast: (m: string) => void;
+}) {
+  const [projectId, setProjectId] = useState<number | ''>('');
+  const [date, setDate] = useState(todayISO());
+  const [log, setLog] = useState<DailyLog | null>(null);
+  const [entries, setEntries] = useState<LaborEntry[]>([]);
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) { setLog(null); setEntries([]); return; }
+    setLoading(true);
+    api.dailyLogs.day(Number(projectId), date)
+      .then((r: any) => { setLog(r.log); setEntries(r.entries || []); setNotes(r.log?.notes || ''); })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setLoading(false));
+  }, [projectId, date]);
+
+  const locked = !!log && log.status !== 'draft' && log.status !== 'rejected';
+
+  const addRow = () => setEntries((prev) => [...prev, { employeeId: '', csiCodeId: '', hours: undefined, taskDetail: '', taskStatus: 'start', team: '' }]);
+  const patchRow = (i: number, patch: Partial<LaborEntry>) => setEntries((prev) => prev.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
+  const removeRow = (i: number) => setEntries((prev) => prev.filter((_, idx) => idx !== i));
+
+  const save = async () => {
+    if (!projectId) return;
+    setSaving(true);
+    try {
+      const clean = entries.filter((e) => e.employeeId);
+      const r: any = await api.dailyLogs.save({ projectId: Number(projectId), date, notes, entries: clean });
+      setLog(r.log); setEntries(r.entries || []);
+      toast('Saved');
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
+    finally { setSaving(false); }
+  };
+
+  const submit = async () => {
+    if (!projectId) return;
+    setSaving(true);
+    try {
+      const clean = entries.filter((e) => e.employeeId);
+      const r: any = await api.dailyLogs.save({ projectId: Number(projectId), date, notes, entries: clean });
+      const submitted: any = await api.dailyLogs.submit(r.log.id);
+      setLog(submitted);
+      toast('Submitted for approval');
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not submit')); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        <select value={projectId} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : '')} style={{ ...input, minWidth: 220 }}>
+          <option value="">Select a project…</option>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={input} />
+        {log && <StatusBadge status={log.status} />}
+        {log?.rejectionNote && <span style={{ fontSize: 11.5, color: '#8E2E0A' }}>Rejected: {log.rejectionNote}</span>}
+      </div>
+
+      {!projectId ? (
+        <div style={{ fontSize: 12.5, color: MUTED, padding: '18px 0' }}>Pick a project and a date to view or start that day's log.</div>
+      ) : loading ? (
+        <div style={{ fontSize: 12.5, color: MUTED, padding: '18px 0' }}>Loading…</div>
+      ) : (
+        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+            <span>Employee</span><span>CSI Code</span><span>Hours</span><span>Task Detail</span><span>Status</span><span>Team</span><span />
+          </div>
+          {entries.map((row, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+              <select disabled={locked || !canManage} value={row.employeeId} onChange={(e) => patchRow(i, { employeeId: e.target.value })} style={input}>
+                <option value="">Select…</option>
+                {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+              </select>
+              <select disabled={locked || !canManage} value={row.csiCodeId || ''} onChange={(e) => patchRow(i, { csiCodeId: e.target.value })} style={input}>
+                <option value="">Select…</option>
+                {csiCodes.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.division}</option>)}
+              </select>
+              <input disabled={locked || !canManage} type="number" min={0} step={0.5} value={row.hours ?? ''} onChange={(e) => patchRow(i, { hours: e.target.value ? Number(e.target.value) : undefined })} style={input} />
+              <input disabled={locked || !canManage} value={row.taskDetail || ''} onChange={(e) => patchRow(i, { taskDetail: e.target.value })} placeholder="What they worked on" style={input} />
+              <select disabled={locked || !canManage} value={row.taskStatus || 'start'} onChange={(e) => patchRow(i, { taskStatus: e.target.value })} style={input}>
+                <option value="start">Start</option>
+                <option value="continued">Continued</option>
+                <option value="completing">Completing</option>
+              </select>
+              <select disabled={locked || !canManage} value={row.team || ''} onChange={(e) => patchRow(i, { team: e.target.value })} style={input}>
+                <option value="">—</option>
+                {['A', 'B', 'C', 'D'].map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {!locked && canManage && <span onClick={() => removeRow(i)} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 13, textAlign: 'center' }}>×</span>}
+            </div>
+          ))}
+          {!entries.length && <div style={{ padding: '16px 14px', fontSize: 12, color: MUTED }}>No workers logged yet.</div>}
+          {!locked && canManage && (
+            <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+              <div onClick={addRow} style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: ACCENT }}>+ Add worker</div>
+            </div>
+          )}
+
+          <div style={{ padding: '14px', borderTop: '1px solid rgba(20,8,31,.06)' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Notes</div>
+            <textarea disabled={locked || !canManage} value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...input, width: '100%', resize: 'vertical' }} />
+          </div>
+
+          {!locked && canManage && (
+            <div style={{ display: 'flex', gap: 8, padding: '14px' }}>
+              <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,.14)', color: ACCENT }}>{saving ? 'Saving…' : 'Save draft'}</div>
+              <div onClick={saving ? undefined : submit} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: ACCENT, color: 'white' }}>{saving ? 'Submitting…' : 'Submit for approval'}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Approvals
+
+function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, currentUserId }: {
+  projects: Project[]; employees: Employee[]; csiCodes: CsiCode[]; canManage: boolean; toast: (m: string) => void; currentUserId?: string;
+}) {
+  const [logs, setLogs] = useState<DailyLog[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [entriesByLog, setEntriesByLog] = useState<Record<string, LaborEntry[]>>({});
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+
+  const projectName = (id: number) => projects.find((p) => p.id === id)?.name || `Project ${id}`;
+  const employeeName = (id: string) => employees.find((e) => e.id === id)?.name || id;
+  const csiLabel = (id?: string) => { const c = csiCodes.find((x) => x.id === id); return c ? `${c.code} — ${c.division}` : '—'; };
+
+  const reload = () => api.dailyLogs.list({ status: 'submitted' }).then((r: any) => setLogs(Array.isArray(r) ? r : [])).catch(() => {});
+  useEffect(() => { reload(); }, []);
+
+  const open = async (log: DailyLog) => {
+    if (openId === log.id) { setOpenId(null); return; }
+    setOpenId(log.id);
+    if (!entriesByLog[log.id!]) {
+      const r: any = await api.dailyLogs.day(log.projectId, log.date);
+      setEntriesByLog((prev) => ({ ...prev, [log.id!]: r.entries || [] }));
+    }
+  };
+
+  const approve = async (id: string) => {
+    try { await api.dailyLogs.approve(id); toast('Approved'); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not approve')); }
+  };
+  const reject = async (id: string) => {
+    try { await api.dailyLogs.reject(id, note); setRejecting(null); setNote(''); toast('Rejected'); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not reject')); }
+  };
+
+  return (
+    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+      {!logs.length && <div style={{ padding: '20px 16px', fontSize: 12.5, color: MUTED }}>Nothing waiting for approval.</div>}
+      {logs.map((log) => {
+        const selfSubmitted = !!currentUserId && currentUserId === log.supervisorId;
+        return (
+          <div key={log.id} style={{ borderTop: '1px solid rgba(20,8,31,.05)' }}>
+            <div onClick={() => open(log)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{projectName(log.projectId)} — {log.date}</div>
+                <div style={{ fontSize: 11.5, color: MUTED }}>Submitted by {log.supervisorName || 'Unknown'}{log.submittedAt ? ` · ${new Date(log.submittedAt).toLocaleString()}` : ''}</div>
+              </div>
+              <StatusBadge status={log.status} />
+            </div>
+            {openId === log.id && (
+              <div style={{ padding: '0 16px 16px' }}>
+                <div style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 10, overflow: 'hidden', marginBottom: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 70px 1.6fr', gap: 8, padding: '7px 12px', background: '#F7F3EA', fontSize: 10, fontWeight: 700, color: '#9c96a4', textTransform: 'uppercase' }}>
+                    <span>Employee</span><span>CSI Code</span><span>Hours</span><span>Task Detail</span>
+                  </div>
+                  {(entriesByLog[log.id!] || []).map((e, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 70px 1.6fr', gap: 8, padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+                      <span>{employeeName(e.employeeId)}</span><span>{csiLabel(e.csiCodeId)}</span><span>{e.hours ?? '—'}</span><span>{e.taskDetail || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+                {canManage && !selfSubmitted && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div onClick={() => approve(log.id!)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Approve</div>
+                    {rejecting === log.id ? (
+                      <>
+                        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason for rejecting…" style={{ ...input, flex: 1, minWidth: 180 }} />
+                        <div onClick={() => reject(log.id!)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Confirm reject</div>
+                      </>
+                    ) : (
+                      <div onClick={() => { setRejecting(log.id); setNote(''); }} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Reject</div>
+                    )}
+                  </div>
+                )}
+                {selfSubmitted && <div style={{ fontSize: 11.5, color: MUTED }}>You submitted this log — someone else needs to review it.</div>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Employees
+
+function EmployeesTab({ employees, reload, canManage, toast }: {
+  employees: Employee[]; reload: () => void; canManage: boolean; toast: (m: string) => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Employee | null>(null);
+  const [query, setQuery] = useState('');
+
+  const select = (emp: Employee) => { setSelectedId(emp.id); setDraft(JSON.parse(JSON.stringify(emp))); };
+
+  const addEmployee = async () => {
+    const name = prompt('Employee name?');
+    if (!name?.trim()) return;
+    try {
+      const created: any = await api.employees.create({ name: name.trim() });
+      reload();
+      select(created);
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add employee')); }
+  };
+
+  const save = async () => {
+    if (!draft) return;
+    try {
+      await api.employees.update(draft.id, draft);
+      reload();
+      toast('Saved');
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm('Remove this employee?')) return;
+    try { await api.employees.remove(id); setSelectedId(null); setDraft(null); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove')); }
+  };
+
+  const filtered = employees.filter((e) => e.name.toLowerCase().includes(query.trim().toLowerCase()));
+
+  return (
+    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ width: 280, flexShrink: 0, background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ padding: 10, borderBottom: '1px solid rgba(20,8,31,.06)', display: 'flex', gap: 8 }}>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ ...input, flex: 1 }} />
+          {canManage && <div onClick={addEmployee} style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', whiteSpace: 'nowrap' }}>+ Add</div>}
+        </div>
+        <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+          {filtered.map((emp) => (
+            <div key={emp.id} onClick={() => select(emp)} style={{ padding: '10px 14px', cursor: 'pointer', background: selectedId === emp.id ? ACCENT_BG : 'transparent', borderBottom: '1px solid rgba(20,8,31,.04)' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{emp.name}</div>
+              <div style={{ fontSize: 11, color: MUTED }}>{emp.jobTitle || 'No title'}{emp.status !== 'active' ? ' · Inactive' : ''}</div>
+            </div>
+          ))}
+          {!filtered.length && <div style={{ padding: 16, fontSize: 12, color: MUTED }}>No employees yet.</div>}
+        </div>
+      </div>
+
+      {draft && (
+        <div style={{ flex: 1, minWidth: 280, background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, padding: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            <Field label="Name"><input disabled={!canManage} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={input} /></Field>
+            <Field label="Job title"><input disabled={!canManage} value={draft.jobTitle || ''} onChange={(e) => setDraft({ ...draft, jobTitle: e.target.value })} style={input} /></Field>
+            <Field label="Trade"><input disabled={!canManage} value={draft.trade || ''} onChange={(e) => setDraft({ ...draft, trade: e.target.value })} style={input} /></Field>
+            <Field label="Reports to">
+              <select disabled={!canManage} value={draft.supervisorId || ''} onChange={(e) => setDraft({ ...draft, supervisorId: e.target.value || undefined })} style={input}>
+                <option value="">—</option>
+                {employees.filter((e) => e.id !== draft.id).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Pay type">
+              <select disabled={!canManage} value={draft.payType || ''} onChange={(e) => setDraft({ ...draft, payType: e.target.value })} style={input}>
+                <option value="">—</option><option value="hourly">Hourly</option><option value="salary">Salary</option>
+              </select>
+            </Field>
+            <Field label="Pay rate"><input disabled={!canManage} type="number" value={draft.payRate ?? ''} onChange={(e) => setDraft({ ...draft, payRate: e.target.value ? Number(e.target.value) : undefined })} style={input} /></Field>
+            <Field label="Phone"><input disabled={!canManage} value={draft.phone || ''} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} style={input} /></Field>
+            <Field label="Email"><input disabled={!canManage} value={draft.email || ''} onChange={(e) => setDraft({ ...draft, email: e.target.value })} style={input} /></Field>
+            <Field label="Hire date"><input disabled={!canManage} type="date" value={draft.hireDate || ''} onChange={(e) => setDraft({ ...draft, hireDate: e.target.value })} style={input} /></Field>
+            <Field label="Status">
+              <select disabled={!canManage} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })} style={input}>
+                <option value="active">Active</option><option value="inactive">Inactive</option>
+              </select>
+            </Field>
+            <Field label="Expertise" hint="Comma-separated">
+              <input disabled={!canManage} value={(draft.expertise || []).join(', ')} onChange={(e) => setDraft({ ...draft, expertise: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })} style={input} />
+            </Field>
+          </div>
+          {canManage && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <div onClick={save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Save</div>
+              <div onClick={() => remove(draft.id)} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Delete</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{label}</div>
+      {hint && <div style={{ fontSize: 10, color: '#9AA39D', marginBottom: 3 }}>{hint}</div>}
+      {children}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- CSI Codes
+
+function CsiCodesTab({ csiCodes, reload, canManage, toast }: {
+  csiCodes: CsiCode[]; reload: () => void; canManage: boolean; toast: (m: string) => void;
+}) {
+  const [draftCode, setDraftCode] = useState('');
+  const [draftDivision, setDraftDivision] = useState('');
+
+  const add = async () => {
+    if (!draftCode.trim() || !draftDivision.trim()) return;
+    try {
+      await api.csiCodes.create({ code: draftCode.trim(), division: draftDivision.trim(), order: csiCodes.length });
+      setDraftCode(''); setDraftDivision('');
+      reload();
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add')); }
+  };
+  const update = async (c: CsiCode, patch: Partial<CsiCode>) => {
+    try { await api.csiCodes.update(c.id, patch); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
+  };
+  const remove = async (id: string) => {
+    if (!confirm('Remove this CSI code?')) return;
+    try { await api.csiCodes.remove(id); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove')); }
+  };
+
+  return (
+    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 30px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+        <span>Code</span><span>Division</span><span>Active</span><span />
+      </div>
+      {csiCodes.map((c) => (
+        <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+          <span style={{ fontSize: 12.5, color: INK }}>{c.code}</span>
+          <span style={{ fontSize: 12.5, color: INK }}>{c.division}</span>
+          <input type="checkbox" disabled={!canManage} checked={c.active} onChange={(e) => update(c, { active: e.target.checked })} />
+          {canManage && <span onClick={() => remove(c.id)} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 13, textAlign: 'center' }}>×</span>}
+        </div>
+      ))}
+      {canManage && (
+        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 120px', gap: 8, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.06)' }}>
+          <input value={draftCode} onChange={(e) => setDraftCode(e.target.value)} placeholder="e.g. 09 00 00" style={input} />
+          <input value={draftDivision} onChange={(e) => setDraftDivision(e.target.value)} placeholder="e.g. Finishes" style={input} />
+          <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', textAlign: 'center' }}>+ Add code</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Timesheets
+
+function TimesheetsTab({ employees, csiCodes, toast }: { employees: Employee[]; csiCodes: CsiCode[]; toast: (m: string) => void }) {
+  const [employeeId, setEmployeeId] = useState('');
+  const [weekStart, setWeekStart] = useState(fmt(startOfWeek(new Date())));
+  const [rows, setRows] = useState<any[]>([]);
+  const [totalHours, setTotalHours] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const weekEnd = fmt(new Date(new Date(weekStart).getTime() + 6 * 86400000));
+
+  useEffect(() => {
+    if (!employeeId) { setRows([]); setTotalHours(0); return; }
+    setLoading(true);
+    api.timesheets.forEmployee(employeeId, weekStart, weekEnd)
+      .then((r: any) => { setRows(r.rows || []); setTotalHours(r.totalHours || 0); })
+      .catch((e: Error) => toast('⚠ ' + e.message))
+      .finally(() => setLoading(false));
+  }, [employeeId, weekStart]);
+
+  const csiLabel = (id?: string) => { const c = csiCodes.find((x) => x.id === id); return c ? c.code : '—'; };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ ...input, minWidth: 220 }}>
+          <option value="">Select an employee…</option>
+          {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+        </select>
+        <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} style={input} />
+        <span style={{ fontSize: 12, color: MUTED }}>week through {weekEnd}</span>
+      </div>
+      {!employeeId ? (
+        <div style={{ fontSize: 12.5, color: MUTED }}>Pick an employee and a week to see their rolled-up hours.</div>
+      ) : loading ? (
+        <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>
+      ) : (
+        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '110px 1.6fr 90px 70px 100px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+            <span>Date</span><span>Project</span><span>CSI Code</span><span>Hours</span><span>Status</span>
+          </div>
+          {rows.map((r, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 1.6fr 90px 70px 100px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+              <span style={{ fontSize: 12 }}>{r.date}</span>
+              <span style={{ fontSize: 12.5 }}>{r.projectName}</span>
+              <span style={{ fontSize: 12 }}>{csiLabel(r.csiCodeId)}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700 }}>{r.hours}</span>
+              <StatusBadge status={r.status} />
+            </div>
+          ))}
+          {!rows.length && <div style={{ padding: '16px 14px', fontSize: 12, color: MUTED }}>Nothing logged for this employee that week.</div>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 14px', borderTop: '1px solid rgba(20,8,31,.06)', fontSize: 13, fontWeight: 700, color: INK }}>
+            Total: {totalHours} hrs
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Leave
+
+function LeaveTab({ employees, canManage, toast }: { employees: Employee[]; canManage: boolean; toast: (m: string) => void }) {
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ employeeId: '', type: 'PTO', startDate: todayISO(), endDate: todayISO(), hours: '', reason: '' });
+
+  const reload = () => api.leaveRequests.list().then((r: any) => setRequests(Array.isArray(r) ? r : [])).catch(() => {});
+  useEffect(() => { reload(); }, []);
+
+  const employeeName = (id: string) => employees.find((e) => e.id === id)?.name || id;
+
+  const submit = async () => {
+    if (!form.employeeId || !form.startDate || !form.endDate) { toast('⚠ Pick an employee and dates'); return; }
+    try {
+      await api.leaveRequests.create({ ...form, hours: form.hours ? Number(form.hours) : undefined });
+      setShowForm(false);
+      setForm({ employeeId: '', type: 'PTO', startDate: todayISO(), endDate: todayISO(), hours: '', reason: '' });
+      reload();
+      toast('Leave request submitted');
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not submit')); }
+  };
+
+  const decide = async (id: string, decision: 'approve' | 'deny') => {
+    try { await (decision === 'approve' ? api.leaveRequests.approve(id) : api.leaveRequests.deny(id)); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not update')); }
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 14 }}>
+        <div onClick={() => setShowForm((v) => !v)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>
+          {showForm ? 'Cancel' : '+ Request leave'}
+        </div>
+      </div>
+      {showForm && (
+        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          <Field label="Employee">
+            <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} style={input}>
+              <option value="">Select…</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Type">
+            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={input}>
+              <option value="PTO">PTO</option><option value="Sick">Sick</option><option value="Unpaid">Unpaid</option><option value="Other">Other</option>
+            </select>
+          </Field>
+          <Field label="Start date"><input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} style={input} /></Field>
+          <Field label="End date"><input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} style={input} /></Field>
+          <Field label="Hours (optional, partial day)"><input type="number" value={form.hours} onChange={(e) => setForm({ ...form, hours: e.target.value })} style={input} /></Field>
+          <Field label="Reason"><input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} style={input} /></Field>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <div onClick={submit} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Submit request</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 100px 100px 100px 90px 1fr', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+          <span>Employee</span><span>Type</span><span>Start</span><span>End</span><span>Status</span><span>Actions</span>
+        </div>
+        {requests.map((r) => (
+          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 100px 100px 100px 90px 1fr', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+            <span style={{ fontSize: 12.5 }}>{employeeName(r.employeeId)}</span>
+            <span style={{ fontSize: 12 }}>{r.type}</span>
+            <span style={{ fontSize: 12 }}>{r.startDate}</span>
+            <span style={{ fontSize: 12 }}>{r.endDate}</span>
+            <StatusBadge status={r.status} />
+            {canManage && r.status === 'pending' ? (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div onClick={() => decide(r.id, 'approve')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Approve</div>
+                <div onClick={() => decide(r.id, 'deny')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Deny</div>
+              </div>
+            ) : <span style={{ fontSize: 11, color: MUTED }}>{r.decidedBy ? `by ${r.decidedBy}` : ''}</span>}
+          </div>
+        ))}
+        {!requests.length && <div style={{ padding: '16px 14px', fontSize: 12, color: MUTED }}>No leave requests yet.</div>}
+      </div>
+    </div>
+  );
+}

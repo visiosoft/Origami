@@ -481,6 +481,50 @@ export const api = {
     update: (id: string, data: unknown) => request(`/consultants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/consultants/${id}`, { method: 'DELETE' }),
   },
+  employees: {
+    list: () => request('/employees'),
+    create: (data: unknown) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/employees/${id}`, { method: 'DELETE' }),
+  },
+  csiCodes: {
+    list: () => request('/csi-codes'),
+    create: (data: unknown) => request('/csi-codes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/csi-codes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/csi-codes/${id}`, { method: 'DELETE' }),
+  },
+  dailyLogs: {
+    list: (opts?: { status?: string; projectId?: number }) => {
+      const q = new URLSearchParams();
+      if (opts?.status) q.set('status', opts.status);
+      if (opts?.projectId != null) q.set('projectId', String(opts.projectId));
+      const qs = q.toString();
+      return request(`/daily-logs${qs ? `?${qs}` : ''}`);
+    },
+    day: (projectId: number, date: string) => request(`/daily-logs/day?projectId=${projectId}&date=${date}`),
+    save: (data: { projectId: number; date: string; notes?: string; entries?: unknown[] }) =>
+      request('/daily-logs', { method: 'POST', body: JSON.stringify(data) }),
+    submit: (id: string) => request(`/daily-logs/${id}/submit`, { method: 'POST' }),
+    approve: (id: string) => request(`/daily-logs/${id}/approve`, { method: 'POST' }),
+    reject: (id: string, note?: string) => request(`/daily-logs/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+  },
+  timesheets: {
+    forEmployee: (employeeId: string, from: string, to: string) =>
+      request(`/timesheets?employeeId=${encodeURIComponent(employeeId)}&from=${from}&to=${to}`),
+  },
+  leaveRequests: {
+    list: (opts?: { employeeId?: string; status?: string }) => {
+      const q = new URLSearchParams();
+      if (opts?.employeeId) q.set('employeeId', opts.employeeId);
+      if (opts?.status) q.set('status', opts.status);
+      const qs = q.toString();
+      return request(`/leave-requests${qs ? `?${qs}` : ''}`);
+    },
+    create: (data: unknown) => request('/leave-requests', { method: 'POST', body: JSON.stringify(data) }),
+    approve: (id: string, note?: string) => request(`/leave-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    deny: (id: string, note?: string) => request(`/leave-requests/${id}/deny`, { method: 'POST', body: JSON.stringify({ note }) }),
+    remove: (id: string) => request(`/leave-requests/${id}`, { method: 'DELETE' }),
+  },
 };
 
 export interface GoogleStatus {

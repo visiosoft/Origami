@@ -684,3 +684,86 @@ export class FileRoomFolderEntity {
   @Column() name!: string;
   @Column({ nullable: true }) createdAt!: string;
 }
+
+// ---------------------------------------------------------------- Manpower
+
+/** A field worker or staff member tracked for labor logging -- not necessarily an app login. */
+@Entity('employees')
+export class EmployeeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ nullable: true }) jobTitle!: string;
+  @Column({ nullable: true }) trade!: string;
+  @Column({ type: 'simple-json', nullable: true }) expertise!: string[];
+  @Column({ nullable: true }) payType!: string; // hourly | salary
+  @Column({ type: 'float', nullable: true }) payRate!: number;
+  @Column({ nullable: true }) phone!: string;
+  @Column({ nullable: true }) email!: string;
+  @Column({ nullable: true }) hireDate!: string;
+  @Column({ default: 'active' }) status!: string; // active | inactive
+  /** Who this employee reports to -- the org/reporting layer, independent of any project assignment. */
+  @Column({ nullable: true }) supervisorId!: string;
+  /** Set when this employee also has an app login (e.g. every Supervisor). */
+  @Column({ nullable: true }) userId!: string;
+  @Column() createdAt!: string;
+}
+
+/** The shared, org-wide CSI (construction MasterFormat) code list -- one list, every project uses it. */
+@Entity('csi_codes')
+export class CsiCodeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() code!: string;
+  @Column() division!: string;
+  @Column({ nullable: true }) description!: string;
+  @Column({ default: true }) active!: boolean;
+  @Column('int') order!: number;
+}
+
+/** One day's labor report for one project -- the approval unit, mirroring the old paper DCL. */
+@Entity('daily_logs')
+export class DailyLogEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() date!: string; // ISO yyyy-mm-dd
+  @Column({ nullable: true }) supervisorId!: string;
+  @Column({ nullable: true }) supervisorName!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected
+  @Column({ nullable: true }) submittedAt!: string;
+  @Column({ nullable: true }) approvedById!: string;
+  @Column({ nullable: true }) approvedByName!: string;
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ ...TEXT, nullable: true }) rejectionNote!: string;
+  @Column() createdAt!: string;
+}
+
+/** One worker's hours under one CSI code within a daily log -- a worker split across projects the same day is just two of these under two different daily logs. */
+@Entity('labor_log_entries')
+export class LaborLogEntryEntity {
+  @PrimaryColumn() id!: string;
+  @Column() dailyLogId!: string;
+  @Column() employeeId!: string;
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column({ type: 'float', nullable: true }) hours!: number;
+  @Column({ ...TEXT, nullable: true }) taskDetail!: string;
+  @Column({ nullable: true }) taskStatus!: string; // start | continued | completing
+  @Column({ nullable: true }) team!: string; // A | B | C | D
+}
+
+/** A PTO / sick / unpaid time-off request against an employee's record. */
+@Entity('leave_requests')
+export class LeaveRequestEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column() type!: string; // PTO | Sick | Unpaid | Other
+  @Column() startDate!: string;
+  @Column() endDate!: string;
+  @Column({ type: 'float', nullable: true }) hours!: number;
+  @Column({ ...TEXT, nullable: true }) reason!: string;
+  @Column({ default: 'pending' }) status!: string; // pending | approved | denied
+  @Column({ nullable: true }) requestedBy!: string;
+  @Column() requestedAt!: string;
+  @Column({ nullable: true }) decidedBy!: string;
+  @Column({ nullable: true }) decidedAt!: string;
+  @Column({ ...TEXT, nullable: true }) note!: string;
+}

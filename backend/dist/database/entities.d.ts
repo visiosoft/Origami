@@ -455,3 +455,67 @@ export declare class FileRoomFolderEntity {
     name: string;
     createdAt: string;
 }
+export declare class EmployeeEntity {
+    id: string;
+    name: string;
+    jobTitle: string;
+    trade: string;
+    expertise: string[];
+    payType: string;
+    payRate: number;
+    phone: string;
+    email: string;
+    hireDate: string;
+    status: string;
+    supervisorId: string;
+    userId: string;
+    createdAt: string;
+}
+export declare class CsiCodeEntity {
+    id: string;
+    code: string;
+    division: string;
+    description: string;
+    active: boolean;
+    order: number;
+}
+export declare class DailyLogEntity {
+    id: string;
+    projectId: number;
+    date: string;
+    supervisorId: string;
+    supervisorName: string;
+    notes: string;
+    status: string;
+    submittedAt: string;
+    approvedById: string;
+    approvedByName: string;
+    approvedAt: string;
+    rejectionNote: string;
+    createdAt: string;
+}
+export declare class LaborLogEntryEntity {
+    id: string;
+    dailyLogId: string;
+    employeeId: string;
+    csiCodeId: string;
+    hours: number;
+    taskDetail: string;
+    taskStatus: string;
+    team: string;
+}
+export declare class LeaveRequestEntity {
+    id: string;
+    employeeId: string;
+    type: string;
+    startDate: string;
+    endDate: string;
+    hours: number;
+    reason: string;
+    status: string;
+    requestedBy: string;
+    requestedAt: string;
+    decidedBy: string;
+    decidedAt: string;
+    note: string;
+}

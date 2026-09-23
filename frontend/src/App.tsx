@@ -7,6 +7,7 @@ import { Projects } from './pages/Projects';
 import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { ModuleSpec } from './pages/ModuleSpec';
+import { Manpower } from './pages/Manpower';
 import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
 import { Help } from './pages/Help';
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/planroom" element={<FileRoom />} />
         <Route path="/my-program" element={<MyProjectProgram />} />
         <Route path="/prequal" element={<ConsultantMatrix />} />
+        <Route path="/manpower_con" element={<Manpower />} />
         <Route path="/help" element={<Help />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
