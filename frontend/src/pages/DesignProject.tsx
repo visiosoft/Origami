@@ -606,7 +606,9 @@ function ListView({ filtered, allTasks, onOpen, isDone, isLate }: {
                         <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: pr.bg, color: pr.c, fontSize: 10.5, fontWeight: 700 }}>{t.priority}</span>
                       ) : <span style={{ fontSize: 11, color: '#C9C2D1' }}>—</span>}
                       <span style={{ fontSize: 11.5, fontWeight: 600, color: late ? '#B4232A' : '#8A8194' }}>{t.dueDate || '—'}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{indent ? '' : stage.name}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {indent ? <>Subtask of <span style={{ color: '#4A4357' }}>{task.title}</span></> : stage.name}
+                      </span>
                     </div>
                   );
                 };

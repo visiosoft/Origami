@@ -59,6 +59,7 @@ export function PhaseTaskPanel({
   }, []);
 
   const allLabels = Array.from(new Set(tasks.flatMap((t: any) => t.labels ?? []))).sort() as string[];
+  const parentTask = draft.parentId ? tasks.find((t: any) => t.id === draft.parentId) : null;
 
   const applied = (next: any) => { setDraft(next); onSaved(next); };
   /** Type-ahead shows at once; the save follows on blur. */
@@ -100,6 +101,9 @@ export function PhaseTaskPanel({
           <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
+            {parentTask && (
+              <div style={{ fontSize: 11.5, color: '#9AA39D', marginBottom: 4 }}>Subtask of <span style={{ color: '#43514D', fontWeight: 600 }}>{parentTask.title}</span></div>
+            )}
             <textarea
               value={draft.title || ''}
               disabled={!canManage}
@@ -170,6 +174,7 @@ export function PhaseTaskPanel({
           />
         </div>
 
+        {!parentTask && (
         <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
           {label('Subtasks')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -193,6 +198,7 @@ export function PhaseTaskPanel({
             )}
           </div>
         </div>
+        )}
 
         <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
           <Checklist items={draft.checklist ?? []} canManage={canManage} onChange={(checklist: ChecklistItem[]) => save({ checklist })} />
