@@ -6,7 +6,7 @@ import { LEAD_DROPDOWN_OPTIONS } from '../seed-data/leads';
 import { TasksService } from '../tasks/tasks.service';
 
 const HOMEWORK_TASK_LABEL = 'kind:homework-collection';
-const HOMEWORK_DONE_TEXT = 'All homework items have been collected.';
+const HOMEWORK_EMPTY_TEXT = 'No homework items selected yet.';
 
 @Injectable()
 export class LeadsService {
@@ -18,27 +18,28 @@ export class LeadsService {
     ) { }
 
     /**
-     * Keeps a single task per lead listing whatever homework the client
-     * still hasn't provided -- created the first time something's missing,
-     * updated in place afterward rather than duplicated. Mirrors
-     * ProjectsService.ensureForLead's find-by-natural-key pattern; the
-     * lookup key here is the task's `project` (the lead id, by the same
-     * convention DealTasksPanel already relies on) plus a reserved label.
+     * Keeps a single task per lead listing whichever homework items are
+     * checked -- created the first time one is, updated in place afterward
+     * rather than duplicated. Mirrors ProjectsService.ensureForLead's
+     * find-by-natural-key pattern; the lookup key here is the task's
+     * `project` (the lead id, by the same convention DealTasksPanel already
+     * relies on) plus a reserved label.
      */
     private async syncHomeworkTask(leadId: string, homeworkCompleted: string[]) {
-        const all = LEAD_DROPDOWN_OPTIONS.homeworkCompleted;
-        const missing = all.filter((o) => !homeworkCompleted.includes(o));
         const existing = ((await this.tasks.findAll(undefined, leadId)) as any[])
             .find((t) => (t.labels || []).includes(HOMEWORK_TASK_LABEL));
 
-        if (!missing.length) {
-            if (existing && existing.description !== HOMEWORK_DONE_TEXT) {
-                await this.tasks.update(existing.id, { description: HOMEWORK_DONE_TEXT }, { name: 'System' });
+        if (!homeworkCompleted.length) {
+            // Nothing checked (yet, or unchecked back down) -- leave a task
+            // that already existed open with a neutral description rather
+            // than deleting it; don't create a new one over nothing.
+            if (existing && existing.description !== HOMEWORK_EMPTY_TEXT) {
+                await this.tasks.update(existing.id, { description: HOMEWORK_EMPTY_TEXT }, { name: 'System' });
             }
             return;
         }
 
-        const description = `Collect from client: ${missing.join(', ')}`;
+        const description = `Collect from client: ${homeworkCompleted.join(', ')}`;
         if (existing) {
             if (existing.description !== description) {
                 await this.tasks.update(existing.id, { description }, { name: 'System' });
