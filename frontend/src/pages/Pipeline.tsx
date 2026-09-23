@@ -691,7 +691,8 @@ export function Pipeline() {
       // sitting on Cancelled/Rejected -- moving it anywhere else clears the
       // badge instead of leaving a stale "We Declined"/"Referred to..." tag
       // on a lead that's back in the active pipeline.
-      const clearRejection = o.stage !== 'rejected' ? { rejectionType: undefined, rejectionReason: undefined, referredToName: undefined, referredToCompany: undefined, referredToContact: undefined } : {};
+      const clearRejection = (o.stage !== 'rejected' && o.stage !== 'referred_monitoring')
+        ? { rejectionType: undefined, rejectionReason: undefined, referredToName: undefined, referredToCompany: undefined, referredToContact: undefined } : {};
       setDeals((prev) => prev.map((d) => d.id === id
         ? { ...d, holdUntil, ...clearRejection, timeline: [...(d.timeline || []), { date: when, action, role: who, type: 'auto' as const }] }
         : d));
@@ -706,7 +707,10 @@ export function Pipeline() {
    * the audit trail records why -- not just "Moved to Cancelled / Rejected".
    */
   const confirmReject = (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
-    applyOverride(deal.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0 });
+    // A referral isn't a dead end -- it goes to its own stage so it doesn't
+    // read as closed like a true rejection does.
+    const stage = type === 'referred' ? 'referred_monitoring' : 'rejected';
+    applyOverride(deal.id, { stage, stageIdx: stageIndex(stage), daysInStage: 0 });
     api.pipeline.setRejection(deal.id, {
       rejectionType: type,
       referredToName: referral?.name.trim(),
@@ -1897,7 +1901,13 @@ export function Pipeline() {
             </div>
           ) : (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'white' }}>
-              <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
+              {selected.stage === 'referred_monitoring' ? (
+                <div onClick={() => applyOverride(selected.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0 })} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>
+                  Close monitoring — mark as rejected
+                </div>
+              ) : (
+                <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#173326', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
+              )}
               {selected.stageIdx >= stageIndex('client_approval') && !selectedStage.isHold && !selectedStage.isClosed && !selected.convertedProjectId && (
                 <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#2F7D4A', color: 'white' }}>
                   → Convert to Project

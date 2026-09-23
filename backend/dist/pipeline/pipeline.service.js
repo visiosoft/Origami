@@ -153,7 +153,7 @@ let PipelineService = class PipelineService {
         else {
             deal.holdUntil = '';
         }
-        if (stage !== 'rejected' && deal.rejectionType) {
+        if (stage !== 'rejected' && stage !== 'referred_monitoring' && deal.rejectionType) {
             deal.rejectionType = '';
             deal.rejectionReason = '';
             deal.referredToName = '';

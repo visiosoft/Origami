@@ -19,6 +19,7 @@ exports.STAGES = [
     { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 12, color: '#9B4A16', colorBg: '#F5D4B8' },
     { key: 'cold', name: 'Cold Lead', idx: 14, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true, color: '#4A6C7A', colorBg: '#DCE7EC' },
     { key: 'rejected', name: 'Cancelled / Rejected', idx: 15, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
+    { key: 'referred_monitoring', name: 'Referred — Monitoring', idx: 16, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isClosed: true, color: '#3C5C8A', colorBg: '#D8E2F0' },
 ];
 exports.STAGE_KEYS = ['new_lead', 'contact_attempted', 'contact_made', 'initial_questions', 'project_fit', 'site_visit', 'zoning', 'proposal', 'client_approval'];
 exports.STATUS_STYLES = {

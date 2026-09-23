@@ -107,6 +107,32 @@ describe('PipelineService', () => {
         });
     });
 
+    describe('updateStage', () => {
+        it('keeps the referral fields when moving a referred deal onto its own monitoring stage', async () => {
+            const deal = {
+                id: 'PL-1', stage: 'project_fit', stageIdx: 4, timeline: [],
+                rejectionType: 'referred', rejectionReason: '', referredToName: 'Jane Doe', referredToCompany: 'Acme Design Co.', referredToContact: 'jane@acme.com',
+            } as unknown as DealEntity;
+            dealsRepo.findOneBy.mockResolvedValue(deal);
+            leadsRepo.findOneBy.mockResolvedValue(null);
+            const saved = await service.updateStage('PL-1', 'referred_monitoring');
+            expect(saved.rejectionType).toBe('referred');
+            expect(saved.referredToName).toBe('Jane Doe');
+        });
+
+        it('clears the rejection fields when a referred deal is moved back into the active pipeline', async () => {
+            const deal = {
+                id: 'PL-1', stage: 'referred_monitoring', stageIdx: 16, timeline: [],
+                rejectionType: 'referred', rejectionReason: '', referredToName: 'Jane Doe', referredToCompany: 'Acme Design Co.', referredToContact: 'jane@acme.com',
+            } as unknown as DealEntity;
+            dealsRepo.findOneBy.mockResolvedValue(deal);
+            leadsRepo.findOneBy.mockResolvedValue(null);
+            const saved = await service.updateStage('PL-1', 'client_approval');
+            expect(saved.rejectionType).toBe('');
+            expect(saved.referredToName).toBe('');
+        });
+    });
+
     describe('logFollowUp', () => {
         const baseDeal = () => ({ id: 'PL-1', name: 'Neon Project', client: 'Neon Project', followUps: [], timeline: [] }) as unknown as DealEntity;
 

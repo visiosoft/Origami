@@ -222,11 +222,11 @@ export class PipelineService implements OnApplicationBootstrap {
     }
 
     // A rejection outcome only means anything while the deal is actually
-    // sitting on Cancelled/Rejected -- moving it back into the active
-    // pipeline (e.g. brought back after being reconsidered) clears it,
-    // rather than leaving a stale "We Declined"/"Referred to..." badge on a
-    // lead that's back in play.
-    if (stage !== 'rejected' && deal.rejectionType) {
+    // sitting on Cancelled/Rejected or Referred/Monitoring -- moving it back
+    // into the active pipeline (e.g. brought back after being reconsidered)
+    // clears it, rather than leaving a stale "We Declined"/"Referred to..."
+    // badge on a lead that's back in play.
+    if (stage !== 'rejected' && stage !== 'referred_monitoring' && deal.rejectionType) {
       deal.rejectionType = '';
       deal.rejectionReason = '';
       deal.referredToName = '';
