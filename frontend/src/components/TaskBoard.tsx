@@ -430,8 +430,10 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   );
 
   // ---- Timeline (Gantt) view: read-only bars over a date scale, grouped by
-  // section. Falls back to a 1-day bar (dueDate on both ends) for a task with
-  // no startDate, so every task shows up somewhere. ----
+  // section. A task needs a Start Date or Due Date to get a bar -- an
+  // undated task stays listed (so nothing goes missing) but doesn't get
+  // dumped onto "today", which just clutters the chart with a meaningless
+  // pileup for a board where most tasks predate the Start Date field. ----
   const timelineView = (() => {
     const dayMs = 86400000;
     const dayWidth = 28;
@@ -441,16 +443,20 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     const rangesBySection = sections.map((sec) => ({
       sec,
       rows: topLevelBySection(visibleTasks, sec.id).map((t) => {
-        const due = parseDate(t.dueDate) || today;
-        const start = parseDate(t.startDate) || due;
-        return { t, start: start <= due ? start : due, end: due >= start ? due : start };
+        const due = parseDate(t.dueDate);
+        const start = parseDate(t.startDate);
+        if (!due && !start) return { t, start: null as Date | null, end: null as Date | null };
+        const s = start || due!;
+        const e = due || start!;
+        return { t, start: s <= e ? s : e, end: e >= s ? e : s };
       }),
     }));
-    const allRows = rangesBySection.flatMap((g) => g.rows);
+    const datedRows = rangesBySection.flatMap((g) => g.rows).filter((r): r is { t: ProjectTask; start: Date; end: Date } => !!r.start && !!r.end);
+    const undatedCount = rangesBySection.flatMap((g) => g.rows).length - datedRows.length;
 
     const startOfWeek = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); return x; };
-    const earliest = allRows.length ? new Date(Math.min(...allRows.map((r) => r.start.getTime()))) : new Date(today.getTime() - 7 * dayMs);
-    const latest = allRows.length ? new Date(Math.max(...allRows.map((r) => r.end.getTime()))) : new Date(today.getTime() + 35 * dayMs);
+    const earliest = datedRows.length ? new Date(Math.min(...datedRows.map((r) => r.start.getTime()))) : new Date(today.getTime() - 7 * dayMs);
+    const latest = datedRows.length ? new Date(Math.max(...datedRows.map((r) => r.end.getTime()))) : new Date(today.getTime() + 35 * dayMs);
     const chartStart = startOfWeek(new Date(Math.min(earliest.getTime(), today.getTime() - 7 * dayMs)));
     const chartEnd = new Date(Math.max(latest.getTime(), today.getTime() + 21 * dayMs));
     const totalDays = Math.ceil((chartEnd.getTime() - chartStart.getTime()) / dayMs) + 7;
@@ -465,6 +471,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     const sidebarWidth = 200;
 
     return (
+      <div>
+        {undatedCount > 0 && (
+          <div style={{ fontSize: 11.5, color: '#7E9B93', marginBottom: 8 }}>
+            {undatedCount} task{undatedCount === 1 ? '' : 's'} {undatedCount === 1 ? "isn't" : "aren't"} shown on the chart — set a Start or Due date in the task drawer to place {undatedCount === 1 ? 'it' : 'them'}.
+          </div>
+        )}
       <div style={{ display: 'flex', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
         {/* Fixed left column: task names stay in view regardless of how far
             the date grid on the right is scrolled -- matches Asana/Monday's
@@ -509,6 +521,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                 {rows.length === 0 ? (
                   <div style={{ height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }} />
                 ) : rows.map(({ t, start, end }) => {
+                  if (!start || !end) {
+                    // No Start Date or Due Date -- nothing to plot. Leaving
+                    // the row blank (rather than piling it onto "today")
+                    // keeps the chart meaningful for tasks that do have dates.
+                    return <div key={t.id} style={{ height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }} />;
+                  }
                   const left = xFor(start);
                   const width = Math.max(xFor(end) - left + dayWidth, dayWidth);
                   const st = STATUS_STYLE[t.status || 'Not started'];
@@ -526,6 +544,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             ))}
           </div>
         </div>
+      </div>
       </div>
     );
   })();
