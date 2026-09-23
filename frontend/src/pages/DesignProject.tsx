@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import type { ProjectTask } from '../data/projectTasks';
+import { subtasksOf, type ProjectTask } from '../data/projectTasks';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
 
@@ -484,7 +484,7 @@ export function DesignProject() {
           )}
 
           {view === 'list' && (
-            <ListView filtered={filtered} onOpen={setSelectedId} isDone={isDone} isLate={isLate} today={today} />
+            <ListView filtered={filtered} allTasks={tasks} onOpen={setSelectedId} isDone={isDone} isLate={isLate} today={today} />
           )}
 
           {view === 'timeline' && (
@@ -532,14 +532,21 @@ const LIST_GROUPS = [
   { key: 'done', label: 'Done', dot: '#16A34A', match: (t: ProjectTask) => !!(t.completed || t.status === 'Done') },
 ];
 
-/** A "Main table"-style list: rows grouped by status, one row per task. */
-function ListView({ filtered, onOpen, isDone, isLate }: {
+/** A "Main table"-style list: rows grouped by status, one row per task, with its subtasks indented underneath. */
+function ListView({ filtered, allTasks, onOpen, isDone, isLate }: {
   filtered: { task: ProjectTask; stage: any }[];
+  allTasks: ProjectTask[];
   onOpen: (id: string) => void;
   isDone: (t: ProjectTask) => boolean;
   isLate: (t: ProjectTask) => boolean;
   today: string;
 }) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const cols = '28px minmax(220px,2fr) 140px 110px 100px 110px 140px';
   return (
     <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
@@ -564,30 +571,49 @@ function ListView({ filtered, onOpen, isDone, isLate }: {
                 <span style={{ fontSize: 11, color: '#9c96a4' }}>{rows.length}</span>
               </div>
               {rows.map(({ task, stage }) => {
-                const pr = task.priority ? PRIORITY_DOT[task.priority] : null;
-                const late = isLate(task);
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => onOpen(task.id)}
-                    style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer' }}
-                  >
-                    <span style={{ width: 16, height: 16, borderRadius: 5, border: '1.5px solid ' + (isDone(task) ? '#16A34A' : 'rgba(20,8,31,.2)'), background: isDone(task) ? '#16A34A' : 'transparent' }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: INK, textDecoration: isDone(task) ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      <span style={{ width: 18, height: 18, borderRadius: 999, background: task.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
-                        {task.assignee ? initials(task.assignee) : '—'}
+                const subs = subtasksOf(allTasks, task.id);
+                const open = !collapsed.has(task.id);
+                const row = (t: ProjectTask, indent: boolean) => {
+                  const pr = t.priority ? PRIORITY_DOT[t.priority] : null;
+                  const late = isLate(t);
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => onOpen(t.id)}
+                      style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', background: indent ? '#FBFAF6' : 'transparent' }}
+                    >
+                      <span style={{ width: 16, height: 16, borderRadius: 5, border: '1.5px solid ' + (isDone(t) ? '#16A34A' : 'rgba(20,8,31,.2)'), background: isDone(t) ? '#16A34A' : 'transparent' }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingLeft: indent ? 20 : 0 }}>
+                        {!indent && subs.length > 0 && (
+                          <span
+                            onClick={(e) => { e.stopPropagation(); toggle(t.id); }}
+                            style={{ fontSize: 10, color: '#9c96a4', cursor: 'pointer', flex: '0 0 auto', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .12s ease' }}
+                          >▶</span>
+                        )}
+                        <span style={{ fontSize: indent ? 12 : 13, fontWeight: indent ? 500 : 600, color: indent ? '#4A4357' : INK, textDecoration: isDone(t) ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
+                        {!indent && subs.length > 0 && <span style={{ fontSize: 10.5, color: '#9c96a4', flex: '0 0 auto' }}>{subs.filter((s) => isDone(s)).length}/{subs.length}</span>}
                       </span>
-                      <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.assignee || 'Unassigned'}</span>
-                    </span>
-                    <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[task.status === 'Done' ? 'complete' : task.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[task.status === 'Done' ? 'complete' : task.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
-                      {task.status || 'Not started'}
-                    </span>
-                    {pr ? (
-                      <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: pr.bg, color: pr.c, fontSize: 10.5, fontWeight: 700 }}>{task.priority}</span>
-                    ) : <span style={{ fontSize: 11, color: '#C9C2D1' }}>—</span>}
-                    <span style={{ fontSize: 11.5, fontWeight: 600, color: late ? '#B4232A' : '#8A8194' }}>{task.dueDate || '—'}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <span style={{ width: 18, height: 18, borderRadius: 999, background: t.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+                          {t.assignee ? initials(t.assignee) : '—'}
+                        </span>
+                        <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignee || 'Unassigned'}</span>
+                      </span>
+                      <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
+                        {t.status || 'Not started'}
+                      </span>
+                      {pr ? (
+                        <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: pr.bg, color: pr.c, fontSize: 10.5, fontWeight: 700 }}>{t.priority}</span>
+                      ) : <span style={{ fontSize: 11, color: '#C9C2D1' }}>—</span>}
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: late ? '#B4232A' : '#8A8194' }}>{t.dueDate || '—'}</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{indent ? '' : stage.name}</span>
+                    </div>
+                  );
+                };
+                return (
+                  <div key={task.id}>
+                    {row(task, false)}
+                    {open && subs.map((s) => row(s, true))}
                   </div>
                 );
               })}
