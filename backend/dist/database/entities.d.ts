@@ -312,13 +312,13 @@ export declare class WorkflowItemEntity {
 }
 export declare class ProjectSectionEntity {
     id: string;
-    projectId: number;
+    projectId: number | null;
     name: string;
     order: number;
 }
 export declare class ProjectTaskEntity {
     id: string;
-    projectId: number;
+    projectId: number | null;
     sectionId: string;
     title: string;
     description: string;

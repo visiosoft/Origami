@@ -1208,8 +1208,8 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectSectionEntity.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)('int'),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
 ], ProjectSectionEntity.prototype, "projectId", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
@@ -1230,11 +1230,11 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)('int'),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
 ], ProjectTaskEntity.prototype, "projectId", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
+    (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "sectionId", void 0);
 __decorate([

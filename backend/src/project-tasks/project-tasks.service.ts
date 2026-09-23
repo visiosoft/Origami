@@ -70,14 +70,25 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     } as ProjectTaskEntity;
   }
 
-  async findAll(projectId?: number): Promise<any[]> {
+  /**
+   * `undefined` = every task across every project + General Tasks (used by
+   * My Tasks, Notifications, the dashboard's attention strip -- callers that
+   * genuinely want everything). `null` = only the General Tasks board (not
+   * tied to any client project). A number = that project only.
+   */
+  async findAll(projectId?: number | null): Promise<any[]> {
     const rows = await this.repo.find({ order: { order: 'ASC' } });
-    const scoped = projectId ? rows.filter((t) => Number(t.projectId) === projectId) : rows;
+    const scoped = projectId === undefined
+      ? rows
+      : projectId === null
+        ? rows.filter((t) => t.projectId == null)
+        : rows.filter((t) => Number(t.projectId) === projectId);
     return scoped.map((t) => this.hydrate(t));
   }
 
-  // { sections, tasks } for one project — the board payload.
-  async board(projectId: number) {
+  // { sections, tasks } for one project (or, projectId === null, the
+  // General Tasks board) — the board payload.
+  async board(projectId: number | null) {
     const sections = await this.sections.forProject(projectId);
     const tasks = await this.findAll(projectId);
     return { sections, tasks };
@@ -117,7 +128,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       labels: normalizeList<string>(dto.labels),
       activity: [event('created', actor, { text: 'created this task' })],
       updatedAt: new Date().toISOString(),
-      projectId: Number(dto.projectId),
+      projectId: dto.projectId == null ? null : Number(dto.projectId),
       id,
     };
     const saved = await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>));
@@ -204,7 +215,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
   // ------------------------------------------------------------- attachments
 
   private scopeFor(task: ProjectTaskEntity) {
-    return `Project ${task.projectId}`;
+    return task.projectId == null ? 'General Tasks' : `Project ${task.projectId}`;
   }
 
   async addAttachments(id: string, files: any[], actor: UploadActor) {

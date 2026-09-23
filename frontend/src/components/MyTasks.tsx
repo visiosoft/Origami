@@ -44,7 +44,7 @@ export function MyTasks() {
         .map((t) => ({
           key: 'b' + t.id,
           title: t.title,
-          context: projects[t.projectId] || `Project ${t.projectId}`,
+          context: t.projectId == null ? 'General Tasks' : (projects[t.projectId] || `Project ${t.projectId}`),
           dueDate: t.dueDate,
           priority: t.priority,
           where: 'board' as const,

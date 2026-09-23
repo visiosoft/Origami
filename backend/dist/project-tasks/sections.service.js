@@ -38,16 +38,16 @@ let SectionsService = class SectionsService {
         return (await this.repo.findOneBy({ id })) ?? undefined;
     }
     async forProject(projectId) {
-        if (!Number.isFinite(projectId))
+        if (projectId !== null && !Number.isFinite(projectId))
             return [];
-        let rows = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
+        let rows = await this.repo.find({ where: { projectId: projectId ?? (0, typeorm_2.IsNull)() }, order: { order: 'ASC' } });
         if (!rows.length) {
             rows = await this.repo.save((0, project_tasks_1.defaultSectionsFor)(projectId));
         }
         return rows;
     }
     create(dto) {
-        const projectId = Number(dto.projectId);
+        const projectId = dto.projectId == null ? null : Number(dto.projectId);
         const section = { name: 'New Section', order: 0, ...dto, projectId, id: dto.id || 'S-' + Date.now() };
         return this.repo.save(this.repo.create(section));
     }

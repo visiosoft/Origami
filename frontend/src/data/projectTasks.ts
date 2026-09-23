@@ -49,14 +49,16 @@ export const STATUS_STYLE: Record<TaskStatus, { bg: string; c: string }> = {
 
 export interface ProjectSection {
   id: string;
-  projectId: number;
+  /** null = the General Tasks board's sections, not tied to any project. */
+  projectId: number | null;
   name: string;
   order: number;
 }
 
 export interface ProjectTask {
   id: string;
-  projectId: number;
+  /** null = a General Tasks board task, not tied to any client project. */
+  projectId: number | null;
   sectionId: string;
   title: string;
   description?: string;

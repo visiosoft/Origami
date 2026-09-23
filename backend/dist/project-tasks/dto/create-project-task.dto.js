@@ -21,7 +21,8 @@ __decorate([
 ], CreateProjectTaskDto.prototype, "id", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
 ], CreateProjectTaskDto.prototype, "projectId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),

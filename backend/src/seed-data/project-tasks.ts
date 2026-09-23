@@ -7,14 +7,14 @@ export interface TaskComment { id: string; author: string; text: string; date: s
 
 export interface ProjectSection {
   id: string;
-  projectId: number;
+  projectId: number | null;
   name: string;
   order: number;
 }
 
 export interface ProjectTask {
   id: string;
-  projectId: number;
+  projectId: number | null;
   sectionId: string;
   title: string;
   description?: string;
@@ -32,10 +32,11 @@ export interface ProjectTask {
 export const DEFAULT_SECTION_NAMES = ['To Do', 'In Progress', 'In Review', 'Done'];
 
 // Section ids are deterministic per project so seed tasks can reference them:
-// `S-<projectId>-<index>`.
-export const sectionId = (projectId: number, idx: number) => `S-${projectId}-${idx}`;
+// `S-<projectId>-<index>`. `null` (the General Tasks board, not tied to any
+// client project) gets its own fixed `S-general-<index>` set.
+export const sectionId = (projectId: number | null, idx: number) => `S-${projectId ?? 'general'}-${idx}`;
 
-export const defaultSectionsFor = (projectId: number): ProjectSection[] =>
+export const defaultSectionsFor = (projectId: number | null): ProjectSection[] =>
   DEFAULT_SECTION_NAMES.map((name, idx) => ({ id: sectionId(projectId, idx), projectId, name, order: idx }));
 
 // Demo content for project 1 so the board isn't empty on first open.

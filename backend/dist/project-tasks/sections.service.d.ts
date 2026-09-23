@@ -8,7 +8,7 @@ export declare class SectionsService implements OnApplicationBootstrap {
     constructor(repo: Repository<ProjectSectionEntity>);
     onApplicationBootstrap(): Promise<void>;
     getById(id: string): Promise<ProjectSection | undefined>;
-    forProject(projectId: number): Promise<ProjectSection[]>;
+    forProject(projectId: number | null): Promise<ProjectSection[]>;
     create(dto: any): Promise<ProjectSectionEntity>;
     update(id: string, dto: any): Promise<ProjectSectionEntity>;
     remove(id: string): Promise<{

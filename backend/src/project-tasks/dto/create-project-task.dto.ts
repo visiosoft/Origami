@@ -8,7 +8,8 @@ import type { ChecklistItem, TaskAttachment, TaskComment } from '../../database/
  */
 export class CreateProjectTaskDto {
   @IsString() @IsOptional() id?: string;
-  @IsNumber() projectId: number;
+  // Absent/null = a General Tasks board task, not tied to any client project.
+  @IsNumber() @IsOptional() projectId?: number | null;
   @IsString() @IsOptional() sectionId?: string;
   @IsString() title: string;
   @IsString() @IsOptional() description?: string;

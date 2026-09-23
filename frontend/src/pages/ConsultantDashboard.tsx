@@ -57,7 +57,7 @@ export function ConsultantDashboard() {
     const isMine = (assigneeId?: string, assignee?: string) =>
       assigneeId ? assigneeId === id : !!name && !!assignee && assignee.trim().toLowerCase() === name.trim().toLowerCase();
     return boardTasks
-      .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && projectsById[t.projectId] && isMine(t.assigneeId, t.assignee))
+      .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && t.projectId != null && projectsById[t.projectId] && isMine(t.assigneeId, t.assignee))
       .sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   }, [boardTasks, projectsById, currentUser]);
 
@@ -97,7 +97,7 @@ export function ConsultantDashboard() {
               <div key={t.id} onClick={() => navigate('/prequal')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, flexWrap: 'wrap', cursor: 'pointer' }}>
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{t.title}</div>
-                  <div style={{ fontSize: 11, color: '#7E9B93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{projectsById[t.projectId]}</div>
+                  <div style={{ fontSize: 11, color: '#7E9B93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.projectId != null ? projectsById[t.projectId] : ''}</div>
                 </div>
                 {t.dueDate && <span style={{ fontSize: 11, color: '#7E9B93' }}>Due {t.dueDate}</span>}
                 <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#EFEDE8', color: '#3A423E' }}>{t.status || 'Open'}</span>

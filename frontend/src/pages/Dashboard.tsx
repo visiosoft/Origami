@@ -233,7 +233,7 @@ export function Dashboard() {
   const attentionItems = [
     ...attentionBoardTasks
       .filter((t) => !t.completed && t.status !== 'Done' && t.dueDate && t.dueDate <= todayStr)
-      .map((t) => ({ task: t.title, project: attentionProjects[t.projectId] || `Project ${t.projectId}`, due: daysAgoLabel(t.dueDate!), past: t.dueDate! < todayStr })),
+      .map((t) => ({ task: t.title, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || `Project ${t.projectId}`), due: daysAgoLabel(t.dueDate!), past: t.dueDate! < todayStr })),
     ...attentionLogTasks
       .filter((t) => t.status !== 'Closed' && t.dueDate && t.dueDate <= todayStr)
       .map((t) => ({ task: t.description?.length > 60 ? t.description.slice(0, 60) + '…' : (t.description || t.id), project: t.project || 'General task', due: daysAgoLabel(t.dueDate), past: t.dueDate < todayStr })),

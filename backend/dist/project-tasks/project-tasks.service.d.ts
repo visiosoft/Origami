@@ -16,8 +16,8 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     onApplicationBootstrap(): Promise<void>;
     private renameLegacyTitles;
     private hydrate;
-    findAll(projectId?: number): Promise<any[]>;
-    board(projectId: number): Promise<{
+    findAll(projectId?: number | null): Promise<any[]>;
+    board(projectId: number | null): Promise<{
         sections: import("../seed-data/project-tasks").ProjectSection[];
         tasks: any[];
     }>;

@@ -276,8 +276,10 @@ export const api = {
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
   },
   projectTasks: {
-    board: (projectId: number) => request(`/project-tasks/board?projectId=${projectId}`),
-    list: (projectId?: number) => request(`/project-tasks${projectId ? `?projectId=${projectId}` : ''}`),
+    /** projectId: a number scopes to that project; null scopes to the
+     *  General Tasks board; omitted (list only) returns everything. */
+    board: (projectId: number | null) => request(`/project-tasks/board?projectId=${projectId === null ? 'null' : projectId}`),
+    list: (projectId?: number | null) => request(`/project-tasks${projectId === undefined ? '' : `?projectId=${projectId === null ? 'null' : projectId}`}`),
     create: (data: unknown) => request('/project-tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-tasks/${id}`, { method: 'DELETE' }),

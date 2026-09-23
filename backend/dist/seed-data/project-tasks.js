@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DEFAULT_TASKS = exports.DEFAULT_SECTIONS = exports.defaultSectionsFor = exports.sectionId = exports.DEFAULT_SECTION_NAMES = void 0;
 exports.DEFAULT_SECTION_NAMES = ['To Do', 'In Progress', 'In Review', 'Done'];
-const sectionId = (projectId, idx) => `S-${projectId}-${idx}`;
+const sectionId = (projectId, idx) => `S-${projectId ?? 'general'}-${idx}`;
 exports.sectionId = sectionId;
 const defaultSectionsFor = (projectId) => exports.DEFAULT_SECTION_NAMES.map((name, idx) => ({ id: (0, exports.sectionId)(projectId, idx), projectId, name, order: idx }));
 exports.defaultSectionsFor = defaultSectionsFor;

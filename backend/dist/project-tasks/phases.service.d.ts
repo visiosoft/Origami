@@ -81,7 +81,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
             targetDays: number;
             targetDerived: boolean;
             id: string;
-            projectId: number;
+            projectId: number | null;
             sectionId: string;
             title: string;
             description: string;

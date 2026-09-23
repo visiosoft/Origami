@@ -41,7 +41,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  * the notification bell. It can only be applied after the board has loaded,
  * since the drawer resolves its task out of `tasks`.
  */
-export function TaskBoard({ projectId, initialTaskId }: { projectId: number; initialTaskId?: string | null }) {
+export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null; initialTaskId?: string | null }) {
   const { can, toast, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
   const [query, setQuery] = useState('');

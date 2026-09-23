@@ -442,7 +442,9 @@ export class WorkflowItemEntity {
 @Entity('project_sections')
 export class ProjectSectionEntity {
   @PrimaryColumn() id!: string;
-  @Column('int') projectId!: number;
+  // Null = the "General Tasks" board's sections -- work not tied to any
+  // client project, rather than only ever living project-scoped.
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
   @Column() name!: string;
   @Column('int') order!: number;
 }
@@ -450,8 +452,9 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
-  @Column('int') projectId!: number;
-  @Column() sectionId!: string;
+  // Null = a General Tasks board task, not tied to any client project.
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ nullable: true }) sectionId!: string;
   @Column() title!: string;
   @Column({ ...TEXT, nullable: true }) description!: string;
   @Column({ nullable: true }) assignee!: string;

@@ -28,14 +28,20 @@ let ProjectTasksController = class ProjectTasksController {
         this.auth = auth;
         this.attachments = attachments;
     }
+    parseProjectId(raw) {
+        if (raw === undefined)
+            return undefined;
+        if (raw === 'null' || raw === '')
+            return null;
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+    }
     async findAll(projectId, auth) {
-        const rows = await this.service.findAll(projectId ? Number(projectId) : undefined);
+        const rows = await this.service.findAll(this.parseProjectId(projectId));
         return (0, viewer_util_1.scopeTasks)(rows, await this.auth.verify(auth));
     }
     async board(projectId, auth) {
-        const pid = Number(projectId);
-        if (!Number.isFinite(pid))
-            return { sections: [], tasks: [] };
+        const pid = this.parseProjectId(projectId) ?? null;
         const { sections, tasks } = await this.service.board(pid);
         return { sections, tasks: (0, viewer_util_1.scopeTasks)(tasks, await this.auth.verify(auth)) };
     }

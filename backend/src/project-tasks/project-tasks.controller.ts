@@ -19,16 +19,27 @@ export class ProjectTasksController {
     private readonly attachments: AttachmentsService,
   ) {}
 
+  /**
+   * `projectId` query param: absent = everything (every project + General
+   * Tasks); the literal string "null" = General Tasks only; anything else =
+   * that project's id.
+   */
+  private parseProjectId(raw?: string): number | null | undefined {
+    if (raw === undefined) return undefined;
+    if (raw === 'null' || raw === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+
   @Get()
   async findAll(@Query('projectId') projectId?: string, @Headers('authorization') auth?: string) {
-    const rows = await this.service.findAll(projectId ? Number(projectId) : undefined);
+    const rows = await this.service.findAll(this.parseProjectId(projectId));
     return scopeTasks(rows, await this.auth.verify(auth));
   }
 
   @Get('board')
-  async board(@Query('projectId') projectId: string, @Headers('authorization') auth?: string) {
-    const pid = Number(projectId);
-    if (!Number.isFinite(pid)) return { sections: [], tasks: [] };
+  async board(@Query('projectId') projectId?: string, @Headers('authorization') auth?: string) {
+    const pid = this.parseProjectId(projectId) ?? null;
     const { sections, tasks } = await this.service.board(pid);
     return { sections, tasks: scopeTasks(tasks, await this.auth.verify(auth)) };
   }

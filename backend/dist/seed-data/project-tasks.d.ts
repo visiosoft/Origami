@@ -11,13 +11,13 @@ export interface TaskComment {
 }
 export interface ProjectSection {
     id: string;
-    projectId: number;
+    projectId: number | null;
     name: string;
     order: number;
 }
 export interface ProjectTask {
     id: string;
-    projectId: number;
+    projectId: number | null;
     sectionId: string;
     title: string;
     description?: string;
@@ -32,7 +32,7 @@ export interface ProjectTask {
     createdAt: string;
 }
 export declare const DEFAULT_SECTION_NAMES: string[];
-export declare const sectionId: (projectId: number, idx: number) => string;
-export declare const defaultSectionsFor: (projectId: number) => ProjectSection[];
+export declare const sectionId: (projectId: number | null, idx: number) => string;
+export declare const defaultSectionsFor: (projectId: number | null) => ProjectSection[];
 export declare const DEFAULT_SECTIONS: ProjectSection[];
 export declare const DEFAULT_TASKS: ProjectTask[];

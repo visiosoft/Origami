@@ -73,7 +73,11 @@ let ProjectTasksService = class ProjectTasksService {
     }
     async findAll(projectId) {
         const rows = await this.repo.find({ order: { order: 'ASC' } });
-        const scoped = projectId ? rows.filter((t) => Number(t.projectId) === projectId) : rows;
+        const scoped = projectId === undefined
+            ? rows
+            : projectId === null
+                ? rows.filter((t) => t.projectId == null)
+                : rows.filter((t) => Number(t.projectId) === projectId);
         return scoped.map((t) => this.hydrate(t));
     }
     async board(projectId) {
@@ -113,7 +117,7 @@ let ProjectTasksService = class ProjectTasksService {
             labels: (0, task_types_1.normalizeList)(dto.labels),
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
             updatedAt: new Date().toISOString(),
-            projectId: Number(dto.projectId),
+            projectId: dto.projectId == null ? null : Number(dto.projectId),
             id,
         };
         const saved = await this.repo.save(this.repo.create(task));
@@ -188,7 +192,7 @@ let ProjectTasksService = class ProjectTasksService {
         return { id, deleted: true };
     }
     scopeFor(task) {
-        return `Project ${task.projectId}`;
+        return task.projectId == null ? 'General Tasks' : `Project ${task.projectId}`;
     }
     async addAttachments(id, files, actor) {
         const task = await this.load(id);

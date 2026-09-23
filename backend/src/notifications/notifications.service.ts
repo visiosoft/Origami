@@ -15,7 +15,7 @@ export interface AssignmentNotice {
   taskId: string;
   title: string;
   description?: string;
-  projectId?: number | string;
+  projectId?: number | string | null;
   /** Free-text project name, used by the Request Log which has no project id. */
   projectName?: string;
   dueDate?: string;

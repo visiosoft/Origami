@@ -74,7 +74,7 @@ export declare class PhasesController {
             targetDays: number;
             targetDerived: boolean;
             id: string;
-            projectId: number;
+            projectId: number | null;
             sectionId: string;
             title: string;
             description: string;

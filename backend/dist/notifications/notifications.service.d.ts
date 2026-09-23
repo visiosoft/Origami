@@ -8,7 +8,7 @@ export interface AssignmentNotice {
     taskId: string;
     title: string;
     description?: string;
-    projectId?: number | string;
+    projectId?: number | string | null;
     projectName?: string;
     dueDate?: string;
     priority?: string;

@@ -1,6 +1,6 @@
 import { Injectable, OnApplicationBootstrap, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ProjectSectionEntity } from '../database/entities';
 import { DEFAULT_SECTIONS, defaultSectionsFor, ProjectSection } from '../seed-data/project-tasks';
 
@@ -28,9 +28,10 @@ export class SectionsService implements OnApplicationBootstrap {
   }
 
   // Returns a project's sections, creating the default set the first time.
-  async forProject(projectId: number): Promise<ProjectSection[]> {
-    if (!Number.isFinite(projectId)) return []; // guard NaN/invalid ids
-    let rows = await this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
+  // `null` = the General Tasks board's sections (not tied to any project).
+  async forProject(projectId: number | null): Promise<ProjectSection[]> {
+    if (projectId !== null && !Number.isFinite(projectId)) return []; // guard NaN/invalid ids
+    let rows = await this.repo.find({ where: { projectId: projectId ?? IsNull() }, order: { order: 'ASC' } });
     if (!rows.length) {
       rows = await this.repo.save(defaultSectionsFor(projectId) as unknown as ProjectSectionEntity[]);
     }
@@ -38,7 +39,7 @@ export class SectionsService implements OnApplicationBootstrap {
   }
 
   create(dto: any) {
-    const projectId = Number(dto.projectId);
+    const projectId = dto.projectId == null ? null : Number(dto.projectId);
     const section = { name: 'New Section', order: 0, ...dto, projectId, id: dto.id || 'S-' + Date.now() };
     return this.repo.save(this.repo.create(section as Partial<ProjectSectionEntity>));
   }

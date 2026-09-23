@@ -37,11 +37,15 @@ export function Tasks() {
   const swallow = useRef(false);
   const [mode, setMode] = useState<'board' | 'log'>('board');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
-  const [boardProjectId, setBoardProjectId] = useState<number | null>(() => {
+  // 'general' is a real, standing selection (the General Tasks board -- work
+  // not tied to any client project), not an absence-of-choice placeholder.
+  const [boardProjectId, setBoardProjectId] = useState<number | 'general'>(() => {
     try {
-      const stored = Number(localStorage.getItem(PROJECT_KEY));
-      return Number.isFinite(stored) && stored > 0 ? stored : null;
-    } catch { return null; }
+      const stored = localStorage.getItem(PROJECT_KEY);
+      if (stored === 'general') return 'general';
+      const n = Number(stored);
+      return Number.isFinite(n) && n > 0 ? n : 'general';
+    } catch { return 'general'; }
   });
   const [logTasks, setLogTasks] = useState<Task[]>([]);
 
@@ -53,7 +57,7 @@ export function Tasks() {
   const linkedIsLog = params.get('type') === 'log';
   const linkedProjectId = Number(params.get('project')) || null;
 
-  const selectBoardProject = (id: number) => {
+  const selectBoardProject = (id: number | 'general') => {
     setBoardProjectId(id);
     try { localStorage.setItem(PROJECT_KEY, String(id)); } catch { /* ignore */ }
   };
@@ -66,17 +70,16 @@ export function Tasks() {
       // phase/task work to board until it's actually converted -- so it has
       // no business in this picker.
       const real = Array.isArray(r) ? r.filter((p: any) => p.stage !== 'Kickoff') : [];
-      if (real.length) {
-        setProjects(real.map((p: any) => ({ id: p.id, name: p.name })));
-        // Keep the remembered project only while it still exists, so a deleted
-        // one doesn't leave the board pointing at nothing.
-        // A project named in the URL wins over both the remembered one and the
-        // first-project fallback, or a deep link would land on the wrong board.
-        setBoardProjectId((cur) => {
-          const wanted = linkedProjectId ?? cur;
-          return wanted != null && real.some((p: any) => p.id === wanted) ? wanted : real[0].id;
-        });
-      }
+      setProjects(real.map((p: any) => ({ id: p.id, name: p.name })));
+      // A project named in the URL wins outright, for a deep link to land on
+      // the right board. Otherwise keep the remembered selection (including
+      // "General Tasks") as long as it's still valid; a deleted remembered
+      // project falls back to General Tasks rather than guessing another one.
+      setBoardProjectId((cur) => {
+        if (linkedProjectId != null && real.some((p: any) => p.id === linkedProjectId)) return linkedProjectId;
+        if (cur === 'general') return cur;
+        return real.some((p: any) => p.id === cur) ? cur : 'general';
+      });
     }).catch(() => { });
     api.google.status().then((g) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
     reloadLog();
@@ -169,7 +172,8 @@ export function Tasks() {
         {mode === 'board' && (
           <>
             <span style={{ fontSize: 12, color: '#7E9B93', marginLeft: 4 }}>Project:</span>
-            <select value={boardProjectId ?? ''} onChange={(e) => selectBoardProject(Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit', fontSize: 13, color: '#0B1A12', outline: 'none', maxWidth: 320 }}>
+            <select value={boardProjectId} onChange={(e) => selectBoardProject(e.target.value === 'general' ? 'general' : Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit', fontSize: 13, color: '#0B1A12', outline: 'none', maxWidth: 320 }}>
+              <option value="general">General Tasks</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </>
@@ -177,7 +181,7 @@ export function Tasks() {
       </div>
 
       {mode === 'board' ? (
-        boardProjectId != null ? <TaskBoard projectId={boardProjectId} initialTaskId={linkedIsLog ? null : linkedTaskId} /> : <div style={{ fontSize: 13, color: '#7E9B93' }}>No projects yet.</div>
+        <TaskBoard projectId={boardProjectId === 'general' ? null : boardProjectId} initialTaskId={linkedIsLog ? null : linkedTaskId} />
       ) : (
       <>
       {/* Tabs + filter + new */}

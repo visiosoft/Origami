@@ -1,7 +1,7 @@
 import type { ChecklistItem, TaskAttachment, TaskComment } from '../../database/task.types';
 export declare class CreateProjectTaskDto {
     id?: string;
-    projectId: number;
+    projectId?: number | null;
     sectionId?: string;
     title: string;
     description?: string;

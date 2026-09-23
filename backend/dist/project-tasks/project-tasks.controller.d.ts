@@ -9,8 +9,9 @@ export declare class ProjectTasksController {
     private readonly auth;
     private readonly attachments;
     constructor(service: ProjectTasksService, auth: AuthService, attachments: AttachmentsService);
+    private parseProjectId;
     findAll(projectId?: string, auth?: string): Promise<any[]>;
-    board(projectId: string, auth?: string): Promise<{
+    board(projectId?: string, auth?: string): Promise<{
         sections: import("../seed-data/project-tasks").ProjectSection[];
         tasks: any[];
     }>;
