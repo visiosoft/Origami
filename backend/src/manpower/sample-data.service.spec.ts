@@ -67,6 +67,7 @@ describe('SampleDataService', () => {
       routes: table(), riders: table(), payslips: table(), runs: table(),
       components: table(US_COMPONENTS.map((c, i) => ({ ...c, id: i === 4 ? 'PC-FED' : i === 7 ? 'PC-ST' : `PC-${i}`, order: i }))),
       leaveTypes: table(DEFAULT_LEAVE_TYPES.map((x, i) => ({ ...x, order: i }))),
+      tsSheets: table(), tsLines: table(),
     };
     const byEntity = new Map<any, any>([
       [PayrollRunEntity, t.runs], [PayslipEntity, t.payslips], [OvertimeRequestEntity, t.overtime], [EmployeeAdvanceEntity, t.advances], [LeaveAdjustmentEntity, t.leaveAdj],
@@ -80,7 +81,7 @@ describe('SampleDataService', () => {
     const svc = new (SampleDataService as any)(
       t.employees, t.contractors, t.subTrades, t.projects, t.csi, t.records, t.assignments, t.requests, t.logs, t.entries,
       t.leave, t.leaveAdj, t.overtime, t.advances, t.shifts, t.assets, t.assetIssues, t.units, t.beds, t.complaints, t.routes, t.riders,
-      t.payslips, t.runs, setupSvc, access, payroll,
+      t.payslips, t.runs, setupSvc, access, payroll, t.tsSheets, t.tsLines,
     ) as SampleDataService;
     return { svc, t };
   };
@@ -98,6 +99,10 @@ describe('SampleDataService', () => {
     expect(t.employees.rows.every((e: any) => !e.nationalId || e.nationalId.startsWith('666-'))).toBe(true); // never-issued SSN range
     expect(t.assets.rows.find((a: any) => a.id === 'DEMO-AS1').assetTag).toBe('AST-0004'); // after the real AST-0003
     expect(t.logs.rows.length).toBeGreaterThan(20); // back to the start of last month
+    // Office staff timesheets: past weeks approved, one sent back, one awaiting review, one draft.
+    const byStatus = (st: string) => t.tsSheets.rows.filter((x: any) => x.status === st).length;
+    expect([byStatus('approved'), byStatus('rejected'), byStatus('submitted'), byStatus('draft')]).toEqual([11, 1, 1, 1]);
+    expect(t.tsLines.rows.every((l: any) => t.tsSheets.rows.some((x: any) => x.id === l.timesheetId))).toBe(true);
     expect(t.assignments.rows.every((a: any) => [7, 8].includes(a.projectId))).toBe(true);
     for (const tbl of Object.values(t) as any[]) for (const row of tbl.rows) if (String(row.id).startsWith('DEMO-')) expect(row.id).toMatch(/^DEMO-/);
   });

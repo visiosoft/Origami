@@ -4,11 +4,12 @@ import { EntityManager, In, Repository } from 'typeorm';
 import {
   DailyLogEntity, EmployeeAdvanceEntity, EmployeeEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity,
   LeaveTypeEntity, OvertimeRequestEntity, PayComponentEntity, PayrollRunEntity, PayslipEntity, PublicHolidayEntity,
-  ShiftAssignmentEntity, ShiftTemplateEntity, type PayLine,
+  ShiftAssignmentEntity, ShiftTemplateEntity, type PayLine, TimesheetEntity, TimesheetLineEntity,
 } from '../database/entities';
 import { overlap, shiftOn, workingDays } from './calendar.util';
 import { FINANCE_MODULE, HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
+import { approvedTimesheetHours } from './weekly-timesheets.service';
 import {
   ADVANCE_LABEL, calculatePayslip, payGroupOf, round2, workFromLogs,
   type DueRecovery, type PayrollSettings, type WorkBasis,
@@ -57,6 +58,8 @@ export class PayrollService {
     @InjectRepository(PublicHolidayEntity) private readonly holidays: Repository<PublicHolidayEntity>,
     @InjectRepository(ShiftAssignmentEntity) private readonly shiftAssignments: Repository<ShiftAssignmentEntity>,
     @InjectRepository(ShiftTemplateEntity) private readonly shiftTemplates: Repository<ShiftTemplateEntity>,
+    @InjectRepository(TimesheetEntity) private readonly timesheets?: Repository<TimesheetEntity>,
+    @InjectRepository(TimesheetLineEntity) private readonly timesheetLines?: Repository<TimesheetLineEntity>,
   ) {}
 
   // ------------------------------------------------------------------ reads
@@ -110,6 +113,16 @@ export class PayrollService {
         const date = logDate.get(e.dailyLogId)!;
         m[date] = round2((m[date] || 0) + (Number(e.hours) || 0));
         dayHours.set(e.employeeId, m);
+      }
+    }
+
+    // An approved timesheet is the person's own complete record for a day: it replaces daily-log hours for that day.
+    if (this.timesheets && this.timesheetLines) {
+      const ts = await approvedTimesheetHours(this.timesheets, this.timesheetLines, periodStart, periodEnd, wanted);
+      for (const [emp, days] of ts) {
+        const m = dayHours.get(emp) || {};
+        for (const [date, d] of days) m[date] = d.hours;
+        dayHours.set(emp, m);
       }
     }
 

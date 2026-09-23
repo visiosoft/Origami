@@ -38,7 +38,7 @@ const monthStart = (iso, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); 
 const monthEnd = (iso, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back + 1, 0)).toISOString().slice(0, 10); };
 const monthName = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 let SampleDataService = class SampleDataService {
-    constructor(employees, contractors, subTrades, projects, csi, records, assignments, requests, logs, entries, leave, leaveAdj, overtime, advances, shifts, assets, assetIssues, units, beds, complaints, routes, riders, payslips, runs, setup, access, payroll) {
+    constructor(employees, contractors, subTrades, projects, csi, records, assignments, requests, logs, entries, leave, leaveAdj, overtime, advances, shifts, assets, assetIssues, units, beds, complaints, routes, riders, payslips, runs, setup, access, payroll, tsSheets, tsLines) {
         this.employees = employees;
         this.contractors = contractors;
         this.subTrades = subTrades;
@@ -66,14 +66,17 @@ let SampleDataService = class SampleDataService {
         this.setup = setup;
         this.access = access;
         this.payroll = payroll;
+        this.tsSheets = tsSheets;
+        this.tsLines = tsLines;
     }
     async status() {
-        const [employees, contractors, payrollRuns] = await Promise.all([
+        const [employees, contractors, payrollRuns, timesheets] = await Promise.all([
             this.employees.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }),
             this.contractors.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }),
             this.runs.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }),
+            this.tsSheets ? this.tsSheets.count({ where: { id: (0, typeorm_2.Like)(`${exports.SAMPLE}%`) } }) : Promise.resolve(0),
         ]);
-        return { loaded: employees > 0 || contractors > 0, employees, contractors, payrollRuns };
+        return { loaded: employees > 0 || contractors > 0, employees, contractors, payrollRuns, timesheets };
     }
     async load(actor) {
         await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'load sample data');
@@ -284,16 +287,85 @@ let SampleDataService = class SampleDataService {
         ]);
         const riding = [['E06', 'TR1', 'Extended Stay Suites'], ['E07', 'TR1', 'Extended Stay Suites'], ['E10', 'TR1', 'Extended Stay Suites'], ['E11', 'TR1', 'Extended Stay Suites'], ['E09', 'TR1', 'Extended Stay Suites'], ['E13', 'TR1', 'Elk Grove Park & Ride'], ['E08', 'TR1', 'Laguna Blvd'], ['E01', 'TR2', 'Downtown Sacramento'], ['E05', 'TR2', 'Natomas']];
         await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })));
+        await this.loadTimesheets(p1, p2);
         await this.loadPayroll(actor);
         return { ...(await this.status()), projectsUsed: [p1, p2].filter(Boolean).length };
+    }
+    async loadTimesheets(p1, p2) {
+        if (!this.tsSheets || !this.tsLines)
+            return;
+        const today = (0, workforce_util_1.todayISO)();
+        const id = (x) => exports.SAMPLE + x;
+        const monday = (0, calendar_util_1.addDays)(today, -(((0, calendar_util_1.weekday)(today) + 6) % 7));
+        const at = (ws, n) => (0, calendar_util_1.addDays)(ws, n);
+        const plan = {
+            E01: [
+                ...(p1 ? [{ kind: 'project', projectId: p1, description: 'Submittals, RFIs and inspections', hours: [8, 8, 8, 8, 4], notes: { 1: 'Fire marshal walk-through' } }] : []),
+                ...(p2 ? [{ kind: 'project', projectId: p2, description: 'Coordination meeting and punch list', hours: [0, 0, 0, 0, 2] }] : []),
+                { kind: 'internal', category: 'meetings', description: 'Weekly project review', hours: [0, 0, 0, 0, 2] },
+            ],
+            E02: [{ kind: 'internal', category: 'office', description: 'Payroll, onboarding and benefits', hours: [8, 8, 8, 8, 8], notes: { 4: 'Open enrollment session' } }],
+            E04: [
+                ...(p1 ? [{ kind: 'project', projectId: p1, description: 'Site supervision and daily logs', hours: [9, 9, 8.5, 9, 8] }] : []),
+            ],
+            E05: [
+                { kind: 'internal', category: 'estimating', description: 'Bid: Riverside medical office', hours: [6, 6, 5, 6, 6] },
+                ...(p2 ? [{ kind: 'project', projectId: p2, description: 'Change order pricing', hours: [2, 2, 3, 2, 2] }] : []),
+            ],
+        };
+        const now = new Date().toISOString();
+        const sheets = [];
+        const lines = [];
+        const reviewer = (k) => (k === 'E02' ? 'David Williams' : 'Jennifer Martinez');
+        const add = (k, back, status, days = 5, extra = {}) => {
+            const ws = at(monday, -7 * back);
+            const sid = id(`TS-${k}-${back}`);
+            let total = 0;
+            (plan[k] || []).forEach((r, j) => {
+                const dayMap = {};
+                r.hours.slice(0, days).forEach((h, n) => { if (h) {
+                    dayMap[at(ws, n)] = r.notes?.[n] ? { hours: h, note: r.notes[n] } : { hours: h };
+                    total += h;
+                } });
+                if (Object.keys(dayMap).length)
+                    lines.push({ id: id(`TL-${k}-${back}-${j}`), timesheetId: sid, employeeId: id(k), kind: r.kind, projectId: r.projectId, category: r.category, description: r.description, days: dayMap, leaveRequestIds: [], order: j });
+            });
+            const submitted = status !== 'draft';
+            sheets.push({
+                id: sid, employeeId: id(k), weekStart: ws, status, totalHours: total, createdAt: now, updatedAt: now,
+                submittedAt: submitted ? `${at(ws, 4)}T23:00:00.000Z` : undefined, submittedByName: submitted ? undefined : undefined,
+                decidedAt: ['approved', 'rejected'].includes(status) ? `${at(ws, 7)}T17:00:00.000Z` : undefined,
+                decidedByName: ['approved', 'rejected'].includes(status) ? reviewer(k) : undefined, ...extra,
+            });
+        };
+        const name = { E01: 'Michael Thompson', E02: 'Jennifer Martinez', E04: 'David Williams', E05: 'Sarah Chen' };
+        for (const k of ['E01', 'E02', 'E04', 'E05']) {
+            add(k, 3, 'approved', 5, { submittedByName: name[k] });
+            add(k, 2, 'approved', 5, { submittedByName: name[k] });
+            if (k === 'E04')
+                add(k, 1, 'rejected', 4, { submittedByName: name[k], decisionNote: 'Friday is missing -- you were on site for the pour' });
+            else
+                add(k, 1, 'approved', 5, { submittedByName: name[k] });
+        }
+        const daysSoFar = Math.max(1, Math.min(5, (((0, calendar_util_1.weekday)(today) + 6) % 7) + 1));
+        add('E05', 0, 'submitted', daysSoFar, { submittedByName: 'Sarah Chen', submittedAt: now, notes: 'Estimating deadline Friday -- may run over' });
+        add('E01', 0, 'draft', Math.min(2, daysSoFar));
+        await this.tsSheets.save(sheets);
+        await this.tsLines.save(lines);
     }
     async loadPayroll(actor) {
         await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'load sample data');
         const st = await this.status();
         if (!st.employees)
             throw new common_1.BadRequestException('Load the sample data first.');
+        if (st.payrollRuns && (st.timesheets || !this.tsSheets))
+            throw new common_1.BadRequestException('Sample payroll and timesheets are already loaded.');
+        if (!st.timesheets && this.tsSheets) {
+            const on = async (asg) => (await this.assignments.findOneBy({ id: exports.SAMPLE + asg }))?.projectId;
+            await this.loadTimesheets(await on('ASE011'), await on('ASE052'));
+        }
         if (st.payrollRuns)
-            throw new common_1.BadRequestException('Sample payroll is already loaded.');
+            return this.status();
         const sample = (0, typeorm_2.Like)(`${exports.SAMPLE}%`);
         const today = (0, workforce_util_1.todayISO)();
         const id = (x) => exports.SAMPLE + x;
@@ -367,7 +439,7 @@ let SampleDataService = class SampleDataService {
             run.totals = { headcount: left.length, gross: sum((s) => s.gross), deductions: sum((s) => s.deductions), net: sum((s) => s.net), paid: sum((s) => (s.paymentStatus === 'paid' ? s.net : 0)) };
             await this.runs.save(run);
         }
-        for (const r of [this.entries, this.leave, this.leaveAdj, this.overtime, this.advances, this.shifts, this.assetIssues, this.beds, this.riders, this.assignments, this.records]) {
+        for (const r of [this.entries, this.leave, this.leaveAdj, this.overtime, this.advances, this.shifts, this.assetIssues, this.beds, this.riders, this.assignments, this.records, this.tsLines, this.tsSheets].filter(Boolean)) {
             await r.delete({ employeeId: sample });
         }
         await this.entries.delete({ dailyLogId: sample });
@@ -412,6 +484,8 @@ exports.SampleDataService = SampleDataService = __decorate([
     __param(21, (0, typeorm_1.InjectRepository)(entities_1.TransportAssignmentEntity)),
     __param(22, (0, typeorm_1.InjectRepository)(entities_1.PayslipEntity)),
     __param(23, (0, typeorm_1.InjectRepository)(entities_1.PayrollRunEntity)),
+    __param(27, (0, typeorm_1.InjectRepository)(entities_1.TimesheetEntity)),
+    __param(28, (0, typeorm_1.InjectRepository)(entities_1.TimesheetLineEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -438,6 +512,8 @@ exports.SampleDataService = SampleDataService = __decorate([
         typeorm_2.Repository,
         payroll_setup_service_1.PayrollSetupService,
         manpower_access_service_1.ManpowerAccess,
-        payroll_service_1.PayrollService])
+        payroll_service_1.PayrollService,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
 ], SampleDataService);
 //# sourceMappingURL=sample-data.service.js.map

@@ -7,7 +7,7 @@ import { TimesheetsService } from './timesheets.service';
 export class TimesheetsController {
   constructor(private readonly service: TimesheetsService) {}
 
-  @Get()
+  @Get('logged')
   forEmployee(@Query('employeeId') employeeId: string, @Query('from') from: string, @Query('to') to: string) {
     return this.service.forEmployee(employeeId, from, to);
   }

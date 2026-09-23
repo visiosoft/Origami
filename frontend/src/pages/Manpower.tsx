@@ -14,6 +14,7 @@ import { ShiftRoster } from '../components/Shifts';
 import { AssetRegister } from '../components/Assets';
 import { AccommodationModule } from '../components/Accommodation';
 import { TransportModule } from '../components/Transport';
+import { TimesheetsModule } from '../components/Timesheets';
 import { SampleDataPanel, SubcontractorTradesSetup } from '../components/SubcontractorTrades';
 
 const BG = "'Bricolage Grotesque', serif";
@@ -122,8 +123,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const todayISO = () => localISO();
-const startOfWeek = (d: Date) => { const x = new Date(d); const day = x.getDay(); x.setDate(x.getDate() - day); return x; };
-const fmt = (d: Date) => localISO(d);
 
 export function Manpower() {
   const { toast, can, currentUser } = useApp();
@@ -197,7 +196,7 @@ export function Manpower() {
       )}
       {tab === 'log' && <DailyLogTab projects={projects} employees={working} assignments={assignments} csiCodes={csiCodes.filter((c) => c.active)} canManage={canManage} toast={toast} />}
       {tab === 'approvals' && <ApprovalsTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} currentUserId={currentUser?.id} />}
-      {tab === 'timesheets' && <TimesheetsTab employees={employees} csiCodes={csiCodes} toast={toast} />}
+      {tab === 'timesheets' && <TimesheetsModule employees={employees} projects={projects} csiCodes={csiCodes} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'leave' && <LeaveModule employees={employees} projects={projects} assignments={assignments} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'shifts' && <ShiftRoster employees={employees} projects={projects} assignments={assignments} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'assets' && <AssetRegister employees={employees} canManage={canManage} currency={payrollSettings.currency} onOpenEmployee={openEmployee} />}
@@ -481,62 +480,3 @@ function CsiCodesTab({ csiCodes, reload, canManage, toast }: {
   );
 }
 
-// -------------------------------------------------------------- Timesheets
-
-function TimesheetsTab({ employees, csiCodes, toast }: { employees: Employee[]; csiCodes: CsiCode[]; toast: (m: string) => void }) {
-  const [employeeId, setEmployeeId] = useState('');
-  const [weekStart, setWeekStart] = useState(fmt(startOfWeek(new Date())));
-  const [rows, setRows] = useState<any[]>([]);
-  const [totalHours, setTotalHours] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  const weekEnd = fmt(new Date(new Date(weekStart + 'T00:00:00').getTime() + 6 * 86400000));
-
-  useEffect(() => {
-    if (!employeeId) { setRows([]); setTotalHours(0); return; }
-    setLoading(true);
-    api.timesheets.forEmployee(employeeId, weekStart, weekEnd)
-      .then((r: any) => { setRows(r.rows || []); setTotalHours(r.totalHours || 0); })
-      .catch((e: Error) => toast('⚠ ' + e.message))
-      .finally(() => setLoading(false));
-  }, [employeeId, weekStart]);
-
-  const csiLabel = (id?: string) => { const c = csiCodes.find((x) => x.id === id); return c ? c.code : '—'; };
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ ...input, minWidth: 220 }}>
-          <option value="">Select an employee…</option>
-          {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-        </select>
-        <input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} style={input} />
-        <span style={{ fontSize: 12, color: MUTED }}>week through {weekEnd}</span>
-      </div>
-      {!employeeId ? (
-        <div style={{ fontSize: 12.5, color: MUTED }}>Pick an employee and a week to see their rolled-up hours.</div>
-      ) : loading ? (
-        <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>
-      ) : (
-        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1.6fr 90px 70px 100px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
-            <span>Date</span><span>Project</span><span>CSI Code</span><span>Hours</span><span>Status</span>
-          </div>
-          {rows.map((r, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px 1.6fr 90px 70px 100px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
-              <span style={{ fontSize: 12 }}>{r.date}</span>
-              <span style={{ fontSize: 12.5 }}>{r.projectName}</span>
-              <span style={{ fontSize: 12 }}>{csiLabel(r.csiCodeId)}</span>
-              <span style={{ fontSize: 12.5, fontWeight: 700 }}>{r.hours}</span>
-              <StatusBadge status={r.status} />
-            </div>
-          ))}
-          {!rows.length && <div style={{ padding: '16px 14px', fontSize: 12, color: MUTED }}>Nothing logged for this employee that week.</div>}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 14px', borderTop: '1px solid rgba(20,8,31,.06)', fontSize: 13, fontWeight: 700, color: INK }}>
-            Total: {totalHours} hrs
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

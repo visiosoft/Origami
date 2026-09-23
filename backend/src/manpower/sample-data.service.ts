@@ -5,7 +5,7 @@ import {
   AccommodationIssueEntity, AccommodationUnitEntity, AssetEntity, AssetIssueEntity, BedAllocationEntity, ContractorEntity, CsiCodeEntity,
   DailyLogEntity, EmployeeAdvanceEntity, EmployeeAssignmentEntity, EmployeeEntity, EmployeeRecordEntity, LaborLogEntryEntity,
   LeaveAdjustmentEntity, LeaveRequestEntity, OvertimeRequestEntity, PayrollRunEntity, PayslipEntity, ProjectEntity,
-  ShiftAssignmentEntity, SubcontractorTradeEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity,
+  ShiftAssignmentEntity, SubcontractorTradeEntity, TimesheetEntity, TimesheetLineEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity,
 } from '../database/entities';
 import { HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
@@ -69,15 +69,18 @@ export class SampleDataService {
     private readonly setup: PayrollSetupService,
     private readonly access: ManpowerAccess,
     private readonly payroll: PayrollService,
+    @InjectRepository(TimesheetEntity) private readonly tsSheets?: Repository<TimesheetEntity>,
+    @InjectRepository(TimesheetLineEntity) private readonly tsLines?: Repository<TimesheetLineEntity>,
   ) {}
 
   async status() {
-    const [employees, contractors, payrollRuns] = await Promise.all([
+    const [employees, contractors, payrollRuns, timesheets] = await Promise.all([
       this.employees.count({ where: { id: Like(`${SAMPLE}%`) } }),
       this.contractors.count({ where: { id: Like(`${SAMPLE}%`) } }),
       this.runs.count({ where: { id: Like(`${SAMPLE}%`) } }),
+      this.tsSheets ? this.tsSheets.count({ where: { id: Like(`${SAMPLE}%`) } }) : Promise.resolve(0),
     ]);
-    return { loaded: employees > 0 || contractors > 0, employees, contractors, payrollRuns };
+    return { loaded: employees > 0 || contractors > 0, employees, contractors, payrollRuns, timesheets };
   }
 
   async load(actor: Actor) {
@@ -317,8 +320,70 @@ export class SampleDataService {
     const riding: [string, string, string][] = [['E06', 'TR1', 'Extended Stay Suites'], ['E07', 'TR1', 'Extended Stay Suites'], ['E10', 'TR1', 'Extended Stay Suites'], ['E11', 'TR1', 'Extended Stay Suites'], ['E09', 'TR1', 'Extended Stay Suites'], ['E13', 'TR1', 'Elk Grove Park & Ride'], ['E08', 'TR1', 'Laguna Blvd'], ['E01', 'TR2', 'Downtown Sacramento'], ['E05', 'TR2', 'Natomas']];
     await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })) as unknown as TransportAssignmentEntity[]);
 
+    await this.loadTimesheets(p1, p2);
     await this.loadPayroll(actor);
     return { ...(await this.status()), projectsUsed: [p1, p2].filter(Boolean).length };
+  }
+
+  /**
+   * Weekly timesheets for the office staff: three past weeks approved (one
+   * sent back first), this week with one awaiting review and one still a draft.
+   */
+  private async loadTimesheets(p1?: number, p2?: number) {
+    if (!this.tsSheets || !this.tsLines) return;
+    const today = todayISO();
+    const id = (x: string) => SAMPLE + x;
+    const monday = addDays(today, -((weekday(today) + 6) % 7));
+    const at = (ws: string, n: number) => addDays(ws, n);
+    type Row = { kind: string; projectId?: number; category?: string; description: string; hours: number[]; notes?: Record<number, string> };
+    const plan: Record<string, Row[]> = {
+      E01: [
+        ...(p1 ? [{ kind: 'project', projectId: p1, description: 'Submittals, RFIs and inspections', hours: [8, 8, 8, 8, 4], notes: { 1: 'Fire marshal walk-through' } }] : []),
+        ...(p2 ? [{ kind: 'project', projectId: p2, description: 'Coordination meeting and punch list', hours: [0, 0, 0, 0, 2] }] : []),
+        { kind: 'internal', category: 'meetings', description: 'Weekly project review', hours: [0, 0, 0, 0, 2] },
+      ],
+      E02: [{ kind: 'internal', category: 'office', description: 'Payroll, onboarding and benefits', hours: [8, 8, 8, 8, 8], notes: { 4: 'Open enrollment session' } }],
+      E04: [
+        ...(p1 ? [{ kind: 'project', projectId: p1, description: 'Site supervision and daily logs', hours: [9, 9, 8.5, 9, 8] }] : []),
+      ],
+      E05: [
+        { kind: 'internal', category: 'estimating', description: 'Bid: Riverside medical office', hours: [6, 6, 5, 6, 6] },
+        ...(p2 ? [{ kind: 'project', projectId: p2, description: 'Change order pricing', hours: [2, 2, 3, 2, 2] }] : []),
+      ],
+    };
+    const now = new Date().toISOString();
+    const sheets: Partial<TimesheetEntity>[] = [];
+    const lines: Partial<TimesheetLineEntity>[] = [];
+    const reviewer = (k: string) => (k === 'E02' ? 'David Williams' : 'Jennifer Martinez');
+    const add = (k: string, back: number, status: string, days = 5, extra: Partial<TimesheetEntity> = {}) => {
+      const ws = at(monday, -7 * back);
+      const sid = id(`TS-${k}-${back}`);
+      let total = 0;
+      (plan[k] || []).forEach((r, j) => {
+        const dayMap: Record<string, { hours: number; note?: string }> = {};
+        r.hours.slice(0, days).forEach((h, n) => { if (h) { dayMap[at(ws, n)] = r.notes?.[n] ? { hours: h, note: r.notes[n] } : { hours: h }; total += h; } });
+        if (Object.keys(dayMap).length) lines.push({ id: id(`TL-${k}-${back}-${j}`), timesheetId: sid, employeeId: id(k), kind: r.kind, projectId: r.projectId, category: r.category, description: r.description, days: dayMap, leaveRequestIds: [], order: j });
+      });
+      const submitted = status !== 'draft';
+      sheets.push({
+        id: sid, employeeId: id(k), weekStart: ws, status, totalHours: total, createdAt: now, updatedAt: now,
+        submittedAt: submitted ? `${at(ws, 4)}T23:00:00.000Z` : undefined, submittedByName: submitted ? undefined : undefined,
+        decidedAt: ['approved', 'rejected'].includes(status) ? `${at(ws, 7)}T17:00:00.000Z` : undefined,
+        decidedByName: ['approved', 'rejected'].includes(status) ? reviewer(k) : undefined, ...extra,
+      });
+    };
+    const name: Record<string, string> = { E01: 'Michael Thompson', E02: 'Jennifer Martinez', E04: 'David Williams', E05: 'Sarah Chen' };
+    for (const k of ['E01', 'E02', 'E04', 'E05']) {
+      add(k, 3, 'approved', 5, { submittedByName: name[k] });
+      add(k, 2, 'approved', 5, { submittedByName: name[k] });
+      if (k === 'E04') add(k, 1, 'rejected', 4, { submittedByName: name[k], decisionNote: 'Friday is missing -- you were on site for the pour' });
+      else add(k, 1, 'approved', 5, { submittedByName: name[k] });
+    }
+    const daysSoFar = Math.max(1, Math.min(5, ((weekday(today) + 6) % 7) + 1));
+    add('E05', 0, 'submitted', daysSoFar, { submittedByName: 'Sarah Chen', submittedAt: now, notes: 'Estimating deadline Friday -- may run over' });
+    add('E01', 0, 'draft', Math.min(2, daysSoFar));
+    await this.tsSheets.save(sheets as unknown as TimesheetEntity[]);
+    await this.tsLines.save(lines as unknown as TimesheetLineEntity[]);
   }
 
   /**
@@ -332,7 +397,13 @@ export class SampleDataService {
     await this.access.require(actor, HR_MODULE, 'load sample data');
     const st = await this.status();
     if (!st.employees) throw new BadRequestException('Load the sample data first.');
-    if (st.payrollRuns) throw new BadRequestException('Sample payroll is already loaded.');
+    if (st.payrollRuns && (st.timesheets || !this.tsSheets)) throw new BadRequestException('Sample payroll and timesheets are already loaded.');
+    // Sample data loaded before timesheets existed gets them now.
+    if (!st.timesheets && this.tsSheets) {
+      const on = async (asg: string) => (await this.assignments.findOneBy({ id: SAMPLE + asg }))?.projectId;
+      await this.loadTimesheets(await on('ASE011'), await on('ASE052'));
+    }
+    if (st.payrollRuns) return this.status();
 
     const sample = Like(`${SAMPLE}%`);
     const today = todayISO();
@@ -411,7 +482,7 @@ export class SampleDataService {
       await this.runs.save(run);
     }
     // Employee-linked rows first (including real rows someone added for a sample employee), then the sample rows themselves.
-    for (const r of [this.entries, this.leave, this.leaveAdj, this.overtime, this.advances, this.shifts, this.assetIssues, this.beds, this.riders, this.assignments, this.records] as Repository<any>[]) {
+    for (const r of [this.entries, this.leave, this.leaveAdj, this.overtime, this.advances, this.shifts, this.assetIssues, this.beds, this.riders, this.assignments, this.records, this.tsLines, this.tsSheets].filter(Boolean) as Repository<any>[]) {
       await r.delete({ employeeId: sample });
     }
     await this.entries.delete({ dailyLogId: sample });

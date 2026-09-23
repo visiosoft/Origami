@@ -9,6 +9,7 @@ export declare class SampleDataController {
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
     load(a?: string): Promise<{
         projectsUsed: number;
@@ -16,17 +17,20 @@ export declare class SampleDataController {
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
     payroll(a?: string): Promise<{
         loaded: boolean;
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
     remove(a?: string): Promise<{
         loaded: boolean;
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
 }

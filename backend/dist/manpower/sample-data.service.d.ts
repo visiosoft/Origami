@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { AccommodationIssueEntity, AccommodationUnitEntity, AssetEntity, AssetIssueEntity, BedAllocationEntity, ContractorEntity, CsiCodeEntity, DailyLogEntity, EmployeeAdvanceEntity, EmployeeAssignmentEntity, EmployeeEntity, EmployeeRecordEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity, OvertimeRequestEntity, PayrollRunEntity, PayslipEntity, ProjectEntity, ShiftAssignmentEntity, SubcontractorTradeEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity } from '../database/entities';
+import { AccommodationIssueEntity, AccommodationUnitEntity, AssetEntity, AssetIssueEntity, BedAllocationEntity, ContractorEntity, CsiCodeEntity, DailyLogEntity, EmployeeAdvanceEntity, EmployeeAssignmentEntity, EmployeeEntity, EmployeeRecordEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity, OvertimeRequestEntity, PayrollRunEntity, PayslipEntity, ProjectEntity, ShiftAssignmentEntity, SubcontractorTradeEntity, TimesheetEntity, TimesheetLineEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity } from '../database/entities';
 import { ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import { PayrollService } from './payroll.service';
@@ -32,12 +32,15 @@ export declare class SampleDataService {
     private readonly setup;
     private readonly access;
     private readonly payroll;
-    constructor(employees: Repository<EmployeeEntity>, contractors: Repository<ContractorEntity>, subTrades: Repository<SubcontractorTradeEntity>, projects: Repository<ProjectEntity>, csi: Repository<CsiCodeEntity>, records: Repository<EmployeeRecordEntity>, assignments: Repository<EmployeeAssignmentEntity>, requests: Repository<WorkforceRequestEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, leave: Repository<LeaveRequestEntity>, leaveAdj: Repository<LeaveAdjustmentEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, shifts: Repository<ShiftAssignmentEntity>, assets: Repository<AssetEntity>, assetIssues: Repository<AssetIssueEntity>, units: Repository<AccommodationUnitEntity>, beds: Repository<BedAllocationEntity>, complaints: Repository<AccommodationIssueEntity>, routes: Repository<TransportRouteEntity>, riders: Repository<TransportAssignmentEntity>, payslips: Repository<PayslipEntity>, runs: Repository<PayrollRunEntity>, setup: PayrollSetupService, access: ManpowerAccess, payroll: PayrollService);
+    private readonly tsSheets?;
+    private readonly tsLines?;
+    constructor(employees: Repository<EmployeeEntity>, contractors: Repository<ContractorEntity>, subTrades: Repository<SubcontractorTradeEntity>, projects: Repository<ProjectEntity>, csi: Repository<CsiCodeEntity>, records: Repository<EmployeeRecordEntity>, assignments: Repository<EmployeeAssignmentEntity>, requests: Repository<WorkforceRequestEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, leave: Repository<LeaveRequestEntity>, leaveAdj: Repository<LeaveAdjustmentEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, shifts: Repository<ShiftAssignmentEntity>, assets: Repository<AssetEntity>, assetIssues: Repository<AssetIssueEntity>, units: Repository<AccommodationUnitEntity>, beds: Repository<BedAllocationEntity>, complaints: Repository<AccommodationIssueEntity>, routes: Repository<TransportRouteEntity>, riders: Repository<TransportAssignmentEntity>, payslips: Repository<PayslipEntity>, runs: Repository<PayrollRunEntity>, setup: PayrollSetupService, access: ManpowerAccess, payroll: PayrollService, tsSheets?: Repository<TimesheetEntity> | undefined, tsLines?: Repository<TimesheetLineEntity> | undefined);
     status(): Promise<{
         loaded: boolean;
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
     load(actor: Actor): Promise<{
         projectsUsed: number;
@@ -45,17 +48,21 @@ export declare class SampleDataService {
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
+    private loadTimesheets;
     loadPayroll(actor: Actor): Promise<{
         loaded: boolean;
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
     remove(actor: Actor): Promise<{
         loaded: boolean;
         employees: number;
         contractors: number;
         payrollRuns: number;
+        timesheets: number;
     }>;
 }

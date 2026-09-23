@@ -19,11 +19,12 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const manpower_access_service_1 = require("./manpower-access.service");
 const payroll_setup_service_1 = require("./payroll-setup.service");
+const weekly_timesheets_service_1 = require("./weekly-timesheets.service");
 const payroll_calc_1 = require("./payroll.calc");
 const workforce_util_1 = require("./workforce.util");
 const OT_TYPES = ['normal', 'weekend', 'holiday', 'night'];
 let OvertimeService = class OvertimeService {
-    constructor(repo, employees, logs, entries, setup, access, holidays) {
+    constructor(repo, employees, logs, entries, setup, access, holidays, timesheets, timesheetLines) {
         this.repo = repo;
         this.employees = employees;
         this.logs = logs;
@@ -31,6 +32,8 @@ let OvertimeService = class OvertimeService {
         this.setup = setup;
         this.access = access;
         this.holidays = holidays;
+        this.timesheets = timesheets;
+        this.timesheetLines = timesheetLines;
     }
     async findAll(opts) {
         const qb = this.repo.createQueryBuilder('o');
@@ -138,10 +141,8 @@ let OvertimeService = class OvertimeService {
             .where('l.status = :st', { st: 'approved' })
             .andWhere('l.date >= :from AND l.date <= :to', { from, to })
             .getMany();
-        if (!logs.length)
-            return [];
         const byLog = new Map(logs.map((l) => [l.id, l]));
-        const entries = await this.entries.find({ where: { dailyLogId: (0, typeorm_2.In)(logs.map((l) => l.id)) } });
+        const entries = logs.length ? await this.entries.find({ where: { dailyLogId: (0, typeorm_2.In)(logs.map((l) => l.id)) } }) : [];
         const perDay = new Map();
         for (const e of entries) {
             const log = byLog.get(e.dailyLogId);
@@ -151,6 +152,14 @@ let OvertimeService = class OvertimeService {
             cur.projectIds.add(log.projectId);
             perDay.set(key, cur);
         }
+        if (this.timesheets && this.timesheetLines) {
+            for (const [employeeId, days] of await (0, weekly_timesheets_service_1.approvedTimesheetHours)(this.timesheets, this.timesheetLines, from, to)) {
+                for (const [date, d] of days)
+                    perDay.set(`${employeeId}|${date}`, { employeeId, date, hours: d.hours, projectIds: d.projectIds });
+            }
+        }
+        if (!perDay.size)
+            return [];
         const existing = await this.repo.createQueryBuilder('o')
             .where('o.date >= :from AND o.date <= :to', { from, to })
             .andWhere('o.status IN (:...st)', { st: ['pending', 'approved'] })
@@ -175,12 +184,16 @@ exports.OvertimeService = OvertimeService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.DailyLogEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.LaborLogEntryEntity)),
     __param(6, (0, typeorm_1.InjectRepository)(entities_1.PublicHolidayEntity)),
+    __param(7, (0, typeorm_1.InjectRepository)(entities_1.TimesheetEntity)),
+    __param(8, (0, typeorm_1.InjectRepository)(entities_1.TimesheetLineEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         payroll_setup_service_1.PayrollSetupService,
         manpower_access_service_1.ManpowerAccess,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], OvertimeService);
 //# sourceMappingURL=overtime.service.js.map

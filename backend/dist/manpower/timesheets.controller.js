@@ -26,7 +26,7 @@ let TimesheetsController = class TimesheetsController {
 };
 exports.TimesheetsController = TimesheetsController;
 __decorate([
-    (0, common_1.Get)(),
+    (0, common_1.Get)('logged'),
     __param(0, (0, common_1.Query)('employeeId')),
     __param(1, (0, common_1.Query)('from')),
     __param(2, (0, common_1.Query)('to')),

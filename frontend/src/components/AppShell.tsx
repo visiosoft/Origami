@@ -4,7 +4,7 @@ import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
 import { useApp, type ViewMode } from '../AppContext';
-import { NAV_GROUPS } from '../data/nav';
+import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
 import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
@@ -29,13 +29,13 @@ export function AppShell() {
   // Route guard: if the current user's role can't view this module, bounce to dashboard.
   useEffect(() => {
     if (loadingAccess) return;
-    if (slug === 'dashboard' || slug === 'help' || slug === 'login') return;
+    if (slug === 'dashboard' || slug === 'help' || slug === 'login' || PERSONAL_ROUTES.has(slug)) return;
     if (!can(slug, 'view')) navigate('/dashboard', { replace: true });
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
   const visibleGroups = NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => can(it.route, 'view')) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => (it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
     .filter((g) => g.items.length > 0);
 
   const activeItem = (() => {

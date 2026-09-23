@@ -9,8 +9,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
-exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = void 0;
+exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -2573,6 +2573,126 @@ __decorate([
 exports.ContractorEntity = ContractorEntity = __decorate([
     (0, typeorm_1.Entity)('contractors')
 ], ContractorEntity);
+let TimesheetEntity = class TimesheetEntity {
+};
+exports.TimesheetEntity = TimesheetEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "employeeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "weekStart", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'draft' }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', default: 0 }),
+    __metadata("design:type", Number)
+], TimesheetEntity.prototype, "totalHours", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "submittedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "submittedById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "submittedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "decidedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "decidedById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "decidedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "decisionNote", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetEntity.prototype, "updatedAt", void 0);
+exports.TimesheetEntity = TimesheetEntity = __decorate([
+    (0, typeorm_1.Entity)('timesheets')
+], TimesheetEntity);
+let TimesheetLineEntity = class TimesheetLineEntity {
+};
+exports.TimesheetLineEntity = TimesheetLineEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "timesheetId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "employeeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "kind", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], TimesheetLineEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "csiCodeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "leaveTypeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], TimesheetLineEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Object)
+], TimesheetLineEntity.prototype, "days", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], TimesheetLineEntity.prototype, "leaveRequestIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], TimesheetLineEntity.prototype, "order", void 0);
+exports.TimesheetLineEntity = TimesheetLineEntity = __decorate([
+    (0, typeorm_1.Entity)('timesheet_lines')
+], TimesheetLineEntity);
 let SubcontractorTradeEntity = class SubcontractorTradeEntity {
 };
 exports.SubcontractorTradeEntity = SubcontractorTradeEntity;

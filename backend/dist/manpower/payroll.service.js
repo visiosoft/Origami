@@ -20,6 +20,7 @@ const entities_1 = require("../database/entities");
 const calendar_util_1 = require("./calendar.util");
 const manpower_access_service_1 = require("./manpower-access.service");
 const payroll_setup_service_1 = require("./payroll-setup.service");
+const weekly_timesheets_service_1 = require("./weekly-timesheets.service");
 const payroll_calc_1 = require("./payroll.calc");
 const advances_service_1 = require("./advances.service");
 const workforce_util_1 = require("./workforce.util");
@@ -33,7 +34,7 @@ const snapshot = (e) => ({
     hireDate: e.hireDate, bankName: e.bankName, bankAccount: e.bankAccount, taxNumber: e.taxNumber, payComponents: e.payComponents || [],
 });
 let PayrollService = class PayrollService {
-    constructor(runs, slips, employees, logs, entries, overtime, advances, components, setup, access, leaveRequests, leaveTypes, leaveAdjustments, holidays, shiftAssignments, shiftTemplates) {
+    constructor(runs, slips, employees, logs, entries, overtime, advances, components, setup, access, leaveRequests, leaveTypes, leaveAdjustments, holidays, shiftAssignments, shiftTemplates, timesheets, timesheetLines) {
         this.runs = runs;
         this.slips = slips;
         this.employees = employees;
@@ -50,6 +51,8 @@ let PayrollService = class PayrollService {
         this.holidays = holidays;
         this.shiftAssignments = shiftAssignments;
         this.shiftTemplates = shiftTemplates;
+        this.timesheets = timesheets;
+        this.timesheetLines = timesheetLines;
     }
     listRuns() {
         return this.runs.find({ order: { periodStart: 'DESC' } });
@@ -95,6 +98,15 @@ let PayrollService = class PayrollService {
                 const date = logDate.get(e.dailyLogId);
                 m[date] = (0, payroll_calc_1.round2)((m[date] || 0) + (Number(e.hours) || 0));
                 dayHours.set(e.employeeId, m);
+            }
+        }
+        if (this.timesheets && this.timesheetLines) {
+            const ts = await (0, weekly_timesheets_service_1.approvedTimesheetHours)(this.timesheets, this.timesheetLines, periodStart, periodEnd, wanted);
+            for (const [emp, days] of ts) {
+                const m = dayHours.get(emp) || {};
+                for (const [date, d] of days)
+                    m[date] = d.hours;
+                dayHours.set(emp, m);
             }
         }
         const overtime = new Map();
@@ -466,6 +478,8 @@ exports.PayrollService = PayrollService = __decorate([
     __param(13, (0, typeorm_1.InjectRepository)(entities_1.PublicHolidayEntity)),
     __param(14, (0, typeorm_1.InjectRepository)(entities_1.ShiftAssignmentEntity)),
     __param(15, (0, typeorm_1.InjectRepository)(entities_1.ShiftTemplateEntity)),
+    __param(16, (0, typeorm_1.InjectRepository)(entities_1.TimesheetEntity)),
+    __param(17, (0, typeorm_1.InjectRepository)(entities_1.TimesheetLineEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -476,6 +490,8 @@ exports.PayrollService = PayrollService = __decorate([
         typeorm_2.Repository,
         payroll_setup_service_1.PayrollSetupService,
         manpower_access_service_1.ManpowerAccess,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

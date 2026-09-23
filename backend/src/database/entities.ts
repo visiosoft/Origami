@@ -967,6 +967,54 @@ export class ContractorEntity {
 }
 
 /**
+ * One person's week: what they worked on (projects, internal work) and any
+ * leave, entered by themselves or HR, reviewed, and once approved the hours
+ * that payroll pays for those days.
+ */
+@Entity('timesheets')
+export class TimesheetEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  /** Monday of the week, yyyy-mm-dd. */
+  @Column() weekStart!: string;
+  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected
+  @Column({ type: 'float', default: 0 }) totalHours!: number;
+  /** The employee's note to the reviewer. */
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) submittedAt!: string;
+  @Column({ nullable: true }) submittedById!: string;
+  @Column({ nullable: true }) submittedByName!: string;
+  @Column({ nullable: true }) decidedAt!: string;
+  @Column({ nullable: true }) decidedById!: string;
+  @Column({ nullable: true }) decidedByName!: string;
+  @Column({ ...TEXT, nullable: true }) decisionNote!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+export interface TimesheetDay { hours: number; note?: string }
+
+/** A row of a timesheet: one project/cost code, one kind of internal work, or one leave type, with hours per day. */
+@Entity('timesheet_lines')
+export class TimesheetLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() timesheetId!: string;
+  @Column() employeeId!: string;
+  @Column() kind!: string; // project | internal | leave
+  @Column({ type: 'int', nullable: true }) projectId!: number;
+  @Column({ nullable: true }) csiCodeId!: string;
+  /** Internal work: office | estimating | design | meetings | travel | other */
+  @Column({ nullable: true }) category!: string;
+  @Column({ nullable: true }) leaveTypeId!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  /** yyyy-mm-dd -> hours (and an optional note for that day). */
+  @Column({ type: 'simple-json' }) days!: Record<string, TimesheetDay>;
+  /** Leave requests this row raised on submit. */
+  @Column({ type: 'simple-json', nullable: true }) leaveRequestIds!: string[];
+  @Column('int') order!: number;
+}
+
+/**
  * Trades a subcontractor company is licensed for -- the licence classifications
  * (A general engineering, B general building, C specialty, D limited specialty).
  * Distinct from TradeEntity, which is an individual worker's trade.

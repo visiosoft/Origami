@@ -688,8 +688,18 @@ export const api = {
     reject: (id: string, note?: string) => request(`/daily-logs/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
   },
   timesheets: {
-    forEmployee: (employeeId: string, from: string, to: string) =>
-      request(`/timesheets?employeeId=${encodeURIComponent(employeeId)}&from=${from}&to=${to}`),
+    /** Hours supervisors logged on daily logs for someone -- a reference, not a timesheet. */
+    logged: (employeeId: string, from: string, to: string) =>
+      request(`/timesheets/logged?employeeId=${encodeURIComponent(employeeId)}&from=${from}&to=${to}`),
+    me: () => request('/timesheets/me'),
+    week: (employeeId: string, weekStart: string) => request(`/timesheets/week${qs({ employeeId, weekStart })}`),
+    save: (d: unknown) => request('/timesheets/week', { method: 'PUT', body: JSON.stringify(d) }),
+    list: (o?: { from?: string; to?: string; status?: string; employeeId?: string }) => request(`/timesheets/list${qs(o)}`),
+    submit: (id: string) => request(`/timesheets/${id}/submit`, { method: 'POST' }),
+    approve: (id: string, note?: string) => request(`/timesheets/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reject: (id: string, note?: string) => request(`/timesheets/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reopen: (id: string, note?: string) => request(`/timesheets/${id}/reopen`, { method: 'POST', body: JSON.stringify({ note }) }),
+    remove: (id: string) => request(`/timesheets/${id}`, { method: 'DELETE' }),
   },
 };
 

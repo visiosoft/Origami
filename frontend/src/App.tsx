@@ -1,3 +1,4 @@
+import { MyTimesheet } from './pages/MyTimesheet';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { AppShell } from './components/AppShell';
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/my-calendar" element={<MyCalendar />} />
+        <Route path="/my-timesheet" element={<MyTimesheet />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />

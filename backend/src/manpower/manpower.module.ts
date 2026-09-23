@@ -6,7 +6,7 @@ import {
   PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
   LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
   AssetEntity, AssetIssueEntity, AccommodationUnitEntity, BedAllocationEntity, AccommodationIssueEntity,
-  TransportRouteEntity, TransportAssignmentEntity,
+  TransportRouteEntity, TransportAssignmentEntity, TimesheetEntity, TimesheetLineEntity, UserEntity,
 } from '../database/entities';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
@@ -48,6 +48,8 @@ import { AccommodationController } from './accommodation.controller';
 import { TransportService } from './transport.service';
 import { TransportController } from './transport.controller';
 import { SampleDataService } from './sample-data.service';
+import { WeeklyTimesheetsService } from './weekly-timesheets.service';
+import { WeeklyTimesheetsController } from './weekly-timesheets.controller';
 import { SampleDataController } from './sample-data.controller';
 
 @Module({
@@ -58,7 +60,7 @@ import { SampleDataController } from './sample-data.controller';
       PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
       LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
       AssetEntity, AssetIssueEntity, AccommodationUnitEntity, BedAllocationEntity, AccommodationIssueEntity,
-      TransportRouteEntity, TransportAssignmentEntity,
+      TransportRouteEntity, TransportAssignmentEntity, TimesheetEntity, TimesheetLineEntity, UserEntity,
     ]),
     AuthModule,
     GoogleModule,
@@ -68,13 +70,13 @@ import { SampleDataController } from './sample-data.controller';
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
     SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
     PayrollController, OvertimeController, AdvancesController,
-    LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController,
+    LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController, WeeklyTimesheetsController,
   ],
   providers: [
     ManpowerAccess, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
     SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
-    LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService,
+    LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService, WeeklyTimesheetsService,
   ],
 })
 export class ManpowerModule {}

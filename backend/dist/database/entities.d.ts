@@ -706,6 +706,41 @@ export declare class ContractorEntity {
     createdAt: string;
     updatedAt: string;
 }
+export declare class TimesheetEntity {
+    id: string;
+    employeeId: string;
+    weekStart: string;
+    status: string;
+    totalHours: number;
+    notes: string;
+    submittedAt: string;
+    submittedById: string;
+    submittedByName: string;
+    decidedAt: string;
+    decidedById: string;
+    decidedByName: string;
+    decisionNote: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface TimesheetDay {
+    hours: number;
+    note?: string;
+}
+export declare class TimesheetLineEntity {
+    id: string;
+    timesheetId: string;
+    employeeId: string;
+    kind: string;
+    projectId: number;
+    csiCodeId: string;
+    category: string;
+    leaveTypeId: string;
+    description: string;
+    days: Record<string, TimesheetDay>;
+    leaveRequestIds: string[];
+    order: number;
+}
 export declare class SubcontractorTradeEntity {
     id: string;
     code: string;

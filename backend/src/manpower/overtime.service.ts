@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity, PublicHolidayEntity } from '../database/entities';
+import { DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity, PublicHolidayEntity, TimesheetEntity, TimesheetLineEntity } from '../database/entities';
 import { HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
+import { approvedTimesheetHours } from './weekly-timesheets.service';
 import { overtimeBase, round2, type OtType } from './payroll.calc';
 import { newId } from './workforce.util';
 
@@ -21,6 +22,8 @@ export class OvertimeService {
     private readonly setup: PayrollSetupService,
     private readonly access: ManpowerAccess,
     @InjectRepository(PublicHolidayEntity) private readonly holidays?: Repository<PublicHolidayEntity>,
+    @InjectRepository(TimesheetEntity) private readonly timesheets?: Repository<TimesheetEntity>,
+    @InjectRepository(TimesheetLineEntity) private readonly timesheetLines?: Repository<TimesheetLineEntity>,
   ) {}
 
   async findAll(opts: { employeeId?: string; status?: string; from?: string; to?: string }) {
@@ -124,9 +127,8 @@ export class OvertimeService {
       .where('l.status = :st', { st: 'approved' })
       .andWhere('l.date >= :from AND l.date <= :to', { from, to })
       .getMany();
-    if (!logs.length) return [];
     const byLog = new Map(logs.map((l) => [l.id, l]));
-    const entries = await this.entries.find({ where: { dailyLogId: In(logs.map((l) => l.id)) } });
+    const entries = logs.length ? await this.entries.find({ where: { dailyLogId: In(logs.map((l) => l.id)) } }) : [];
     const perDay = new Map<string, { employeeId: string; date: string; hours: number; projectIds: Set<number> }>();
     for (const e of entries) {
       const log = byLog.get(e.dailyLogId)!;
@@ -136,6 +138,13 @@ export class OvertimeService {
       cur.projectIds.add(log.projectId);
       perDay.set(key, cur);
     }
+    // Approved timesheet hours replace daily-log hours for that person and day.
+    if (this.timesheets && this.timesheetLines) {
+      for (const [employeeId, days] of await approvedTimesheetHours(this.timesheets, this.timesheetLines, from, to)) {
+        for (const [date, d] of days) perDay.set(`${employeeId}|${date}`, { employeeId, date, hours: d.hours, projectIds: d.projectIds });
+      }
+    }
+    if (!perDay.size) return [];
     const existing = await this.repo.createQueryBuilder('o')
       .where('o.date >= :from AND o.date <= :to', { from, to })
       .andWhere('o.status IN (:...st)', { st: ['pending', 'approved'] })
