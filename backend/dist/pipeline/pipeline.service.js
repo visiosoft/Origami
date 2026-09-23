@@ -51,8 +51,13 @@ let PipelineService = class PipelineService {
                 await this.repo.save(undated);
                 this.log.log(`Backfilled stageEnteredAt on ${undated.length} deal(s)`);
             }
+            const projectFitIdx = pipeline_1.STAGES.findIndex((s) => s.key === 'project_fit');
             const existingLeadIds = new Set((await this.projects.findAll()).map((p) => p.leadId).filter(Boolean));
-            const missing = deals.filter((d) => !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id));
+            const missing = deals.filter((d) => {
+                const stage = pipeline_1.STAGES.find((s) => s.key === d.stage);
+                return !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id)
+                    && stage && !stage.isHold && !stage.isClosed && stage.idx > projectFitIdx;
+            });
             if (missing.length) {
                 const missingLeads = await this.leads.findBy({ id: (0, typeorm_2.In)(missing.map((d) => d.id)) });
                 const byId = new Map(missingLeads.map((l) => [l.id, l]));
@@ -122,14 +127,7 @@ let PipelineService = class PipelineService {
             throw new common_1.ConflictException(`A deal with id ${dto.id} already exists`);
         }
         const deal = await this.repo.save(this.repo.create(dto));
-        const hydrated = this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
-        try {
-            await this.projects.ensureForLead(hydrated);
-        }
-        catch (err) {
-            this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${err.message}`);
-        }
-        return hydrated;
+        return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
     }
     async updateStage(id, stage, actor) {
         const idx = pipeline_1.STAGES.findIndex((s) => s.key === stage);
@@ -162,7 +160,17 @@ let PipelineService = class PipelineService {
         }
         const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
         deal.timeline = [...(deal.timeline || []), this.event(detail, actor)];
-        return this.repo.save(deal);
+        const saved = await this.repo.save(deal);
+        const projectFitIdx = pipeline_1.STAGES.findIndex((s) => s.key === 'project_fit');
+        if (target && !target.isHold && !target.isClosed && idx > projectFitIdx) {
+            try {
+                await this.projects.ensureForLead(this.overlayLead(saved, lead));
+            }
+            catch (err) {
+                this.log.warn(`Could not create the Kickoff-stage project for ${id}: ${err.message}`);
+            }
+        }
+        return saved;
     }
     async setArchived(id, archived, actor) {
         const deal = await this.findOne(id);

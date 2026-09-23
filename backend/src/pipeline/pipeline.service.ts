@@ -71,12 +71,19 @@ export class PipelineService implements OnApplicationBootstrap {
         this.log.log(`Backfilled stageEnteredAt on ${undated.length} deal(s)`);
       }
 
-      // Top up rather than seed-once: every lead created before this feature
-      // existed still needs its place on the Projects page. A converted or
-      // archived lead is left alone -- it either already has its real
-      // project, or was never meant to show up there.
+      // Top up rather than seed-once: every lead that's cleared Project Fit
+      // Review still needs its place on the Projects page even if it was
+      // approved before this feature existed. A converted or archived deal
+      // is left alone -- it either already has its real project, or was
+      // never meant to show up there. A lead still short of Project Fit
+      // Review approval is left alone too -- see updateStage.
+      const projectFitIdx = STAGES.findIndex((s) => s.key === 'project_fit');
       const existingLeadIds = new Set((await this.projects.findAll()).map((p) => p.leadId).filter(Boolean));
-      const missing = deals.filter((d) => !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id));
+      const missing = deals.filter((d) => {
+        const stage = STAGES.find((s) => s.key === d.stage);
+        return !d.archived && !d.convertedProjectId && !existingLeadIds.has(d.id)
+          && stage && !stage.isHold && !stage.isClosed && stage.idx > projectFitIdx;
+      });
       if (missing.length) {
         const missingLeads = await this.leads.findBy({ id: In(missing.map((d) => d.id)) });
         const byId = new Map(missingLeads.map((l) => [l.id, l]));
@@ -170,18 +177,10 @@ export class PipelineService implements OnApplicationBootstrap {
       throw new ConflictException(`A deal with id ${dto.id} already exists`);
     }
     const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
-    const hydrated = this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
-    // Every lead gets a place on the Projects page from the moment it exists
-    // -- sitting in the "Kickoff" stage, not yet assigned to Design or any
-    // real work -- rather than only once a client reviews and accepts the
-    // proposal and it's actually converted. Best effort: a failure here must
-    // not stop the lead itself from saving.
-    try {
-      await this.projects.ensureForLead(hydrated);
-    } catch (err) {
-      this.log.warn(`Could not create the Kickoff-stage project for ${deal.id}: ${(err as Error).message}`);
-    }
-    return hydrated;
+    // A Kickoff-stage placeholder project is created once the lead clears
+    // Project Fit Review (see updateStage), not the moment it's created --
+    // a brand-new, unreviewed lead shouldn't already have a project entry.
+    return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
   }
 
   async updateStage(id: string, stage: string, actor?: DealActor) {
@@ -236,7 +235,21 @@ export class PipelineService implements OnApplicationBootstrap {
 
     const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
-    return this.repo.save(deal);
+    const saved = await this.repo.save(deal);
+
+    // A Kickoff-stage placeholder project appears once the lead actually
+    // clears Project Fit Review (approved into an active stage past it) --
+    // not the moment the lead is created. ensureForLead no-ops if one
+    // already exists, so this is safe to call on every qualifying move.
+    const projectFitIdx = STAGES.findIndex((s) => s.key === 'project_fit');
+    if (target && !target.isHold && !target.isClosed && idx > projectFitIdx) {
+      try {
+        await this.projects.ensureForLead(this.overlayLead(saved, lead));
+      } catch (err) {
+        this.log.warn(`Could not create the Kickoff-stage project for ${id}: ${(err as Error).message}`);
+      }
+    }
+    return saved;
   }
 
   /** Take a deal off the board without destroying its history. */

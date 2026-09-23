@@ -38,18 +38,15 @@ describe('PipelineService', () => {
             expect(dealsRepo.save).not.toHaveBeenCalled();
         });
 
-        it('creates the deal and ensures a Kickoff-stage project for it', async () => {
+        it('does not create a Kickoff-stage project -- a brand-new, unreviewed lead has no project yet', async () => {
+            // Regression test: a new lead used to get a "Kickoff" project the
+            // instant it was created, before anyone had reviewed it at Project
+            // Fit Review. That now only happens once the lead is actually
+            // approved past that stage -- see updateStage.
             dealsRepo.findOneBy.mockResolvedValue(null);
             const deal = await service.create({ id: 'PL-2000', name: 'Neon Project' });
             expect(deal).toEqual(expect.objectContaining({ id: 'PL-2000' }));
-            expect(projects.ensureForLead).toHaveBeenCalledWith(expect.objectContaining({ id: 'PL-2000' }));
-        });
-
-        it('still returns the saved deal if ensuring its project fails', async () => {
-            dealsRepo.findOneBy.mockResolvedValue(null);
-            projects.ensureForLead.mockRejectedValue(new Error('boom'));
-            const deal = await service.create({ id: 'PL-2001', name: 'Neon Project' });
-            expect(deal).toEqual(expect.objectContaining({ id: 'PL-2001' }));
+            expect(projects.ensureForLead).not.toHaveBeenCalled();
         });
     });
 
@@ -130,6 +127,33 @@ describe('PipelineService', () => {
             const saved = await service.updateStage('PL-1', 'client_approval');
             expect(saved.rejectionType).toBe('');
             expect(saved.referredToName).toBe('');
+        });
+
+        it('creates the Kickoff-stage project once a lead clears Project Fit Review', async () => {
+            // Regression test: a lead used to get a "Kickoff" project the
+            // instant it was created. It should only appear once approved
+            // past Project Fit Review (idx 4) into the next active stage.
+            const deal = { id: 'PL-1', stage: 'project_fit', stageIdx: 4, timeline: [] } as unknown as DealEntity;
+            dealsRepo.findOneBy.mockResolvedValue(deal);
+            leadsRepo.findOneBy.mockResolvedValue(null);
+            await service.updateStage('PL-1', 'site_visit');
+            expect(projects.ensureForLead).toHaveBeenCalledWith(expect.objectContaining({ id: 'PL-1' }));
+        });
+
+        it('does not create a Kickoff-stage project for a move within the pre-approval stages', async () => {
+            const deal = { id: 'PL-1', stage: 'new_lead', stageIdx: 0, timeline: [] } as unknown as DealEntity;
+            dealsRepo.findOneBy.mockResolvedValue(deal);
+            leadsRepo.findOneBy.mockResolvedValue(null);
+            await service.updateStage('PL-1', 'contact_attempted');
+            expect(projects.ensureForLead).not.toHaveBeenCalled();
+        });
+
+        it('does not create a Kickoff-stage project when a lead is rejected instead of approved', async () => {
+            const deal = { id: 'PL-1', stage: 'project_fit', stageIdx: 4, timeline: [] } as unknown as DealEntity;
+            dealsRepo.findOneBy.mockResolvedValue(deal);
+            leadsRepo.findOneBy.mockResolvedValue(null);
+            await service.updateStage('PL-1', 'rejected');
+            expect(projects.ensureForLead).not.toHaveBeenCalled();
         });
     });
 
