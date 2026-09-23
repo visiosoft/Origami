@@ -33,6 +33,8 @@ let ContractorsService = class ContractorsService {
             attachments: (0, task_types_1.normalizeAttachments)(c.attachments),
             contractStatus: (0, employee_records_service_1.expiryStatus)(c.contractEnd),
             insuranceStatus: (0, employee_records_service_1.expiryStatus)(c.insuranceExpiry),
+            licenseStatus: (0, employee_records_service_1.expiryStatus)(c.licenseExpiry),
+            tradeIds: c.tradeIds || [],
             workerCount,
         };
     }

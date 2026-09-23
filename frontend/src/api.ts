@@ -495,6 +495,17 @@ export const api = {
     /** Relative, cookie-authenticated -- usable directly as an <img src>. */
     photoUrl: (id: string, version?: string) => `${API_BASE}/employees/${encodeURIComponent(id)}/photo${version ? `?v=${encodeURIComponent(version)}` : ''}`,
   },
+  subcontractorTrades: {
+    list: () => request('/subcontractor-trades'),
+    create: (data: unknown) => request('/subcontractor-trades', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/subcontractor-trades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/subcontractor-trades/${id}`, { method: 'DELETE' }),
+  },
+  sampleData: {
+    status: () => request('/manpower/sample-data'),
+    load: () => request('/manpower/sample-data', { method: 'POST' }),
+    remove: () => request('/manpower/sample-data', { method: 'DELETE' }),
+  },
   trades: {
     list: () => request('/trades'),
     create: (data: unknown) => request('/trades', { method: 'POST', body: JSON.stringify(data) }),

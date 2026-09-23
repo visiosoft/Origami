@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
-  TradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
+  TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
   PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
   LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
   AssetEntity, AssetIssueEntity, AccommodationUnitEntity, BedAllocationEntity, AccommodationIssueEntity,
@@ -22,6 +22,8 @@ import { TimesheetsController } from './timesheets.controller';
 import { TimesheetsService } from './timesheets.service';
 import { TradesController } from './trades.controller';
 import { TradesService } from './trades.service';
+import { SubcontractorTradesController } from './subcontractor-trades.controller';
+import { SubcontractorTradesService } from './subcontractor-trades.service';
 import { EmployeeRecordsController } from './employee-records.controller';
 import { EmployeeRecordsService } from './employee-records.service';
 import { AssignmentsController } from './assignments.controller';
@@ -47,12 +49,14 @@ import { AccommodationService } from './accommodation.service';
 import { AccommodationController } from './accommodation.controller';
 import { TransportService } from './transport.service';
 import { TransportController } from './transport.controller';
+import { SampleDataService } from './sample-data.service';
+import { SampleDataController } from './sample-data.controller';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
-      TradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
+      TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
       PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
       LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
       AssetEntity, AssetIssueEntity, AccommodationUnitEntity, BedAllocationEntity, AccommodationIssueEntity,
@@ -64,15 +68,15 @@ import { TransportController } from './transport.controller';
   ],
   controllers: [
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
-    TradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
+    TradesController, SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
     PayrollController, OvertimeController, AdvancesController,
-    LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController,
+    LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController,
   ],
   providers: [
     ManpowerAccess, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
-    TradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
+    TradesService, SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
-    LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService,
+    LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService,
   ],
 })
 export class ManpowerModule {}

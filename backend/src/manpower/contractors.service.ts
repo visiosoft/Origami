@@ -21,6 +21,8 @@ export class ContractorsService {
       attachments: normalizeAttachments(c.attachments),
       contractStatus: expiryStatus(c.contractEnd),
       insuranceStatus: expiryStatus(c.insuranceExpiry),
+      licenseStatus: expiryStatus(c.licenseExpiry),
+      tradeIds: c.tradeIds || [],
       workerCount,
     };
   }

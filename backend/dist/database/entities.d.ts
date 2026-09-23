@@ -692,11 +692,23 @@ export declare class ContractorEntity {
     insuranceProvider: string;
     insurancePolicyNumber: string;
     insuranceExpiry: string;
+    tradeIds: string[];
+    licenseNumber: string;
+    licenseExpiry: string;
     status: string;
     notes: string;
     attachments: TaskAttachment[];
     createdAt: string;
     updatedAt: string;
+}
+export declare class SubcontractorTradeEntity {
+    id: string;
+    code: string;
+    name: string;
+    category: string;
+    description: string;
+    active: boolean;
+    order: number;
 }
 export declare class TradeEntity {
     id: string;

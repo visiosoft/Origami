@@ -4,7 +4,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
@@ -26,6 +26,9 @@ export class ContractorDto {
   @IsString() @IsOptional() insuranceProvider?: string;
   @IsString() @IsOptional() insurancePolicyNumber?: string;
   @IsString() @IsOptional() insuranceExpiry?: string;
+  @IsArray() @IsOptional() tradeIds?: string[];
+  @IsString() @IsOptional() licenseNumber?: string;
+  @IsString() @IsOptional() licenseExpiry?: string;
   @IsString() @IsOptional() status?: string;
   @IsString() @IsOptional() notes?: string;
 }

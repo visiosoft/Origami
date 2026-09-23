@@ -14,6 +14,7 @@ import { ShiftRoster } from '../components/Shifts';
 import { AssetRegister } from '../components/Assets';
 import { AccommodationModule } from '../components/Accommodation';
 import { TransportModule } from '../components/Transport';
+import { SampleDataPanel, SubcontractorTradesSetup } from '../components/SubcontractorTrades';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -44,7 +45,7 @@ const TAB_GROUPS = [
   { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['shifts', 'Shifts'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
   { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
   { label: 'Employee Services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
-  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup']] },
+  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['sub_trades', 'Subcontractor Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup'], ['sample', 'Sample Data']] },
 ] as const;
 type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
 const TAB_LABEL = Object.fromEntries(TAB_GROUPS.flatMap((g) => g.tabs.map(([k, l]) => [k, l]))) as Record<TabKey, string>;
@@ -202,6 +203,8 @@ export function Manpower() {
       {tab === 'accommodation' && <AccommodationModule employees={employees} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'transport' && <TransportModule employees={employees} projects={projects} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'leave_setup' && <LeaveSetup canManage={canManage} />}
+      {tab === 'sub_trades' && <SubcontractorTradesSetup canManage={canManage} />}
+      {tab === 'sample' && <SampleDataPanel canManage={canManage} onChanged={async () => { await Promise.all([reloadEmployees(), reloadAssignments(), reloadContractors()]); }} />}
       {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
       {tab === 'trades' && <TradesTab trades={trades} reload={reloadTrades} canManage={canManage} toast={toast} />}
       {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}

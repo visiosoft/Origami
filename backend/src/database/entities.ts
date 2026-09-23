@@ -946,11 +946,31 @@ export class ContractorEntity {
   @Column({ nullable: true }) insuranceProvider!: string;
   @Column({ nullable: true }) insurancePolicyNumber!: string;
   @Column({ nullable: true }) insuranceExpiry!: string;
+  /** Licence classifications (subcontractor trades) the company holds. */
+  @Column({ type: 'simple-json', nullable: true }) tradeIds!: string[];
+  @Column({ nullable: true }) licenseNumber!: string;
+  @Column({ nullable: true }) licenseExpiry!: string;
   @Column({ default: 'active' }) status!: string; // active | suspended | ended
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
   @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
+}
+
+/**
+ * Trades a subcontractor company is licensed for -- the licence classifications
+ * (A general engineering, B general building, C specialty, D limited specialty).
+ * Distinct from TradeEntity, which is an individual worker's trade.
+ */
+@Entity('subcontractor_trades')
+export class SubcontractorTradeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() code!: string;
+  @Column() name!: string;
+  @Column({ default: 'specialty' }) category!: string; // general_engineering | general_building | specialty | limited_specialty | other
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  @Column({ default: true }) active!: boolean;
+  @Column('int') order!: number;
 }
 
 /** Shared, admin-editable list of construction trades -- master data, not hardcoded. */

@@ -13,6 +13,8 @@ export declare class ContractorsService {
         attachments: TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -29,6 +31,8 @@ export declare class ContractorsService {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -40,6 +44,8 @@ export declare class ContractorsService {
         attachments: TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -56,6 +62,8 @@ export declare class ContractorsService {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -65,6 +73,8 @@ export declare class ContractorsService {
         attachments: TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -81,6 +91,8 @@ export declare class ContractorsService {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -94,6 +106,8 @@ export declare class ContractorsService {
         attachments: TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -110,6 +124,8 @@ export declare class ContractorsService {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -119,6 +135,8 @@ export declare class ContractorsService {
         attachments: TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -135,6 +153,8 @@ export declare class ContractorsService {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -144,6 +164,8 @@ export declare class ContractorsService {
         attachments: TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -160,6 +182,8 @@ export declare class ContractorsService {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;

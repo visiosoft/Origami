@@ -18,6 +18,9 @@ export declare class ContractorDto {
     insuranceProvider?: string;
     insurancePolicyNumber?: string;
     insuranceExpiry?: string;
+    tradeIds?: string[];
+    licenseNumber?: string;
+    licenseExpiry?: string;
     status?: string;
     notes?: string;
 }
@@ -30,6 +33,8 @@ export declare class ContractorsController {
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -46,6 +51,8 @@ export declare class ContractorsController {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -55,6 +62,8 @@ export declare class ContractorsController {
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -71,6 +80,8 @@ export declare class ContractorsController {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -80,6 +91,8 @@ export declare class ContractorsController {
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -96,6 +109,8 @@ export declare class ContractorsController {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -109,6 +124,8 @@ export declare class ContractorsController {
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -125,6 +142,8 @@ export declare class ContractorsController {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -134,6 +153,8 @@ export declare class ContractorsController {
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -150,6 +171,8 @@ export declare class ContractorsController {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;
@@ -159,6 +182,8 @@ export declare class ContractorsController {
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
         insuranceStatus: import("./employee-records.service").ExpiryStatus;
+        licenseStatus: import("./employee-records.service").ExpiryStatus;
+        tradeIds: string[];
         workerCount: number;
         id: string;
         companyName: string;
@@ -175,6 +200,8 @@ export declare class ContractorsController {
         insuranceProvider: string;
         insurancePolicyNumber: string;
         insuranceExpiry: string;
+        licenseNumber: string;
+        licenseExpiry: string;
         status: string;
         notes: string;
         createdAt: string;

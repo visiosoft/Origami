@@ -5,8 +5,9 @@ import { Attachments } from './Attachments';
 import { AddEmployeeDrawer, StatusPill, type Employee, type Trade } from './EmployeeDirectory';
 import {
   ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, Label, bodyRow, btn, card, expiryLabel, expiryTone, fmtDate, headRow, input,
-  type Assignment, type Contractor, type Project,
+  type Assignment, type Contractor, type Project, type SubcontractorTrade,
 } from './manpowerUi';
+import { TradeChips, TradePicker, useSubcontractorTrades } from './SubcontractorTrades';
 
 const STATUSES: [string, string, 'green' | 'amber' | 'grey'][] = [['active', 'Active', 'green'], ['suspended', 'Suspended', 'amber'], ['ended', 'Ended', 'grey']];
 const statusBadge = (s: string) => { const m = STATUSES.find(([k]) => k === s) || STATUSES[0]; return <Badge tone={m[2]}>{m[1]}</Badge>; };
@@ -19,11 +20,17 @@ const DETAIL_FIELDS: { title: string; fields: FieldDef[] }[] = [
   { title: 'Company', fields: [['companyName', 'Company name *'], ['contactPerson', 'Contact person'], ['phone', 'Phone'], ['email', 'Email'], ['address', 'Address', 'textarea']] },
   { title: 'Contract', fields: [['contractNumber', 'Contract number'], ['contractStart', 'Contract start', 'date'], ['contractEnd', 'Contract end', 'date'], ['scopeOfWork', 'Scope of work', 'textarea'], ['agreedRates', 'Agreed rates', 'textarea']] },
   { title: 'Insurance', fields: [['insuranceProvider', 'Insurer'], ['insurancePolicyNumber', 'Policy number'], ['insuranceExpiry', 'Policy expiry', 'date']] },
+  { title: 'Licence', fields: [['licenseNumber', 'Licence number'], ['licenseExpiry', 'Licence expiry', 'date']] },
 ];
 
-function ContractorForm({ draft, patch, disabled }: { draft: Partial<Contractor>; patch: (p: Partial<Contractor>) => void; disabled: boolean }) {
+function ContractorForm({ draft, patch, disabled, subTrades }: { draft: Partial<Contractor>; patch: (p: Partial<Contractor>) => void; disabled: boolean; subTrades: SubcontractorTrade[] }) {
   return (
     <>
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 4 }}>Trades (licence classifications)</div>
+        <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 8 }}>What this company is licensed to do, e.g. C-10 Electrical.</div>
+        <TradePicker trades={subTrades} value={draft.tradeIds || []} onChange={(tradeIds) => patch({ tradeIds })} disabled={disabled} />
+      </div>
       {DETAIL_FIELDS.map((sec) => (
         <div key={sec.title} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 10 }}>{sec.title}</div>
@@ -64,6 +71,8 @@ export function Contractors({ employees, trades, projects, assignments, canManag
   const [openId, setOpenId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
+  const [tradeFilter, setTradeFilter] = useState('');
+  const { trades: subTrades } = useSubcontractorTrades();
 
   const load = () => api.contractors.list().then((r: any) => setContractors(Array.isArray(r) ? r : [])).catch(() => setContractors([]));
   useEffect(() => { load(); }, []);
@@ -72,19 +81,26 @@ export function Contractors({ employees, trades, projects, assignments, canManag
   const open = all.find((c) => c.id === openId);
   if (open) {
     return (
-      <ContractorDetail contractor={open} employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
+      <ContractorDetail contractor={open} subTrades={subTrades} employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
         onBack={() => setOpenId(null)} onChanged={load} reloadEmployees={reloadEmployees} onOpenEmployee={onOpenEmployee} />
     );
   }
 
   const q = query.trim().toLowerCase();
-  const shown = all.filter((c) => (!statusFilter || c.status === statusFilter) && (!q || [c.companyName, c.contactPerson, c.contractNumber].some((v) => (v || '').toLowerCase().includes(q))));
-  const cols = 'minmax(190px,1.6fr) 1.1fr 1fr 170px 150px 80px 100px';
+  const tradeText = (c: Contractor) => (c.tradeIds || []).map((id) => { const t = subTrades.find((x) => x.id === id); return t ? `${t.code} ${t.name}` : ''; }).join(' ');
+  const shown = all.filter((c) => (!statusFilter || c.status === statusFilter) && (!tradeFilter || (c.tradeIds || []).includes(tradeFilter))
+    && (!q || [c.companyName, c.contactPerson, c.contractNumber, c.licenseNumber, tradeText(c)].some((v) => (v || '').toLowerCase().includes(q))));
+  const usedTrades = subTrades.filter((t) => all.some((c) => (c.tradeIds || []).includes(t.id)));
+  const cols = 'minmax(190px,1.5fr) minmax(200px,1.5fr) 1fr 150px 140px 70px 90px';
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search company, contact, contract no…" style={{ ...input, width: 280 }} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search company, contact, trade, licence…" style={{ ...input, width: 280 }} />
+        <select value={tradeFilter} onChange={(e) => setTradeFilter(e.target.value)} style={{ ...input, width: 'auto', maxWidth: 260 }}>
+          <option value="">All trades</option>
+          {usedTrades.map((t) => <option key={t.id} value={t.id}>{t.code} {t.name}</option>)}
+        </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ ...input, width: 'auto' }}>
           <option value="">All statuses</option>
           {STATUSES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
@@ -95,17 +111,20 @@ export function Contractors({ employees, trades, projects, assignments, canManag
       </div>
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 900 }}>
-            <div style={headRow(cols)}><span>Company</span><span>Contact</span><span>Contract no.</span><span>Contract ends</span><span>Insurance</span><span>Workers</span><span>Status</span></div>
+          <div style={{ minWidth: 1020 }}>
+            <div style={headRow(cols)}><span>Company</span><span>Trades</span><span>Contact</span><span>Contract ends</span><span>Insurance</span><span>Workers</span><span>Status</span></div>
             {contractors === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {shown.map((c) => (
               <div key={c.id} onClick={() => setOpenId(c.id)} style={{ ...bodyRow(cols), cursor: 'pointer' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{c.companyName}</span>
+                <span style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{c.companyName}</div>
+                  {c.contractNumber && <div style={{ fontSize: 11, color: MUTED }}>Contract {c.contractNumber}</div>}
+                </span>
+                <TradeChips trades={subTrades} ids={c.tradeIds} />
                 <span style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 12.5 }}>{c.contactPerson || '—'}</div>
                   <div style={{ fontSize: 11, color: MUTED }}>{c.phone || c.email || ''}</div>
                 </span>
-                <span style={{ fontSize: 12.5 }}>{c.contractNumber || '—'}</span>
                 <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ fontSize: 12 }}>{fmtDate(c.contractEnd)}</span>
                   {c.contractStatus === 'expired' || c.contractStatus === 'expiring' ? <Badge tone={expiryTone(c.contractStatus)}>{expiryLabel(c.contractStatus)}</Badge> : null}
@@ -123,14 +142,14 @@ export function Contractors({ employees, trades, projects, assignments, canManag
           </div>
         </div>
       </div>
-      {adding && <AddContractorDrawer onClose={() => setAdding(false)} onCreated={async (c) => { setAdding(false); await load(); setOpenId(c.id); }} />}
+      {adding && <AddContractorDrawer subTrades={subTrades} onClose={() => setAdding(false)} onCreated={async (c) => { setAdding(false); await load(); setOpenId(c.id); }} />}
     </div>
   );
 }
 
-function AddContractorDrawer({ onClose, onCreated }: { onClose: () => void; onCreated: (c: Contractor) => void }) {
+function AddContractorDrawer({ subTrades, onClose, onCreated }: { subTrades: SubcontractorTrade[]; onClose: () => void; onCreated: (c: Contractor) => void }) {
   const { toast } = useApp();
-  const [draft, setDraft] = useState<Partial<Contractor>>({ status: 'active' });
+  const [draft, setDraft] = useState<Partial<Contractor>>({ status: 'active', tradeIds: [] });
   const [subs, setSubs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -169,13 +188,13 @@ function AddContractorDrawer({ onClose, onCreated }: { onClose: () => void; onCr
           </select>
         </div>
       )}
-      <ContractorForm draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={false} />
+      <ContractorForm draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={false} subTrades={subTrades} />
     </Drawer>
   );
 }
 
-function ContractorDetail({ contractor, employees, trades, projects, assignments, canManage, onBack, onChanged, reloadEmployees, onOpenEmployee }: {
-  contractor: Contractor; employees: Employee[]; trades: Trade[]; projects: Project[]; assignments: Assignment[]; canManage: boolean;
+function ContractorDetail({ contractor, subTrades, employees, trades, projects, assignments, canManage, onBack, onChanged, reloadEmployees, onOpenEmployee }: {
+  contractor: Contractor; subTrades: SubcontractorTrade[]; employees: Employee[]; trades: Trade[]; projects: Project[]; assignments: Assignment[]; canManage: boolean;
   onBack: () => void; onChanged: () => Promise<unknown>; reloadEmployees: () => Promise<unknown> | void; onOpenEmployee: (id: string) => void;
 }) {
   const { toast } = useApp();
@@ -187,7 +206,8 @@ function ContractorDetail({ contractor, employees, trades, projects, assignments
   useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, []);
 
   const keys = DETAIL_FIELDS.flatMap((s) => s.fields.map((f) => f[0])).concat(['status', 'notes'] as (keyof Contractor)[]);
-  const dirty = keys.some((k) => (draft[k] ?? '') !== (contractor[k] ?? ''));
+  const sameTrades = JSON.stringify(draft.tradeIds || []) === JSON.stringify(contractor.tradeIds || []);
+  const dirty = !sameTrades || keys.some((k) => (draft[k] ?? '') !== (contractor[k] ?? ''));
   const workers = employees.filter((e) => e.contractorId === contractor.id);
   const currentOf = (id: string) => assignments.find((a) => a.current && a.employeeId === id && a.assignmentType === 'regular');
   const projectName = (id: number) => projects.find((p) => p.id === id)?.name || `Project ${id}`;
@@ -197,7 +217,7 @@ function ContractorDetail({ contractor, employees, trades, projects, assignments
     if (!draft.companyName?.trim()) { toast('⚠ Company name is required'); return; }
     setSaving(true);
     try {
-      await api.contractors.update(contractor.id, Object.fromEntries(keys.map((k) => [k, draft[k] ?? ''])));
+      await api.contractors.update(contractor.id, { ...Object.fromEntries(keys.map((k) => [k, draft[k] ?? ''])), tradeIds: draft.tradeIds || [] });
       await onChanged();
       toast('Saved');
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
@@ -226,7 +246,9 @@ function ContractorDetail({ contractor, employees, trades, projects, assignments
             {statusBadge(contractor.status)}
             {contractor.contractEnd && <Badge tone={expiryTone(contractor.contractStatus)}>Contract {contractor.contractStatus === 'expired' ? 'expired' : `to ${fmtDate(contractor.contractEnd)}`}</Badge>}
             <Badge tone={expiryTone(contractor.insuranceStatus)}>Insurance: {contractor.insuranceStatus === 'none' ? 'not on file' : expiryLabel(contractor.insuranceStatus).toLowerCase()}</Badge>
+            <Badge tone={expiryTone(contractor.licenseStatus)}>Licence: {contractor.licenseStatus === 'none' ? 'not on file' : expiryLabel(contractor.licenseStatus).toLowerCase()}</Badge>
           </div>
+          {(contractor.tradeIds || []).length > 0 && <div style={{ marginTop: 8 }}><TradeChips trades={subTrades} ids={contractor.tradeIds} max={8} /></div>}
         </div>
         {canManage && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete</div>}
       </div>
@@ -267,7 +289,7 @@ function ContractorDetail({ contractor, employees, trades, projects, assignments
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, alignItems: 'start' }}>
         <div style={{ ...card, padding: '18px 20px' }}>
-          <ContractorForm draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} />
+          <ContractorForm draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} subTrades={subTrades} />
           {canManage && (
             <div style={{ display: 'flex', gap: 8 }}>
               <div onClick={saving || !dirty ? undefined : save} style={btn(dirty, saving || !dirty)}>{saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</div>

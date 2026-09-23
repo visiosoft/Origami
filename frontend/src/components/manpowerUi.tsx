@@ -97,8 +97,17 @@ export interface Contractor {
   address?: string; contractNumber?: string; contractStart?: string; contractEnd?: string; scopeOfWork?: string;
   agreedRates?: string; insuranceProvider?: string; insurancePolicyNumber?: string; insuranceExpiry?: string;
   status: string; notes?: string; attachments: Attachment[]; workerCount: number;
+  tradeIds: string[]; licenseNumber?: string; licenseExpiry?: string;
   contractStatus: 'none' | 'valid' | 'expiring' | 'expired'; insuranceStatus: 'none' | 'valid' | 'expiring' | 'expired';
+  licenseStatus: 'none' | 'valid' | 'expiring' | 'expired';
 }
+
+/** A licence classification a subcontractor company holds, e.g. C-10 Electrical. */
+export interface SubcontractorTrade { id: string; code: string; name: string; category: string; description?: string; active: boolean; order: number }
+export const SUBTRADE_CATEGORIES: [string, string][] = [
+  ['general_engineering', 'General Engineering (A)'], ['general_building', 'General Building (B)'],
+  ['specialty', 'Specialty (C)'], ['limited_specialty', 'Limited Specialty (D)'], ['other', 'Other'],
+];
 
 export interface PayrollSettings {
   currency: string; standardDayHours: number; halfDayHours: number; monthDays: number;
