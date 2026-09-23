@@ -242,9 +242,11 @@ export function DesignProject() {
         <BackLink onClick={() => navigate(board)} label={board === '/pm' ? 'Construction' : 'Design & Preconstruction'} />
 
         <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
-        <p style={{ margin: '6px 0 18px', fontSize: 14, color: INK3 }}>
-          {project.location || '—'} · {project.contractAmt || '—'}
-        </p>
+        {(project.location || project.contractAmt) ? (
+          <p style={{ margin: '6px 0 18px', fontSize: 14, color: INK3 }}>
+            {[project.location, project.contractAmt].filter(Boolean).join(' · ')}
+          </p>
+        ) : <div style={{ marginBottom: 18 }} />}
 
         {/* Phase stepper — the same selection as the Phase filter below it. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
