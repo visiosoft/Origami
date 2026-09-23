@@ -51,7 +51,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const [sections, setSections] = useState<ProjectSection[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'board' | 'list'>('board');
+  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard'>('board');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
   // Which parents are expanded, plus the inline subtask composer.
@@ -429,13 +429,152 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     </div>
   );
 
+  // ---- Timeline (Gantt) view: read-only bars over a date scale, grouped by
+  // section. Falls back to a 1-day bar (dueDate on both ends) for a task with
+  // no startDate, so every task shows up somewhere. ----
+  const timelineView = (() => {
+    const dayMs = 86400000;
+    const dayWidth = 28;
+    const parseDate = (s?: string) => (s ? new Date(s + 'T00:00:00') : null);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    const rangesBySection = sections.map((sec) => ({
+      sec,
+      rows: topLevelBySection(visibleTasks, sec.id).map((t) => {
+        const due = parseDate(t.dueDate) || today;
+        const start = parseDate(t.startDate) || due;
+        return { t, start: start <= due ? start : due, end: due >= start ? due : start };
+      }),
+    }));
+    const allRows = rangesBySection.flatMap((g) => g.rows);
+
+    const startOfWeek = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); return x; };
+    const earliest = allRows.length ? new Date(Math.min(...allRows.map((r) => r.start.getTime()))) : new Date(today.getTime() - 7 * dayMs);
+    const latest = allRows.length ? new Date(Math.max(...allRows.map((r) => r.end.getTime()))) : new Date(today.getTime() + 35 * dayMs);
+    const chartStart = startOfWeek(new Date(Math.min(earliest.getTime(), today.getTime() - 7 * dayMs)));
+    const chartEnd = new Date(Math.max(latest.getTime(), today.getTime() + 21 * dayMs));
+    const totalDays = Math.ceil((chartEnd.getTime() - chartStart.getTime()) / dayMs) + 7;
+    const weeks: Date[] = [];
+    for (let d = new Date(chartStart); d.getTime() < chartStart.getTime() + totalDays * dayMs; d.setDate(d.getDate() + 7)) weeks.push(new Date(d));
+    const xFor = (d: Date) => Math.round((d.getTime() - chartStart.getTime()) / dayMs) * dayWidth;
+    const todayX = xFor(today);
+
+    return (
+      <div style={{ overflowX: 'auto', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 12, background: 'white' }}>
+        <div style={{ position: 'relative', width: Math.max(totalDays * dayWidth, 600) }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(20,8,31,0.08)', position: 'sticky', top: 0, background: 'white', zIndex: 2 }}>
+            {weeks.map((w) => (
+              <div key={w.toISOString()} style={{ width: dayWidth * 7, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,0.06)', padding: '6px 8px', fontSize: 10, fontWeight: 700, color: '#7E9B93' }}>
+                {w.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </div>
+            ))}
+          </div>
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: todayX, width: 2, background: '#D2822E', zIndex: 1 }} title="Today" />
+          {rangesBySection.map(({ sec, rows }) => (
+            <div key={sec.id}>
+              <div style={{ padding: '6px 10px', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,0.05)' }}>
+                {sec.name} <span style={{ color: '#7E9B93' }}>{'·'} {rows.length}</span>
+              </div>
+              {rows.length === 0 ? (
+                <div style={{ padding: '10px', fontSize: 11.5, color: '#9AA39D', fontStyle: 'italic' }}>No tasks</div>
+              ) : rows.map(({ t, start, end }) => {
+                const left = xFor(start);
+                const width = Math.max(xFor(end) - left + dayWidth, dayWidth);
+                const st = STATUS_STYLE[t.status || 'Not started'];
+                return (
+                  <div key={t.id} style={{ position: 'relative', height: 34, borderBottom: '1px solid rgba(20,8,31,0.04)' }}>
+                    <div
+                      onClick={() => setSelectedId(t.id)}
+                      title={t.title}
+                      style={{ position: 'absolute', left, width, top: 6, height: 22, borderRadius: 6, background: st.bg, border: `1px solid ${st.c}`, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 11, fontWeight: 600, color: st.c, overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer' }}
+                    >
+                      {t.title}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  })();
+
+  // ---- Dashboard view: a handful of stat tiles + two bar charts, following
+  // this app's existing div-based chart technique (no charting library). ----
+  const dashboardView = (() => {
+    const topLevel = visibleTasks.filter((t) => !t.parentId);
+    const total = topLevel.length;
+    const completed = topLevel.filter((t) => t.completed).length;
+    const incomplete = total - completed;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const overdue = topLevel.filter((t) => !t.completed && t.dueDate && t.dueDate < todayStr).length;
+
+    const bySection = sections.map((sec) => ({ name: sec.name, count: topLevelBySection(visibleTasks, sec.id).filter((t) => !t.completed).length }));
+    const maxSection = Math.max(1, ...bySection.map((s) => s.count));
+    const byStatus = TASK_STATUSES.map((st) => ({ status: st, count: topLevel.filter((t) => (t.status || 'Not started') === st).length }));
+    const maxStatus = Math.max(1, ...byStatus.map((s) => s.count));
+
+    const tile = (label: string, value: number, color?: string) => (
+      <div key={label} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: '16px 18px' }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+        <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: color || '#0B1A12' }}>{value}</div>
+      </div>
+    );
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+          {tile('Total tasks', total)}
+          {tile('Completed', completed, '#1E6B36')}
+          {tile('Incomplete', incomplete, '#5C6B65')}
+          {tile('Overdue', overdue, overdue ? '#8E2E0A' : '#0B1A12')}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+          <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', marginBottom: 14 }}>Incomplete tasks by section</div>
+            {bySection.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No sections yet.</div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 120 }}>
+                {bySection.map((s) => (
+                  <div key={s.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#173326' }}>{s.count}</div>
+                    <div style={{ width: '100%', height: Math.max((s.count / maxSection) * 90, 2), background: '#8AAE95', borderRadius: '4px 4px 0 0', transition: 'height 0.4s ease' }} />
+                    <div style={{ fontSize: 9.5, color: '#7E9B93', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{s.name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', marginBottom: 14 }}>Tasks by status</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {byStatus.map((s) => {
+                const st = STATUS_STYLE[s.status];
+                return (
+                  <div key={s.status} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 90, fontSize: 11, color: '#43514D', flexShrink: 0 }}>{s.status}</div>
+                    <div style={{ flex: 1, height: 10, background: '#F4F2ED', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: `${(s.count / maxStatus) * 100}%`, height: '100%', background: st.c, borderRadius: 999, transition: 'width 0.4s ease' }} />
+                    </div>
+                    <div style={{ width: 22, textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#0B1A12' }}>{s.count}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })();
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
-          {(['board', 'list'] as const).map((v) => (
-            <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : 'List'}</div>
+          {(['board', 'list', 'timeline', 'dashboard'] as const).map((v) => (
+            <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
           ))}
         </div>
         <TaskScopeToggle
@@ -459,7 +598,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
         <span style={{ fontSize: 11.5, color: '#7E9B93' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
       </div>
 
-      {view === 'board' ? boardView : listView}
+      {view === 'board' ? boardView : view === 'list' ? listView : view === 'timeline' ? timelineView : dashboardView}
 
       {/* Task detail panel */}
       {selected && (
@@ -485,6 +624,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                   {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
                 </select>
               </Field>
+              <Field label="Start date"><input type="date" disabled={!canManage} value={selected.startDate || ''} onChange={(e) => updateTask(selected.id, { startDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
               <Field label="Due date"><input type="date" disabled={!canManage} value={selected.dueDate || ''} onChange={(e) => updateTask(selected.id, { dueDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
               <Field label="Priority"><select disabled={!canManage} value={selected.priority || ''} onChange={(e) => updateTask(selected.id, { priority: e.target.value as Priority })} style={{ ...inputStyle, width: '100%' }}><option value="">None</option>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></Field>
               <Field label="Section"><select disabled={!canManage} value={selected.sectionId} onChange={(e) => updateTask(selected.id, { sectionId: e.target.value })} style={{ ...inputStyle, width: '100%' }}>{sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
