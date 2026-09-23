@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -1925,9 +1925,383 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], EmployeeEntity.prototype, "siteAccessStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], EmployeeEntity.prototype, "payComponents", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], EmployeeEntity.prototype, "overtimeRate", void 0);
 exports.EmployeeEntity = EmployeeEntity = __decorate([
     (0, typeorm_1.Entity)('employees')
 ], EmployeeEntity);
+let PayComponentEntity = class PayComponentEntity {
+};
+exports.PayComponentEntity = PayComponentEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], PayComponentEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayComponentEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayComponentEntity.prototype, "kind", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayComponentEntity.prototype, "calcType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', default: 0 }),
+    __metadata("design:type", Number)
+], PayComponentEntity.prototype, "defaultValue", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'all' }),
+    __metadata("design:type", String)
+], PayComponentEntity.prototype, "appliesTo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayComponentEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: true }),
+    __metadata("design:type", Boolean)
+], PayComponentEntity.prototype, "active", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], PayComponentEntity.prototype, "order", void 0);
+exports.PayComponentEntity = PayComponentEntity = __decorate([
+    (0, typeorm_1.Entity)('pay_components')
+], PayComponentEntity);
+let PayrollRunEntity = class PayrollRunEntity {
+};
+exports.PayrollRunEntity = PayrollRunEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "label", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "periodStart", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "periodEnd", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'all' }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "payGroup", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'draft' }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollRunEntity.prototype, "totals", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PayrollRunEntity.prototype, "settingsSnapshot", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "finalizedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "finalizedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "voidedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "voidedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "voidReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayrollRunEntity.prototype, "updatedAt", void 0);
+exports.PayrollRunEntity = PayrollRunEntity = __decorate([
+    (0, typeorm_1.Entity)('payroll_runs')
+], PayrollRunEntity);
+let PayslipEntity = class PayslipEntity {
+};
+exports.PayslipEntity = PayslipEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "runId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "employeeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Object)
+], PayslipEntity.prototype, "employee", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Object)
+], PayslipEntity.prototype, "basis", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Array)
+], PayslipEntity.prototype, "lines", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float' }),
+    __metadata("design:type", Number)
+], PayslipEntity.prototype, "gross", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float' }),
+    __metadata("design:type", Number)
+], PayslipEntity.prototype, "deductions", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float' }),
+    __metadata("design:type", Number)
+], PayslipEntity.prototype, "net", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'unpaid' }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "paymentStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "paidAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "paymentMethod", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "paymentRef", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "paidByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PayslipEntity.prototype, "updatedAt", void 0);
+exports.PayslipEntity = PayslipEntity = __decorate([
+    (0, typeorm_1.Entity)('payslips')
+], PayslipEntity);
+let OvertimeRequestEntity = class OvertimeRequestEntity {
+};
+exports.OvertimeRequestEntity = OvertimeRequestEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "employeeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Number)
+], OvertimeRequestEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "date", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float' }),
+    __metadata("design:type", Number)
+], OvertimeRequestEntity.prototype, "hours", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'normal' }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "otType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], OvertimeRequestEntity.prototype, "rate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "reason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'pending' }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'manual' }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "source", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "requestedById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "requestedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "decidedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "decidedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "decisionNote", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], OvertimeRequestEntity.prototype, "baseRate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], OvertimeRequestEntity.prototype, "multiplier", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Number)
+], OvertimeRequestEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "payrollRunId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], OvertimeRequestEntity.prototype, "updatedAt", void 0);
+exports.OvertimeRequestEntity = OvertimeRequestEntity = __decorate([
+    (0, typeorm_1.Entity)('overtime_requests')
+], OvertimeRequestEntity);
+let EmployeeAdvanceEntity = class EmployeeAdvanceEntity {
+};
+exports.EmployeeAdvanceEntity = EmployeeAdvanceEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "employeeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float' }),
+    __metadata("design:type", Number)
+], EmployeeAdvanceEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "requestDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "reason", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], EmployeeAdvanceEntity.prototype, "installments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float' }),
+    __metadata("design:type", Number)
+], EmployeeAdvanceEntity.prototype, "installmentAmount", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "deductionStart", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Array)
+], EmployeeAdvanceEntity.prototype, "approvals", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "disbursedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "disbursedByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "paymentMethod", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "paymentRef", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Array)
+], EmployeeAdvanceEntity.prototype, "repayments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', default: 0 }),
+    __metadata("design:type", Number)
+], EmployeeAdvanceEntity.prototype, "recovered", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], EmployeeAdvanceEntity.prototype, "updatedAt", void 0);
+exports.EmployeeAdvanceEntity = EmployeeAdvanceEntity = __decorate([
+    (0, typeorm_1.Entity)('employee_advances')
+], EmployeeAdvanceEntity);
 let EmployeeAssignmentEntity = class EmployeeAssignmentEntity {
 };
 exports.EmployeeAssignmentEntity = EmployeeAssignmentEntity;

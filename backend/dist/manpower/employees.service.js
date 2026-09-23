@@ -64,6 +64,18 @@ let EmployeesService = class EmployeesService {
     async update(id, dto) {
         const employee = await this.findOne(id);
         const { photo: _ignored, ...rest } = await this.withTradeName(dto);
+        if (rest.payComponents) {
+            rest.payComponents = rest.payComponents.map((c) => {
+                const value = Number(c?.value);
+                if (!c?.componentId || !Number.isFinite(value) || value < 0)
+                    throw new common_1.BadRequestException('Each pay component needs a value of 0 or more.');
+                return { componentId: String(c.componentId), value };
+            });
+        }
+        if (rest.overtimeRate != null && !(Number(rest.overtimeRate) > 0))
+            throw new common_1.BadRequestException('An overtime rate must be above 0 -- clear it to use their normal hourly rate.');
+        if (rest.payRate != null && !(Number(rest.payRate) >= 0))
+            throw new common_1.BadRequestException('The pay rate cannot be negative.');
         Object.assign(employee, rest, { id, updatedAt: new Date().toISOString() });
         if (rest.employmentStatus)
             employee.status = rest.employmentStatus === 'active' ? 'active' : 'inactive';

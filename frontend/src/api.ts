@@ -538,6 +538,53 @@ export const api = {
     addLink: (id: string, name: string, url: string) => request(`/contractors/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/contractors/${id}/attachments/${attId}`, { method: 'DELETE' }),
   },
+  payroll: {
+    settings: () => request('/payroll/settings'),
+    saveSettings: (data: unknown) => request('/payroll/settings', { method: 'PUT', body: JSON.stringify(data) }),
+    components: () => request('/payroll/components'),
+    createComponent: (data: unknown) => request('/payroll/components', { method: 'POST', body: JSON.stringify(data) }),
+    updateComponent: (id: string, data: unknown) => request(`/payroll/components/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    removeComponent: (id: string) => request(`/payroll/components/${id}`, { method: 'DELETE' }),
+    runs: () => request('/payroll/runs'),
+    run: (id: string) => request(`/payroll/runs/${id}`),
+    createRun: (data: unknown) => request('/payroll/runs', { method: 'POST', body: JSON.stringify(data) }),
+    recalculate: (id: string) => request(`/payroll/runs/${id}/recalculate`, { method: 'POST' }),
+    removeRun: (id: string) => request(`/payroll/runs/${id}`, { method: 'DELETE' }),
+    finalize: (id: string) => request(`/payroll/runs/${id}/finalize`, { method: 'POST' }),
+    voidRun: (id: string, reason: string) => request(`/payroll/runs/${id}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    pay: (id: string, data: { payslipIds?: string[]; method?: string; ref?: string; date?: string }) =>
+      request(`/payroll/runs/${id}/pay`, { method: 'POST', body: JSON.stringify(data) }),
+    updatePayslip: (id: string, data: unknown) => request(`/payroll/payslips/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    employeePayslips: (employeeId: string) => request(`/payroll/employees/${encodeURIComponent(employeeId)}/payslips`),
+  },
+  overtime: {
+    list: (opts?: { employeeId?: string; status?: string; from?: string; to?: string }) => {
+      const q = new URLSearchParams();
+      Object.entries(opts || {}).forEach(([k, v]) => { if (v) q.set(k, String(v)); });
+      const qs = q.toString();
+      return request(`/overtime${qs ? `?${qs}` : ''}`);
+    },
+    suggestions: (from: string, to: string) => request(`/overtime/suggestions?from=${from}&to=${to}`),
+    create: (data: unknown) => request('/overtime', { method: 'POST', body: JSON.stringify(data) }),
+    bulk: (items: unknown[]) => request('/overtime/bulk', { method: 'POST', body: JSON.stringify({ items }) }),
+    approve: (id: string, note?: string) => request(`/overtime/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reject: (id: string, note?: string) => request(`/overtime/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    cancel: (id: string) => request(`/overtime/${id}/cancel`, { method: 'POST' }),
+  },
+  advances: {
+    list: (opts?: { employeeId?: string; status?: string }) => {
+      const q = new URLSearchParams();
+      Object.entries(opts || {}).forEach(([k, v]) => { if (v) q.set(k, String(v)); });
+      const qs = q.toString();
+      return request(`/advances${qs ? `?${qs}` : ''}`);
+    },
+    create: (data: unknown) => request('/advances', { method: 'POST', body: JSON.stringify(data) }),
+    approve: (id: string, note?: string) => request(`/advances/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reject: (id: string, note?: string) => request(`/advances/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    cancel: (id: string) => request(`/advances/${id}/cancel`, { method: 'POST' }),
+    disburse: (id: string, data: { date?: string; method?: string; ref?: string }) => request(`/advances/${id}/disburse`, { method: 'POST', body: JSON.stringify(data) }),
+    repay: (id: string, data: { amount: number; date?: string; note?: string }) => request(`/advances/${id}/repay`, { method: 'POST', body: JSON.stringify(data) }),
+  },
   employeeRecords: {
     list: (employeeId: string, kind?: string) =>
       request(`/employee-records?employeeId=${encodeURIComponent(employeeId)}${kind ? `&kind=${kind}` : ''}`),

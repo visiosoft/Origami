@@ -3,9 +3,19 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
   TradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
+  PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
 } from '../database/entities';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
+import { SettingsModule } from '../settings/settings.module';
+import { ManpowerAccess } from './manpower-access.service';
+import { PayrollSetupService } from './payroll-setup.service';
+import { PayrollService } from './payroll.service';
+import { PayrollController } from './payroll.controller';
+import { OvertimeService } from './overtime.service';
+import { OvertimeController } from './overtime.controller';
+import { AdvancesService } from './advances.service';
+import { AdvancesController } from './advances.controller';
 import { EmployeesController } from './employees.controller';
 import { EmployeesService } from './employees.service';
 import { CsiCodesController } from './csi-codes.controller';
@@ -32,17 +42,21 @@ import { ContractorsService } from './contractors.service';
     TypeOrmModule.forFeature([
       EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
       TradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
+      PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
     ]),
     AuthModule,
     GoogleModule,
+    SettingsModule,
   ],
   controllers: [
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController, LeaveRequestsController,
     TradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
+    PayrollController, OvertimeController, AdvancesController,
   ],
   providers: [
     EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService, LeaveRequestsService,
     TradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
+    ManpowerAccess, PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
   ],
 })
 export class ManpowerModule {}

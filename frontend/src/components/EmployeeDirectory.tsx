@@ -4,7 +4,10 @@ import { useApp } from '../AppContext';
 import { Attachments } from './Attachments';
 import type { Attachment } from '../data/projectTasks';
 import { EmployeeDeploymentPanel } from './Deployment';
-import { todayISO, type Assignment, type Contractor, type Project } from './manpowerUi';
+import { todayISO, type Assignment, type Contractor, type PayrollSettings, type Project } from './manpowerUi';
+import { EmployeePayPanel } from './Payroll';
+import { OvertimePanel } from './Overtime';
+import { AdvancesPanel } from './Advances';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -36,6 +39,7 @@ export interface Employee {
   tradeId?: string; trade?: string; skillLevel?: string; yearsExperience?: number;
   expertise?: string[]; equipmentCapabilities?: string[]; createdAt?: string; updatedAt?: string;
   contractorId?: string | null; siteAccessStatus?: string;
+  payComponents?: { componentId: string; value: number }[]; overtimeRate?: number | null;
 }
 export interface Trade { id: string; name: string; active: boolean; order: number }
 
@@ -227,6 +231,7 @@ function SectionForm({ section, draft, patch, disabled, employees, trades, contr
 interface DirectoryProps {
   employees: Employee[]; trades: Trade[]; projects: Project[]; assignments: Assignment[]; contractors: Contractor[];
   reload: () => Promise<unknown> | void; reloadAssignments: () => Promise<unknown> | void; canManage: boolean;
+  canFinance: boolean; payrollSettings: PayrollSettings;
   /** Controlled so other screens (deployment, requests, contractors) can open a profile here. */
   openId: string | null; onOpen: (id: string | null) => void;
 }
@@ -407,12 +412,13 @@ interface EmpRecord {
 
 const PROFILE_TABS = [
   ['overview', 'Overview'], ['personal', 'Personal Information'], ['employment', 'Employment'], ['deployment', 'Deployment'],
+  ['pay', 'Salary & Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans'],
   ['document', 'Documents'], ['certification', 'Certifications'], ['contract', 'Contracts'],
 ] as const;
 type ProfileTab = typeof PROFILE_TABS[number][0];
 
 function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: () => void; onChanged: () => Promise<unknown> | void }) {
-  const { employee, employees, trades, projects, assignments, contractors, canManage, onBack, onChanged, reloadAssignments } = props;
+  const { employee, employees, trades, projects, assignments, contractors, canManage, canFinance, payrollSettings, onBack, onChanged, reloadAssignments } = props;
   const { toast } = useApp();
   const [tab, setTab] = useState<ProfileTab>('overview');
   const [records, setRecords] = useState<EmpRecord[]>([]);
@@ -532,6 +538,9 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
         <EmployeeDeploymentPanel employee={employee} employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
           onChanged={async () => { await reloadAssignments(); await onChanged(); }} />
       )}
+      {tab === 'pay' && <EmployeePayPanel employee={employee} settings={payrollSettings} canManage={canManage} canFinance={canFinance} onChanged={onChanged} />}
+      {tab === 'overtime' && <OvertimePanel employees={employees} projects={projects} settings={payrollSettings} canManage={canManage} employeeId={employee.id} />}
+      {tab === 'advances' && <AdvancesPanel employees={employees} settings={payrollSettings} canManage={canManage} canFinance={canFinance} employeeId={employee.id} />}
       {(tab === 'document' || tab === 'certification' || tab === 'contract') && (
         <RecordsPanel kind={tab} employeeId={employee.id} records={byKind(tab)} canManage={canManage} onChanged={reloadRecords} />
       )}

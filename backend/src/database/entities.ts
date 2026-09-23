@@ -740,6 +740,140 @@ export class EmployeeEntity {
   /** Set for a subcontractor's worker: same record, profile and deployment as staff, supplied by that company. */
   @Column({ nullable: true }) contractorId!: string;
   @Column({ nullable: true }) siteAccessStatus!: string; // pending | granted | revoked
+  // --- Pay setup ---
+  /** Per-employee values for configurable pay components: an amount, or a percentage for percent-based ones. */
+  @Column({ type: 'simple-json', nullable: true }) payComponents!: { componentId: string; value: number }[];
+  /** Hourly base for overtime when it differs from the rate derived from their pay. */
+  @Column({ type: 'float', nullable: true }) overtimeRate!: number;
+}
+
+/** A configurable earning or deduction -- allowances, tax, social security -- rather than hardcoded rules. */
+@Entity('pay_components')
+export class PayComponentEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column() kind!: string;         // earning | deduction
+  @Column() calcType!: string;     // fixed | percent_basic | percent_gross
+  @Column({ type: 'float', default: 0 }) defaultValue!: number;
+  @Column({ default: 'all' }) appliesTo!: string; // all | monthly | daily
+  @Column({ nullable: true }) category!: string;  // allowance | tax | social_security | insurance | other
+  @Column({ default: true }) active!: boolean;
+  @Column('int') order!: number;
+}
+
+export interface PayLine {
+  id: string;
+  name: string;
+  kind: 'earning' | 'deduction';
+  /** basic | wages | overtime | component | manual | advance | loan */
+  source: string;
+  amount: number;
+  componentId?: string;
+  refIds?: string[];
+  note?: string;
+}
+
+/** One pay period's run. Once finalized it is frozen: payslips carry their own snapshot of the employee. */
+@Entity('payroll_runs')
+export class PayrollRunEntity {
+  @PrimaryColumn() id!: string;
+  @Column() label!: string;
+  @Column() periodStart!: string;
+  @Column() periodEnd!: string;
+  @Column({ default: 'all' }) payGroup!: string; // all | monthly | daily
+  @Column({ default: 'draft' }) status!: string;  // draft | finalized | void
+  @Column({ type: 'simple-json', nullable: true }) totals!: { headcount: number; gross: number; deductions: number; net: number; paid: number };
+  @Column({ type: 'simple-json', nullable: true }) settingsSnapshot!: Record<string, unknown>;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) finalizedByName!: string;
+  @Column({ nullable: true }) finalizedAt!: string;
+  @Column({ nullable: true }) voidedByName!: string;
+  @Column({ nullable: true }) voidedAt!: string;
+  @Column({ ...TEXT, nullable: true }) voidReason!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+@Entity('payslips')
+export class PayslipEntity {
+  @PrimaryColumn() id!: string;
+  @Column() runId!: string;
+  @Column() employeeId!: string;
+  /** The employee as they were when this was calculated -- later edits to the master record don't rewrite history. */
+  @Column({ type: 'simple-json' }) employee!: Record<string, unknown>;
+  /** What the pay was worked out from: days, hours, rates, and whether any were entered by hand. */
+  @Column({ type: 'simple-json' }) basis!: Record<string, unknown>;
+  @Column({ type: 'simple-json' }) lines!: PayLine[];
+  @Column({ type: 'float' }) gross!: number;
+  @Column({ type: 'float' }) deductions!: number;
+  @Column({ type: 'float' }) net!: number;
+  @Column({ default: 'unpaid' }) paymentStatus!: string; // unpaid | paid
+  @Column({ nullable: true }) paidAt!: string;
+  @Column({ nullable: true }) paymentMethod!: string;
+  @Column({ nullable: true }) paymentRef!: string;
+  @Column({ nullable: true }) paidByName!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** Overtime asked for and approved before it is paid -- not derived from attendance. */
+@Entity('overtime_requests')
+export class OvertimeRequestEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number;
+  @Column() date!: string;
+  @Column({ type: 'float' }) hours!: number;
+  @Column({ default: 'normal' }) otType!: string; // normal | weekend | holiday | night
+  /** Hourly base override for this request; otherwise the employee's. */
+  @Column({ type: 'float', nullable: true }) rate!: number;
+  @Column({ ...TEXT, nullable: true }) reason!: string;
+  @Column({ default: 'pending' }) status!: string; // pending | approved | rejected | cancelled
+  @Column({ default: 'manual' }) source!: string;  // manual | daily_log
+  @Column({ nullable: true }) requestedById!: string;
+  @Column({ nullable: true }) requestedByName!: string;
+  @Column({ nullable: true }) decidedByName!: string;
+  @Column({ nullable: true }) decidedAt!: string;
+  @Column({ ...TEXT, nullable: true }) decisionNote!: string;
+  // Fixed at approval, so a later rate change doesn't reprice approved overtime.
+  @Column({ type: 'float', nullable: true }) baseRate!: number;
+  @Column({ type: 'float', nullable: true }) multiplier!: number;
+  @Column({ type: 'float', nullable: true }) amount!: number;
+  @Column({ nullable: true }) payrollRunId!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+export interface AdvanceApproval { stage: string; decision: 'approved' | 'rejected'; byName: string; byId?: string; at: string; note?: string }
+export interface AdvanceRepayment { id: string; date: string; amount: number; method: 'payroll' | 'manual'; runId?: string; payslipId?: string; byName?: string; note?: string }
+
+/** A salary advance or loan: approved manager -> HR -> finance, paid out, then recovered in instalments. */
+@Entity('employee_advances')
+export class EmployeeAdvanceEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column() type!: string; // salary_advance | emergency_advance | loan | travel_advance | project_advance
+  @Column({ type: 'float' }) amount!: number;
+  @Column() requestDate!: string;
+  @Column({ ...TEXT, nullable: true }) reason!: string;
+  @Column('int') installments!: number;
+  @Column({ type: 'float' }) installmentAmount!: number;
+  /** Recovery starts with the first payroll period that ends on or after this date. */
+  @Column() deductionStart!: string;
+  /** pending_manager | pending_hr | pending_finance | approved | disbursed | settled | rejected | cancelled */
+  @Column() status!: string;
+  @Column({ type: 'simple-json' }) approvals!: AdvanceApproval[];
+  @Column({ nullable: true }) disbursedAt!: string;
+  @Column({ nullable: true }) disbursedByName!: string;
+  @Column({ nullable: true }) paymentMethod!: string;
+  @Column({ nullable: true }) paymentRef!: string;
+  @Column({ type: 'simple-json' }) repayments!: AdvanceRepayment[];
+  @Column({ type: 'float', default: 0 }) recovered!: number;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column({ nullable: true }) createdById!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
 }
 
 /**

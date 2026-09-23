@@ -497,6 +497,139 @@ export declare class EmployeeEntity {
     updatedAt: string;
     contractorId: string;
     siteAccessStatus: string;
+    payComponents: {
+        componentId: string;
+        value: number;
+    }[];
+    overtimeRate: number;
+}
+export declare class PayComponentEntity {
+    id: string;
+    name: string;
+    kind: string;
+    calcType: string;
+    defaultValue: number;
+    appliesTo: string;
+    category: string;
+    active: boolean;
+    order: number;
+}
+export interface PayLine {
+    id: string;
+    name: string;
+    kind: 'earning' | 'deduction';
+    source: string;
+    amount: number;
+    componentId?: string;
+    refIds?: string[];
+    note?: string;
+}
+export declare class PayrollRunEntity {
+    id: string;
+    label: string;
+    periodStart: string;
+    periodEnd: string;
+    payGroup: string;
+    status: string;
+    totals: {
+        headcount: number;
+        gross: number;
+        deductions: number;
+        net: number;
+        paid: number;
+    };
+    settingsSnapshot: Record<string, unknown>;
+    notes: string;
+    createdByName: string;
+    createdAt: string;
+    finalizedByName: string;
+    finalizedAt: string;
+    voidedByName: string;
+    voidedAt: string;
+    voidReason: string;
+    updatedAt: string;
+}
+export declare class PayslipEntity {
+    id: string;
+    runId: string;
+    employeeId: string;
+    employee: Record<string, unknown>;
+    basis: Record<string, unknown>;
+    lines: PayLine[];
+    gross: number;
+    deductions: number;
+    net: number;
+    paymentStatus: string;
+    paidAt: string;
+    paymentMethod: string;
+    paymentRef: string;
+    paidByName: string;
+    notes: string;
+    updatedAt: string;
+}
+export declare class OvertimeRequestEntity {
+    id: string;
+    employeeId: string;
+    projectId: number;
+    date: string;
+    hours: number;
+    otType: string;
+    rate: number;
+    reason: string;
+    status: string;
+    source: string;
+    requestedById: string;
+    requestedByName: string;
+    decidedByName: string;
+    decidedAt: string;
+    decisionNote: string;
+    baseRate: number;
+    multiplier: number;
+    amount: number;
+    payrollRunId: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface AdvanceApproval {
+    stage: string;
+    decision: 'approved' | 'rejected';
+    byName: string;
+    byId?: string;
+    at: string;
+    note?: string;
+}
+export interface AdvanceRepayment {
+    id: string;
+    date: string;
+    amount: number;
+    method: 'payroll' | 'manual';
+    runId?: string;
+    payslipId?: string;
+    byName?: string;
+    note?: string;
+}
+export declare class EmployeeAdvanceEntity {
+    id: string;
+    employeeId: string;
+    type: string;
+    amount: number;
+    requestDate: string;
+    reason: string;
+    installments: number;
+    installmentAmount: number;
+    deductionStart: string;
+    status: string;
+    approvals: AdvanceApproval[];
+    disbursedAt: string;
+    disbursedByName: string;
+    paymentMethod: string;
+    paymentRef: string;
+    repayments: AdvanceRepayment[];
+    recovered: number;
+    createdByName: string;
+    createdById: string;
+    createdAt: string;
+    updatedAt: string;
 }
 export declare class EmployeeAssignmentEntity {
     id: string;

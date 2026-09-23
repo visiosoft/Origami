@@ -76,7 +76,8 @@ export const localISO = (d: Date = new Date()) => new Date(d.getTime() - d.getTi
 export const todayISO = () => localISO();
 export const fmtDate = (d?: string | null) => {
   if (!d) return '—';
-  const x = new Date(d + (d.length === 10 ? 'T00:00:00' : ''));
+  // A bare date is a calendar day; a full timestamp is converted to local time first.
+  const x = d.length === 10 ? new Date(d + 'T00:00:00') : new Date(d);
   return Number.isNaN(x.getTime()) ? d : x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
@@ -98,6 +99,28 @@ export interface Contractor {
   status: string; notes?: string; attachments: Attachment[]; workerCount: number;
   contractStatus: 'none' | 'valid' | 'expiring' | 'expired'; insuranceStatus: 'none' | 'valid' | 'expiring' | 'expired';
 }
+
+export interface PayrollSettings {
+  currency: string; standardDayHours: number; halfDayHours: number; monthDays: number;
+  otMultipliers: Record<'normal' | 'weekend' | 'holiday' | 'night', number>; weekendDays: number[];
+}
+export const DEFAULT_SETTINGS: PayrollSettings = {
+  currency: 'PKR', standardDayHours: 8, halfDayHours: 4, monthDays: 30,
+  otMultipliers: { normal: 1.5, weekend: 2, holiday: 2, night: 1.25 }, weekendDays: [0],
+};
+
+export const money = (n: number | null | undefined, currency = 'PKR') =>
+  `${currency} ${(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+export interface PayComponent {
+  id: string; name: string; kind: 'earning' | 'deduction'; calcType: 'fixed' | 'percent_basic' | 'percent_gross';
+  defaultValue: number; appliesTo: 'all' | 'monthly' | 'daily'; category?: string; active: boolean; order: number;
+}
+
+export const ADVANCE_TYPES: [string, string][] = [
+  ['salary_advance', 'Salary advance'], ['emergency_advance', 'Emergency advance'], ['loan', 'Employee loan'],
+  ['travel_advance', 'Travel advance'], ['project_advance', 'Project advance'],
+];
 
 export const expiryTone = (s: string) => (s === 'expired' ? 'red' : s === 'expiring' ? 'amber' : s === 'valid' ? 'green' : 'grey');
 export const expiryLabel = (s: string) => (s === 'expired' ? 'Expired' : s === 'expiring' ? 'Expiring soon' : s === 'valid' ? 'Valid' : 'No end date');

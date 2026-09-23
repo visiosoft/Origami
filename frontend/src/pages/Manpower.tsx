@@ -5,7 +5,10 @@ import { EmployeeDirectory, type Employee, type Trade } from '../components/Empl
 import { DeploymentBoard } from '../components/Deployment';
 import { WorkforceRequests } from '../components/WorkforceRequests';
 import { Contractors } from '../components/Contractors';
-import { localISO, type Assignment, type Contractor } from '../components/manpowerUi';
+import { DEFAULT_SETTINGS, localISO, type Assignment, type Contractor, type PayrollSettings } from '../components/manpowerUi';
+import { PayrollRuns, PayrollSetup } from '../components/Payroll';
+import { OvertimePanel } from '../components/Overtime';
+import { AdvancesPanel } from '../components/Advances';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -39,8 +42,9 @@ interface LeaveRequest {
 const TAB_GROUPS = [
   { label: 'People', tabs: [['employees', 'Employees'], ['contractors', 'Contractors']] },
   { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
+  { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
   { label: 'Employee services', tabs: [['leave', 'Leave']] },
-  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades']] },
+  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['payroll_setup', 'Payroll Setup']] },
 ] as const;
 type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
 
@@ -68,6 +72,8 @@ const fmt = (d: Date) => localISO(d);
 export function Manpower() {
   const { toast, can, currentUser } = useApp();
   const canManage = can('manpower_con', 'manage');
+  // Signing off and paying money is a finance permission, separate from HR's.
+  const canFinance = can('fin_resources', 'manage');
   const [tab, setTab] = useState<TabKey>('employees');
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -76,6 +82,7 @@ export function Manpower() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [openEmployeeId, setOpenEmployeeId] = useState<string | null>(null);
+  const [payrollSettings, setPayrollSettings] = useState<PayrollSettings>(DEFAULT_SETTINGS);
 
   const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});
   const reloadContractors = () => api.contractors.list().then((r: any) => setContractors(Array.isArray(r) ? r : [])).catch(() => {});
@@ -96,6 +103,7 @@ export function Manpower() {
     reloadTrades();
     reloadAssignments();
     reloadContractors();
+    api.payroll.settings().then((r: any) => { if (r && r.currency) setPayrollSettings(r); }).catch(() => {});
   }, []);
 
   const working = employees.filter(isWorking);
@@ -128,7 +136,8 @@ export function Manpower() {
 
       {tab === 'employees' && (
         <EmployeeDirectory employees={employees} trades={trades} projects={projects} assignments={assignments} contractors={contractors}
-          reload={reloadEmployees} reloadAssignments={reloadAssignments} canManage={canManage} openId={openEmployeeId} onOpen={setOpenEmployeeId} />
+          reload={reloadEmployees} reloadAssignments={reloadAssignments} canManage={canManage} canFinance={canFinance} payrollSettings={payrollSettings}
+          openId={openEmployeeId} onOpen={setOpenEmployeeId} />
       )}
       {tab === 'contractors' && (
         <Contractors employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
@@ -148,6 +157,10 @@ export function Manpower() {
       {tab === 'leave' && <LeaveTab employees={working} canManage={canManage} toast={toast} />}
       {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
       {tab === 'trades' && <TradesTab trades={trades} reload={reloadTrades} canManage={canManage} toast={toast} />}
+      {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}
+      {tab === 'overtime' && <OvertimePanel employees={employees} projects={projects} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
+      {tab === 'advances' && <AdvancesPanel employees={employees} settings={payrollSettings} canManage={canManage} canFinance={canFinance} onOpenEmployee={openEmployee} />}
+      {tab === 'payroll_setup' && <PayrollSetup settings={payrollSettings} onSettings={setPayrollSettings} canManage={canManage} />}
     </div>
   );
 }

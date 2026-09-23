@@ -55,6 +55,15 @@ export class EmployeesService {
   async update(id: string, dto: any) {
     const employee = await this.findOne(id);
     const { photo: _ignored, ...rest } = await this.withTradeName(dto);
+    if (rest.payComponents) {
+      rest.payComponents = (rest.payComponents as any[]).map((c) => {
+        const value = Number(c?.value);
+        if (!c?.componentId || !Number.isFinite(value) || value < 0) throw new BadRequestException('Each pay component needs a value of 0 or more.');
+        return { componentId: String(c.componentId), value };
+      });
+    }
+    if (rest.overtimeRate != null && !(Number(rest.overtimeRate) > 0)) throw new BadRequestException('An overtime rate must be above 0 -- clear it to use their normal hourly rate.');
+    if (rest.payRate != null && !(Number(rest.payRate) >= 0)) throw new BadRequestException('The pay rate cannot be negative.');
     Object.assign(employee, rest, { id, updatedAt: new Date().toISOString() });
     // The legacy active/inactive flag follows the richer lifecycle status.
     if (rest.employmentStatus) employee.status = rest.employmentStatus === 'active' ? 'active' : 'inactive';

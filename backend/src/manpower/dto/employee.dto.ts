@@ -40,4 +40,6 @@ export class CreateEmployeeDto {
   @IsArray() @IsOptional() equipmentCapabilities?: string[];
   @IsString() @IsOptional() contractorId?: string | null;
   @IsString() @IsOptional() siteAccessStatus?: string;
+  @IsArray() @IsOptional() payComponents?: { componentId: string; value: number }[];
+  @IsNumber() @IsOptional() overtimeRate?: number | null;
 }

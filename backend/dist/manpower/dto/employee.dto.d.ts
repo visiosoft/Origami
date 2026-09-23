@@ -37,4 +37,9 @@ export declare class CreateEmployeeDto {
     equipmentCapabilities?: string[];
     contractorId?: string | null;
     siteAccessStatus?: string;
+    payComponents?: {
+        componentId: string;
+        value: number;
+    }[];
+    overtimeRate?: number | null;
 }

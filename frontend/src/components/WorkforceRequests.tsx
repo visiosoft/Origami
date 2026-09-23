@@ -280,7 +280,7 @@ function RequestDetail(props: Ctx & {
     >
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
         <Badge tone={s.tone}>{s.label}</Badge>
-        {r.decidedByName && <span style={{ fontSize: 12, color: MUTED }}>{r.status === 'rejected' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : 'Decided'} by {r.decidedByName}{r.decidedAt ? ` on ${fmtDate(r.decidedAt.slice(0, 10))}` : ''}</span>}
+        {r.decidedByName && <span style={{ fontSize: 12, color: MUTED }}>{r.status === 'rejected' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : 'Decided'} by {r.decidedByName}{r.decidedAt ? ` on ${fmtDate(r.decidedAt)}` : ''}</span>}
       </div>
       {r.decisionNote && <div style={{ padding: '10px 12px', borderRadius: 10, background: r.status === 'rejected' ? '#F7ECE6' : '#F3F8F3', fontSize: 12.5, color: INK, marginBottom: 14 }}>{r.decisionNote}</div>}
       {r.notes && <div style={{ fontSize: 12.5, color: INK, marginBottom: 14, whiteSpace: 'pre-wrap' }}>{r.notes}</div>}
