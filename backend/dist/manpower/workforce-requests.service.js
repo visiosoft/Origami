@@ -186,7 +186,7 @@ exports.WorkforceRequestsService = WorkforceRequestsService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAssignmentEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
-    __param(4, (0, typeorm_1.InjectRepository)(entities_1.TradeEntity)),
+    __param(4, (0, typeorm_1.InjectRepository)(entities_1.SubcontractorTradeEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

@@ -5,11 +5,12 @@ import {
   AccommodationIssueEntity, AccommodationUnitEntity, AssetEntity, AssetIssueEntity, BedAllocationEntity, ContractorEntity, CsiCodeEntity,
   DailyLogEntity, EmployeeAdvanceEntity, EmployeeAssignmentEntity, EmployeeEntity, EmployeeRecordEntity, LaborLogEntryEntity,
   LeaveAdjustmentEntity, LeaveRequestEntity, OvertimeRequestEntity, PayrollRunEntity, PayslipEntity, ProjectEntity,
-  ShiftAssignmentEntity, SubcontractorTradeEntity, TradeEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity,
+  ShiftAssignmentEntity, SubcontractorTradeEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity,
 } from '../database/entities';
 import { HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import { nextAssetTag } from './assets.service';
+import { WORKER_TRADE_CODE } from './subcontractor-trades.service';
 import { addDays, weekday, workingDays } from './calendar.util';
 import { todayISO } from './workforce.util';
 
@@ -29,7 +30,6 @@ export class SampleDataService {
     @InjectRepository(EmployeeEntity) private readonly employees: Repository<EmployeeEntity>,
     @InjectRepository(ContractorEntity) private readonly contractors: Repository<ContractorEntity>,
     @InjectRepository(SubcontractorTradeEntity) private readonly subTrades: Repository<SubcontractorTradeEntity>,
-    @InjectRepository(TradeEntity) private readonly trades: Repository<TradeEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     @InjectRepository(CsiCodeEntity) private readonly csi: Repository<CsiCodeEntity>,
     @InjectRepository(EmployeeRecordEntity) private readonly records: Repository<EmployeeRecordEntity>,
@@ -77,9 +77,9 @@ export class SampleDataService {
     const allProjects = await this.projects.find();
     const live = allProjects.filter((p) => p.stage !== 'Kickoff');
     const [p1, p2] = (live.length ? live : allProjects).map((p) => p.id);
-    const trade = new Map((await this.trades.find()).map((t) => [t.name, t.id]));
     const csi = new Map((await this.csi.find()).map((c) => [c.code, c.id]));
     const sub = new Map((await this.subTrades.find()).map((t) => [t.code, t.id]));
+    const tradeOf = (workerTrade?: string) => sub.get(WORKER_TRADE_CODE[workerTrade || ''] || '');
     const { weekendDays } = await this.setup.settings();
 
     // ---------------------------------------------------------------- contractors
@@ -126,7 +126,7 @@ export class SampleDataService {
     const cnic = (i: number) => `35202-${String(4812000 + i * 1379).slice(0, 7)}-${i % 9 + 1}`;
     const staff = ['E01', 'E02', 'E03', 'E04', 'E05'];
     await this.employees.save(people.map(({ k, t, ...p }, i) => ({
-      id: id(k), workerId: `SMP-${String(i + 1).padStart(3, '0')}`, trade: t, tradeId: t ? trade.get(t) : undefined, jobTitle: p.designation,
+      id: id(k), workerId: `SMP-${String(i + 1).padStart(3, '0')}`, trade: t, tradeId: tradeOf(t), jobTitle: p.designation,
       fatherOrSpouseName: ['Abdul Qadir', 'Khalid Malik', 'Mehmood Ahmed', 'Ghulam Nabi', 'Nisar Ahmed'][i % 5],
       nationalId: cnic(i + 1), phone: `03${(i % 5) + 0}${i % 2}-${String(5550100 + i * 731).slice(0, 7)}`,
       email: staff.includes(k) ? `${p.name.split(' ')[0].toLowerCase()}@example.com` : undefined,
@@ -158,7 +158,7 @@ export class SampleDataService {
       const onP1 = ['E01', 'E03', 'E04', 'E06', 'E07', 'E08', 'E09', 'E10', 'E11', 'E13', 'E14', 'E15', 'E16'];
       const onP2 = p2 ? ['E05', 'E12'] : [];
       const assign = (k: string, projectId: number, extra: Partial<EmployeeAssignmentEntity> = {}) => ({
-        id: id(`AS${k}${projectId === p1 ? 1 : 2}`), employeeId: id(k), projectId, tradeId: trade.get(people.find((p) => p.k === k)!.t || ''),
+        id: id(`AS${k}${projectId === p1 ? 1 : 2}`), employeeId: id(k), projectId, tradeId: tradeOf(people.find((p) => p.k === k)!.t),
         designation: people.find((p) => p.k === k)!.designation, assignmentType: 'regular', startDate: d(-45), status: 'active', createdByName: by, createdAt: now, ...extra,
       });
       await this.assignments.save([
@@ -170,9 +170,9 @@ export class SampleDataService {
       await this.requests.save({
         id: id('WR1'), projectId: p2 || p1, workArea: 'Villas 1-8', requiredDate: d(7), durationDays: 30, status: 'submitted',
         lines: [
-          { id: 'L1', tradeId: trade.get('Mason') || '', designation: 'Mason', quantity: 4 },
-          { id: 'L2', tradeId: trade.get('Helper') || '', designation: 'Helper', quantity: 2 },
-          { id: 'L3', tradeId: trade.get('Painter') || '', designation: 'Painter', quantity: 2 },
+          { id: 'L1', tradeId: sub.get('C-29') || '', designation: 'Mason', quantity: 4 },
+          { id: 'L2', tradeId: sub.get('C-33') || '', designation: 'Painter', quantity: 2 },
+          { id: 'L3', tradeId: sub.get('C-54') || '', designation: 'Tile fixer', quantity: 2 },
         ],
         notes: 'Block masonry for boundary walls. ' + NOTE, requestedByName: 'Usman Ghani', submittedAt: now, createdAt: now,
       } as unknown as WorkforceRequestEntity);

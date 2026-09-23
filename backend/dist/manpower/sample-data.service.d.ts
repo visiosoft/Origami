@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { AccommodationIssueEntity, AccommodationUnitEntity, AssetEntity, AssetIssueEntity, BedAllocationEntity, ContractorEntity, CsiCodeEntity, DailyLogEntity, EmployeeAdvanceEntity, EmployeeAssignmentEntity, EmployeeEntity, EmployeeRecordEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity, OvertimeRequestEntity, PayrollRunEntity, PayslipEntity, ProjectEntity, ShiftAssignmentEntity, SubcontractorTradeEntity, TradeEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity } from '../database/entities';
+import { AccommodationIssueEntity, AccommodationUnitEntity, AssetEntity, AssetIssueEntity, BedAllocationEntity, ContractorEntity, CsiCodeEntity, DailyLogEntity, EmployeeAdvanceEntity, EmployeeAssignmentEntity, EmployeeEntity, EmployeeRecordEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity, OvertimeRequestEntity, PayrollRunEntity, PayslipEntity, ProjectEntity, ShiftAssignmentEntity, SubcontractorTradeEntity, TransportAssignmentEntity, TransportRouteEntity, WorkforceRequestEntity } from '../database/entities';
 import { ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 export declare const SAMPLE = "DEMO-";
@@ -7,7 +7,6 @@ export declare class SampleDataService {
     private readonly employees;
     private readonly contractors;
     private readonly subTrades;
-    private readonly trades;
     private readonly projects;
     private readonly csi;
     private readonly records;
@@ -31,7 +30,7 @@ export declare class SampleDataService {
     private readonly runs;
     private readonly setup;
     private readonly access;
-    constructor(employees: Repository<EmployeeEntity>, contractors: Repository<ContractorEntity>, subTrades: Repository<SubcontractorTradeEntity>, trades: Repository<TradeEntity>, projects: Repository<ProjectEntity>, csi: Repository<CsiCodeEntity>, records: Repository<EmployeeRecordEntity>, assignments: Repository<EmployeeAssignmentEntity>, requests: Repository<WorkforceRequestEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, leave: Repository<LeaveRequestEntity>, leaveAdj: Repository<LeaveAdjustmentEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, shifts: Repository<ShiftAssignmentEntity>, assets: Repository<AssetEntity>, assetIssues: Repository<AssetIssueEntity>, units: Repository<AccommodationUnitEntity>, beds: Repository<BedAllocationEntity>, complaints: Repository<AccommodationIssueEntity>, routes: Repository<TransportRouteEntity>, riders: Repository<TransportAssignmentEntity>, payslips: Repository<PayslipEntity>, runs: Repository<PayrollRunEntity>, setup: PayrollSetupService, access: ManpowerAccess);
+    constructor(employees: Repository<EmployeeEntity>, contractors: Repository<ContractorEntity>, subTrades: Repository<SubcontractorTradeEntity>, projects: Repository<ProjectEntity>, csi: Repository<CsiCodeEntity>, records: Repository<EmployeeRecordEntity>, assignments: Repository<EmployeeAssignmentEntity>, requests: Repository<WorkforceRequestEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, leave: Repository<LeaveRequestEntity>, leaveAdj: Repository<LeaveAdjustmentEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, shifts: Repository<ShiftAssignmentEntity>, assets: Repository<AssetEntity>, assetIssues: Repository<AssetIssueEntity>, units: Repository<AccommodationUnitEntity>, beds: Repository<BedAllocationEntity>, complaints: Repository<AccommodationIssueEntity>, routes: Repository<TransportRouteEntity>, riders: Repository<TransportAssignmentEntity>, payslips: Repository<PayslipEntity>, runs: Repository<PayrollRunEntity>, setup: PayrollSetupService, access: ManpowerAccess);
     status(): Promise<{
         loaded: boolean;
         employees: number;

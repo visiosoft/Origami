@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { EmployeeAssignmentEntity, EmployeeEntity, TradeEntity } from '../database/entities';
+import { EmployeeAssignmentEntity, EmployeeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 export declare function nextWorkerId(existing: (string | null | undefined)[]): string;
 export declare class EmployeesService {
@@ -7,7 +7,7 @@ export declare class EmployeesService {
     private readonly trades;
     private readonly attachments;
     private readonly assignments;
-    constructor(repo: Repository<EmployeeEntity>, trades: Repository<TradeEntity>, attachments: AttachmentsService, assignments: Repository<EmployeeAssignmentEntity>);
+    constructor(repo: Repository<EmployeeEntity>, trades: Repository<SubcontractorTradeEntity>, attachments: AttachmentsService, assignments: Repository<EmployeeAssignmentEntity>);
     findAll(): Promise<EmployeeEntity[]>;
     findOne(id: string): Promise<EmployeeEntity>;
     private withTradeName;

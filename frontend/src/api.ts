@@ -506,12 +506,6 @@ export const api = {
     load: () => request('/manpower/sample-data', { method: 'POST' }),
     remove: () => request('/manpower/sample-data', { method: 'DELETE' }),
   },
-  trades: {
-    list: () => request('/trades'),
-    create: (data: unknown) => request('/trades', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: unknown) => request(`/trades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    remove: (id: string) => request(`/trades/${id}`, { method: 'DELETE' }),
-  },
   assignments: {
     list: (opts?: { employeeId?: string; projectId?: number; status?: 'current' | 'ended'; workforceRequestId?: string }) => {
       const q = new URLSearchParams();

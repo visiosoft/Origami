@@ -22,8 +22,6 @@ const daily_logs_controller_1 = require("./daily-logs.controller");
 const daily_logs_service_1 = require("./daily-logs.service");
 const timesheets_controller_1 = require("./timesheets.controller");
 const timesheets_service_1 = require("./timesheets.service");
-const trades_controller_1 = require("./trades.controller");
-const trades_service_1 = require("./trades.service");
 const subcontractor_trades_controller_1 = require("./subcontractor-trades.controller");
 const subcontractor_trades_service_1 = require("./subcontractor-trades.service");
 const employee_records_controller_1 = require("./employee-records.controller");
@@ -73,13 +71,13 @@ exports.ManpowerModule = ManpowerModule = __decorate([
         ],
         controllers: [
             employees_controller_1.EmployeesController, csi_codes_controller_1.CsiCodesController, daily_logs_controller_1.DailyLogsController, timesheets_controller_1.TimesheetsController,
-            trades_controller_1.TradesController, subcontractor_trades_controller_1.SubcontractorTradesController, employee_records_controller_1.EmployeeRecordsController, assignments_controller_1.AssignmentsController, workforce_requests_controller_1.WorkforceRequestsController, contractors_controller_1.ContractorsController,
+            subcontractor_trades_controller_1.SubcontractorTradesController, employee_records_controller_1.EmployeeRecordsController, assignments_controller_1.AssignmentsController, workforce_requests_controller_1.WorkforceRequestsController, contractors_controller_1.ContractorsController,
             payroll_controller_1.PayrollController, overtime_controller_1.OvertimeController, advances_controller_1.AdvancesController,
             leave_controller_1.LeaveController, shifts_controller_1.ShiftsController, assets_controller_1.AssetsController, accommodation_controller_1.AccommodationController, transport_controller_1.TransportController, sample_data_controller_1.SampleDataController,
         ],
         providers: [
             manpower_access_service_1.ManpowerAccess, employees_service_1.EmployeesService, csi_codes_service_1.CsiCodesService, daily_logs_service_1.DailyLogsService, timesheets_service_1.TimesheetsService,
-            trades_service_1.TradesService, subcontractor_trades_service_1.SubcontractorTradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService,
+            subcontractor_trades_service_1.SubcontractorTradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService,
             payroll_setup_service_1.PayrollSetupService, payroll_service_1.PayrollService, overtime_service_1.OvertimeService, advances_service_1.AdvancesService,
             leave_service_1.LeaveService, shifts_service_1.ShiftsService, assets_service_1.AssetsService, accommodation_service_1.AccommodationService, transport_service_1.TransportService, sample_data_service_1.SampleDataService,
         ],

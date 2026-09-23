@@ -1,7 +1,7 @@
 import { Repository } from 'typeorm';
 import { EmployeesService, nextWorkerId } from './employees.service';
 import { expiryStatus } from './employee-records.service';
-import { EmployeeEntity, TradeEntity } from '../database/entities';
+import { EmployeeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { AttachmentsService } from '../google/attachments.service';
 
 function mockRepo<T extends object>() {
@@ -26,24 +26,24 @@ describe('nextWorkerId', () => {
 
 describe('EmployeesService', () => {
   let repo: jest.Mocked<Repository<EmployeeEntity>>;
-  let trades: jest.Mocked<Repository<TradeEntity>>;
+  let trades: jest.Mocked<Repository<SubcontractorTradeEntity>>;
   let service: EmployeesService;
 
   beforeEach(() => {
     repo = mockRepo<EmployeeEntity>();
-    trades = mockRepo<TradeEntity>();
+    trades = mockRepo<SubcontractorTradeEntity>();
     service = new EmployeesService(repo, trades, { discard: jest.fn() } as unknown as AttachmentsService, { count: jest.fn().mockResolvedValue(0) } as any);
   });
 
   it('creates an employee with the full master record and an auto worker id', async () => {
     repo.find.mockResolvedValue([{ workerId: 'W-0003' }] as EmployeeEntity[]);
-    trades.findOneBy.mockResolvedValue({ id: 'TRD-05', name: 'Welder' } as TradeEntity);
+    trades.findOneBy.mockResolvedValue({ id: 'SCT-C-60', code: 'C-60', name: 'Welding' } as SubcontractorTradeEntity);
     const emp: any = await service.create({
       name: 'Muhammad Ali', nationalId: '35202-1234567-1', employmentType: 'daily_wage',
-      tradeId: 'TRD-05', skillLevel: 'expert', yearsExperience: 8, department: 'Construction',
+      tradeId: 'SCT-C-60', skillLevel: 'expert', yearsExperience: 8, department: 'Construction',
     });
     expect(emp.workerId).toBe('W-0004');
-    expect(emp.trade).toBe('Welder');
+    expect(emp.trade).toBe('Welding');
     expect(emp.employmentStatus).toBe('active');
     expect(emp.nationalId).toBe('35202-1234567-1');
   });

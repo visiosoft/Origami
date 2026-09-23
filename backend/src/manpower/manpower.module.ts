@@ -20,8 +20,6 @@ import { DailyLogsController } from './daily-logs.controller';
 import { DailyLogsService } from './daily-logs.service';
 import { TimesheetsController } from './timesheets.controller';
 import { TimesheetsService } from './timesheets.service';
-import { TradesController } from './trades.controller';
-import { TradesService } from './trades.service';
 import { SubcontractorTradesController } from './subcontractor-trades.controller';
 import { SubcontractorTradesService } from './subcontractor-trades.service';
 import { EmployeeRecordsController } from './employee-records.controller';
@@ -68,13 +66,13 @@ import { SampleDataController } from './sample-data.controller';
   ],
   controllers: [
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
-    TradesController, SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
+    SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
     PayrollController, OvertimeController, AdvancesController,
     LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController,
   ],
   providers: [
     ManpowerAccess, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
-    TradesService, SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
+    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
     LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService,
   ],

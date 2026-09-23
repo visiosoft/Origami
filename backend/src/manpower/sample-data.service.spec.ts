@@ -1,6 +1,5 @@
 import { SampleDataService } from './sample-data.service';
 import { DEFAULT_SUBCONTRACTOR_TRADES } from '../seed-data/subcontractor-trades';
-import { DEFAULT_TRADES } from '../seed-data/trades';
 import { DEFAULT_PAYROLL_SETTINGS } from './payroll.calc';
 import type { Actor, ManpowerAccess } from './manpower-access.service';
 
@@ -30,7 +29,6 @@ describe('SampleDataService', () => {
       employees: table([{ id: 'E-REAL', name: 'Real Person', supervisorId: 'DEMO-E04' }]),
       contractors: table([{ id: 'CTR-REAL', companyName: 'Real Co' }]),
       subTrades: table(DEFAULT_SUBCONTRACTOR_TRADES.map((x) => ({ ...x }))),
-      trades: table(DEFAULT_TRADES.map((x) => ({ ...x }))),
       projects: table([{ id: 7, name: 'Tower', stage: 'Construction' }, { id: 8, name: 'Villas', stage: 'Construction' }]),
       csi: table([{ id: 'CSI-1', code: '03 00 00' }, { id: 'CSI-2', code: '04 00 00' }]),
       records: table(), assignments: table(), requests: table(), logs: table(),
@@ -40,7 +38,7 @@ describe('SampleDataService', () => {
       routes: table(), riders: table(), payslips: table(), runs: table(),
     };
     const svc = new (SampleDataService as any)(
-      t.employees, t.contractors, t.subTrades, t.trades, t.projects, t.csi, t.records, t.assignments, t.requests, t.logs, t.entries,
+      t.employees, t.contractors, t.subTrades, t.projects, t.csi, t.records, t.assignments, t.requests, t.logs, t.entries,
       t.leave, t.leaveAdj, t.overtime, t.advances, t.shifts, t.assets, t.assetIssues, t.units, t.beds, t.complaints, t.routes, t.riders,
       t.payslips, t.runs, { settings: async () => DEFAULT_PAYROLL_SETTINGS }, access,
     ) as SampleDataService;
@@ -53,7 +51,8 @@ describe('SampleDataService', () => {
     expect(r).toMatchObject({ loaded: true, employees: 17, contractors: 2, projectsUsed: 2 });
     await expect(svc.load(admin)).rejects.toThrow(/already loaded/);
     expect(t.contractors.rows.find((c: any) => c.id === 'DEMO-CTR1').tradeIds).toEqual(['SCT-C-10', 'SCT-C-7']);
-    expect(t.employees.rows.find((e: any) => e.id === 'DEMO-E06').tradeId).toBe('TRD-01'); // Mason
+    expect(t.employees.rows.find((e: any) => e.id === 'DEMO-E06').tradeId).toBe('SCT-C-29'); // Mason -> Masonry
+    expect(t.employees.rows.find((e: any) => e.id === 'DEMO-E12')).toMatchObject({ trade: 'Driver', tradeId: undefined }); // not a licensed trade
     expect(t.assets.rows.find((a: any) => a.id === 'DEMO-AS1').assetTag).toBe('AST-0004'); // after the real AST-0003
     expect(t.logs.rows.length).toBe(6);
     expect(t.assignments.rows.every((a: any) => [7, 8].includes(a.projectId))).toBe(true);

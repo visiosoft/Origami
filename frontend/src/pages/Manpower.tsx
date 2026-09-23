@@ -45,7 +45,7 @@ const TAB_GROUPS = [
   { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['shifts', 'Shifts'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
   { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
   { label: 'Employee Services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
-  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['sub_trades', 'Subcontractor Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup'], ['sample', 'Sample Data']] },
+  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['sub_trades', 'Subcontractor Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup'], ['sample', 'Sample Data']] },
 ] as const;
 type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
 const TAB_LABEL = Object.fromEntries(TAB_GROUPS.flatMap((g) => g.tabs.map(([k, l]) => [k, l]))) as Record<TabKey, string>;
@@ -147,7 +147,8 @@ export function Manpower() {
 
   const reloadEmployees = () => api.employees.list().then((r: any) => setEmployees(Array.isArray(r) ? r : [])).catch(() => {});
   const reloadCsiCodes = () => api.csiCodes.list().then((r: any) => setCsiCodes(Array.isArray(r) ? r : [])).catch(() => {});
-  const reloadTrades = () => api.trades.list().then((r: any) => setTrades(Array.isArray(r) ? r : [])).catch(() => {});
+  /** Workers are classified by the same trade list as subcontractor companies. */
+  const reloadTrades = () => api.subcontractorTrades.list().then((r: any) => setTrades((Array.isArray(r) ? r : []).map((t: any) => ({ id: t.id, name: `${t.code} ${t.name}`, active: t.active, order: t.order })))).catch(() => {});
 
   useEffect(() => {
     api.projects.list().then((r: any) => {
@@ -206,7 +207,6 @@ export function Manpower() {
       {tab === 'sub_trades' && <SubcontractorTradesSetup canManage={canManage} />}
       {tab === 'sample' && <SampleDataPanel canManage={canManage} onChanged={async () => { await Promise.all([reloadEmployees(), reloadAssignments(), reloadContractors()]); }} />}
       {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
-      {tab === 'trades' && <TradesTab trades={trades} reload={reloadTrades} canManage={canManage} toast={toast} />}
       {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}
       {tab === 'overtime' && <OvertimePanel employees={employees} projects={projects} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'advances' && <AdvancesPanel employees={employees} settings={payrollSettings} canManage={canManage} canFinance={canFinance} onOpenEmployee={openEmployee} />}
@@ -475,50 +475,6 @@ function CsiCodesTab({ csiCodes, reload, canManage, toast }: {
           <input value={draftCode} onChange={(e) => setDraftCode(e.target.value)} placeholder="e.g. 09 00 00" style={input} />
           <input value={draftDivision} onChange={(e) => setDraftDivision(e.target.value)} placeholder="e.g. Finishes" style={input} />
           <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', textAlign: 'center' }}>+ Add code</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// -------------------------------------------------------------- Trades
-
-function TradesTab({ trades, reload, canManage, toast }: {
-  trades: Trade[]; reload: () => void; canManage: boolean; toast: (m: string) => void;
-}) {
-  const [name, setName] = useState('');
-
-  const add = async () => {
-    if (!name.trim()) return;
-    try { await api.trades.create({ name: name.trim(), order: trades.length }); setName(''); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not add')); }
-  };
-  const update = async (t: Trade, patch: Partial<Trade>) => {
-    try { await api.trades.update(t.id, patch); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
-  };
-  const remove = async (id: string) => {
-    if (!confirm('Remove this trade? Employees already classified under it keep the name on their record.')) return;
-    try { await api.trades.remove(id); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove')); }
-  };
-
-  return (
-    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden', maxWidth: 560 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 30px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
-        <span>Trade</span><span>Active</span><span />
-      </div>
-      {trades.map((t) => (
-        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
-          <span style={{ fontSize: 12.5, color: INK, opacity: t.active ? 1 : 0.5 }}>{t.name}</span>
-          <input type="checkbox" disabled={!canManage} checked={t.active} onChange={(e) => update(t, { active: e.target.checked })} />
-          {canManage && <span onClick={() => remove(t.id)} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 13, textAlign: 'center' }}>×</span>}
-        </div>
-      ))}
-      {canManage && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 8, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.06)' }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} placeholder="e.g. Tile Setter" style={input} />
-          <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', textAlign: 'center' }}>+ Add trade</div>
         </div>
       )}
     </div>

@@ -88,18 +88,24 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
 export function SubcontractorTradesSetup({ canManage }: { canManage: boolean }) {
   const { toast } = useApp();
   const { trades, reload } = useSubcontractorTrades();
-  const [usage, setUsage] = useState<Map<string, number>>(new Map());
+  const [usage, setUsage] = useState<Map<string, { companies: number; workers: number }>>(new Map());
   const [category, setCategory] = useState('');
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState({ code: '', name: '', category: 'specialty' });
   useEffect(() => {
-    api.contractors.list().then((r: any) => {
-      const m = new Map<string, number>();
-      for (const c of Array.isArray(r) ? r : []) for (const id of c.tradeIds || []) m.set(id, (m.get(id) || 0) + 1);
+    Promise.all([api.contractors.list().catch(() => []), api.employees.list().catch(() => [])]).then(([cs, es]: any[]) => {
+      const m = new Map<string, { companies: number; workers: number }>();
+      const at = (id: string) => { if (!m.has(id)) m.set(id, { companies: 0, workers: 0 }); return m.get(id)!; };
+      for (const c of Array.isArray(cs) ? cs : []) for (const id of c.tradeIds || []) at(id).companies++;
+      for (const e of Array.isArray(es) ? es : []) if (e.tradeId) at(e.tradeId).workers++;
       setUsage(m);
-    }).catch(() => {});
+    });
   }, []);
+  const usedBy = (id: string) => {
+    const u = usage.get(id);
+    return u ? [u.companies && `${u.companies} co.`, u.workers && `${u.workers} worker${u.workers === 1 ? '' : 's'}`].filter(Boolean).join(' · ') : '';
+  };
 
   const run = async (fn: () => Promise<unknown>, msg?: string) => {
     try { await fn(); if (msg) toast(msg); } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
@@ -107,13 +113,14 @@ export function SubcontractorTradesSetup({ canManage }: { canManage: boolean }) 
   };
   const q = query.trim().toLowerCase();
   const shown = trades.filter((t) => (!category || t.category === category) && (!q || `${t.code} ${t.name} ${t.description || ''}`.toLowerCase().includes(q)));
-  const cols = '70px minmax(200px,1.5fr) 190px 110px 70px 26px';
+  const cols = '70px minmax(200px,1.5fr) 190px 150px 70px 26px';
 
   return (
     <div>
       <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 12, maxWidth: 760, lineHeight: 1.6 }}>
-        Licence classifications a subcontractor company can hold — A general engineering, B general building, C specialty trades and the C-61 / D limited specialties.
-        Tag each contractor with theirs on the Contractors screen. Workers' own trades (Mason, Welder…) are under Setup › Trades.
+        The one trade list for the whole module: licence classifications a subcontractor company holds — A general engineering, B general building,
+        C specialty trades and the C-61 / D limited specialties — and the trade each worker is classified under (a mason is C-29 Masonry, a welder C-60 Welding).
+        Roles that aren't a licensed trade, like driver or helper, go in the worker's designation.
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
         <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...input, width: 'auto' }}>
@@ -126,16 +133,16 @@ export function SubcontractorTradesSetup({ canManage }: { canManage: boolean }) 
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 720 }}>
-            <div style={headRow(cols)}><span>Code</span><span>Classification</span><span>Category</span><span>Contractors</span><span>Active</span><span /></div>
+            <div style={headRow(cols)}><span>Code</span><span>Classification</span><span>Category</span><span>Used by</span><span>Active</span><span /></div>
             {shown.map((t) => (
               <div key={t.id}>
                 <div onClick={() => setOpenId(openId === t.id ? null : t.id)} style={{ ...bodyRow(cols), cursor: 'pointer', opacity: t.active ? 1 : 0.55 }}>
                   <b style={{ fontSize: 12.5, color: ACCENT }}>{t.code}</b>
                   <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.name} <span style={{ fontSize: 11, color: MUTED, fontWeight: 400 }}>{openId === t.id ? '▴' : '▾'}</span></span>
                   <span style={{ fontSize: 12 }}>{catLabel(t.category)}</span>
-                  <span>{usage.get(t.id) ? <Badge tone="blue">{usage.get(t.id)}</Badge> : <span style={{ color: MUTED, fontSize: 12 }}>—</span>}</span>
+                  <span>{usedBy(t.id) ? <Badge tone="blue">{usedBy(t.id)}</Badge> : <span style={{ color: MUTED, fontSize: 12 }}>—</span>}</span>
                   <input type="checkbox" disabled={!canManage} checked={t.active} onClick={(e) => e.stopPropagation()} onChange={(e) => run(() => api.subcontractorTrades.update(t.id, { active: e.target.checked }))} />
-                  {canManage && !usage.get(t.id) ? <span onClick={(e) => { e.stopPropagation(); if (confirm(`Remove ${t.code} ${t.name}?`)) run(() => api.subcontractorTrades.remove(t.id), 'Removed'); }} style={{ cursor: 'pointer', color: DANGER }}>×</span> : <span />}
+                  {canManage && !usedBy(t.id) ? <span onClick={(e) => { e.stopPropagation(); if (confirm(`Remove ${t.code} ${t.name}?`)) run(() => api.subcontractorTrades.remove(t.id), 'Removed'); }} style={{ cursor: 'pointer', color: DANGER }}>×</span> : <span />}
                 </div>
                 {openId === t.id && (
                   <div style={{ padding: '4px 14px 14px 94px', background: '#FBF9F4', display: 'grid', gap: 8 }}>

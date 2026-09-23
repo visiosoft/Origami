@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, TradeEntity,
+  EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, SubcontractorTradeEntity,
   WorkforceRequestEntity, type WorkforceRequestLine,
 } from '../database/entities';
 import { AssignmentsService } from './assignments.service';
@@ -45,7 +45,7 @@ export class WorkforceRequestsService {
     @InjectRepository(EmployeeEntity) private readonly employees: Repository<EmployeeEntity>,
     @InjectRepository(EmployeeAssignmentEntity) private readonly assignmentsRepo: Repository<EmployeeAssignmentEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
-    @InjectRepository(TradeEntity) private readonly trades: Repository<TradeEntity>,
+    @InjectRepository(SubcontractorTradeEntity) private readonly trades: Repository<SubcontractorTradeEntity>,
     private readonly assignments: AssignmentsService,
   ) {}
 

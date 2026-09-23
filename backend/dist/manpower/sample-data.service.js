@@ -20,16 +20,16 @@ const entities_1 = require("../database/entities");
 const manpower_access_service_1 = require("./manpower-access.service");
 const payroll_setup_service_1 = require("./payroll-setup.service");
 const assets_service_1 = require("./assets.service");
+const subcontractor_trades_service_1 = require("./subcontractor-trades.service");
 const calendar_util_1 = require("./calendar.util");
 const workforce_util_1 = require("./workforce.util");
 exports.SAMPLE = 'DEMO-';
 const NOTE = 'Sample data for testing -- remove it from Setup › Sample Data.';
 let SampleDataService = class SampleDataService {
-    constructor(employees, contractors, subTrades, trades, projects, csi, records, assignments, requests, logs, entries, leave, leaveAdj, overtime, advances, shifts, assets, assetIssues, units, beds, complaints, routes, riders, payslips, runs, setup, access) {
+    constructor(employees, contractors, subTrades, projects, csi, records, assignments, requests, logs, entries, leave, leaveAdj, overtime, advances, shifts, assets, assetIssues, units, beds, complaints, routes, riders, payslips, runs, setup, access) {
         this.employees = employees;
         this.contractors = contractors;
         this.subTrades = subTrades;
-        this.trades = trades;
         this.projects = projects;
         this.csi = csi;
         this.records = records;
@@ -73,9 +73,9 @@ let SampleDataService = class SampleDataService {
         const allProjects = await this.projects.find();
         const live = allProjects.filter((p) => p.stage !== 'Kickoff');
         const [p1, p2] = (live.length ? live : allProjects).map((p) => p.id);
-        const trade = new Map((await this.trades.find()).map((t) => [t.name, t.id]));
         const csi = new Map((await this.csi.find()).map((c) => [c.code, c.id]));
         const sub = new Map((await this.subTrades.find()).map((t) => [t.code, t.id]));
+        const tradeOf = (workerTrade) => sub.get(subcontractor_trades_service_1.WORKER_TRADE_CODE[workerTrade || ''] || '');
         const { weekendDays } = await this.setup.settings();
         await this.contractors.save([
             {
@@ -117,7 +117,7 @@ let SampleDataService = class SampleDataService {
         const cnic = (i) => `35202-${String(4812000 + i * 1379).slice(0, 7)}-${i % 9 + 1}`;
         const staff = ['E01', 'E02', 'E03', 'E04', 'E05'];
         await this.employees.save(people.map(({ k, t, ...p }, i) => ({
-            id: id(k), workerId: `SMP-${String(i + 1).padStart(3, '0')}`, trade: t, tradeId: t ? trade.get(t) : undefined, jobTitle: p.designation,
+            id: id(k), workerId: `SMP-${String(i + 1).padStart(3, '0')}`, trade: t, tradeId: tradeOf(t), jobTitle: p.designation,
             fatherOrSpouseName: ['Abdul Qadir', 'Khalid Malik', 'Mehmood Ahmed', 'Ghulam Nabi', 'Nisar Ahmed'][i % 5],
             nationalId: cnic(i + 1), phone: `03${(i % 5) + 0}${i % 2}-${String(5550100 + i * 731).slice(0, 7)}`,
             email: staff.includes(k) ? `${p.name.split(' ')[0].toLowerCase()}@example.com` : undefined,
@@ -145,7 +145,7 @@ let SampleDataService = class SampleDataService {
             const onP1 = ['E01', 'E03', 'E04', 'E06', 'E07', 'E08', 'E09', 'E10', 'E11', 'E13', 'E14', 'E15', 'E16'];
             const onP2 = p2 ? ['E05', 'E12'] : [];
             const assign = (k, projectId, extra = {}) => ({
-                id: id(`AS${k}${projectId === p1 ? 1 : 2}`), employeeId: id(k), projectId, tradeId: trade.get(people.find((p) => p.k === k).t || ''),
+                id: id(`AS${k}${projectId === p1 ? 1 : 2}`), employeeId: id(k), projectId, tradeId: tradeOf(people.find((p) => p.k === k).t),
                 designation: people.find((p) => p.k === k).designation, assignmentType: 'regular', startDate: d(-45), status: 'active', createdByName: by, createdAt: now, ...extra,
             });
             await this.assignments.save([
@@ -156,9 +156,9 @@ let SampleDataService = class SampleDataService {
             await this.requests.save({
                 id: id('WR1'), projectId: p2 || p1, workArea: 'Villas 1-8', requiredDate: d(7), durationDays: 30, status: 'submitted',
                 lines: [
-                    { id: 'L1', tradeId: trade.get('Mason') || '', designation: 'Mason', quantity: 4 },
-                    { id: 'L2', tradeId: trade.get('Helper') || '', designation: 'Helper', quantity: 2 },
-                    { id: 'L3', tradeId: trade.get('Painter') || '', designation: 'Painter', quantity: 2 },
+                    { id: 'L1', tradeId: sub.get('C-29') || '', designation: 'Mason', quantity: 4 },
+                    { id: 'L2', tradeId: sub.get('C-33') || '', designation: 'Painter', quantity: 2 },
+                    { id: 'L3', tradeId: sub.get('C-54') || '', designation: 'Tile fixer', quantity: 2 },
                 ],
                 notes: 'Block masonry for boundary walls. ' + NOTE, requestedByName: 'Usman Ghani', submittedAt: now, createdAt: now,
             });
@@ -307,30 +307,28 @@ exports.SampleDataService = SampleDataService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.ContractorEntity)),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.SubcontractorTradeEntity)),
-    __param(3, (0, typeorm_1.InjectRepository)(entities_1.TradeEntity)),
-    __param(4, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
-    __param(5, (0, typeorm_1.InjectRepository)(entities_1.CsiCodeEntity)),
-    __param(6, (0, typeorm_1.InjectRepository)(entities_1.EmployeeRecordEntity)),
-    __param(7, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAssignmentEntity)),
-    __param(8, (0, typeorm_1.InjectRepository)(entities_1.WorkforceRequestEntity)),
-    __param(9, (0, typeorm_1.InjectRepository)(entities_1.DailyLogEntity)),
-    __param(10, (0, typeorm_1.InjectRepository)(entities_1.LaborLogEntryEntity)),
-    __param(11, (0, typeorm_1.InjectRepository)(entities_1.LeaveRequestEntity)),
-    __param(12, (0, typeorm_1.InjectRepository)(entities_1.LeaveAdjustmentEntity)),
-    __param(13, (0, typeorm_1.InjectRepository)(entities_1.OvertimeRequestEntity)),
-    __param(14, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAdvanceEntity)),
-    __param(15, (0, typeorm_1.InjectRepository)(entities_1.ShiftAssignmentEntity)),
-    __param(16, (0, typeorm_1.InjectRepository)(entities_1.AssetEntity)),
-    __param(17, (0, typeorm_1.InjectRepository)(entities_1.AssetIssueEntity)),
-    __param(18, (0, typeorm_1.InjectRepository)(entities_1.AccommodationUnitEntity)),
-    __param(19, (0, typeorm_1.InjectRepository)(entities_1.BedAllocationEntity)),
-    __param(20, (0, typeorm_1.InjectRepository)(entities_1.AccommodationIssueEntity)),
-    __param(21, (0, typeorm_1.InjectRepository)(entities_1.TransportRouteEntity)),
-    __param(22, (0, typeorm_1.InjectRepository)(entities_1.TransportAssignmentEntity)),
-    __param(23, (0, typeorm_1.InjectRepository)(entities_1.PayslipEntity)),
-    __param(24, (0, typeorm_1.InjectRepository)(entities_1.PayrollRunEntity)),
+    __param(3, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __param(4, (0, typeorm_1.InjectRepository)(entities_1.CsiCodeEntity)),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.EmployeeRecordEntity)),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAssignmentEntity)),
+    __param(7, (0, typeorm_1.InjectRepository)(entities_1.WorkforceRequestEntity)),
+    __param(8, (0, typeorm_1.InjectRepository)(entities_1.DailyLogEntity)),
+    __param(9, (0, typeorm_1.InjectRepository)(entities_1.LaborLogEntryEntity)),
+    __param(10, (0, typeorm_1.InjectRepository)(entities_1.LeaveRequestEntity)),
+    __param(11, (0, typeorm_1.InjectRepository)(entities_1.LeaveAdjustmentEntity)),
+    __param(12, (0, typeorm_1.InjectRepository)(entities_1.OvertimeRequestEntity)),
+    __param(13, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAdvanceEntity)),
+    __param(14, (0, typeorm_1.InjectRepository)(entities_1.ShiftAssignmentEntity)),
+    __param(15, (0, typeorm_1.InjectRepository)(entities_1.AssetEntity)),
+    __param(16, (0, typeorm_1.InjectRepository)(entities_1.AssetIssueEntity)),
+    __param(17, (0, typeorm_1.InjectRepository)(entities_1.AccommodationUnitEntity)),
+    __param(18, (0, typeorm_1.InjectRepository)(entities_1.BedAllocationEntity)),
+    __param(19, (0, typeorm_1.InjectRepository)(entities_1.AccommodationIssueEntity)),
+    __param(20, (0, typeorm_1.InjectRepository)(entities_1.TransportRouteEntity)),
+    __param(21, (0, typeorm_1.InjectRepository)(entities_1.TransportAssignmentEntity)),
+    __param(22, (0, typeorm_1.InjectRepository)(entities_1.PayslipEntity)),
+    __param(23, (0, typeorm_1.InjectRepository)(entities_1.PayrollRunEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

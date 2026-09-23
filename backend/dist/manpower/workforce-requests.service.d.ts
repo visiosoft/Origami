@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, TradeEntity, WorkforceRequestEntity, type WorkforceRequestLine } from '../database/entities';
+import { EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, SubcontractorTradeEntity, WorkforceRequestEntity, type WorkforceRequestLine } from '../database/entities';
 import { AssignmentsService } from './assignments.service';
 import type { ManpowerActor } from './daily-logs.service';
 export interface LineSummary extends WorkforceRequestLine {
@@ -16,7 +16,7 @@ export declare class WorkforceRequestsService {
     private readonly projects;
     private readonly trades;
     private readonly assignments;
-    constructor(repo: Repository<WorkforceRequestEntity>, employees: Repository<EmployeeEntity>, assignmentsRepo: Repository<EmployeeAssignmentEntity>, projects: Repository<ProjectEntity>, trades: Repository<TradeEntity>, assignments: AssignmentsService);
+    constructor(repo: Repository<WorkforceRequestEntity>, employees: Repository<EmployeeEntity>, assignmentsRepo: Repository<EmployeeAssignmentEntity>, projects: Repository<ProjectEntity>, trades: Repository<SubcontractorTradeEntity>, assignments: AssignmentsService);
     private context;
     private withSummary;
     findAll(opts: {

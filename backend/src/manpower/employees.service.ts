@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EmployeeAssignmentEntity, EmployeeEntity, TradeEntity } from '../database/entities';
+import { EmployeeAssignmentEntity, EmployeeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 
 /** Next free "W-0001"-style worker number, never reusing one a deleted employee held. */
@@ -17,7 +17,7 @@ export function nextWorkerId(existing: (string | null | undefined)[]): string {
 export class EmployeesService {
   constructor(
     @InjectRepository(EmployeeEntity) private readonly repo: Repository<EmployeeEntity>,
-    @InjectRepository(TradeEntity) private readonly trades: Repository<TradeEntity>,
+    @InjectRepository(SubcontractorTradeEntity) private readonly trades: Repository<SubcontractorTradeEntity>,
     private readonly attachments: AttachmentsService,
     @InjectRepository(EmployeeAssignmentEntity) private readonly assignments: Repository<EmployeeAssignmentEntity>,
   ) {}
