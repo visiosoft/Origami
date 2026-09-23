@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { EmployeeDirectory, type Employee, type Trade } from '../components/EmployeeDirectory';
@@ -43,10 +43,65 @@ const TAB_GROUPS = [
   { label: 'People', tabs: [['employees', 'Employees'], ['contractors', 'Contractors']] },
   { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['shifts', 'Shifts'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
   { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
-  { label: 'Employee services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
+  { label: 'Employee Services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
   { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup']] },
 ] as const;
 type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
+const TAB_LABEL = Object.fromEntries(TAB_GROUPS.flatMap((g) => g.tabs.map(([k, l]) => [k, l]))) as Record<TabKey, string>;
+
+/** One pill per group; the group holding the open screen shows it and is filled. Its screens open from a dropdown. */
+function GroupMenu({ label, tabs, current, onPick }: {
+  label: string; tabs: readonly (readonly [TabKey, string])[]; current: TabKey; onPick: (key: TabKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const active = tabs.find(([k]) => k === current);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, cursor: 'pointer',
+          fontSize: 14, whiteSpace: 'nowrap', userSelect: 'none',
+          background: active ? ACCENT : '#fff', color: active ? '#fff' : INK,
+          border: '1px solid ' + (active ? ACCENT : 'rgba(20,8,31,.12)'),
+          boxShadow: active ? 'none' : '0 1px 2px rgba(20,8,31,.04)',
+        }}
+      >
+        {active ? <><span style={{ color: 'rgba(255,255,255,.62)', fontWeight: 500 }}>{label}</span><span style={{ fontWeight: 700 }}>{active[1]}</span></>
+          : <span style={{ fontWeight: 600 }}>{label}</span>}
+        <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.8, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', top: 44, left: 0, zIndex: 50, minWidth: 210, background: '#fff', borderRadius: 12, border: '1px solid rgba(20,8,31,.1)', boxShadow: '0 12px 32px rgba(20,8,31,.14)', padding: 6 }}>
+          {tabs.map(([key, name]) => (
+            <div
+              key={key}
+              onClick={() => { onPick(key); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13.5,
+                fontWeight: key === current ? 700 : 500, color: key === current ? ACCENT : INK, background: key === current ? '#EEF3EE' : undefined,
+              }}
+              onMouseEnter={(e) => { if (key !== current) e.currentTarget.style.background = '#F7F3EA'; }}
+              onMouseLeave={(e) => { if (key !== current) e.currentTarget.style.background = ''; }}
+            >
+              <span style={{ flex: 1 }}>{name}</span>
+              {key === current && <span style={{ fontSize: 12 }}>✓</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Who can still be logged against -- people who have left stay on record but out of the pickers. */
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
@@ -113,26 +168,13 @@ export function Manpower() {
       <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>Manpower & Resources</h1>
       <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>Employees and contractor workers, project deployment, workforce requests, daily labor logs by cost code, timesheets and leave.</p>
 
-      <div style={{ display: 'flex', gap: 22, marginTop: 18, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 18, marginBottom: 22, flexWrap: 'wrap' }}>
         {TAB_GROUPS.map((g) => (
-          <div key={g.label}>
-            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#9AA39D', marginBottom: 6 }}>{g.label}</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {g.tabs.map(([key, label]) => (
-                <div
-                  key={key}
-                  onClick={() => { setTab(key); if (key === 'employees') setOpenEmployeeId(null); }}
-                  style={{
-                    padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                    background: tab === key ? ACCENT : '#fff', color: tab === key ? '#fff' : '#43514D',
-                    border: '1px solid ' + (tab === key ? ACCENT : 'rgba(20,8,31,.14)'),
-                  }}
-                >{label}</div>
-              ))}
-            </div>
-          </div>
+          <GroupMenu key={g.label} label={g.label} tabs={g.tabs} current={tab}
+            onPick={(key) => { setTab(key); if (key === 'employees') setOpenEmployeeId(null); }} />
         ))}
       </div>
+      <h2 style={{ fontFamily: BG, fontWeight: 700, fontSize: 19, color: INK, margin: '0 0 16px' }}>{TAB_LABEL[tab]}</h2>
 
       {tab === 'employees' && (
         <EmployeeDirectory employees={employees} trades={trades} projects={projects} assignments={assignments} contractors={contractors}
