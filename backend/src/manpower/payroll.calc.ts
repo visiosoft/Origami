@@ -81,6 +81,12 @@ export interface CalcInput {
   overtime: { id: string; hours: number; amount: number }[];
   recoveries: DueRecovery[];
   manualLines: PayLine[];
+  /** Approved leave inside the period, in working days. */
+  leave?: { paidDays: number; unpaidDays: number };
+  /** Days worked on each shift that carries an allowance. */
+  shiftAllowances?: { templateId: string; name: string; days: number; rate: number }[];
+  /** Leave days cashed out and not yet paid. */
+  encashments?: { id: string; days: number; amount: number }[];
 }
 
 export interface CalcResult {
@@ -127,7 +133,16 @@ export function calculatePayslip(i: CalcInput): CalcResult {
     if (loose) earnings.push({ id: id(), name: `Short days — ${i.work.extraHours} h × ${round2(hourly)}`, kind: 'earning', source: 'wages', amount: loose });
     basic = round2(full + half + loose);
   }
+  // Wage workers aren't paid for days they don't work -- except approved paid leave.
+  const paidLeave = i.leave?.paidDays || 0;
+  if (group === 'daily' && paidLeave > 0) {
+    const perDay = e.payType === 'hourly' ? rate * s.standardDayHours : rate;
+    const amount = round2(paidLeave * perDay);
+    earnings.push({ id: id(), name: `Paid leave — ${paidLeave} day${paidLeave === 1 ? '' : 's'} × ${round2(perDay)}`, kind: 'earning', source: 'leave', amount });
+    basic = round2(basic + amount);
+  }
   basis.basic = basic;
+  if (i.leave) Object.assign(basis, { paidLeaveDays: i.leave.paidDays, unpaidLeaveDays: i.leave.unpaidDays });
 
   // --- overtime (already priced when it was approved)
   if (i.overtime.length) {
@@ -135,6 +150,17 @@ export function calculatePayslip(i: CalcInput): CalcResult {
     const amount = round2(i.overtime.reduce((a, o) => a + (o.amount || 0), 0));
     basis.otHours = hours;
     earnings.push({ id: id(), name: `Overtime — ${hours} h approved`, kind: 'earning', source: 'overtime', amount, refIds: i.overtime.map((o) => o.id) });
+  }
+
+  // --- shift / night allowances, and cashed-out leave
+  for (const sh of i.shiftAllowances || []) {
+    const amount = round2(sh.days * sh.rate);
+    if (amount) earnings.push({ id: id(), name: `${sh.name} allowance — ${sh.days} day${sh.days === 1 ? '' : 's'} × ${sh.rate}`, kind: 'earning', source: 'shift', amount });
+  }
+  if (i.encashments?.length) {
+    const days = round2(i.encashments.reduce((a, x) => a + x.days, 0));
+    const amount = round2(i.encashments.reduce((a, x) => a + x.amount, 0));
+    earnings.push({ id: id(), name: `Leave encashment — ${days} day${days === 1 ? '' : 's'}`, kind: 'earning', source: 'encashment', amount, refIds: i.encashments.map((x) => x.id) });
   }
 
   // --- configurable components
@@ -153,6 +179,13 @@ export function calculatePayslip(i: CalcInput): CalcResult {
   for (const m of i.manualLines.filter((l) => l.kind === 'earning')) earnings.push({ ...m, source: 'manual' });
 
   const gross = round2(earnings.reduce((a, l) => a + l.amount, 0));
+
+  const unpaid = i.leave?.unpaidDays || 0;
+  if (group === 'monthly' && unpaid > 0) {
+    const perDay = rate / s.monthDays;
+    const amount = round2(Math.min(unpaid * perDay, basic));
+    if (amount) deductions.push({ id: id(), name: `Unpaid leave — ${unpaid} day${unpaid === 1 ? '' : 's'} × ${round2(perDay)}`, kind: 'deduction', source: 'leave', amount });
+  }
 
   for (const c of applicable.filter((x) => x.kind === 'deduction')) {
     const base = c.calcType === 'percent_gross' ? gross : basic;

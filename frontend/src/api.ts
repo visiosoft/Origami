@@ -101,6 +101,8 @@ export const attachmentUrl = (
   thumb = false,
 ) => `${API_BASE}/${scope}/${encodeURIComponent(taskId)}/attachments/${encodeURIComponent(attId)}/content${thumb ? '?thumb=1' : ''}`;
 
+const qs = (o?: Record<string, unknown>) => { const q = new URLSearchParams(); Object.entries(o || {}).forEach(([k, v]) => { if (v != null && v !== '') q.set(k, String(v)); }); const t = q.toString(); return t ? `?${t}` : ''; };
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -585,6 +587,68 @@ export const api = {
     disburse: (id: string, data: { date?: string; method?: string; ref?: string }) => request(`/advances/${id}/disburse`, { method: 'POST', body: JSON.stringify(data) }),
     repay: (id: string, data: { amount: number; date?: string; note?: string }) => request(`/advances/${id}/repay`, { method: 'POST', body: JSON.stringify(data) }),
   },
+  leave: {
+    types: () => request('/leave/types'),
+    createType: (d: unknown) => request('/leave/types', { method: 'POST', body: JSON.stringify(d) }),
+    updateType: (id: string, d: unknown) => request(`/leave/types/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeType: (id: string) => request(`/leave/types/${id}`, { method: 'DELETE' }),
+    holidays: (year?: number) => request(`/leave/holidays${year ? `?year=${year}` : ''}`),
+    addHoliday: (d: { date: string; name: string }) => request('/leave/holidays', { method: 'POST', body: JSON.stringify(d) }),
+    removeHoliday: (id: string) => request(`/leave/holidays/${id}`, { method: 'DELETE' }),
+    requests: (o?: { employeeId?: string; status?: string; from?: string; to?: string }) => request(`/leave/requests${qs(o)}`),
+    preview: (d: unknown) => request('/leave/requests/preview', { method: 'POST', body: JSON.stringify(d) }),
+    create: (d: unknown) => request('/leave/requests', { method: 'POST', body: JSON.stringify(d) }),
+    approve: (id: string, note?: string) => request(`/leave/requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reject: (id: string, note?: string) => request(`/leave/requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    cancel: (id: string) => request(`/leave/requests/${id}/cancel`, { method: 'POST' }),
+    balances: (year: number, employeeId?: string) => request(`/leave/balances${qs({ year, employeeId })}`),
+    adjustments: (employeeId: string) => request(`/leave/adjustments?employeeId=${encodeURIComponent(employeeId)}`),
+    adjust: (d: unknown) => request('/leave/adjustments', { method: 'POST', body: JSON.stringify(d) }),
+    encash: (d: unknown) => request('/leave/encash', { method: 'POST', body: JSON.stringify(d) }),
+    carryForward: (fromYear: number) => request('/leave/carry-forward', { method: 'POST', body: JSON.stringify({ fromYear }) }),
+    calendar: (from: string, to: string) => request(`/leave/calendar?from=${from}&to=${to}`),
+  },
+  shifts: {
+    templates: () => request('/shifts/templates'),
+    createTemplate: (d: unknown) => request('/shifts/templates', { method: 'POST', body: JSON.stringify(d) }),
+    updateTemplate: (id: string, d: unknown) => request(`/shifts/templates/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeTemplate: (id: string) => request(`/shifts/templates/${id}`, { method: 'DELETE' }),
+    assignments: (o?: { employeeId?: string; from?: string; to?: string }) => request(`/shifts/assignments${qs(o)}`),
+    assign: (d: unknown) => request('/shifts/assignments', { method: 'POST', body: JSON.stringify(d) }),
+    end: (id: string, endDate?: string) => request(`/shifts/assignments/${id}/end`, { method: 'POST', body: JSON.stringify({ endDate }) }),
+    remove: (id: string) => request(`/shifts/assignments/${id}`, { method: 'DELETE' }),
+  },
+  assets: {
+    list: () => request('/assets'),
+    forEmployee: (employeeId: string) => request(`/assets/employee/${encodeURIComponent(employeeId)}`),
+    history: (id: string) => request(`/assets/${id}/history`),
+    create: (d: unknown) => request('/assets', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: unknown) => request(`/assets/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    setStatus: (id: string, status: string) => request(`/assets/${id}/status`, { method: 'POST', body: JSON.stringify({ status }) }),
+    issue: (id: string, d: unknown) => request(`/assets/${id}/issue`, { method: 'POST', body: JSON.stringify(d) }),
+    returnIssue: (issueId: string, d: unknown) => request(`/assets/issues/${issueId}/return`, { method: 'POST', body: JSON.stringify(d) }),
+    reportLost: (issueId: string, d: unknown) => request(`/assets/issues/${issueId}/lost`, { method: 'POST', body: JSON.stringify(d) }),
+  },
+  accommodation: {
+    overview: () => request('/accommodation'),
+    forEmployee: (employeeId: string) => request(`/accommodation/employee/${encodeURIComponent(employeeId)}`),
+    createUnit: (d: unknown) => request('/accommodation/units', { method: 'POST', body: JSON.stringify(d) }),
+    updateUnit: (id: string, d: unknown) => request(`/accommodation/units/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeUnit: (id: string) => request(`/accommodation/units/${id}`, { method: 'DELETE' }),
+    allocate: (d: unknown) => request('/accommodation/allocations', { method: 'POST', body: JSON.stringify(d) }),
+    checkout: (id: string, date?: string) => request(`/accommodation/allocations/${id}/checkout`, { method: 'POST', body: JSON.stringify({ date }) }),
+    reportIssue: (d: unknown) => request('/accommodation/issues', { method: 'POST', body: JSON.stringify(d) }),
+    updateIssue: (id: string, d: unknown) => request(`/accommodation/issues/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+  },
+  transport: {
+    routes: () => request('/transport/routes'),
+    forEmployee: (employeeId: string) => request(`/transport/employee/${encodeURIComponent(employeeId)}`),
+    create: (d: unknown) => request('/transport/routes', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: unknown) => request(`/transport/routes/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/transport/routes/${id}`, { method: 'DELETE' }),
+    addRider: (routeId: string, d: unknown) => request(`/transport/routes/${routeId}/riders`, { method: 'POST', body: JSON.stringify(d) }),
+    endRider: (id: string, date?: string) => request(`/transport/riders/${id}/end`, { method: 'POST', body: JSON.stringify({ date }) }),
+  },
   employeeRecords: {
     list: (employeeId: string, kind?: string) =>
       request(`/employee-records?employeeId=${encodeURIComponent(employeeId)}${kind ? `&kind=${kind}` : ''}`),
@@ -619,19 +683,6 @@ export const api = {
   timesheets: {
     forEmployee: (employeeId: string, from: string, to: string) =>
       request(`/timesheets?employeeId=${encodeURIComponent(employeeId)}&from=${from}&to=${to}`),
-  },
-  leaveRequests: {
-    list: (opts?: { employeeId?: string; status?: string }) => {
-      const q = new URLSearchParams();
-      if (opts?.employeeId) q.set('employeeId', opts.employeeId);
-      if (opts?.status) q.set('status', opts.status);
-      const qs = q.toString();
-      return request(`/leave-requests${qs ? `?${qs}` : ''}`);
-    },
-    create: (data: unknown) => request('/leave-requests', { method: 'POST', body: JSON.stringify(data) }),
-    approve: (id: string, note?: string) => request(`/leave-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
-    deny: (id: string, note?: string) => request(`/leave-requests/${id}/deny`, { method: 'POST', body: JSON.stringify({ note }) }),
-    remove: (id: string) => request(`/leave-requests/${id}`, { method: 'DELETE' }),
   },
 };
 

@@ -125,3 +125,33 @@ describe('calculatePayslip', () => {
     expect(r.net).toBe(68500);
   });
 });
+
+describe('leave, shifts and encashment in pay', () => {
+  it('deducts unpaid leave from a monthly salary at salary / month days', () => {
+    const r = calculatePayslip(base({ leave: { paidDays: 2, unpaidDays: 3 } }));
+    expect(line(r, /Unpaid leave/)!.amount).toBe(6000); // 60,000 / 30 x 3
+    expect(r.net).toBe(54000);
+    expect(r.basis.paidLeaveDays).toBe(2);
+  });
+
+  it('pays a daily-wage worker for approved paid leave, but not unpaid leave', () => {
+    const r = calculatePayslip(base({
+      employee: { payType: 'daily', payRate: 2000, payComponents: [] } as any,
+      work: { fullDays: 20, halfDays: 0, extraHours: 0, hoursWorked: 160, manual: false },
+      leave: { paidDays: 2, unpaidDays: 4 },
+    }));
+    expect(line(r, /Paid leave/)!.amount).toBe(4000);
+    expect(line(r, /Unpaid leave/)).toBeUndefined();
+    expect(r.gross).toBe(44000);
+  });
+
+  it('adds shift allowances per day worked and cashed-out leave', () => {
+    const r = calculatePayslip(base({
+      shiftAllowances: [{ templateId: 'SH-NIGHT', name: 'Night shift', days: 10, rate: 500 }],
+      encashments: [{ id: 'LA1', days: 3, amount: 6000 }],
+    }));
+    expect(line(r, /Night shift allowance/)!.amount).toBe(5000);
+    expect(line(r, /Leave encashment/)).toMatchObject({ amount: 6000, refIds: ['LA1'] });
+    expect(r.gross).toBe(71000);
+  });
+});

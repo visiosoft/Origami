@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const calendar_util_1 = require("./calendar.util");
 const manpower_access_service_1 = require("./manpower-access.service");
 const payroll_setup_service_1 = require("./payroll-setup.service");
 const payroll_calc_1 = require("./payroll.calc");
@@ -32,7 +33,7 @@ const snapshot = (e) => ({
     hireDate: e.hireDate, bankName: e.bankName, bankAccount: e.bankAccount, taxNumber: e.taxNumber, payComponents: e.payComponents || [],
 });
 let PayrollService = class PayrollService {
-    constructor(runs, slips, employees, logs, entries, overtime, advances, components, setup, access) {
+    constructor(runs, slips, employees, logs, entries, overtime, advances, components, setup, access, leaveRequests, leaveTypes, leaveAdjustments, holidays, shiftAssignments, shiftTemplates) {
         this.runs = runs;
         this.slips = slips;
         this.employees = employees;
@@ -43,6 +44,12 @@ let PayrollService = class PayrollService {
         this.components = components;
         this.setup = setup;
         this.access = access;
+        this.leaveRequests = leaveRequests;
+        this.leaveTypes = leaveTypes;
+        this.leaveAdjustments = leaveAdjustments;
+        this.holidays = holidays;
+        this.shiftAssignments = shiftAssignments;
+        this.shiftTemplates = shiftTemplates;
     }
     listRuns() {
         return this.runs.find({ order: { periodStart: 'DESC' } });
@@ -70,7 +77,8 @@ let PayrollService = class PayrollService {
             throw new common_1.NotFoundException('Payroll run not found');
         return run;
     }
-    async sources(employeeIds, periodStart, periodEnd) {
+    async sources(people, periodStart, periodEnd) {
+        const employeeIds = people.map((e) => e.id);
         const dayHours = new Map();
         const logs = await this.logs.createQueryBuilder('l')
             .where('l.status = :st', { st: 'approved' })
@@ -111,7 +119,58 @@ let PayrollService = class PayrollService {
                     id: a.id, type: a.type, label: payroll_calc_1.ADVANCE_LABEL[a.type] || 'Advance', remaining: (0, advances_service_1.remainingOf)(a), installmentAmount: a.installmentAmount,
                 }]);
         }
-        return { dayHours, overtime, recoveries };
+        const s = await this.setup.settings();
+        const hol = new Set((await this.holidays.find()).map((h) => h.date));
+        const paidType = new Map((await this.leaveTypes.find()).map((t) => [t.id, t.paid]));
+        const leave = new Map();
+        const leaveDates = new Map();
+        for (const r of await this.leaveRequests.find({ where: { status: 'approved' } })) {
+            if (!wanted.has(r.employeeId))
+                continue;
+            const span = (0, calendar_util_1.overlap)(r.startDate, r.endDate, periodStart, periodEnd);
+            if (!span)
+                continue;
+            const dates = (0, calendar_util_1.workingDays)(span[0], span[1], s.weekendDays, hol);
+            const n = r.halfDay ? Math.min(dates.length, 0.5) : dates.length;
+            const cur = leave.get(r.employeeId) || { paidDays: 0, unpaidDays: 0 };
+            if (paidType.get(r.leaveTypeId) === false)
+                cur.unpaidDays = (0, payroll_calc_1.round2)(cur.unpaidDays + n);
+            else
+                cur.paidDays = (0, payroll_calc_1.round2)(cur.paidDays + n);
+            leave.set(r.employeeId, cur);
+            if (!r.halfDay) {
+                const set = leaveDates.get(r.employeeId) || new Set();
+                dates.forEach((d) => set.add(d));
+                leaveDates.set(r.employeeId, set);
+            }
+        }
+        const templates = new Map((await this.shiftTemplates.find()).map((t) => [t.id, t]));
+        const assigns = (await this.shiftAssignments.find()).filter((a) => wanted.has(a.employeeId) && a.startDate <= periodEnd && (!a.endDate || a.endDate >= periodStart));
+        const shiftAllowances = new Map();
+        for (const e of people) {
+            const mine = assigns.filter((a) => a.employeeId === e.id);
+            if (!mine.length)
+                continue;
+            const worked = (0, payroll_calc_1.payGroupOf)(e) === 'daily'
+                ? Object.entries(dayHours.get(e.id) || {}).filter(([, h]) => h > 0).map(([d]) => d)
+                : (0, calendar_util_1.workingDays)(e.hireDate && e.hireDate > periodStart ? e.hireDate : periodStart, periodEnd, s.weekendDays, hol).filter((d) => !leaveDates.get(e.id)?.has(d));
+            const tally = new Map();
+            for (const d of worked) {
+                const tid = mine.map((a) => (0, calendar_util_1.shiftOn)(a, d)).find(Boolean);
+                const t = tid ? templates.get(tid) : undefined;
+                if (t && (t.allowancePerDay || 0) > 0)
+                    tally.set(t.id, (tally.get(t.id) || 0) + 1);
+            }
+            if (tally.size)
+                shiftAllowances.set(e.id, Array.from(tally.entries()).map(([tid, days]) => ({ templateId: tid, name: templates.get(tid).name, days, rate: templates.get(tid).allowancePerDay })));
+        }
+        const encashments = new Map();
+        for (const a of await this.leaveAdjustments.find({ where: { kind: 'encashment' } })) {
+            if (!wanted.has(a.employeeId) || a.payrollRunId || !(a.amount > 0) || a.createdAt.slice(0, 10) > periodEnd)
+                continue;
+            encashments.set(a.employeeId, [...(encashments.get(a.employeeId) || []), { id: a.id, days: (0, payroll_calc_1.round2)(-a.days), amount: a.amount }]);
+        }
+        return { dayHours, overtime, recoveries, leave, shiftAllowances, encashments };
     }
     compute(e, run, s, components, src, keep) {
         const work = keep?.work?.manual ? keep.work : (0, payroll_calc_1.workFromLogs)(src.dayHours.get(e.id) || {}, s);
@@ -120,6 +179,9 @@ let PayrollService = class PayrollService {
             overtime: (src.overtime.get(e.id) || []).map((o) => ({ id: o.id, hours: o.hours, amount: o.amount })),
             recoveries: src.recoveries.get(e.id) || [],
             manualLines: keep?.manualLines || [],
+            leave: src.leave?.get(e.id),
+            shiftAllowances: src.shiftAllowances?.get(e.id),
+            encashments: src.encashments?.get(e.id),
         });
     }
     totals(slips) {
@@ -147,7 +209,7 @@ let PayrollService = class PayrollService {
         if (!everyone.length)
             throw new common_1.BadRequestException('Nobody to pay: no active employees with a pay rate in this group.');
         const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
-        const src = await this.sources(everyone.map((e) => e.id), dto.periodStart, dto.periodEnd);
+        const src = await this.sources(everyone, dto.periodStart, dto.periodEnd);
         const now = new Date().toISOString();
         const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
             + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — daily wage');
@@ -179,7 +241,7 @@ let PayrollService = class PayrollService {
         const byEmp = new Map(slips.map((x) => [x.employeeId, x]));
         const everyone = (await this.employees.find()).filter((e) => (0, exports.onPayroll)(e, run.payGroup) || byEmp.has(e.id));
         const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
-        const src = await this.sources(everyone.map((e) => e.id), run.periodStart, run.periodEnd);
+        const src = await this.sources(everyone.filter((e) => (0, exports.onPayroll)(e, run.payGroup)), run.periodStart, run.periodEnd);
         const now = new Date().toISOString();
         const next = everyone.filter((e) => (0, exports.onPayroll)(e, run.payGroup)).map((e) => {
             const old = byEmp.get(e.id);
@@ -237,7 +299,7 @@ let PayrollService = class PayrollService {
             });
         }
         const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
-        const src = await this.sources([emp.id], run.periodStart, run.periodEnd);
+        const src = await this.sources([emp], run.periodStart, run.periodEnd);
         const r = this.compute(emp, run, s, components, src, { work, manualLines });
         Object.assign(slip, r, { employee: snapshot(emp), notes: dto.notes ?? slip.notes, updatedAt: new Date().toISOString() });
         await this.slips.save(slip);
@@ -282,12 +344,25 @@ let PayrollService = class PayrollService {
                     problems.push('an advance or loan balance changed');
                 owed.set(aid, (0, payroll_calc_1.round2)(left - line.amount));
             }
+            const encRepo = m.getRepository(entities_1.LeaveAdjustmentEntity);
+            const encIds = slips.flatMap((x) => x.lines.filter((l) => l.source === 'encashment').flatMap((l) => l.refIds || []));
+            const encs = encIds.length ? await encRepo.findBy({ id: (0, typeorm_2.In)(encIds) }) : [];
+            for (const eid of encIds) {
+                const a = encs.find((x) => x.id === eid);
+                if (!a || a.payrollRunId)
+                    problems.push('a leave encashment was removed or already paid');
+            }
             if (problems.length)
                 throw new common_1.BadRequestException(`Figures changed since this run was calculated (${Array.from(new Set(problems)).join('; ')}). Recalculate it, check it, then finalize.`);
             if (ots.length) {
                 for (const o of ots)
                     Object.assign(o, { payrollRunId: id, updatedAt: new Date().toISOString() });
                 await otRepo.save(ots);
+            }
+            if (encs.length) {
+                for (const a of encs)
+                    a.payrollRunId = id;
+                await encRepo.save(encs);
             }
             for (const a of advs) {
                 const mine = recoveryLines.filter((r) => r.line.refIds?.[0] === a.id);
@@ -324,6 +399,12 @@ let PayrollService = class PayrollService {
                 Object.assign(o, { payrollRunId: null, updatedAt: new Date().toISOString() });
             if (ots.length)
                 await otRepo.save(ots);
+            const encRepo = m.getRepository(entities_1.LeaveAdjustmentEntity);
+            const encs = await encRepo.find({ where: { payrollRunId: id } });
+            for (const a of encs)
+                a.payrollRunId = null;
+            if (encs.length)
+                await encRepo.save(encs);
             const advRepo = m.getRepository(entities_1.EmployeeAdvanceEntity);
             const touched = (await advRepo.find()).filter((a) => (a.repayments || []).some((r) => r.runId === id));
             for (const a of touched) {
@@ -370,6 +451,12 @@ exports.PayrollService = PayrollService = __decorate([
     __param(5, (0, typeorm_1.InjectRepository)(entities_1.OvertimeRequestEntity)),
     __param(6, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAdvanceEntity)),
     __param(7, (0, typeorm_1.InjectRepository)(entities_1.PayComponentEntity)),
+    __param(10, (0, typeorm_1.InjectRepository)(entities_1.LeaveRequestEntity)),
+    __param(11, (0, typeorm_1.InjectRepository)(entities_1.LeaveTypeEntity)),
+    __param(12, (0, typeorm_1.InjectRepository)(entities_1.LeaveAdjustmentEntity)),
+    __param(13, (0, typeorm_1.InjectRepository)(entities_1.PublicHolidayEntity)),
+    __param(14, (0, typeorm_1.InjectRepository)(entities_1.ShiftAssignmentEntity)),
+    __param(15, (0, typeorm_1.InjectRepository)(entities_1.ShiftTemplateEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -379,6 +466,12 @@ exports.PayrollService = PayrollService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         payroll_setup_service_1.PayrollSetupService,
-        manpower_access_service_1.ManpowerAccess])
+        manpower_access_service_1.ManpowerAccess,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
 ], PayrollService);
 //# sourceMappingURL=payroll.service.js.map

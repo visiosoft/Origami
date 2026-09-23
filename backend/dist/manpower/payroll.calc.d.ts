@@ -44,6 +44,21 @@ export interface CalcInput {
     }[];
     recoveries: DueRecovery[];
     manualLines: PayLine[];
+    leave?: {
+        paidDays: number;
+        unpaidDays: number;
+    };
+    shiftAllowances?: {
+        templateId: string;
+        name: string;
+        days: number;
+        rate: number;
+    }[];
+    encashments?: {
+        id: string;
+        days: number;
+        amount: number;
+    }[];
 }
 export interface CalcResult {
     basis: Record<string, unknown>;

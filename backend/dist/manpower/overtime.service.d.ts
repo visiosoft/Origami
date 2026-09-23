@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity } from '../database/entities';
+import { DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity, PublicHolidayEntity } from '../database/entities';
 import { ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 export interface OvertimeInput {
@@ -19,7 +19,8 @@ export declare class OvertimeService {
     private readonly entries;
     private readonly setup;
     private readonly access;
-    constructor(repo: Repository<OvertimeRequestEntity>, employees: Repository<EmployeeEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, setup: PayrollSetupService, access: ManpowerAccess);
+    private readonly holidays?;
+    constructor(repo: Repository<OvertimeRequestEntity>, employees: Repository<EmployeeEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, setup: PayrollSetupService, access: ManpowerAccess, holidays?: Repository<PublicHolidayEntity> | undefined);
     findAll(opts: {
         employeeId?: string;
         status?: string;

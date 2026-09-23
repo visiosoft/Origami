@@ -8,6 +8,11 @@ import { todayISO, type Assignment, type Contractor, type PayrollSettings, type 
 import { EmployeePayPanel } from './Payroll';
 import { OvertimePanel } from './Overtime';
 import { AdvancesPanel } from './Advances';
+import { EmployeeLeavePanel } from './Leave';
+import { EmployeeShiftPanel } from './Shifts';
+import { EmployeeAssetsPanel } from './Assets';
+import { EmployeeHousingCard } from './Accommodation';
+import { EmployeeTransportCard } from './Transport';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -412,7 +417,8 @@ interface EmpRecord {
 
 const PROFILE_TABS = [
   ['overview', 'Overview'], ['personal', 'Personal Information'], ['employment', 'Employment'], ['deployment', 'Deployment'],
-  ['pay', 'Salary & Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans'],
+  ['pay', 'Salary & Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans'], ['leave', 'Leave'],
+  ['assets', 'Assets'], ['housing', 'Housing & Transport'],
   ['document', 'Documents'], ['certification', 'Certifications'], ['contract', 'Contracts'],
 ] as const;
 type ProfileTab = typeof PROFILE_TABS[number][0];
@@ -538,9 +544,20 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
         <EmployeeDeploymentPanel employee={employee} employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
           onChanged={async () => { await reloadAssignments(); await onChanged(); }} />
       )}
+      {tab === 'deployment' && <div style={{ marginTop: 16 }}><EmployeeShiftPanel employee={employee} employees={employees} canManage={canManage} currency={payrollSettings.currency} /></div>}
       {tab === 'pay' && <EmployeePayPanel employee={employee} settings={payrollSettings} canManage={canManage} canFinance={canFinance} onChanged={onChanged} />}
       {tab === 'overtime' && <OvertimePanel employees={employees} projects={projects} settings={payrollSettings} canManage={canManage} employeeId={employee.id} />}
       {tab === 'advances' && <AdvancesPanel employees={employees} settings={payrollSettings} canManage={canManage} canFinance={canFinance} employeeId={employee.id} />}
+      {tab === 'leave' && (employee.contractorId
+        ? <div style={{ fontSize: 12.5, color: MUTED }}>{employee.name} is supplied by a contractor — their leave is managed by the contractor.</div>
+        : <EmployeeLeavePanel employee={employee} employees={employees} canManage={canManage} currency={payrollSettings.currency} />)}
+      {tab === 'assets' && <EmployeeAssetsPanel employee={employee} employees={employees} canManage={canManage} currency={payrollSettings.currency} />}
+      {tab === 'housing' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, alignItems: 'start' }}>
+          <EmployeeHousingCard employee={employee} employees={employees} canManage={canManage} />
+          <EmployeeTransportCard employee={employee} canManage={canManage} />
+        </div>
+      )}
       {(tab === 'document' || tab === 'certification' || tab === 'contract') && (
         <RecordsPanel kind={tab} employeeId={employee.id} records={byKind(tab)} canManage={canManage} onChanged={reloadRecords} />
       )}

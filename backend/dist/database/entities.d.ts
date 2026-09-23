@@ -770,4 +770,145 @@ export declare class LeaveRequestEntity {
     decidedBy: string;
     decidedAt: string;
     note: string;
+    leaveTypeId: string;
+    halfDay: boolean;
+    days: number;
+    requestedById: string;
+    decidedById: string;
+}
+export declare class LeaveTypeEntity {
+    id: string;
+    name: string;
+    paid: boolean;
+    trackBalance: boolean;
+    annualDays: number;
+    carryForwardMax: number;
+    encashable: boolean;
+    color: string;
+    active: boolean;
+    order: number;
+}
+export declare class LeaveAdjustmentEntity {
+    id: string;
+    employeeId: string;
+    leaveTypeId: string;
+    year: number;
+    kind: string;
+    days: number;
+    amount: number;
+    payrollRunId: string;
+    note: string;
+    createdByName: string;
+    createdAt: string;
+}
+export declare class PublicHolidayEntity {
+    id: string;
+    date: string;
+    name: string;
+}
+export declare class ShiftTemplateEntity {
+    id: string;
+    name: string;
+    code: string;
+    kind: string;
+    startTime: string;
+    endTime: string;
+    allowancePerDay: number;
+    color: string;
+    active: boolean;
+    order: number;
+}
+export declare class ShiftAssignmentEntity {
+    id: string;
+    employeeId: string;
+    templateIds: string[];
+    rotateEveryDays: number;
+    startDate: string;
+    endDate: string;
+    notes: string;
+    createdByName: string;
+    endedByName: string;
+    createdAt: string;
+}
+export declare class AssetEntity {
+    id: string;
+    assetTag: string;
+    name: string;
+    category: string;
+    serialNumber: string;
+    status: string;
+    condition: string;
+    purchaseDate: string;
+    cost: number;
+    notes: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export declare class AssetIssueEntity {
+    id: string;
+    assetId: string;
+    employeeId: string;
+    issuedAt: string;
+    expectedReturn: string;
+    status: string;
+    returnedAt: string;
+    returnCondition: string;
+    chargeAmount: number;
+    replacesIssueId: string;
+    notes: string;
+    issuedByName: string;
+    closedByName: string;
+}
+export declare class AccommodationUnitEntity {
+    id: string;
+    parentId: string;
+    level: string;
+    name: string;
+    notes: string;
+    active: boolean;
+    createdAt: string;
+}
+export declare class BedAllocationEntity {
+    id: string;
+    bedId: string;
+    employeeId: string;
+    checkIn: string;
+    checkOut: string;
+    notes: string;
+    byName: string;
+}
+export declare class AccommodationIssueEntity {
+    id: string;
+    unitId: string;
+    title: string;
+    description: string;
+    employeeId: string;
+    status: string;
+    resolution: string;
+    reportedByName: string;
+    reportedAt: string;
+    resolvedAt: string;
+}
+export declare class TransportRouteEntity {
+    id: string;
+    name: string;
+    vehicle: string;
+    capacity: number;
+    driverEmployeeId: string;
+    projectId: number;
+    departureTime: string;
+    returnTime: string;
+    pickupPoints: string[];
+    status: string;
+    notes: string;
+    createdAt: string;
+}
+export declare class TransportAssignmentEntity {
+    id: string;
+    routeId: string;
+    employeeId: string;
+    pickupPoint: string;
+    startDate: string;
+    endDate: string;
+    byName: string;
 }

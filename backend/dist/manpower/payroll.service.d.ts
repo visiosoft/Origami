@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { DailyLogEntity, EmployeeAdvanceEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity, PayComponentEntity, PayrollRunEntity, PayslipEntity, type PayLine } from '../database/entities';
+import { DailyLogEntity, EmployeeAdvanceEntity, EmployeeEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity, LeaveTypeEntity, OvertimeRequestEntity, PayComponentEntity, PayrollRunEntity, PayslipEntity, PublicHolidayEntity, ShiftAssignmentEntity, ShiftTemplateEntity, type PayLine } from '../database/entities';
 import { ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import { type WorkBasis } from './payroll.calc';
@@ -15,7 +15,13 @@ export declare class PayrollService {
     private readonly components;
     private readonly setup;
     private readonly access;
-    constructor(runs: Repository<PayrollRunEntity>, slips: Repository<PayslipEntity>, employees: Repository<EmployeeEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, components: Repository<PayComponentEntity>, setup: PayrollSetupService, access: ManpowerAccess);
+    private readonly leaveRequests;
+    private readonly leaveTypes;
+    private readonly leaveAdjustments;
+    private readonly holidays;
+    private readonly shiftAssignments;
+    private readonly shiftTemplates;
+    constructor(runs: Repository<PayrollRunEntity>, slips: Repository<PayslipEntity>, employees: Repository<EmployeeEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, components: Repository<PayComponentEntity>, setup: PayrollSetupService, access: ManpowerAccess, leaveRequests: Repository<LeaveRequestEntity>, leaveTypes: Repository<LeaveTypeEntity>, leaveAdjustments: Repository<LeaveAdjustmentEntity>, holidays: Repository<PublicHolidayEntity>, shiftAssignments: Repository<ShiftAssignmentEntity>, shiftTemplates: Repository<ShiftTemplateEntity>);
     listRuns(): Promise<PayrollRunEntity[]>;
     getRun(id: string): Promise<{
         payslips: PayslipEntity[];

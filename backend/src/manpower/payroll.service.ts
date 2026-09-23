@@ -2,9 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import {
-  DailyLogEntity, EmployeeAdvanceEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity,
-  PayComponentEntity, PayrollRunEntity, PayslipEntity, type PayLine,
+  DailyLogEntity, EmployeeAdvanceEntity, EmployeeEntity, LaborLogEntryEntity, LeaveAdjustmentEntity, LeaveRequestEntity,
+  LeaveTypeEntity, OvertimeRequestEntity, PayComponentEntity, PayrollRunEntity, PayslipEntity, PublicHolidayEntity,
+  ShiftAssignmentEntity, ShiftTemplateEntity, type PayLine,
 } from '../database/entities';
+import { overlap, shiftOn, workingDays } from './calendar.util';
 import { FINANCE_MODULE, HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import {
@@ -31,6 +33,9 @@ interface Sources {
   dayHours: Map<string, Record<string, number>>;
   overtime: Map<string, OvertimeRequestEntity[]>;
   recoveries: Map<string, DueRecovery[]>;
+  leave?: Map<string, { paidDays: number; unpaidDays: number }>;
+  shiftAllowances?: Map<string, { templateId: string; name: string; days: number; rate: number }[]>;
+  encashments?: Map<string, { id: string; days: number; amount: number }[]>;
 }
 
 @Injectable()
@@ -46,6 +51,12 @@ export class PayrollService {
     @InjectRepository(PayComponentEntity) private readonly components: Repository<PayComponentEntity>,
     private readonly setup: PayrollSetupService,
     private readonly access: ManpowerAccess,
+    @InjectRepository(LeaveRequestEntity) private readonly leaveRequests: Repository<LeaveRequestEntity>,
+    @InjectRepository(LeaveTypeEntity) private readonly leaveTypes: Repository<LeaveTypeEntity>,
+    @InjectRepository(LeaveAdjustmentEntity) private readonly leaveAdjustments: Repository<LeaveAdjustmentEntity>,
+    @InjectRepository(PublicHolidayEntity) private readonly holidays: Repository<PublicHolidayEntity>,
+    @InjectRepository(ShiftAssignmentEntity) private readonly shiftAssignments: Repository<ShiftAssignmentEntity>,
+    @InjectRepository(ShiftTemplateEntity) private readonly shiftTemplates: Repository<ShiftTemplateEntity>,
   ) {}
 
   // ------------------------------------------------------------------ reads
@@ -82,7 +93,8 @@ export class PayrollService {
   // ------------------------------------------------------------------ inputs
 
   /** Approved daily-log hours, approved unpaid overtime, and recoveries due -- for a set of employees and a period. */
-  private async sources(employeeIds: string[], periodStart: string, periodEnd: string): Promise<Sources> {
+  private async sources(people: EmployeeEntity[], periodStart: string, periodEnd: string): Promise<Sources> {
+    const employeeIds = people.map((e) => e.id);
     const dayHours = new Map<string, Record<string, number>>();
     const logs = await this.logs.createQueryBuilder('l')
       .where('l.status = :st', { st: 'approved' })
@@ -121,7 +133,50 @@ export class PayrollService {
         id: a.id, type: a.type, label: ADVANCE_LABEL[a.type] || 'Advance', remaining: remainingOf(a), installmentAmount: a.installmentAmount,
       }]);
     }
-    return { dayHours, overtime, recoveries };
+    // --- leave, shifts and encashment
+    const s = await this.setup.settings();
+    const hol = new Set((await this.holidays.find()).map((h) => h.date));
+    const paidType = new Map((await this.leaveTypes.find()).map((t) => [t.id, t.paid]));
+    const leave = new Map<string, { paidDays: number; unpaidDays: number }>();
+    const leaveDates = new Map<string, Set<string>>();
+    for (const r of await this.leaveRequests.find({ where: { status: 'approved' } })) {
+      if (!wanted.has(r.employeeId)) continue;
+      const span = overlap(r.startDate, r.endDate, periodStart, periodEnd);
+      if (!span) continue;
+      const dates = workingDays(span[0], span[1], s.weekendDays, hol);
+      const n = r.halfDay ? Math.min(dates.length, 0.5) : dates.length;
+      const cur = leave.get(r.employeeId) || { paidDays: 0, unpaidDays: 0 };
+      if (paidType.get(r.leaveTypeId) === false) cur.unpaidDays = round2(cur.unpaidDays + n); else cur.paidDays = round2(cur.paidDays + n);
+      leave.set(r.employeeId, cur);
+      if (!r.halfDay) { const set = leaveDates.get(r.employeeId) || new Set<string>(); dates.forEach((d) => set.add(d)); leaveDates.set(r.employeeId, set); }
+    }
+
+    // A shift allowance is earned per day actually worked on that shift: logged days for
+    // wage workers, working days not on leave for salaried staff.
+    const templates = new Map((await this.shiftTemplates.find()).map((t) => [t.id, t]));
+    const assigns = (await this.shiftAssignments.find()).filter((a) => wanted.has(a.employeeId) && a.startDate <= periodEnd && (!a.endDate || a.endDate >= periodStart));
+    const shiftAllowances = new Map<string, { templateId: string; name: string; days: number; rate: number }[]>();
+    for (const e of people) {
+      const mine = assigns.filter((a) => a.employeeId === e.id);
+      if (!mine.length) continue;
+      const worked = payGroupOf(e) === 'daily'
+        ? Object.entries(dayHours.get(e.id) || {}).filter(([, h]) => h > 0).map(([d]) => d)
+        : workingDays(e.hireDate && e.hireDate > periodStart ? e.hireDate : periodStart, periodEnd, s.weekendDays, hol).filter((d) => !leaveDates.get(e.id)?.has(d));
+      const tally = new Map<string, number>();
+      for (const d of worked) {
+        const tid = mine.map((a) => shiftOn(a, d)).find(Boolean);
+        const t = tid ? templates.get(tid) : undefined;
+        if (t && (t.allowancePerDay || 0) > 0) tally.set(t.id, (tally.get(t.id) || 0) + 1);
+      }
+      if (tally.size) shiftAllowances.set(e.id, Array.from(tally.entries()).map(([tid, days]) => ({ templateId: tid, name: templates.get(tid)!.name, days, rate: templates.get(tid)!.allowancePerDay })));
+    }
+
+    const encashments = new Map<string, { id: string; days: number; amount: number }[]>();
+    for (const a of await this.leaveAdjustments.find({ where: { kind: 'encashment' } })) {
+      if (!wanted.has(a.employeeId) || a.payrollRunId || !(a.amount > 0) || a.createdAt.slice(0, 10) > periodEnd) continue;
+      encashments.set(a.employeeId, [...(encashments.get(a.employeeId) || []), { id: a.id, days: round2(-a.days), amount: a.amount }]);
+    }
+    return { dayHours, overtime, recoveries, leave, shiftAllowances, encashments };
   }
 
   private compute(
@@ -134,6 +189,9 @@ export class PayrollService {
       overtime: (src.overtime.get(e.id) || []).map((o) => ({ id: o.id, hours: o.hours, amount: o.amount })),
       recoveries: src.recoveries.get(e.id) || [],
       manualLines: keep?.manualLines || [],
+      leave: src.leave?.get(e.id),
+      shiftAllowances: src.shiftAllowances?.get(e.id),
+      encashments: src.encashments?.get(e.id),
     });
   }
 
@@ -162,7 +220,7 @@ export class PayrollService {
     const everyone = (await this.employees.find()).filter((e) => onPayroll(e, payGroup));
     if (!everyone.length) throw new BadRequestException('Nobody to pay: no active employees with a pay rate in this group.');
     const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
-    const src = await this.sources(everyone.map((e) => e.id), dto.periodStart, dto.periodEnd);
+    const src = await this.sources(everyone, dto.periodStart, dto.periodEnd);
     const now = new Date().toISOString();
     const label = dto.label?.trim() || new Date(dto.periodStart + 'T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
       + (payGroup === 'all' ? '' : payGroup === 'monthly' ? ' — salaried' : ' — daily wage');
@@ -200,7 +258,7 @@ export class PayrollService {
     const byEmp = new Map(slips.map((x) => [x.employeeId, x]));
     const everyone = (await this.employees.find()).filter((e) => onPayroll(e, run.payGroup) || byEmp.has(e.id));
     const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
-    const src = await this.sources(everyone.map((e) => e.id), run.periodStart, run.periodEnd);
+    const src = await this.sources(everyone.filter((e) => onPayroll(e, run.payGroup)), run.periodStart, run.periodEnd);
     const now = new Date().toISOString();
     const next = everyone.filter((e) => onPayroll(e, run.payGroup)).map((e) => {
       const old = byEmp.get(e.id);
@@ -253,7 +311,7 @@ export class PayrollService {
       });
     }
     const [s, components] = await Promise.all([this.setup.settings(), this.components.find()]);
-    const src = await this.sources([emp.id], run.periodStart, run.periodEnd);
+    const src = await this.sources([emp], run.periodStart, run.periodEnd);
     const r = this.compute(emp, run, s, components, src, { work, manualLines });
     Object.assign(slip, r, { employee: snapshot(emp), notes: dto.notes ?? slip.notes, updatedAt: new Date().toISOString() });
     await this.slips.save(slip);
@@ -306,11 +364,22 @@ export class PayrollService {
         if (line.amount > left + 0.005) problems.push('an advance or loan balance changed');
         owed.set(aid, round2(left - line.amount));
       }
+      const encRepo = m.getRepository(LeaveAdjustmentEntity);
+      const encIds = slips.flatMap((x) => x.lines.filter((l) => l.source === 'encashment').flatMap((l) => l.refIds || []));
+      const encs = encIds.length ? await encRepo.findBy({ id: In(encIds) }) : [];
+      for (const eid of encIds) {
+        const a = encs.find((x) => x.id === eid);
+        if (!a || a.payrollRunId) problems.push('a leave encashment was removed or already paid');
+      }
       if (problems.length) throw new BadRequestException(`Figures changed since this run was calculated (${Array.from(new Set(problems)).join('; ')}). Recalculate it, check it, then finalize.`);
 
       if (ots.length) {
         for (const o of ots) Object.assign(o, { payrollRunId: id, updatedAt: new Date().toISOString() });
         await otRepo.save(ots);
+      }
+      if (encs.length) {
+        for (const a of encs) a.payrollRunId = id;
+        await encRepo.save(encs);
       }
       for (const a of advs) {
         const mine = recoveryLines.filter((r) => r.line.refIds?.[0] === a.id);
@@ -342,6 +411,10 @@ export class PayrollService {
       const ots = await otRepo.find({ where: { payrollRunId: id } });
       for (const o of ots) Object.assign(o, { payrollRunId: null as unknown as string, updatedAt: new Date().toISOString() });
       if (ots.length) await otRepo.save(ots);
+      const encRepo = m.getRepository(LeaveAdjustmentEntity);
+      const encs = await encRepo.find({ where: { payrollRunId: id } });
+      for (const a of encs) a.payrollRunId = null as unknown as string;
+      if (encs.length) await encRepo.save(encs);
       const advRepo = m.getRepository(EmployeeAdvanceEntity);
       const touched = (await advRepo.find()).filter((a) => (a.repayments || []).some((r) => r.runId === id));
       for (const a of touched) {

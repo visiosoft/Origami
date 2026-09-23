@@ -1,5 +1,5 @@
 import {
-  EmployeeAdvanceEntity, EmployeeEntity, OvertimeRequestEntity, PayComponentEntity, PayrollRunEntity, PayslipEntity,
+  EmployeeAdvanceEntity, EmployeeEntity, LeaveAdjustmentEntity, OvertimeRequestEntity, PayComponentEntity, PayrollRunEntity, PayslipEntity,
 } from '../database/entities';
 import { AdvancesService } from './advances.service';
 import { OvertimeService } from './overtime.service';
@@ -151,13 +151,16 @@ describe('PayrollService', () => {
     const overtime = table<OvertimeRequestEntity>([{ id: 'OT1', employeeId: 'E1', date: '2026-09-10', hours: 16, status: 'approved', amount: 8000 } as any]);
     const advances = table<EmployeeAdvanceEntity>([{ id: 'ADV1', employeeId: 'E1', type: 'salary_advance', amount: 10000, installments: 1, installmentAmount: 10000, deductionStart: '2026-09-01', status: 'disbursed', approvals: [], repayments: [], recovered: 0 } as any]);
     const components = table<PayComponentEntity>([]);
+    const leaveAdjustments = table<LeaveAdjustmentEntity>([]);
     const byEntity = new Map<any, any>([
       [PayrollRunEntity, runs], [PayslipEntity, slips], [OvertimeRequestEntity, overtime], [EmployeeAdvanceEntity, advances],
+      [LeaveAdjustmentEntity, leaveAdjustments],
     ]);
     const manager = { getRepository: (e: any) => byEntity.get(e), transaction: async (fn: any) => fn(manager) };
     runs.manager = manager;
     const setupSvc = { settings: jest.fn(async () => DEFAULT_PAYROLL_SETTINGS) };
-    const svc = new PayrollService(runs as any, slips as any, employees as any, {} as any, {} as any, overtime as any, advances as any, components as any, setupSvc as any, access);
+    const svc = new PayrollService(runs as any, slips as any, employees as any, {} as any, {} as any, overtime as any, advances as any, components as any, setupSvc as any, access,
+      {} as any, {} as any, leaveAdjustments as any, {} as any, {} as any, {} as any);
     // Stand in for the database reads: 24 full days logged for Ali, the approved overtime, the advance due.
     jest.spyOn(svc as any, 'sources').mockImplementation(async () => ({
       dayHours: new Map([['E1', Object.fromEntries(Array.from({ length: 24 }, (_, i) => [`2026-09-${String(i + 1).padStart(2, '0')}`, 8]))]]),

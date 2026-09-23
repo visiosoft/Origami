@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity } from '../database/entities';
+import { DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, OvertimeRequestEntity, PublicHolidayEntity } from '../database/entities';
 import { HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import { overtimeBase, round2, type OtType } from './payroll.calc';
@@ -20,6 +20,7 @@ export class OvertimeService {
     @InjectRepository(LaborLogEntryEntity) private readonly entries: Repository<LaborLogEntryEntity>,
     private readonly setup: PayrollSetupService,
     private readonly access: ManpowerAccess,
+    @InjectRepository(PublicHolidayEntity) private readonly holidays?: Repository<PublicHolidayEntity>,
   ) {}
 
   async findAll(opts: { employeeId?: string; status?: string; from?: string; to?: string }) {
@@ -140,12 +141,13 @@ export class OvertimeService {
       .andWhere('o.status IN (:...st)', { st: ['pending', 'approved'] })
       .getMany();
     const taken = new Set(existing.map((o) => `${o.employeeId}|${o.date}`));
+    const hol = new Set(((await this.holidays?.find()) || []).map((h) => h.date));
     return Array.from(perDay.entries())
       .filter(([key, d]) => d.hours > s.standardDayHours && !taken.has(key))
       .map(([, d]) => ({
         employeeId: d.employeeId, date: d.date, loggedHours: round2(d.hours), overtimeHours: round2(d.hours - s.standardDayHours),
         projectId: d.projectIds.size === 1 ? Array.from(d.projectIds)[0] : undefined,
-        otType: s.weekendDays.includes(new Date(d.date + 'T00:00:00Z').getUTCDay()) ? 'weekend' : 'normal',
+        otType: hol.has(d.date) ? 'holiday' : s.weekendDays.includes(new Date(d.date + 'T00:00:00Z').getUTCDay()) ? 'weekend' : 'normal',
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }

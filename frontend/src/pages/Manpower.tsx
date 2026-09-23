@@ -9,6 +9,11 @@ import { DEFAULT_SETTINGS, localISO, type Assignment, type Contractor, type Payr
 import { PayrollRuns, PayrollSetup } from '../components/Payroll';
 import { OvertimePanel } from '../components/Overtime';
 import { AdvancesPanel } from '../components/Advances';
+import { LeaveModule, LeaveSetup } from '../components/Leave';
+import { ShiftRoster } from '../components/Shifts';
+import { AssetRegister } from '../components/Assets';
+import { AccommodationModule } from '../components/Accommodation';
+import { TransportModule } from '../components/Transport';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
@@ -33,18 +38,13 @@ interface DailyLog {
   supervisorId?: string; supervisorName?: string; submittedAt?: string;
   approvedById?: string; approvedByName?: string; approvedAt?: string; rejectionNote?: string;
 }
-interface LeaveRequest {
-  id: string; employeeId: string; type: string; startDate: string; endDate: string;
-  hours?: number; reason?: string; status: string; requestedBy?: string; requestedAt?: string;
-  decidedBy?: string; decidedAt?: string; note?: string;
-}
 
 const TAB_GROUPS = [
   { label: 'People', tabs: [['employees', 'Employees'], ['contractors', 'Contractors']] },
-  { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
+  { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['shifts', 'Shifts'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
   { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
-  { label: 'Employee services', tabs: [['leave', 'Leave']] },
-  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['payroll_setup', 'Payroll Setup']] },
+  { label: 'Employee services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
+  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['trades', 'Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup']] },
 ] as const;
 type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
 
@@ -154,7 +154,12 @@ export function Manpower() {
       {tab === 'log' && <DailyLogTab projects={projects} employees={working} assignments={assignments} csiCodes={csiCodes.filter((c) => c.active)} canManage={canManage} toast={toast} />}
       {tab === 'approvals' && <ApprovalsTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} currentUserId={currentUser?.id} />}
       {tab === 'timesheets' && <TimesheetsTab employees={employees} csiCodes={csiCodes} toast={toast} />}
-      {tab === 'leave' && <LeaveTab employees={working} canManage={canManage} toast={toast} />}
+      {tab === 'leave' && <LeaveModule employees={employees} projects={projects} assignments={assignments} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
+      {tab === 'shifts' && <ShiftRoster employees={employees} projects={projects} assignments={assignments} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
+      {tab === 'assets' && <AssetRegister employees={employees} canManage={canManage} currency={payrollSettings.currency} onOpenEmployee={openEmployee} />}
+      {tab === 'accommodation' && <AccommodationModule employees={employees} canManage={canManage} onOpenEmployee={openEmployee} />}
+      {tab === 'transport' && <TransportModule employees={employees} projects={projects} canManage={canManage} onOpenEmployee={openEmployee} />}
+      {tab === 'leave_setup' && <LeaveSetup canManage={canManage} />}
       {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
       {tab === 'trades' && <TradesTab trades={trades} reload={reloadTrades} canManage={canManage} toast={toast} />}
       {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}
@@ -381,16 +386,6 @@ function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, current
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{label}</div>
-      {hint && <div style={{ fontSize: 10, color: '#9AA39D', marginBottom: 3 }}>{hint}</div>}
-      {children}
-    </div>
-  );
-}
-
 // -------------------------------------------------------------- CSI Codes
 
 function CsiCodesTab({ csiCodes, reload, canManage, toast }: {
@@ -541,89 +536,6 @@ function TimesheetsTab({ employees, csiCodes, toast }: { employees: Employee[]; 
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// -------------------------------------------------------------- Leave
-
-function LeaveTab({ employees, canManage, toast }: { employees: Employee[]; canManage: boolean; toast: (m: string) => void }) {
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ employeeId: '', type: 'PTO', startDate: todayISO(), endDate: todayISO(), hours: '', reason: '' });
-
-  const reload = () => api.leaveRequests.list().then((r: any) => setRequests(Array.isArray(r) ? r : [])).catch(() => {});
-  useEffect(() => { reload(); }, []);
-
-  const employeeName = (id: string) => employees.find((e) => e.id === id)?.name || id;
-
-  const submit = async () => {
-    if (!form.employeeId || !form.startDate || !form.endDate) { toast('⚠ Pick an employee and dates'); return; }
-    try {
-      await api.leaveRequests.create({ ...form, hours: form.hours ? Number(form.hours) : undefined });
-      setShowForm(false);
-      setForm({ employeeId: '', type: 'PTO', startDate: todayISO(), endDate: todayISO(), hours: '', reason: '' });
-      reload();
-      toast('Leave request submitted');
-    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not submit')); }
-  };
-
-  const decide = async (id: string, decision: 'approve' | 'deny') => {
-    try { await (decision === 'approve' ? api.leaveRequests.approve(id) : api.leaveRequests.deny(id)); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not update')); }
-  };
-
-  return (
-    <div>
-      <div style={{ marginBottom: 14 }}>
-        <div onClick={() => setShowForm((v) => !v)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>
-          {showForm ? 'Cancel' : '+ Request leave'}
-        </div>
-      </div>
-      {showForm && (
-        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, padding: 16, marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          <Field label="Employee">
-            <select value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} style={input}>
-              <option value="">Select…</option>
-              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Type">
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={input}>
-              <option value="PTO">PTO</option><option value="Sick">Sick</option><option value="Unpaid">Unpaid</option><option value="Other">Other</option>
-            </select>
-          </Field>
-          <Field label="Start date"><input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} style={input} /></Field>
-          <Field label="End date"><input type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} style={input} /></Field>
-          <Field label="Hours (optional, partial day)"><input type="number" value={form.hours} onChange={(e) => setForm({ ...form, hours: e.target.value })} style={input} /></Field>
-          <Field label="Reason"><input value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} style={input} /></Field>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <div onClick={submit} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Submit request</div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 100px 100px 100px 90px 1fr', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
-          <span>Employee</span><span>Type</span><span>Start</span><span>End</span><span>Status</span><span>Actions</span>
-        </div>
-        {requests.map((r) => (
-          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 100px 100px 100px 90px 1fr', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
-            <span style={{ fontSize: 12.5 }}>{employeeName(r.employeeId)}</span>
-            <span style={{ fontSize: 12 }}>{r.type}</span>
-            <span style={{ fontSize: 12 }}>{r.startDate}</span>
-            <span style={{ fontSize: 12 }}>{r.endDate}</span>
-            <StatusBadge status={r.status} />
-            {canManage && r.status === 'pending' ? (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <div onClick={() => decide(r.id, 'approve')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Approve</div>
-                <div onClick={() => decide(r.id, 'deny')} style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Deny</div>
-              </div>
-            ) : <span style={{ fontSize: 11, color: MUTED }}>{r.decidedBy ? `by ${r.decidedBy}` : ''}</span>}
-          </div>
-        ))}
-        {!requests.length && <div style={{ padding: '16px 14px', fontSize: 12, color: MUTED }}>No leave requests yet.</div>}
-      </div>
     </div>
   );
 }

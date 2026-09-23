@@ -23,13 +23,14 @@ const payroll_calc_1 = require("./payroll.calc");
 const workforce_util_1 = require("./workforce.util");
 const OT_TYPES = ['normal', 'weekend', 'holiday', 'night'];
 let OvertimeService = class OvertimeService {
-    constructor(repo, employees, logs, entries, setup, access) {
+    constructor(repo, employees, logs, entries, setup, access, holidays) {
         this.repo = repo;
         this.employees = employees;
         this.logs = logs;
         this.entries = entries;
         this.setup = setup;
         this.access = access;
+        this.holidays = holidays;
     }
     async findAll(opts) {
         const qb = this.repo.createQueryBuilder('o');
@@ -155,12 +156,13 @@ let OvertimeService = class OvertimeService {
             .andWhere('o.status IN (:...st)', { st: ['pending', 'approved'] })
             .getMany();
         const taken = new Set(existing.map((o) => `${o.employeeId}|${o.date}`));
+        const hol = new Set(((await this.holidays?.find()) || []).map((h) => h.date));
         return Array.from(perDay.entries())
             .filter(([key, d]) => d.hours > s.standardDayHours && !taken.has(key))
             .map(([, d]) => ({
             employeeId: d.employeeId, date: d.date, loggedHours: (0, payroll_calc_1.round2)(d.hours), overtimeHours: (0, payroll_calc_1.round2)(d.hours - s.standardDayHours),
             projectId: d.projectIds.size === 1 ? Array.from(d.projectIds)[0] : undefined,
-            otType: s.weekendDays.includes(new Date(d.date + 'T00:00:00Z').getUTCDay()) ? 'weekend' : 'normal',
+            otType: hol.has(d.date) ? 'holiday' : s.weekendDays.includes(new Date(d.date + 'T00:00:00Z').getUTCDay()) ? 'weekend' : 'normal',
         }))
             .sort((a, b) => a.date.localeCompare(b.date));
     }
@@ -172,11 +174,13 @@ exports.OvertimeService = OvertimeService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.DailyLogEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.LaborLogEntryEntity)),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.PublicHolidayEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         payroll_setup_service_1.PayrollSetupService,
-        manpower_access_service_1.ManpowerAccess])
+        manpower_access_service_1.ManpowerAccess,
+        typeorm_2.Repository])
 ], OvertimeService);
 //# sourceMappingURL=overtime.service.js.map

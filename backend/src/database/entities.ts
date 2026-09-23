@@ -1049,4 +1049,185 @@ export class LeaveRequestEntity {
   @Column({ nullable: true }) decidedBy!: string;
   @Column({ nullable: true }) decidedAt!: string;
   @Column({ ...TEXT, nullable: true }) note!: string;
+  // --- Leave management ---
+  @Column({ nullable: true }) leaveTypeId!: string;
+  /** A single half day -- only valid when start and end are the same day. */
+  @Column({ nullable: true, default: false }) halfDay!: boolean;
+  /** Working days taken: weekends and public holidays in the range don't count. */
+  @Column({ type: 'float', nullable: true }) days!: number;
+  @Column({ nullable: true }) requestedById!: string;
+  @Column({ nullable: true }) decidedById!: string;
+}
+
+/** A kind of leave and its rules -- entitlement, pay, carry-forward, encashment -- configurable, not hardcoded. */
+@Entity('leave_types')
+export class LeaveTypeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ default: true }) paid!: boolean;
+  /** Whether a yearly allowance is tracked. Off = no balance (e.g. unpaid, maternity per event). */
+  @Column({ default: true }) trackBalance!: boolean;
+  @Column({ type: 'float', default: 0 }) annualDays!: number;
+  @Column({ type: 'float', default: 0 }) carryForwardMax!: number;
+  @Column({ default: false }) encashable!: boolean;
+  @Column({ nullable: true }) color!: string;
+  @Column({ default: true }) active!: boolean;
+  @Column('int') order!: number;
+}
+
+/** A balance movement other than taking leave: carried forward, corrected by hand, or cashed out. */
+@Entity('leave_adjustments')
+export class LeaveAdjustmentEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column() leaveTypeId!: string;
+  @Column('int') year!: number;
+  @Column() kind!: string; // carry_forward | manual | encashment
+  /** Signed: + adds to the balance, - takes from it. */
+  @Column({ type: 'float' }) days!: number;
+  /** Encashment only: what the days are worth, paid in the next payroll run. */
+  @Column({ type: 'float', nullable: true }) amount!: number;
+  @Column({ nullable: true }) payrollRunId!: string;
+  @Column({ ...TEXT, nullable: true }) note!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column() createdAt!: string;
+}
+
+/** Company holidays: non-working days for leave counts, and holiday-rate overtime. */
+@Entity('public_holidays')
+export class PublicHolidayEntity {
+  @PrimaryColumn() id!: string;
+  @Column() date!: string;
+  @Column() name!: string;
+}
+
+@Entity('shift_templates')
+export class ShiftTemplateEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ nullable: true }) code!: string;
+  @Column() kind!: string; // day | night | twelve_hour | weekend | emergency
+  @Column() startTime!: string; // HH:MM
+  @Column() endTime!: string;
+  /** Paid per day actually worked on this shift -- a shift or night allowance. */
+  @Column({ type: 'float', default: 0 }) allowancePerDay!: number;
+  @Column({ nullable: true }) color!: string;
+  @Column({ default: true }) active!: boolean;
+  @Column('int') order!: number;
+}
+
+/** Who works which shift from when. Several templates = a rotation, switching every `rotateEveryDays`. */
+@Entity('shift_assignments')
+export class ShiftAssignmentEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column({ type: 'simple-json' }) templateIds!: string[];
+  @Column({ type: 'int', nullable: true }) rotateEveryDays!: number;
+  @Column() startDate!: string;
+  @Column({ nullable: true }) endDate!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column({ nullable: true }) endedByName!: string;
+  @Column() createdAt!: string;
+}
+
+@Entity('assets')
+export class AssetEntity {
+  @PrimaryColumn() id!: string;
+  /** Human-facing tag stuck on the item, e.g. AST-0007. */
+  @Column() assetTag!: string;
+  @Column() name!: string;
+  @Column() category!: string; // laptop | mobile | sim | tools | uniform | vehicle | access_card | tablet | other
+  @Column({ nullable: true }) serialNumber!: string;
+  @Column({ default: 'available' }) status!: string; // available | issued | in_repair | lost | retired
+  @Column({ default: 'good' }) condition!: string;   // new | good | fair | poor | damaged
+  @Column({ nullable: true }) purchaseDate!: string;
+  @Column({ type: 'float', nullable: true }) cost!: number;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** One hand-over of an asset to an employee, open until returned or reported lost. */
+@Entity('asset_issues')
+export class AssetIssueEntity {
+  @PrimaryColumn() id!: string;
+  @Column() assetId!: string;
+  @Column() employeeId!: string;
+  @Column() issuedAt!: string;
+  @Column({ nullable: true }) expectedReturn!: string;
+  @Column({ default: 'open' }) status!: string; // open | returned | lost
+  @Column({ nullable: true }) returnedAt!: string;
+  @Column({ nullable: true }) returnCondition!: string;
+  /** Lost/damaged: what the employee owes -- settled at exit. */
+  @Column({ type: 'float', nullable: true }) chargeAmount!: number;
+  /** When this issue replaced a lost or damaged item. */
+  @Column({ nullable: true }) replacesIssueId!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) issuedByName!: string;
+  @Column({ nullable: true }) closedByName!: string;
+}
+
+/** Camp > building > floor > room > bed, one table. Beds are what people are allocated to. */
+@Entity('accommodation_units')
+export class AccommodationUnitEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ nullable: true }) parentId!: string;
+  @Column() level!: string; // camp | building | floor | room | bed
+  @Column() name!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ default: true }) active!: boolean;
+  @Column() createdAt!: string;
+}
+
+@Entity('bed_allocations')
+export class BedAllocationEntity {
+  @PrimaryColumn() id!: string;
+  @Column() bedId!: string;
+  @Column() employeeId!: string;
+  @Column() checkIn!: string;
+  @Column({ nullable: true }) checkOut!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) byName!: string;
+}
+
+@Entity('accommodation_issues')
+export class AccommodationIssueEntity {
+  @PrimaryColumn() id!: string;
+  @Column() unitId!: string;
+  @Column() title!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  @Column({ nullable: true }) employeeId!: string;
+  @Column({ default: 'open' }) status!: string; // open | in_progress | resolved
+  @Column({ ...TEXT, nullable: true }) resolution!: string;
+  @Column({ nullable: true }) reportedByName!: string;
+  @Column() reportedAt!: string;
+  @Column({ nullable: true }) resolvedAt!: string;
+}
+
+@Entity('transport_routes')
+export class TransportRouteEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ nullable: true }) vehicle!: string; // registration / description
+  @Column({ type: 'int', default: 0 }) capacity!: number;
+  @Column({ nullable: true }) driverEmployeeId!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number;
+  @Column({ nullable: true }) departureTime!: string;
+  @Column({ nullable: true }) returnTime!: string;
+  @Column({ type: 'simple-json', nullable: true }) pickupPoints!: string[];
+  @Column({ default: 'active' }) status!: string; // active | suspended
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column() createdAt!: string;
+}
+
+@Entity('transport_assignments')
+export class TransportAssignmentEntity {
+  @PrimaryColumn() id!: string;
+  @Column() routeId!: string;
+  @Column() employeeId!: string;
+  @Column({ nullable: true }) pickupPoint!: string;
+  @Column() startDate!: string;
+  @Column({ nullable: true }) endDate!: string;
+  @Column({ nullable: true }) byName!: string;
 }
