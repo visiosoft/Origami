@@ -1,8 +1,12 @@
 import { Repository } from 'typeorm';
 import { LeadEntity } from '../database/entities';
+import { TasksService } from '../tasks/tasks.service';
 export declare class LeadsService {
     private readonly repo;
-    constructor(repo: Repository<LeadEntity>);
+    private readonly tasks;
+    private readonly log;
+    constructor(repo: Repository<LeadEntity>, tasks: TasksService);
+    private syncHomeworkTask;
     getOptions(): {
         primaryPointOfContact: string[];
         secondPointOfContact: string[];

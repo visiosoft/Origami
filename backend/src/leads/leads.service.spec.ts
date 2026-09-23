@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { LeadsService } from './leads.service';
 import { LeadEntity } from '../database/entities';
+import { TasksService } from '../tasks/tasks.service';
 
 /** Minimal stand-in for the pieces of Repository this service actually calls. */
 function mockRepo() {
@@ -14,13 +15,23 @@ function mockRepo() {
     } as unknown as jest.Mocked<Repository<LeadEntity>>;
 }
 
+/** Lets a syncHomeworkTask() call fired-and-forgotten by create()/update()
+ *  finish before assertions run, since the caller never awaits it. */
+const flush = () => new Promise((r) => setImmediate(r));
+
 describe('LeadsService', () => {
     let repo: jest.Mocked<Repository<LeadEntity>>;
+    let tasks: jest.Mocked<TasksService>;
     let service: LeadsService;
 
     beforeEach(() => {
         repo = mockRepo();
-        service = new LeadsService(repo);
+        tasks = {
+            findAll: jest.fn().mockResolvedValue([]),
+            create: jest.fn().mockResolvedValue({ id: 'T-1' }),
+            update: jest.fn().mockResolvedValue({ id: 'T-1' }),
+        } as unknown as jest.Mocked<TasksService>;
+        service = new LeadsService(repo, tasks);
     });
 
     describe('create', () => {
@@ -90,6 +101,58 @@ describe('LeadsService', () => {
             repo.findOneBy.mockResolvedValue(existing);
             await service.update('LD-1', { expectedUpdatedAt: '2026-01-01T00:00:00.000Z', phone: '555-0100' });
             expect(repo.save).toHaveBeenCalled();
+        });
+    });
+
+    describe('homework task sync', () => {
+        it('creates exactly one task listing the missing homework items when a lead is created', async () => {
+            repo.findOneBy.mockResolvedValue(null);
+            await service.create({ id: 'PL-1', leadName: 'Neon Project', homeworkCompleted: ['As-Builts', 'Survey'] });
+            await flush();
+            expect(tasks.create).toHaveBeenCalledTimes(1);
+            const payload = (tasks.create as jest.Mock).mock.calls[0][0];
+            expect(payload.project).toBe('PL-1');
+            expect(payload.labels).toContain('kind:homework-collection');
+            expect(payload.description).toContain('Collect from client:');
+            expect(payload.description).not.toContain('As-Builts');
+            expect(payload.description).toContain('Soils'); // sanity: a still-missing item is listed
+        });
+
+        it('updates the same task on a later save instead of creating a second one', async () => {
+            const existing = { id: 'T-1', description: 'Collect from client: Survey', labels: ['kind:homework-collection'] };
+            tasks.findAll.mockResolvedValue([existing] as any);
+            const lead = { id: 'PL-1', updatedAt: '2026-01-01T00:00:00.000Z' } as LeadEntity;
+            repo.findOneBy.mockResolvedValue(lead);
+            await service.update('PL-1', { homeworkCompleted: ['As-Builts', 'Survey', 'Soils / Geotechnical Report'] });
+            await flush();
+            expect(tasks.create).not.toHaveBeenCalled();
+            expect(tasks.update).toHaveBeenCalledWith('T-1', expect.objectContaining({ description: expect.any(String) }), expect.anything());
+        });
+
+        it('does not touch the task when a save omits homeworkCompleted entirely', async () => {
+            const lead = { id: 'PL-1', updatedAt: '2026-01-01T00:00:00.000Z' } as LeadEntity;
+            repo.findOneBy.mockResolvedValue(lead);
+            await service.update('PL-1', { phone: '555-0100' });
+            await flush();
+            expect(tasks.findAll).not.toHaveBeenCalled();
+            expect(tasks.create).not.toHaveBeenCalled();
+            expect(tasks.update).not.toHaveBeenCalled();
+        });
+
+        it('marks the task done rather than closing it once everything is collected', async () => {
+            const existing = { id: 'T-1', description: 'Collect from client: Sketches', labels: ['kind:homework-collection'] };
+            tasks.findAll.mockResolvedValue([existing] as any);
+            const lead = { id: 'PL-1', updatedAt: '2026-01-01T00:00:00.000Z' } as LeadEntity;
+            repo.findOneBy.mockResolvedValue(lead);
+            const allItems = [
+                'As-Builts', 'Survey', 'Soils / Geotechnical Report', 'Hazardous Materials Report', 'Seismic Report',
+                'Inspection Files', 'Disclosures', 'Renderings', 'Lease', 'City Contact / Research', 'Permit Set',
+                'Finish Selections', 'Inspiration Images', 'Sketches',
+            ];
+            await service.update('PL-1', { homeworkCompleted: allItems });
+            await flush();
+            expect(tasks.create).not.toHaveBeenCalled();
+            expect(tasks.update).toHaveBeenCalledWith('T-1', { description: 'All homework items have been collected.' }, expect.anything());
         });
     });
 

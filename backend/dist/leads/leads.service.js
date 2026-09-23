@@ -18,9 +18,37 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const leads_1 = require("../seed-data/leads");
+const tasks_service_1 = require("../tasks/tasks.service");
+const HOMEWORK_TASK_LABEL = 'kind:homework-collection';
+const HOMEWORK_DONE_TEXT = 'All homework items have been collected.';
 let LeadsService = class LeadsService {
-    constructor(repo) {
+    constructor(repo, tasks) {
         this.repo = repo;
+        this.tasks = tasks;
+        this.log = new common_1.Logger('LeadsService');
+    }
+    async syncHomeworkTask(leadId, homeworkCompleted) {
+        const all = leads_1.LEAD_DROPDOWN_OPTIONS.homeworkCompleted;
+        const missing = all.filter((o) => !homeworkCompleted.includes(o));
+        const existing = (await this.tasks.findAll(undefined, leadId))
+            .find((t) => (t.labels || []).includes(HOMEWORK_TASK_LABEL));
+        if (!missing.length) {
+            if (existing && existing.description !== HOMEWORK_DONE_TEXT) {
+                await this.tasks.update(existing.id, { description: HOMEWORK_DONE_TEXT }, { name: 'System' });
+            }
+            return;
+        }
+        const description = `Collect from client: ${missing.join(', ')}`;
+        if (existing) {
+            if (existing.description !== description) {
+                await this.tasks.update(existing.id, { description }, { name: 'System' });
+            }
+        }
+        else {
+            await this.tasks.create({
+                project: leadId, description, labels: [HOMEWORK_TASK_LABEL], topicType: 'Task', tab: 'internal',
+            }, { name: 'System' });
+        }
     }
     getOptions() {
         return leads_1.LEAD_DROPDOWN_OPTIONS;
@@ -40,22 +68,33 @@ let LeadsService = class LeadsService {
             throw new common_1.ConflictException(`A lead with id ${id} already exists`);
         }
         const lead = { ...dto, id, createdAt: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() };
-        return this.repo.save(this.repo.create(lead));
+        const saved = await this.repo.save(this.repo.create(lead));
+        if ('homeworkCompleted' in dto) {
+            this.syncHomeworkTask(id, dto.homeworkCompleted || []).catch((err) => this.log.warn(`Homework task sync failed for ${id}: ${err.message}`));
+        }
+        return saved;
     }
     async update(id, dto) {
         let lead = await this.repo.findOneBy({ id });
         const now = new Date().toISOString();
+        let saved;
         if (!lead) {
             const { expectedUpdatedAt, ...patch } = dto;
             lead = this.repo.create({ ...patch, id, createdAt: new Date().toISOString().slice(0, 10), updatedAt: now });
-            return this.repo.save(lead);
+            saved = await this.repo.save(lead);
         }
-        if (dto.expectedUpdatedAt && lead.updatedAt && dto.expectedUpdatedAt !== lead.updatedAt) {
-            throw new common_1.ConflictException('This lead was updated by someone else since you loaded it. Reload and reapply your changes.');
+        else {
+            if (dto.expectedUpdatedAt && lead.updatedAt && dto.expectedUpdatedAt !== lead.updatedAt) {
+                throw new common_1.ConflictException('This lead was updated by someone else since you loaded it. Reload and reapply your changes.');
+            }
+            const { expectedUpdatedAt, ...patch } = dto;
+            Object.assign(lead, patch, { updatedAt: now });
+            saved = await this.repo.save(lead);
         }
-        const { expectedUpdatedAt, ...patch } = dto;
-        Object.assign(lead, patch, { updatedAt: now });
-        return this.repo.save(lead);
+        if ('homeworkCompleted' in dto) {
+            this.syncHomeworkTask(id, dto.homeworkCompleted || []).catch((err) => this.log.warn(`Homework task sync failed for ${id}: ${err.message}`));
+        }
+        return saved;
     }
     async remove(id) {
         const lead = await this.repo.findOneBy({ id });
@@ -68,6 +107,7 @@ exports.LeadsService = LeadsService;
 exports.LeadsService = LeadsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        tasks_service_1.TasksService])
 ], LeadsService);
 //# sourceMappingURL=leads.service.js.map
