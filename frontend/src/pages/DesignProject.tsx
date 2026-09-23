@@ -63,6 +63,12 @@ export function DesignProject() {
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
   const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard'>('board');
+  // List-view-only controls, mirroring a "Main table" toolbar.
+  const [personFilter, setPersonFilter] = useState('All people');
+  const [sortBy, setSortBy] = useState<'due' | 'priority' | 'title' | 'status'>('due');
+  const [groupBy, setGroupBy] = useState<'status' | 'priority' | 'phase' | 'owner'>('status');
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(new Set());
+  const [showColumnsMenu, setShowColumnsMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // Which phase keys belong to a Construction-category template -- so the
@@ -179,6 +185,41 @@ export function DesignProject() {
   const isProgress = (t: ProjectTask) => !isDone(t) && t.status === 'In progress';
   const today = new Date().toISOString().slice(0, 10);
   const isLate = (t: any) => !isDone(t) && !!t.dueDate && t.dueDate < today;
+
+  const personOptions = ['All people', ...Array.from(new Set(filtered.map((r) => r.task.assignee).filter(Boolean))).sort() as string[]];
+  const listRows = filtered.filter((r) => personFilter === 'All people' || r.task.assignee === personFilter);
+  const SORT_ORDER: Record<string, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+  const sortRows = (rows: typeof listRows) => [...rows].sort((a, b) => {
+    if (sortBy === 'due') return (a.task.dueDate || '9999-99-99').localeCompare(b.task.dueDate || '9999-99-99');
+    if (sortBy === 'priority') return (SORT_ORDER[a.task.priority || ''] ?? 4) - (SORT_ORDER[b.task.priority || ''] ?? 4);
+    if (sortBy === 'status') return (a.task.status || '').localeCompare(b.task.status || '');
+    return a.task.title.localeCompare(b.task.title);
+  });
+  const listGroups: { key: string; label: string; dot: string; rows: typeof listRows }[] = (() => {
+    if (groupBy === 'priority') {
+      return ['Urgent', 'High', 'Medium', 'Low', 'No priority'].map((p) => ({
+        key: p, label: p, dot: p === 'No priority' ? '#C9BFA8' : PRIORITY_DOT[p]?.c || '#9c96a4',
+        rows: sortRows(listRows.filter((r) => (r.task.priority || 'No priority') === p)),
+      })).filter((g) => g.rows.length);
+    }
+    if (groupBy === 'phase') {
+      return shownPhases.map((s) => ({
+        key: s.key, label: s.name, dot: s.colors?.dot || ACCENT,
+        rows: sortRows(listRows.filter((r) => r.stage.key === s.key)),
+      })).filter((g) => g.rows.length);
+    }
+    if (groupBy === 'owner') {
+      const owners = Array.from(new Set(listRows.map((r) => r.task.assignee || 'Unassigned'))).sort();
+      return owners.map((o) => ({
+        key: o, label: o, dot: '#9c96a4',
+        rows: sortRows(listRows.filter((r) => (r.task.assignee || 'Unassigned') === o)),
+      }));
+    }
+    return LIST_GROUPS.map((g) => ({
+      key: g.key, label: g.label, dot: g.dot,
+      rows: sortRows(listRows.filter((r) => g.match(r.task))),
+    })).filter((g) => g.rows.length);
+  })();
   const lateCount = filtered.filter((r) => isLate(r.task)).length;
   /** Working days a task should take, from the programme template. */
   const targetOf = (t: any) => Number(t.targetDays) || 0;
@@ -351,6 +392,48 @@ export function DesignProject() {
                 style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 16px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, fontSize: 14, fontWeight: 600, color: '#4A4357', cursor: 'pointer' }}
               >Reset</div>
             </div>
+
+            {view === 'list' && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} style={pill} title="Person">
+                  {personOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} style={pill} title="Sort">
+                  <option value="due">Sort: Due date</option>
+                  <option value="priority">Sort: Priority</option>
+                  <option value="status">Sort: Status</option>
+                  <option value="title">Sort: Task name</option>
+                </select>
+                <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)} style={pill} title="Group by">
+                  <option value="status">Group: Status</option>
+                  <option value="priority">Group: Priority</option>
+                  <option value="phase">Group: Phase</option>
+                  <option value="owner">Group: Owner</option>
+                </select>
+                <div style={{ position: 'relative' }}>
+                  <div onClick={() => setShowColumnsMenu((v) => !v)} style={{ ...pill, display: 'flex', alignItems: 'center', position: 'relative', zIndex: 21 }}>Hide columns{hiddenCols.size ? ` (${hiddenCols.size})` : ''}</div>
+                  {showColumnsMenu && (<>
+                    <div onClick={() => setShowColumnsMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
+                    <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 44, left: 0, zIndex: 20, background: '#fff', border: '1px solid rgba(20,8,31,.12)', borderRadius: 12, boxShadow: '0 10px 30px rgba(20,8,31,.12)', padding: 8, minWidth: 160 }}>
+                      {COLUMN_DEFS.map((c) => (
+                        <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', fontSize: 12.5, color: INK, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={!hiddenCols.has(c.key)}
+                            onChange={() => setHiddenCols((prev) => {
+                              const next = new Set(prev);
+                              next.has(c.key) ? next.delete(c.key) : next.add(c.key);
+                              return next;
+                            })}
+                          />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  </>)}
+                </div>
+              </div>
+            )}
           </div>
 
           {selCount > 0 && (
@@ -484,7 +567,7 @@ export function DesignProject() {
           )}
 
           {view === 'list' && (
-            <ListView filtered={filtered} allTasks={tasks} onOpen={setSelectedId} isDone={isDone} isLate={isLate} today={today} />
+            <ListView groups={listGroups} allTasks={tasks} hiddenCols={hiddenCols} onOpen={setSelectedId} isDone={isDone} isLate={isLate} />
           )}
 
           {view === 'timeline' && (
@@ -532,14 +615,22 @@ const LIST_GROUPS = [
   { key: 'done', label: 'Done', dot: '#16A34A', match: (t: ProjectTask) => !!(t.completed || t.status === 'Done') },
 ];
 
-/** A "Main table"-style list: rows grouped by status, one row per task, with its subtasks indented underneath. */
-function ListView({ filtered, allTasks, onOpen, isDone, isLate }: {
-  filtered: { task: ProjectTask; stage: any }[];
+const COLUMN_DEFS = [
+  { key: 'owner', label: 'Owner', width: '140px' },
+  { key: 'status', label: 'Status', width: '110px' },
+  { key: 'priority', label: 'Priority', width: '100px' },
+  { key: 'due', label: 'Due Date', width: '110px' },
+  { key: 'phase', label: 'Phase', width: '140px' },
+];
+
+/** A "Main table"-style list: rows grouped by the chosen field, one row per task, with its subtasks indented underneath. */
+function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
+  groups: { key: string; label: string; dot: string; rows: { task: ProjectTask; stage: any }[] }[];
   allTasks: ProjectTask[];
+  hiddenCols: Set<string>;
   onOpen: (id: string) => void;
   isDone: (t: ProjectTask) => boolean;
   isLate: (t: ProjectTask) => boolean;
-  today: string;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const toggle = (id: string) => setCollapsed((prev) => {
@@ -547,21 +638,18 @@ function ListView({ filtered, allTasks, onOpen, isDone, isLate }: {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const cols = '28px minmax(220px,2fr) 140px 110px 100px 110px 140px';
+  const visibleCols = COLUMN_DEFS.filter((c) => !hiddenCols.has(c.key));
+  const cols = ['28px', 'minmax(220px,2fr)', ...visibleCols.map((c) => c.width)].join(' ');
   return (
     <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
       <div style={{ border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
         <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
           <span />
           <span>Task</span>
-          <span>Owner</span>
-          <span>Status</span>
-          <span>Priority</span>
-          <span>Due Date</span>
-          <span>Phase</span>
+          {visibleCols.map((c) => <span key={c.key}>{c.label}</span>)}
         </div>
-        {LIST_GROUPS.map((g) => {
-          const rows = filtered.filter((r) => g.match(r.task));
+        {groups.map((g) => {
+          const rows = g.rows;
           if (!rows.length) return null;
           return (
             <div key={g.key}>
@@ -593,22 +681,32 @@ function ListView({ filtered, allTasks, onOpen, isDone, isLate }: {
                         <span style={{ fontSize: indent ? 12 : 13, fontWeight: indent ? 500 : 600, color: indent ? '#4A4357' : INK, textDecoration: isDone(t) ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
                         {!indent && subs.length > 0 && <span style={{ fontSize: 10.5, color: '#9c96a4', flex: '0 0 auto' }}>{subs.filter((s) => isDone(s)).length}/{subs.length}</span>}
                       </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                        <span style={{ width: 18, height: 18, borderRadius: 999, background: t.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
-                          {t.assignee ? initials(t.assignee) : '—'}
-                        </span>
-                        <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignee || 'Unassigned'}</span>
-                      </span>
-                      <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
-                        {t.status || 'Not started'}
-                      </span>
-                      {pr ? (
-                        <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: pr.bg, color: pr.c, fontSize: 10.5, fontWeight: 700 }}>{t.priority}</span>
-                      ) : <span style={{ fontSize: 11, color: '#C9C2D1' }}>—</span>}
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: late ? '#B4232A' : '#8A8194' }}>{t.dueDate || '—'}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {indent ? <>Subtask of <span style={{ color: '#4A4357' }}>{task.title}</span></> : stage.name}
-                      </span>
+                      {visibleCols.map((c) => {
+                        if (c.key === 'owner') return (
+                          <span key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 999, background: t.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+                              {t.assignee ? initials(t.assignee) : '—'}
+                            </span>
+                            <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignee || 'Unassigned'}</span>
+                          </span>
+                        );
+                        if (c.key === 'status') return (
+                          <span key={c.key} style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
+                            {t.status || 'Not started'}
+                          </span>
+                        );
+                        if (c.key === 'priority') return pr ? (
+                          <span key={c.key} style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: pr.bg, color: pr.c, fontSize: 10.5, fontWeight: 700 }}>{t.priority}</span>
+                        ) : <span key={c.key} style={{ fontSize: 11, color: '#C9C2D1' }}>—</span>;
+                        if (c.key === 'due') return (
+                          <span key={c.key} style={{ fontSize: 11.5, fontWeight: 600, color: late ? '#B4232A' : '#8A8194' }}>{t.dueDate || '—'}</span>
+                        );
+                        return (
+                          <span key={c.key} style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {indent ? <>Subtask of <span style={{ color: '#4A4357' }}>{task.title}</span></> : stage.name}
+                          </span>
+                        );
+                      })}
                     </div>
                   );
                 };
@@ -622,7 +720,7 @@ function ListView({ filtered, allTasks, onOpen, isDone, isLate }: {
             </div>
           );
         })}
-        {!filtered.length && <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12.5, color: '#8A8194' }}>No tasks match the current filters.</div>}
+        {!groups.some((g) => g.rows.length) && <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12.5, color: '#8A8194' }}>No tasks match the current filters.</div>}
       </div>
     </div>
   );
