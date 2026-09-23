@@ -470,6 +470,56 @@ export declare class EmployeeEntity {
     supervisorId: string;
     userId: string;
     createdAt: string;
+    workerId: string;
+    fatherOrSpouseName: string;
+    nationalId: string;
+    dob: string;
+    gender: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
+    emergencyContactRelation: string;
+    permanentAddress: string;
+    currentAddress: string;
+    photo: TaskAttachment | null;
+    employmentType: string;
+    department: string;
+    designation: string;
+    grade: string;
+    employmentStatus: string;
+    hrOfficerId: string;
+    bankName: string;
+    bankAccount: string;
+    taxNumber: string;
+    tradeId: string;
+    skillLevel: string;
+    yearsExperience: number;
+    equipmentCapabilities: string[];
+    updatedAt: string;
+}
+export declare class TradeEntity {
+    id: string;
+    name: string;
+    active: boolean;
+    order: number;
+}
+export declare class EmployeeRecordEntity {
+    id: string;
+    employeeId: string;
+    kind: string;
+    type: string;
+    title: string;
+    number: string;
+    issuer: string;
+    issueDate: string;
+    expiryDate: string;
+    rate: number;
+    terms: string;
+    verification: string;
+    status: string;
+    notes: string;
+    attachments: TaskAttachment[];
+    createdAt: string;
+    updatedAt: string;
 }
 export declare class CsiCodeEntity {
     id: string;

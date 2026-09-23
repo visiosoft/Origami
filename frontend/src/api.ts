@@ -87,13 +87,15 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records';
+
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
  * through the vite proxy in dev and same-origin in production. The route is
  * scoped to the task, so a Drive id alone can never reach an arbitrary file.
  */
 export const attachmentUrl = (
-  scope: 'tasks' | 'project-tasks',
+  scope: AttachmentScope,
   taskId: string,
   attId: string,
   thumb = false,
@@ -483,9 +485,29 @@ export const api = {
   },
   employees: {
     list: () => request('/employees'),
+    get: (id: string) => request(`/employees/${encodeURIComponent(id)}`),
     create: (data: unknown) => request('/employees', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/employees/${id}`, { method: 'DELETE' }),
+    uploadPhoto: (id: string, file: File) => requestForm(`/employees/${encodeURIComponent(id)}/photo`, filesForm([file])),
+    /** Relative, cookie-authenticated -- usable directly as an <img src>. */
+    photoUrl: (id: string, version?: string) => `${API_BASE}/employees/${encodeURIComponent(id)}/photo${version ? `?v=${encodeURIComponent(version)}` : ''}`,
+  },
+  trades: {
+    list: () => request('/trades'),
+    create: (data: unknown) => request('/trades', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/trades/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/trades/${id}`, { method: 'DELETE' }),
+  },
+  employeeRecords: {
+    list: (employeeId: string, kind?: string) =>
+      request(`/employee-records?employeeId=${encodeURIComponent(employeeId)}${kind ? `&kind=${kind}` : ''}`),
+    create: (data: unknown) => request('/employee-records', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request(`/employee-records/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/employee-records/${id}`, { method: 'DELETE' }),
+    uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/employee-records/${id}/attachments`, filesForm(files)),
+    addLink: (id: string, name: string, url: string) => request(`/employee-records/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    removeAttachment: (id: string, attId: string) => request(`/employee-records/${id}/attachments/${attId}`, { method: 'DELETE' }),
   },
   csiCodes: {
     list: () => request('/csi-codes'),

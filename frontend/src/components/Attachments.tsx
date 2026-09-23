@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { attachmentUrl } from '../api';
+import { attachmentUrl, type AttachmentScope } from '../api';
 import type { Attachment } from '../data/projectTasks';
 
 /** Files on the clipboard, if the paste carried any. */
@@ -44,7 +44,7 @@ function screenshotName() {
 }
 
 export interface AttachmentsProps {
-  scope: 'tasks' | 'project-tasks';
+  scope: AttachmentScope;
   taskId: string;
   attachments: Attachment[];
   canManage: boolean;
@@ -291,7 +291,7 @@ export function Attachments(props: AttachmentsProps) {
 function Lightbox({ items, current, scope, taskId, onClose, onNavigate }: {
   items: Attachment[];
   current: Attachment;
-  scope: 'tasks' | 'project-tasks';
+  scope: AttachmentScope;
   taskId: string;
   onClose: () => void;
   onNavigate: (a: Attachment) => void;

@@ -13,13 +13,24 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmployeesService = void 0;
+exports.nextWorkerId = nextWorkerId;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const attachments_service_1 = require("../google/attachments.service");
+function nextWorkerId(existing) {
+    const max = existing.reduce((m, id) => {
+        const match = /^W-(\d+)$/.exec(id || '');
+        return match ? Math.max(m, Number(match[1])) : m;
+    }, 0);
+    return 'W-' + String(max + 1).padStart(4, '0');
+}
 let EmployeesService = class EmployeesService {
-    constructor(repo) {
+    constructor(repo, trades, attachments) {
         this.repo = repo;
+        this.trades = trades;
+        this.attachments = attachments;
     }
     findAll() {
         return this.repo.find({ order: { name: 'ASC' } });
@@ -30,27 +41,66 @@ let EmployeesService = class EmployeesService {
             throw new common_1.NotFoundException(`Employee ${id} not found`);
         return employee;
     }
-    create(dto) {
-        const id = dto.id || 'EMP-' + String(Date.now());
-        const employee = { status: 'active', createdAt: new Date().toISOString(), ...dto, id };
+    async withTradeName(dto) {
+        if (!dto.tradeId)
+            return dto;
+        const trade = await this.trades.findOneBy({ id: dto.tradeId });
+        return trade ? { ...dto, trade: trade.name } : dto;
+    }
+    async create(dto) {
+        if (!dto.name?.trim())
+            throw new common_1.BadRequestException('A name is required.');
+        const all = await this.repo.find({ select: { workerId: true } });
+        const now = new Date().toISOString();
+        const employee = {
+            status: 'active', employmentStatus: 'active', createdAt: now, updatedAt: now,
+            ...(await this.withTradeName(dto)),
+            workerId: dto.workerId?.trim() || nextWorkerId(all.map((e) => e.workerId)),
+            id: dto.id || 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
+        };
         return this.repo.save(this.repo.create(employee));
     }
     async update(id, dto) {
         const employee = await this.findOne(id);
-        Object.assign(employee, dto, { id });
+        const { photo: _ignored, ...rest } = await this.withTradeName(dto);
+        Object.assign(employee, rest, { id, updatedAt: new Date().toISOString() });
+        if (rest.employmentStatus)
+            employee.status = rest.employmentStatus === 'active' ? 'active' : 'inactive';
         return this.repo.save(employee);
     }
     async remove(id) {
         const employee = await this.repo.findOneBy({ id });
-        if (employee)
+        if (employee) {
+            await this.attachments.discard(employee.photo ?? undefined);
             await this.repo.remove(employee);
+        }
         return { id, deleted: true };
+    }
+    async setPhoto(id, files, actor) {
+        const employee = await this.findOne(id);
+        const image = files?.[0];
+        if (!image?.mimetype?.startsWith('image/'))
+            throw new common_1.BadRequestException('The photo must be an image.');
+        const [uploaded] = await this.attachments.upload([image], 'Employee Photos', actor);
+        await this.attachments.discard(employee.photo ?? undefined);
+        employee.photo = uploaded;
+        employee.updatedAt = new Date().toISOString();
+        return this.repo.save(employee);
+    }
+    async photo(id) {
+        const employee = await this.findOne(id);
+        if (!employee.photo)
+            throw new common_1.NotFoundException('No photo on file');
+        return employee.photo;
     }
 };
 exports.EmployeesService = EmployeesService;
 exports.EmployeesService = EmployeesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.TradeEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        attachments_service_1.AttachmentsService])
 ], EmployeesService);
 //# sourceMappingURL=employees.service.js.map

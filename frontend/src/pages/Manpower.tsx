@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { EmployeeDirectory, type Employee, type Trade } from '../components/EmployeeDirectory';
 
 const BG = "'Bricolage Grotesque', serif";
 const INK = '#0B1A12';
 const MUTED = '#7E9B93';
 const PAPER = '#FBF8F2';
 const ACCENT = '#173326';
-const ACCENT_BG = '#DCE7DE';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -16,11 +16,6 @@ const input: React.CSSProperties = {
 };
 
 interface Project { id: number; name: string }
-interface Employee {
-  id: string; name: string; jobTitle?: string; trade?: string; expertise?: string[];
-  payType?: string; payRate?: number; phone?: string; email?: string; hireDate?: string;
-  status: string; supervisorId?: string; userId?: string;
-}
 interface CsiCode { id: string; code: string; division: string; description?: string; active: boolean; order: number }
 interface LaborEntry {
   id?: string; employeeId: string; csiCodeId?: string; hours?: number;
@@ -38,9 +33,13 @@ interface LeaveRequest {
 }
 
 const TABS = [
-  ['log', 'Daily Log'], ['approvals', 'Approvals'], ['employees', 'Employees'],
-  ['csi', 'CSI Codes'], ['timesheets', 'Timesheets'], ['leave', 'Leave'],
+  ['employees', 'Employees'], ['log', 'Daily Log'], ['approvals', 'Approvals'],
+  ['timesheets', 'Timesheets'], ['leave', 'Leave'], ['csi', 'Cost Codes'], ['trades', 'Trades'],
 ] as const;
+
+/** Who can still be logged against -- people who have left stay on record but out of the pickers. */
+const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
+const isWorking = (e: Employee) => !LEFT.includes(e.employmentStatus || '') && e.status !== 'inactive';
 type TabKey = typeof TABS[number][0];
 
 const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
@@ -63,13 +62,15 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 export function Manpower() {
   const { toast, can, currentUser } = useApp();
   const canManage = can('manpower_con', 'manage');
-  const [tab, setTab] = useState<TabKey>('log');
+  const [tab, setTab] = useState<TabKey>('employees');
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [csiCodes, setCsiCodes] = useState<CsiCode[]>([]);
+  const [trades, setTrades] = useState<Trade[]>([]);
 
   const reloadEmployees = () => api.employees.list().then((r: any) => setEmployees(Array.isArray(r) ? r : [])).catch(() => {});
   const reloadCsiCodes = () => api.csiCodes.list().then((r: any) => setCsiCodes(Array.isArray(r) ? r : [])).catch(() => {});
+  const reloadTrades = () => api.trades.list().then((r: any) => setTrades(Array.isArray(r) ? r : [])).catch(() => {});
 
   useEffect(() => {
     api.projects.list().then((r: any) => {
@@ -78,12 +79,15 @@ export function Manpower() {
     }).catch(() => {});
     reloadEmployees();
     reloadCsiCodes();
+    reloadTrades();
   }, []);
+
+  const working = employees.filter(isWorking);
 
   return (
     <div style={{ padding: '28px 32px', background: PAPER, minHeight: '100%' }}>
       <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>Manpower & Resources</h1>
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>Workers, CSI-coded daily labor logs, timesheets and leave.</p>
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>Employee records, daily labor logs by cost code, timesheets and leave.</p>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 18, marginBottom: 20, flexWrap: 'wrap' }}>
         {TABS.map(([key, label]) => (
@@ -99,12 +103,13 @@ export function Manpower() {
         ))}
       </div>
 
-      {tab === 'log' && <DailyLogTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} />}
+      {tab === 'employees' && <EmployeeDirectory employees={employees} trades={trades} reload={reloadEmployees} canManage={canManage} />}
+      {tab === 'log' && <DailyLogTab projects={projects} employees={working} csiCodes={csiCodes.filter((c) => c.active)} canManage={canManage} toast={toast} />}
       {tab === 'approvals' && <ApprovalsTab projects={projects} employees={employees} csiCodes={csiCodes} canManage={canManage} toast={toast} currentUserId={currentUser?.id} />}
-      {tab === 'employees' && <EmployeesTab employees={employees} reload={reloadEmployees} canManage={canManage} toast={toast} />}
-      {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
       {tab === 'timesheets' && <TimesheetsTab employees={employees} csiCodes={csiCodes} toast={toast} />}
-      {tab === 'leave' && <LeaveTab employees={employees} canManage={canManage} toast={toast} />}
+      {tab === 'leave' && <LeaveTab employees={working} canManage={canManage} toast={toast} />}
+      {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
+      {tab === 'trades' && <TradesTab trades={trades} reload={reloadTrades} canManage={canManage} toast={toast} />}
     </div>
   );
 }
@@ -316,104 +321,6 @@ function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, current
   );
 }
 
-// -------------------------------------------------------------- Employees
-
-function EmployeesTab({ employees, reload, canManage, toast }: {
-  employees: Employee[]; reload: () => void; canManage: boolean; toast: (m: string) => void;
-}) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Employee | null>(null);
-  const [query, setQuery] = useState('');
-
-  const select = (emp: Employee) => { setSelectedId(emp.id); setDraft(JSON.parse(JSON.stringify(emp))); };
-
-  const addEmployee = async () => {
-    const name = prompt('Employee name?');
-    if (!name?.trim()) return;
-    try {
-      const created: any = await api.employees.create({ name: name.trim() });
-      reload();
-      select(created);
-    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add employee')); }
-  };
-
-  const save = async () => {
-    if (!draft) return;
-    try {
-      await api.employees.update(draft.id, draft);
-      reload();
-      toast('Saved');
-    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
-  };
-
-  const remove = async (id: string) => {
-    if (!confirm('Remove this employee?')) return;
-    try { await api.employees.remove(id); setSelectedId(null); setDraft(null); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove')); }
-  };
-
-  const filtered = employees.filter((e) => e.name.toLowerCase().includes(query.trim().toLowerCase()));
-
-  return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-      <div style={{ width: 280, flexShrink: 0, background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ padding: 10, borderBottom: '1px solid rgba(20,8,31,.06)', display: 'flex', gap: 8 }}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" style={{ ...input, flex: 1 }} />
-          {canManage && <div onClick={addEmployee} style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', whiteSpace: 'nowrap' }}>+ Add</div>}
-        </div>
-        <div style={{ maxHeight: 480, overflowY: 'auto' }}>
-          {filtered.map((emp) => (
-            <div key={emp.id} onClick={() => select(emp)} style={{ padding: '10px 14px', cursor: 'pointer', background: selectedId === emp.id ? ACCENT_BG : 'transparent', borderBottom: '1px solid rgba(20,8,31,.04)' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{emp.name}</div>
-              <div style={{ fontSize: 11, color: MUTED }}>{emp.jobTitle || 'No title'}{emp.status !== 'active' ? ' · Inactive' : ''}</div>
-            </div>
-          ))}
-          {!filtered.length && <div style={{ padding: 16, fontSize: 12, color: MUTED }}>No employees yet.</div>}
-        </div>
-      </div>
-
-      {draft && (
-        <div style={{ flex: 1, minWidth: 280, background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, padding: 18 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-            <Field label="Name"><input disabled={!canManage} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={input} /></Field>
-            <Field label="Job title"><input disabled={!canManage} value={draft.jobTitle || ''} onChange={(e) => setDraft({ ...draft, jobTitle: e.target.value })} style={input} /></Field>
-            <Field label="Trade"><input disabled={!canManage} value={draft.trade || ''} onChange={(e) => setDraft({ ...draft, trade: e.target.value })} style={input} /></Field>
-            <Field label="Reports to">
-              <select disabled={!canManage} value={draft.supervisorId || ''} onChange={(e) => setDraft({ ...draft, supervisorId: e.target.value || undefined })} style={input}>
-                <option value="">—</option>
-                {employees.filter((e) => e.id !== draft.id).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Pay type">
-              <select disabled={!canManage} value={draft.payType || ''} onChange={(e) => setDraft({ ...draft, payType: e.target.value })} style={input}>
-                <option value="">—</option><option value="hourly">Hourly</option><option value="salary">Salary</option>
-              </select>
-            </Field>
-            <Field label="Pay rate"><input disabled={!canManage} type="number" value={draft.payRate ?? ''} onChange={(e) => setDraft({ ...draft, payRate: e.target.value ? Number(e.target.value) : undefined })} style={input} /></Field>
-            <Field label="Phone"><input disabled={!canManage} value={draft.phone || ''} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} style={input} /></Field>
-            <Field label="Email"><input disabled={!canManage} value={draft.email || ''} onChange={(e) => setDraft({ ...draft, email: e.target.value })} style={input} /></Field>
-            <Field label="Hire date"><input disabled={!canManage} type="date" value={draft.hireDate || ''} onChange={(e) => setDraft({ ...draft, hireDate: e.target.value })} style={input} /></Field>
-            <Field label="Status">
-              <select disabled={!canManage} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })} style={input}>
-                <option value="active">Active</option><option value="inactive">Inactive</option>
-              </select>
-            </Field>
-            <Field label="Expertise" hint="Comma-separated">
-              <input disabled={!canManage} value={(draft.expertise || []).join(', ')} onChange={(e) => setDraft({ ...draft, expertise: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })} style={input} />
-            </Field>
-          </div>
-          {canManage && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <div onClick={save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>Save</div>
-              <div onClick={() => remove(draft.id)} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Delete</div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
@@ -468,6 +375,50 @@ function CsiCodesTab({ csiCodes, reload, canManage, toast }: {
           <input value={draftCode} onChange={(e) => setDraftCode(e.target.value)} placeholder="e.g. 09 00 00" style={input} />
           <input value={draftDivision} onChange={(e) => setDraftDivision(e.target.value)} placeholder="e.g. Finishes" style={input} />
           <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', textAlign: 'center' }}>+ Add code</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Trades
+
+function TradesTab({ trades, reload, canManage, toast }: {
+  trades: Trade[]; reload: () => void; canManage: boolean; toast: (m: string) => void;
+}) {
+  const [name, setName] = useState('');
+
+  const add = async () => {
+    if (!name.trim()) return;
+    try { await api.trades.create({ name: name.trim(), order: trades.length }); setName(''); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not add')); }
+  };
+  const update = async (t: Trade, patch: Partial<Trade>) => {
+    try { await api.trades.update(t.id, patch); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
+  };
+  const remove = async (id: string) => {
+    if (!confirm('Remove this trade? Employees already classified under it keep the name on their record.')) return;
+    try { await api.trades.remove(id); reload(); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove')); }
+  };
+
+  return (
+    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden', maxWidth: 560 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 30px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+        <span>Trade</span><span>Active</span><span />
+      </div>
+      {trades.map((t) => (
+        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+          <span style={{ fontSize: 12.5, color: INK, opacity: t.active ? 1 : 0.5 }}>{t.name}</span>
+          <input type="checkbox" disabled={!canManage} checked={t.active} onChange={(e) => update(t, { active: e.target.checked })} />
+          {canManage && <span onClick={() => remove(t.id)} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 13, textAlign: 'center' }}>×</span>}
+        </div>
+      ))}
+      {canManage && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 8, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.06)' }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} placeholder="e.g. Tile Setter" style={input} />
+          <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', textAlign: 'center' }}>+ Add trade</div>
         </div>
       )}
     </div>

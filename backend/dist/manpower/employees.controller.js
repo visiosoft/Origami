@@ -14,12 +14,18 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmployeesController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const stream_1 = require("stream");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const auth_service_1 = require("../auth/auth.service");
+const attachments_service_1 = require("../google/attachments.service");
 const employees_service_1 = require("./employees.service");
 const employee_dto_1 = require("./dto/employee.dto");
 let EmployeesController = class EmployeesController {
-    constructor(service) {
+    constructor(service, auth, attachments) {
         this.service = service;
+        this.auth = auth;
+        this.attachments = attachments;
     }
     findAll() {
         return this.service.findAll();
@@ -35,6 +41,16 @@ let EmployeesController = class EmployeesController {
     }
     remove(id) {
         return this.service.remove(id);
+    }
+    async uploadPhoto(id, files, auth) {
+        return this.service.setPhoto(id, files, await this.auth.requireActor(auth));
+    }
+    async photo(id, res) {
+        const att = await this.service.photo(id);
+        const file = await this.attachments.download(att);
+        res.setHeader('Content-Type', file.mimeType);
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        stream_1.Readable.fromWeb(file.body).pipe(res);
     }
 };
 exports.EmployeesController = EmployeesController;
@@ -73,9 +89,29 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], EmployeesController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/photo'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', 1, { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.UploadedFiles)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Array, String]),
+    __metadata("design:returntype", Promise)
+], EmployeesController.prototype, "uploadPhoto", null);
+__decorate([
+    (0, common_1.Get)(':id/photo'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], EmployeesController.prototype, "photo", null);
 exports.EmployeesController = EmployeesController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('employees'),
-    __metadata("design:paramtypes", [employees_service_1.EmployeesService])
+    __metadata("design:paramtypes", [employees_service_1.EmployeesService,
+        auth_service_1.AuthService,
+        attachments_service_1.AttachmentsService])
 ], EmployeesController);
 //# sourceMappingURL=employees.controller.js.map

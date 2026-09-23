@@ -700,12 +700,80 @@ export class EmployeeEntity {
   @Column({ nullable: true }) phone!: string;
   @Column({ nullable: true }) email!: string;
   @Column({ nullable: true }) hireDate!: string;
-  @Column({ default: 'active' }) status!: string; // active | inactive
+  @Column({ default: 'active' }) status!: string; // active | inactive -- superseded by employmentStatus
   /** Who this employee reports to -- the org/reporting layer, independent of any project assignment. */
   @Column({ nullable: true }) supervisorId!: string;
   /** Set when this employee also has an app login (e.g. every Supervisor). */
   @Column({ nullable: true }) userId!: string;
   @Column() createdAt!: string;
+
+  // --- Employee master ---
+  /** Human-facing worker number printed on cards and payslips, distinct from the internal id. */
+  @Column({ nullable: true }) workerId!: string;
+  @Column({ nullable: true }) fatherOrSpouseName!: string;
+  @Column({ nullable: true }) nationalId!: string; // CNIC / passport / national ID
+  @Column({ nullable: true }) dob!: string;
+  @Column({ nullable: true }) gender!: string;
+  @Column({ nullable: true }) emergencyContactName!: string;
+  @Column({ nullable: true }) emergencyContactPhone!: string;
+  @Column({ nullable: true }) emergencyContactRelation!: string;
+  @Column({ ...TEXT, nullable: true }) permanentAddress!: string;
+  @Column({ ...TEXT, nullable: true }) currentAddress!: string;
+  @Column({ type: 'simple-json', nullable: true }) photo!: TaskAttachment | null;
+  @Column({ nullable: true }) employmentType!: string; // permanent | contract | daily_wage | temporary | intern
+  @Column({ nullable: true }) department!: string;
+  @Column({ nullable: true }) designation!: string;
+  @Column({ nullable: true }) grade!: string;
+  /** active | on_leave | suspended | resigned | terminated | contract_expired | demobilized */
+  @Column({ nullable: true }) employmentStatus!: string;
+  @Column({ nullable: true }) hrOfficerId!: string;
+  @Column({ nullable: true }) bankName!: string;
+  @Column({ nullable: true }) bankAccount!: string;
+  @Column({ nullable: true }) taxNumber!: string;
+  // --- Worker skills ---
+  @Column({ nullable: true }) tradeId!: string;
+  @Column({ nullable: true }) skillLevel!: string; // helper | semi_skilled | skilled | expert
+  @Column({ type: 'float', nullable: true }) yearsExperience!: number;
+  @Column({ type: 'simple-json', nullable: true }) equipmentCapabilities!: string[];
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** Shared, admin-editable list of construction trades -- master data, not hardcoded. */
+@Entity('trades')
+export class TradeEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ default: true }) active!: boolean;
+  @Column('int') order!: number;
+}
+
+/**
+ * An employee's document, certification/licence, or contract. One table for
+ * all three: they share the same shape (a type, dates that can expire, files)
+ * and differ only in which of the optional fields they use.
+ */
+@Entity('employee_records')
+export class EmployeeRecordEntity {
+  @PrimaryColumn() id!: string;
+  @Column() employeeId!: string;
+  @Column() kind!: string; // document | certification | contract
+  @Column({ nullable: true }) type!: string;
+  @Column({ nullable: true }) title!: string;
+  /** Certificate / licence / contract number. */
+  @Column({ nullable: true }) number!: string;
+  @Column({ nullable: true }) issuer!: string;
+  /** Issue date, or a contract's start date. */
+  @Column({ nullable: true }) issueDate!: string;
+  /** Expiry date, or a contract's end date. */
+  @Column({ nullable: true }) expiryDate!: string;
+  @Column({ type: 'float', nullable: true }) rate!: number;
+  @Column({ ...TEXT, nullable: true }) terms!: string;
+  @Column({ nullable: true }) verification!: string; // pending | verified | rejected
+  @Column({ nullable: true }) status!: string;       // contracts: draft | active | renewed | ended
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
 }
 
 /** The shared, org-wide CSI (construction MasterFormat) code list -- one list, every project uses it. */
