@@ -62,6 +62,7 @@ export function DesignProject() {
   const [roleFilter, setRoleFilter] = useState('All roles');
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
   const [selected, setSelected] = useState<string[]>([]);
+  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard'>('board');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // Which phase keys belong to a Construction-category template -- so the
@@ -312,7 +313,21 @@ export function DesignProject() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 20, flexWrap: 'wrap' }}>
+              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['dashboard', 'Dashboard']] as const).map(([key, label]) => (
+                <div
+                  key={key}
+                  onClick={() => setView(key)}
+                  style={{
+                    padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                    background: view === key ? ACCENT : '#fff', color: view === key ? '#fff' : '#4A4357',
+                    border: '1px solid ' + (view === key ? ACCENT : 'rgba(20,8,31,.14)'),
+                  }}
+                >{label}</div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 14px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, background: PAPER, flex: '1 1 220px', maxWidth: 340 }}>
                 <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={INK3} strokeWidth={2} strokeLinecap="round"><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
                 <input
@@ -347,6 +362,7 @@ export function DesignProject() {
             </div>
           )}
 
+          {view === 'board' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: 16, padding: '22px 26px 28px', background: '#F6F0E4' }}>
             {COLUMNS.map((col) => {
               const rows = filtered.filter((r) => col.match(r.task));
@@ -463,6 +479,19 @@ export function DesignProject() {
               );
             })}
           </div>
+          )}
+
+          {view === 'list' && (
+            <ListView filtered={filtered} onOpen={setSelectedId} isDone={isDone} isLate={isLate} today={today} />
+          )}
+
+          {view === 'timeline' && (
+            <TimelineView stages={shownPhases} filtered={filtered} onOpen={setSelectedId} isDone={isDone} />
+          )}
+
+          {view === 'dashboard' && (
+            <DashboardView filtered={filtered} shownPhases={shownPhases} isDone={isDone} isProgress={isProgress} isLate={isLate} />
+          )}
         </div>
       </div>
 
@@ -487,6 +516,261 @@ export function DesignProject() {
 }
 
 const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+const PRIORITY_DOT: Record<string, { bg: string; c: string }> = {
+  Low: { bg: '#EFEDE8', c: '#5C6B65' },
+  Medium: { bg: '#D6E8E5', c: '#2F6F68' },
+  High: { bg: '#FBE9AE', c: '#8A6D12' },
+  Urgent: { bg: '#F2DFD4', c: '#8E2E0A' },
+};
+
+const LIST_GROUPS = [
+  { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !(t.completed || t.status === 'Done') && t.status !== 'In progress' },
+  { key: 'progress', label: 'In progress', dot: ACCENT, match: (t: ProjectTask) => !(t.completed || t.status === 'Done') && t.status === 'In progress' },
+  { key: 'done', label: 'Done', dot: '#16A34A', match: (t: ProjectTask) => !!(t.completed || t.status === 'Done') },
+];
+
+/** A "Main table"-style list: rows grouped by status, one row per task. */
+function ListView({ filtered, onOpen, isDone, isLate }: {
+  filtered: { task: ProjectTask; stage: any }[];
+  onOpen: (id: string) => void;
+  isDone: (t: ProjectTask) => boolean;
+  isLate: (t: ProjectTask) => boolean;
+  today: string;
+}) {
+  const cols = '28px minmax(220px,2fr) 140px 110px 100px 110px 140px';
+  return (
+    <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
+      <div style={{ border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+          <span />
+          <span>Task</span>
+          <span>Owner</span>
+          <span>Status</span>
+          <span>Priority</span>
+          <span>Due Date</span>
+          <span>Phase</span>
+        </div>
+        {LIST_GROUPS.map((g) => {
+          const rows = filtered.filter((r) => g.match(r.task));
+          if (!rows.length) return null;
+          return (
+            <div key={g.key}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#FBF8F2', borderTop: '1px solid rgba(20,8,31,.06)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: g.dot }} />
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: INK }}>{g.label}</span>
+                <span style={{ fontSize: 11, color: '#9c96a4' }}>{rows.length}</span>
+              </div>
+              {rows.map(({ task, stage }) => {
+                const pr = task.priority ? PRIORITY_DOT[task.priority] : null;
+                const late = isLate(task);
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => onOpen(task.id)}
+                    style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer' }}
+                  >
+                    <span style={{ width: 16, height: 16, borderRadius: 5, border: '1.5px solid ' + (isDone(task) ? '#16A34A' : 'rgba(20,8,31,.2)'), background: isDone(task) ? '#16A34A' : 'transparent' }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: INK, textDecoration: isDone(task) ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: 999, background: task.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+                        {task.assignee ? initials(task.assignee) : '—'}
+                      </span>
+                      <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.assignee || 'Unassigned'}</span>
+                    </span>
+                    <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[task.status === 'Done' ? 'complete' : task.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[task.status === 'Done' ? 'complete' : task.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
+                      {task.status || 'Not started'}
+                    </span>
+                    {pr ? (
+                      <span style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: pr.bg, color: pr.c, fontSize: 10.5, fontWeight: 700 }}>{task.priority}</span>
+                    ) : <span style={{ fontSize: 11, color: '#C9C2D1' }}>—</span>}
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: late ? '#B4232A' : '#8A8194' }}>{task.dueDate || '—'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        {!filtered.length && <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12.5, color: '#8A8194' }}>No tasks match the current filters.</div>}
+      </div>
+    </div>
+  );
+}
+
+const parseDate = (s?: string | null) => (s ? new Date(s + 'T00:00:00') : null);
+const fmtDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/** A read-only Gantt: rows grouped by phase, bars from Start Date to Due Date. */
+function TimelineView({ stages, filtered, onOpen, isDone }: {
+  stages: any[];
+  filtered: { task: ProjectTask; stage: any }[];
+  onOpen: (id: string) => void;
+  isDone: (t: ProjectTask) => boolean;
+}) {
+  const dayWidth = 28;
+  const rowHeight = 32;
+
+  const ranges = filtered.map(({ task, stage }) => {
+    const due = parseDate(task.dueDate);
+    const start = parseDate(task.startDate);
+    if (!due && !start) return { task, stage, start: null as Date | null, end: null as Date | null };
+    const s = start || due!;
+    const e = due || start!;
+    return { task, stage, start: s <= e ? s : e, end: e >= s ? e : s };
+  });
+  const dated = ranges.filter((r): r is { task: ProjectTask; stage: any; start: Date; end: Date } => !!r.start && !!r.end);
+  const undatedCount = ranges.length - dated.length;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let rangeStart = new Date(today); rangeStart.setDate(rangeStart.getDate() - 14);
+  let rangeEnd = new Date(today); rangeEnd.setDate(rangeEnd.getDate() + 28);
+  dated.forEach((r) => {
+    if (r.start < rangeStart) rangeStart = new Date(r.start);
+    if (r.end > rangeEnd) rangeEnd = new Date(r.end);
+  });
+  const days: Date[] = [];
+  for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) days.push(new Date(d));
+  const dayIndex = (d: Date) => Math.round((d.getTime() - rangeStart.getTime()) / 86400000);
+  const todayX = dayIndex(today) * dayWidth;
+
+  const byStage = stages.map((s) => ({ stage: s, rows: dated.filter((r) => r.stage.key === s.key) }));
+
+  return (
+    <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
+      {undatedCount > 0 && (
+        <div style={{ fontSize: 11.5, color: '#9c96a4', marginBottom: 10 }}>{undatedCount} task{undatedCount === 1 ? '' : 's'} with no dates aren't shown on the chart.</div>
+      )}
+      <div style={{ display: 'flex', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,.08)' }}>
+          <div style={{ height: 36, borderBottom: '1px solid rgba(20,8,31,.08)', background: '#F7F3EA' }} />
+          {byStage.map(({ stage, rows }) => (
+            <div key={stage.key}>
+              <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: '#FBF8F2', fontSize: 11, fontWeight: 700, color: INK }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: stage.colors?.dot || ACCENT }} />
+                {stage.name}
+              </div>
+              {rows.map((r) => (
+                <div key={r.task.id} onClick={() => onOpen(r.task.id)} style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 12, color: INK, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderTop: '1px solid rgba(20,8,31,.04)' }}>
+                  {r.task.title}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div style={{ overflowX: 'auto', flex: 1 }}>
+          <div style={{ position: 'relative', width: days.length * dayWidth }}>
+            <div style={{ display: 'flex', height: 36, borderBottom: '1px solid rgba(20,8,31,.08)', background: '#F7F3EA' }}>
+              {days.map((d) => (
+                <div key={fmtDay(d)} style={{ width: dayWidth, flexShrink: 0, textAlign: 'center', fontSize: 9, color: '#9c96a4', paddingTop: 4, borderRight: '1px solid rgba(20,8,31,.04)' }}>
+                  {d.getDate() === 1 || d.getDay() === 0 ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : d.getDate()}
+                </div>
+              ))}
+            </div>
+            {byStage.map(({ stage, rows }) => (
+              <div key={stage.key}>
+                <div style={{ height: 28, background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,.03)' }} />
+                {rows.map((r) => {
+                  const x = dayIndex(r.start) * dayWidth;
+                  const w = Math.max(dayWidth, (dayIndex(r.end) - dayIndex(r.start) + 1) * dayWidth);
+                  return (
+                    <div key={r.task.id} style={{ position: 'relative', height: rowHeight, borderTop: '1px solid rgba(20,8,31,.04)' }}>
+                      <div
+                        onClick={() => onOpen(r.task.id)}
+                        title={r.task.title}
+                        style={{
+                          position: 'absolute', left: x, width: w, top: 6, height: rowHeight - 12, borderRadius: 6, cursor: 'pointer',
+                          background: isDone(r.task) ? '#16A34A' : stage.colors?.dot || ACCENT, opacity: isDone(r.task) ? 0.85 : 1,
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+            <div style={{ position: 'absolute', top: 0, bottom: 0, left: todayX + dayWidth / 2, width: 1, background: '#B4232A' }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Stat tiles + section/status bar charts, same div-bar technique used across the app. */
+function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
+  filtered: { task: ProjectTask; stage: any }[];
+  shownPhases: any[];
+  isDone: (t: ProjectTask) => boolean;
+  isProgress: (t: ProjectTask) => boolean;
+  isLate: (t: ProjectTask) => boolean;
+}) {
+  const total = filtered.length;
+  const done = filtered.filter((r) => isDone(r.task)).length;
+  const overdue = filtered.filter((r) => isLate(r.task)).length;
+  const incomplete = total - done;
+
+  const tiles = [
+    { label: 'Total tasks', value: total, c: INK },
+    { label: 'Completed', value: done, c: '#16A34A' },
+    { label: 'Incomplete', value: incomplete, c: ACCENT },
+    { label: 'Overdue', value: overdue, c: '#B4232A' },
+  ];
+
+  const byPhase = shownPhases.map((s) => ({ name: s.name, dot: s.colors?.dot || ACCENT, count: filtered.filter((r) => r.stage.key === s.key).length }));
+  const maxPhase = Math.max(1, ...byPhase.map((b) => b.count));
+
+  const statusGroups = [
+    { label: 'Not started', dot: '#C9BFA8', count: filtered.filter((r) => !isDone(r.task) && !isProgress(r.task)).length },
+    { label: 'In progress', dot: ACCENT, count: filtered.filter((r) => isProgress(r.task)).length },
+    { label: 'Done', dot: '#16A34A', count: done },
+  ];
+  const maxStatus = Math.max(1, ...statusGroups.map((s) => s.count));
+
+  return (
+    <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 22 }}>
+        {tiles.map((t) => (
+          <div key={t.label} style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 14, padding: '16px 18px' }}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>{t.label}</div>
+            <div style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 30, color: t.c, marginTop: 6 }}>{t.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
+        <div style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 14, padding: '16px 18px' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, marginBottom: 12 }}>Tasks by phase</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {byPhase.map((b) => (
+              <div key={b.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 88, fontSize: 11, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{b.name}</span>
+                <div style={{ flex: 1, height: 10, background: '#F0EEE9', borderRadius: 999, overflow: 'hidden' }}>
+                  <div style={{ width: `${(b.count / maxPhase) * 100}%`, height: '100%', background: b.dot, borderRadius: 999 }} />
+                </div>
+                <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: INK, textAlign: 'right' }}>{b.count}</span>
+              </div>
+            ))}
+            {!byPhase.length && <div style={{ fontSize: 11.5, color: '#9c96a4' }}>No phases to show.</div>}
+          </div>
+        </div>
+        <div style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 14, padding: '16px 18px' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, marginBottom: 12 }}>Tasks by status</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {statusGroups.map((b) => (
+              <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 88, fontSize: 11, color: '#4A4357', flexShrink: 0 }}>{b.label}</span>
+                <div style={{ flex: 1, height: 10, background: '#F0EEE9', borderRadius: 999, overflow: 'hidden' }}>
+                  <div style={{ width: `${(b.count / maxStatus) * 100}%`, height: '100%', background: b.dot, borderRadius: 999 }} />
+                </div>
+                <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: INK, textAlign: 'right' }}>{b.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BackLink({ onClick, label }: { onClick: () => void; label: string }) {
   return (
