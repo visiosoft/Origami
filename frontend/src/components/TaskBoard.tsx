@@ -459,42 +459,72 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     const xFor = (d: Date) => Math.round((d.getTime() - chartStart.getTime()) / dayMs) * dayWidth;
     const todayX = xFor(today);
 
+    const rowHeight = 34;
+    const sectionHeaderHeight = 28;
+    const dateHeaderHeight = 36;
+    const sidebarWidth = 200;
+
     return (
-      <div style={{ overflowX: 'auto', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 12, background: 'white' }}>
-        <div style={{ position: 'relative', width: Math.max(totalDays * dayWidth, 600) }}>
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(20,8,31,0.08)', position: 'sticky', top: 0, background: 'white', zIndex: 2 }}>
-            {weeks.map((w) => (
-              <div key={w.toISOString()} style={{ width: dayWidth * 7, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,0.06)', padding: '6px 8px', fontSize: 10, fontWeight: 700, color: '#7E9B93' }}>
-                {w.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+      <div style={{ display: 'flex', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
+        {/* Fixed left column: task names stay in view regardless of how far
+            the date grid on the right is scrolled -- matches Asana/Monday's
+            timeline layout, where the label never lives inside the bar. */}
+        <div style={{ width: sidebarWidth, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,0.08)' }}>
+          <div style={{ height: dateHeaderHeight, borderBottom: '1px solid rgba(20,8,31,0.08)' }} />
+          {rangesBySection.map(({ sec, rows }) => (
+            <div key={sec.id}>
+              <div style={{ height: sectionHeaderHeight, padding: '0 10px', display: 'flex', alignItems: 'center', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,0.05)' }}>
+                {sec.name} <span style={{ color: '#7E9B93', marginLeft: 4 }}>{'·'} {rows.length}</span>
+              </div>
+              {rows.length === 0 ? (
+                <div style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11, color: '#9AA39D', fontStyle: 'italic', borderBottom: '1px solid rgba(20,8,31,0.04)' }}>No tasks</div>
+              ) : rows.map(({ t }) => (
+                <div
+                  key={t.id}
+                  onClick={() => setSelectedId(t.id)}
+                  title={t.title}
+                  style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11.5, color: '#0B1A12', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {t.title}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Scrollable date grid + bars. */}
+        <div style={{ overflowX: 'auto', flex: 1 }}>
+          <div style={{ position: 'relative', width: Math.max(totalDays * dayWidth, 600) }}>
+            <div style={{ display: 'flex', height: dateHeaderHeight, borderBottom: '1px solid rgba(20,8,31,0.08)', position: 'sticky', top: 0, background: 'white', zIndex: 2 }}>
+              {weeks.map((w) => (
+                <div key={w.toISOString()} style={{ width: dayWidth * 7, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,0.06)', padding: '6px 8px', fontSize: 10, fontWeight: 700, color: '#7E9B93' }}>
+                  {w.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                </div>
+              ))}
+            </div>
+            <div style={{ position: 'absolute', top: 0, bottom: 0, left: todayX, width: 2, background: '#D2822E', zIndex: 1 }} title="Today" />
+            {rangesBySection.map(({ sec, rows }) => (
+              <div key={sec.id}>
+                <div style={{ height: sectionHeaderHeight, background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,0.05)' }} />
+                {rows.length === 0 ? (
+                  <div style={{ height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }} />
+                ) : rows.map(({ t, start, end }) => {
+                  const left = xFor(start);
+                  const width = Math.max(xFor(end) - left + dayWidth, dayWidth);
+                  const st = STATUS_STYLE[t.status || 'Not started'];
+                  return (
+                    <div key={t.id} style={{ position: 'relative', height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }}>
+                      <div
+                        onClick={() => setSelectedId(t.id)}
+                        title={t.title}
+                        style={{ position: 'absolute', left, width, top: 6, height: 22, borderRadius: 6, background: st.bg, border: `1px solid ${st.c}`, cursor: 'pointer' }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
-          <div style={{ position: 'absolute', top: 0, bottom: 0, left: todayX, width: 2, background: '#D2822E', zIndex: 1 }} title="Today" />
-          {rangesBySection.map(({ sec, rows }) => (
-            <div key={sec.id}>
-              <div style={{ padding: '6px 10px', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,0.05)' }}>
-                {sec.name} <span style={{ color: '#7E9B93' }}>{'·'} {rows.length}</span>
-              </div>
-              {rows.length === 0 ? (
-                <div style={{ padding: '10px', fontSize: 11.5, color: '#9AA39D', fontStyle: 'italic' }}>No tasks</div>
-              ) : rows.map(({ t, start, end }) => {
-                const left = xFor(start);
-                const width = Math.max(xFor(end) - left + dayWidth, dayWidth);
-                const st = STATUS_STYLE[t.status || 'Not started'];
-                return (
-                  <div key={t.id} style={{ position: 'relative', height: 34, borderBottom: '1px solid rgba(20,8,31,0.04)' }}>
-                    <div
-                      onClick={() => setSelectedId(t.id)}
-                      title={t.title}
-                      style={{ position: 'absolute', left, width, top: 6, height: 22, borderRadius: 6, background: st.bg, border: `1px solid ${st.c}`, display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: 11, fontWeight: 600, color: st.c, overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer' }}
-                    >
-                      {t.title}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
         </div>
       </div>
     );
