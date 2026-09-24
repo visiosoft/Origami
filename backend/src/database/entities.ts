@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
 import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
 
 const TEXT = { type: 'nvarchar', length: 'MAX' } as const;
@@ -1307,4 +1307,229 @@ export class TransportAssignmentEntity {
   @Column() startDate!: string;
   @Column({ nullable: true }) endDate!: string;
   @Column({ nullable: true }) byName!: string;
+}
+
+// ================================================================== project financials
+// Money is exact: decimal(18,2) read back as a number; the finance module does all
+// arithmetic in integer cents. Percentages are decimal(7,4).
+
+const numberFrom = { to: (v: unknown) => v, from: (v: unknown) => (v == null ? null : Number(v)) };
+const MONEY = { type: 'decimal', precision: 18, scale: 2, transformer: numberFrom } as const;
+const PCT = { type: 'decimal', precision: 7, scale: 4, transformer: numberFrom } as const;
+const RATE = { type: 'decimal', precision: 18, scale: 6, transformer: numberFrom } as const;
+
+/** Who/when on every financial row, plus the version optimistic locking checks. */
+abstract class FinanceStamped {
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+  @VersionColumn() version!: number;
+}
+
+/** A project's contract and billing settings. Everything else about its money is derived from items and transactions. */
+@Entity('project_financials')
+export class ProjectFinancialEntity extends FinanceStamped {
+  @PrimaryColumn('int') projectId!: number;
+  @Column({ default: 'USD' }) currency!: string;
+  @Column({ ...RATE, default: 1 }) fxRate!: number;
+  @Column({ ...MONEY, default: 0 }) originalContractValue!: number;
+  @Column({ ...MONEY, nullable: true }) originalBudget!: number | null;
+  @Column({ ...PCT, default: 0 }) retentionPct!: number;
+  @Column({ ...PCT, default: 0 }) taxPct!: number;
+  @Column({ type: 'int', default: 30 }) paymentTermsDays!: number;
+  @Column({ default: false }) requireProgressApproval!: boolean;
+  @Column({ nullable: true }) billToName!: string;
+  @Column({ nullable: true }) billToEmail!: string;
+  @Column({ ...TEXT, nullable: true }) billToAddress!: string;
+  @Column({ nullable: true }) contractNumber!: string;
+  @Column({ nullable: true }) poNumber!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  /** Set when the first invoice is issued: the original contract is then changed only through change orders. */
+  @Column({ nullable: true }) contractLockedAt!: string;
+  /** Progress of the project as one billable item, used when no phase or task carries a value (lump sum). */
+  @Column({ ...PCT, default: 0 }) reportedProgress!: number;
+  @Column({ ...PCT, default: 0 }) approvedProgress!: number;
+}
+
+/** Shared by milestone (phase) and task financials. */
+abstract class ItemFinancialBase extends FinanceStamped {
+  @Column('int') projectId!: number;
+  /** Null: this item has no value of its own. */
+  @Column({ ...MONEY, nullable: true }) contractValue!: number | null;
+  @Column({ ...MONEY, nullable: true }) budgetedCost!: number | null;
+  @Column({ ...MONEY, nullable: true }) estimatedCost!: number | null;
+  /** fixed | percent_complete | quantity | t_and_m | reimbursable | milestone | manual */
+  @Column({ default: 'percent_complete' }) billingMethod!: string;
+  @Column({ ...PCT, nullable: true }) retentionPctOverride!: number | null;
+  @Column({ ...PCT, nullable: true }) taxPctOverride!: number | null;
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column({ nullable: true }) subcontractorTradeId!: string;
+  @Column({ ...TEXT, nullable: true }) deliverables!: string;
+  @Column({ ...TEXT, nullable: true }) requiredFromUs!: string;
+  @Column({ ...TEXT, nullable: true }) requiredFromClient!: string;
+  @Column({ ...TEXT, nullable: true }) requiredFromContractor!: string;
+  @Column({ ...TEXT, nullable: true }) acceptanceCriteria!: string;
+  @Column({ ...TEXT, nullable: true }) billingCondition!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ ...PCT, default: 0 }) reportedProgress!: number;
+  @Column({ ...PCT, default: 0 }) approvedProgress!: number;
+  @Column({ nullable: true }) progressApprovedBy!: string;
+  @Column({ nullable: true }) progressApprovedAt!: string;
+}
+
+@Entity('phase_financials')
+@Index('IX_phase_financials_project', ['projectId'])
+export class PhaseFinancialEntity extends ItemFinancialBase {
+  @PrimaryColumn() phaseId!: string;
+}
+
+@Entity('task_financials')
+@Index('IX_task_financials_project', ['projectId'])
+@Index('IX_task_financials_phase', ['phaseId'])
+export class TaskFinancialEntity extends ItemFinancialBase {
+  @PrimaryColumn() taskId!: string;
+  /** The task's phase when its value was set; unphased (ad-hoc) tasks have none. */
+  @Column({ nullable: true }) phaseId!: string;
+}
+
+/** Every change to reported or approved progress -- the source of "previous progress" and its history. */
+@Entity('progress_updates')
+@Index('IX_progress_updates_project', ['projectId'])
+@Index('IX_progress_updates_target', ['targetId'])
+export class ProgressUpdateEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() targetType!: string; // project | phase | task
+  @Column() targetId!: string;
+  @Column() kind!: string; // reported | approved
+  @Column({ ...PCT }) fromPct!: number;
+  @Column({ ...PCT }) toPct!: number;
+  @Column({ ...TEXT, nullable: true }) reason!: string;
+  @Column({ nullable: true }) byName!: string;
+  @Column({ nullable: true }) byId!: string;
+  @Column() at!: string;
+}
+
+/** A client invoice for a project. Totals and lines are snapshots once issued; drafts are recalculated live. */
+@Entity('project_invoices')
+@Index('IX_project_invoices_project', ['projectId'])
+@Index('UQ_project_invoices_number', ['issuedNumber'], { unique: true, where: '[issuedNumber] IS NOT NULL' })
+export class ProjectInvoiceEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  /** INV-YYYY-0001, given only when the invoice is issued. */
+  @Column({ nullable: true }) issuedNumber!: string;
+  @Column('int') projectId!: number;
+  @Column({ default: 'progress' }) kind!: string; // progress | standard
+  @Column({ default: 'draft' }) status!: string; // draft | issued | void
+  @Column() invoiceDate!: string;
+  @Column({ nullable: true }) dueDate!: string;
+  @Column({ nullable: true }) periodStart!: string;
+  @Column({ nullable: true }) periodEnd!: string;
+  @Column({ default: 'USD' }) currency!: string;
+  @Column({ ...RATE, default: 1 }) fxRate!: number;
+  @Column({ default: 'USD' }) baseCurrency!: string;
+  @Column({ nullable: true }) reference!: string;
+  @Column({ nullable: true }) poNumber!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  @Column({ nullable: true }) billToName!: string;
+  @Column({ nullable: true }) billToEmail!: string;
+  @Column({ ...TEXT, nullable: true }) billToAddress!: string;
+  @Column({ ...PCT, default: 0 }) retentionPct!: number;
+  @Column({ ...PCT, default: 0 }) taxPct!: number;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  // Snapshotted at issue.
+  @Column({ ...MONEY, nullable: true }) contractWork!: number | null;
+  @Column({ ...MONEY, nullable: true }) retentionAmount!: number | null;
+  @Column({ ...MONEY, nullable: true }) adjustmentTotal!: number | null;
+  @Column({ ...MONEY, nullable: true }) taxAmount!: number | null;
+  @Column({ ...MONEY, nullable: true }) total!: number | null;
+  @Column({ nullable: true }) issuedAt!: string;
+  @Column({ nullable: true }) issuedById!: string;
+  @Column({ nullable: true }) issuedByName!: string;
+  @Column({ nullable: true }) voidedAt!: string;
+  @Column({ nullable: true }) voidedById!: string;
+  @Column({ nullable: true }) voidedByName!: string;
+  @Column({ ...TEXT, nullable: true }) voidReason!: string;
+}
+
+/** One line of an invoice. Everything that explains its amount is copied onto it when the invoice is issued. */
+@Entity('project_invoice_lines')
+@Index('IX_invoice_lines_invoice', ['invoiceId'])
+@Index('IX_invoice_lines_project', ['projectId'])
+@Index('IX_invoice_lines_phase', ['phaseId'])
+@Index('IX_invoice_lines_task', ['taskId'])
+export class ProjectInvoiceLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() invoiceId!: string;
+  @Column('int') projectId!: number;
+  @Column() kind!: string; // progress | manual | adjustment
+  /** progress lines: project (lump sum) | phase | task */
+  @Column({ nullable: true }) targetType!: string;
+  @Column({ nullable: true }) phaseId!: string;
+  @Column({ nullable: true }) taskId!: string;
+  @Column('int') lineOrder!: number;
+  @Column({ ...TEXT }) description!: string;
+  @Column({ nullable: true }) billingMethod!: string;
+  @Column({ ...MONEY, nullable: true }) contractValue!: number | null;
+  @Column({ ...PCT, nullable: true }) prevProgressPct!: number | null;
+  @Column({ ...PCT, nullable: true }) currentProgressPct!: number | null;
+  @Column({ ...MONEY, nullable: true }) prevBilled!: number | null;
+  /** The contract-work claim (pre-tax, before retention). Adjustments may be negative. */
+  @Column({ ...MONEY }) amount!: number;
+  @Column({ type: 'decimal', precision: 18, scale: 4, nullable: true, transformer: numberFrom }) quantity!: number | null;
+  @Column({ nullable: true }) unit!: string;
+  @Column({ ...MONEY, nullable: true }) rate!: number | null;
+  @Column({ default: true }) retentionApplies!: boolean;
+  @Column({ ...PCT, default: 0 }) retentionPct!: number;
+  @Column({ ...MONEY, default: 0 }) retentionAmount!: number;
+  @Column({ default: false }) taxable!: boolean;
+  @Column({ ...PCT, default: 0 }) taxPct!: number;
+  @Column({ ...MONEY, default: 0 }) taxAmount!: number;
+}
+
+/** Numbering: one row per sequence and year, read under an update lock while an invoice is issued. */
+@Entity('finance_sequences')
+export class FinanceSequenceEntity {
+  @PrimaryColumn() id!: string; // e.g. INV-2026
+  @Column('int') next!: number;
+}
+
+/** Money received against an invoice. Corrected by voiding, never deleted. */
+@Entity('project_payments')
+@Index('IX_project_payments_invoice', ['invoiceId'])
+@Index('IX_project_payments_project', ['projectId'])
+export class ProjectPaymentEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column() invoiceId!: string;
+  @Column('int') projectId!: number;
+  @Column() date!: string;
+  @Column({ ...MONEY }) amount!: number;
+  @Column({ default: 'USD' }) currency!: string;
+  @Column({ ...RATE, default: 1 }) fxRate!: number;
+  @Column({ default: 'ach' }) method!: string; // ach | check | wire | card | cash | other
+  @Column({ nullable: true }) bankRef!: string;
+  @Column({ nullable: true }) txnRef!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  @Column({ nullable: true }) voidedAt!: string;
+  @Column({ nullable: true }) voidedByName!: string;
+  @Column({ ...TEXT, nullable: true }) voidReason!: string;
+}
+
+/** The audit trail: every financial change, with before and after. */
+@Entity('finance_activity')
+@Index('IX_finance_activity_project', ['projectId'])
+export class FinanceActivityEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() entityType!: string;
+  @Column() entityId!: string;
+  @Column() action!: string;
+  @Column({ type: 'simple-json', nullable: true }) changes!: Record<string, { from: unknown; to: unknown }> | null;
+  @Column({ ...TEXT, nullable: true }) reason!: string;
+  @Column({ nullable: true }) byName!: string;
+  @Column({ nullable: true }) byId!: string;
+  @Column() at!: string;
 }

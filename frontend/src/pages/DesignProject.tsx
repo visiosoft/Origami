@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { subtasksOf, type ProjectTask } from '../data/projectTasks';
@@ -62,7 +63,9 @@ export function DesignProject() {
   const [roleFilter, setRoleFilter] = useState('All roles');
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
   const [selected, setSelected] = useState<string[]>([]);
-  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard'>('board');
+  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard' | 'financials'>('board');
+  const [finView, setFinView] = useState(false);
+  useEffect(() => { api.finance.access().then((r: any) => setFinView(!!r?.view)).catch(() => setFinView(false)); }, []);
   // List-view-only controls, mirroring a "Main table" toolbar.
   const [personFilter, setPersonFilter] = useState('All people');
   const [sortBy, setSortBy] = useState<'due' | 'priority' | 'title' | 'status'>('due');
@@ -357,7 +360,7 @@ export function DesignProject() {
             </div>
 
             <div style={{ display: 'flex', gap: 6, marginTop: 20, flexWrap: 'wrap' }}>
-              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['dashboard', 'Dashboard']] as const).map(([key, label]) => (
+              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['dashboard', 'Dashboard'], ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials', string][]).map(([key, label]) => (
                 <div
                   key={key}
                   onClick={() => setView(key)}
@@ -370,7 +373,7 @@ export function DesignProject() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: view === 'financials' ? 'none' : 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 14px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, background: PAPER, flex: '1 1 220px', maxWidth: 340 }}>
                 <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={INK3} strokeWidth={2} strokeLinecap="round"><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
                 <input
@@ -572,6 +575,12 @@ export function DesignProject() {
 
           {view === 'timeline' && (
             <TimelineView stages={shownPhases} filtered={filtered} onOpen={setSelectedId} isDone={isDone} />
+          )}
+
+          {view === 'financials' && (
+            <div style={{ marginTop: 8 }}>
+              <ProjectFinancials projectId={id} category={board === '/pm' ? 'construction' : 'design'} />
+            </div>
           )}
 
           {view === 'dashboard' && (

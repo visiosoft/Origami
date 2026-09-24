@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TaskBoard } from '../components/TaskBoard';
 import { GuestAccessPanel } from '../components/GuestAccessPanel';
+import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { ProjectProgram } from './ProjectProgram';
 import { stepForTaskId, buildPrefill } from '../data/projectProgram';
 import { AssigneePicker } from '../components/AssigneePicker';
@@ -33,7 +34,10 @@ export function Projects() {
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [activeView, setActiveView] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'guests'>('overview');
+  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'financial' | 'guests'>('overview');
+  // Whether this user's role includes project financials (the server decides; can() is permissive for non-admins).
+  const [finView, setFinView] = useState(false);
+  useEffect(() => { api.finance.access().then((r: any) => setFinView(!!r?.view)).catch(() => setFinView(false)); }, []);
   // The Phase Board reads either as columns or as a grouped list.
   const [phaseView, setPhaseView] = useState<'board' | 'list'>('board');
   const [shutPhases, setShutPhases] = useState<string[]>([]);
@@ -503,7 +507,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'tasks' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -546,6 +550,14 @@ export function Projects() {
                   Tasks
                 </span>
               </div>
+              {finView && (
+                <div onClick={() => setTab('financial')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'financial' ? '#173326' : 'transparent'), color: tab === 'financial' ? '#0B1A12' : '#7E9B93' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={12} y1={1} x2={12} y2={23} /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                    Financial
+                  </span>
+                </div>
+              )}
               {canManage && (
                 <div onClick={() => setTab('guests')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'guests' ? '#173326' : 'transparent'), color: tab === 'guests' ? '#0B1A12' : '#7E9B93' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -608,6 +620,10 @@ export function Projects() {
             ) : tab === 'tasks' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                 <TaskBoard projectId={sel.id} />
+              </div>
+            ) : tab === 'financial' ? (
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', background: '#FBF8F2' }}>
+                <ProjectFinancials projectId={sel.id} />
               </div>
             ) : tab === 'guests' ? (
               <div style={{ flex: 1, overflowY: 'auto' }}>

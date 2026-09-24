@@ -964,3 +964,171 @@ export declare class TransportAssignmentEntity {
     endDate: string;
     byName: string;
 }
+declare abstract class FinanceStamped {
+    createdAt: string;
+    createdBy: string;
+    updatedAt: string;
+    updatedBy: string;
+    version: number;
+}
+export declare class ProjectFinancialEntity extends FinanceStamped {
+    projectId: number;
+    currency: string;
+    fxRate: number;
+    originalContractValue: number;
+    originalBudget: number | null;
+    retentionPct: number;
+    taxPct: number;
+    paymentTermsDays: number;
+    requireProgressApproval: boolean;
+    billToName: string;
+    billToEmail: string;
+    billToAddress: string;
+    contractNumber: string;
+    poNumber: string;
+    notes: string;
+    contractLockedAt: string;
+    reportedProgress: number;
+    approvedProgress: number;
+}
+declare abstract class ItemFinancialBase extends FinanceStamped {
+    projectId: number;
+    contractValue: number | null;
+    budgetedCost: number | null;
+    estimatedCost: number | null;
+    billingMethod: string;
+    retentionPctOverride: number | null;
+    taxPctOverride: number | null;
+    csiCodeId: string;
+    subcontractorTradeId: string;
+    deliverables: string;
+    requiredFromUs: string;
+    requiredFromClient: string;
+    requiredFromContractor: string;
+    acceptanceCriteria: string;
+    billingCondition: string;
+    notes: string;
+    reportedProgress: number;
+    approvedProgress: number;
+    progressApprovedBy: string;
+    progressApprovedAt: string;
+}
+export declare class PhaseFinancialEntity extends ItemFinancialBase {
+    phaseId: string;
+}
+export declare class TaskFinancialEntity extends ItemFinancialBase {
+    taskId: string;
+    phaseId: string;
+}
+export declare class ProgressUpdateEntity {
+    id: string;
+    projectId: number;
+    targetType: string;
+    targetId: string;
+    kind: string;
+    fromPct: number;
+    toPct: number;
+    reason: string;
+    byName: string;
+    byId: string;
+    at: string;
+}
+export declare class ProjectInvoiceEntity extends FinanceStamped {
+    id: string;
+    issuedNumber: string;
+    projectId: number;
+    kind: string;
+    status: string;
+    invoiceDate: string;
+    dueDate: string;
+    periodStart: string;
+    periodEnd: string;
+    currency: string;
+    fxRate: number;
+    baseCurrency: string;
+    reference: string;
+    poNumber: string;
+    description: string;
+    billToName: string;
+    billToEmail: string;
+    billToAddress: string;
+    retentionPct: number;
+    taxPct: number;
+    notes: string;
+    attachments: TaskAttachment[];
+    contractWork: number | null;
+    retentionAmount: number | null;
+    adjustmentTotal: number | null;
+    taxAmount: number | null;
+    total: number | null;
+    issuedAt: string;
+    issuedById: string;
+    issuedByName: string;
+    voidedAt: string;
+    voidedById: string;
+    voidedByName: string;
+    voidReason: string;
+}
+export declare class ProjectInvoiceLineEntity {
+    id: string;
+    invoiceId: string;
+    projectId: number;
+    kind: string;
+    targetType: string;
+    phaseId: string;
+    taskId: string;
+    lineOrder: number;
+    description: string;
+    billingMethod: string;
+    contractValue: number | null;
+    prevProgressPct: number | null;
+    currentProgressPct: number | null;
+    prevBilled: number | null;
+    amount: number;
+    quantity: number | null;
+    unit: string;
+    rate: number | null;
+    retentionApplies: boolean;
+    retentionPct: number;
+    retentionAmount: number;
+    taxable: boolean;
+    taxPct: number;
+    taxAmount: number;
+}
+export declare class FinanceSequenceEntity {
+    id: string;
+    next: number;
+}
+export declare class ProjectPaymentEntity extends FinanceStamped {
+    id: string;
+    invoiceId: string;
+    projectId: number;
+    date: string;
+    amount: number;
+    currency: string;
+    fxRate: number;
+    method: string;
+    bankRef: string;
+    txnRef: string;
+    notes: string;
+    attachments: TaskAttachment[];
+    voidedAt: string;
+    voidedByName: string;
+    voidReason: string;
+}
+export declare class FinanceActivityEntity {
+    id: string;
+    projectId: number;
+    entityType: string;
+    entityId: string;
+    action: string;
+    changes: Record<string, {
+        from: unknown;
+        to: unknown;
+    }> | null;
+    reason: string;
+    byName: string;
+    byId: string;
+    at: string;
+}
+export {};

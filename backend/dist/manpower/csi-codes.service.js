@@ -70,6 +70,8 @@ let CsiCodesService = class CsiCodesService {
     async create(dto) {
         const id = dto.id || 'CSI-' + String(Date.now());
         const order = dto.order ?? (await this.repo.count());
+        if (dto.order != null)
+            await this.repo.createQueryBuilder().update().set({ order: () => '[order] + 1' }).where('[order] >= :o', { o: order }).execute();
         const csiCode = { active: true, description: '', ...dto, order, id };
         return this.repo.save(this.repo.create(csiCode));
     }

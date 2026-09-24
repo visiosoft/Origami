@@ -87,7 +87,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -494,6 +494,33 @@ export const api = {
     uploadPhoto: (id: string, file: File) => requestForm(`/employees/${encodeURIComponent(id)}/photo`, filesForm([file])),
     /** Relative, cookie-authenticated -- usable directly as an <img src>. */
     photoUrl: (id: string, version?: string) => `${API_BASE}/employees/${encodeURIComponent(id)}/photo${version ? `?v=${encodeURIComponent(version)}` : ''}`,
+  },
+  /** Project financials: contract, schedule of values, earned value, invoices and payments. */
+  finance: {
+    access: () => request('/finance/access'),
+    brand: () => request('/finance/brand'),
+    overview: (projectId: number) => request(`/finance/projects/${projectId}`),
+    saveSettings: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}`, { method: 'PUT', body: JSON.stringify(d) }),
+    addMilestone: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/milestones`, { method: 'POST', body: JSON.stringify(d) }),
+    activity: (projectId: number) => request(`/finance/projects/${projectId}/activity`),
+    invoices: (projectId: number) => request(`/finance/projects/${projectId}/invoices`),
+    createInvoice: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/invoices`, { method: 'POST', body: JSON.stringify(d) }),
+    payments: (projectId: number) => request(`/finance/projects/${projectId}/payments`),
+    updateItem: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    reportProgress: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}/progress`, { method: 'POST', body: JSON.stringify(d) }),
+    approveProgress: (kind: string, id: string, d: unknown) => request(`/finance/items/${kind}/${encodeURIComponent(id)}/progress/approve`, { method: 'POST', body: JSON.stringify(d) }),
+    progressHistory: (kind: string, id: string) => request(`/finance/items/${kind}/${encodeURIComponent(id)}/progress`),
+    itemInvoices: (kind: string, id: string) => request(`/finance/items/${kind}/${encodeURIComponent(id)}/invoices`),
+    invoice: (id: string) => request(`/finance/invoices/${id}`),
+    updateInvoice: (id: string, d: unknown) => request(`/finance/invoices/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    deleteInvoice: (id: string) => request(`/finance/invoices/${id}`, { method: 'DELETE' }),
+    issueInvoice: (id: string, version: number) => request(`/finance/invoices/${id}/issue`, { method: 'POST', body: JSON.stringify({ version }) }),
+    voidInvoice: (id: string, d: unknown) => request(`/finance/invoices/${id}/void`, { method: 'POST', body: JSON.stringify(d) }),
+    recordPayment: (invoiceId: string, d: unknown) => request(`/finance/invoices/${invoiceId}/payments`, { method: 'POST', body: JSON.stringify(d) }),
+    voidPayment: (id: string, d: unknown) => request(`/finance/payments/${id}/void`, { method: 'POST', body: JSON.stringify(d) }),
+    uploadAttachments: (id: string, files: File[]) => requestForm(`/finance-invoices/${id}/attachments`, filesForm(files)),
+    addLink: (id: string, name: string, url: string) => request(`/finance-invoices/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    removeAttachment: (id: string, attId: string) => request(`/finance-invoices/${id}/attachments/${attId}`, { method: 'DELETE' }),
   },
   subcontractorTrades: {
     list: () => request('/subcontractor-trades'),
