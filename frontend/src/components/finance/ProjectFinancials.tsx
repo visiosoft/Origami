@@ -32,6 +32,7 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   const load = async () => {
     try { setData(await api.finance.overview(projectId) as Overview); setError(''); }
@@ -61,9 +62,21 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
   const r = data.rights;
 
   if (!data.settings.exists) {
-    return r.manage
-      ? <SetupCard data={data} onDone={(o) => { setData(o); loadInvoices(); }} />
-      : <div style={{ ...card, padding: 20, fontSize: 13, color: MUTED }}>This project's financials haven't been set up yet.</div>;
+    const costSide = r.viewProfitability || r.manageCosts;
+    return (
+      <div style={{ display: 'grid', gap: 16 }}>
+        {setupOpen && r.manage ? <SetupCard data={data} onDone={(o) => { setData(o); loadInvoices(); }} /> : (
+          <div style={{ ...card, padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 260, fontSize: 13, color: INK, lineHeight: 1.6 }}>
+              <b>No client contract on this project.</b>{' '}
+              <span style={{ color: MUTED }}>{costSide ? 'Work you pay others for (subcontractors, vendors, consultants) and labor are tracked below.' : "Its financials haven't been set up yet."} If a client pays you for this project, set up client billing.</span>
+            </div>
+            {r.manage && <div onClick={() => setSetupOpen(true)} style={btn()}>Set up client billing</div>}
+          </div>
+        )}
+        {costSide && <JobCostPanel projectId={projectId} overview={data} />}
+      </div>
+    );
   }
 
   return (
@@ -142,11 +155,11 @@ function SummaryCards({ s }: { s: Overview['sov']['summary'] }) {
         <Card label="Original contract" value={usd0(s.originalContract)} />
         <Card label="Approved changes" value={usd0(s.approvedChanges)} sub={s.pendingChanges ? `${usd0(s.pendingChanges)} pending approval` : 'Approved change orders'} tone={s.approvedChanges < 0 ? DANGER : undefined} />
         <Card label="Revised contract" value={usd0(s.revisedContract)} />
-        <Card label="Earned value" value={usd0(s.ev)} sub={of(s.ev)} />
-        <Card label="Invoiced (contract work)" value={usd0(s.contractWorkInvoiced)} sub={`${usd0(s.invoiceTotals)} billed after retention & tax`} />
-        <Card label="Paid" value={usd0(s.paid)} />
-        <Card label="Outstanding" value={usd0(s.arOutstanding)} sub={s.overdueCount ? `${usd0(s.overdue)} overdue (${s.overdueCount})` : undefined} tone={s.overdueCount ? DANGER : undefined} />
-        <Card label={s.unbilledEarned < 0 ? 'Over-billed' : 'Unbilled earned'} value={usd0(Math.abs(s.unbilledEarned))} tone={s.unbilledEarned < 0 ? DANGER : s.unbilledEarned > 0 ? '#8A6D12' : undefined} sub={s.billableNow > 0 ? `${usd0(s.billableNow)} ready to invoice` : undefined} />
+        <Card label="Work done" value={usd0(s.ev)} sub={of(s.ev)} />
+        <Card label="Billed to client" value={usd0(s.contractWorkInvoiced)} sub={`${usd0(s.invoiceTotals)} after retention & tax`} />
+        <Card label="Received" value={usd0(s.paid)} sub="From the client" />
+        <Card label="Client owes" value={usd0(s.arOutstanding)} sub={s.overdueCount ? `${usd0(s.overdue)} overdue (${s.overdueCount})` : undefined} tone={s.overdueCount ? DANGER : undefined} />
+        <Card label={s.unbilledEarned < 0 ? 'Billed ahead of work' : 'Done, not yet billed'} value={usd0(Math.abs(s.unbilledEarned))} tone={s.unbilledEarned < 0 ? DANGER : s.unbilledEarned > 0 ? '#8A6D12' : undefined} sub={s.billableNow > 0 ? `${usd0(s.billableNow)} ready to invoice` : undefined} />
         <Card label="Retention held" value={usd0(s.retentionHeld)} sub={s.retentionReleased ? `${usd0(s.retentionReleased)} released` : undefined} />
         {(s.reimbursablesBilled !== 0 || s.credits !== 0) && <Card label="Outside the contract" value={usd0(s.reimbursablesBilled)} sub={`Reimbursables billed${s.credits ? ` · credits ${usd0(s.credits)}` : ''}`} />}
         <Card label="Remaining contract" value={usd0(s.remainingContract)} sub={of(s.remainingContract)} />
@@ -236,9 +249,9 @@ function Sov({ data, filter, setFilter, onChanged, onItem, onProgress, onAddMile
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1390 }}>
             <div style={headRow(COLS)}>
-              <span>Milestone / task</span><span>Progress</span><span style={{ textAlign: 'right' }}>Value</span><span style={{ textAlign: 'right' }}>Earned</span>
-              <span style={{ textAlign: 'right' }}>Invoiced</span><span style={{ textAlign: 'right' }}>Billable now</span><span style={{ textAlign: 'right' }}>Retention</span>
-              <span style={{ textAlign: 'right' }}>Paid</span><span style={{ textAlign: 'right' }}>Outstanding</span><span style={{ textAlign: 'right' }}>Remaining</span><span>Status</span>
+              <span>Milestone / task</span><span>Progress</span><span style={{ textAlign: 'right' }}>Value</span><span style={{ textAlign: 'right' }}>Work done</span>
+              <span style={{ textAlign: 'right' }}>Billed</span><span style={{ textAlign: 'right' }}>Ready to bill</span><span style={{ textAlign: 'right' }}>Retention</span>
+              <span style={{ textAlign: 'right' }}>Received</span><span style={{ textAlign: 'right' }}>Client owes</span><span style={{ textAlign: 'right' }}>Remaining</span><span>Status</span>
             </div>
             {data.sov.lump && <SovRow row={data.sov.lump} depth={0} data={data} onChanged={onChanged} onItem={onItem} onProgress={onProgress} />}
             {groups.map((g) => (

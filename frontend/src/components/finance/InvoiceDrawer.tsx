@@ -346,8 +346,8 @@ function Totals({ work, ret, adj, reimb = 0, rel = 0, tax, total, paid, credited
       <div style={{ borderTop: '1px solid ' + LINE, margin: '6px 0' }} />
       {row(credit ? 'Total credit' : 'Total due', usd(total), true)}
       {credited ? row('Credited', usd(credited)) : null}
-      {paid != null && row('Paid', usd(paid))}
-      {outstanding != null && row(outstanding < 0 ? 'Credit due to client' : 'Outstanding', usd(Math.abs(outstanding)), true, outstanding > 0 ? DANGER : '#1E6B36')}
+      {paid != null && row('Received', usd(paid))}
+      {outstanding != null && row(outstanding < 0 ? 'Credit due to client' : 'Client owes', usd(Math.abs(outstanding)), true, outstanding > 0 ? DANGER : '#1E6B36')}
       {note && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{note}</div>}
     </div>
   );
@@ -398,7 +398,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
         <div onClick={() => printInvoice(inv, overview)} style={btn()}>Print / PDF</div>
         {live && !isCredit && r.issueInvoice && <div onClick={() => setStep('credit')} style={btn()}>Credit note</div>}
         {live && !isCredit && r.issueInvoice && inv.outstanding > 0 && <div onClick={() => setStep('writeoff')} style={btn()}>Write off</div>}
-        {live && !isCredit && r.recordPayment && inv.outstanding > 0 && <div onClick={() => setPay({ date: todayISO(), amount: String(inv.outstanding), method: 'ach', bankRef: '', txnRef: '', notes: '' })} style={btn(true)}>Record payment</div>}
+        {live && !isCredit && r.recordPayment && inv.outstanding > 0 && <div onClick={() => setPay({ date: todayISO(), amount: String(inv.outstanding), method: 'ach', bankRef: '', txnRef: '', notes: '' })} style={btn(true)}>Record payment received</div>}
       </div>
       {inv.status === 'void' && (
         <div style={{ ...card, padding: '10px 14px', background: '#F7ECE6', fontSize: 12.5, color: DANGER }}>
@@ -468,7 +468,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
         <div style={{ display: 'grid', gap: 12 }}>
           {pay && (
             <div style={{ ...card, padding: '12px 14px', borderColor: ACCENT, display: 'grid', gap: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>Record a payment · {usd(inv.outstanding)} outstanding</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>Record a payment received from the client · {usd(inv.outstanding)} owed</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
                 <div><Label text="Date received" /><input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} style={input} /></div>
                 <div><Label text="Amount ($)" /><input type="number" min={0} max={inv.outstanding} value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} style={input} /></div>
@@ -481,7 +481,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
             </div>
           )}
           {!isCredit && <div>
-            <Label text="Payments" />
+            <Label text="Payments received" />
             <div style={{ ...card, overflow: 'hidden' }}>
               {(inv.payments || []).map((p) => (
                 <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, opacity: p.voidedAt ? 0.55 : 1 }}>

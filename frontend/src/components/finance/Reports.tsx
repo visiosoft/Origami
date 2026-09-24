@@ -8,9 +8,9 @@ type ReportKey = 'wip' | 'ar-aging' | 'budget-vs-actual' | 'change-orders' | 're
 const REPORTS: [ReportKey, string, string, keyof Rights][] = [
   ['wip', 'WIP schedule', 'Over and under billing, cost-to-cost', 'viewProfitability'],
   ['ar-aging', 'AR aging', 'What clients owe, by how late', 'view'],
-  ['budget-vs-actual', 'Budget vs actual', 'Budget, committed, spent and forecast per project', 'viewProfitability'],
+  ['budget-vs-actual', 'Budget vs actual', 'Cost budget, committed to subs, spent and forecast', 'viewProfitability'],
   ['cash-forecast', 'Cash forecast', 'Money in and out by month', 'view'],
-  ['contract-vs-invoiced', 'Contract vs invoiced', 'Contract, earned, billed and collected', 'view'],
+  ['contract-vs-invoiced', 'Contract vs billed', 'Client contracts: work done, billed and received', 'view'],
   ['change-orders', 'Change order register', 'Every change order and its turnaround', 'viewChangeOrders'],
   ['retention', 'Retention', 'Accrued, released and held', 'view'],
 ];
@@ -77,7 +77,7 @@ export function FinanceReports({ rights, onProject }: { rights: Rights; onProjec
   if (data && !data.error) {
     if (key === 'wip') {
       cols = [['name', 'Project'], ['contract', 'Contract', 'money'], ['projectedCost', 'Forecast cost', 'money'], ['projectedMargin', 'Proj. margin', 'money'], ['projectedMarginPct', 'Margin %', 'pct'],
-        ['costToDate', 'Cost to date', 'money'], ['costCompletePct', '% complete', 'pct'], ['earnedRevenue', 'Earned revenue', 'money'], ['billed', 'Billed', 'money'], ['overUnderBilling', 'Over / (under)', 'money']];
+        ['costToDate', 'Cost to date', 'money'], ['costCompletePct', '% complete', 'pct'], ['earnedRevenue', 'Revenue to date', 'money'], ['billed', 'Billed to client', 'money'], ['overUnderBilling', 'Over / (under)', 'money']];
       rows = data.rows; note = `Cost-to-cost: % complete = cost to date ÷ forecast cost; earned revenue = contract × % complete. Over-billing is a liability, under-billing an asset. Reimbursables are excluded.${data.withoutCosts?.length ? ` Not shown — no cost budget or costs yet: ${data.withoutCosts.join(', ')}.` : ''}`;
     } else if (key === 'ar-aging') {
       cols = [['name', 'Project'], ['current', 'Current', 'money'], ['d1_30', '1–30 days', 'money'], ['d31_60', '31–60', 'money'], ['d61_90', '61–90', 'money'], ['d90_plus', '90+', 'money'], ['total', 'Total', 'money']];
@@ -86,8 +86,8 @@ export function FinanceReports({ rights, onProject }: { rights: Rights; onProjec
       cols = [['name', 'Project'], ['budget', 'Budget', 'money'], ['committed', 'Committed', 'money'], ['actual', 'Actual', 'money'], ['labor', 'of which labor', 'money'], ['open', 'Open commitments', 'money'], ['eac', 'Forecast', 'money'], ['variance', 'Variance', 'money']];
       rows = data.rows; note = 'Open a project to see its budget by cost code (Financial tab → Job cost).';
     } else if (key === 'contract-vs-invoiced') {
-      cols = [['name', 'Project'], ['original', 'Original', 'money'], ['changes', 'Changes', 'money'], ['revised', 'Revised', 'money'], ['ev', 'Earned', 'money'], ['invoiced', 'Invoiced', 'money'],
-        ['billedPct', 'Billed %', 'pct'], ['unbilled', 'Unbilled earned', 'money'], ['paid', 'Collected', 'money'], ['outstanding', 'Outstanding', 'money']];
+      cols = [['name', 'Project'], ['original', 'Original', 'money'], ['changes', 'Changes', 'money'], ['revised', 'Revised', 'money'], ['ev', 'Work done', 'money'], ['invoiced', 'Billed', 'money'],
+        ['billedPct', 'Billed %', 'pct'], ['unbilled', 'Done, not billed', 'money'], ['paid', 'Received', 'money'], ['outstanding', 'Client owes', 'money']];
       rows = data.rows;
     } else if (key === 'change-orders') {
       cols = [['number', 'CO'], ['projectName', 'Project', 'text'], ['title', 'Title', 'text'], ['reason', 'Reason', 'text'], ['status', 'Status', 'text'], ['amount', 'Amount', 'money'], ['cost', 'Cost', 'money'],

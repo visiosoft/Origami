@@ -157,6 +157,23 @@ export class CostsService {
     };
   }
 
+  /** Projects with any cost record: budget lines, commitments or cost entries. */
+  async projectsWithCosts() {
+    const [b, c, e] = await Promise.all([this.budget.find(), this.commitments.find(), this.entries.find()]);
+    return Array.from(new Set([...b, ...c, ...e].map((x) => x.projectId)));
+  }
+
+  /** The paying side in brief: committed to subcontractors/vendors, paid out, still to pay, and total cost so far. */
+  async payingSide(projectId: number, labor?: LaborLine[]) {
+    const ctx = await this.context(projectId, labor);
+    const live = ctx.entries.filter((e) => e.status !== 'void');
+    const unpaidC = sumCents(live.filter((e) => e.status !== 'paid').map((e) => toCents(e.amount)));
+    return {
+      committedC: ctx.jc.totals.committedC, paidOutC: sumCents(live.filter((e) => e.status === 'paid').map((e) => toCents(e.amount))),
+      stillToPayC: unpaidC + ctx.jc.totals.openC, costToDateC: ctx.jc.totals.actualC, costBudgetC: ctx.jc.totals.budgetC, forecastCostC: ctx.jc.totals.eacC,
+    };
+  }
+
   // ------------------------------------------------------------------ budget
 
   async saveBudgetLine(projectId: number, dto: any, actor: Actor) {

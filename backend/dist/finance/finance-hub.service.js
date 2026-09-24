@@ -20,9 +20,10 @@ const entities_1 = require("../database/entities");
 const finance_calc_1 = require("./finance.calc");
 const financials_service_1 = require("./financials.service");
 const invoices_service_1 = require("./invoices.service");
+const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
 let FinanceHubService = class FinanceHubService {
-    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines) {
+    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs) {
         this.fin = fin;
         this.projects = projects;
         this.pfin = pfin;
@@ -37,6 +38,7 @@ let FinanceHubService = class FinanceHubService {
         this.tasks = tasks;
         this.activity = activity;
         this.lines = lines;
+        this.costs = costs;
     }
     async names() {
         return new Map((await this.projects.find()).map((p) => [p.id, p.name]));
@@ -108,16 +110,24 @@ let FinanceHubService = class FinanceHubService {
         return out.sort((a, b) => (a.since || '').localeCompare(b.since || ''));
     }
     async portfolio(actor) {
-        await this.fin.need(actor, 'view');
+        const r = await this.fin.need(actor, 'view');
+        const showCosts = !!this.costs && (r.viewProfitability || r.manageCosts);
         const [settings, name] = await Promise.all([this.pfin.find(), this.projects.find()]);
         const byId = new Map(name.map((p) => [p.id, p]));
+        const clientIds = new Set(settings.map((s) => s.projectId));
+        const ids = new Set(clientIds);
+        if (showCosts)
+            for (const id of await this.costs.projectsWithCosts())
+                ids.add(id);
+        const labor = showCosts ? await this.costs.laborAll() : [];
         const rows = [];
-        for (const s of settings) {
-            const p = byId.get(s.projectId);
+        for (const id of ids) {
+            const p = byId.get(id);
             if (!p)
                 continue;
-            const sov = (0, finance_calc_1.computeSov)((await this.fin.context(s.projectId)).input);
-            rows.push({ projectId: p.id, name: p.name, stage: p.stage, ...(0, finance_calc_1.toDollars)(sov.summary) });
+            const client = clientIds.has(id) ? (0, finance_calc_1.toDollars)((0, finance_calc_1.computeSov)((await this.fin.context(id)).input).summary) : {};
+            const pay = showCosts ? await this.costs.payingSide(id, labor) : null;
+            rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? (0, finance_calc_1.toDollars)(pay) : {}) });
         }
         return rows.sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -164,6 +174,7 @@ exports.FinanceHubService = FinanceHubService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        costs_service_1.CostsService])
 ], FinanceHubService);
 //# sourceMappingURL=finance-hub.service.js.map

@@ -125,7 +125,8 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
   const { toast } = useApp();
   const [rows, setRows] = useState<any[] | null>(null);
   useEffect(() => { api.finance.portfolio().then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load')); }); }, []);
-  const cols = 'minmax(200px,1.6fr) 130px 125px 125px 125px 125px 130px 125px 115px';
+  const cols = 'minmax(200px,1.6fr) 125px 115px 115px 115px 115px 125px 115px 115px';
+  const costs = (rows || []).some((r) => r.committed != null);
   const sum = (k: string) => (rows || []).reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const num = (n: number, tone?: string) => <span style={{ textAlign: 'right', color: tone }}>{usd0(n)}</span>;
   return (
@@ -133,8 +134,9 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
       {rows && rows.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
           {[
-            ['Contract value', sum('revisedContract'), `${rows.length} projects`], ['Earned', sum('ev'), ''], ['Invoiced (contract work)', sum('contractWorkInvoiced'), ''],
-            ['Collected', sum('paid'), ''], ['Outstanding', sum('arOutstanding'), `${usd0(sum('overdue'))} overdue`], ['Retention held', sum('retentionHeld'), ''],
+            ['Client contracts', sum('revisedContract'), `${rows.filter((r) => r.hasClientContract).length} projects billed to clients`], ['Billed to clients', sum('contractWorkInvoiced'), ''],
+            ['Received from clients', sum('paid'), ''], ['Clients owe', sum('arOutstanding'), `${usd0(sum('overdue'))} overdue`],
+            ...(costs ? [['Committed to subs & vendors', sum('committed'), ''], ['Paid out', sum('paidOut'), ''], ['Still to pay', sum('stillToPay'), '']] : []),
             ['Pending change orders', sum('pendingChanges'), ''],
           ].map(([l, v, sub]) => (
             <div key={l as string} style={{ ...card, padding: '10px 14px' }}>
@@ -149,18 +151,20 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1180 }}>
             <div style={headRow(cols)}>
-              <span>Project</span><span style={{ textAlign: 'right' }}>Contract</span><span style={{ textAlign: 'right' }}>Earned</span><span style={{ textAlign: 'right' }}>Invoiced</span>
-              <span style={{ textAlign: 'right' }}>Collected</span><span style={{ textAlign: 'right' }}>Outstanding</span><span style={{ textAlign: 'right' }}>Unbilled / over</span>
-              <span style={{ textAlign: 'right' }}>Retention</span><span style={{ textAlign: 'right' }}>Pending COs</span>
+              <span>Project</span><span style={{ textAlign: 'right' }}>Client contract</span><span style={{ textAlign: 'right' }}>Billed</span><span style={{ textAlign: 'right' }}>Received</span>
+              <span style={{ textAlign: 'right' }}>Client owes</span><span style={{ textAlign: 'right' }}>Done, not billed</span><span style={{ textAlign: 'right' }}>Committed to subs</span>
+              <span style={{ textAlign: 'right' }}>Paid out</span><span style={{ textAlign: 'right' }}>Still to pay</span>
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {(rows || []).map((r) => (
               <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer' }}>
-                <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{r.stage}{r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : ''}</div></span>
-                {num(r.revisedContract)}{num(r.ev)}{num(r.contractWorkInvoiced)}{num(r.paid)}
-                <span style={{ textAlign: 'right', color: r.overdueCount ? DANGER : undefined }}>{usd0(r.arOutstanding)}{r.overdueCount ? <div style={{ fontSize: 11 }}>{usd0(r.overdue)} overdue</div> : null}</span>
-                {num(r.unbilledEarned, r.unbilledEarned < 0 ? DANGER : r.unbilledEarned > 0 ? '#8A6D12' : undefined)}
-                {num(r.retentionHeld)}{num(r.pendingChanges)}
+                <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{r.stage}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
+                {r.hasClientContract ? <>
+                  {num(r.revisedContract)}{num(r.contractWorkInvoiced)}{num(r.paid)}
+                  <span style={{ textAlign: 'right', color: r.overdueCount ? DANGER : undefined }}>{usd0(r.arOutstanding)}{r.overdueCount ? <div style={{ fontSize: 11 }}>{usd0(r.overdue)} overdue</div> : null}</span>
+                  {num(r.unbilledEarned, r.unbilledEarned < 0 ? DANGER : r.unbilledEarned > 0 ? '#8A6D12' : undefined)}
+                </> : <><span style={{ textAlign: 'right', color: MUTED }}>—</span><span /><span /><span /><span /></>}
+                {r.committed != null ? <>{num(r.committed)}{num(r.paidOut)}{num(r.stillToPay, r.stillToPay ? '#8A6D12' : undefined)}</> : <><span /><span /><span /></>}
               </div>
             ))}
             {rows && !rows.length && <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>No project has its financials set up yet — open a project and use its Financial tab.</div>}

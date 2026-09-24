@@ -9,6 +9,7 @@ import type { Actor } from '../manpower/manpower-access.service';
 import { computeSov, invoiceTotals, toDollars } from './finance.calc';
 import { FinancialsService } from './financials.service';
 import { reimbursableBillC } from './invoices.service';
+import { CostsService } from './costs.service';
 import { fromCents, sumCents, toCents } from './money';
 
 /** One thing waiting on someone's decision, wherever it lives. */
@@ -39,6 +40,7 @@ export class FinanceHubService {
     @InjectRepository(ProjectTaskEntity) private readonly tasks: Repository<ProjectTaskEntity>,
     @InjectRepository(FinanceActivityEntity) private readonly activity: Repository<FinanceActivityEntity>,
     @InjectRepository(ProjectInvoiceLineEntity) private readonly lines: Repository<ProjectInvoiceLineEntity>,
+    private readonly costs?: CostsService,
   ) {}
 
   private async names() {
@@ -114,17 +116,28 @@ export class FinanceHubService {
     return out.sort((a, b) => (a.since || '').localeCompare(b.since || ''));
   }
 
-  /** Every project with financials set up, with its headline figures. */
+  /**
+   * Every project with money on either side: what clients are billed and pay
+   * us, and -- for those who can see costs -- what we've committed to and paid
+   * subcontractors and vendors. Outsourced or internal projects with no client
+   * contract appear with their paying side only.
+   */
   async portfolio(actor: Actor) {
-    await this.fin.need(actor, 'view');
+    const r = await this.fin.need(actor, 'view');
+    const showCosts = !!this.costs && (r.viewProfitability || r.manageCosts);
     const [settings, name] = await Promise.all([this.pfin.find(), this.projects.find()]);
     const byId = new Map(name.map((p) => [p.id, p]));
+    const clientIds = new Set(settings.map((s) => s.projectId));
+    const ids = new Set(clientIds);
+    if (showCosts) for (const id of await this.costs!.projectsWithCosts()) ids.add(id);
+    const labor = showCosts ? await this.costs!.laborAll() : [];
     const rows = [];
-    for (const s of settings) {
-      const p = byId.get(s.projectId);
+    for (const id of ids) {
+      const p = byId.get(id);
       if (!p) continue;
-      const sov = computeSov((await this.fin.context(s.projectId)).input);
-      rows.push({ projectId: p.id, name: p.name, stage: p.stage, ...toDollars(sov.summary) });
+      const client = clientIds.has(id) ? toDollars(computeSov((await this.fin.context(id)).input).summary) : {};
+      const pay = showCosts ? await this.costs!.payingSide(id, labor) : null;
+      rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? toDollars(pay) : {}) });
     }
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   }

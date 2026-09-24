@@ -97,12 +97,17 @@ export function JobCostPanel({ projectId, overview }: { projectId: number; overv
   const pick = usePickers(overview);
   if (!v) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading job cost…</div>;
   const t = v.totals;
+  const paidOut = v.entries.filter((e) => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
+  const unpaidBills = v.entries.filter((e) => e.status === 'recorded' || e.status === 'approved').reduce((a, e) => a + e.amount, 0);
+  const stillToPay = unpaidBills + t.open;
   const tabs: [Sub, string][] = [['codes', 'By cost code'], ['budget', `Budget (${v.budgetLines.length})`], ['commitments', `Subcontracts & POs (${v.commitments.length})`], ['costs', `Costs (${v.entries.filter((e) => e.status !== 'void').length})`], ['labor', 'Labor']];
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10 }}>
         <Stat l="Budget" v={usd0(t.budget)} sub={t.budgetChanges ? `incl. ${usd0(t.budgetChanges)} from change orders` : v.originalBudget != null && Math.abs(v.originalBudget - t.budget) >= 1 ? `Settings say ${usd0(v.originalBudget)}` : undefined} />
-        <Stat l="Committed" v={usd0(t.committed)} sub={`${usd0(t.open)} still to bill`} />
+        <Stat l="Committed" v={usd0(t.committed)} sub={`${usd0(t.open)} not yet billed to us`} />
+        <Stat l="Paid out" v={usd0(paidOut)} sub="To subcontractors & vendors" />
+        <Stat l="Still to pay" v={usd0(stillToPay)} sub={`${usd0(unpaidBills)} billed, unpaid · ${usd0(t.open)} not yet billed`} tone={stillToPay ? '#8A6D12' : undefined} />
         <Stat l="Actual cost" v={usd0(t.actual)} sub={`Labor ${usd0(t.labor)} · bills ${usd0(t.bills)}${t.reimbursable ? ` · reimb. ${usd0(t.reimbursable)}` : ''}`} />
         <Stat l="Forecast at completion" v={usd0(t.eac)} sub={`${usd0(t.costToComplete)} to go`} />
         <Stat l="Variance" v={usd0(t.variance)} tone={t.variance < 0 ? DANGER : t.variance > 0 ? '#1E6B36' : undefined} sub={t.variance < 0 ? 'Forecast over budget' : 'Budget less forecast'} />
@@ -257,7 +262,7 @@ function Commitments({ v, projectId, pick, onChanged }: { v: CostsView; projectI
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 960 }}>
-            <div style={headRow(cols)}><span>No.</span><span>Type</span><span>Vendor</span><span>Title</span><span style={{ textAlign: 'right' }}>Committed</span><span style={{ textAlign: 'right' }}>Billed</span><span style={{ textAlign: 'right' }}>To bill</span><span>Status</span></div>
+            <div style={headRow(cols)}><span>No.</span><span>Type</span><span>Subcontractor / vendor</span><span>Title</span><span style={{ textAlign: 'right' }}>Committed</span><span style={{ textAlign: 'right' }}>Billed to us</span><span style={{ textAlign: 'right' }}>Not yet billed</span><span>Status</span></div>
             {v.commitments.map((c) => (
               <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer', opacity: c.status === 'void' ? 0.5 : 1 }}>
                 <b style={{ color: ACCENT }}>{c.number}</b><span style={{ color: MUTED }}>{label(COMMITMENT_TYPES, c.type)}</span><span>{c.vendorName}</span><span>{c.title}</span>
@@ -312,7 +317,7 @@ function CommitmentDrawer({ c, v, projectId, pick, onClose, onChanged }: {
     <Drawer title={c ? `${c.number} · ${c.title}` : 'New subcontract / purchase order'} subtitle={c ? `${c.vendorName}${c.approvedBy ? ` · approved by ${c.approvedBy} ${fmtDate(c.approvedAt)}` : ''}` : 'Cost the project is committed to before it is billed'} width={920} onClose={onClose}>
       <div style={{ display: 'grid', gap: 14 }}>
         {c && <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}><CostBadge s={c.status} />
-          <span style={{ fontSize: 12.5, color: MUTED }}>Committed {usd(c.total)} · billed {usd(c.billed)}{c.status === 'approved' ? ` · ${usd(c.remaining)} to bill` : ''}{c.closedReason ? ` · ${c.closedReason}` : ''}</span></div>}
+          <span style={{ fontSize: 12.5, color: MUTED }}>Committed {usd(c.total)} · billed to us {usd(c.billed)}{c.status === 'approved' ? ` · ${usd(c.remaining)} not yet billed` : ''}{c.closedReason ? ` · ${c.closedReason}` : ''}</span></div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
           <div><Label text="Type" /><select disabled={!editable} value={f.type} onChange={set('type')} style={input}>{COMMITMENT_TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
           <div><Label text="Subcontractor (directory)" /><select disabled={!editable} value={f.contractorId} onChange={(e) => { const k = v.contractors.find((x) => x.id === e.target.value); setF({ ...f, contractorId: e.target.value, vendorName: k ? k.name : f.vendorName }); setDirty(true); }} style={input}>
@@ -352,7 +357,7 @@ function CommitmentDrawer({ c, v, projectId, pick, onClose, onChanged }: {
           {c?.status === 'closed' && v.rights.approveCosts && <div onClick={() => act('reopen')} style={btn()}>Reopen</div>}
         </div>
         {c && billedHere.length > 0 && <div>
-          <Label text="Billed against it" />
+          <Label text="Their bills against it" />
           <div style={{ ...card, overflow: 'hidden' }}>
             {billedHere.map((e) => <div key={e.id} style={{ display: 'flex', gap: 10, padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
               <span style={{ width: 100, color: MUTED }}>{fmtDate(e.date)}</span><span style={{ flex: 1 }}>{e.reference ? `${e.reference} · ` : ''}{e.description}</span><CostBadge s={e.status} /><b>{usd(e.amount)}</b></div>)}
@@ -380,7 +385,7 @@ function Costs({ v, projectId, pick, onChanged }: { v: CostsView; projectId: num
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...input, width: 180 }}>
-          <option value="live">All but void</option><option value="recorded">To approve</option><option value="approved">Approved, unpaid</option><option value="paid">Paid</option><option value="void">Void</option><option value="all">Everything</option>
+          <option value="live">All but void</option><option value="recorded">To approve</option><option value="approved">Approved, not yet paid</option><option value="paid">Paid</option><option value="void">Void</option><option value="all">Everything</option>
         </select>
         <div style={{ flex: 1 }} />
         <div onClick={() => downloadCsv(`costs-${projectId}`, [['date', 'Date'], ['type', 'Type'], ['vendorName', 'Vendor'], ['reference', 'Reference'], ['description', 'Description'], ['amount', 'Amount'], ['status', 'Status'], ['dueDate', 'Due'], ['paidDate', 'Paid']], shown)} style={btn()}>Export CSV</div>
@@ -546,17 +551,17 @@ export function ProfitabilityPanel({ projectId }: { projectId: number }) {
       <div>
         <Label text="To date" />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
-          <Stat l="Earned (progress)" v={usd0(p.ev)} />
+          <Stat l="Work done (progress)" v={usd0(p.ev)} />
           <Stat l="Cost to date" v={usd0(p.costToDate)} />
-          <Stat l="Margin to date" v={usd0(p.marginToDate)} sub={`${p.marginToDatePct}% of earned`} tone={pctTone(p.marginToDatePct)} />
+          <Stat l="Margin to date" v={usd0(p.marginToDate)} sub={`${p.marginToDatePct}% of work done`} tone={pctTone(p.marginToDatePct)} />
         </div>
       </div>
       <div>
         <Label text="Work in progress (cost-to-cost)" />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
           <Stat l="% complete by cost" v={`${p.costCompletePct}%`} sub="Cost to date ÷ forecast cost" />
-          <Stat l="Earned revenue" v={usd0(p.earnedRevenue)} sub="Contract × % complete" />
-          <Stat l="Billed (contract work)" v={usd0(p.billed)} />
+          <Stat l="Revenue to date (by cost)" v={usd0(p.earnedRevenue)} sub="Contract × % complete" />
+          <Stat l="Billed to client" v={usd0(p.billed)} />
           <Stat l={p.overUnderBilling >= 0 ? 'Over-billed' : 'Under-billed'} v={usd0(Math.abs(p.overUnderBilling))} sub={p.overUnderBilling >= 0 ? 'Billed ahead of cost progress (a liability)' : 'Work done, not yet billed (an asset)'} tone={p.overUnderBilling >= 0 ? '#8A6D12' : ACCENT} />
         </div>
       </div>
@@ -567,7 +572,7 @@ export function ProfitabilityPanel({ projectId }: { projectId: number }) {
         </div>
       </div> : null}
       <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.6 }}>
-        Earned (progress) is the billable progress on the schedule of values; % complete by cost compares cost to date with the forecast cost. When the two disagree a lot,
+        Work done (progress) is the billable progress on the schedule of values; % complete by cost compares cost to date with the forecast cost. When the two disagree a lot,
         either progress or the cost forecast needs another look.
       </div>
     </div>

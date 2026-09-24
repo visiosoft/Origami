@@ -152,6 +152,19 @@ let CostsService = class CostsService {
             contractors: contractors.filter((c) => c.status !== 'ended').map((c) => ({ id: c.id, name: c.companyName })),
         };
     }
+    async projectsWithCosts() {
+        const [b, c, e] = await Promise.all([this.budget.find(), this.commitments.find(), this.entries.find()]);
+        return Array.from(new Set([...b, ...c, ...e].map((x) => x.projectId)));
+    }
+    async payingSide(projectId, labor) {
+        const ctx = await this.context(projectId, labor);
+        const live = ctx.entries.filter((e) => e.status !== 'void');
+        const unpaidC = (0, money_1.sumCents)(live.filter((e) => e.status !== 'paid').map((e) => (0, money_1.toCents)(e.amount)));
+        return {
+            committedC: ctx.jc.totals.committedC, paidOutC: (0, money_1.sumCents)(live.filter((e) => e.status === 'paid').map((e) => (0, money_1.toCents)(e.amount))),
+            stillToPayC: unpaidC + ctx.jc.totals.openC, costToDateC: ctx.jc.totals.actualC, costBudgetC: ctx.jc.totals.budgetC, forecastCostC: ctx.jc.totals.eacC,
+        };
+    }
     async saveBudgetLine(projectId, dto, actor) {
         await this.fin.need(actor, 'manageCosts');
         await this.fin.project(projectId);

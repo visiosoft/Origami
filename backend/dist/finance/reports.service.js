@@ -39,10 +39,13 @@ let ReportsService = class ReportsService {
         this.releases = releases;
         this.entries = entries;
     }
-    async projectsIn(projectId) {
+    async projectsIn(projectId, withCosts = false) {
         const [settings, projects] = await Promise.all([this.pfin.find(), this.projects.find()]);
-        const byId = new Map(projects.map((p) => [p.id, p]));
-        return settings.filter((s) => byId.has(s.projectId) && (!projectId || s.projectId === projectId)).map((s) => byId.get(s.projectId)).sort((a, b) => a.name.localeCompare(b.name));
+        const ids = new Set(settings.map((s) => s.projectId));
+        if (withCosts)
+            for (const id of await this.costs.projectsWithCosts())
+                ids.add(id);
+        return projects.filter((p) => ids.has(p.id) && (!projectId || p.id === projectId)).sort((a, b) => a.name.localeCompare(b.name));
     }
     async wip(actor) {
         await this.fin.need(actor, 'viewProfitability');
@@ -102,7 +105,7 @@ let ReportsService = class ReportsService {
             return { projectId, ...(await this.costs.overview(projectId, actor)) };
         const labor = await this.costs.laborAll();
         const rows = [];
-        for (const p of await this.projectsIn()) {
+        for (const p of await this.projectsIn(undefined, true)) {
             const c = await this.costs.context(p.id, labor);
             rows.push({ projectId: p.id, name: p.name, ...(0, finance_calc_1.toDollars)(c.jc.totals) });
         }

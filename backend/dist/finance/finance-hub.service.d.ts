@@ -2,6 +2,7 @@ import { Repository } from 'typeorm';
 import { ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
+import { CostsService } from './costs.service';
 export interface Pending {
     type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress';
     id: string;
@@ -29,7 +30,8 @@ export declare class FinanceHubService {
     private readonly tasks;
     private readonly activity;
     private readonly lines;
-    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>);
+    private readonly costs?;
+    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined);
     private names;
     pending(actor: Actor): Promise<Pending[]>;
     portfolio(actor: Actor): Promise<any[]>;

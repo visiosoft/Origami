@@ -62,6 +62,15 @@ export declare class CostsService {
         settings: import("../database/entities").ProjectFinancialEntity;
     }>;
     overview(projectId: number, actor: Actor): Promise<any>;
+    projectsWithCosts(): Promise<number[]>;
+    payingSide(projectId: number, labor?: LaborLine[]): Promise<{
+        committedC: number;
+        paidOutC: number;
+        stillToPayC: number;
+        costToDateC: number;
+        costBudgetC: number;
+        forecastCostC: number;
+    }>;
     saveBudgetLine(projectId: number, dto: any, actor: Actor): Promise<any>;
     removeBudgetLine(id: string, actor: Actor): Promise<any>;
     setForecast(projectId: number, dto: {
