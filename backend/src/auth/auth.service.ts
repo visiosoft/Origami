@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { UserEntity, RoleEntity, GuestAccessEntity } from '../database/entities';
+import { UserEntity, RoleEntity, GuestAccessEntity, EmployeeEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { inviteEmail, resetEmail } from './email.templates';
@@ -32,7 +32,23 @@ export class AuthService {
     @InjectRepository(GuestAccessEntity) private readonly guestAccess: Repository<GuestAccessEntity>,
     private readonly settings: SettingsService,
     private readonly google: GoogleService,
+    @InjectRepository(EmployeeEntity) private readonly employees?: Repository<EmployeeEntity>,
   ) {}
+
+  /**
+   * Whether this account runs a site: the Site Superintendent role, or an
+   * employee record (linked to the login, or with the same email) whose
+   * designation or job title says superintendent -- e.g. "Super Intendent -
+   * Construction". Decides who gets the phone daily log.
+   */
+  private async isSuperintendent(user: UserEntity) {
+    if (user.roleKey === 'site_super') return true;
+    if (!this.employees) return false;
+    const email = (user.email || '').trim().toLowerCase();
+    const rows = await this.employees.find();
+    const emp = rows.find((e) => e.userId === user.id) || (email ? rows.find((e) => (e.email || '').trim().toLowerCase() === email) : undefined);
+    return /super\s*-?\s*intend/i.test(`${emp?.designation || ''} ${emp?.jobTitle || ''}`);
+  }
 
   /**
    * Create the founding administrator if that address has no account yet.
@@ -278,7 +294,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Not signed in.');
     // The role's module permissions ride along so the app can show outside accounts only what they may use.
     const role = await this.roles.findOneBy({ key: user.roleKey });
-    return { ...publicUser(user), rolePermissions: role?.permissions || {} };
+    return { ...publicUser(user), rolePermissions: role?.permissions || {}, isSuperintendent: await this.isSuperintendent(user) };
   }
 
   /**

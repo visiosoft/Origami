@@ -23,7 +23,7 @@ const initialsOf = (name: string) =>
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, signOut } = useApp();
+  const { viewMode, setViewMode, toastMsg, can, loadingAccess, currentUser, currentRole, tier, signOut, authUser } = useApp();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const slug = location.pathname.slice(1) || 'dashboard';
@@ -36,8 +36,10 @@ export function AppShell() {
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
+  // The phone daily log is for whoever runs a site (and administrators).
+  const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
   const visibleGroups = NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => (it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
     .filter((g) => g.items.length > 0);
 
   const activeItem = (() => {

@@ -10,6 +10,8 @@ export interface NavItem {
   note?: string;
   /** About the signed-in person themselves (their own timesheet): shown to every internal user, not a role permission. */
   personal?: boolean;
+  /** Only for site superintendents (and administrators) -- not a role permission either. */
+  superintendent?: boolean;
 }
 
 export interface NavGroup {
@@ -23,7 +25,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Dashboard', route: 'dashboard', icon: 'dash' },
     { label: 'My Calendar', route: 'my-calendar', icon: 'cal' },
     { label: 'My Timesheet', route: 'my-timesheet', icon: 'clip', personal: true },
-    { label: 'Daily Log (field)', route: 'daily-log', icon: 'clip', personal: true },
+    { label: 'Daily Log (field)', route: 'daily-log', icon: 'clip', superintendent: true },
   ] },
   {
     key: 'crm',
@@ -96,7 +98,7 @@ export interface ModuleRef {
 
 // Flat, ordered list of every module (used by the role permission matrix).
 export const MODULES: ModuleRef[] = NAV_GROUPS.flatMap((g) =>
-  g.items.filter((it) => !it.personal).map((it) => ({ key: it.route, label: it.label, group: g.label })),
+  g.items.filter((it) => !it.personal && !it.superintendent).map((it) => ({ key: it.route, label: it.label, group: g.label })),
 );
 
 /** Routes every internal user may open regardless of role. */

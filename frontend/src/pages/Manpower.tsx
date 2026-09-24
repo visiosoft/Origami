@@ -220,6 +220,8 @@ export function Manpower() {
 function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, toast }: {
   projects: Project[]; employees: Employee[]; assignments: Assignment[]; csiCodes: CsiCode[]; canManage: boolean; toast: (m: string) => void;
 }) {
+  const { authUser } = useApp();
+  const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
   const [projectId, setProjectId] = useState<number | ''>('');
   const [date, setDate] = useState(todayISO());
   const [log, setLog] = useState<DailyLog | null>(null);
@@ -285,7 +287,7 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={input} />
         {log && <StatusBadge status={log.status} />}
         {log?.rejectionNote && <span style={{ fontSize: 11.5, color: '#8E2E0A' }}>Rejected: {log.rejectionNote}</span>}
-        <a href="/daily-log" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: ACCENT }}>Phone / tablet view →</a>
+        {runsSite && <a href="/daily-log" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: ACCENT }}>Phone / tablet view →</a>}
       </div>
 
       {!projectId ? (

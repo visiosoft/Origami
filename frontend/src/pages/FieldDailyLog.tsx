@@ -59,7 +59,9 @@ export function FieldDailyLog() {
 }
 
 function FieldDailyLogInner() {
-  const { can, currentUser, toast, toastMsg } = useApp();
+  const { can, currentUser, authUser, toast, toastMsg } = useApp();
+  // For site superintendents (and administrators); the office works in Manpower -> Daily Log.
+  const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
   const canEdit = can('manpower_con', 'manage');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [employees, setEmployees] = useState<Emp[]>([]);
@@ -158,6 +160,21 @@ function FieldDailyLogInner() {
     approved: ['#D2EAD3', '#1E6B36', 'Approved — timesheets created'], rejected: ['#F2DFD4', '#8E2E0A', 'Sent back — fix and submit again'],
   };
   const st = statusStyle[log?.status || 'draft'] || statusStyle.draft;
+
+  if (!runsSite) {
+    return (
+      <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", display: 'grid', placeItems: 'center', padding: 16 }}>
+        <div style={{ maxWidth: 440, background: '#fff', borderRadius: 16, border: '1px solid ' + LINE, padding: 22, display: 'grid', gap: 10 }}>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20 }}>This is the superintendent’s daily log</div>
+          <div style={{ fontSize: 14, color: MUTED, lineHeight: 1.6 }}>
+            It’s for whoever runs the site — the Site Superintendent role, or an employee whose designation is Superintendent.
+            To see or approve daily logs, use <b style={{ color: INK }}>Manpower → Daily Log</b> and <b style={{ color: INK }}>Approvals</b>.
+          </div>
+          <Link to="/manpower_con" style={{ justifySelf: 'start', padding: '10px 18px', borderRadius: 999, background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Open Manpower</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", paddingBottom: 120 }}>

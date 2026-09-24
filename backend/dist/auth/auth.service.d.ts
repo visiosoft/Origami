@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { UserEntity, RoleEntity, GuestAccessEntity } from '../database/entities';
+import { UserEntity, RoleEntity, GuestAccessEntity, EmployeeEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { type SessionClaims } from './crypto.util';
@@ -10,8 +10,10 @@ export declare class AuthService {
     private readonly guestAccess;
     private readonly settings;
     private readonly google;
+    private readonly employees?;
     private readonly log;
-    constructor(users: Repository<UserEntity>, roles: Repository<RoleEntity>, guestAccess: Repository<GuestAccessEntity>, settings: SettingsService, google: GoogleService);
+    constructor(users: Repository<UserEntity>, roles: Repository<RoleEntity>, guestAccess: Repository<GuestAccessEntity>, settings: SettingsService, google: GoogleService, employees?: Repository<EmployeeEntity> | undefined);
+    private isSuperintendent;
     private ensureFounderAdmin;
     ensureBootstrapAdmin(): Promise<void>;
     sendInvite(user: UserEntity, kind?: 'invite' | 'reset'): Promise<{

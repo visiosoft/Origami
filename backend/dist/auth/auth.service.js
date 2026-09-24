@@ -32,13 +32,24 @@ function publicUser(u) {
     return { ...rest, hasPassword: !!passwordHash, invitePending: !!inviteToken, calendarConnected: !!calendarRefreshToken };
 }
 let AuthService = class AuthService {
-    constructor(users, roles, guestAccess, settings, google) {
+    constructor(users, roles, guestAccess, settings, google, employees) {
         this.users = users;
         this.roles = roles;
         this.guestAccess = guestAccess;
         this.settings = settings;
         this.google = google;
+        this.employees = employees;
         this.log = new common_1.Logger('AuthService');
+    }
+    async isSuperintendent(user) {
+        if (user.roleKey === 'site_super')
+            return true;
+        if (!this.employees)
+            return false;
+        const email = (user.email || '').trim().toLowerCase();
+        const rows = await this.employees.find();
+        const emp = rows.find((e) => e.userId === user.id) || (email ? rows.find((e) => (e.email || '').trim().toLowerCase() === email) : undefined);
+        return /super\s*-?\s*intend/i.test(`${emp?.designation || ''} ${emp?.jobTitle || ''}`);
     }
     async ensureFounderAdmin() {
         const existing = await this.findByEmail(users_1.FOUNDER_ADMIN.email);
@@ -222,7 +233,7 @@ let AuthService = class AuthService {
         if (!user)
             throw new common_1.UnauthorizedException('Not signed in.');
         const role = await this.roles.findOneBy({ key: user.roleKey });
-        return { ...publicUser(user), rolePermissions: role?.permissions || {} };
+        return { ...publicUser(user), rolePermissions: role?.permissions || {}, isSuperintendent: await this.isSuperintendent(user) };
     }
     async setNotificationPrefs(bearer, prefs) {
         const claims = await this.verify(bearer);
@@ -281,10 +292,12 @@ exports.AuthService = AuthService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.GuestAccessEntity)),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         settings_service_1.SettingsService,
-        google_service_1.GoogleService])
+        google_service_1.GoogleService,
+        typeorm_2.Repository])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map
