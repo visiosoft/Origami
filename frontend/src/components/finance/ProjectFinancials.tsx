@@ -184,7 +184,12 @@ function Sov({ data, filter, setFilter, onChanged, onItem, onProgress, onAddMile
     try { onChanged(await api.finance.updateItem('task', taskValue.id, { contractValue: Number(taskValue.value) }) as Overview); setTaskValue(null); toast('Value added'); }
     catch (e: any) { failed(toast, e); }
   };
-  const groups = data.sov.groups.filter((g) => filter === 'all' || g.category === filter);
+  // Phases that carry no value and were never billed (template phases, say) are hidden until asked for.
+  const [showEmpty, setShowEmpty] = useState(false);
+  const isEmpty = (r: Row) => r.value == null && !r.invoiced && !(r.children || []).some((c) => c.value != null || c.invoiced);
+  const inFilter = data.sov.groups.filter((g) => filter === 'all' || g.category === filter);
+  const hiddenCount = inFilter.reduce((n, g) => n + g.rows.filter(isEmpty).length, 0);
+  const groups = showEmpty ? inFilter : inFilter.map((g) => ({ ...g, rows: g.rows.filter((r) => !isEmpty(r)) })).filter((g) => g.rows.length);
   const present = new Set(data.sov.groups.map((g) => g.category));
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const s = data.sov.summary;
@@ -196,6 +201,11 @@ function Sov({ data, filter, setFilter, onChanged, onItem, onProgress, onAddMile
           .filter(([k]) => k === 'all' || present.has(k as any) || k === filter)
           .map(([k, l]) => <div key={k} onClick={() => setFilter(k)} style={{ ...btn(filter === k), padding: '5px 12px', fontSize: 12 }}>{l}</div>)}
         <div style={{ flex: 1 }} />
+        {hiddenCount > 0 && (
+          <span onClick={() => setShowEmpty(!showEmpty)} title="Phases with no value and nothing billed -- e.g. from the programme template" style={{ fontSize: 12, color: ACCENT, cursor: 'pointer', fontWeight: 600 }}>
+            {showEmpty ? `Hide ${hiddenCount} without a value` : `Show ${hiddenCount} without a value`}
+          </span>
+        )}
         <span onClick={() => setOpen(new Set(data.sov.groups.flatMap((g) => g.rows.map((r) => r.id))))} style={{ fontSize: 12, color: MUTED, cursor: 'pointer' }}>Expand all</span>
         <span onClick={() => setOpen(new Set())} style={{ fontSize: 12, color: MUTED, cursor: 'pointer' }}>Collapse</span>
         {data.rights.manage && loose.length > 0 && <div onClick={() => setTaskValue({ id: loose[0].id, value: '' })} style={btn()} title="Give a board task outside the phases its own value">+ Task value</div>}
@@ -234,7 +244,11 @@ function Sov({ data, filter, setFilter, onChanged, onItem, onProgress, onAddMile
             {groups.map((g) => (
               <GroupBlock key={g.category} g={g} data={data} open={open} toggle={toggle} onChanged={onChanged} onItem={onItem} onProgress={onProgress} />
             ))}
-            {!data.sov.lump && !groups.length && <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>No milestones here.</div>}
+            {!data.sov.lump && !groups.length && (
+              <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>
+                {hiddenCount ? <>No milestone here carries a value yet. <span onClick={() => setShowEmpty(true)} style={{ color: ACCENT, cursor: 'pointer', fontWeight: 600 }}>Show all {hiddenCount}</span> to give them values.</> : 'No milestones here.'}
+              </div>
+            )}
             {!s.lumpSum && filter === 'all' && (
               <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', borderTop: '1px solid ' + LINE, background: s.allocation === 'over' ? '#F7ECE6' : '#FBF9F4', fontSize: 12.5, fontWeight: 700 }}>
                 <span style={{ color: s.allocation === 'over' ? DANGER : INK }}>{s.allocation === 'over' ? 'Over-allocated' : 'Unallocated'}</span><span />
