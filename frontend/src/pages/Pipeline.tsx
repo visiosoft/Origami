@@ -29,7 +29,10 @@ const OPT = LEAD_DROPDOWN_OPTIONS;
 
 type Override = Partial<Pick<Deal, 'stage' | 'stageIdx' | 'daysInStage' | 'status'>>;
 
-interface LeadNote { id: string; text: string; stageName: string; date: string }
+interface LeadNote { id: string; text: string; stageName: string; date: string; at?: string; by?: string; editedAt?: string }
+/** When a note was written: its timestamp, or (older notes) the Date.now() in its id. */
+const noteTime = (n: LeadNote) => (n.at ? Date.parse(n.at) : Number(n.id) || 0);
+const newestFirst = (notes: LeadNote[]) => [...notes].sort((a, b) => noteTime(b) - noteTime(a));
 const DOT = '·';
 
 
@@ -387,7 +390,7 @@ export function Pipeline() {
   const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'details' | 'roles' | 'contacts' | 'tasks' | 'programming'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'notes' | 'details' | 'roles' | 'contacts' | 'tasks' | 'programming'>('overview');
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   // The lead as last saved, so an edit can say which fields moved.
@@ -757,11 +760,11 @@ export function Pipeline() {
     if (!text) return;
     const current = notesByDeal[dealId] || [];
     if (editingNoteId) {
-      persistNotes(dealId, current.map((n) => (n.id === editingNoteId ? { ...n, text } : n)), 'Note edited', stageName, text);
+      persistNotes(dealId, current.map((n) => (n.id === editingNoteId ? { ...n, text, editedAt: new Date().toISOString() } : n)), 'Note edited', stageName, text);
       setEditingNoteId(null);
       toast('Note updated');
     } else {
-      const note: LeadNote = { id: String(Date.now()), text, stageName, date: fmtWhen() };
+      const note: LeadNote = { id: String(Date.now()), text, stageName, date: fmtWhen(), at: new Date().toISOString(), by: currentUser?.name || undefined };
       persistNotes(dealId, [...current, note], 'Note added', stageName, text);
       toast('Note added');
     }
@@ -1187,12 +1190,60 @@ export function Pipeline() {
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'tasks', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => (
-              <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93' }}>{t === 'overview' ? 'Overview' : t === 'tasks' ? 'Tasks' : t === 'programming' ? 'Project Programming' : 'Full Details'}</div>
-            ))}
+            {(['overview', 'notes', 'tasks', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
+              const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : 0;
+              return (
+                <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'tasks' ? 'Tasks' : t === 'programming' ? 'Project Programming' : 'Full Details'}
+                  {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? '#173326' : '#EFEDE8', color: detailTab === t ? 'white' : '#7E9B93' }}>{count}</span>}
+                </div>
+              );
+            })}
           </div>
 
-          {detailTab === 'tasks' ? (
+          {detailTab === 'notes' ? (
+            <div style={{ padding: '16px 20px 24px' }}>
+              <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.09)', borderRadius: 12, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 6 }}>
+                  {editingNoteId ? 'Edit note' : `New note · ${selectedStage.name}`}
+                </div>
+                <textarea
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submitNote(selected.id, selectedStage.name); }}
+                  placeholder="Anything useful — what they said, what to remember, what's next…"
+                  rows={4}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                  <div onClick={() => submitNote(selected.id, selectedStage.name)} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteDraft.trim() ? 'pointer' : 'not-allowed', background: noteDraft.trim() ? '#173326' : '#D6DED8', color: noteDraft.trim() ? 'white' : '#9AA39D' }}>{editingNoteId ? 'Save note' : 'Add note'}</div>
+                  {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)' }}>Cancel</div>}
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#9AA39D' }}>Ctrl + Enter to add</span>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', margin: '18px 0 8px' }}>
+                {(notesByDeal[selected.id] || []).length} note{(notesByDeal[selected.id] || []).length === 1 ? '' : 's'} · newest first
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(notesByDeal[selected.id] || []).length === 0 && <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No notes yet — the first one you add shows here.</div>}
+                {newestFirst(notesByDeal[selected.id] || []).map((n) => (
+                  <div key={n.id} style={{ background: editingNoteId === n.id ? '#EEF3EE' : '#FBF8F2', borderRadius: 10, padding: '10px 12px', border: '1px solid ' + (editingNoteId === n.id ? '#B9CDBD' : 'transparent') }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: '#2F7D4A', background: '#D2EAD3', padding: '1px 6px', borderRadius: 999 }}>{n.stageName}</span>
+                      <span style={{ fontSize: 10.5, color: '#7E9B93' }}>{n.date}{n.by ? ` · ${n.by}` : ''}{n.editedAt ? ' · edited' : ''}</span>
+                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+                        <span onClick={() => editNote(n)} style={{ fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
+                        <span onClick={() => deleteNote(selected.id, n.id)} style={{ fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{n.text}</div>
+                    <button type="button" onClick={() => setNoteTask({ dealId: selected.id, dealName: selected.name, stageName: n.stageName, text: n.text })} style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Convert to task</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : detailTab === 'tasks' ? (
             <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} />
           ) : detailTab === 'contacts' ? (
             (() => {
@@ -1739,31 +1790,24 @@ export function Pipeline() {
                 );
               })()}
 
-              {/* Notes — add / edit / delete */}
+              {/* Latest note -- the full list and the composer live on the Notes tab */}
               <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Notes</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(notesByDeal[selected.id] || []).length === 0 && <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No notes yet.</div>}
-                  {(notesByDeal[selected.id] || []).map((n) => (
-                    <div key={n.id} style={{ background: '#FBF8F2', borderRadius: 8, padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#2F7D4A', background: '#D2EAD3', padding: '1px 6px', borderRadius: 999 }}>{n.stageName}</span>
-                        <span style={{ fontSize: 10, color: '#7E9B93' }}>{n.date}</span>
-                        <span style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
-                          <span onClick={() => editNote(n)} style={{ fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
-                          <span onClick={() => deleteNote(selected.id, n.id)} style={{ fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#43514D', lineHeight: 1.5 }}>{n.text}</div>
-                      <button type="button" onClick={() => setNoteTask({ dealId: selected.id, dealName: selected.name, stageName: n.stageName, text: n.text })} style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Convert to task</button>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', flex: 1 }}>Latest note</div>
+                  <span onClick={() => setDetailTab('notes')} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
+                    {(notesByDeal[selected.id] || []).length ? `All notes (${(notesByDeal[selected.id] || []).length}) →` : '+ Add a note →'}
+                  </span>
+                </div>
+                {(() => {
+                  const latest = newestFirst(notesByDeal[selected.id] || [])[0];
+                  if (!latest) return <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No notes yet.</div>;
+                  return (
+                    <div onClick={() => setDetailTab('notes')} style={{ background: '#FBF8F2', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
+                      <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 4 }}>{latest.date}{latest.by ? ` · ${latest.by}` : ''}</div>
+                      <div style={{ fontSize: 12, color: '#43514D', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}>{latest.text}</div>
                     </div>
-                  ))}
-                </div>
-                <textarea value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder={editingNoteId ? 'Edit note…' : 'Add a note for this stage…'} rows={2} style={{ ...inputStyle, marginTop: 10, resize: 'vertical' }} />
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <div onClick={() => submitNote(selected.id, selectedStage.name)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteDraft.trim() ? 'pointer' : 'not-allowed', background: noteDraft.trim() ? '#173326' : '#D6DED8', color: noteDraft.trim() ? 'white' : '#9AA39D' }}>{editingNoteId ? 'Save Note' : 'Add Note'}</div>
-                  {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)' }}>Cancel</div>}
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Audit trail (stage moves, archives, role changes, notes) */}
