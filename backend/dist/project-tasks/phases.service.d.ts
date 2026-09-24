@@ -76,6 +76,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
             notified50: string;
             notified90: string;
             notified100: string;
+            hiddenAt: string;
         }[];
         tasks: {
             targetDays: number;

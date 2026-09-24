@@ -359,7 +359,7 @@ export class PhasesService implements OnApplicationBootstrap {
           return row ?? { id: `PH-${project.id}-${d.key}`, key: d.key, name: d.name, color: d.color, order: di };
         }),
         ...rows.filter((ph) => !plan.some((d) => d.key === ph.key)),
-      ].sort((a, b) => a.order - b.order);
+      ].filter((ph: any) => !ph.hiddenAt).sort((a, b) => a.order - b.order);
 
       const own = source
         .map((ph) => {

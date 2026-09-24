@@ -31,7 +31,7 @@ const STATUS = {
   none: { label: 'Not Started', bg: SAND, c: INK3 },
 };
 
-interface Phase { id: string; key: string; name: string; color: string; order: number }
+interface Phase { id: string; key: string; name: string; color: string; order: number; hiddenAt?: string | null }
 interface Project {
   id: number; name: string; location: string; contractAmt: string; contractType: string;
   priority: string; typeOfWork: string; estStart: string; duration: string; scope: string;
@@ -111,9 +111,12 @@ export function DesignProject() {
   }, [board]);
 
   /** Tasks per phase, with the counts the header and tabs need. */
+  // Phases hidden on this project (ones it doesn't use) stay off the board unless asked for.
+  const [showHidden, setShowHidden] = useState(false);
+  const hiddenCount = phases.filter((ph) => ph.hiddenAt).length;
   const scopedPhases = useMemo(
-    () => (board === '/pm' && constructionKeys ? phases.filter((ph) => constructionKeys.has(ph.key)) : phases),
-    [phases, board, constructionKeys],
+    () => (board === '/pm' && constructionKeys ? phases.filter((ph) => constructionKeys.has(ph.key)) : phases).filter((ph) => showHidden || !ph.hiddenAt),
+    [phases, board, constructionKeys, showHidden],
   );
   // Once the Construction scope is known, make sure the open phase is one of
   // this board's own -- the initial pick (above) had no way to know that yet.
@@ -390,6 +393,11 @@ export function DesignProject() {
                 <option value="all">All phases</option>
                 {stages.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
               </select>
+              {hiddenCount > 0 && (
+                <span onClick={() => setShowHidden(!showHidden)} title="Phases this project doesn't use -- hidden from its Phase Board" style={{ fontSize: 13, fontWeight: 600, color: ACCENT, cursor: 'pointer' }}>
+                  {showHidden ? `Hide ${hiddenCount} hidden phase${hiddenCount > 1 ? 's' : ''}` : `Show ${hiddenCount} hidden phase${hiddenCount > 1 ? 's' : ''}`}
+                </span>
+              )}
               <div
                 onClick={() => { setQuery(''); setRoleFilter('All roles'); setPhaseFilter('all'); }}
                 style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 16px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, fontSize: 14, fontWeight: 600, color: '#4A4357', cursor: 'pointer' }}

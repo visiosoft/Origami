@@ -79,6 +79,35 @@ function Stat({ l, v, sub, tone }: { l: string; v: string; sub?: string; tone?: 
   );
 }
 
+/**
+ * Where the budget stands, in one bar: paid out, billed but unpaid, committed
+ * but not yet billed, and budget not yet committed (or committed past it).
+ */
+function SpendBar({ budget, committed, paid, unpaid, open, other }: { budget: number; committed: number; paid: number; unpaid: number; open: number; other: number }) {
+  const scale = Math.max(budget, paid + unpaid + open + other, committed, 1);
+  const uncommitted = Math.max(budget - (paid + unpaid + open + other), 0);
+  const over = Math.max(paid + unpaid + open + other - budget, 0);
+  const parts: [string, number, string][] = [
+    ['Paid out', paid, '#2F7D4A'], ['Billed, unpaid', unpaid, '#D9A441'], ['Other cost to date', other, '#7FA38C'],
+    ['Committed, not yet billed', open, '#CFE3D2'], ['Budget not yet committed', uncommitted, '#EFEDE8'],
+  ];
+  if (!budget && !paid && !unpaid && !open && !other) return null;
+  return (
+    <div style={{ ...card, padding: '12px 16px', display: 'grid', gap: 8 }}>
+      <div style={{ position: 'relative', height: 12, borderRadius: 99, overflow: 'hidden', display: 'flex', background: '#EFEDE8' }}>
+        {parts.filter(([, n]) => n > 0).map(([l, n, c]) => <div key={l} title={`${l}: ${usd(n)}`} style={{ width: `${(n / scale) * 100}%`, background: c }} />)}
+        {budget > 0 && over > 0 && <div title="Budget" style={{ position: 'absolute', left: `${(budget / scale) * 100}%`, top: 0, bottom: 0, width: 2, background: DANGER }} />}
+      </div>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11.5, color: MUTED }}>
+        {parts.filter(([, n]) => n > 0).map(([l, n, c]) => (
+          <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: c, border: c === '#EFEDE8' ? '1px solid #DAD6CD' : 'none' }} />{l} <b style={{ color: INK }}>{usd0(n)}</b></span>
+        ))}
+        {over > 0 && <span style={{ color: DANGER, fontWeight: 700 }}>{usd0(over)} past the budget</span>}
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ job cost panel
 
 type Sub = 'codes' | 'budget' | 'commitments' | 'costs' | 'labor';
@@ -103,15 +132,19 @@ export function JobCostPanel({ projectId, overview }: { projectId: number; overv
   const tabs: [Sub, string][] = [['codes', 'By cost code'], ['budget', `Budget (${v.budgetLines.length})`], ['commitments', `Subcontracts & POs (${v.commitments.length})`], ['costs', `Costs (${v.entries.filter((e) => e.status !== 'void').length})`], ['labor', 'Labor']];
   return (
     <div style={{ display: 'grid', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 10 }}>
-        <Stat l="Budget" v={usd0(t.budget)} sub={t.budgetChanges ? `incl. ${usd0(t.budgetChanges)} from change orders` : v.originalBudget != null && Math.abs(v.originalBudget - t.budget) >= 1 ? `Settings say ${usd0(v.originalBudget)}` : undefined} />
-        <Stat l="Committed" v={usd0(t.committed)} sub={`${usd0(t.open)} not yet billed to us`} />
-        <Stat l="Paid out" v={usd0(paidOut)} sub="To subcontractors & vendors" />
-        <Stat l="Still to pay" v={usd0(stillToPay)} sub={`${usd0(unpaidBills)} billed, unpaid · ${usd0(t.open)} not yet billed`} tone={stillToPay ? '#8A6D12' : undefined} />
-        <Stat l="Actual cost" v={usd0(t.actual)} sub={`Labor ${usd0(t.labor)} · bills ${usd0(t.bills)}${t.reimbursable ? ` · reimb. ${usd0(t.reimbursable)}` : ''}`} />
-        <Stat l="Forecast at completion" v={usd0(t.eac)} sub={`${usd0(t.costToComplete)} to go`} />
-        <Stat l="Variance" v={usd0(t.variance)} tone={t.variance < 0 ? DANGER : t.variance > 0 ? '#1E6B36' : undefined} sub={t.variance < 0 ? 'Forecast over budget' : 'Budget less forecast'} />
-        <Stat l="Labor hours" v={String(t.laborHours || 0)} sub={v.laborBurdenPct ? `burden ${v.laborBurdenPct}%` : 'no burden set'} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+        <Stat l="Budget" v={usd0(t.budget)} sub={t.budgetChanges ? `incl. ${usd0(t.budgetChanges)} from change orders` : v.originalBudget != null && Math.abs(v.originalBudget - t.budget) >= 1 ? `Settings say ${usd0(v.originalBudget)}` : 'Cost budget'} />
+        <Stat l="Committed" v={usd0(t.committed)} sub={`${v.commitments.filter((c) => c.status === 'approved' || c.status === 'closed').length} subcontract${v.commitments.length === 1 ? '' : 's'} / POs`} />
+        <Stat l="Paid out" v={usd0(paidOut)} sub="To subcontractors & vendors" tone={paidOut ? '#1E6B36' : undefined} />
+        <Stat l="Still to pay" v={usd0(stillToPay)} sub={unpaidBills ? `${usd0(unpaidBills)} billed and unpaid` : 'Nothing billed and unpaid'} tone={stillToPay ? '#8A6D12' : undefined} />
+      </div>
+      <SpendBar budget={t.budget} committed={t.committed} paid={paidOut} unpaid={unpaidBills} open={t.open} other={Math.max(t.actual - paidOut - unpaidBills, 0)} />
+      <div style={{ ...card, padding: '10px 16px', display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'baseline', fontSize: 12.5 }}>
+        <span><span style={{ color: MUTED }}>Cost to date </span><b>{usd0(t.actual)}</b>
+          <span style={{ color: MUTED, fontSize: 11.5 }}> ({[t.bills && `bills ${usd0(t.bills)}`, t.labor && `labor ${usd0(t.labor)}`, t.reimbursable && `reimbursables ${usd0(t.reimbursable)}`].filter(Boolean).join(' · ') || 'nothing yet'})</span></span>
+        <span><span style={{ color: MUTED }}>Forecast at completion </span><b>{usd0(t.eac)}</b></span>
+        <span><span style={{ color: MUTED }}>Variance </span><b style={{ color: t.variance < 0 ? DANGER : t.variance > 0 ? '#1E6B36' : INK }}>{t.variance < 0 ? `${usd0(-t.variance)} over budget` : t.variance > 0 ? `${usd0(t.variance)} under budget` : 'on budget'}</b></span>
+        <span><span style={{ color: MUTED }}>Labor </span><b>{t.laborHours || 0} h</b>{v.laborBurdenPct ? <span style={{ color: MUTED, fontSize: 11.5 }}> · burden {v.laborBurdenPct}%</span> : null}</span>
       </div>
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid ' + LINE }}>
         {tabs.map(([k, l]) => <div key={k} onClick={() => setSub(k)} style={{ padding: '8px 12px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: sub === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (sub === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>)}
@@ -128,7 +161,7 @@ export function JobCostPanel({ projectId, overview }: { projectId: number; overv
 function ByCode({ v, projectId, onChanged }: { v: CostsView; projectId: number; onChanged: (x: CostsView) => void }) {
   const { toast } = useApp();
   const [edit, setEdit] = useState<{ key: string; csiCodeId: string | null; eac: string; note: string } | null>(null);
-  const cols = 'minmax(200px,1.8fr) 115px 115px 115px 110px 125px 110px 130px';
+  const cols = 'minmax(170px,2fr) repeat(6, minmax(92px,1fr)) 120px';
   const save = async (clear = false) => {
     if (!edit) return;
     try { onChanged(await api.finance.setForecast(projectId, { csiCodeId: edit.csiCodeId, eac: clear ? null : edit.eac, note: edit.note }) as CostsView); setEdit(null); }
@@ -137,13 +170,13 @@ function ByCode({ v, projectId, onChanged }: { v: CostsView; projectId: number; 
   const csv = () => downloadCsv(`job-cost-${projectId}`, [['code', 'Code'], ['division', 'Division'], ['budget', 'Budget'], ['committed', 'Committed'], ['actual', 'Actual'], ['open', 'Open commitments'], ['eac', 'Forecast (EAC)'], ['variance', 'Variance'], ['labor', 'Labor'], ['laborHours', 'Labor hours']], v.rows);
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 8 }}><div style={{ flex: 1, fontSize: 11.5, color: MUTED, alignSelf: 'center' }}>Forecast = your estimate where set (✎), otherwise the larger of budget and actual + what commitments still have to bill.</div><div onClick={csv} style={btn()}>Export CSV</div></div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><div style={{ flex: 1, fontSize: 11.5, color: MUTED }}>Forecast is your estimate where you've set one (✎); otherwise the larger of the budget and cost to date plus what's committed but not yet billed.</div><div onClick={csv} style={btn()}>Export CSV</div></div>
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 1030 }}>
+          <div style={{ minWidth: 820 }}>
             <div style={headRow(cols)}>
-              <span>Cost code</span><span style={{ textAlign: 'right' }}>Budget</span><span style={{ textAlign: 'right' }}>Committed</span><span style={{ textAlign: 'right' }}>Actual</span>
-              <span style={{ textAlign: 'right' }}>Open</span><span style={{ textAlign: 'right' }}>Forecast</span><span style={{ textAlign: 'right' }}>Variance</span><span>Spent</span>
+              <span>Cost code</span><span style={{ textAlign: 'right' }}>Budget</span><span style={{ textAlign: 'right' }}>Committed</span><span style={{ textAlign: 'right' }}>Cost to date</span>
+              <span style={{ textAlign: 'right' }}>Not yet billed</span><span style={{ textAlign: 'right' }}>Forecast</span><span style={{ textAlign: 'right' }}>Variance</span><span>Spent</span>
             </div>
             {v.rows.map((r) => (
               <div key={r.key}>

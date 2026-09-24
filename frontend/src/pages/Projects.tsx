@@ -113,7 +113,21 @@ export function Projects() {
   const [boardPhases, setBoardPhases] = useState<BoardPhase[]>([]);
   const [boardTasks, setBoardTasks] = useState<BoardTask[]>([]);
   const [applying, setApplying] = useState(false);
-  const workflow = computeWorkflow(boardPhases, boardTasks);
+  // Phases a project doesn't use (hidden from its board) stay out of the board and its progress until shown again.
+  const [showHiddenPhases, setShowHiddenPhases] = useState(false);
+  const hiddenPhaseCount = boardPhases.filter((p) => p.hiddenAt).length;
+  const workflow = computeWorkflow(showHiddenPhases ? boardPhases : boardPhases.filter((p) => !p.hiddenAt), boardTasks);
+  const setPhaseHidden = (phaseId: string, hidden: boolean) => {
+    const hiddenAt = hidden ? new Date().toISOString() : null;
+    setBoardPhases((prev) => prev.map((p) => (p.id === phaseId ? { ...p, hiddenAt } : p)));
+    api.projectPhases.update(phaseId, { hiddenAt }).catch(() => toast('⚠ Could not save that'));
+  };
+  const setProgramOff = (off: boolean) => {
+    if (!sel) return;
+    setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, programOff: off } : p)));
+    if (off && tab === 'program') setTab('overview');
+    api.projects.update(sel.id, { name: sel.name, programOff: off }).then(() => toast(off ? 'Project Program turned off for this project' : 'Project Program turned on')).catch(() => toast('⚠ Failed to save'));
+  };
 
   const loadBoard = (projectId: number) => {
     api.projectPhases.board(projectId)
@@ -183,7 +197,7 @@ export function Projects() {
    */
   const openPhaseTask = (pt: any, phase: { name: string; color: string }) => {
     const step = stepForTaskId(pt?.id);
-    if (step) { setProgramStep(step); setTab('program'); return; }
+    if (step && !sel?.programOff) { setProgramStep(step); setTab('program'); return; }
     setSelPt({ pt, phaseName: phase.name, phaseColor: phase.color });
   };
 
@@ -538,12 +552,12 @@ export function Projects() {
                   Phase Board
                 </span>
               </div>
-              <div onClick={() => setTab('program')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'program' ? '#173326' : 'transparent'), color: tab === 'program' ? '#0B1A12' : '#7E9B93' }}>
+              {!sel.programOff && <div onClick={() => setTab('program')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'program' ? '#173326' : 'transparent'), color: tab === 'program' ? '#0B1A12' : '#7E9B93' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
                   Project Program
                 </span>
-              </div>
+              </div>}
               <div onClick={() => setTab('tasks')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
@@ -597,11 +611,18 @@ export function Projects() {
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
                   <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}>Open Phase Board</div>
+                  {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(20,8,31,0.2)', color: '#7E9B93', background: 'white' }}>Project Program off · Turn on</div>}
                   {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Delete</div>}
                 </div>
               </div>
             ) : tab === 'program' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                {canManage && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    <span onClick={() => { if (window.confirm(`Turn off the Project Program for ${sel.name}? The tab is hidden; anything already filled in is kept and comes back if you turn it on again (Overview).`)) setProgramOff(true); }}
+                      style={{ fontSize: 12, color: '#7E9B93', cursor: 'pointer' }}>Not needed on this project? Turn off</span>
+                  </div>
+                )}
                 <ProjectProgram
                   projectId={sel.id}
                   projectName={sel.name}
@@ -640,6 +661,11 @@ export function Projects() {
                             : ''}`
                       : 'This project has no programme yet.'}
                   </span>
+                  {hiddenPhaseCount > 0 && (
+                    <span onClick={() => setShowHiddenPhases(!showHiddenPhases)} style={{ fontSize: 11.5, color: '#173326', fontWeight: 700, cursor: 'pointer' }}>
+                      {showHiddenPhases ? `Hide the ${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''}` : `${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''} · Show`}
+                    </span>
+                  )}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: '#EFEDE8', borderRadius: 999 }}>
                     {(['board', 'list'] as const).map((v) => (
                       <div
@@ -685,6 +711,16 @@ export function Projects() {
                           <div style={{ width: 8, height: 8, borderRadius: 3, background: phase.color, flexShrink: 0 }} />
                           <div style={{ fontSize: 11, fontWeight: 700, color: '#0B1A12', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phase.name}</div>
                           <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
+                          {canManage && (() => {
+                            const hidden = !!boardPhases.find((p) => p.id === phase.id)?.hiddenAt;
+                            return (
+                              <span onClick={() => { if (hidden || window.confirm(`Hide "${phase.name}" on this project's board? Its tasks are kept, and "Show" brings it back.`)) setPhaseHidden(phase.id, !hidden); }}
+                                title={hidden ? 'Show this phase on the board again' : "Hide this phase -- this project doesn't use it"}
+                                style={{ cursor: 'pointer', color: hidden ? '#173326' : '#9AA39D', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center' }}>
+                                {hidden ? 'Unhide' : <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1={1} y1={1} x2={23} y2={23} /></svg>}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <div style={{ fontSize: 9.5, color: '#9AA39D', marginBottom: 6 }}>
                           {phase.weeks

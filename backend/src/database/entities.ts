@@ -42,6 +42,8 @@ export class ProjectEntity {
   // back to the library's first entry.
   @Column({ nullable: true }) templateKey!: string;
   @Column({ nullable: true }) website!: string; // rolls over from the originating lead at conversion
+  /** True when the project doesn't use the Project Program workbook (outsourced, software, small jobs); its answers are kept. */
+  @Column({ nullable: true, default: false }) programOff!: boolean;
 }
 
 @Entity('people')
@@ -514,6 +516,12 @@ export class ProjectPhaseEntity {
   @Column({ nullable: true }) notified50!: string;
   @Column({ nullable: true }) notified90!: string;
   @Column({ nullable: true }) notified100!: string;
+  /**
+   * Set when a project doesn't use this phase (e.g. the design programme on a
+   * software job). Hidden phases keep their tasks and can be shown again; the
+   * row stays so the template never re-adds them.
+   */
+  @Column({ nullable: true }) hiddenAt!: string;
 }
 
 /**

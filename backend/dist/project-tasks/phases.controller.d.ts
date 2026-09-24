@@ -69,6 +69,7 @@ export declare class PhasesController {
             notified50: string;
             notified90: string;
             notified100: string;
+            hiddenAt: string;
         }[];
         tasks: {
             targetDays: number;

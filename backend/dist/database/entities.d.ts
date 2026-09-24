@@ -24,6 +24,7 @@ export declare class ProjectEntity {
     contractApproved: boolean | null;
     templateKey: string;
     website: string;
+    programOff: boolean;
 }
 export declare class PersonEntity {
     id: number;
@@ -359,6 +360,7 @@ export declare class ProjectPhaseEntity {
     notified50: string;
     notified90: string;
     notified100: string;
+    hiddenAt: string;
 }
 export declare class ProjectProgramEntity {
     projectId: number;

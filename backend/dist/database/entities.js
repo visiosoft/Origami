@@ -112,6 +112,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "website", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: false }),
+    __metadata("design:type", Boolean)
+], ProjectEntity.prototype, "programOff", void 0);
 exports.ProjectEntity = ProjectEntity = __decorate([
     (0, typeorm_1.Entity)('projects')
 ], ProjectEntity);
@@ -1392,6 +1396,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectPhaseEntity.prototype, "notified100", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectPhaseEntity.prototype, "hiddenAt", void 0);
 exports.ProjectPhaseEntity = ProjectPhaseEntity = __decorate([
     (0, typeorm_1.Entity)('project_phases')
 ], ProjectPhaseEntity);

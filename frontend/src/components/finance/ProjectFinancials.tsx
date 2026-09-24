@@ -67,11 +67,11 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
       <div style={{ display: 'grid', gap: 16 }}>
         {setupOpen && r.manage ? <SetupCard data={data} onDone={(o) => { setData(o); loadInvoices(); }} /> : (
           <div style={{ ...card, padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 260, fontSize: 13, color: INK, lineHeight: 1.6 }}>
-              <b>No client contract on this project.</b>{' '}
-              <span style={{ color: MUTED }}>{costSide ? 'Work you pay others for (subcontractors, vendors, consultants) and labor are tracked below.' : "Its financials haven't been set up yet."} If a client pays you for this project, set up client billing.</span>
+            <div style={{ flex: 1, minWidth: 260, fontSize: 13, color: INK, lineHeight: 1.5 }}>
+              <b>No client contract</b>
+              <div style={{ color: MUTED, fontSize: 12.5 }}>{costSide ? 'This project only has costs — what you pay subcontractors, vendors and your own labor.' : "Its financials haven't been set up yet."}</div>
             </div>
-            {r.manage && <div onClick={() => setSetupOpen(true)} style={btn()}>Set up client billing</div>}
+            {r.manage && <div onClick={() => setSetupOpen(true)} style={btn()} title="If a client pays you for this project">Set up client billing</div>}
           </div>
         )}
         {costSide && <JobCostPanel projectId={projectId} overview={data} />}
