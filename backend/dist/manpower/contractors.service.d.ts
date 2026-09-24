@@ -37,6 +37,7 @@ export declare class ContractorsService {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }[]>;
     private load;
     private one;
@@ -68,6 +69,7 @@ export declare class ContractorsService {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     update(id: string, dto: any): Promise<{
         attachments: TaskAttachment[];
@@ -97,6 +99,7 @@ export declare class ContractorsService {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     remove(id: string): Promise<{
         id: string;
@@ -130,6 +133,7 @@ export declare class ContractorsService {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     addLink(id: string, name: string, url: string, actor: UploadActor): Promise<{
         attachments: TaskAttachment[];
@@ -159,6 +163,7 @@ export declare class ContractorsService {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     removeAttachment(id: string, attId: string): Promise<{
         attachments: TaskAttachment[];
@@ -188,6 +193,7 @@ export declare class ContractorsService {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     attachment(id: string, attId: string): Promise<TaskAttachment>;
 }

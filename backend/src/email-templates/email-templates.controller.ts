@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { EmailTemplatesService } from './email-templates.service';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
 
+@Tiers('internal')
 @Controller('email-templates')
 export class EmailTemplatesController {
   constructor(private readonly service: EmailTemplatesService) {}

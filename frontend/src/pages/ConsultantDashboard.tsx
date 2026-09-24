@@ -21,14 +21,16 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 
 export function ConsultantDashboard() {
   const navigate = useNavigate();
-  const { currentUser } = useApp();
+  const { currentUser, tier } = useApp();
+  // A consultant's own project list is already narrowed by the server; staff previewing this view read the People link.
+  const outside = tier !== 'internal';
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [boardTasks, setBoardTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.projects.list(), api.people.list(), api.projectTasks.list()])
+    Promise.all([api.projects.list(), outside ? Promise.resolve([]) : api.people.list(), api.projectTasks.list()])
       .then(([p, pp, t]) => {
         if (Array.isArray(p)) setAllProjects(p as Project[]);
         if (Array.isArray(pp)) setPeople(pp as Person[]);
@@ -46,8 +48,8 @@ export function ConsultantDashboard() {
     [people, currentUser],
   );
   const assigned = useMemo(
-    () => (me ? allProjects.filter((p) => me.projects.includes(p.name)) : []),
-    [allProjects, me],
+    () => (outside ? allProjects : me ? allProjects.filter((p) => me.projects.includes(p.name)) : []),
+    [allProjects, me, outside],
   );
   const projectsById = useMemo(() => Object.fromEntries(assigned.map((p) => [p.id, p.name])), [assigned]);
 
@@ -81,7 +83,7 @@ export function ConsultantDashboard() {
 
       <MyTasks />
 
-      {!loading && !me && (
+      {!loading && (outside ? !assigned.length : !me) && (
         <div style={{ padding: '16px 18px', borderRadius: 14, background: '#FBF8F2', border: '1px solid rgba(20,8,31,0.06)', fontSize: 12.5, color: '#7E9B93', marginBottom: 14 }}>
           No scopes are linked to your account yet. Ask your project manager to add {currentUser?.email || 'your email'} to the People directory as a consultant on your project(s).
         </div>

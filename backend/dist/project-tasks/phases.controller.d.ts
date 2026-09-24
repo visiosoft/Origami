@@ -1,9 +1,12 @@
 import { PhasesService } from './phases.service';
 import { CreatePhaseDto } from './dto/create-phase.dto';
+import { ProjectAccessService } from '../auth/project-access.service';
+import type { SessionClaims } from '../auth/crypto.util';
 export declare class PhasesController {
     private readonly service;
-    constructor(service: PhasesService);
-    findAll(projectId: string): Promise<import("../database/entities").ProjectPhaseEntity[]>;
+    private readonly access;
+    constructor(service: PhasesService, access: ProjectAccessService);
+    findAll(projectId: string, claims: SessionClaims | null): Promise<import("../database/entities").ProjectPhaseEntity[]>;
     listTemplates(): Promise<import("../seed-data/programme-template").ProgrammeTemplateDef[]>;
     saveTemplate(body: {
         key?: string;
@@ -52,7 +55,7 @@ export declare class PhasesController {
         taskDone: number;
         progress: number;
     }[]>;
-    board(projectId: string): Promise<{
+    board(projectId: string, claims: SessionClaims | null): Promise<{
         phases: {
             gated: boolean;
             dependsOn: string[];
@@ -103,10 +106,7 @@ export declare class PhasesController {
             durationDays: number;
             dependsOn: string[];
         }[];
-    }> | {
-        phases: never[];
-        tasks: never[];
-    };
+    }>;
     create(dto: CreatePhaseDto): Promise<import("../database/entities").ProjectPhaseEntity>;
     adopt(body: {
         projectId: number;

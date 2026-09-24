@@ -20,13 +20,15 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 
 export function ClientDashboard() {
   const navigate = useNavigate();
-  const { currentUser } = useApp();
+  const { currentUser, tier } = useApp();
+  // A client's own project list is already narrowed by the server; staff previewing this view read the People link.
+  const outside = tier !== 'internal';
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.projects.list(), api.people.list()])
+    Promise.all([api.projects.list(), outside ? Promise.resolve([]) : api.people.list()])
       .then(([p, pp]) => {
         if (Array.isArray(p)) setAllProjects(p as Project[]);
         if (Array.isArray(pp)) setPeople(pp as Person[]);
@@ -43,8 +45,8 @@ export function ClientDashboard() {
     [people, currentUser],
   );
   const projects = useMemo(
-    () => (me ? allProjects.filter((p) => me.projects.includes(p.name)) : []),
-    [allProjects, me],
+    () => (outside ? allProjects : me ? allProjects.filter((p) => me.projects.includes(p.name)) : []),
+    [allProjects, me, outside],
   );
 
   const inDesign = projects.filter((p) => p.stage === 'Design').length;
@@ -73,13 +75,13 @@ export function ClientDashboard() {
 
       <MyTasks />
 
-      {!loading && !me && (
+      {!loading && (outside ? !projects.length : !me) && (
         <div style={{ padding: '16px 18px', borderRadius: 14, background: '#FBF8F2', border: '1px solid rgba(20,8,31,0.06)', fontSize: 12.5, color: '#7E9B93', marginBottom: 14 }}>
           No projects are linked to your account yet. Ask your project coordinator to add {currentUser?.email || 'your email'} to the People directory as a client contact on your project.
         </div>
       )}
 
-      {!loading && me && projects.length === 0 && (
+      {!loading && !outside && me && projects.length === 0 && (
         <div style={{ padding: '16px 18px', borderRadius: 14, background: '#FBF8F2', border: '1px solid rgba(20,8,31,0.06)', fontSize: 12.5, color: '#7E9B93', marginBottom: 14 }}>
           You're linked in the People directory, but none of the listed projects match one on the board yet.
         </div>

@@ -57,6 +57,7 @@ export declare class ContractorsController {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }[]>;
     create(dto: ContractorDto): Promise<{
         attachments: import("../database/task.types").TaskAttachment[];
@@ -86,6 +87,7 @@ export declare class ContractorsController {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     update(id: string, dto: ContractorDto): Promise<{
         attachments: import("../database/task.types").TaskAttachment[];
@@ -115,6 +117,7 @@ export declare class ContractorsController {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     remove(id: string): Promise<{
         id: string;
@@ -148,6 +151,7 @@ export declare class ContractorsController {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     link(id: string, dto: AddLinkDto, auth?: string): Promise<{
         attachments: import("../database/task.types").TaskAttachment[];
@@ -177,6 +181,7 @@ export declare class ContractorsController {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     removeAttachment(id: string, attId: string): Promise<{
         attachments: import("../database/task.types").TaskAttachment[];
@@ -206,6 +211,7 @@ export declare class ContractorsController {
         notes: string;
         createdAt: string;
         updatedAt: string;
+        userId: string;
     }>;
     content(id: string, attId: string, thumb: string, res: Response): Promise<void>;
 }

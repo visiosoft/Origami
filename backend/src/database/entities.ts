@@ -972,6 +972,8 @@ export class ContractorEntity {
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
   @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
+  /** The subcontractor portal login for this company (users.id), once invited. */
+  @Column({ nullable: true }) userId!: string;
 }
 
 /**
@@ -1757,6 +1759,8 @@ export class CommitmentEntity extends FinanceStamped {
   @Column({ ...TEXT, nullable: true }) closedReason!: string;
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  /** Documents the subcontractor can see in their portal (specs, drawings, the signed agreement). Internal attachments stay internal. */
+  @Column({ type: 'simple-json', nullable: true }) sharedAttachments!: TaskAttachment[];
 }
 
 @Entity('commitment_lines')
@@ -1804,6 +1808,11 @@ export class CostEntryEntity extends FinanceStamped {
   @Column({ ...TEXT, nullable: true }) voidReason!: string;
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  /** 'portal' when the subcontractor submitted it themselves. */
+  @Column({ nullable: true }) source!: string;
+  /** Lines submitted together as one invoice share a batch. */
+  @Column({ nullable: true }) batchId!: string;
+  @Column({ nullable: true }) submittedByUserId!: string;
 }
 
 /** A cost code's forecast at completion, when the team knows better than budget-or-spend. */

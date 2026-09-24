@@ -684,13 +684,13 @@ export declare class FinanceController {
     decideRelease(id: string, dto: any, a?: string): Promise<any>;
     billRelease(id: string, a?: string): Promise<any>;
 }
-interface FileOwner {
+export interface FileOwner {
     addAttachments(id: string, files: any[], actor: any): Promise<TaskAttachment[]>;
     addLink(id: string, name: string, url: string, actor: any): Promise<TaskAttachment[]>;
     removeAttachment(id: string, attId: string): Promise<TaskAttachment[]>;
     attachment(id: string, attId: string): Promise<TaskAttachment>;
 }
-declare abstract class FinanceFilesBase {
+export declare abstract class FinanceFilesBase {
     protected readonly fin: FinancialsService;
     protected readonly auth: AuthService;
     protected readonly attachments: AttachmentsService;
@@ -728,4 +728,3 @@ export declare class FinanceCostFilesController extends FinanceFilesBase {
     constructor(costs: CostsService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
     protected owner(): CostsService;
 }
-export {};

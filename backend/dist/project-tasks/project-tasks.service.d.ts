@@ -21,6 +21,7 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
         sections: import("../seed-data/project-tasks").ProjectSection[];
         tasks: any[];
     }>;
+    get(id: string): Promise<ProjectTaskEntity>;
     private load;
     private syncStatus;
     create(dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;

@@ -16,14 +16,19 @@ exports.ProjectsController = void 0;
 const common_1 = require("@nestjs/common");
 const projects_service_1 = require("./projects.service");
 const create_project_dto_1 = require("./dto/create-project.dto");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const project_access_service_1 = require("../auth/project-access.service");
 let ProjectsController = class ProjectsController {
-    constructor(projectsService) {
+    constructor(projectsService, access) {
         this.projectsService = projectsService;
+        this.access = access;
     }
-    findAll() {
-        return this.projectsService.findAll();
+    async findAll(claims) {
+        return this.access.filter(claims, await this.projectsService.findAll(), (p) => p.id);
     }
-    findOne(id) {
+    async findOne(id, claims) {
+        await this.access.assert(claims, Number(id));
         return this.projectsService.findOne(id);
     }
     create(dto) {
@@ -39,18 +44,21 @@ let ProjectsController = class ProjectsController {
 exports.ProjectsController = ProjectsController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
 ], ProjectsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
 ], ProjectsController.prototype, "findOne", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -58,6 +66,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ProjectsController.prototype, "create", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -66,6 +75,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ProjectsController.prototype, "update", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -74,6 +84,6 @@ __decorate([
 ], ProjectsController.prototype, "remove", null);
 exports.ProjectsController = ProjectsController = __decorate([
     (0, common_1.Controller)('projects'),
-    __metadata("design:paramtypes", [projects_service_1.ProjectsService])
+    __metadata("design:paramtypes", [projects_service_1.ProjectsService, project_access_service_1.ProjectAccessService])
 ], ProjectsController);
 //# sourceMappingURL=projects.controller.js.map

@@ -13,6 +13,7 @@ exports.RolesGuard = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const roles_decorator_1 = require("./roles.decorator");
+const public_decorator_1 = require("./public.decorator");
 let RolesGuard = class RolesGuard {
     constructor(reflector) {
         this.reflector = reflector;
@@ -23,10 +24,19 @@ let RolesGuard = class RolesGuard {
         const targets = [context.getHandler(), context.getClass()];
         const roles = this.reflector.getAllAndOverride(roles_decorator_1.ROLES_KEY, targets);
         const tiers = this.reflector.getAllAndOverride(roles_decorator_1.TIERS_KEY, targets);
-        if (!roles?.length && !tiers?.length)
-            return true;
         const req = context.switchToHttp().getRequest();
         const claims = req.claims;
+        if (claims?.roleKey === roles_decorator_1.PORTAL_ROLE) {
+            const allowed = this.reflector.getAllAndOverride(roles_decorator_1.PORTAL_KEY, targets)
+                || this.reflector.getAllAndOverride(roles_decorator_1.ANY_SIGNED_IN_KEY, targets)
+                || this.reflector.getAllAndOverride(public_decorator_1.IS_PUBLIC, targets);
+            if (!allowed)
+                return this.deny(req, 'portal account outside the portal');
+            if (this.reflector.getAllAndOverride(roles_decorator_1.PORTAL_KEY, targets))
+                return true;
+        }
+        if (!roles?.length && !tiers?.length)
+            return true;
         if (!claims)
             return true;
         const isAdmin = claims.roleKey === 'admin';

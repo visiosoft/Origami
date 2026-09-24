@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ROLES_KEY, TIERS_KEY } from './roles.decorator';
+import { ANY_SIGNED_IN_KEY, PORTAL_KEY, PORTAL_ROLE, ROLES_KEY, TIERS_KEY } from './roles.decorator';
+import { IS_PUBLIC } from './public.decorator';
 import type { AuthedRequest } from './session.guard';
 
 /**
@@ -21,10 +22,18 @@ export class RolesGuard implements CanActivate {
     const targets = [context.getHandler(), context.getClass()];
     const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, targets);
     const tiers = this.reflector.getAllAndOverride<string[]>(TIERS_KEY, targets);
-    if (!roles?.length && !tiers?.length) return true;
-
     const req = context.switchToHttp().getRequest<AuthedRequest>();
     const claims = req.claims;
+
+    // Portal accounts are allow-listed, not deny-listed: only portal routes and the few every account needs.
+    if (claims?.roleKey === PORTAL_ROLE) {
+      const allowed = this.reflector.getAllAndOverride<boolean>(PORTAL_KEY, targets)
+        || this.reflector.getAllAndOverride<boolean>(ANY_SIGNED_IN_KEY, targets)
+        || this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets);
+      if (!allowed) return this.deny(req, 'portal account outside the portal');
+      if (this.reflector.getAllAndOverride<boolean>(PORTAL_KEY, targets)) return true;
+    }
+    if (!roles?.length && !tiers?.length) return true;
     // No claims means SessionGuard let this through in audit mode; nothing to check.
     if (!claims) return true;
 

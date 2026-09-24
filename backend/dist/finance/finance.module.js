@@ -22,6 +22,8 @@ const retention_service_1 = require("./retention.service");
 const finance_hub_service_1 = require("./finance-hub.service");
 const costs_service_1 = require("./costs.service");
 const reports_service_1 = require("./reports.service");
+const portal_service_1 = require("./portal.service");
+const portal_controller_1 = require("./portal.controller");
 const finance_controller_1 = require("./finance.controller");
 let FinanceModule = class FinanceModule {
 };
@@ -35,14 +37,15 @@ exports.FinanceModule = FinanceModule = __decorate([
                 entities_1.ProjectInvoiceEntity, entities_1.ProjectInvoiceLineEntity, entities_1.ProjectPaymentEntity, entities_1.FinanceSequenceEntity, entities_1.FinanceActivityEntity,
                 entities_1.ChangeOrderEntity, entities_1.ChangeOrderItemEntity, entities_1.ReimbursableEntity, entities_1.RetentionReleaseEntity, entities_1.FinancialApprovalEntity,
                 entities_1.CostBudgetLineEntity, entities_1.CommitmentEntity, entities_1.CommitmentLineEntity, entities_1.CostEntryEntity, entities_1.CostForecastEntity,
-                entities_1.TimesheetEntity, entities_1.TimesheetLineEntity, entities_1.DailyLogEntity, entities_1.LaborLogEntryEntity, entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.ContractorEntity,
+                entities_1.TimesheetEntity, entities_1.TimesheetLineEntity, entities_1.DailyLogEntity, entities_1.LaborLogEntryEntity, entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.ContractorEntity, entities_1.UserEntity,
             ]),
             auth_module_1.AuthModule,
             google_module_1.GoogleModule,
             settings_module_1.SettingsModule,
         ],
-        controllers: [finance_controller_1.FinanceController, finance_controller_1.FinanceInvoiceFilesController, finance_controller_1.FinanceChangeOrderFilesController, finance_controller_1.FinanceReimbursableFilesController, finance_controller_1.FinanceCostFilesController],
-        providers: [manpower_access_service_1.ManpowerAccess, financials_service_1.FinancialsService, invoices_service_1.InvoicesService, change_orders_service_1.ChangeOrdersService, reimbursables_service_1.ReimbursablesService, retention_service_1.RetentionService, finance_hub_service_1.FinanceHubService, costs_service_1.CostsService, reports_service_1.ReportsService],
+        controllers: [finance_controller_1.FinanceController, finance_controller_1.FinanceInvoiceFilesController, finance_controller_1.FinanceChangeOrderFilesController, finance_controller_1.FinanceReimbursableFilesController, finance_controller_1.FinanceCostFilesController,
+            portal_controller_1.PortalController, portal_controller_1.PortalAccessController, portal_controller_1.SharedWithVendorFilesController],
+        providers: [manpower_access_service_1.ManpowerAccess, financials_service_1.FinancialsService, invoices_service_1.InvoicesService, change_orders_service_1.ChangeOrdersService, reimbursables_service_1.ReimbursablesService, retention_service_1.RetentionService, finance_hub_service_1.FinanceHubService, costs_service_1.CostsService, reports_service_1.ReportsService, portal_service_1.PortalService],
     })
 ], FinanceModule);
 //# sourceMappingURL=finance.module.js.map

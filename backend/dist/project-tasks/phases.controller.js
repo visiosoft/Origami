@@ -16,11 +16,16 @@ exports.PhasesController = void 0;
 const common_1 = require("@nestjs/common");
 const phases_service_1 = require("./phases.service");
 const create_phase_dto_1 = require("./dto/create-phase.dto");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const project_access_service_1 = require("../auth/project-access.service");
 let PhasesController = class PhasesController {
-    constructor(service) {
+    constructor(service, access) {
         this.service = service;
+        this.access = access;
     }
-    findAll(projectId) {
+    async findAll(projectId, claims) {
+        await this.access.assert(claims, Number(projectId));
         return this.service.forProject(Number(projectId));
     }
     listTemplates() {
@@ -38,10 +43,11 @@ let PhasesController = class PhasesController {
     overview() {
         return this.service.overview();
     }
-    board(projectId) {
+    async board(projectId, claims) {
         const pid = Number(projectId);
         if (!Number.isFinite(pid))
             return { phases: [], tasks: [] };
+        await this.access.assert(claims, pid);
         return this.service.board(pid);
     }
     create(dto) {
@@ -61,17 +67,20 @@ exports.PhasesController = PhasesController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
 ], PhasesController.prototype, "findAll", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Get)('templates'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "listTemplates", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)('templates'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -79,6 +88,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "saveTemplate", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)('templates/:key'),
     __param(0, (0, common_1.Param)('key')),
     __metadata("design:type", Function),
@@ -86,6 +96,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "deleteTemplate", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('apply-template'),
     __param(0, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
@@ -93,6 +104,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "applyTemplate", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Get)('overview'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
@@ -101,11 +113,13 @@ __decorate([
 __decorate([
     (0, common_1.Get)('board'),
     __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
 ], PhasesController.prototype, "board", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -113,6 +127,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "create", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('adopt'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -120,6 +135,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "adopt", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -128,6 +144,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PhasesController.prototype, "update", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -136,6 +153,6 @@ __decorate([
 ], PhasesController.prototype, "remove", null);
 exports.PhasesController = PhasesController = __decorate([
     (0, common_1.Controller)('project-phases'),
-    __metadata("design:paramtypes", [phases_service_1.PhasesService])
+    __metadata("design:paramtypes", [phases_service_1.PhasesService, project_access_service_1.ProjectAccessService])
 ], PhasesController);
 //# sourceMappingURL=phases.controller.js.map

@@ -140,7 +140,7 @@ export class FinanceController {
 }
 
 /** What a documents controller needs from the service that owns the record. */
-interface FileOwner {
+export interface FileOwner {
   addAttachments(id: string, files: any[], actor: any): Promise<TaskAttachment[]>;
   addLink(id: string, name: string, url: string, actor: any): Promise<TaskAttachment[]>;
   removeAttachment(id: string, attId: string): Promise<TaskAttachment[]>;
@@ -151,7 +151,7 @@ interface FileOwner {
  * Documents on a financial record (invoices, change orders, receipts), on the
  * same routes the shared Attachments component uses for its other scopes.
  */
-abstract class FinanceFilesBase {
+export abstract class FinanceFilesBase {
   constructor(
     protected readonly fin: FinancialsService,
     protected readonly auth: AuthService,

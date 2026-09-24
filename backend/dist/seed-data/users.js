@@ -97,6 +97,11 @@ exports.DEFAULT_ROLES = [
         tier: 'consultant', order: 11, isSystem: false,
         permissions: perms(['dashboard', 'projects', 'tasks', 'schedule', 'planroom'], ['tasks']),
     },
+    {
+        key: 'vendor_portal', name: 'Subcontractor portal', description: 'A subcontractor or vendor: their subcontracts, milestones, invoices and payments only.',
+        tier: 'consultant', order: 12, isSystem: true,
+        permissions: perms([]),
+    },
 ];
 exports.DEFAULT_USERS = [
     { id: 'U-1001', name: 'Edward M.', email: 'edward@origami.build', tier: 'internal', roleKey: 'admin', status: 'active', lastLogin: '2026-08-14', createdAt: '2026-01-05' },

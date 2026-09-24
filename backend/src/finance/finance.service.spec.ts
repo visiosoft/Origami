@@ -572,3 +572,141 @@ describe('phase 3: job cost, profitability and reports', () => {
     expect(forViewer.showCosts).toBe(false);
   });
 });
+
+// ------------------------------------------------------------------ subcontractor portal
+
+describe('subcontractor portal', () => {
+  const { PortalService } = require('./portal.service');
+  const { RolesGuard } = require('../auth/guards/roles.guard');
+  const { ProjectAccessService } = require('../auth/project-access.service');
+  const { PORTAL_KEY } = require('../auth/guards/roles.decorator');
+  const sub = { sub: 'U-VK1', roleKey: 'vendor_portal', tier: 'consultant', name: 'Maria (Bay Concrete)', email: 'ap@bayconcrete.example' } as any;
+
+  function portalSetup() {
+    const s = setup();
+    s.t.contractors.rows.push({ id: 'K2', companyName: 'Other Drywall', status: 'active' });
+    Object.assign(s.t.contractors.rows[0], { userId: 'U-VK1', email: 'ap@bayconcrete.example', contactPerson: 'Maria Lopez' });
+    s.t.commitments.rows.push(
+      { id: 'CM-1', projectId: 7, number: 'SC-001', type: 'subcontract', contractorId: 'K1', vendorName: 'Bay Concrete Inc.', title: 'Concrete', status: 'approved', version: 1,
+        sharedAttachments: [{ id: 'att-1', name: 'Drawings.pdf', kind: 'drive', driveFileId: 'd1' }], attachments: [{ id: 'att-int', name: 'Internal.xlsx', kind: 'drive' }] },
+      { id: 'CM-2', projectId: 7, number: 'SC-002', type: 'subcontract', contractorId: 'K2', vendorName: 'Other Drywall', title: 'Drywall', status: 'approved', version: 1 },
+      { id: 'CM-3', projectId: 7, number: 'SC-003', type: 'subcontract', contractorId: 'K1', vendorName: 'Bay Concrete Inc.', title: 'Not yet approved', status: 'draft', version: 1 },
+    );
+    s.t.commitmentLines.rows.push(
+      { id: 'CL-1', commitmentId: 'CM-1', lineOrder: 0, description: 'Construction phase', phaseId: 'PH-C1', amount: 10000 },
+      { id: 'CL-2', commitmentId: 'CM-1', lineOrder: 1, description: 'Programming support', phaseId: 'PH-D1', amount: 5000 },
+      { id: 'CL-3', commitmentId: 'CM-2', lineOrder: 0, description: 'Drywall', phaseId: 'PH-C1', amount: 8000 },
+    );
+    const users = table([
+      { id: 'U-VK1', name: 'Maria Lopez', email: 'ap@bayconcrete.example', tier: 'consultant', roleKey: 'vendor_portal', status: 'active', passwordHash: 'x' },
+      { id: 'U-STAFF', name: 'Stan', email: 'stan@origami.example', tier: 'internal', roleKey: 'pm', status: 'active' },
+    ]);
+    const auth = { sendInvite: jest.fn(async (u: any) => ({ sent: true, to: u.email, url: 'https://app.example/set-password?token=t' })) };
+    const settings = { getMany: jest.fn(async () => ({})), baseUrl: jest.fn(async () => 'https://app.example') };
+    const google = { sendMail: jest.fn(async (_m: any) => ({})) };
+    const portal = new PortalService(s.t.contractors, s.t.commitments, s.t.commitmentLines, s.t.entries, s.t.projects, s.t.phases, s.t.tasks, users, s.fin, auth, settings, google, undefined);
+    const hub = new FinanceHubService(s.fin, s.t.projects, s.t.pfin, s.t.cos, s.t.coItems, s.t.reimbs, s.t.releases, s.t.invoices, s.t.phfin, s.t.tfin, s.t.phases, s.t.tasks, s.t.activity, s.t.lines, undefined, s.t.entries);
+    return { ...s, portal, users, auth, google, hub };
+  }
+
+  it('shows a subcontractor only their own approved subcontracts, with milestone task progress and shared files', async () => {
+    const s = portalSetup();
+    const ov = await s.portal.overview(sub);
+    expect(ov.vendor.name).toBe('Bay Concrete Inc.');
+    expect(ov.subcontracts.map((x: any) => x.number)).toEqual(['SC-001']);
+    expect(ov.totals.committed).toBe(15000);
+    const d = await s.portal.subcontract(sub, 'CM-1');
+    const m = d.milestones.find((x: any) => x.id === 'CL-1');
+    expect(m.progress).toEqual({ done: 1, total: 2 }); // the sub-task isn't counted
+    expect(d.files.map((f: any) => f.name)).toEqual(['Drawings.pdf']); // internal documents stay internal
+    await expect(s.portal.subcontract(sub, 'CM-2')).rejects.toThrow(/not found/i);
+    await expect(s.portal.subcontract(sub, 'CM-3')).rejects.toThrow(/not found/i);
+    await expect(s.portal.file(sub, { subcontractId: 'CM-1' }, 'att-int')).rejects.toThrow(/not found/i);
+    await expect(s.portal.file(sub, { subcontractId: 'CM-2' }, 'att-1')).rejects.toThrow(/not found/i);
+  });
+
+  it('refuses staff, unlinked and removed accounts', async () => {
+    const s = portalSetup();
+    await expect(s.portal.overview({ ...sub, roleKey: 'pm', tier: 'internal' })).rejects.toThrow(/subcontractor portal/);
+    await expect(s.portal.overview({ ...sub, sub: 'U-OTHER' })).rejects.toThrow(/linked/);
+    s.users.rows[0].status = 'suspended';
+    await expect(s.portal.overview(sub)).rejects.toThrow(/removed/);
+  });
+
+  it('takes an invoice against milestones, never past what is left, and puts it in the approvals inbox', async () => {
+    const s = portalSetup();
+    await expect(s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'INV-9', lines: [{ milestoneId: 'CL-1', amount: 10000.01 }] })).rejects.toThrow(/left to invoice/);
+    await expect(s.portal.submit(sub, { subcontractId: 'CM-2', reference: 'INV-9', lines: [{ milestoneId: 'CL-3', amount: 10 }] })).rejects.toThrow(/your subcontracts/);
+    await expect(s.portal.submit(sub, { subcontractId: 'CM-1', reference: '', lines: [{ milestoneId: 'CL-1', amount: 10 }] })).rejects.toThrow(/invoice number/);
+    const r = await s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'INV-9', date: '2026-09-20', lines: [{ milestoneId: 'CL-1', amount: 4000 }, { milestoneId: 'CL-2', amount: 1000 }] });
+    const rows = s.t.entries.rows.filter((e: any) => e.batchId === r.batchId);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((e: any) => e.source === 'portal' && e.status === 'recorded' && e.contractorId === 'K1' && e.commitmentId === 'CM-1')).toBe(true);
+    expect(rows.find((e: any) => e.phaseId === 'PH-C1').amount).toBe(4000);
+    expect(r.invoices[0]).toMatchObject({ reference: 'INV-9', total: 5000, status: 'submitted' });
+    await expect(s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'inv-9', lines: [{ milestoneId: 'CL-1', amount: 1 }] })).rejects.toThrow(/already been sent/);
+    await expect(s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'INV-10', lines: [{ milestoneId: 'CL-1', amount: 6000.01 }] })).rejects.toThrow(/left to invoice/);
+    const inbox = await s.hub.pending(finance);
+    expect(inbox.find((p: any) => p.type === 'vendor_bill')).toMatchObject({ id: r.batchId, amount: 5000, canAct: true });
+    // Staff can't delete it out from under them -- only return it with a reason.
+    await expect(s.costs.entryStep(rows[0].id, 'delete', { version: rows[0].version }, finance)).rejects.toThrow(/portal/);
+  });
+
+  it('shows approval, payment and returns, and emails once per invoice', async () => {
+    const s = portalSetup();
+    const r = await s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'INV-9', lines: [{ milestoneId: 'CL-1', amount: 4000 }, { milestoneId: 'CL-2', amount: 1000 }] });
+    const [a, b] = s.t.entries.rows.filter((e: any) => e.batchId === r.batchId);
+    await s.costs.entryStep(a.id, 'approve', { version: a.version }, finance);
+    await s.portal.notifyStatus(s.t.entries.rows.find((e: any) => e.id === a.id));
+    expect(s.google.sendMail).not.toHaveBeenCalled(); // half the invoice is still waiting
+    await s.costs.entryStep(b.id, 'approve', { version: b.version }, finance);
+    await s.portal.notifyStatus(s.t.entries.rows.find((e: any) => e.id === b.id));
+    expect(s.google.sendMail).toHaveBeenCalledTimes(1);
+    expect(s.google.sendMail.mock.calls[0][0]).toMatchObject({ to: 'ap@bayconcrete.example', subject: 'Approved: INV-9' });
+    expect((await s.portal.invoices(sub))[0].status).toBe('approved');
+    for (const e of s.t.entries.rows.filter((x: any) => x.batchId === r.batchId)) await s.costs.entryStep(e.id, 'pay', { version: e.version, paidDate: '2026-09-24', paymentRef: 'ACH-77' }, finance);
+    const paid = (await s.portal.invoices(sub))[0];
+    expect(paid).toMatchObject({ status: 'paid', paidDate: '2026-09-24', paymentRef: 'ACH-77' });
+    expect((await s.portal.overview(sub)).totals.paid).toBe(5000);
+    // A returned invoice frees the milestone to be billed again.
+    const r2 = await s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'INV-10', lines: [{ milestoneId: 'CL-1', amount: 6000 }] });
+    const c = s.t.entries.rows.find((e: any) => e.batchId === r2.batchId);
+    await s.costs.entryStep(c.id, 'void', { version: c.version, reason: 'Wrong retention' }, finance);
+    const back = (await s.portal.invoices(sub)).find((i: any) => i.reference === 'INV-10');
+    expect(back).toMatchObject({ status: 'returned', returnedReason: 'Wrong retention' });
+    await s.portal.submit(sub, { subcontractId: 'CM-1', reference: 'INV-10', lines: [{ milestoneId: 'CL-1', amount: 6000 }] });
+  });
+
+  it('invites a contractor to the portal, and refuses an email that belongs to staff', async () => {
+    const s = portalSetup();
+    await expect(s.portal.invite('K2', { email: 'stan@origami.example' }, finance)).rejects.toThrow(/already has an account/);
+    await expect(s.portal.invite('K2', { email: 'ap@bayconcrete.example' }, finance)).rejects.toThrow(/Bay Concrete/);
+    const res = await s.portal.invite('K2', { email: 'Office@Drywall.example', name: 'Omar' }, finance);
+    const k2 = s.t.contractors.rows.find((k: any) => k.id === 'K2');
+    const u = s.users.rows.find((x: any) => x.id === k2.userId);
+    expect(u).toMatchObject({ email: 'office@drywall.example', roleKey: 'vendor_portal', tier: 'consultant', status: 'pending' });
+    expect(res.status).toBe('invited');
+    expect(s.auth.sendInvite).toHaveBeenCalledWith(expect.objectContaining({ id: u.id }), 'invite');
+    await expect(s.portal.invite('K2', {}, viewer)).rejects.toThrow();
+    expect((await s.portal.revoke('K2', finance)).status).toBe('removed');
+  });
+
+  it('keeps portal accounts inside the portal', () => {
+    let portalRoute = false;
+    const guard = new RolesGuard({ getAllAndOverride: (key: string) => (key === PORTAL_KEY ? portalRoute : undefined) } as any);
+    const ctx = { getHandler: () => null, getClass: () => null, switchToHttp: () => ({ getRequest: () => ({ claims: sub, method: 'GET', originalUrl: '/api/projects' }) }) } as any;
+    expect(() => guard.canActivate(ctx)).toThrow(/does not have access/);
+    portalRoute = true;
+    expect(guard.canActivate(ctx)).toBe(true);
+  });
+
+  it('limits outside accounts to the projects they are linked to', async () => {
+    const people = { createQueryBuilder: () => ({ where: (_: string, p: any) => ({ getMany: async () => (p.email === 'client@owner.example' ? [{ projects: ['Marina Tower'] }] : []) }) }) };
+    const projects = table([{ id: 7, name: 'Marina Tower' }, { id: 8, name: 'Hillside' }]);
+    const pa = new ProjectAccessService(people as any, projects);
+    expect(await pa.allowedIds({ sub: 'U-A', roleKey: 'pm', tier: 'internal' } as any)).toBe('all');
+    expect([...(await pa.allowedIds({ sub: 'U-C', roleKey: 'client', tier: 'client', email: 'Client@Owner.example' } as any) as Set<number>)]).toEqual([7]);
+    expect((await pa.allowedIds(sub) as Set<number>).size).toBe(0);
+    await expect(pa.assert({ sub: 'U-C', roleKey: 'client', tier: 'client', email: 'client@owner.example' } as any, 8)).rejects.toThrow(/access/);
+  });
+});

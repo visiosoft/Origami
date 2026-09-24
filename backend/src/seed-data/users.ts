@@ -173,6 +173,13 @@ export const DEFAULT_ROLES: RoleSeed[] = [
     tier: 'consultant', order: 11, isSystem: false,
     permissions: perms(['dashboard', 'projects', 'tasks', 'schedule', 'planroom'], ['tasks']),
   },
+  // The subcontractor portal: its own subcontracts, milestones and invoices, nothing else.
+  // Locked down in the guard (PORTAL_ROLE), so the permissions here are informational.
+  {
+    key: 'vendor_portal', name: 'Subcontractor portal', description: 'A subcontractor or vendor: their subcontracts, milestones, invoices and payments only.',
+    tier: 'consultant', order: 12, isSystem: true,
+    permissions: perms([]),
+  },
 ];
 
 export const DEFAULT_USERS: UserSeed[] = [

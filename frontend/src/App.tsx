@@ -27,6 +27,7 @@ import { ConsultantMatrix } from './pages/ConsultantMatrix';
 import { MyCalendar } from './pages/MyCalendar';
 import { SignProposal } from './pages/SignProposal';
 import { GuestEntry } from './pages/GuestEntry';
+import { Portal } from './pages/Portal';
 import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
@@ -35,6 +36,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   if (!authReady) return <div style={{ padding: 40, fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
   if (!authUser) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return <>{children}</>;
+}
+
+/** Subcontractor portal accounts live in the portal; the rest of the app isn't theirs. */
+function NotPortal({ children }: { children: ReactNode }) {
+  const { authUser } = useApp();
+  if (authUser?.roleKey === 'vendor_portal') return <Navigate to="/portal" replace />;
   return <>{children}</>;
 }
 
@@ -51,7 +59,8 @@ export default function App() {
       <Route path="/sign-proposal" element={<SignProposal />} />
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
       <Route path="/guest" element={<GuestEntry />} />
-      <Route element={<RequireAuth><AppShell /></RequireAuth>}>
+      <Route path="/portal/*" element={<RequireAuth><Portal /></RequireAuth>} />
+      <Route element={<RequireAuth><NotPortal><AppShell /></NotPortal></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/my-calendar" element={<MyCalendar />} />

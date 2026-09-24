@@ -5,7 +5,7 @@ import {
   ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity,
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
-  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity,
+  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
 } from '../database/entities';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
@@ -19,6 +19,8 @@ import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
 import { CostsService } from './costs.service';
 import { ReportsService } from './reports.service';
+import { PortalService } from './portal.service';
+import { PortalAccessController, PortalController, SharedWithVendorFilesController } from './portal.controller';
 import {
   FinanceChangeOrderFilesController, FinanceController, FinanceCostFilesController, FinanceInvoiceFilesController, FinanceReimbursableFilesController,
 } from './finance.controller';
@@ -37,13 +39,14 @@ import {
       ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, FinanceSequenceEntity, FinanceActivityEntity,
       ChangeOrderEntity, ChangeOrderItemEntity, ReimbursableEntity, RetentionReleaseEntity, FinancialApprovalEntity,
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
-      TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity,
+      TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
     ]),
     AuthModule,
     GoogleModule,
     SettingsModule,
   ],
-  controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService],
+  controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
+    PortalController, PortalAccessController, SharedWithVendorFilesController],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService],
 })
 export class FinanceModule {}

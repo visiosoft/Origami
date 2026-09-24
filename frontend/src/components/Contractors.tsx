@@ -307,6 +307,7 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
             onAddLink={async (name, url) => { await api.contractors.addLink(contractor.id, name, url); await onChanged(); }}
           />
         </div>
+        <PortalAccessCard contractor={contractor} />
       </div>
 
       {addingWorker && (
@@ -317,6 +318,86 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
           onClose={() => setAddingWorker(false)}
           onCreated={async (emp) => { setAddingWorker(false); await reloadEmployees(); await onChanged(); onOpenEmployee(emp.id); }}
         />
+      )}
+    </div>
+  );
+}
+
+interface PortalAccess { status: 'none' | 'invited' | 'active' | 'removed'; email: string; invitedAt?: string; lastLogin?: string }
+const PORTAL_STATUS: Record<PortalAccess['status'], [string, 'green' | 'amber' | 'grey' | 'red']> = {
+  none: ['No portal access', 'grey'], invited: ['Invited — not signed in yet', 'amber'], active: ['Active', 'green'], removed: ['Access removed', 'red'],
+};
+
+/**
+ * The subcontractor portal login for this company: where they see their
+ * subcontracts and milestones, send invoices, and follow payments. Shown to
+ * people who manage job costs.
+ */
+function PortalAccessCard({ contractor }: { contractor: Contractor }) {
+  const { toast } = useApp();
+  const [a, setA] = useState<PortalAccess | null>(null);
+  const [hidden, setHidden] = useState(false);
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState('');
+  useEffect(() => {
+    setLink('');
+    api.finance.portalAccess(contractor.id)
+      .then((r: any) => { setA(r); setEmail(r.email || contractor.email || ''); })
+      .catch(() => setHidden(true));
+  }, [contractor.id]);
+  if (hidden || !a) return null;
+  const invite = async () => {
+    setBusy(true);
+    try {
+      const r: any = await api.finance.portalInvite(contractor.id, { email, name: contractor.contactPerson || contractor.companyName });
+      setA(r);
+      if (r.invite?.sent) { setLink(''); toast(`Invitation emailed to ${r.invite.to}`); }
+      else { setLink(r.invite?.url || ''); toast(r.invite?.error ? '⚠ ' + r.invite.error : 'Login created — share the link below'); }
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not send the invitation')); }
+    finally { setBusy(false); }
+  };
+  const revoke = async () => {
+    if (!confirm(`Remove ${contractor.companyName}'s portal access? They won't be able to sign in; their invoices stay on record.`)) return;
+    setBusy(true);
+    try { setA(await api.finance.portalRevoke(contractor.id) as PortalAccess); toast('Portal access removed'); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove access')); }
+    finally { setBusy(false); }
+  };
+  const [label, tone] = PORTAL_STATUS[a.status];
+  return (
+    <div style={{ ...card, padding: '18px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, flex: 1 }}>Subcontractor portal</div>
+        <Badge tone={tone}>{label}</Badge>
+      </div>
+      <div style={{ fontSize: 12, color: MUTED, marginBottom: 12, lineHeight: 1.55 }}>
+        Their own login to see their subcontracts and milestones, send invoices against them, and follow approval and payment. They see nothing else in the app.
+      </div>
+      {a.status !== 'none' && (
+        <div style={{ fontSize: 12.5, color: INK, marginBottom: 10, lineHeight: 1.6 }}>
+          Login: <b>{a.email}</b>
+          {a.invitedAt && <div style={{ color: MUTED, fontSize: 12 }}>Last invited {fmtDate(a.invitedAt.slice(0, 10))}</div>}
+          {a.lastLogin && <div style={{ color: MUTED, fontSize: 12 }}>Last signed in {fmtDate(a.lastLogin.slice(0, 10))}</div>}
+        </div>
+      )}
+      {a.status !== 'active' && (
+        <div style={{ marginBottom: 10 }}>
+          <Label text="Email they'll sign in with" />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accounts@subcontractor.com" style={input} />
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div onClick={busy || !email.trim() ? undefined : invite} style={btn(true, busy || !email.trim())}>
+          {busy ? 'Working…' : a.status === 'none' ? 'Give portal access' : a.status === 'active' ? 'Send a password reset' : a.status === 'removed' ? 'Restore access' : 'Resend invitation'}
+        </div>
+        {(a.status === 'invited' || a.status === 'active') && <div onClick={busy ? undefined : revoke} style={{ ...btn(), color: DANGER }}>Remove access</div>}
+      </div>
+      {link && (
+        <div style={{ marginTop: 12, fontSize: 12, color: MUTED, lineHeight: 1.55 }}>
+          The email couldn't be sent from here. Send them this link yourself — it lets them set a password:
+          <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ ...input, marginTop: 6, fontSize: 12 }} />
+        </div>
       )}
     </div>
   );

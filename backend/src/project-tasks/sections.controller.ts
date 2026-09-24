@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body } from '@nestjs/common';
+import { Tiers } from '../auth/guards/roles.decorator';
 import { SectionsService } from './sections.service';
 import { ProjectTasksService } from './project-tasks.service';
 import { CreateSectionDto } from './dto/create-section.dto';
 
+@Tiers('internal')
 @Controller('project-sections')
 export class SectionsController {
   constructor(

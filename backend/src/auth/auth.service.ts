@@ -276,7 +276,9 @@ export class AuthService {
     if (!claims) throw new UnauthorizedException('Not signed in.');
     const user = await this.users.findOneBy({ id: claims.sub });
     if (!user) throw new UnauthorizedException('Not signed in.');
-    return publicUser(user);
+    // The role's module permissions ride along so the app can show outside accounts only what they may use.
+    const role = await this.roles.findOneBy({ key: user.roleKey });
+    return { ...publicUser(user), rolePermissions: role?.permissions || {} };
   }
 
   /**

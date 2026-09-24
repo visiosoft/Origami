@@ -27,6 +27,7 @@ const finance_calc_1 = require("./finance.calc");
 const financials_service_1 = require("./financials.service");
 const costs_calc_1 = require("./costs.calc");
 const money_1 = require("./money");
+const portal_service_1 = require("./portal.service");
 exports.COMMITMENT_TYPES = ['subcontract', 'purchase_order', 'service'];
 exports.COST_TYPES = ['vendor_bill', 'subcontract_invoice', 'material', 'equipment', 'other'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,7 +41,7 @@ const money = (v, what, allowZero = false) => {
     return (0, money_1.fromCents)(c);
 };
 let CostsService = class CostsService {
-    constructor(fin, settings, budget, commitments, commitmentLines, entries, forecasts, cos, coItems, reimbs, timesheets, timesheetLines, dailyLogs, laborEntries, employees, codes, contractors, attachments) {
+    constructor(fin, settings, budget, commitments, commitmentLines, entries, forecasts, cos, coItems, reimbs, timesheets, timesheetLines, dailyLogs, laborEntries, employees, codes, contractors, attachments, portal) {
         this.fin = fin;
         this.settings = settings;
         this.budget = budget;
@@ -59,6 +60,7 @@ let CostsService = class CostsService {
         this.codes = codes;
         this.contractors = contractors;
         this.attachments = attachments;
+        this.portal = portal;
     }
     async canSee(actor) {
         const r = await this.fin.rights(actor);
@@ -144,7 +146,7 @@ let CostsService = class CostsService {
                 const ls = ctx.lines.filter((l) => l.commitmentId === c.id).sort((a, b) => a.lineOrder - b.lineOrder);
                 const totalC = (0, money_1.sumCents)(ls.map((l) => (0, money_1.toCents)(l.amount)));
                 const billedC = billedOn(c.id);
-                return { ...c, attachments: (0, task_types_1.normalizeAttachments)(c.attachments), lines: ls, ...(0, finance_calc_1.toDollars)({ totalC, billedC, remainingC: c.status === 'approved' ? Math.max(totalC - billedC, 0) : 0 }) };
+                return { ...c, attachments: (0, task_types_1.normalizeAttachments)(c.attachments), sharedAttachments: (0, task_types_1.normalizeAttachments)(c.sharedAttachments), lines: ls, ...(0, finance_calc_1.toDollars)({ totalC, billedC, remainingC: c.status === 'approved' ? Math.max(totalC - billedC, 0) : 0 }) };
             }).sort((a, b) => a.number.localeCompare(b.number)),
             entries: ctx.entries.map((e) => ({ ...e, attachments: (0, task_types_1.normalizeAttachments)(e.attachments) })).sort((a, b) => b.date.localeCompare(a.date)),
             forecasts: ctx.forecasts,
@@ -450,6 +452,8 @@ let CostsService = class CostsService {
             await this.fin.need(actor, 'manageCosts');
             if (e.status !== 'recorded')
                 throw new common_1.BadRequestException('Only an unapproved cost can be deleted -- void it instead.');
+            if (e.source === 'portal')
+                throw new common_1.BadRequestException('The subcontractor sent this through the portal -- void it with a reason, so they see why it was returned.');
             await this.entries.remove(e);
             await this.attachments?.discardAll((0, task_types_1.normalizeAttachments)(e.attachments));
             await this.fin.log(null, { projectId: e.projectId, entityType: 'cost', entityId: id, action: 'cost_deleted', changes: { amount: { from: e.amount, to: null } } }, actor);
@@ -460,6 +464,8 @@ let CostsService = class CostsService {
         Object.assign(e, { updatedAt: at, updatedBy: actor.name });
         await this.entries.save(e);
         await this.fin.log(null, { projectId: e.projectId, entityType: 'cost', entityId: id, action: { approve: 'cost_approved', pay: 'cost_paid', void: 'cost_voided' }[action], changes: { status: { from: before, to: e.status } }, reason: dto.reason }, actor);
+        if (e.contractorId)
+            void this.portal?.notifyStatus(e);
         return this.overview(e.projectId, actor);
     }
     async holder(id) {
@@ -536,7 +542,8 @@ exports.CostsService = CostsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        portal_service_1.PortalService])
 ], CostsService);
 function summarizeLabor(lines, burdenPct) {
     const byPerson = new Map();

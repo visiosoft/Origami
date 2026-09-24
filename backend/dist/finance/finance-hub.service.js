@@ -23,7 +23,7 @@ const invoices_service_1 = require("./invoices.service");
 const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
 let FinanceHubService = class FinanceHubService {
-    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs) {
+    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries) {
         this.fin = fin;
         this.projects = projects;
         this.pfin = pfin;
@@ -39,6 +39,7 @@ let FinanceHubService = class FinanceHubService {
         this.activity = activity;
         this.lines = lines;
         this.costs = costs;
+        this.costEntries = costEntries;
     }
     async names() {
         return new Map((await this.projects.find()).map((p) => [p.id, p.name]));
@@ -65,6 +66,22 @@ let FinanceHubService = class FinanceHubService {
                 out.push({
                     type: 'reimbursable', id: x.id, projectId: x.projectId, projectName: pn(x.projectId), title: `${x.number} ${x.description}`,
                     detail: `Submitted by ${x.submittedBy || '—'}${x.vendor ? ` · ${x.vendor}` : ''}`, amount: (0, money_1.fromCents)((0, invoices_service_1.reimbursableBillC)(x)), since: x.createdAt, canAct: r.approveReimbursables,
+                });
+            }
+        }
+        if ((r.manageCosts || r.approveCosts) && this.costEntries) {
+            const bills = await this.costEntries.find({ where: { source: 'portal', status: 'recorded' } });
+            const byBatch = new Map();
+            for (const b of bills) {
+                const k = b.batchId || b.id;
+                (byBatch.get(k) || byBatch.set(k, []).get(k)).push(b);
+            }
+            for (const [id, xs] of byBatch) {
+                const x = xs[0];
+                out.push({
+                    type: 'vendor_bill', id, projectId: x.projectId, projectName: pn(x.projectId), title: `${x.vendorName || 'Subcontractor'} — invoice ${x.reference || ''}`.trim(),
+                    detail: `Sent through the subcontractor portal · ${xs.length} line${xs.length === 1 ? '' : 's'}`, amount: (0, money_1.fromCents)((0, money_1.sumCents)(xs.map((e) => (0, money_1.toCents)(e.amount)))),
+                    since: x.createdAt, canAct: r.approveCosts,
                 });
             }
         }
@@ -161,6 +178,7 @@ exports.FinanceHubService = FinanceHubService = __decorate([
     __param(11, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),
     __param(12, (0, typeorm_1.InjectRepository)(entities_1.FinanceActivityEntity)),
     __param(13, (0, typeorm_1.InjectRepository)(entities_1.ProjectInvoiceLineEntity)),
+    __param(15, (0, typeorm_1.InjectRepository)(entities_1.CostEntryEntity)),
     __metadata("design:paramtypes", [financials_service_1.FinancialsService,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -175,6 +193,7 @@ exports.FinanceHubService = FinanceHubService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        costs_service_1.CostsService])
+        costs_service_1.CostsService,
+        typeorm_2.Repository])
 ], FinanceHubService);
 //# sourceMappingURL=finance-hub.service.js.map

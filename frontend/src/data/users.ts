@@ -31,6 +31,8 @@ export interface User {
   hasPassword?: boolean;
   /** True while an unused invitation / reset link is outstanding. */
   invitePending?: boolean;
+  /** The account's own role permissions, returned by who-am-I. */
+  rolePermissions?: RolePermissions;
 }
 
 export { MODULES };

@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const auth_dto_1 = require("./dto/auth.dto");
 const public_decorator_1 = require("./guards/public.decorator");
+const roles_decorator_1 = require("./guards/roles.decorator");
 const cookie_util_1 = require("./guards/cookie.util");
 let AuthController = class AuthController {
     constructor(auth) {
@@ -90,6 +91,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "forgot", null);
 __decorate([
+    (0, roles_decorator_1.AnySignedIn)(),
     (0, common_1.Get)('me'),
     __param(0, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),

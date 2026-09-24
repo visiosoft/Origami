@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
-  ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
+  ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
   ProjectInvoiceLineEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
 } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
@@ -14,7 +14,7 @@ import { fromCents, sumCents, toCents } from './money';
 
 /** One thing waiting on someone's decision, wherever it lives. */
 export interface Pending {
-  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress';
+  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill';
   id: string; projectId: number; projectName: string; title: string; detail: string; amount: number | null; since: string; canAct: boolean;
   itemKind?: string;
 }
@@ -41,6 +41,7 @@ export class FinanceHubService {
     @InjectRepository(FinanceActivityEntity) private readonly activity: Repository<FinanceActivityEntity>,
     @InjectRepository(ProjectInvoiceLineEntity) private readonly lines: Repository<ProjectInvoiceLineEntity>,
     private readonly costs?: CostsService,
+    @InjectRepository(CostEntryEntity) private readonly costEntries?: Repository<CostEntryEntity>,
   ) {}
 
   private async names() {
@@ -70,6 +71,20 @@ export class FinanceHubService {
         out.push({
           type: 'reimbursable', id: x.id, projectId: x.projectId, projectName: pn(x.projectId), title: `${x.number} ${x.description}`,
           detail: `Submitted by ${x.submittedBy || '—'}${x.vendor ? ` · ${x.vendor}` : ''}`, amount: fromCents(reimbursableBillC(x)), since: x.createdAt, canAct: r.approveReimbursables,
+        });
+      }
+    }
+    if ((r.manageCosts || r.approveCosts) && this.costEntries) {
+      // Invoices subcontractors sent through the portal, one row per invoice.
+      const bills = await this.costEntries.find({ where: { source: 'portal', status: 'recorded' } });
+      const byBatch = new Map<string, typeof bills>();
+      for (const b of bills) { const k = b.batchId || b.id; (byBatch.get(k) || byBatch.set(k, []).get(k)!).push(b); }
+      for (const [id, xs] of byBatch) {
+        const x = xs[0];
+        out.push({
+          type: 'vendor_bill', id, projectId: x.projectId, projectName: pn(x.projectId), title: `${x.vendorName || 'Subcontractor'} — invoice ${x.reference || ''}`.trim(),
+          detail: `Sent through the subcontractor portal · ${xs.length} line${xs.length === 1 ? '' : 's'}`, amount: fromCents(sumCents(xs.map((e) => toCents(e.amount)))),
+          since: x.createdAt, canAct: r.approveCosts,
         });
       }
     }

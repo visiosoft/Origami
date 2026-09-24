@@ -22,11 +22,23 @@ const update_task_dto_1 = require("../tasks/dto/update-task.dto");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
 const viewer_util_1 = require("../database/viewer.util");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const project_access_service_1 = require("../auth/project-access.service");
 let ProjectTasksController = class ProjectTasksController {
-    constructor(service, auth, attachments) {
+    constructor(service, auth, attachments, access) {
         this.service = service;
         this.auth = auth;
         this.attachments = attachments;
+        this.access = access;
+    }
+    async mayTouch(id, claims) {
+        if (this.access.isStaff(claims))
+            return;
+        const task = await this.service.get(id);
+        await this.access.assert(claims, task.projectId);
+        if (!claims || !(0, viewer_util_1.assignedTo)(task, claims))
+            throw new common_1.ForbiddenException('That task isn’t assigned to you.');
     }
     parseProjectId(raw) {
         if (raw === undefined)
@@ -37,13 +49,22 @@ let ProjectTasksController = class ProjectTasksController {
         return Number.isFinite(n) ? n : null;
     }
     async findAll(projectId, auth) {
-        const rows = await this.service.findAll(this.parseProjectId(projectId));
-        return (0, viewer_util_1.scopeTasks)(rows, await this.auth.verify(auth));
+        const claims = await this.auth.verify(auth);
+        const pid = this.parseProjectId(projectId);
+        if (pid)
+            await this.access.assert(claims, pid);
+        const rows = await this.service.findAll(pid);
+        return (0, viewer_util_1.scopeTasks)(await this.access.filter(claims, rows, (t) => t.projectId), claims);
     }
     async board(projectId, auth) {
         const pid = this.parseProjectId(projectId) ?? null;
+        const claims = await this.auth.verify(auth);
+        if (pid)
+            await this.access.assert(claims, pid);
+        else if (!this.access.isStaff(claims))
+            return { sections: [], tasks: [] };
         const { sections, tasks } = await this.service.board(pid);
-        return { sections, tasks: (0, viewer_util_1.scopeTasks)(tasks, await this.auth.verify(auth)) };
+        return { sections, tasks: (0, viewer_util_1.scopeTasks)(tasks, claims) };
     }
     reorder(dto) {
         return this.service.reorder(dto.sectionId, dto.ids ?? []);
@@ -51,22 +72,27 @@ let ProjectTasksController = class ProjectTasksController {
     async create(dto, auth) {
         return this.service.create(dto, await this.auth.actor(auth));
     }
-    async update(id, dto, auth) {
+    async update(id, dto, auth, claims) {
+        await this.mayTouch(id, claims ?? null);
         return this.service.update(id, dto, await this.auth.actor(auth));
     }
     remove(id) {
         return this.service.remove(id);
     }
-    async upload(id, files, auth) {
+    async upload(id, files, auth, claims) {
+        await this.mayTouch(id, claims ?? null);
         return this.service.addAttachments(id, files, await this.auth.requireActor(auth));
     }
-    async link(id, dto, auth) {
+    async link(id, dto, auth, claims) {
+        await this.mayTouch(id, claims ?? null);
         return this.service.addLink(id, dto.name ?? '', dto.url, await this.auth.actor(auth));
     }
-    async removeAttachment(id, attId, auth) {
+    async removeAttachment(id, attId, auth, claims) {
+        await this.mayTouch(id, claims ?? null);
         return this.service.removeAttachment(id, attId, await this.auth.actor(auth));
     }
-    async content(id, attId, thumb, res) {
+    async content(id, attId, thumb, res, claims) {
+        await this.mayTouch(id, claims);
         const att = await this.service.attachment(id, attId);
         const file = await this.attachments.download(att, thumb === '1');
         const inline = attachments_service_1.AttachmentsService.inlineSafe(file.mimeType);
@@ -75,7 +101,8 @@ let ProjectTasksController = class ProjectTasksController {
         res.setHeader('Cache-Control', 'private, max-age=300');
         stream_1.Readable.fromWeb(file.body).pipe(res);
     }
-    async comment(id, dto, auth) {
+    async comment(id, dto, auth, claims) {
+        await this.mayTouch(id, claims ?? null);
         return this.service.addComment(id, dto.text, await this.auth.actor(auth));
     }
 };
@@ -97,6 +124,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "board", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)('reorder'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -104,6 +132,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ProjectTasksController.prototype, "reorder", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Headers)('authorization')),
@@ -116,11 +145,13 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:paramtypes", [String, Object, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "update", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -133,8 +164,9 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.UploadedFiles)()),
     __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Array, String]),
+    __metadata("design:paramtypes", [String, Array, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "upload", null);
 __decorate([
@@ -142,8 +174,9 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_task_dto_1.AddLinkDto, String]),
+    __metadata("design:paramtypes", [String, update_task_dto_1.AddLinkDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "link", null);
 __decorate([
@@ -151,8 +184,9 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Param)('attId')),
     __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "removeAttachment", null);
 __decorate([
@@ -161,8 +195,9 @@ __decorate([
     __param(1, (0, common_1.Param)('attId')),
     __param(2, (0, common_1.Query)('thumb')),
     __param(3, (0, common_1.Res)()),
+    __param(4, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "content", null);
 __decorate([
@@ -170,14 +205,16 @@ __decorate([
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Headers)('authorization')),
+    __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_task_dto_1.AddCommentDto, String]),
+    __metadata("design:paramtypes", [String, update_task_dto_1.AddCommentDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "comment", null);
 exports.ProjectTasksController = ProjectTasksController = __decorate([
     (0, common_1.Controller)('project-tasks'),
     __metadata("design:paramtypes", [project_tasks_service_1.ProjectTasksService,
         auth_service_1.AuthService,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        project_access_service_1.ProjectAccessService])
 ], ProjectTasksController);
 //# sourceMappingURL=project-tasks.controller.js.map

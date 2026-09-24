@@ -15,6 +15,7 @@ import { computeSov, toDollars } from './finance.calc';
 import { assertVersion, FinancialsService } from './financials.service';
 import { burdened, computeJobCost, laborLines, NO_CODE, profitability, type LaborFact, type LaborLine, type LaborSettings } from './costs.calc';
 import { fromCents, sumCents, toCents } from './money';
+import { PortalService } from './portal.service';
 
 export const COMMITMENT_TYPES = ['subcontract', 'purchase_order', 'service'];
 export const COST_TYPES = ['vendor_bill', 'subcontract_invoice', 'material', 'equipment', 'other'];
@@ -56,6 +57,7 @@ export class CostsService {
     @InjectRepository(CsiCodeEntity) private readonly codes: Repository<CsiCodeEntity>,
     @InjectRepository(ContractorEntity) private readonly contractors: Repository<ContractorEntity>,
     private readonly attachments?: AttachmentsService,
+    private readonly portal?: PortalService,
   ) {}
 
   private async canSee(actor: Actor) {
@@ -148,7 +150,7 @@ export class CostsService {
         const ls = ctx.lines.filter((l) => l.commitmentId === c.id).sort((a, b) => a.lineOrder - b.lineOrder);
         const totalC = sumCents(ls.map((l) => toCents(l.amount)));
         const billedC = billedOn(c.id);
-        return { ...c, attachments: normalizeAttachments(c.attachments), lines: ls, ...toDollars({ totalC, billedC, remainingC: c.status === 'approved' ? Math.max(totalC - billedC, 0) : 0 }) };
+        return { ...c, attachments: normalizeAttachments(c.attachments), sharedAttachments: normalizeAttachments(c.sharedAttachments), lines: ls, ...toDollars({ totalC, billedC, remainingC: c.status === 'approved' ? Math.max(totalC - billedC, 0) : 0 }) };
       }).sort((a, b) => a.number.localeCompare(b.number)),
       entries: ctx.entries.map((e) => ({ ...e, attachments: normalizeAttachments(e.attachments) })).sort((a, b) => b.date.localeCompare(a.date)),
       forecasts: ctx.forecasts,
@@ -399,6 +401,7 @@ export class CostsService {
     } else if (action === 'delete') {
       await this.fin.need(actor, 'manageCosts');
       if (e.status !== 'recorded') throw new BadRequestException('Only an unapproved cost can be deleted -- void it instead.');
+      if (e.source === 'portal') throw new BadRequestException('The subcontractor sent this through the portal -- void it with a reason, so they see why it was returned.');
       await this.entries.remove(e);
       await this.attachments?.discardAll(normalizeAttachments(e.attachments));
       await this.fin.log(null, { projectId: e.projectId, entityType: 'cost', entityId: id, action: 'cost_deleted', changes: { amount: { from: e.amount, to: null } } }, actor);
@@ -407,6 +410,7 @@ export class CostsService {
     Object.assign(e, { updatedAt: at, updatedBy: actor.name });
     await this.entries.save(e);
     await this.fin.log(null, { projectId: e.projectId, entityType: 'cost', entityId: id, action: ({ approve: 'cost_approved', pay: 'cost_paid', void: 'cost_voided' } as Record<string, string>)[action], changes: { status: { from: before, to: e.status } }, reason: dto.reason }, actor);
+    if (e.contractorId) void this.portal?.notifyStatus(e);
     return this.overview(e.projectId, actor);
   }
 

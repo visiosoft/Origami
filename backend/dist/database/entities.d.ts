@@ -707,6 +707,7 @@ export declare class ContractorEntity {
     attachments: TaskAttachment[];
     createdAt: string;
     updatedAt: string;
+    userId: string;
 }
 export declare class TimesheetEntity {
     id: string;
@@ -1274,6 +1275,7 @@ export declare class CommitmentEntity extends FinanceStamped {
     closedReason: string;
     notes: string;
     attachments: TaskAttachment[];
+    sharedAttachments: TaskAttachment[];
 }
 export declare class CommitmentLineEntity {
     id: string;
@@ -1309,6 +1311,9 @@ export declare class CostEntryEntity extends FinanceStamped {
     voidReason: string;
     notes: string;
     attachments: TaskAttachment[];
+    source: string;
+    batchId: string;
+    submittedByUserId: string;
 }
 export declare class CostForecastEntity extends FinanceStamped {
     id: string;

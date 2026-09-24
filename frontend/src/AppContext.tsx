@@ -93,8 +93,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // user was a stand-in from before real authentication existed; leaving it in
   // would let anyone act as an administrator.
   const currentUser = (authUser && users.find((u) => u.id === authUser.id)) || authUser || undefined;
-  const currentRole = roles.find((r) => r.key === currentUser?.roleKey);
   const tier: Tier = currentUser?.tier ?? 'internal';
+  // Outside accounts can't read the role list (admin only), so their own role's
+  // permissions come with who-am-I; staff keep today's behaviour.
+  const currentRole = roles.find((r) => r.key === currentUser?.roleKey)
+    || (authUser?.rolePermissions && tier !== 'internal'
+      ? { key: authUser.roleKey, name: authUser.roleKey, tier, order: 0, isSystem: true, permissions: authUser.rolePermissions }
+      : undefined);
 
   const can = useCallback(
     (moduleKey: string, action: Action = 'view'): boolean => {

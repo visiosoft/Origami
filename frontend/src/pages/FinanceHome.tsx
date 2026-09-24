@@ -13,11 +13,11 @@ const PAPER = '#FBF8F2';
 type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
 
 interface Pending {
-  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress';
+  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill';
   id: string; projectId: number; projectName: string; title: string; detail: string; amount: number | null; since: string; canAct: boolean; itemKind?: string;
 }
 const TYPE_LABEL: Record<Pending['type'], [string, 'amber' | 'blue' | 'green' | 'grey' | 'red']> = {
-  change_order: ['Change order', 'amber'], reimbursable: ['Reimbursable', 'grey'], retention_release: ['Retention release', 'blue'], invoice: ['Invoice', 'green'], progress: ['Progress', 'blue'],
+  change_order: ['Change order', 'amber'], reimbursable: ['Reimbursable', 'grey'], retention_release: ['Retention release', 'blue'], invoice: ['Invoice', 'green'], progress: ['Progress', 'blue'], vendor_bill: ['Subcontractor bill', 'amber'],
 };
 
 /**

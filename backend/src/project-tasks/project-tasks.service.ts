@@ -94,6 +94,11 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     return { sections, tasks };
   }
 
+  /** One task, for access checks. */
+  async get(id: string) {
+    return this.load(id);
+  }
+
   private async load(id: string) {
     const task = await this.repo.findOneBy({ id });
     if (!task) throw new NotFoundException(`Task ${id} not found`);

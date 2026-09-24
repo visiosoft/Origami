@@ -14,6 +14,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileRoomController = void 0;
 const common_1 = require("@nestjs/common");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const project_access_service_1 = require("../auth/project-access.service");
 const platform_express_1 = require("@nestjs/platform-express");
 const stream_1 = require("stream");
 const file_room_service_1 = require("./file-room.service");
@@ -21,13 +24,22 @@ const file_room_dto_1 = require("./dto/file-room.dto");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
 let FileRoomController = class FileRoomController {
-    constructor(service, auth) {
+    constructor(service, auth, access) {
         this.service = service;
         this.auth = auth;
+        this.access = access;
     }
-    list(projectId) {
+    async list(projectId, claims) {
         const pid = Number(projectId);
-        return this.service.list(Number.isFinite(pid) && pid > 0 ? pid : undefined);
+        const scoped = Number.isFinite(pid) && pid > 0 ? pid : undefined;
+        if (scoped)
+            await this.access.assert(claims ?? null, scoped);
+        const all = await this.service.list(scoped);
+        if (this.access.isStaff(claims ?? null))
+            return all;
+        const allowed = await this.access.allowedIds(claims ?? null);
+        const ok = (id) => allowed === 'all' || allowed.has(Number(id));
+        return { ...all, projects: all.projects.filter((p) => ok(p.id)), files: all.files.filter((f) => ok(f.projectId)), folders: all.folders.filter((f) => ok(f.projectId)) };
     }
     async upload(files, projectId, path, auth) {
         let folderPath = [];
@@ -39,8 +51,13 @@ let FileRoomController = class FileRoomController {
         }
         return this.service.upload(Number(projectId), Array.isArray(folderPath) ? folderPath : [], files, await this.auth.requireActor(auth));
     }
-    async content(id, thumb, download, res) {
+    async content(id, thumb, download, res, claims) {
         const { file, body, mimeType } = await this.service.content(id, thumb === '1');
+        if (!(await this.access.canSee(claims, file.projectId))) {
+            await body?.cancel?.().catch?.(() => { });
+            res.status(403).json({ message: 'You don’t have access to this file.' });
+            return;
+        }
         const inline = download !== '1' && attachments_service_1.AttachmentsService.inlineSafe(mimeType);
         res.setHeader('Content-Type', mimeType);
         res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(file.name)}"`);
@@ -76,11 +93,13 @@ exports.FileRoomController = FileRoomController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "list", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('upload'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', file_room_service_1.MAX_FILES_PER_UPLOAD, { limits: { fileSize: file_room_service_1.MAX_FILE_BYTES } })),
     __param(0, (0, common_1.UploadedFiles)()),
@@ -97,11 +116,13 @@ __decorate([
     __param(1, (0, common_1.Query)('thumb')),
     __param(2, (0, common_1.Query)('download')),
     __param(3, (0, common_1.Res)()),
+    __param(4, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, Object]),
+    __metadata("design:paramtypes", [String, String, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "content", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)('files/:id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -110,6 +131,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "update", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('files/:id/share'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -117,6 +139,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "share", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('files/:id/email'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -126,6 +149,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "emailFile", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('sync'),
     __param(0, (0, common_1.Query)('projectId')),
     __metadata("design:type", Function),
@@ -133,6 +157,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "sync", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)('files/:id/latest'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -140,6 +165,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "markLatest", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)('files/:id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -147,6 +173,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "remove", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('folders'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -154,6 +181,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FileRoomController.prototype, "createFolder", null);
 __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)('folders/:id'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
@@ -163,6 +191,7 @@ __decorate([
 exports.FileRoomController = FileRoomController = __decorate([
     (0, common_1.Controller)('file-room'),
     __metadata("design:paramtypes", [file_room_service_1.FileRoomService,
-        auth_service_1.AuthService])
+        auth_service_1.AuthService,
+        project_access_service_1.ProjectAccessService])
 ], FileRoomController);
 //# sourceMappingURL=file-room.controller.js.map

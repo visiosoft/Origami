@@ -87,7 +87,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs' | 'finance-commitment-shared';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -565,8 +565,24 @@ export const api = {
     costUpload: (id: string, files: File[]) => requestForm(`/finance-costs/${id}/attachments`, filesForm(files)),
     costLink: (id: string, name: string, url: string) => request(`/finance-costs/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     costRemoveAttachment: (id: string, attId: string) => request(`/finance-costs/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    sharedUpload: (id: string, files: File[]) => requestForm(`/finance-commitment-shared/${id}/attachments`, filesForm(files)),
+    sharedLink: (id: string, name: string, url: string) => request(`/finance-commitment-shared/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    sharedRemove: (id: string, attId: string) => request(`/finance-commitment-shared/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    portalAccess: (contractorId: string) => request(`/finance-portal/${encodeURIComponent(contractorId)}`),
+    portalInvite: (contractorId: string, d: { email?: string; name?: string }) => request(`/finance-portal/${encodeURIComponent(contractorId)}/invite`, { method: 'POST', body: JSON.stringify(d) }),
+    portalRevoke: (contractorId: string) => request(`/finance-portal/${encodeURIComponent(contractorId)}/revoke`, { method: 'POST', body: '{}' }),
     report: (name: 'wip' | 'ar-aging' | 'budget-vs-actual' | 'change-orders' | 'retention' | 'contract-vs-invoiced' | 'cash-forecast', q: Record<string, string> = {}) =>
       request(`/finance/reports/${name}?${new URLSearchParams(q).toString()}`),
+  },
+  /** The subcontractor portal: only a portal account's own subcontracts, invoices and payments. */
+  portal: {
+    overview: () => request('/portal/overview'),
+    subcontract: (id: string) => request(`/portal/subcontracts/${encodeURIComponent(id)}`),
+    invoices: () => request('/portal/invoices'),
+    submit: (d: unknown) => request('/portal/invoices', { method: 'POST', body: JSON.stringify(d) }),
+    attach: (batchId: string, files: File[] | FileList) => requestForm(`/portal/invoices/${encodeURIComponent(batchId)}/attachments`, filesForm(files)),
+    billFileUrl: (entryId: string, attId: string) => `${API_BASE}/portal/bills/${encodeURIComponent(entryId)}/files/${encodeURIComponent(attId)}`,
+    sharedFileUrl: (subcontractId: string, attId: string) => `${API_BASE}/portal/subcontracts/${encodeURIComponent(subcontractId)}/files/${encodeURIComponent(attId)}`,
   },
   subcontractorTrades: {
     list: () => request('/subcontractor-trades'),

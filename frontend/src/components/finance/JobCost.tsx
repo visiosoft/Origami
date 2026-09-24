@@ -15,12 +15,12 @@ interface CostRow {
 interface Line { id?: string; description: string; csiCodeId?: string | null; phaseId?: string | null; taskId?: string | null; amount: number | string }
 interface Commitment {
   id: string; number: string; type: string; contractorId?: string; vendorName: string; title: string; scope?: string; status: string; dateIssued?: string;
-  approvedBy?: string; approvedAt?: string; closedReason?: string; notes?: string; attachments: any[]; lines: Line[]; total: number; billed: number; remaining: number; version: number;
+  approvedBy?: string; approvedAt?: string; closedReason?: string; notes?: string; attachments: any[]; sharedAttachments?: any[]; lines: Line[]; total: number; billed: number; remaining: number; version: number;
 }
 interface CostEntry {
   id: string; date: string; dueDate?: string; type: string; contractorId?: string; vendorName?: string; reference?: string; commitmentId?: string; csiCodeId?: string;
   phaseId?: string; taskId?: string; description: string; amount: number; status: string; approvedBy?: string; paidDate?: string; paymentRef?: string; voidReason?: string;
-  notes?: string; attachments: any[]; version: number; createdBy?: string;
+  notes?: string; attachments: any[]; version: number; createdBy?: string; source?: string;
 }
 interface CostsView {
   rights: { manageCosts: boolean; approveCosts: boolean; viewProfitability: boolean };
@@ -400,6 +400,14 @@ function CommitmentDrawer({ c, v, projectId, pick, onClose, onChanged }: {
           onUpload={async (files) => { await api.finance.costUpload(c.id, files); onChanged(await api.finance.costs(projectId) as CostsView); }}
           onRemove={async (att) => { await api.finance.costRemoveAttachment(c.id, att.id); onChanged(await api.finance.costs(projectId) as CostsView); }}
           onAddLink={async (name, url) => { await api.finance.costLink(c.id, name, url); onChanged(await api.finance.costs(projectId) as CostsView); }} />}
+        {c && c.contractorId && <div>
+          <Label text={`Shared with ${c.vendorName || 'the subcontractor'}`} />
+          <div style={{ fontSize: 12, color: MUTED, margin: '-2px 0 8px', lineHeight: 1.55 }}>Drawings, specs or the signed agreement they should see in their portal. The files above stay internal.</div>
+          <Attachments scope="finance-commitment-shared" taskId={c.id} attachments={c.sharedAttachments || []} canManage={v.rights.manageCosts} storageReady={storageReady}
+            onUpload={async (files) => { await api.finance.sharedUpload(c.id, files); onChanged(await api.finance.costs(projectId) as CostsView); }}
+            onRemove={async (att) => { await api.finance.sharedRemove(c.id, att.id); onChanged(await api.finance.costs(projectId) as CostsView); }}
+            onAddLink={async (name, url) => { await api.finance.sharedLink(c.id, name, url); onChanged(await api.finance.costs(projectId) as CostsView); }} />
+        </div>}
       </div>
     </Drawer>
   );
@@ -431,7 +439,7 @@ function Costs({ v, projectId, pick, onChanged }: { v: CostsView; projectId: num
             {shown.map((e) => (
               <div key={e.id} onClick={() => setOpen(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer', opacity: e.status === 'void' ? 0.5 : 1 }}>
                 <span>{fmtDate(e.date)}</span><span style={{ color: MUTED }}>{label(COST_TYPES, e.type)}</span><span>{e.vendorName || '—'}</span>
-                <span>{e.reference ? <b>{e.reference} · </b> : null}{e.description}{e.commitmentId ? <span style={{ color: MUTED }}> · {v.commitments.find((c) => c.id === e.commitmentId)?.number}</span> : null}</span>
+                <span>{e.reference ? <b>{e.reference} · </b> : null}{e.description}{e.commitmentId ? <span style={{ color: MUTED }}> · {v.commitments.find((c) => c.id === e.commitmentId)?.number}</span> : null}{e.source === 'portal' && <span title="Sent by the subcontractor through their portal" style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: '#D8E2F0', color: '#3C5C8A', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>From portal</span>}</span>
                 <span style={{ color: MUTED }}>{codeName(e.csiCodeId)}</span><b style={{ textAlign: 'right' }}>{usd(e.amount)}</b><span><CostBadge s={e.status} /></span>
               </div>
             ))}

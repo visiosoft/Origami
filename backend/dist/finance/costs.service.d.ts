@@ -6,6 +6,7 @@ import { type TaskAttachment } from '../database/task.types';
 import { SettingsService } from '../settings/settings.service';
 import { FinancialsService } from './financials.service';
 import { type LaborLine } from './costs.calc';
+import { PortalService } from './portal.service';
 export declare const COMMITMENT_TYPES: string[];
 export declare const COST_TYPES: string[];
 export declare class CostsService {
@@ -27,7 +28,8 @@ export declare class CostsService {
     private readonly codes;
     private readonly contractors;
     private readonly attachments?;
-    constructor(fin: FinancialsService, settings: SettingsService, budget: Repository<CostBudgetLineEntity>, commitments: Repository<CommitmentEntity>, commitmentLines: Repository<CommitmentLineEntity>, entries: Repository<CostEntryEntity>, forecasts: Repository<CostForecastEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, timesheets: Repository<TimesheetEntity>, timesheetLines: Repository<TimesheetLineEntity>, dailyLogs: Repository<DailyLogEntity>, laborEntries: Repository<LaborLogEntryEntity>, employees: Repository<EmployeeEntity>, codes: Repository<CsiCodeEntity>, contractors: Repository<ContractorEntity>, attachments?: AttachmentsService | undefined);
+    private readonly portal?;
+    constructor(fin: FinancialsService, settings: SettingsService, budget: Repository<CostBudgetLineEntity>, commitments: Repository<CommitmentEntity>, commitmentLines: Repository<CommitmentLineEntity>, entries: Repository<CostEntryEntity>, forecasts: Repository<CostForecastEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, timesheets: Repository<TimesheetEntity>, timesheetLines: Repository<TimesheetLineEntity>, dailyLogs: Repository<DailyLogEntity>, laborEntries: Repository<LaborLogEntryEntity>, employees: Repository<EmployeeEntity>, codes: Repository<CsiCodeEntity>, contractors: Repository<ContractorEntity>, attachments?: AttachmentsService | undefined, portal?: PortalService | undefined);
     private canSee;
     private laborSettings;
     laborAll(): Promise<LaborLine[]>;

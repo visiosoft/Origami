@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FinanceCostFilesController = exports.FinanceReimbursableFilesController = exports.FinanceChangeOrderFilesController = exports.FinanceInvoiceFilesController = exports.FinanceController = void 0;
+exports.FinanceCostFilesController = exports.FinanceReimbursableFilesController = exports.FinanceChangeOrderFilesController = exports.FinanceInvoiceFilesController = exports.FinanceFilesBase = exports.FinanceController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const stream_1 = require("stream");
@@ -686,6 +686,7 @@ class FinanceFilesBase {
         stream_1.Readable.fromWeb(file.body).pipe(res);
     }
 }
+exports.FinanceFilesBase = FinanceFilesBase;
 __decorate([
     (0, common_1.Post)(':id/attachments'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', attachments_service_1.MAX_FILES_PER_UPLOAD, { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),

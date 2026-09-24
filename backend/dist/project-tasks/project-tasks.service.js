@@ -85,6 +85,9 @@ let ProjectTasksService = class ProjectTasksService {
         const tasks = await this.findAll(projectId);
         return { sections, tasks };
     }
+    async get(id) {
+        return this.load(id);
+    }
     async load(id) {
         const task = await this.repo.findOneBy({ id });
         if (!task)

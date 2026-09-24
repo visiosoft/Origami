@@ -19,3 +19,17 @@ export const Roles = (...roleKeys: string[]) => SetMetadata(ROLES_KEY, roleKeys)
  * rather than half-opened.
  */
 export const Tiers = (...tiers: string[]) => SetMetadata(TIERS_KEY, tiers);
+
+/**
+ * The subcontractor portal role. Unlike every other role it is locked down by
+ * default: an account holding it reaches only routes marked `@PortalRoute()`
+ * or `@AnySignedIn()` (and public ones), whatever else a controller allows --
+ * so a trade partner's login can never wander into the internal app.
+ */
+export const PORTAL_ROLE = 'vendor_portal';
+export const PORTAL_KEY = 'auth:portal';
+export const ANY_SIGNED_IN_KEY = 'auth:anySignedIn';
+/** A route of the subcontractor portal. */
+export const PortalRoute = () => SetMetadata(PORTAL_KEY, true);
+/** A route every signed-in account needs, portal included (who am I, and the like). */
+export const AnySignedIn = () => SetMetadata(ANY_SIGNED_IN_KEY, true);

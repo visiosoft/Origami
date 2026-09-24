@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmailTemplatesController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const email_templates_service_1 = require("./email-templates.service");
 const create_email_template_dto_1 = require("./dto/create-email-template.dto");
 let EmailTemplatesController = class EmailTemplatesController {
@@ -73,6 +74,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], EmailTemplatesController.prototype, "remove", null);
 exports.EmailTemplatesController = EmailTemplatesController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('email-templates'),
     __metadata("design:paramtypes", [email_templates_service_1.EmailTemplatesService])
 ], EmailTemplatesController);

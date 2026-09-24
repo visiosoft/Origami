@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, SetPasswordDto, ForgotPasswordDto, NotificationPrefsDto } from './dto/auth.dto';
 import { Public } from './guards/public.decorator';
+import { AnySignedIn } from './guards/roles.decorator';
 import { SESSION_COOKIE, sessionCookieOptions } from './guards/cookie.util';
 
 @Controller('auth')
@@ -46,6 +47,7 @@ export class AuthController {
     return this.auth.forgotPassword(dto.email);
   }
 
+  @AnySignedIn()
   @Get('me')
   me(@Headers('authorization') authorization?: string) {
     return this.auth.me(authorization);

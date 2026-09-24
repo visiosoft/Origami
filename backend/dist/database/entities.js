@@ -2578,6 +2578,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ContractorEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ContractorEntity.prototype, "userId", void 0);
 exports.ContractorEntity = ContractorEntity = __decorate([
     (0, typeorm_1.Entity)('contractors')
 ], ContractorEntity);
@@ -4761,6 +4765,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
 ], CommitmentEntity.prototype, "attachments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], CommitmentEntity.prototype, "sharedAttachments", void 0);
 exports.CommitmentEntity = CommitmentEntity = __decorate([
     (0, typeorm_1.Entity)('commitments'),
     (0, typeorm_1.Index)('IX_commitments_project', ['projectId']),
@@ -4901,6 +4909,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
 ], CostEntryEntity.prototype, "attachments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "source", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "batchId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "submittedByUserId", void 0);
 exports.CostEntryEntity = CostEntryEntity = __decorate([
     (0, typeorm_1.Entity)('cost_entries'),
     (0, typeorm_1.Index)('IX_cost_entries_project', ['projectId']),
