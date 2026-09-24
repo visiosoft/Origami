@@ -15,6 +15,7 @@ import { AssetRegister } from '../components/Assets';
 import { AccommodationModule } from '../components/Accommodation';
 import { TransportModule } from '../components/Transport';
 import { TimesheetsModule } from '../components/Timesheets';
+import { CostCodesSettings } from '../components/CostCodes';
 import { SampleDataPanel, SubcontractorTradesSetup } from '../components/SubcontractorTrades';
 
 const BG = "'Bricolage Grotesque', serif";
@@ -205,7 +206,7 @@ export function Manpower() {
       {tab === 'leave_setup' && <LeaveSetup canManage={canManage} />}
       {tab === 'sub_trades' && <SubcontractorTradesSetup canManage={canManage} />}
       {tab === 'sample' && <SampleDataPanel canManage={canManage} onChanged={async () => { await Promise.all([reloadEmployees(), reloadAssignments(), reloadContractors()]); }} />}
-      {tab === 'csi' && <CsiCodesTab csiCodes={csiCodes} reload={reloadCsiCodes} canManage={canManage} toast={toast} />}
+      {tab === 'csi' && <CostCodesSettings canManage={canManage} onChanged={reloadCsiCodes} />}
       {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}
       {tab === 'overtime' && <OvertimePanel employees={employees} projects={projects} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'advances' && <AdvancesPanel employees={employees} settings={payrollSettings} canManage={canManage} canFinance={canFinance} onOpenEmployee={openEmployee} />}
@@ -426,56 +427,6 @@ function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, current
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// -------------------------------------------------------------- CSI Codes
-
-function CsiCodesTab({ csiCodes, reload, canManage, toast }: {
-  csiCodes: CsiCode[]; reload: () => void; canManage: boolean; toast: (m: string) => void;
-}) {
-  const [draftCode, setDraftCode] = useState('');
-  const [draftDivision, setDraftDivision] = useState('');
-
-  const add = async () => {
-    if (!draftCode.trim() || !draftDivision.trim()) return;
-    try {
-      await api.csiCodes.create({ code: draftCode.trim(), division: draftDivision.trim(), order: csiCodes.length });
-      setDraftCode(''); setDraftDivision('');
-      reload();
-    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add')); }
-  };
-  const update = async (c: CsiCode, patch: Partial<CsiCode>) => {
-    try { await api.csiCodes.update(c.id, patch); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
-  };
-  const remove = async (id: string) => {
-    if (!confirm('Remove this CSI code?')) return;
-    try { await api.csiCodes.remove(id); reload(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not remove')); }
-  };
-
-  return (
-    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 30px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
-        <span>Code</span><span>Division</span><span>Active</span><span />
-      </div>
-      {csiCodes.map((c) => (
-        <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
-          <span style={{ fontSize: 12.5, color: INK }}>{c.code}</span>
-          <span style={{ fontSize: 12.5, color: INK }}>{c.division}</span>
-          <input type="checkbox" disabled={!canManage} checked={c.active} onChange={(e) => update(c, { active: e.target.checked })} />
-          {canManage && <span onClick={() => remove(c.id)} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 13, textAlign: 'center' }}>×</span>}
-        </div>
-      ))}
-      {canManage && (
-        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 120px', gap: 8, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.06)' }}>
-          <input value={draftCode} onChange={(e) => setDraftCode(e.target.value)} placeholder="e.g. 09 00 00" style={input} />
-          <input value={draftDivision} onChange={(e) => setDraftDivision(e.target.value)} placeholder="e.g. Finishes" style={input} />
-          <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', textAlign: 'center' }}>+ Add code</div>
-        </div>
-      )}
     </div>
   );
 }

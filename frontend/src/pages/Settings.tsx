@@ -1,3 +1,4 @@
+import { CostCodesSettings } from '../components/CostCodes';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -28,6 +29,9 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   { group: 'Brand', items: [
     { key: 'branding', label: 'Branding & Letterhead' },
   ] },
+  { group: 'Projects', items: [
+    { key: 'cost-codes', label: 'Cost Codes (CSI)' },
+  ] },
   { group: 'Pipeline', items: [
     { key: 'sla', label: 'CRM Response Times' },
     { key: 'scheduling', label: 'Calendars' },
@@ -43,12 +47,13 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
 ];
 
 export function Settings() {
+  const { can } = useApp();
   const isMobile = useWindowWidth() < 768;
   const [params] = useSearchParams();
   // OAuth callbacks (Google Workspace, My Calendar) land back here with ?tab=<key>.
   const tabParam = params.get('tab');
   const [active, setActive] = useState(
-    tabParam === 'google' || tabParam === 'my-calendar' ? tabParam : 'lead-scoring',
+    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' ? tabParam : 'lead-scoring',
   );
 
   const nav = (
@@ -81,6 +86,7 @@ export function Settings() {
           {active === 'my-calendar' && <MyCalendarSettings />}
           {active === 'sms' && <SmsSettings />}
           {active === 'google' && <GoogleSettings />}
+          {active === 'cost-codes' && <CostCodesSettings canManage={can('settings', 'manage') || can('manpower_con', 'manage')} />}
         </div>
       </div>
     </div>

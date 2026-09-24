@@ -59,7 +59,7 @@ describe('SampleDataService', () => {
       contractors: table([{ id: 'CTR-REAL', companyName: 'Real Co' }]),
       subTrades: table(DEFAULT_SUBCONTRACTOR_TRADES.map((x) => ({ ...x }))),
       projects: table([{ id: 7, name: 'Tower', stage: 'Construction' }, { id: 8, name: 'Villas', stage: 'Construction' }]),
-      csi: table([{ id: 'CSI-1', code: '03 00 00' }, { id: 'CSI-2', code: '04 00 00' }]),
+      csi: table([{ id: 'CSI-03', code: '03' }, { id: 'CSI-04', code: '04' }, { id: 'CSI-26_10', code: '26.10' }]),
       records: table(), assignments: table(), requests: table(), logs: table(),
       entries: table([{ id: 'LE-REAL', dailyLogId: 'DL-REAL', employeeId: 'E-REAL' }]),
       leave: table([{ id: 'LR-REAL', employeeId: 'E-REAL' }]), leaveAdj: table(), overtime: table(), advances: table(), shifts: table(),

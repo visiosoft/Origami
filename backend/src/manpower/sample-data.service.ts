@@ -21,12 +21,12 @@ const NOTE = 'Sample data for testing -- remove it from Setup › Sample Data.';
 
 /** Who logs what on the first project each working day: employee, cost code, hours, task. */
 const SAMPLE_WORK: [string, string, number, string][] = [
-  ['E06', '04 00 00', 8, 'CMU block walls, level 3'], ['E07', '03 00 00', 8, 'Column formwork, grid C'],
-  ['E10', '03 00 00', 8, 'Rebar placement, level 4 deck'], ['E11', '04 00 00', 8, 'Material handling for masons'],
-  ['E08', '26 00 00', 8, 'Conduit in deck'], ['E09', '05 00 00', 8, 'Stair rail welding'],
-  ['E13', '31 00 00', 8, 'Excavation for underground detention tank'], ['E14', '26 00 00', 8, 'Panel installs, parking structure'],
-  ['E16', '03 00 00', 8, 'Rebar placement, level 4 deck'],
-  ['E03', '01 00 00', 8, 'Crew supervision and daily coordination'], ['E12', '01 00 00', 8, 'Crew shuttle and material runs'],
+  ['E06', '04', 8, 'CMU block walls, level 3'], ['E07', '03.30', 8, 'Column formwork, grid C'],
+  ['E10', '03.35', 8, 'Rebar placement, level 4 deck'], ['E11', '01.55', 8, 'Material handling for masons'],
+  ['E08', '26.10', 8, 'Conduit in deck'], ['E09', '05.52', 8, 'Stair rail welding'],
+  ['E13', '31.22', 8, 'Excavation for underground detention tank'], ['E14', '26.10', 8, 'Panel installs, parking structure'],
+  ['E16', '03.35', 8, 'Rebar placement, level 4 deck'],
+  ['E03', '01', 8, 'Crew supervision and daily coordination'], ['E12', '01.71', 8, 'Crew shuttle and material runs'],
 ];
 
 const monthStart = (iso: string, back = 0) => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - back, 1)).toISOString().slice(0, 10); };
