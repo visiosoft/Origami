@@ -3,27 +3,20 @@ import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { Avatar } from '../components/Avatar';
-import { AssigneePicker } from '../components/AssigneePicker';
-import { Attachments } from '../components/Attachments';
-import { ActivityFeed } from '../components/ActivityFeed';
-import { Checklist } from '../components/Checklist';
-import { LabelPicker } from '../components/LabelPicker';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from '../components/TaskScope';
-import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { TaskBoard } from '../components/TaskBoard';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
-import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task, type TaskTab } from '../data/tasks';
+import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
+import { ST_COLORS, TT_COLORS, type Task, type TaskTab } from '../data/tasks';
 
-const BG = "'Bricolage Grotesque', serif";
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 /** The board project is remembered so coming back lands on the same one. */
 const PROJECT_KEY = 'origami.tasksProjectId';
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
-const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 
 export function Tasks() {
-  const { toast, can, users } = useApp();
+  const { can, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
   const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
@@ -32,8 +25,6 @@ export function Tasks() {
   const [projOpen, setProjOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-  // Uploads need a connected Google account; links work regardless.
-  const [storageReady, setStorageReady] = useState(false);
   const swallow = useRef(false);
   const [mode, setMode] = useState<'board' | 'log'>('board');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
@@ -81,7 +72,6 @@ export function Tasks() {
         return real.some((p: any) => p.id === cur) ? cur : 'general';
       });
     }).catch(() => { });
-    api.google.status().then((g) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
     reloadLog();
   }, []);
 
@@ -111,35 +101,6 @@ export function Tasks() {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
-  /** Replace one task in local state with the server's fresh copy. */
-  const replaceTask = (res: any) => { if (res?.id) setLogTasks((prev) => prev.map((t) => (t.id === res.id ? (res as Task) : t))); };
-
-  /** Patch a Request Log task. The log used to be read-only — it now saves. */
-  const saveTask = (id: string, patch: Partial<Task>) => {
-    setLogTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    api.tasks.update(id, patch).then(replaceTask).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to save')));
-  };
-
-  const addComment = async (id: string, text: string) => {
-    try { replaceTask(await api.tasks.addComment(id, text)); }
-    catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to comment')); }
-  };
-  const uploadFiles = async (id: string, files: File[]) => {
-    replaceTask(await api.tasks.uploadAttachments(id, files));
-    toast(files.length === 1 ? 'File attached' : `${files.length} files attached`);
-  };
-  const addLink = async (id: string, name: string, url: string) => { replaceTask(await api.tasks.addLink(id, name, url)); };
-  const removeAttachment = async (id: string, att: TaskAttachment) => {
-    try { replaceTask(await api.tasks.removeAttachment(id, att.id)); }
-    catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to remove')); }
-  };
-  const deleteTask = (id: string) => {
-    if (!confirm('Delete this task?')) return;
-    setLogTasks((prev) => prev.filter((t) => t.id !== id));
-    setSelectedId(null);
-    api.tasks.remove(id).catch(() => toast('⚠ Failed to delete'));
-  };
-
   // Labels already in use, offered as suggestions.
   const allLabels = Array.from(new Set(logTasks.flatMap((t) => t.labels ?? []))).sort();
 
@@ -158,7 +119,6 @@ export function Tasks() {
   const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
 
   const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
-  const lt = sel ? getLeadTime(sel) : null;
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -253,181 +213,15 @@ export function Tasks() {
         )}
       </div>
 
-      {/* Task detail modal */}
-      {sel && lt && (
-        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease' }}>
-            {/* Header */}
-            <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#7E9B93', fontVariantNumeric: 'tabular-nums', background: '#FBF8F2', padding: '3px 10px', borderRadius: 6 }}>{sel.id}</span>
-                  <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: ST_COLORS[sel.status].bg, color: ST_COLORS[sel.status].c }}>{sel.status}</span>
-                  <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: TT_COLORS[sel.topicType].bg, color: TT_COLORS[sel.topicType].c }}>{sel.topicType}</span>
-                  <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: MT_COLORS[sel.meetingType].bg, color: MT_COLORS[sel.meetingType].c }}>{sel.meetingType}</span>
-                </div>
-                <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4 }}>{sel.description}</div>
-              </div>
-              <div onClick={() => setSelectedId(null)} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(20,8,31,0.08)', marginLeft: 16, flexShrink: 0 }}>
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
-              </div>
-            </div>
-
-            {/* Meta */}
-            <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Assigned To</div>
-                  <AssigneePicker
-                    valueId={sel.assignedToId}
-                    valueName={sel.assignedTo}
-                    disabled={!canManage}
-                    onChange={(u) => saveTask(sel.id, { assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
-                  />
-                </div>
-                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Status</div>
-                  <select
-                    disabled={!canManage}
-                    value={sel.status}
-                    onChange={(e) => saveTask(sel.id, { status: e.target.value as Task['status'] })}
-                    style={{ ...inputStyle, padding: '7px 9px' }}
-                  >
-                    {(['Open', 'In Progress', 'Closed'] as const).map((st) => <option key={st} value={st}>{st}</option>)}
-                  </select>
-                </div>
-                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Meeting Date</div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{sel.meetingDate}</div>
-                </div>
-                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Project</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#173326' }}>{sel.project || 'General (no project)'}</div>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 12 }}>
-                <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Due Date</div>
-                  <input
-                    type="date"
-                    disabled={!canManage}
-                    value={sel.dueDate || ''}
-                    onChange={(e) => saveTask(sel.id, { dueDate: e.target.value })}
-                    style={{ ...inputStyle, padding: '7px 9px' }}
-                  />
-                </div>
-                {([['Date Closed', sel.dateClosed || '—'], ['Days Open', sel.daysOpen > 0 ? sel.daysOpen + ' days' : '—'], ['Originator', sel.originator || '—']] as [string, string][]).map((r) => (
-                  <div key={r[0]} style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{r[1]}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Description */}
-            <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 10 }}>Description</div>
-              <div style={{ padding: '14px 16px', background: '#FBF8F2', borderRadius: 10 }}>
-                <textarea
-                  disabled={!canManage}
-                  defaultValue={sel.description}
-                  key={'d' + sel.id}
-                  onBlur={(e) => { if (e.target.value !== sel.description) saveTask(sel.id, { description: e.target.value }); }}
-                  rows={3}
-                  style={{ ...inputStyle, background: 'white', resize: 'vertical', lineHeight: 1.6 }}
-                />
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(20,8,31,0.07)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2F7D4A', marginBottom: 6 }}>Resolution</div>
-                  <textarea
-                    disabled={!canManage}
-                    defaultValue={sel.resolution}
-                    key={'r' + sel.id}
-                    onBlur={(e) => { if (e.target.value !== sel.resolution) saveTask(sel.id, { resolution: e.target.value }); }}
-                    rows={2}
-                    placeholder="How was this resolved?"
-                    style={{ ...inputStyle, background: 'white', resize: 'vertical', lineHeight: 1.6 }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginTop: 18 }}>
-                <Checklist
-                  items={sel.checklist ?? []}
-                  canManage={canManage}
-                  onChange={(checklist: ChecklistItem[]) => saveTask(sel.id, { checklist })}
-                />
-                <LabelPicker
-                  labels={sel.labels ?? []}
-                  canManage={canManage}
-                  suggestions={allLabels}
-                  onChange={(labels) => saveTask(sel.id, { labels })}
-                />
-              </div>
-
-              <div style={{ marginTop: 18 }}>
-                <Attachments
-                  scope="tasks"
-                  taskId={sel.id}
-                  attachments={sel.attachments ?? []}
-                  canManage={canManage}
-                  storageReady={storageReady}
-                  onUpload={(files) => uploadFiles(sel.id, files)}
-                  onRemove={(att) => removeAttachment(sel.id, att)}
-                  onAddLink={(name, url) => addLink(sel.id, name, url)}
-                />
-              </div>
-            </div>
-
-            {/* Due date & lead time */}
-            <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>Due Date & Lead Time</div>
-                <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 11px', borderRadius: 999, background: lt.bg, color: lt.color, whiteSpace: 'nowrap' }}>{lt.label}</div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                {([['Lead Time', lt.leadTime + ' days'], ['Open Days', lt.openDays + ' days'], ['Variance', lt.variance === 0 ? 'On target' : lt.variance > 0 ? '+' + lt.variance + ' days' : lt.variance + ' days']] as [string, string][]).map((r, i) => (
-                  <div key={r[0]} style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: i === 2 ? lt.color : '#0B1A12' }}>{r[1]}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Date Change Audit Trail</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {lt.audit.map((au, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: '#FBF8F2', borderRadius: 9 }}>
-                      <div style={{ width: 7, height: 7, borderRadius: 999, background: au.dot, flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#0B1A12' }}>{au.what}</div>
-                        <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 2 }}>{au.by} · {au.when}</div>
-                      </div>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: au.chipBg, color: au.chipC, flexShrink: 0 }}>{au.chip}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{ marginTop: 10, padding: '11px 13px', background: '#EEF3EE', borderRadius: 10, fontSize: 10.5, color: '#43514D', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Moving a due date needs approval from the task owner, and every change is logged above.</div>
-            </div>
-
-            {/* Activity — real comments and a record of what changed */}
-            <div style={{ padding: '20px 28px' }}>
-              <ActivityFeed
-                comments={sel.comments ?? []}
-                activity={sel.activity ?? []}
-                canManage={canManage}
-                onComment={(text) => addComment(sel.id, text)}
-              />
-            </div>
-
-            {canManage && (
-              <div style={{ padding: '0 28px 26px' }}>
-                <div onClick={() => deleteTask(sel.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Task detail — the same drawer the CRM opens */}
+      {sel && (
+        <RequestLogTaskDrawer
+          task={sel}
+          allLabels={allLabels}
+          onClose={() => setSelectedId(null)}
+          onChanged={(res) => setLogTasks((prev) => prev.map((x) => (x.id === res.id ? res : x)))}
+          onDeleted={(id) => setLogTasks((prev) => prev.filter((x) => x.id !== id))}
+        />
       )}
 
       {/* New task — right-side drawer, shared with every other "add task" entry point */}

@@ -23,6 +23,8 @@ interface AppContextValue {
   // Session
   authUser: User | null;
   authReady: boolean;
+  /** True while the server can't be reached to confirm the session (e.g. it's restarting). */
+  reconnecting: boolean;
   signIn: (token: string, user?: User) => void;
   signOut: () => void;
 }
@@ -38,6 +40,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loadingAccess, setLoadingAccess] = useState(true);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -57,13 +60,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refreshAccess(); }, [refreshAccess]);
 
   // Restore the session on load: the stored token is only trusted after the
-  // server confirms it still resolves to a real user.
+  // server confirms it still resolves to a real user. Only a real "not signed
+  // in" (401) signs you out -- if the server is restarting (a deploy, a network
+  // blip) we keep the session and keep trying, instead of dropping you on the
+  // log-in screen and losing what you were doing.
   useEffect(() => {
     if (!session.get()) { setAuthReady(true); return; }
-    api.auth.me()
-      .then((u) => { setAuthUser(u as User); setCurrentUserIdState((u as User).id); })
-      .catch(() => { session.clear(); setAuthUser(null); })
-      .finally(() => setAuthReady(true));
+    let stopped = false;
+    let timer: number | undefined;
+    const attempt = (n: number) => {
+      api.auth.me()
+        .then((u) => { if (stopped) return; setAuthUser(u as User); setCurrentUserIdState((u as User).id); setReconnecting(false); setAuthReady(true); })
+        .catch((e: any) => {
+          if (stopped) return;
+          if (e?.status === 401) { session.clear(); setAuthUser(null); setReconnecting(false); setAuthReady(true); return; }
+          setReconnecting(true);
+          timer = window.setTimeout(() => attempt(n + 1), Math.min(2000 * (n + 1), 10000));
+        });
+    };
+    attempt(0);
+    return () => { stopped = true; window.clearTimeout(timer); };
   }, []);
 
   const signIn = useCallback((token: string, user?: User) => {
@@ -116,7 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         viewMode, setViewMode, toast, toastMsg,
         users, roles, currentUser, currentRole, tier, loadingAccess,
         refreshAccess, can,
-        authUser, authReady, signIn, signOut,
+        authUser, authReady, reconnecting, signIn, signOut,
       }}
     >
       {children}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { NewTaskDrawer } from './NewTaskDrawer';
+import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
 import type { Task } from '../data/tasks';
 
 const input: React.CSSProperties = {
@@ -31,7 +31,8 @@ export function DealTasksPanel({
   /** Every stage name the lead could have a task filed under -- the picker's options. */
   stages: string[];
 }) {
-  const navigate = useNavigate();
+  // Opens over the lead, so reading a task never takes you out of the CRM.
+  const [openId, setOpenId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -96,6 +97,17 @@ export function DealTasksPanel({
         </div>
       </div>
 
+      {openId && tasks.find((x) => x.id === openId) && (
+        <RequestLogTaskDrawer
+          task={tasks.find((x) => x.id === openId)!}
+          allLabels={Array.from(new Set(tasks.flatMap((x) => x.labels ?? []))).sort()}
+          zIndex={210}
+          onClose={() => setOpenId(null)}
+          onChanged={(res) => setTasks((prev) => prev.map((x) => (x.id === res.id ? res : x)))}
+          onDeleted={(id) => setTasks((prev) => prev.filter((x) => x.id !== id))}
+        />
+      )}
+
       {adding && (
         <NewTaskDrawer
           onClose={() => setAdding(false)}
@@ -126,7 +138,7 @@ export function DealTasksPanel({
                 {secTasks.map((t) => (
                   <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, opacity: t.status === 'Closed' ? 0.6 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', flexWrap: 'wrap' }}>
-                      <div onClick={() => navigate(`/tasks?task=${encodeURIComponent(t.id)}&type=log`)} style={{ flex: '1 1 200px', minWidth: 0, cursor: 'pointer' }}>
+                      <div onClick={() => setOpenId(t.id)} style={{ flex: '1 1 200px', minWidth: 0, cursor: 'pointer' }}>
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', textDecoration: t.status === 'Closed' ? 'line-through' : 'none' }}>{t.description || t.id}</div>
                         <div style={{ fontSize: 11, color: '#7E9B93' }}>{t.assignedTo || 'Unassigned'}{t.dueDate ? ` · Due ${t.dueDate}` : ''}</div>
                       </div>

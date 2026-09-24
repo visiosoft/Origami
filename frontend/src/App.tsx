@@ -32,9 +32,20 @@ import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { authUser, authReady } = useApp();
+  const { authUser, authReady, reconnecting } = useApp();
   const location = useLocation();
-  if (!authReady) return <div style={{ padding: 40, fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (!authReady) {
+    return (
+      <div style={{ padding: 40, fontSize: 13, color: '#7E9B93', lineHeight: 1.6 }}>
+        {reconnecting ? (
+          <>
+            <div style={{ fontWeight: 700, color: '#173326', fontSize: 14 }}>Reconnecting…</div>
+            The server is restarting (usually an update being installed). You're still signed in — this page will continue by itself in a moment.
+          </>
+        ) : 'Loading…'}
+      </div>
+    );
+  }
   if (!authUser) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   return <>{children}</>;
 }

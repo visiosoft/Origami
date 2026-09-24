@@ -55,7 +55,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     // the UI can show the real reason instead of a bare status code.
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
-    throw new Error(msg || `API error: ${res.status}`);
+    // The status rides along, so callers can tell "signed out" (401) from "server busy" (502/503).
+    throw Object.assign(new Error(msg || `API error: ${res.status}`), { status: res.status });
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -75,7 +76,7 @@ async function requestForm<T>(path: string, form: FormData): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
-    throw new Error(msg || `Upload failed: ${res.status}`);
+    throw Object.assign(new Error(msg || `Upload failed: ${res.status}`), { status: res.status });
   }
   return res.json();
 }
