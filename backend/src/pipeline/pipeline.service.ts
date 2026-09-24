@@ -405,7 +405,9 @@ export class PipelineService implements OnApplicationBootstrap {
     const date = new Date().toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
-    return { date, action, role: actor?.name || 'System', type, by: actor?.id || '' };
+    // `date` is formatted in the server's zone (UTC on Azure); `at` is the real
+    // moment, which the app shows in each viewer's own time and sorts by.
+    return { date, at: new Date().toISOString(), action, role: actor?.name || 'System', type, by: actor?.id || '' };
   }
 
   /**

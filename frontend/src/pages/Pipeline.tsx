@@ -412,6 +412,10 @@ export function Pipeline() {
   const [auditPage, setAuditPage] = useState(0);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteTask, setNoteTask] = useState<{ dealId: string; dealName: string; stageName: string; text: string } | null>(null);
+  /** A task just converted from a note: the lead's Tasks tab opens it in full (files, labels, checklist). */
+  const [convertedTaskId, setConvertedTaskId] = useState<string | null>(null);
+  // The Tasks tab takes it on arrival; clear it so revisiting the tab doesn't reopen it.
+  useEffect(() => { if (!convertedTaskId) return; const t = window.setTimeout(() => setConvertedTaskId(null), 4000); return () => window.clearTimeout(t); }, [convertedTaskId]);
   const [meetByDeal, setMeetByDeal] = useState<Record<string, { when: string }>>({});
   const [meetWhen, setMeetWhen] = useState('');
   // Video (Google Meet, the original flow) or a phone-only consultation --
@@ -630,7 +634,7 @@ export function Pipeline() {
     value: '$0', stage: 'new_lead', stageIdx: 0, assignedRole: 'PC', assignee: 'Unassigned', assigneeInit: '?', daysInStage: 0,
     nextAction: 'Assign & make first contact', nextDue: '—', source: draft.leadSource || 'Website', status: 'in_progress',
     phone: draft.phone.trim(), email: draft.email.trim(),
-    timeline: [{ date: fmtWhen(), action: `New lead created — ${draft.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
+    timeline: [{ date: fmtWhen(), at: new Date().toISOString(), action: `New lead created — ${draft.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
     notes: draft.projectVision.trim(),
   });
   /** Only the changed fields, plus whatever the role-assignment roll-up derives from them. */
@@ -676,8 +680,14 @@ export function Pipeline() {
     if (!cur || !before) return;
     const changed = (Object.keys(cur) as (keyof NewLead)[]).filter((k) => !LEAD_SKIP.includes(k as string) && JSON.stringify(cur[k] ?? '') !== JSON.stringify(before[k] ?? ''));
     if (!changed.length) return;
-    api.pipeline.addEvent(id, `Lead details edited: ${changed.join(', ')}`).catch(() => { });
+    logEvent(id, `Lead details edited: ${changed.join(', ')}`);
     setLeadBaseline((prev) => ({ ...prev, [id]: { ...cur } }));
+  };
+  /** Record an audit entry on the server and show it straight away (it used to appear only after a reload). */
+  const logEvent = (id: string, action: string) => {
+    api.pipeline.addEvent(id, action)
+      .then((deal: any) => { if (Array.isArray(deal?.timeline)) setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, timeline: deal.timeline } : d))); })
+      .catch(() => { });
   };
   const openNewLead = () => { setNl({ ...BLANK_LEAD }); setEditingId(null); setFormTab(1); startLeadSession(null, { ...BLANK_LEAD }); setShowNew(true); };
   /** Done / close: whatever is still pending saves, and the edit is recorded once. */
@@ -713,7 +723,7 @@ export function Pipeline() {
       const clearRejection = (o.stage !== 'rejected' && o.stage !== 'referred_monitoring')
         ? { rejectionType: undefined, rejectionReason: undefined, referredToName: undefined, referredToCompany: undefined, referredToContact: undefined } : {};
       setDeals((prev) => prev.map((d) => d.id === id
-        ? { ...d, holdUntil, ...clearRejection, timeline: [...(d.timeline || []), { date: when, action, role: who, type: 'auto' as const }] }
+        ? { ...d, holdUntil, ...clearRejection, timeline: [...(d.timeline || []), { date: when, at: new Date().toISOString(), action, role: who, type: 'auto' as const }] }
         : d));
       api.pipeline.updateStage(id, o.stage).catch(() => { });
     }
@@ -1030,10 +1040,11 @@ export function Pipeline() {
         {noteTask && (
           <NewTaskDrawer
             onClose={() => setNoteTask(null)}
-            onCreated={() => {
-              api.pipeline.addEvent(noteTask.dealId, `Note converted to task: ${noteTask.text}`).catch(() => { });
+            onCreated={(c) => {
+              logEvent(noteTask.dealId, `Note converted to task: ${noteTask.text}`);
               setSelectedId(noteTask.dealId);
               setDetailTab('tasks');
+              if (c?.task?.id) setConvertedTaskId(c.task.id);
             }}
             fixedProject={{ id: noteTask.dealId, name: noteTask.dealName }}
             sections={Array.from(new Set([...STAGES.map((s) => s.name), noteTask.stageName]))}
@@ -1286,7 +1297,7 @@ export function Pipeline() {
               </div>
             </div>
           ) : detailTab === 'tasks' ? (
-            <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} />
+            <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} openTaskId={convertedTaskId} />
           ) : detailTab === 'contacts' ? (
             (() => {
               const ld = leadDetails[selected.id];
@@ -1528,12 +1539,11 @@ export function Pipeline() {
                           ? (Object.keys(cur) as (keyof NewLead)[]).filter((k) => JSON.stringify(cur[k] ?? '') !== JSON.stringify(before[k] ?? ''))
                           : [];
                         if (changed.length) {
-                          api.pipeline.addEvent(selected.id, `Lead details edited: ${changed.join(', ')}`).catch(() => { });
+                          logEvent(selected.id, `Lead details edited: ${changed.join(', ')}`);
                           setLeadBaseline((p) => ({ ...p, [selected.id]: { ...cur } }));
                         }
-                        const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        const entry = { date: when, action: `${selectedStage.name} completed — lead details saved`, role: 'System', type: 'auto' as const };
-                        setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: (cur.businessName || '').trim() || cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));
+                        setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: (cur.businessName || '').trim() || cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision } : d));
+                        logEvent(selected.id, `${selectedStage.name} completed — lead details saved`);
                         // The answers go through the same autosave (one request at a time, only what changed).
                         iqAuto.saveNow().then((ok) => {
                           if (!ok) { toast(iqAuto.error.includes('updated by someone else') ? `⚠ ${iqAuto.error}` : '⚠ Failed to save lead'); return; }
@@ -1860,7 +1870,7 @@ export function Pipeline() {
               {/* Audit trail (stage moves, archives, role changes, notes) */}
               <div style={{ padding: '14px 20px' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 4 }}>Audit Trail</div>
-                <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 12, lineHeight: 1.5 }}>Who did what, and when. Entries marked <b style={{ color: '#7E9B93' }}>System</b> were recorded before sign-in was required, or by an automated step.</div>
+                <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 12, lineHeight: 1.5 }}>Who did what, and when, newest first, in your local time. <b style={{ color: '#7E9B93' }}>Automatic</b> entries were made by the app itself (or before sign-in was required).</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {(() => {
                     const noteList = notesByDeal[selected.id] || [];
@@ -1873,12 +1883,20 @@ export function Pipeline() {
                     // formatted "22 Sept 2026, 18:43" string that Date.parse
                     // round-trips. Anything that fails to parse sorts to the
                     // bottom rather than floating to the top.
+                    // Server entries now carry `at` (the real moment); their `date`
+                    // text is in the server's zone (UTC), which mixed badly with
+                    // entries written in the browser and scrambled the order.
+                    const trail = selected.timeline.map((t) => ({ ...t, _at: t.at ? Date.parse(t.at) : Date.parse(t.date) }));
+                    // Saving a note already writes a "Note added" entry -- only notes
+                    // from before that have to be listed separately.
+                    const logged = trail.map((t) => t.action).join('\n');
                     const combined = [
-                      ...selected.timeline.map((t) => ({ ...t, _at: Date.parse(t.date) })),
-                      ...noteList.map((n) => ({ date: n.date, action: `Note (${n.stageName}): ${n.text}`, role: 'Note', type: 'pc' as const, _at: Number(n.id) })),
+                      ...trail,
+                      ...noteList.filter((n) => !logged.includes(n.text)).map((n) => ({ date: n.date, at: n.at, action: `Note (${n.stageName}): ${n.text}`, role: n.by || 'Note', type: 'pc' as const, kind: 'note', _at: n.at ? Date.parse(n.at) : Number(n.id) })),
                     ];
-                    const tc: Record<string, string> = { pc: '#2F7D4A', pm: '#173326', auto: '#D9B94F' };
-                    const tb: Record<string, string> = { pc: '#D2EAD3', pm: '#DCE7DE', auto: '#FBE9AE' };
+                    const kindOf = (t: any): 'person' | 'note' | 'auto' => (t.kind === 'note' || /^note\b/i.test(t.action) ? 'note' : !t.role || t.role === 'System' ? 'auto' : 'person');
+                    const KIND = { person: { c: '#2F7D4A', b: '#D2EAD3' }, note: { c: '#3C5C8A', b: '#D8E2F0' }, auto: { c: '#8A6D12', b: '#FBE9AE' } };
+                    const when = (t: any) => (t.at ? new Date(t.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : t.date);
                     const PER_PAGE = 10;
                     const rows = combined
                       .slice()
@@ -1904,19 +1922,27 @@ export function Pipeline() {
                     );
                     return (
                       <>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10, color: '#7E9B93', marginBottom: 10 }}>
+                          {(['person', 'note', 'auto'] as const).map((k) => (
+                            <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: 99, background: KIND[k].b, border: '2px solid ' + KIND[k].c }} />
+                              {k === 'person' ? 'Done by a person' : k === 'note' ? 'Note' : 'Automatic'}
+                            </span>
+                          ))}
+                        </div>
                         {shown.map((t, i) => (
                           <div key={start + i} style={{ display: 'flex', gap: 10, paddingBottom: 12 }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
-                              <div style={{ width: 10, height: 10, borderRadius: 999, background: tb[t.type] || '#EEE', border: '2px solid ' + (tc[t.type] || '#7E9B93'), flexShrink: 0 }} />
+                              <div style={{ width: 10, height: 10, borderRadius: 999, background: KIND[kindOf(t)].b, border: '2px solid ' + KIND[kindOf(t)].c, flexShrink: 0 }} />
                               {i < shown.length - 1 && <div style={{ width: 1, flex: 1, background: '#D6E0D7', marginTop: 3 }} />}
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                                 <span style={{ fontSize: 9.5, fontWeight: 700, color: '#C9CDC9', flexShrink: 0 }}>{start + i + 1}</span>
-                                <span style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{t.date}</span>
-                                <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: tb[t.type] || '#EEE', color: tc[t.type] || '#7E9B93' }}>{t.role}</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93' }}>{when(t)}</span>
+                                <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: KIND[kindOf(t)].b, color: KIND[kindOf(t)].c }}>{kindOf(t) === 'auto' ? 'Automatic' : t.role}</span>
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 500, color: '#0B1A12', lineHeight: 1.4 }}>{t.action}</div>
+                              <div style={{ fontSize: 11, fontWeight: 500, color: '#0B1A12', lineHeight: 1.45, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{t.action}</div>
                             </div>
                           </div>
                         ))}
@@ -1979,7 +2005,7 @@ export function Pipeline() {
                       {s.rows.map(([label, value]) => (
                         <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8 }}>
                           <span style={{ fontSize: 11, color: '#7E9B93', fontWeight: 600, flex: '0 0 44%' }}>{label}</span>
-                          <span style={{ fontSize: 12, color: '#0B1A12', flex: 1, wordBreak: 'break-word' }}>{value}</span>
+                          <span style={{ fontSize: 12, color: '#0B1A12', flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{value}</span>
                         </div>
                       ))}
                     </div>

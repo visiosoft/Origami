@@ -1082,7 +1082,7 @@ export function Projects() {
                             {s.rows.map(([label, value]) => (
                               <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 12px', background: '#FBF8F2', borderRadius: 8 }}>
                                 <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', flex: '0 0 40%' }}>{label}</div>
-                                <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', flex: 1, minWidth: 0, lineHeight: 1.45 }}>{value}</div>
+                                <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', flex: 1, minWidth: 0, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{value}</div>
                               </div>
                             ))}
                           </div>

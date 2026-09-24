@@ -73,6 +73,25 @@ export const ALL_TASKS: Record<TaskTab, Task[]> = {
   ],
 };
 
+/**
+ * A Request Log task has one text field. Its first line reads as the title and
+ * the rest as details, so a long note pasted from an email doesn't turn into
+ * one wall of bold text wherever the task is listed.
+ */
+export function taskHeadline(text?: string): { title: string; details: string } {
+  const t = (text || '').replace(/\r\n/g, '\n').trim();
+  const nl = t.indexOf('\n');
+  const first = (nl >= 0 ? t.slice(0, nl) : t).trim();
+  const rest = nl >= 0 ? t.slice(nl + 1).trim() : '';
+  // A single very long line: cut at a word near 110 characters and carry the rest over.
+  if (first.length > 120) {
+    const cut = first.lastIndexOf(' ', 110);
+    const at = cut > 40 ? cut : 110;
+    return { title: first.slice(0, at).trim() + '…', details: ('…' + first.slice(at).trim() + (rest ? '\n' + rest : '')).trim() };
+  }
+  return { title: first, details: rest };
+}
+
 export const ST_COLORS: Record<string, { bg: string; c: string }> = {
   Closed: { bg: '#D2EAD3', c: '#1C5230' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },

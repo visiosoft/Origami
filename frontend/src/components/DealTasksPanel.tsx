@@ -3,7 +3,7 @@ import { api } from '../api';
 import { DraftScope, SaveBar } from '../autosave';
 import { NewTaskDrawer } from './NewTaskDrawer';
 import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
-import type { Task } from '../data/tasks';
+import { taskHeadline, type Task } from '../data/tasks';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -25,16 +25,21 @@ const SECTION_PREFIX = 'section:';
  * via its labels, so nothing new had to be built on the backend.
  */
 export function DealTasksPanel({
-  dealId, dealName, currentStageName, stages,
+  dealId, dealName, currentStageName, stages, openTaskId,
 }: {
   dealId: string;
   dealName: string;
   currentStageName: string;
   /** Every stage name the lead could have a task filed under -- the picker's options. */
   stages: string[];
+  /** A task to open as soon as it's loaded -- e.g. one just converted from a note. */
+  openTaskId?: string | null;
 }) {
   // Opens over the lead, so reading a task never takes you out of the CRM.
   const [openId, setOpenId] = useState<string | null>(null);
+  // A task made moments ago (from a note, or "+ Add task") opens in full, where files, labels and a checklist go.
+  const [pendingOpen, setPendingOpen] = useState<string | null>(openTaskId || null);
+  useEffect(() => { if (openTaskId) setPendingOpen(openTaskId); }, [openTaskId]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -49,6 +54,9 @@ export function DealTasksPanel({
       .finally(() => setLoading(false));
   };
   useEffect(load, [dealId]);
+  useEffect(() => {
+    if (pendingOpen && tasks.some((t) => t.id === pendingOpen)) { setOpenId(pendingOpen); setPendingOpen(null); }
+  }, [pendingOpen, tasks]);
 
   const sectionOf = (t: Task) => (t.labels || []).find((l) => l.startsWith(SECTION_PREFIX))?.slice(SECTION_PREFIX.length) || 'Other';
 
@@ -109,7 +117,7 @@ export function DealTasksPanel({
       {adding && (
         <NewTaskDrawer
           onClose={() => setAdding(false)}
-          onCreated={load}
+          onCreated={(c) => { if (c?.task?.id) setPendingOpen(c.task.id); load(); }}
           fixedProject={{ id: dealId, name: dealName }}
           sections={stages}
           defaultSection={currentStageName}
@@ -137,7 +145,10 @@ export function DealTasksPanel({
                   <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, opacity: t.status === 'Closed' ? 0.6 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', flexWrap: 'wrap' }}>
                       <div onClick={() => setOpenId(t.id)} style={{ flex: '1 1 200px', minWidth: 0, cursor: 'pointer' }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', textDecoration: t.status === 'Closed' ? 'line-through' : 'none' }}>{t.description || t.id}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', textDecoration: t.status === 'Closed' ? 'line-through' : 'none' }}>{taskHeadline(t.description).title || t.id}</div>
+                        {taskHeadline(t.description).details && (
+                          <div style={{ fontSize: 11.5, color: '#5C6B65', lineHeight: 1.45, whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{taskHeadline(t.description).details}</div>
+                        )}
                         <div style={{ fontSize: 11, color: '#7E9B93' }}>{t.assignedTo || 'Unassigned'}{t.dueDate ? ` · Due ${t.dueDate}` : ''}</div>
                       </div>
                       <select value={t.status} onChange={(e) => setStatus(t, e.target.value)} style={{ ...input, width: 'auto', padding: '5px 8px', fontSize: 11.5 }}>

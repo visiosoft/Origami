@@ -29,7 +29,8 @@ export function NewTaskDrawer({
   onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo, defaultDueDate, defaultDueTime, defaultDescription,
 }: {
   onClose: () => void;
-  onCreated: (created?: { dueDate: string; dueTime: string; description: string }) => void;
+  /** `task` is the saved task, so the host can open it for files, labels and a checklist. */
+  onCreated: (created?: { dueDate: string; dueTime: string; description: string; task?: any }) => void;
   /** Opened from a specific lead/project: the Project field is fixed and hidden. */
   fixedProject?: { id: string; name: string };
   /** Opened from a lead: shows a Section field tagging which pipeline stage this task belongs to. */
@@ -71,7 +72,7 @@ export function NewTaskDrawer({
       labels: sections ? [`section:${section}`] : nt.labels,
     };
     api.tasks.create(payload)
-      .then(() => { toast('Task created'); onCreated({ dueDate: nt.dueDate, dueTime: nt.dueTime, description: nt.description }); onClose(); })
+      .then((task: any) => { toast('Task created'); onCreated({ dueDate: nt.dueDate, dueTime: nt.dueTime, description: nt.description, task }); onClose(); })
       .catch((err: any) => toast(`⚠ ${err?.message || 'Failed to create task'}`))
       .finally(() => setCreating(false));
   };

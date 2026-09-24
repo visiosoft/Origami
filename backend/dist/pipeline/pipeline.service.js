@@ -271,7 +271,7 @@ let PipelineService = class PipelineService {
         const date = new Date().toLocaleString('en-GB', {
             day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
         });
-        return { date, action, role: actor?.name || 'System', type, by: actor?.id || '' };
+        return { date, at: new Date().toISOString(), action, role: actor?.name || 'System', type, by: actor?.id || '' };
     }
     async convertToProject(id, opts, actor) {
         const deal = await this.findOne(id);

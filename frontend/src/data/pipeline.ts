@@ -1,6 +1,7 @@
 // CRM & Leads (pipeline) fixtures ported from the Origami v4 prototype (getPipelineData).
 
-export interface TimelineEvent { date: string; action: string; role: string; type: 'auto' | 'pc' | 'pm' }
+/** `at` (ISO) is the real moment; older entries only have `date`, a formatted string. */
+export interface TimelineEvent { date: string; at?: string; action: string; role: string; type: 'auto' | 'pc' | 'pm' }
 
 export interface Deal {
   id: string;

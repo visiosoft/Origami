@@ -7,7 +7,7 @@ import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, 
 import { TaskBoard } from '../components/TaskBoard';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
-import { ST_COLORS, TT_COLORS, type Task, type TaskTab } from '../data/tasks';
+import { ST_COLORS, TT_COLORS, taskHeadline, type Task, type TaskTab } from '../data/tasks';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
@@ -190,7 +190,7 @@ export function Tasks() {
             const sc = ST_COLORS[t.status];
             const tc = TT_COLORS[t.topicType];
             const assignedUser = users.find((u) => (t.assignedToId && u.id === t.assignedToId) || u.name === t.assignedTo);
-            const desc = t.description.length > 80 ? t.description.slice(0, 80) + '…' : t.description;
+            const desc = taskHeadline(t.description).title;
             return (
               <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', gap: 10, minWidth: 760 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#7E9B93', fontVariantNumeric: 'tabular-nums' }}>{t.id}</span>
