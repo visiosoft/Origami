@@ -586,7 +586,7 @@ export function DesignProject() {
           )}
 
           {view === 'financials' && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ padding: '18px 26px 28px' }}>
               <ProjectFinancials projectId={id} category={board === '/pm' ? 'construction' : 'design'} />
             </div>
           )}

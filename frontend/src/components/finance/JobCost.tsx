@@ -176,7 +176,7 @@ function ByCode({ v, projectId, onChanged }: { v: CostsView; projectId: number; 
           <div style={{ minWidth: 820 }}>
             <div style={headRow(cols)}>
               <span>Cost code</span><span style={{ textAlign: 'right' }}>Budget</span><span style={{ textAlign: 'right' }}>Committed</span><span style={{ textAlign: 'right' }}>Cost to date</span>
-              <span style={{ textAlign: 'right' }}>Not yet billed</span><span style={{ textAlign: 'right' }}>Forecast</span><span style={{ textAlign: 'right' }}>Variance</span><span>Spent</span>
+              <span style={{ textAlign: 'right' }}>Not yet billed</span><span style={{ textAlign: 'right' }}>Forecast</span><span style={{ textAlign: 'right' }}>Variance</span><span style={{ paddingLeft: 14 }}>Spent</span>
             </div>
             {v.rows.map((r) => (
               <div key={r.key}>
@@ -190,7 +190,7 @@ function ByCode({ v, projectId, onChanged }: { v: CostsView; projectId: number; 
                     {usd0(r.eac)}{r.eacOverridden ? ' ✎' : ''}
                   </span>
                   <span style={{ textAlign: 'right', color: r.variance < 0 ? DANGER : r.variance > 0 ? '#1E6B36' : MUTED, fontWeight: r.variance < 0 ? 700 : 400 }}>{r.variance ? usd0(r.variance) : '—'}</span>
-                  <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ display: 'flex', gap: 6, alignItems: 'center', paddingLeft: 14 }}>
                     <span style={{ flex: 1, height: 6, borderRadius: 99, background: '#EFEDE8', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, r.spentPct)}%`, background: r.spentPct > 100 ? DANGER : '#2F7D4A' }} /></span>
                     <span style={{ fontSize: 11, color: MUTED, width: 38, textAlign: 'right' }}>{r.budget ? `${Math.round(r.spentPct)}%` : ''}</span>
                   </span>
