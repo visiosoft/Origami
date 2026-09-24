@@ -133,8 +133,14 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
         return true;
       } catch (e: any) {
         if (ep !== epoch.current) return false;
-        setError(e?.message || 'Could not save');
+        // Unreachable or restarting (a deploy): not the person's fault -- keep trying by itself.
+        const serverDown = !e?.status || e.status >= 500;
+        setError(serverDown ? 'the server is restarting, retrying…' : e?.message || 'Could not save');
         setState('error');
+        if (serverDown && (latest.current.enabled ?? true)) {
+          if (timer.current) window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => { timer.current = null; void run(); }, 5000);
+        }
         return false;
       } finally {
         inFlight.current = null;

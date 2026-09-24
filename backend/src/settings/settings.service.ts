@@ -12,6 +12,9 @@ export const PUBLIC_KEYS = [
   'google.clientId',
   'google.clientSecret',
   'app.baseUrl',
+  // A banner every signed-in page shows while it's on ("Updates 3-4 pm -- please save your work").
+  'app.notice',
+  'app.noticeActive',
   'google.senderEmail',
   'google.allowSignup',
   'google.hostedDomain',

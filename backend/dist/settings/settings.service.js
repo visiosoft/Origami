@@ -23,6 +23,8 @@ exports.PUBLIC_KEYS = [
     'google.clientId',
     'google.clientSecret',
     'app.baseUrl',
+    'app.notice',
+    'app.noticeActive',
     'google.senderEmail',
     'google.allowSignup',
     'google.hostedDomain',

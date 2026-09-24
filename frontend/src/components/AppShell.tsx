@@ -6,6 +6,7 @@ import { Notifications } from './Notifications';
 import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
+import { ServerStatusBanner } from './ServerStatusBanner';
 import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
@@ -151,6 +152,8 @@ export function AppShell() {
 
           <Notifications />
         </header>
+
+        <ServerStatusBanner />
 
         <main className="content">
           <div className="content-inner">

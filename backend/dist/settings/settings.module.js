@@ -12,6 +12,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
 const settings_controller_1 = require("./settings.controller");
 const settings_service_1 = require("./settings.service");
+const status_controller_1 = require("./status.controller");
 let SettingsModule = class SettingsModule {
 };
 exports.SettingsModule = SettingsModule;
@@ -19,7 +20,7 @@ exports.SettingsModule = SettingsModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
         imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.AppSettingEntity])],
-        controllers: [settings_controller_1.SettingsController],
+        controllers: [settings_controller_1.SettingsController, status_controller_1.StatusController],
         providers: [settings_service_1.SettingsService],
         exports: [settings_service_1.SettingsService],
     })

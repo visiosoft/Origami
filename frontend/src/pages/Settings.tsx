@@ -9,6 +9,7 @@ import { PipelineSlaSettings } from './PipelineSlaSettings';
 import { SmsSettings } from './SmsSettings';
 import { SchedulingSettings } from './SchedulingSettings';
 import { MyCalendarSettings } from './MyCalendarSettings';
+import { SystemNoticeSettings } from './SystemNoticeSettings';
 import { mergeTokens } from '../data/clientPersonality';
 import { RichTextEditor } from '../components/RichTextEditor';
 import type { ScoringCriterion } from '../data/scoring';
@@ -39,6 +40,9 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   { group: 'Personal', items: [
     { key: 'notifications', label: 'Notifications' },
     { key: 'my-calendar', label: 'My Calendar' },
+  ] },
+  { group: 'Workspace', items: [
+    { key: 'notice', label: 'System notice' },
   ] },
   { group: 'Integrations', items: [
     { key: 'google', label: 'Google Workspace' },
@@ -86,6 +90,7 @@ export function Settings() {
           {active === 'my-calendar' && <MyCalendarSettings />}
           {active === 'sms' && <SmsSettings />}
           {active === 'google' && <GoogleSettings />}
+          {active === 'notice' && <SystemNoticeSettings />}
           {active === 'cost-codes' && <CostCodesSettings canManage={can('settings', 'manage') || can('manpower_con', 'manage')} />}
         </div>
       </div>
