@@ -12,10 +12,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FinancialsService = exports.BILLING_METHODS = exports.PM_MODULE = exports.FIN_MODULE = void 0;
+exports.FinancialsService = exports.BILLING_METHODS = exports.CO_OPEN = exports.FIN_ACTIONS = exports.REIMB_MODULE = exports.CO_MODULE = exports.PM_MODULE = exports.FIN_MODULE = void 0;
 exports.assertVersion = assertVersion;
 exports.parseAmount = parseAmount;
 exports.billToFromLead = billToFromLead;
+exports.changeOrderFigures = changeOrderFigures;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -29,6 +30,18 @@ const finance_calc_1 = require("./finance.calc");
 const money_1 = require("./money");
 exports.FIN_MODULE = 'fin_project';
 exports.PM_MODULE = 'pm';
+exports.CO_MODULE = 'changeorders';
+exports.REIMB_MODULE = 'reimbursement';
+exports.FIN_ACTIONS = {
+    prepareInvoice: 'finx_prepare_invoice',
+    issueInvoice: 'finx_issue_invoice',
+    recordPayment: 'finx_record_payment',
+    approveProgress: 'finx_approve_progress',
+    approveChangeOrders: 'finx_approve_co',
+    approveReimbursables: 'finx_approve_reimb',
+    releaseRetention: 'finx_release_retention',
+};
+exports.CO_OPEN = ['internal_review', 'submitted'];
 exports.BILLING_METHODS = ['fixed', 'percent_complete', 'quantity', 't_and_m', 'reimbursable', 'milestone', 'manual'];
 const now = () => new Date().toISOString();
 function assertVersion(row, version) {
@@ -52,9 +65,23 @@ const moneyIn = (v, name) => {
         throw new common_1.BadRequestException(`${name} must be a positive amount.`);
     return (0, money_1.fromCents)((0, money_1.toCents)(n));
 };
-const fmtUsd = (c) => '$' + Math.round(c / 100).toLocaleString('en-US');
+const fmtUsd = (c) => (c < 0 ? '-$' : '$') + Math.round(Math.abs(c) / 100).toLocaleString('en-US');
+const DENIED = {
+    view: "Your role doesn't include project financials.",
+    prepareInvoice: "Your role doesn't allow preparing invoices.",
+    issueInvoice: "Your role doesn't allow issuing, voiding or crediting invoices.",
+    recordPayment: "Your role doesn't allow recording payments.",
+    approveProgress: "Your role doesn't allow approving progress.",
+    approveChangeOrders: "Your role doesn't allow approving change orders.",
+    editChangeOrders: "Your role doesn't allow preparing change orders.",
+    viewChangeOrders: "Your role doesn't include change orders.",
+    approveReimbursables: "Your role doesn't allow approving reimbursables.",
+    submitReimbursables: "Your role doesn't allow submitting reimbursables.",
+    viewReimbursables: "Your role doesn't include reimbursables.",
+    releaseRetention: "Your role doesn't allow releasing retention.",
+};
 let FinancialsService = class FinancialsService {
-    constructor(projects, leads, phases, tasks, pfin, phfin, tfin, progress, invoices, lines, payments, activityRepo, settings, access) {
+    constructor(projects, leads, phases, tasks, pfin, phfin, tfin, progress, invoices, lines, payments, activityRepo, settings, access, changeOrders, coItems, approvals) {
         this.projects = projects;
         this.leads = leads;
         this.phases = phases;
@@ -69,18 +96,42 @@ let FinancialsService = class FinancialsService {
         this.activityRepo = activityRepo;
         this.settings = settings;
         this.access = access;
+        this.changeOrders = changeOrders;
+        this.coItems = coItems;
+        this.approvals = approvals;
     }
     async rights(actor) {
-        const [view, manage, pm] = await Promise.all([
-            this.access.can(actor, exports.FIN_MODULE, 'view'), this.access.can(actor, exports.FIN_MODULE, 'manage'), this.access.can(actor, exports.PM_MODULE, 'manage'),
-        ]);
-        return { view: view || manage, manage, reportProgress: manage || pm, approveProgress: manage };
+        const perms = await this.access.permissionsOf(actor);
+        const has = (key, action) => perms === 'all' || !!perms?.[key]?.[action];
+        const view = has(exports.FIN_MODULE, 'view') || has(exports.FIN_MODULE, 'manage');
+        const manage = has(exports.FIN_MODULE, 'manage');
+        const action = (key) => (perms === 'all' ? true : perms && perms[key] ? !!perms[key].manage : manage);
+        const out = { view, manage, reportProgress: manage || has(exports.PM_MODULE, 'manage') };
+        for (const [name, key] of Object.entries(exports.FIN_ACTIONS))
+            out[name] = action(key);
+        out.viewChangeOrders = view || has(exports.CO_MODULE, 'view');
+        out.editChangeOrders = manage || has(exports.CO_MODULE, 'manage');
+        out.viewReimbursables = view || has(exports.REIMB_MODULE, 'view');
+        out.submitReimbursables = manage || has(exports.REIMB_MODULE, 'manage');
+        return out;
     }
     async need(actor, what) {
         const r = await this.rights(actor);
         if (!r[what])
-            throw new common_1.ForbiddenException(what === 'view' ? "Your role doesn't include project financials." : "Your role doesn't allow changing project financials.");
+            throw new common_1.ForbiddenException(DENIED[what] || "Your role doesn't allow changing project financials.");
         return r;
+    }
+    async approval(m, e, actor) {
+        const repo = m ? m.getRepository(entities_1.FinancialApprovalEntity) : this.approvals;
+        await repo.save(repo.create({ id: (0, workforce_util_1.newId)('AP'), ...e, comment: e.comment?.trim() || undefined, byName: actor.name, byId: actor.id, at: now() }));
+    }
+    async approvalsFor(entityId) {
+        return (await this.approvals.find({ where: { entityId } })).sort((a, b) => a.at.localeCompare(b.at));
+    }
+    async nextProjectNumber(repo, projectId, prefix) {
+        const rows = await repo.find({ where: { projectId } });
+        const max = rows.reduce((m, r) => Math.max(m, Number(String(r.number).split('-').pop()) || 0), 0);
+        return `${prefix}-${String(max + 1).padStart(3, '0')}`;
     }
     async log(m, e, actor) {
         const repo = m ? m.getRepository(entities_1.FinanceActivityEntity) : this.activityRepo;
@@ -128,11 +179,11 @@ let FinancialsService = class FinancialsService {
     }
     async settingsFor(projectId) {
         const row = await this.pfin.findOneBy({ projectId });
-        return { row, exists: !!row, value: row || { projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } };
+        return { row, exists: !!row, value: row || { projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } };
     }
     async context(projectId) {
         const project = await this.project(projectId);
-        const [{ value: s, exists }, phaseRows, taskRows, phf, tf, invs, lineRows, pays, cat] = await Promise.all([
+        const [{ value: s, exists }, phaseRows, taskRows, phf, tf, invs, lineRows, pays, cat, cos, coItemRows] = await Promise.all([
             this.settingsFor(projectId),
             this.phases.find({ where: { projectId } }),
             this.tasks.find({ where: { projectId } }),
@@ -142,8 +193,11 @@ let FinancialsService = class FinancialsService {
             this.lines.find({ where: { projectId } }),
             this.payments.find({ where: { projectId } }),
             this.categories(project),
+            this.changeOrders.find({ where: { projectId } }),
+            this.coItems.find({ where: { projectId } }),
         ]);
         const issued = new Set(invs.map((x) => x.id));
+        const co = changeOrderFigures(cos, coItemRows);
         const lines = lineRows.filter((l) => issued.has(l.invoiceId)).map((l) => ({
             id: l.id, invoiceId: l.invoiceId, kind: l.kind, targetType: l.targetType, phaseId: l.phaseId, taskId: l.taskId,
             amountC: (0, money_1.toCents)(l.amount), retentionC: (0, money_1.toCents)(l.retentionAmount), taxC: (0, money_1.toCents)(l.taxAmount),
@@ -152,13 +206,14 @@ let FinancialsService = class FinancialsService {
         return {
             settings: s, exists, phaseRows, taskRows,
             input: {
-                originalContractC: (0, money_1.toCents)(s.originalContractValue), approvedChangesC: 0, requireApproval: !!s.requireProgressApproval,
+                originalContractC: (0, money_1.toCents)(s.originalContractValue), approvedChangesC: co.approvedC, requireApproval: !!s.requireProgressApproval,
+                coAdjust: co.adjust, pendingChangesC: co.pendingC,
                 project: { contractValue: null, reportedProgress: Number(s.reportedProgress) || 0, approvedProgress: Number(s.approvedProgress) || 0, version: s.version },
                 phases: phaseRows.map((p) => ({ id: p.id, key: p.key, name: p.name, order: p.order, category: cat(p.key) })),
                 tasks: taskRows.filter((t) => !t.parentId).map((t) => ({ id: t.id, title: t.title, phaseId: t.phaseId || null, done: !!t.completed || t.status === 'Done', order: t.order || 0 })),
                 phaseFin: new Map(phf.map((r) => [r.phaseId, fin(r)])),
                 taskFin: new Map(tf.map((r) => [r.taskId, fin(r)])),
-                lines, invoices: invs.map((x) => ({ id: x.id, totalC: (0, money_1.toCents)(x.total), dueDate: x.dueDate })),
+                lines, invoices: invs.map((x) => ({ id: x.id, totalC: (0, money_1.toCents)(x.total), dueDate: x.dueDate, creditForId: x.creditForInvoiceId || null })),
                 payments: pays.filter((p) => !p.voidedAt && issued.has(p.invoiceId)).map((p) => ({ invoiceId: p.invoiceId, amountC: (0, money_1.toCents)(p.amount) })),
                 today: (0, workforce_util_1.todayISO)(),
             },
@@ -202,6 +257,8 @@ let FinancialsService = class FinancialsService {
             patch.retentionPct = pctIn(dto.retentionPct, 'Retention');
         if (dto.taxPct !== undefined)
             patch.taxPct = pctIn(dto.taxPct, 'Tax');
+        if (dto.reimbursableMarkupPct !== undefined)
+            patch.reimbursableMarkupPct = pctIn(dto.reimbursableMarkupPct, 'Reimbursable markup');
         if (dto.paymentTermsDays !== undefined) {
             const d = Number(dto.paymentTermsDays);
             if (!Number.isInteger(d) || d < 0 || d > 365)
@@ -274,10 +331,9 @@ let FinancialsService = class FinancialsService {
                     throw new common_1.BadRequestException(`${parent.name} has its own value. Clear it before splitting it across tasks.`);
             }
             const invoicedC = me?.invoicedC || 0;
-            if (vC != null && vC < invoicedC)
+            const coC = me?.changeOrdersC || 0;
+            if ((vC ?? 0) + coC < invoicedC)
                 throw new common_1.BadRequestException(`${fmtUsd(invoicedC)} has already been invoiced against this -- the value can't go below that.`);
-            if (vC == null && invoicedC)
-                throw new common_1.BadRequestException('This has been invoiced -- its value can’t be cleared.');
             const oldC = me?.ownValueC ?? 0;
             const newAllocated = sov.summary.allocatedC - oldC + (vC ?? 0);
             const revised = sov.summary.revisedContractC;
@@ -318,7 +374,7 @@ let FinancialsService = class FinancialsService {
         return this.changeProgress(kind, id, 'reported', dto, actor, projectIdForLump);
     }
     async approveProgress(kind, id, dto, actor, projectIdForLump) {
-        await this.need(actor, 'manage');
+        await this.need(actor, 'approveProgress');
         return this.changeProgress(kind, id, 'approved', dto, actor, projectIdForLump);
     }
     async changeProgress(kind, id, which, dto, actor, projectIdForLump) {
@@ -380,6 +436,8 @@ let FinancialsService = class FinancialsService {
             await this.progress.save(this.progress.create({ id: (0, workforce_util_1.newId)('PU'), projectId, targetType: kind, targetId: kind === 'project' ? String(projectId) : id, ...u, reason: dto.reason?.trim() || undefined, byName: actor.name, byId: actor.id, at }));
             await this.log(null, { projectId, entityType: kind, entityId: kind === 'project' ? String(projectId) : id, action: `progress_${u.kind}`, changes: { progress: { from: u.fromPct, to: u.toPct } }, reason: dto.reason?.trim() }, actor);
         }
+        if (which === 'approved')
+            await this.approval(null, { projectId, entityType: 'progress', entityId: kind === 'project' ? String(projectId) : id, decision: 'approved', comment: `${kind} progress ${from}% → ${to}%` }, actor);
         return this.overview(projectId, actor);
     }
     async progressHistory(kind, id, actor) {
@@ -450,6 +508,9 @@ exports.FinancialsService = FinancialsService = __decorate([
     __param(9, (0, typeorm_1.InjectRepository)(entities_1.ProjectInvoiceLineEntity)),
     __param(10, (0, typeorm_1.InjectRepository)(entities_1.ProjectPaymentEntity)),
     __param(11, (0, typeorm_1.InjectRepository)(entities_1.FinanceActivityEntity)),
+    __param(14, (0, typeorm_1.InjectRepository)(entities_1.ChangeOrderEntity)),
+    __param(15, (0, typeorm_1.InjectRepository)(entities_1.ChangeOrderItemEntity)),
+    __param(16, (0, typeorm_1.InjectRepository)(entities_1.FinancialApprovalEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -463,7 +524,10 @@ exports.FinancialsService = FinancialsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         settings_service_1.SettingsService,
-        manpower_access_service_1.ManpowerAccess])
+        manpower_access_service_1.ManpowerAccess,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
 ], FinancialsService);
 function parseAmount(s) {
     if (!s)
@@ -479,5 +543,22 @@ function billToFromLead(lead) {
     const a = addrs.billing || addrs.businessMailing || null;
     const line = a && typeof a === 'object' ? [a.street || a.line1 || a.address, a.address2 || a.line2, [a.city, a.state].filter(Boolean).join(', '), a.zip || a.zipCode || a.postalCode].filter(Boolean).join('\n') : '';
     return { name: lead.businessName || lead.leadName, email: lead.email || '', address: line };
+}
+function changeOrderFigures(cos, items) {
+    const approved = new Set(cos.filter((c) => c.status === 'approved').map((c) => c.id));
+    const open = new Set(cos.filter((c) => exports.CO_OPEN.includes(c.status)).map((c) => c.id));
+    const adjust = new Map();
+    for (const it of items) {
+        if (!approved.has(it.changeOrderId))
+            continue;
+        const key = it.taskId ? `task:${it.taskId}` : it.phaseId && (it.targetType === 'phase' || it.targetType === 'new_phase') ? `phase:${it.phaseId}` : null;
+        if (key)
+            adjust.set(key, (adjust.get(key) || 0) + (0, money_1.toCents)(it.amount));
+    }
+    return {
+        adjust,
+        approvedC: (0, money_1.sumCents)(cos.filter((c) => approved.has(c.id)).map((c) => (0, money_1.toCents)(c.amount ?? 0))),
+        pendingC: (0, money_1.sumCents)(items.filter((i) => open.has(i.changeOrderId)).map((i) => (0, money_1.toCents)(i.amount))),
+    };
 }
 //# sourceMappingURL=financials.service.js.map

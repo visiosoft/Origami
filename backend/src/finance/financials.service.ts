@@ -2,8 +2,9 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import {
-  FinanceActivityEntity, LeadEntity, PhaseFinancialEntity, ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity,
-  ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, TaskFinancialEntity,
+  ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, FinancialApprovalEntity, LeadEntity, PhaseFinancialEntity, ProgressUpdateEntity,
+  ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity,
+  TaskFinancialEntity,
 } from '../database/entities';
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { SettingsService } from '../settings/settings.service';
@@ -11,10 +12,34 @@ import { brandingFrom } from '../documents/letterhead';
 import { DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseLibrary, parseProgramme, type ProgrammeTemplateDef } from '../seed-data/programme-template';
 import { newId, todayISO } from '../manpower/workforce.util';
 import { computeSov, lineMath, toDollars, type Category, type IssuedLine, type ItemFin, type SovInput } from './finance.calc';
-import { fromCents, roundPct, toCents } from './money';
+import { fromCents, roundPct, sumCents, toCents } from './money';
 
 export const FIN_MODULE = 'fin_project';
 export const PM_MODULE = 'pm';
+export const CO_MODULE = 'changeorders';
+export const REIMB_MODULE = 'reimbursement';
+
+/**
+ * Financial actions a role can be given one by one (Admin -> Roles, "Financial actions").
+ * A role that has never had a key set falls back to Project Financials -> manage, so
+ * roles set up before these existed keep working as they did.
+ */
+export const FIN_ACTIONS = {
+  prepareInvoice: 'finx_prepare_invoice',
+  issueInvoice: 'finx_issue_invoice',
+  recordPayment: 'finx_record_payment',
+  approveProgress: 'finx_approve_progress',
+  approveChangeOrders: 'finx_approve_co',
+  approveReimbursables: 'finx_approve_reimb',
+  releaseRetention: 'finx_release_retention',
+} as const;
+export type FinRights = {
+  view: boolean; manage: boolean; reportProgress: boolean;
+  viewChangeOrders: boolean; editChangeOrders: boolean; viewReimbursables: boolean; submitReimbursables: boolean;
+} & { [K in keyof typeof FIN_ACTIONS]: boolean };
+
+/** Open change orders: counted as pending, not yet in the contract. */
+export const CO_OPEN = ['internal_review', 'submitted'];
 export const BILLING_METHODS = ['fixed', 'percent_complete', 'quantity', 't_and_m', 'reimbursable', 'milestone', 'manual'];
 
 type ItemKind = 'project' | 'phase' | 'task';
@@ -39,7 +64,21 @@ const moneyIn = (v: unknown, name: string): number | null => {
   if (!Number.isFinite(n) || n < 0 || n > 1e13) throw new BadRequestException(`${name} must be a positive amount.`);
   return fromCents(toCents(n));
 };
-const fmtUsd = (c: number) => '$' + Math.round(c / 100).toLocaleString('en-US');
+const fmtUsd = (c: number) => (c < 0 ? '-$' : '$') + Math.round(Math.abs(c) / 100).toLocaleString('en-US');
+const DENIED: Partial<Record<keyof FinRights, string>> = {
+  view: "Your role doesn't include project financials.",
+  prepareInvoice: "Your role doesn't allow preparing invoices.",
+  issueInvoice: "Your role doesn't allow issuing, voiding or crediting invoices.",
+  recordPayment: "Your role doesn't allow recording payments.",
+  approveProgress: "Your role doesn't allow approving progress.",
+  approveChangeOrders: "Your role doesn't allow approving change orders.",
+  editChangeOrders: "Your role doesn't allow preparing change orders.",
+  viewChangeOrders: "Your role doesn't include change orders.",
+  approveReimbursables: "Your role doesn't allow approving reimbursables.",
+  submitReimbursables: "Your role doesn't allow submitting reimbursables.",
+  viewReimbursables: "Your role doesn't include reimbursables.",
+  releaseRetention: "Your role doesn't allow releasing retention.",
+};
 
 @Injectable()
 export class FinancialsService {
@@ -58,21 +97,50 @@ export class FinancialsService {
     @InjectRepository(FinanceActivityEntity) private readonly activityRepo: Repository<FinanceActivityEntity>,
     private readonly settings: SettingsService,
     readonly access: ManpowerAccess,
+    @InjectRepository(ChangeOrderEntity) readonly changeOrders: Repository<ChangeOrderEntity>,
+    @InjectRepository(ChangeOrderItemEntity) readonly coItems: Repository<ChangeOrderItemEntity>,
+    @InjectRepository(FinancialApprovalEntity) readonly approvals: Repository<FinancialApprovalEntity>,
   ) {}
 
   // ------------------------------------------------------------------ access
 
-  async rights(actor: Actor) {
-    const [view, manage, pm] = await Promise.all([
-      this.access.can(actor, FIN_MODULE, 'view'), this.access.can(actor, FIN_MODULE, 'manage'), this.access.can(actor, PM_MODULE, 'manage'),
-    ]);
-    return { view: view || manage, manage, reportProgress: manage || pm, approveProgress: manage };
+  async rights(actor: Actor): Promise<FinRights> {
+    const perms = await this.access.permissionsOf(actor);
+    const has = (key: string, action: 'view' | 'manage') => perms === 'all' || !!perms?.[key]?.[action];
+    const view = has(FIN_MODULE, 'view') || has(FIN_MODULE, 'manage');
+    const manage = has(FIN_MODULE, 'manage');
+    // A granular action: its own setting when the role has one, else Project Financials -> manage.
+    const action = (key: string) => (perms === 'all' ? true : perms && perms[key] ? !!perms[key].manage : manage);
+    const out = { view, manage, reportProgress: manage || has(PM_MODULE, 'manage') } as FinRights;
+    for (const [name, key] of Object.entries(FIN_ACTIONS)) (out as any)[name] = action(key);
+    out.viewChangeOrders = view || has(CO_MODULE, 'view');
+    out.editChangeOrders = manage || has(CO_MODULE, 'manage');
+    out.viewReimbursables = view || has(REIMB_MODULE, 'view');
+    out.submitReimbursables = manage || has(REIMB_MODULE, 'manage');
+    return out;
   }
 
-  private async need(actor: Actor, what: 'view' | 'manage' | 'reportProgress') {
+  async need(actor: Actor, what: keyof FinRights) {
     const r = await this.rights(actor);
-    if (!r[what]) throw new ForbiddenException(what === 'view' ? "Your role doesn't include project financials." : "Your role doesn't allow changing project financials.");
+    if (!r[what]) throw new ForbiddenException(DENIED[what] || "Your role doesn't allow changing project financials.");
     return r;
+  }
+
+  /** A decision on a financial record, kept alongside the activity log. */
+  async approval(m: EntityManager | null, e: { projectId: number; entityType: string; entityId: string; decision: string; comment?: string; signer?: string; amount?: number | null }, actor: Actor) {
+    const repo = m ? m.getRepository(FinancialApprovalEntity) : this.approvals;
+    await repo.save(repo.create({ id: newId('AP'), ...e, comment: e.comment?.trim() || undefined, byName: actor.name, byId: actor.id, at: now() }));
+  }
+
+  async approvalsFor(entityId: string) {
+    return (await this.approvals.find({ where: { entityId } })).sort((a, b) => a.at.localeCompare(b.at));
+  }
+
+  /** The next per-project number (CO-001, RE-001, RR-001); the unique index is the backstop against a race. */
+  async nextProjectNumber(repo: Repository<{ number: string; projectId: number } & any>, projectId: number, prefix: string) {
+    const rows = await repo.find({ where: { projectId } });
+    const max = rows.reduce((m: number, r: any) => Math.max(m, Number(String(r.number).split('-').pop()) || 0), 0);
+    return `${prefix}-${String(max + 1).padStart(3, '0')}`;
   }
 
   // ------------------------------------------------------------------ audit
@@ -118,13 +186,13 @@ export class FinancialsService {
   /** Settings row, or unsaved defaults (version 0) for a project not set up yet. */
   async settingsFor(projectId: number) {
     const row = await this.pfin.findOneBy({ projectId });
-    return { row, exists: !!row, value: row || ({ projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } as unknown as ProjectFinancialEntity) };
+    return { row, exists: !!row, value: row || ({ projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } as unknown as ProjectFinancialEntity) };
   }
 
   /** Everything the schedule of values is computed from. */
   async context(projectId: number): Promise<{ input: SovInput; settings: ProjectFinancialEntity; exists: boolean; phaseRows: ProjectPhaseEntity[]; taskRows: ProjectTaskEntity[] }> {
     const project = await this.project(projectId);
-    const [{ value: s, exists }, phaseRows, taskRows, phf, tf, invs, lineRows, pays, cat] = await Promise.all([
+    const [{ value: s, exists }, phaseRows, taskRows, phf, tf, invs, lineRows, pays, cat, cos, coItemRows] = await Promise.all([
       this.settingsFor(projectId),
       this.phases.find({ where: { projectId } }),
       this.tasks.find({ where: { projectId } }),
@@ -134,8 +202,11 @@ export class FinancialsService {
       this.lines.find({ where: { projectId } }),
       this.payments.find({ where: { projectId } }),
       this.categories(project),
+      this.changeOrders.find({ where: { projectId } }),
+      this.coItems.find({ where: { projectId } }),
     ]);
     const issued = new Set(invs.map((x) => x.id));
+    const co = changeOrderFigures(cos, coItemRows);
     const lines: IssuedLine[] = lineRows.filter((l) => issued.has(l.invoiceId)).map((l) => ({
       id: l.id, invoiceId: l.invoiceId, kind: l.kind, targetType: l.targetType, phaseId: l.phaseId, taskId: l.taskId,
       amountC: toCents(l.amount), retentionC: toCents(l.retentionAmount), taxC: toCents(l.taxAmount),
@@ -144,13 +215,14 @@ export class FinancialsService {
     return {
       settings: s, exists, phaseRows, taskRows,
       input: {
-        originalContractC: toCents(s.originalContractValue), approvedChangesC: 0, requireApproval: !!s.requireProgressApproval,
+        originalContractC: toCents(s.originalContractValue), approvedChangesC: co.approvedC, requireApproval: !!s.requireProgressApproval,
+        coAdjust: co.adjust, pendingChangesC: co.pendingC,
         project: { contractValue: null, reportedProgress: Number(s.reportedProgress) || 0, approvedProgress: Number(s.approvedProgress) || 0, version: s.version },
         phases: phaseRows.map((p) => ({ id: p.id, key: p.key, name: p.name, order: p.order, category: cat(p.key) })),
         tasks: taskRows.filter((t) => !t.parentId).map((t) => ({ id: t.id, title: t.title, phaseId: t.phaseId || null, done: !!t.completed || t.status === 'Done', order: t.order || 0 })),
         phaseFin: new Map(phf.map((r) => [r.phaseId, fin(r)])),
         taskFin: new Map(tf.map((r) => [r.taskId, fin(r)])),
-        lines, invoices: invs.map((x) => ({ id: x.id, totalC: toCents(x.total), dueDate: x.dueDate })),
+        lines, invoices: invs.map((x) => ({ id: x.id, totalC: toCents(x.total), dueDate: x.dueDate, creditForId: x.creditForInvoiceId || null })),
         payments: pays.filter((p) => !p.voidedAt && issued.has(p.invoiceId)).map((p) => ({ invoiceId: p.invoiceId, amountC: toCents(p.amount) })),
         today: todayISO(),
       },
@@ -195,6 +267,7 @@ export class FinancialsService {
     if (dto.originalBudget !== undefined) patch.originalBudget = moneyIn(dto.originalBudget, 'The budget');
     if (dto.retentionPct !== undefined) patch.retentionPct = pctIn(dto.retentionPct, 'Retention');
     if (dto.taxPct !== undefined) patch.taxPct = pctIn(dto.taxPct, 'Tax');
+    if (dto.reimbursableMarkupPct !== undefined) patch.reimbursableMarkupPct = pctIn(dto.reimbursableMarkupPct, 'Reimbursable markup');
     if (dto.paymentTermsDays !== undefined) {
       const d = Number(dto.paymentTermsDays);
       if (!Number.isInteger(d) || d < 0 || d > 365) throw new BadRequestException('Payment terms are 0-365 days.');
@@ -265,8 +338,8 @@ export class FinancialsService {
         if (parent && !parent.valueFromTasks && parent.ownValueC != null && vC != null) throw new BadRequestException(`${parent.name} has its own value. Clear it before splitting it across tasks.`);
       }
       const invoicedC = me?.invoicedC || 0;
-      if (vC != null && vC < invoicedC) throw new BadRequestException(`${fmtUsd(invoicedC)} has already been invoiced against this -- the value can't go below that.`);
-      if (vC == null && invoicedC) throw new BadRequestException('This has been invoiced -- its value can’t be cleared.');
+      const coC = me?.changeOrdersC || 0;
+      if ((vC ?? 0) + coC < invoicedC) throw new BadRequestException(`${fmtUsd(invoicedC)} has already been invoiced against this -- the value can't go below that.`);
       const oldC = me?.ownValueC ?? 0;
       const newAllocated = sov.summary.allocatedC - oldC + (vC ?? 0);
       const revised = sov.summary.revisedContractC;
@@ -307,7 +380,7 @@ export class FinancialsService {
   }
 
   async approveProgress(kind: ItemKind, id: string, dto: { pct?: number; reason?: string; version?: number }, actor: Actor, projectIdForLump?: number) {
-    await this.need(actor, 'manage');
+    await this.need(actor, 'approveProgress');
     return this.changeProgress(kind, id, 'approved', dto, actor, projectIdForLump);
   }
 
@@ -358,6 +431,7 @@ export class FinancialsService {
       await this.progress.save(this.progress.create({ id: newId('PU'), projectId, targetType: kind, targetId: kind === 'project' ? String(projectId) : id, ...u, reason: dto.reason?.trim() || undefined, byName: actor.name, byId: actor.id, at }));
       await this.log(null, { projectId, entityType: kind, entityId: kind === 'project' ? String(projectId) : id, action: `progress_${u.kind}`, changes: { progress: { from: u.fromPct, to: u.toPct } }, reason: dto.reason?.trim() }, actor);
     }
+    if (which === 'approved') await this.approval(null, { projectId, entityType: 'progress', entityId: kind === 'project' ? String(projectId) : id, decision: 'approved', comment: `${kind} progress ${from}% → ${to}%` }, actor);
     return this.overview(projectId, actor);
   }
 
@@ -437,4 +511,24 @@ export function billToFromLead(lead: LeadEntity) {
   const a = addrs.billing || addrs.businessMailing || null;
   const line = a && typeof a === 'object' ? [a.street || a.line1 || a.address, a.address2 || a.line2, [a.city, a.state].filter(Boolean).join(', '), a.zip || a.zipCode || a.postalCode].filter(Boolean).join('\n') : '';
   return { name: lead.businessName || lead.leadName, email: lead.email || '', address: line };
+}
+
+/**
+ * Approved change orders by the item they change, their total, and what's still
+ * open. Approved amounts use the snapshot taken at approval.
+ */
+export function changeOrderFigures(cos: ChangeOrderEntity[], items: ChangeOrderItemEntity[]) {
+  const approved = new Set(cos.filter((c) => c.status === 'approved').map((c) => c.id));
+  const open = new Set(cos.filter((c) => CO_OPEN.includes(c.status)).map((c) => c.id));
+  const adjust = new Map<string, number>();
+  for (const it of items) {
+    if (!approved.has(it.changeOrderId)) continue;
+    const key = it.taskId ? `task:${it.taskId}` : it.phaseId && (it.targetType === 'phase' || it.targetType === 'new_phase') ? `phase:${it.phaseId}` : null;
+    if (key) adjust.set(key, (adjust.get(key) || 0) + toCents(it.amount));
+  }
+  return {
+    adjust,
+    approvedC: sumCents(cos.filter((c) => approved.has(c.id)).map((c) => toCents(c.amount ?? 0))),
+    pendingC: sumCents(items.filter((i) => open.has(i.changeOrderId)).map((i) => toCents(i.amount))),
+  };
 }

@@ -1,8 +1,13 @@
 import { FinancialsService } from './financials.service';
 import { InvoicesService } from './invoices.service';
+import { ChangeOrdersService } from './change-orders.service';
+import { ReimbursablesService } from './reimbursables.service';
+import { RetentionService } from './retention.service';
+import { FinanceHubService } from './finance-hub.service';
 import {
-  FinanceActivityEntity, FinanceSequenceEntity, PhaseFinancialEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity,
-  ProjectPaymentEntity, TaskFinancialEntity,
+  ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, FinanceSequenceEntity, FinancialApprovalEntity, PhaseFinancialEntity,
+  ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectSectionEntity,
+  ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
 } from '../database/entities';
 import { DEFAULT_PROGRAMME } from '../seed-data/programme-template';
 import type { Actor, ManpowerAccess } from '../manpower/manpower-access.service';
@@ -40,12 +45,19 @@ const finance: Actor = { id: 'U-FIN', name: 'Fiona (Finance)', roleKey: 'finance
 const pm: Actor = { id: 'U-PM', name: 'Pat (PM)', roleKey: 'pm' };
 const viewer: Actor = { id: 'U-V', name: 'Val', roleKey: 'viewer' };
 const nobody: Actor = { id: 'U-N', name: 'Ned', roleKey: 'staff' };
+const clerk: Actor = { id: 'U-C', name: 'Cal (Clerk)', roleKey: 'clerk' };
+const site: Actor = { id: 'U-S', name: 'Sam (Site)', roleKey: 'site' };
 const PERMS: Record<string, Record<string, string[]>> = {
   finance: { fin_project: ['view', 'manage'] }, pm: { pm: ['view', 'manage'], fin_project: ['view'] }, viewer: { fin_project: ['view'] }, staff: {},
+  // Prepares invoices but a granular setting takes issuing away.
+  clerk: { fin_project: ['view', 'manage'], finx_issue_invoice: [] },
+  // Change orders and reimbursables only -- no project financials.
+  site: { changeorders: ['view', 'manage'], reimbursement: ['view', 'manage'] },
 };
 const access = {
   actor: jest.fn(),
   can: jest.fn(async (a: Actor, m: string, action = 'manage') => !!PERMS[a.roleKey || '']?.[m]?.includes(action)),
+  permissionsOf: jest.fn(async (a: Actor) => (a.roleKey ? Object.fromEntries(Object.entries(PERMS[a.roleKey] || {}).map(([k, acts]) => [k, { view: acts.includes('view'), manage: acts.includes('manage') }])) : null)),
 } as unknown as ManpowerAccess;
 
 // Two design phases, two construction phases (from a construction template), one milestone added in finance.
@@ -72,17 +84,25 @@ function setup(opts: { contract?: string; phases?: any[]; tasks?: any[] } = {}) 
     ]),
     pfin: table([], true), phfin: table([], true), tfin: table([], true), progress: table(),
     invoices: table([], true), lines: table(), payments: table([], true), activity: table(), seq: table(),
+    cos: table([], true), coItems: table(), approvals: table(), reimbs: table([], true), releases: table([], true), sections: table([{ id: 'S-7-0', projectId: 7, name: 'To do', order: 0 }]),
   };
   const byEntity = new Map<any, any>([
     [ProjectInvoiceEntity, t.invoices], [ProjectInvoiceLineEntity, t.lines], [ProjectPaymentEntity, t.payments], [FinanceSequenceEntity, t.seq],
     [ProjectFinancialEntity, t.pfin], [PhaseFinancialEntity, t.phfin], [TaskFinancialEntity, t.tfin], [FinanceActivityEntity, t.activity],
+    [ChangeOrderEntity, t.cos], [ChangeOrderItemEntity, t.coItems], [FinancialApprovalEntity, t.approvals], [ReimbursableEntity, t.reimbs],
+    [RetentionReleaseEntity, t.releases], [ProjectPhaseEntity, t.phases], [ProjectTaskEntity, t.tasks], [ProjectSectionEntity, t.sections],
   ]);
   const manager = { getRepository: (e: any) => byEntity.get(e), transaction: async (fn: any) => fn(manager) };
   t.invoices.manager = manager;
+  t.cos.manager = manager;
   const settings = { get: jest.fn(async (k: string) => (k === 'programme.templates' ? LIB : null)) };
-  const fin = new FinancialsService(t.projects, t.leads, t.phases, t.tasks, t.pfin, t.phfin, t.tfin, t.progress, t.invoices, t.lines, t.payments, t.activity, settings as any, access);
-  const inv = new InvoicesService(t.invoices, t.lines, t.payments, t.pfin, fin);
-  return { fin, inv, t };
+  const fin = new FinancialsService(t.projects, t.leads, t.phases, t.tasks, t.pfin, t.phfin, t.tfin, t.progress, t.invoices, t.lines, t.payments, t.activity, settings as any, access, t.cos, t.coItems, t.approvals);
+  const inv = new InvoicesService(t.invoices, t.lines, t.payments, t.pfin, fin, t.reimbs, t.releases);
+  const cos = new ChangeOrdersService(t.cos, t.coItems, t.phases, t.tasks, t.projects, fin);
+  const reimb = new ReimbursablesService(t.reimbs, t.projects, fin);
+  const ret = new RetentionService(t.releases, fin, inv);
+  const hub = new FinanceHubService(fin, t.projects, t.pfin, t.cos, t.coItems, t.reimbs, t.releases, t.invoices, t.phfin, t.tfin, t.phases, t.tasks, t.activity, t.lines);
+  return { fin, inv, cos, reimb, ret, hub, t };
 }
 
 const v = (rows: any[], pred: (r: any) => boolean) => rows.find(pred)?.version;
@@ -248,5 +268,203 @@ describe('invoices and payments', () => {
     expect(i.total).toBe(5000);
     const items = await s.fin.itemInvoices('project', '7', finance);
     expect(items.map((x: any) => x.number)).toEqual(['INV-2026-0001']);
+  });
+});
+
+describe('phase 2: permissions and invoice approval', () => {
+  it('granular actions: a role can prepare invoices without issuing them; unset keys fall back to financials -> manage', async () => {
+    const s = setup();
+    expect(await s.fin.rights(finance)).toMatchObject({ prepareInvoice: true, issueInvoice: true, approveChangeOrders: true, releaseRetention: true });
+    expect(await s.fin.rights(clerk)).toMatchObject({ prepareInvoice: true, issueInvoice: false, recordPayment: true });
+    expect(await s.fin.rights(site)).toMatchObject({ view: false, viewChangeOrders: true, editChangeOrders: true, approveChangeOrders: false, submitReimbursables: true, approveReimbursables: false });
+  });
+
+  it('a preparer sends a draft for approval; the approver returns it or issues it, and every decision is recorded', async () => {
+    const s = await readyProject();
+    await s.fin.reportProgress('task', 'T-1', { pct: 100, version: v(s.t.tfin.rows, (r) => r.taskId === 'T-1') }, pm);
+    let d = await s.inv.createDraft(7, { billReady: true }, clerk);
+    await expect(s.inv.issue(d.id, { version: d.version }, clerk)).rejects.toThrow(/doesn't allow issuing/);
+    d = await s.inv.requestApproval(d.id, { version: d.version, comment: 'Ready for September' }, clerk);
+    expect(d.approvalRequestedBy).toBe('Cal (Clerk)');
+    const inbox = await s.hub.pending(finance);
+    expect(inbox.find((x: any) => x.type === 'invoice')).toMatchObject({ id: d.id, canAct: true });
+    await expect(s.inv.returnDraft(d.id, { version: d.version }, finance)).rejects.toThrow(/what needs changing/);
+    d = await s.inv.returnDraft(d.id, { version: d.version, comment: 'Add the PO' }, finance);
+    d = await s.inv.requestApproval(d.id, { version: d.version }, clerk);
+    const issued = await s.inv.issue(d.id, { version: d.version }, finance);
+    expect(issued.approvals.map((a: any) => a.decision)).toEqual(['submitted', 'returned', 'submitted', 'approved']);
+  });
+});
+
+describe('phase 2: change orders', () => {
+  const item = (x: any) => ({ description: 'Change', ...x });
+
+  it('flow: draft -> internal review -> client -> approved; the contract, item values and new items follow', async () => {
+    const s = await readyProject();
+    let co = await s.cos.create(7, {
+      title: 'Owner upgrades', reason: 'client_request', items: [
+        item({ targetType: 'task', taskId: 'T-2', amount: 20000 }),
+        item({ targetType: 'new_phase', newName: 'Landscaping', amount: 30000 }),
+        item({ targetType: 'new_task', phaseId: 'PH-D2', newName: 'Lighting study', amount: 5000 }),
+        item({ targetType: 'none', amount: 10000 }),
+      ],
+    }, site);
+    expect(co).toMatchObject({ number: 'CO-001', status: 'draft', total: 65000 });
+    await expect(s.cos.act(co.id, 'approve_internal', { version: co.version }, site)).rejects.toThrow(/doesn't allow approving change orders/);
+    co = await s.cos.act(co.id, 'submit', { version: co.version }, site);
+    expect((await s.fin.overview(7, finance)).sov.summary).toMatchObject({ approvedChanges: 0, pendingChanges: 65000, revisedContract: 500000 });
+    co = await s.cos.act(co.id, 'approve_internal', { version: co.version }, finance);
+    expect(co.status).toBe('submitted');
+    await expect(s.cos.act(co.id, 'client_approve', { version: co.version }, finance)).rejects.toThrow(/who approved it for the client/);
+    co = await s.cos.act(co.id, 'client_approve', { version: co.version, signer: 'Pat Owner', date: '2026-09-20', reference: 'Email 9/20' }, finance);
+    expect(co).toMatchObject({ status: 'approved', amount: 65000, clientSigner: 'Pat Owner' });
+    const o = await s.fin.overview(7, finance);
+    expect(o.sov.summary).toMatchObject({ originalContract: 500000, approvedChanges: 65000, revisedContract: 565000, allocated: 280000, unallocated: 285000, pendingChanges: 0 });
+    const rows = flat(o);
+    expect(rows.find((r: any) => r.id === 'T-2')).toMatchObject({ value: 120000, ownValue: 100000, changeOrders: 20000 });
+    const land = rows.find((r: any) => r.name === 'Landscaping');
+    expect(land).toMatchObject({ kind: 'phase', value: 30000, category: 'other' });
+    // The new task lives on the Phase Board too, under its milestone, valued by the change order.
+    expect(s.t.tasks.rows.find((t: any) => t.title === 'Lighting study')).toMatchObject({ phaseId: 'PH-D2', sectionId: 'S-7-0' });
+    expect(rows.find((r: any) => r.name === 'Lighting study')).toMatchObject({ value: 5000, changeOrders: 5000 });
+    expect(co.approvals.map((a: any) => a.decision)).toEqual(['submitted', 'internal_approved', 'client_approved']);
+    await expect(s.cos.update(co.id, { version: co.version, title: 'x' }, site)).rejects.toThrow(/Only a draft/);
+  });
+
+  it('refuses changes that break the schedule: below invoiced, on a milestone valued by its tasks, under a milestone with its own value', async () => {
+    const s = await readyProject();
+    await s.fin.reportProgress('task', 'T-1', { pct: 100, version: v(s.t.tfin.rows, (r) => r.taskId === 'T-1') }, pm);
+    const d = await s.inv.createDraft(7, { items: [{ kind: 'task', id: 'T-1' }] }, finance);
+    await s.inv.issue(d.id, { version: d.version }, finance);
+    const deduct = await s.cos.create(7, { title: 'Scope cut', items: [item({ targetType: 'task', taskId: 'T-1', amount: -10000 })] }, finance);
+    expect(await s.cos.impact(deduct.id, finance)).toMatchObject({ ok: false, problem: expect.stringMatching(/already invoiced/) });
+    const onPhase = await s.cos.create(7, { title: 'Steel', items: [item({ targetType: 'phase', phaseId: 'PH-C1', amount: 1000 })] }, finance);
+    expect((await s.cos.impact(onPhase.id, finance)).problem).toMatch(/comes from its tasks/);
+    const s2 = await readyProject();
+    // PH-D1 carries its own value; its (new) task can't take a change separately.
+    const under = await s2.cos.create(7, { title: 'Extra', items: [item({ targetType: 'new_task', phaseId: 'PH-D1', newName: 'Extra survey', amount: 1000 })] }, finance);
+    expect((await s2.cos.impact(under.id, finance)).problem).toMatch(/carries its own value/);
+    // A deduction that leaves things consistent is fine and lowers the contract.
+    const ok = await s2.cos.create(7, { title: 'Credit', reason: 'scope_reduction', items: [item({ targetType: 'phase', phaseId: 'PH-D1', amount: -5000 })] }, finance);
+    const done = await s2.cos.act(ok.id, 'client_approve', { version: ok.version, signer: 'Pat Owner' }, finance);
+    expect(done.status).toBe('approved');
+    expect((await s2.fin.overview(7, finance)).sov.summary).toMatchObject({ revisedContract: 495000, approvedChanges: -5000 });
+  });
+
+  it('return, reject, reopen and cancel are recorded; only never-submitted drafts can be deleted', async () => {
+    const s = await readyProject();
+    let co = await s.cos.create(7, { title: 'A', items: [item({ amount: 100 })] }, finance);
+    co = await s.cos.act(co.id, 'submit', { version: co.version }, finance);
+    co = await s.cos.act(co.id, 'return', { version: co.version, comment: 'Price it properly' }, finance);
+    expect(co.status).toBe('draft');
+    await expect(s.cos.remove(co.id, finance)).rejects.toThrow(/cancel it instead/);
+    co = await s.cos.act(co.id, 'submit', { version: co.version }, finance);
+    co = await s.cos.act(co.id, 'reject', { version: co.version, comment: 'Client declined' }, finance);
+    co = await s.cos.act(co.id, 'reopen', { version: co.version }, finance);
+    co = await s.cos.act(co.id, 'cancel', { version: co.version, comment: 'Dropped' }, finance);
+    expect(co.status).toBe('cancelled');
+    const b = await s.cos.create(7, { title: 'B' }, finance);
+    expect(b.number).toBe('CO-002');
+    expect(await s.cos.remove(b.id, finance)).toMatchObject({ deleted: true });
+  });
+});
+
+describe('phase 2: reimbursables, retention release and credit notes', () => {
+  async function billedWork() {
+    const s = await readyProject({ retention: 10, tax: 5 });
+    const ver = (id: string) => v(s.t.tfin.rows, (r) => r.taskId === id);
+    await s.fin.reportProgress('task', 'T-1', { pct: 100, version: ver('T-1') }, pm);
+    await s.fin.reportProgress('task', 'T-2', { pct: 40, version: ver('T-2') }, pm);
+    const d = await s.inv.createDraft(7, { billReady: true }, finance);
+    const i = await s.inv.issue(d.id, { version: d.version }, finance); // 115,000 work, 11,500 retention, 5,175 tax, 108,675
+    return { ...s, i };
+  }
+
+  it('reimbursables: submitted, approved, billed at cost plus markup outside the contract; voiding frees them', async () => {
+    const s = await readyProject({ retention: 10, tax: 5 });
+    await s.fin.saveSettings(7, { reimbursableMarkupPct: 10, version: v(s.t.pfin.rows, () => true) }, finance);
+    let r = await s.reimb.create(7, { description: 'Blueprint printing', category: 'printing', cost: 1000, vendor: 'FedEx Office' }, site);
+    expect(r).toMatchObject({ number: 'RE-001', status: 'submitted', markupPct: 10, billAmount: 1100 });
+    await expect(s.reimb.decide(r.id, { decision: 'approve', version: r.version }, site)).rejects.toThrow(/doesn't allow approving reimbursables/);
+    await expect(s.inv.createDraft(7, { billReady: true }, finance)).rejects.toThrow(/Nothing is ready/);
+    r = await s.reimb.decide(r.id, { decision: 'approve', version: r.version }, finance);
+    const d = await s.inv.createDraft(7, { billReady: true }, finance);
+    expect(d.lines).toHaveLength(1);
+    expect(d.lines[0]).toMatchObject({ kind: 'reimbursable', amount: 1100, retentionAmount: 0, taxable: false });
+    expect(d).toMatchObject({ contractWork: 0, reimbursable: 1100, total: 1100 });
+    const i = await s.inv.issue(d.id, { version: d.version }, finance);
+    expect(s.t.reimbs.rows[0]).toMatchObject({ status: 'billed', invoiceId: i.id });
+    expect((await s.fin.overview(7, finance)).sov.summary).toMatchObject({ contractWorkInvoiced: 0, reimbursablesBilled: 1100 });
+    await expect(s.inv.createDraft(7, { reimbursableIds: [r.id] }, finance)).rejects.toThrow(/Nothing is ready/);
+    await s.inv.void(i.id, { reason: 'Wrong client', version: i.version }, finance);
+    expect(s.t.reimbs.rows[0]).toMatchObject({ status: 'approved', invoiceId: null });
+  });
+
+  it('retention: request, approve, bill back to the items that held it, and pay', async () => {
+    const s = await billedWork();
+    let o = await s.ret.overview(7, finance);
+    expect(o).toMatchObject({ accrued: 11500, held: 11500, released: 0, available: 11500 });
+    await expect(s.ret.request(7, { scope: 'task', targetId: 'T-2', amount: 5000 }, finance)).rejects.toThrow(/Only \$4,000.00/);
+    o = await s.ret.request(7, { scope: 'project', amount: 5750, reason: 'substantial_completion' }, finance);
+    const rel = o.releases[0];
+    expect(rel).toMatchObject({ number: 'RR-001', status: 'requested' });
+    await expect(s.ret.request(7, { scope: 'project', amount: 6000 }, finance)).rejects.toThrow(/Only \$5,750.00/);
+    await s.ret.decide(rel.id, { decision: 'approve', version: rel.version }, finance);
+    const d = await s.ret.bill(rel.id, finance);
+    // 5,750 split over T-1 (7,500 held) and T-2 (4,000 held) in proportion.
+    expect(d.kind).toBe('retention');
+    expect(d.lines.map((l: any) => [l.taskId, l.amount])).toEqual([['T-1', 3750], ['T-2', 2000]]);
+    expect(d).toMatchObject({ contractWork: 0, retentionRelease: 5750, tax: 287.5, total: 6037.5 });
+    const issued = await s.inv.issue(d.id, { version: d.version }, finance);
+    expect(s.t.releases.rows[0]).toMatchObject({ status: 'billed', invoiceId: issued.id });
+    const ov = await s.fin.overview(7, finance);
+    expect(ov.sov.summary).toMatchObject({ retentionHeld: 5750, retentionReleased: 5750, contractWorkInvoiced: 115000 });
+    expect(flat(ov).find((r: any) => r.id === 'T-1')).toMatchObject({ retention: 3750, retentionReleased: 3750 });
+    // Paying both invoices in full settles T-1 completely.
+    await s.inv.recordPayment(s.i.id, { amount: 108675 }, finance);
+    await s.inv.recordPayment(issued.id, { amount: 6037.5 }, finance);
+    const t1 = flat(await s.fin.overview(7, finance)).find((r: any) => r.id === 'T-1');
+    expect(t1).toMatchObject({ invoiced: 75000, retention: 3750, paid: 71250, outstanding: 0, paymentStatus: 'paid' });
+  });
+
+  it('credit notes reverse billed work line by line; write-offs clear a balance without un-billing work', async () => {
+    const s = await billedWork();
+    const steel = s.i.lines.find((l: any) => l.taskId === 'T-2');
+    await expect(s.inv.createCredit(s.i.id, { reason: 'x', lines: [{ lineId: steel.id, amount: 40000.01 }] }, finance)).rejects.toThrow(/Only \$40,000.00/);
+    await expect(s.inv.createCredit(s.i.id, { lines: [{ lineId: steel.id, amount: 1 }] }, finance)).rejects.toThrow(/why the credit/);
+    const cn = await s.inv.createCredit(s.i.id, { reason: 'Steel over-claimed', lines: [{ lineId: steel.id, amount: 10000 }] }, finance);
+    expect(cn).toMatchObject({ kind: 'credit', status: 'draft', contractWork: -10000, retention: -1000, tax: -450, total: -9450 });
+    const issued = await s.inv.issue(cn.id, { version: cn.version }, finance);
+    expect(issued).toMatchObject({ issuedNumber: 'CN-2026-0001', paymentStatus: 'credit' });
+    let orig = await s.inv.get(s.i.id, finance);
+    expect(orig).toMatchObject({ total: 108675, credited: -9450, outstanding: 99225 });
+    const t2 = flat(await s.fin.overview(7, finance)).find((r: any) => r.id === 'T-2');
+    expect(t2).toMatchObject({ invoiced: 30000, retention: 3000, billable: 10000, billingStatus: 'ready_to_invoice' });
+    await expect(s.inv.void(s.i.id, { reason: 'x', version: orig.version }, finance)).rejects.toThrow(/Credit note CN-2026-0001/);
+    // A second credit can only take what's left on the line.
+    await expect(s.inv.createCredit(s.i.id, { reason: 'again', lines: [{ lineId: steel.id, amount: 30000.01 }] }, finance)).rejects.toThrow(/Only \$30,000.00/);
+    // Write off the unpaid rest after a part payment: paid in full, contract work unchanged.
+    await s.inv.recordPayment(s.i.id, { amount: 90000 }, finance);
+    await expect(s.inv.createCredit(s.i.id, { creditType: 'write_off', reason: 'Settled', amount: 9225.01 }, finance)).rejects.toThrow(/Only \$9,225.00 is owed/);
+    const wo = await s.inv.createCredit(s.i.id, { creditType: 'write_off', reason: 'Settlement agreed' }, finance);
+    await s.inv.issue(wo.id, { version: wo.version }, finance);
+    orig = await s.inv.get(s.i.id, finance);
+    expect(orig).toMatchObject({ outstanding: 0, paymentStatus: 'paid' });
+    expect((await s.fin.overview(7, finance)).sov.summary).toMatchObject({ contractWorkInvoiced: 105000, arOutstanding: 0, credits: -18675 });
+  });
+
+  it('the approvals inbox shows each open item to those who can see it, flagged where they can decide', async () => {
+    const s = await readyProject();
+    const co = await s.cos.create(7, { title: 'Upgrade', items: [{ description: 'Tile', amount: 500 }] }, site);
+    await s.cos.act(co.id, 'submit', { version: co.version }, site);
+    await s.reimb.create(7, { description: 'Mileage', cost: 80 }, site);
+    const forSite = await s.hub.pending(site);
+    expect(forSite.map((x: any) => [x.type, x.canAct])).toEqual([['change_order', false], ['reimbursable', false]]);
+    const forFinance = await s.hub.pending(finance);
+    expect(forFinance.every((x: any) => x.canAct)).toBe(true);
+    const portfolio = await s.hub.portfolio(finance);
+    expect(portfolio[0]).toMatchObject({ projectId: 7, name: 'Marina Tower', pendingChanges: 500 });
+    const audit = await s.hub.audit(finance, { projectId: '7', entityType: 'change_order' });
+    expect(audit.map((a: any) => a.action)).toEqual(expect.arrayContaining(['co_created', 'co_submitted']));
   });
 });

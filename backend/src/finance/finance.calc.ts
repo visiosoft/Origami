@@ -25,10 +25,14 @@ export interface IssuedLine {
   id: string; invoiceId: string; kind: string; targetType?: string | null; phaseId?: string | null; taskId?: string | null;
   amountC: number; retentionC: number; taxC: number;
 }
-export interface IssuedInvoice { id: string; totalC: number; dueDate?: string | null }
+/** A credit note carries a negative total and the invoice it credits. */
+export interface IssuedInvoice { id: string; totalC: number; dueDate?: string | null; creditForId?: string | null }
 export interface PaymentFact { invoiceId: string; amountC: number }
 
 // ------------------------------------------------------------------ invoice math
+
+/** Contract work: the lines that bill the schedule of values. Reimbursables, retention releases and adjustments sit outside it. */
+export const isContractWork = (kind: string) => kind === 'progress' || kind === 'manual';
 
 export interface LineMathInput {
   kind: string; amountC: number; retentionApplies: boolean; retentionPct: number; taxable: boolean; taxPct: number;
@@ -36,23 +40,27 @@ export interface LineMathInput {
 export interface LineMath { retentionC: number; netC: number; taxC: number }
 
 export function lineMath(l: LineMathInput): LineMath {
-  const retentionC = l.kind !== 'adjustment' && l.retentionApplies ? pctOf(l.amountC, l.retentionPct) : 0;
+  const retentionC = isContractWork(l.kind) && l.retentionApplies ? pctOf(l.amountC, l.retentionPct) : 0;
   const netC = l.amountC - retentionC;
   const taxC = l.taxable ? pctOf(netC, l.taxPct) : 0;
   return { retentionC, netC, taxC };
 }
 
-export interface InvoiceTotals { contractWorkC: number; retentionC: number; adjustmentC: number; taxC: number; totalC: number }
+export interface InvoiceTotals {
+  contractWorkC: number; retentionC: number; adjustmentC: number; reimbursableC: number; retentionReleaseC: number; taxC: number; totalC: number;
+}
 
-/** Contract work (non-adjustment amounts), retention held, adjustments, tax on taxable line nets, and the total. */
+/** Contract work, retention held, adjustments, reimbursables, retention released, tax on taxable line nets, and the total. */
 export function invoiceTotals(lines: LineMathInput[]): InvoiceTotals {
   const m = lines.map((l) => ({ l, ...lineMath(l) }));
-  const contractWorkC = sumCents(m.filter((x) => x.l.kind !== 'adjustment').map((x) => x.l.amountC));
+  const contractWorkC = sumCents(m.filter((x) => isContractWork(x.l.kind)).map((x) => x.l.amountC));
+  const reimbursableC = sumCents(m.filter((x) => x.l.kind === 'reimbursable').map((x) => x.l.amountC));
+  const retentionReleaseC = sumCents(m.filter((x) => x.l.kind === 'retention_release').map((x) => x.l.amountC));
   const adjustmentC = sumCents(m.filter((x) => x.l.kind === 'adjustment').map((x) => x.l.amountC));
   const retentionC = sumCents(m.map((x) => x.retentionC));
   const taxC = sumCents(m.map((x) => x.taxC));
   const totalC = sumCents(m.map((x) => x.netC)) + taxC;
-  return { contractWorkC, retentionC, adjustmentC, taxC, totalC };
+  return { contractWorkC, retentionC, adjustmentC, reimbursableC, retentionReleaseC, taxC, totalC };
 }
 
 /**
@@ -88,6 +96,8 @@ export interface SovRow extends Figures {
   kind: ItemKind; id: string; name: string; phaseId?: string | null; category?: Category;
   /** Value set on this item itself (a phase's own value is ignored while its tasks carry values). */
   ownValueC: number | null; valueFromTasks?: boolean; billedAsWhole?: boolean; deleted?: boolean;
+  /** Net of approved change orders on this item (included in valueC). */
+  changeOrdersC?: number; retentionReleasedC?: number;
   fin: Partial<ItemFin> & { version?: number } | null;
   children?: SovRow[];
 }
@@ -101,6 +111,10 @@ export interface SovInput {
   phaseFin: Map<string, ItemFin & { version?: number }>; taskFin: Map<string, ItemFin & { version?: number; phaseId?: string | null }>;
   lines: IssuedLine[]; invoices: IssuedInvoice[]; payments: PaymentFact[];
   today: string;
+  /** Approved change-order amounts by item ('phase:<id>' / 'task:<id>'). */
+  coAdjust?: Map<string, number>;
+  /** Change orders still open (in review or with the client). */
+  pendingChangesC?: number;
 }
 
 export interface SovResult {
@@ -109,6 +123,7 @@ export interface SovResult {
     allocation: 'under' | 'full' | 'over'; evC: number; contractWorkInvoicedC: number; invoiceTotalsC: number; paidC: number;
     arOutstandingC: number; unbilledEarnedC: number; overBilledC: number; remainingContractC: number; retentionHeldC: number;
     billableNowC: number; overdueC: number; overdueCount: number; lumpSum: boolean;
+    pendingChangesC: number; retentionAccruedC: number; retentionReleasedC: number; reimbursablesBilledC: number; creditsC: number;
   };
   groups: SovGroup[];
   lump: SovRow | null;
@@ -153,20 +168,30 @@ export function computeSov(i: SovInput): SovResult {
     const mine = i.lines.filter((l) => l.invoiceId === inv.id);
     for (const [id, c] of allocatePayments(mine, inv.totalC, paidByInvoice.get(inv.id) || 0)) linePaid.set(id, c);
   }
+  // Contract work and retention on the item, less retention paid back; paid includes what came in against the releases.
   const billed = (pred: (l: IssuedLine) => boolean) => {
-    const ls = i.lines.filter((l) => l.kind !== 'adjustment' && pred(l));
-    return { invoicedC: sumCents(ls.map((l) => l.amountC)), retentionC: sumCents(ls.map((l) => l.retentionC)), paidC: sumCents(ls.map((l) => linePaid.get(l.id) || 0)) };
+    const work = i.lines.filter((l) => isContractWork(l.kind) && pred(l));
+    const rel = i.lines.filter((l) => l.kind === 'retention_release' && pred(l));
+    const releasedC = sumCents(rel.map((l) => l.amountC));
+    return {
+      invoicedC: sumCents(work.map((l) => l.amountC)), retentionC: sumCents(work.map((l) => l.retentionC)) - releasedC, releasedC,
+      paidC: sumCents([...work, ...rel].map((l) => linePaid.get(l.id) || 0)),
+    };
   };
+  const co = (key: string) => i.coAdjust?.get(key) || 0;
+  /** Base value plus approved change orders; null when neither exists. */
+  const withCo = (baseC: number | null, adjC: number) => (baseC == null && !adjC ? null : (baseC ?? 0) + adjC);
 
   const liveTasks = i.tasks;
   const taskIds = new Set(liveTasks.map((t) => t.id));
   const taskRow = (t: CalcTask, deleted = false): SovRow => {
     const f = i.taskFin.get(t.id);
-    const valueC = valC(f);
+    const adjC = co(`task:${t.id}`);
+    const valueC = withCo(valC(f), adjC);
     const bp = billable(f, i.requireApproval);
     const b = billed((l) => l.taskId === t.id);
     return {
-      kind: 'task', id: t.id, name: t.title, phaseId: t.phaseId, ownValueC: valueC, deleted, fin: f || null,
+      kind: 'task', id: t.id, name: t.title, phaseId: t.phaseId, ownValueC: valC(f), changeOrdersC: adjC, retentionReleasedC: b.releasedC, deleted, fin: f || null,
       ...figures(valueC, valueC != null ? pctOf(valueC, bp) : 0, b.invoicedC, b.retentionC, b.paidC,
         { reported: Number(f?.reportedProgress) || 0, approved: Number(f?.approvedProgress) || 0, billable: bp, physical: t.done ? 100 : 0 }),
     };
@@ -177,29 +202,35 @@ export function computeSov(i: SovInput): SovResult {
     const children = tasks.map((t) => taskRow(t));
     const f = i.phaseFin.get(ph.id);
     const own = billed((l) => l.phaseId === ph.id && !l.taskId);
-    const fromTasks = children.some((c) => c.ownValueC != null);
+    const fromTasks = children.some((c) => c.valueC != null);
     const physical = tasks.length ? (tasks.filter((t) => t.done).length / tasks.length) * 100 : 0;
     if (fromTasks) {
-      const valued = children.filter((c) => c.ownValueC != null || c.invoicedC);
+      const valued = children.filter((c) => c.valueC != null || c.invoicedC);
       const sum = addUp(valued);
       const rowFigs = figures(sum.valueC, sum.evC, sum.invoicedC + own.invoicedC, sum.retentionC + own.retentionC, sum.paidC + own.paidC,
         { reported: sum.reportedProgress, approved: sum.approvedProgress, billable: sum.billableProgress, physical });
-      return { kind: 'phase', id: ph.id, name: ph.name, category: ph.category, ownValueC: valC(f), valueFromTasks: true, fin: f || null, children, ...rowFigs };
+      return {
+        kind: 'phase', id: ph.id, name: ph.name, category: ph.category, ownValueC: valC(f), valueFromTasks: true, fin: f || null, children, ...rowFigs,
+        changeOrdersC: sumCents(children.map((c) => c.changeOrdersC || 0)), retentionReleasedC: own.releasedC + sumCents(children.map((c) => c.retentionReleasedC || 0)),
+      };
     }
-    const valueC = valC(f);
+    const adjC = co(`phase:${ph.id}`);
+    const valueC = withCo(valC(f), adjC);
     const bp = billable(f, i.requireApproval);
-    const childInv = children.reduce((a, c) => ({ inv: a.inv + c.invoicedC, ret: a.ret + c.retentionC, paid: a.paid + c.paidC }), { inv: 0, ret: 0, paid: 0 });
+    const childInv = children.reduce((a, c) => ({ inv: a.inv + c.invoicedC, ret: a.ret + c.retentionC, paid: a.paid + c.paidC, rel: a.rel + (c.retentionReleasedC || 0) }), { inv: 0, ret: 0, paid: 0, rel: 0 });
     return {
-      kind: 'phase', id: ph.id, name: ph.name, category: ph.category, ownValueC: valueC, valueFromTasks: false, billedAsWhole: own.invoicedC > 0, fin: f || null, children,
+      kind: 'phase', id: ph.id, name: ph.name, category: ph.category, ownValueC: valC(f), changeOrdersC: adjC, retentionReleasedC: own.releasedC + childInv.rel,
+      valueFromTasks: false, billedAsWhole: own.invoicedC > 0, fin: f || null, children,
       ...figures(valueC, valueC != null ? pctOf(valueC, bp) : 0, own.invoicedC + childInv.inv, own.retentionC + childInv.ret, own.paidC + childInv.paid,
         { reported: Number(f?.reportedProgress) || 0, approved: Number(f?.approvedProgress) || 0, billable: bp, physical }),
     };
   });
 
   // Unphased tasks that carry a value or were invoiced, and tasks deleted after being valued/invoiced.
-  const unphased = liveTasks.filter((t) => !t.phaseId).map((t) => taskRow(t)).filter((r) => r.ownValueC != null || r.invoicedC);
-  const orphanIds = new Set([...Array.from(i.taskFin.keys()), ...i.lines.map((l) => l.taskId).filter(Boolean) as string[]].filter((id) => !taskIds.has(id)));
-  const orphans = Array.from(orphanIds).map((id) => taskRow({ id, title: 'Removed task', phaseId: null, done: false, order: 999 }, true)).filter((r) => r.ownValueC != null || r.invoicedC);
+  const unphased = liveTasks.filter((t) => !t.phaseId).map((t) => taskRow(t)).filter((r) => r.valueC != null || r.invoicedC);
+  const coTaskIds = Array.from(i.coAdjust?.keys() || []).filter((k) => k.startsWith('task:')).map((k) => k.slice(5));
+  const orphanIds = new Set([...Array.from(i.taskFin.keys()), ...coTaskIds, ...i.lines.map((l) => l.taskId).filter(Boolean) as string[]].filter((id) => !taskIds.has(id)));
+  const orphans = Array.from(orphanIds).map((id) => taskRow({ id, title: 'Removed task', phaseId: null, done: false, order: 999 }, true)).filter((r) => r.valueC != null || r.invoicedC);
 
   const groups: SovGroup[] = [];
   const labels: Record<Category, string> = { design: 'Design', construction: 'Construction', other: 'Other milestones' };
@@ -222,17 +253,23 @@ export function computeSov(i: SovInput): SovResult {
     const bp = billable(i.project, i.requireApproval);
     const valueC = lumpSum ? revisedContractC : null;
     lump = {
-      kind: 'project', id: 'project', name: lumpSum ? 'Whole project (lump sum)' : 'Billed as lump sum before the breakdown', ownValueC: valueC, fin: i.project,
+      kind: 'project', id: 'project', name: lumpSum ? 'Whole project (lump sum)' : 'Billed as lump sum before the breakdown', ownValueC: valueC, fin: i.project, retentionReleasedC: lumpBilled.releasedC,
       ...figures(valueC, valueC != null ? pctOf(valueC, bp) : 0, lumpBilled.invoicedC, lumpBilled.retentionC, lumpBilled.paidC,
         { reported: Number(i.project.reportedProgress) || 0, approved: Number(i.project.approvedProgress) || 0, billable: bp, physical: 0 }),
     };
   }
 
   const evC = sumCents((lump ? [...allItems, lump] : allItems).map((r) => r.evC));
-  const contractWorkInvoicedC = sumCents(i.lines.filter((l) => l.kind !== 'adjustment').map((l) => l.amountC));
+  const contractWorkInvoicedC = sumCents(i.lines.filter((l) => isContractWork(l.kind)).map((l) => l.amountC));
   const invoiceTotalsC = sumCents(i.invoices.map((x) => x.totalC));
   const paidC = sumCents(i.payments.map((p) => p.amountC));
-  const overdue = i.invoices.filter((x) => x.dueDate && x.dueDate < i.today && x.totalC - (paidByInvoice.get(x.id) || 0) > 0);
+  // What each invoice still owes: its total, less payments and less any credit notes against it.
+  const creditsFor = new Map<string, number>();
+  for (const x of i.invoices) if (x.creditForId) creditsFor.set(x.creditForId, (creditsFor.get(x.creditForId) || 0) + x.totalC);
+  const owed = (x: IssuedInvoice) => x.totalC + (creditsFor.get(x.id) || 0) - (paidByInvoice.get(x.id) || 0);
+  const overdue = i.invoices.filter((x) => !x.creditForId && x.dueDate && x.dueDate < i.today && owed(x) > 0);
+  const retentionAccruedC = sumCents(i.lines.filter((l) => isContractWork(l.kind)).map((l) => l.retentionC));
+  const retentionReleasedC = sumCents(i.lines.filter((l) => l.kind === 'retention_release').map((l) => l.amountC));
   const unallocatedC = revisedContractC - allocatedC;
 
   return {
@@ -242,10 +279,13 @@ export function computeSov(i: SovInput): SovResult {
       evC, contractWorkInvoicedC, invoiceTotalsC, paidC, arOutstandingC: invoiceTotalsC - paidC,
       unbilledEarnedC: evC - contractWorkInvoicedC, overBilledC: Math.max(contractWorkInvoicedC - evC, 0),
       remainingContractC: revisedContractC - contractWorkInvoicedC,
-      retentionHeldC: sumCents(i.lines.map((l) => l.retentionC)),
+      retentionHeldC: retentionAccruedC - retentionReleasedC,
       // What could be invoiced now: each billing item once -- a milestone's tasks when they carry the values, else the milestone.
       billableNowC: sumCents([...phaseRows.flatMap((r) => (r.valueFromTasks ? r.children || [] : [r])), ...loose, ...(lump ? [lump] : [])].map((r) => r.billableC)),
-      overdueC: sumCents(overdue.map((x) => x.totalC - (paidByInvoice.get(x.id) || 0))), overdueCount: overdue.length, lumpSum,
+      overdueC: sumCents(overdue.map(owed)), overdueCount: overdue.length, lumpSum,
+      pendingChangesC: i.pendingChangesC || 0, retentionAccruedC, retentionReleasedC,
+      reimbursablesBilledC: sumCents(i.lines.filter((l) => l.kind === 'reimbursable').map((l) => l.amountC)),
+      creditsC: sumCents(i.invoices.filter((x) => x.creditForId).map((x) => x.totalC)),
     },
     groups, lump,
   };

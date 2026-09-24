@@ -1,10 +1,33 @@
 import { EntityManager, Repository } from 'typeorm';
-import { FinanceActivityEntity, LeadEntity, PhaseFinancialEntity, ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, TaskFinancialEntity } from '../database/entities';
+import { ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, FinancialApprovalEntity, LeadEntity, PhaseFinancialEntity, ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, TaskFinancialEntity } from '../database/entities';
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { SettingsService } from '../settings/settings.service';
 import { type Category, type SovInput } from './finance.calc';
 export declare const FIN_MODULE = "fin_project";
 export declare const PM_MODULE = "pm";
+export declare const CO_MODULE = "changeorders";
+export declare const REIMB_MODULE = "reimbursement";
+export declare const FIN_ACTIONS: {
+    readonly prepareInvoice: "finx_prepare_invoice";
+    readonly issueInvoice: "finx_issue_invoice";
+    readonly recordPayment: "finx_record_payment";
+    readonly approveProgress: "finx_approve_progress";
+    readonly approveChangeOrders: "finx_approve_co";
+    readonly approveReimbursables: "finx_approve_reimb";
+    readonly releaseRetention: "finx_release_retention";
+};
+export type FinRights = {
+    view: boolean;
+    manage: boolean;
+    reportProgress: boolean;
+    viewChangeOrders: boolean;
+    editChangeOrders: boolean;
+    viewReimbursables: boolean;
+    submitReimbursables: boolean;
+} & {
+    [K in keyof typeof FIN_ACTIONS]: boolean;
+};
+export declare const CO_OPEN: string[];
 export declare const BILLING_METHODS: string[];
 type ItemKind = 'project' | 'phase' | 'task';
 export declare function assertVersion(row: {
@@ -26,14 +49,26 @@ export declare class FinancialsService {
     private readonly activityRepo;
     private readonly settings;
     readonly access: ManpowerAccess;
-    constructor(projects: Repository<ProjectEntity>, leads: Repository<LeadEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, pfin: Repository<ProjectFinancialEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, progress: Repository<ProgressUpdateEntity>, invoices: Repository<ProjectInvoiceEntity>, lines: Repository<ProjectInvoiceLineEntity>, payments: Repository<ProjectPaymentEntity>, activityRepo: Repository<FinanceActivityEntity>, settings: SettingsService, access: ManpowerAccess);
-    rights(actor: Actor): Promise<{
-        view: boolean;
-        manage: boolean;
-        reportProgress: boolean;
-        approveProgress: boolean;
-    }>;
-    private need;
+    readonly changeOrders: Repository<ChangeOrderEntity>;
+    readonly coItems: Repository<ChangeOrderItemEntity>;
+    readonly approvals: Repository<FinancialApprovalEntity>;
+    constructor(projects: Repository<ProjectEntity>, leads: Repository<LeadEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, pfin: Repository<ProjectFinancialEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, progress: Repository<ProgressUpdateEntity>, invoices: Repository<ProjectInvoiceEntity>, lines: Repository<ProjectInvoiceLineEntity>, payments: Repository<ProjectPaymentEntity>, activityRepo: Repository<FinanceActivityEntity>, settings: SettingsService, access: ManpowerAccess, changeOrders: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, approvals: Repository<FinancialApprovalEntity>);
+    rights(actor: Actor): Promise<FinRights>;
+    need(actor: Actor, what: keyof FinRights): Promise<FinRights>;
+    approval(m: EntityManager | null, e: {
+        projectId: number;
+        entityType: string;
+        entityId: string;
+        decision: string;
+        comment?: string;
+        signer?: string;
+        amount?: number | null;
+    }, actor: Actor): Promise<void>;
+    approvalsFor(entityId: string): Promise<FinancialApprovalEntity[]>;
+    nextProjectNumber(repo: Repository<{
+        number: string;
+        projectId: number;
+    } & any>, projectId: number, prefix: string): Promise<string>;
     log(m: EntityManager | null, e: {
         projectId: number;
         entityType: string;
@@ -88,6 +123,7 @@ export declare class FinancialsService {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -102,12 +138,7 @@ export declare class FinancialsService {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -140,6 +171,7 @@ export declare class FinancialsService {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -154,12 +186,7 @@ export declare class FinancialsService {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -195,6 +222,7 @@ export declare class FinancialsService {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -209,12 +237,7 @@ export declare class FinancialsService {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -251,6 +274,7 @@ export declare class FinancialsService {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -265,12 +289,7 @@ export declare class FinancialsService {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -307,6 +326,7 @@ export declare class FinancialsService {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -321,12 +341,7 @@ export declare class FinancialsService {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -364,6 +379,7 @@ export declare class FinancialsService {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -378,12 +394,7 @@ export declare class FinancialsService {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -419,5 +430,10 @@ export declare function billToFromLead(lead: LeadEntity): {
     name: string;
     email: string;
     address: string;
+};
+export declare function changeOrderFigures(cos: ChangeOrderEntity[], items: ChangeOrderItemEntity[]): {
+    adjust: Map<string, number>;
+    approvedC: number;
+    pendingC: number;
 };
 export {};

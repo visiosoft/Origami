@@ -12,6 +12,10 @@ export declare class ManpowerAccess {
     constructor(roles: Repository<RoleEntity>, auth: AuthService);
     actor(bearer: string | undefined): Promise<Actor>;
     can(actor: Actor, moduleKey: string, action?: 'view' | 'manage'): Promise<boolean>;
+    permissionsOf(actor: Actor): Promise<Record<string, {
+        view?: boolean;
+        manage?: boolean;
+    }> | 'all' | null>;
     require(actor: Actor, moduleKey: string, what: string): Promise<void>;
 }
 export declare const HR_MODULE = "manpower_con";

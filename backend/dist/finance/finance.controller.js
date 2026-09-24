@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FinanceInvoiceFilesController = exports.FinanceController = void 0;
+exports.FinanceReimbursableFilesController = exports.FinanceChangeOrderFilesController = exports.FinanceInvoiceFilesController = exports.FinanceController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const stream_1 = require("stream");
@@ -23,20 +23,33 @@ const update_task_dto_1 = require("../tasks/dto/update-task.dto");
 const manpower_access_service_1 = require("../manpower/manpower-access.service");
 const financials_service_1 = require("./financials.service");
 const invoices_service_1 = require("./invoices.service");
+const change_orders_service_1 = require("./change-orders.service");
+const reimbursables_service_1 = require("./reimbursables.service");
+const retention_service_1 = require("./retention.service");
+const finance_hub_service_1 = require("./finance-hub.service");
 const kindOf = (k) => {
     if (k !== 'phase' && k !== 'task' && k !== 'project')
         throw new common_1.BadRequestException('Unknown item.');
     return k;
 };
 let FinanceController = class FinanceController {
-    constructor(fin, invoices, access) {
+    constructor(fin, invoices, cos, reimbs, retention, hub, access) {
         this.fin = fin;
         this.invoices = invoices;
+        this.cos = cos;
+        this.reimbs = reimbs;
+        this.retention = retention;
+        this.hub = hub;
         this.access = access;
     }
     actor(a) { return this.access.actor(a); }
     async rights(a) { return this.fin.rights(await this.actor(a)); }
     async brand(a) { return this.fin.brand(await this.actor(a)); }
+    async portfolio(a) { return this.hub.portfolio(await this.actor(a)); }
+    async pending(a) { return this.hub.pending(await this.actor(a)); }
+    async audit(q, a) { return this.hub.audit(await this.actor(a), q || {}); }
+    async allCos(a) { return this.cos.all(await this.actor(a)); }
+    async allReimbs(a) { return this.reimbs.all(await this.actor(a)); }
     async overview(id, a) { return this.fin.overview(Number(id), await this.actor(a)); }
     async settings(id, dto, a) { return this.fin.saveSettings(Number(id), dto, await this.actor(a)); }
     async milestone(id, dto, a) { return this.fin.addMilestone(Number(id), dto, await this.actor(a)); }
@@ -44,6 +57,12 @@ let FinanceController = class FinanceController {
     async invoiceList(id, a) { return this.invoices.list(Number(id), await this.actor(a)); }
     async draft(id, dto, a) { return this.invoices.createDraft(Number(id), dto, await this.actor(a)); }
     async payments(id, a) { return this.invoices.projectPayments(Number(id), await this.actor(a)); }
+    async cosOf(id, a) { return this.cos.list(Number(id), await this.actor(a)); }
+    async newCo(id, dto, a) { return this.cos.create(Number(id), dto, await this.actor(a)); }
+    async reimbsOf(id, a) { return this.reimbs.list(Number(id), await this.actor(a)); }
+    async newReimb(id, dto, a) { return this.reimbs.create(Number(id), dto, await this.actor(a)); }
+    async retentionOf(id, a) { return this.retention.overview(Number(id), await this.actor(a)); }
+    async requestRelease(id, dto, a) { return this.retention.request(Number(id), dto, await this.actor(a)); }
     async item(kind, id, dto, a) {
         const k = kindOf(kind);
         if (k === 'project')
@@ -67,8 +86,24 @@ let FinanceController = class FinanceController {
     async removeDraft(id, a) { return this.invoices.removeDraft(id, await this.actor(a)); }
     async issue(id, dto, a) { return this.invoices.issue(id, dto, await this.actor(a)); }
     async void(id, dto, a) { return this.invoices.void(id, dto, await this.actor(a)); }
+    async requestApproval(id, dto, a) { return this.invoices.requestApproval(id, dto, await this.actor(a)); }
+    async returnDraft(id, dto, a) { return this.invoices.returnDraft(id, dto, await this.actor(a)); }
+    async credit(id, dto, a) { return this.invoices.createCredit(id, dto, await this.actor(a)); }
     async pay(id, dto, a) { return this.invoices.recordPayment(id, dto, await this.actor(a)); }
     async voidPayment(id, dto, a) { return this.invoices.voidPayment(id, dto, await this.actor(a)); }
+    async co(id, a) { return this.cos.get(id, await this.actor(a)); }
+    async coImpact(id, a) { return this.cos.impact(id, await this.actor(a)); }
+    async updateCo(id, dto, a) { return this.cos.update(id, dto, await this.actor(a)); }
+    async removeCo(id, a) { return this.cos.remove(id, await this.actor(a)); }
+    async actCo(id, action, dto, a) {
+        return this.cos.act(id, action, dto || {}, await this.actor(a));
+    }
+    async reimb(id, a) { return this.reimbs.get(id, await this.actor(a)); }
+    async updateReimb(id, dto, a) { return this.reimbs.update(id, dto, await this.actor(a)); }
+    async removeReimb(id, a) { return this.reimbs.remove(id, await this.actor(a)); }
+    async decideReimb(id, dto, a) { return this.reimbs.decide(id, dto, await this.actor(a)); }
+    async decideRelease(id, dto, a) { return this.retention.decide(id, dto, await this.actor(a)); }
+    async billRelease(id, a) { return this.retention.bill(id, await this.actor(a)); }
 };
 exports.FinanceController = FinanceController;
 __decorate([
@@ -85,6 +120,42 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "brand", null);
+__decorate([
+    (0, common_1.Get)('portfolio'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "portfolio", null);
+__decorate([
+    (0, common_1.Get)('approvals'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "pending", null);
+__decorate([
+    (0, common_1.Get)('audit'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "audit", null);
+__decorate([
+    (0, common_1.Get)('change-orders'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "allCos", null);
+__decorate([
+    (0, common_1.Get)('reimbursables'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "allReimbs", null);
 __decorate([
     (0, common_1.Get)('projects/:id'),
     __param(0, (0, common_1.Param)('id')),
@@ -144,6 +215,57 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "payments", null);
+__decorate([
+    (0, common_1.Get)('projects/:id/change-orders'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "cosOf", null);
+__decorate([
+    (0, common_1.Post)('projects/:id/change-orders'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "newCo", null);
+__decorate([
+    (0, common_1.Get)('projects/:id/reimbursables'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "reimbsOf", null);
+__decorate([
+    (0, common_1.Post)('projects/:id/reimbursables'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "newReimb", null);
+__decorate([
+    (0, common_1.Get)('projects/:id/retention'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "retentionOf", null);
+__decorate([
+    (0, common_1.Post)('projects/:id/retention/releases'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "requestRelease", null);
 __decorate([
     (0, common_1.Put)('items/:kind/:id'),
     __param(0, (0, common_1.Param)('kind')),
@@ -236,6 +358,33 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "void", null);
 __decorate([
+    (0, common_1.Post)('invoices/:id/request-approval'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "requestApproval", null);
+__decorate([
+    (0, common_1.Post)('invoices/:id/return'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "returnDraft", null);
+__decorate([
+    (0, common_1.Post)('invoices/:id/credit'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "credit", null);
+__decorate([
     (0, common_1.Post)('invoices/:id/payments'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -253,16 +402,113 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "voidPayment", null);
+__decorate([
+    (0, common_1.Get)('change-orders/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "co", null);
+__decorate([
+    (0, common_1.Get)('change-orders/:id/impact'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "coImpact", null);
+__decorate([
+    (0, common_1.Put)('change-orders/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "updateCo", null);
+__decorate([
+    (0, common_1.Delete)('change-orders/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "removeCo", null);
+__decorate([
+    (0, common_1.Post)('change-orders/:id/:action'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('action')),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "actCo", null);
+__decorate([
+    (0, common_1.Get)('reimbursables/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "reimb", null);
+__decorate([
+    (0, common_1.Put)('reimbursables/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "updateReimb", null);
+__decorate([
+    (0, common_1.Delete)('reimbursables/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "removeReimb", null);
+__decorate([
+    (0, common_1.Post)('reimbursables/:id/decision'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "decideReimb", null);
+__decorate([
+    (0, common_1.Post)('retention-releases/:id/decision'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "decideRelease", null);
+__decorate([
+    (0, common_1.Post)('retention-releases/:id/bill'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "billRelease", null);
 exports.FinanceController = FinanceController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('finance'),
     __metadata("design:paramtypes", [financials_service_1.FinancialsService,
         invoices_service_1.InvoicesService,
+        change_orders_service_1.ChangeOrdersService,
+        reimbursables_service_1.ReimbursablesService,
+        retention_service_1.RetentionService,
+        finance_hub_service_1.FinanceHubService,
         manpower_access_service_1.ManpowerAccess])
 ], FinanceController);
-let FinanceInvoiceFilesController = class FinanceInvoiceFilesController {
-    constructor(invoices, fin, auth, attachments, access) {
-        this.invoices = invoices;
+class FinanceFilesBase {
+    constructor(fin, auth, attachments, access) {
         this.fin = fin;
         this.auth = auth;
         this.attachments = attachments;
@@ -270,23 +516,23 @@ let FinanceInvoiceFilesController = class FinanceInvoiceFilesController {
     }
     async manage(a) {
         const actor = await this.access.actor(a);
-        if (!(await this.fin.rights(actor)).manage)
-            throw new common_1.BadRequestException("Your role doesn't allow changing invoices.");
+        if (!(await this.fin.rights(actor))[this.right])
+            throw new common_1.BadRequestException("Your role doesn't allow changing these documents.");
     }
     async upload(id, files, a) {
         await this.manage(a);
-        return this.invoices.addAttachments(id, files, await this.auth.requireActor(a));
+        return this.owner().addAttachments(id, files, await this.auth.requireActor(a));
     }
     async link(id, dto, a) {
         await this.manage(a);
-        return this.invoices.addLink(id, dto.name ?? '', dto.url, await this.auth.actor(a));
+        return this.owner().addLink(id, dto.name ?? '', dto.url, await this.auth.actor(a));
     }
     async remove(id, attId, a) {
         await this.manage(a);
-        return this.invoices.removeAttachment(id, attId);
+        return this.owner().removeAttachment(id, attId);
     }
     async content(id, attId, thumb, res) {
-        const att = await this.invoices.attachment(id, attId);
+        const att = await this.owner().attachment(id, attId);
         const file = await this.attachments.download(att, thumb === '1');
         const inline = attachments_service_1.AttachmentsService.inlineSafe(file.mimeType);
         res.setHeader('Content-Type', file.mimeType);
@@ -294,8 +540,7 @@ let FinanceInvoiceFilesController = class FinanceInvoiceFilesController {
         res.setHeader('Cache-Control', 'private, max-age=300');
         stream_1.Readable.fromWeb(file.body).pipe(res);
     }
-};
-exports.FinanceInvoiceFilesController = FinanceInvoiceFilesController;
+}
 __decorate([
     (0, common_1.Post)(':id/attachments'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', attachments_service_1.MAX_FILES_PER_UPLOAD, { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),
@@ -305,7 +550,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Array, String]),
     __metadata("design:returntype", Promise)
-], FinanceInvoiceFilesController.prototype, "upload", null);
+], FinanceFilesBase.prototype, "upload", null);
 __decorate([
     (0, common_1.Post)(':id/attachments/link'),
     __param(0, (0, common_1.Param)('id')),
@@ -314,7 +559,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, update_task_dto_1.AddLinkDto, String]),
     __metadata("design:returntype", Promise)
-], FinanceInvoiceFilesController.prototype, "link", null);
+], FinanceFilesBase.prototype, "link", null);
 __decorate([
     (0, common_1.Delete)(':id/attachments/:attId'),
     __param(0, (0, common_1.Param)('id')),
@@ -323,7 +568,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
-], FinanceInvoiceFilesController.prototype, "remove", null);
+], FinanceFilesBase.prototype, "remove", null);
 __decorate([
     (0, common_1.Get)(':id/attachments/:attId/content'),
     __param(0, (0, common_1.Param)('id')),
@@ -333,14 +578,47 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String, String, Object]),
     __metadata("design:returntype", Promise)
-], FinanceInvoiceFilesController.prototype, "content", null);
+], FinanceFilesBase.prototype, "content", null);
+let FinanceInvoiceFilesController = class FinanceInvoiceFilesController extends FinanceFilesBase {
+    constructor(invoices, fin, auth, attachments, access) {
+        super(fin, auth, attachments, access);
+        this.invoices = invoices;
+        this.right = 'prepareInvoice';
+    }
+    owner() { return this.invoices; }
+};
+exports.FinanceInvoiceFilesController = FinanceInvoiceFilesController;
 exports.FinanceInvoiceFilesController = FinanceInvoiceFilesController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('finance-invoices'),
-    __metadata("design:paramtypes", [invoices_service_1.InvoicesService,
-        financials_service_1.FinancialsService,
-        auth_service_1.AuthService,
-        attachments_service_1.AttachmentsService,
-        manpower_access_service_1.ManpowerAccess])
+    __metadata("design:paramtypes", [invoices_service_1.InvoicesService, financials_service_1.FinancialsService, auth_service_1.AuthService, attachments_service_1.AttachmentsService, manpower_access_service_1.ManpowerAccess])
 ], FinanceInvoiceFilesController);
+let FinanceChangeOrderFilesController = class FinanceChangeOrderFilesController extends FinanceFilesBase {
+    constructor(cos, fin, auth, attachments, access) {
+        super(fin, auth, attachments, access);
+        this.cos = cos;
+        this.right = 'editChangeOrders';
+    }
+    owner() { return this.cos; }
+};
+exports.FinanceChangeOrderFilesController = FinanceChangeOrderFilesController;
+exports.FinanceChangeOrderFilesController = FinanceChangeOrderFilesController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Controller)('finance-change-orders'),
+    __metadata("design:paramtypes", [change_orders_service_1.ChangeOrdersService, financials_service_1.FinancialsService, auth_service_1.AuthService, attachments_service_1.AttachmentsService, manpower_access_service_1.ManpowerAccess])
+], FinanceChangeOrderFilesController);
+let FinanceReimbursableFilesController = class FinanceReimbursableFilesController extends FinanceFilesBase {
+    constructor(reimbs, fin, auth, attachments, access) {
+        super(fin, auth, attachments, access);
+        this.reimbs = reimbs;
+        this.right = 'submitReimbursables';
+    }
+    owner() { return this.reimbs; }
+};
+exports.FinanceReimbursableFilesController = FinanceReimbursableFilesController;
+exports.FinanceReimbursableFilesController = FinanceReimbursableFilesController = __decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Controller)('finance-reimbursables'),
+    __metadata("design:paramtypes", [reimbursables_service_1.ReimbursablesService, financials_service_1.FinancialsService, auth_service_1.AuthService, attachments_service_1.AttachmentsService, manpower_access_service_1.ManpowerAccess])
+], FinanceReimbursableFilesController);
 //# sourceMappingURL=finance.controller.js.map

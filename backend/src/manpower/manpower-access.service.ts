@@ -31,6 +31,14 @@ export class ManpowerAccess {
     return !!role?.permissions?.[moduleKey]?.[action];
   }
 
+  /** The caller's whole permission map ('all' for administrators), for checks that need several keys at once. */
+  async permissionsOf(actor: Actor): Promise<Record<string, { view?: boolean; manage?: boolean }> | 'all' | null> {
+    if (!actor.roleKey) return null;
+    if (actor.roleKey === 'admin') return 'all';
+    const role = await this.roles.findOneBy({ key: actor.roleKey });
+    return (role?.permissions as any) || null;
+  }
+
   async require(actor: Actor, moduleKey: string, what: string) {
     if (!(await this.can(actor, moduleKey))) {
       throw new ForbiddenException(`Your role doesn't allow you to ${what}.`);

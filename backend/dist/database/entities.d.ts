@@ -990,6 +990,7 @@ export declare class ProjectFinancialEntity extends FinanceStamped {
     contractLockedAt: string;
     reportedProgress: number;
     approvedProgress: number;
+    reimbursableMarkupPct: number;
 }
 declare abstract class ItemFinancialBase extends FinanceStamped {
     projectId: number;
@@ -1068,6 +1069,11 @@ export declare class ProjectInvoiceEntity extends FinanceStamped {
     voidedById: string;
     voidedByName: string;
     voidReason: string;
+    creditForInvoiceId: string;
+    creditType: string;
+    creditReason: string;
+    approvalRequestedAt: string;
+    approvalRequestedBy: string;
 }
 export declare class ProjectInvoiceLineEntity {
     id: string;
@@ -1094,6 +1100,9 @@ export declare class ProjectInvoiceLineEntity {
     taxable: boolean;
     taxPct: number;
     taxAmount: number;
+    reimbursableId: string;
+    retentionReleaseId: string;
+    creditsLineId: string;
 }
 export declare class FinanceSequenceEntity {
     id: string;
@@ -1127,6 +1136,109 @@ export declare class FinanceActivityEntity {
         to: unknown;
     }> | null;
     reason: string;
+    byName: string;
+    byId: string;
+    at: string;
+}
+export declare class ChangeOrderEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    number: string;
+    title: string;
+    description: string;
+    reason: string;
+    requestedBy: string;
+    status: string;
+    scheduleImpactDays: number;
+    amount: number | null;
+    dateRequested: string;
+    notes: string;
+    attachments: TaskAttachment[];
+    submittedAt: string;
+    submittedBy: string;
+    internalApprovedAt: string;
+    internalApprovedBy: string;
+    clientSigner: string;
+    clientApprovedDate: string;
+    clientReference: string;
+    approvedAt: string;
+    approvedBy: string;
+    rejectedAt: string;
+    rejectedBy: string;
+    cancelledAt: string;
+    cancelledBy: string;
+    closedReason: string;
+}
+export declare class ChangeOrderItemEntity {
+    id: string;
+    changeOrderId: string;
+    projectId: number;
+    lineOrder: number;
+    description: string;
+    targetType: string;
+    phaseId: string;
+    taskId: string;
+    newName: string;
+    amount: number;
+    cost: number | null;
+    quantity: number | null;
+    unit: string;
+    rate: number | null;
+    csiCodeId: string;
+    createdAt: string;
+}
+export declare class ReimbursableEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    number: string;
+    date: string;
+    description: string;
+    category: string;
+    vendor: string;
+    cost: number;
+    markupPct: number;
+    billable: boolean;
+    taxable: boolean;
+    phaseId: string;
+    csiCodeId: string;
+    status: string;
+    submittedBy: string;
+    approvedAt: string;
+    approvedBy: string;
+    rejectedAt: string;
+    rejectedBy: string;
+    rejectedReason: string;
+    invoiceId: string;
+    notes: string;
+    attachments: TaskAttachment[];
+}
+export declare class RetentionReleaseEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    number: string;
+    scope: string;
+    targetId: string;
+    amount: number;
+    reason: string;
+    notes: string;
+    status: string;
+    requestedBy: string;
+    approvedAt: string;
+    approvedBy: string;
+    rejectedAt: string;
+    rejectedBy: string;
+    closedReason: string;
+    invoiceId: string;
+}
+export declare class FinancialApprovalEntity {
+    id: string;
+    projectId: number;
+    entityType: string;
+    entityId: string;
+    decision: string;
+    comment: string;
+    signer: string;
+    amount: number | null;
     byName: string;
     byId: string;
     at: string;

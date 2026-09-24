@@ -300,6 +300,27 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
                 </div>
               )}
 
+              {selected.key !== 'admin' && (
+                <div style={{ border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, overflow: 'hidden', marginTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: '#F6F1E6', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93' }}>
+                    <span style={{ flex: 1 }}>Financial actions</span><span style={{ width: 66, textAlign: 'center' }}>Allowed</span>
+                  </div>
+                  <div style={{ padding: '6px 12px', fontSize: 11.5, color: '#7E9B93', background: '#FBF8F2' }}>
+                    Finer control inside Project Finance. Until one is set, it follows Financial → Project “Manage”.
+                  </div>
+                  {FIN_ACTIONS.map(([key, name, hint]) => {
+                    const own = selected.permissions?.[key];
+                    const on = own ? !!own.manage : !!selected.permissions?.fin_project?.manage;
+                    return (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.04)' }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12' }}>{name}<span style={{ color: '#7E9B93', fontSize: 11.5 }}> — {hint}{own ? '' : ' (inherited)'}</span></span>
+                        <span style={{ width: 66, textAlign: 'center' }}><input type="checkbox" disabled={readOnly} checked={on} onChange={(e) => setPerm(key, 'manage', e.target.checked)} /></span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {!readOnly && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                   <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>{saving ? 'Saving…' : 'Save Role'}</div>
@@ -313,6 +334,17 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
     </div>
   );
 }
+
+/** Granular finance permissions; stored in the role's permission map like modules (manage = allowed). */
+const FIN_ACTIONS: [string, string, string][] = [
+  ['finx_prepare_invoice', 'Prepare invoices', 'draft, edit and send for approval'],
+  ['finx_issue_invoice', 'Issue invoices', 'issue, void, credit notes and write-offs'],
+  ['finx_record_payment', 'Record payments', 'record and void client payments'],
+  ['finx_approve_progress', 'Approve progress', 'approve reported progress for billing'],
+  ['finx_approve_co', 'Approve change orders', 'internal approval and client sign-off'],
+  ['finx_approve_reimb', 'Approve reimbursables', 'approve or reject expenses'],
+  ['finx_release_retention', 'Release retention', 'approve retention releases'],
+];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

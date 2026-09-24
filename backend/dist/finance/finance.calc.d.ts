@@ -37,11 +37,13 @@ export interface IssuedInvoice {
     id: string;
     totalC: number;
     dueDate?: string | null;
+    creditForId?: string | null;
 }
 export interface PaymentFact {
     invoiceId: string;
     amountC: number;
 }
+export declare const isContractWork: (kind: string) => kind is "manual" | "progress";
 export interface LineMathInput {
     kind: string;
     amountC: number;
@@ -60,6 +62,8 @@ export interface InvoiceTotals {
     contractWorkC: number;
     retentionC: number;
     adjustmentC: number;
+    reimbursableC: number;
+    retentionReleaseC: number;
     taxC: number;
     totalC: number;
 }
@@ -93,6 +97,8 @@ export interface SovRow extends Figures {
     valueFromTasks?: boolean;
     billedAsWhole?: boolean;
     deleted?: boolean;
+    changeOrdersC?: number;
+    retentionReleasedC?: number;
     fin: Partial<ItemFin> & {
         version?: number;
     } | null;
@@ -124,6 +130,8 @@ export interface SovInput {
     invoices: IssuedInvoice[];
     payments: PaymentFact[];
     today: string;
+    coAdjust?: Map<string, number>;
+    pendingChangesC?: number;
 }
 export interface SovResult {
     summary: {
@@ -146,6 +154,11 @@ export interface SovResult {
         overdueC: number;
         overdueCount: number;
         lumpSum: boolean;
+        pendingChangesC: number;
+        retentionAccruedC: number;
+        retentionReleasedC: number;
+        reimbursablesBilledC: number;
+        creditsC: number;
     };
     groups: SovGroup[];
     lump: SovRow | null;

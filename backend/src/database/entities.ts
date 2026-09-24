@@ -1350,6 +1350,8 @@ export class ProjectFinancialEntity extends FinanceStamped {
   /** Progress of the project as one billable item, used when no phase or task carries a value (lump sum). */
   @Column({ ...PCT, default: 0 }) reportedProgress!: number;
   @Column({ ...PCT, default: 0 }) approvedProgress!: number;
+  /** Default markup on reimbursable expenses billed back to the client. */
+  @Column({ ...PCT, default: 0 }) reimbursableMarkupPct!: number;
 }
 
 /** Shared by milestone (phase) and task financials. */
@@ -1420,7 +1422,7 @@ export class ProjectInvoiceEntity extends FinanceStamped {
   /** INV-YYYY-0001, given only when the invoice is issued. */
   @Column({ nullable: true }) issuedNumber!: string;
   @Column('int') projectId!: number;
-  @Column({ default: 'progress' }) kind!: string; // progress | standard
+  @Column({ default: 'progress' }) kind!: string; // progress | standard | retention | credit
   @Column({ default: 'draft' }) status!: string; // draft | issued | void
   @Column() invoiceDate!: string;
   @Column({ nullable: true }) dueDate!: string;
@@ -1452,6 +1454,14 @@ export class ProjectInvoiceEntity extends FinanceStamped {
   @Column({ nullable: true }) voidedById!: string;
   @Column({ nullable: true }) voidedByName!: string;
   @Column({ ...TEXT, nullable: true }) voidReason!: string;
+  // --- Phase 2 ---
+  /** Credit notes: the invoice being credited, and whether it's a credit or a bad-debt write-off. */
+  @Column({ nullable: true }) creditForInvoiceId!: string;
+  @Column({ nullable: true }) creditType!: string; // credit | write_off
+  @Column({ ...TEXT, nullable: true }) creditReason!: string;
+  /** A draft sent for approval by someone who can prepare but not issue invoices. */
+  @Column({ nullable: true }) approvalRequestedAt!: string;
+  @Column({ nullable: true }) approvalRequestedBy!: string;
 }
 
 /** One line of an invoice. Everything that explains its amount is copied onto it when the invoice is issued. */
@@ -1464,7 +1474,7 @@ export class ProjectInvoiceLineEntity {
   @PrimaryColumn() id!: string;
   @Column() invoiceId!: string;
   @Column('int') projectId!: number;
-  @Column() kind!: string; // progress | manual | adjustment
+  @Column() kind!: string; // progress | manual | adjustment | reimbursable | retention_release
   /** progress lines: project (lump sum) | phase | task */
   @Column({ nullable: true }) targetType!: string;
   @Column({ nullable: true }) phaseId!: string;
@@ -1487,6 +1497,13 @@ export class ProjectInvoiceLineEntity {
   @Column({ default: false }) taxable!: boolean;
   @Column({ ...PCT, default: 0 }) taxPct!: number;
   @Column({ ...MONEY, default: 0 }) taxAmount!: number;
+  // --- Phase 2 ---
+  /** reimbursable lines: the expense billed. */
+  @Column({ nullable: true }) reimbursableId!: string;
+  /** retention_release lines: the approved release billed. */
+  @Column({ nullable: true }) retentionReleaseId!: string;
+  /** credit note lines: the original line being credited. */
+  @Column({ nullable: true }) creditsLineId!: string;
 }
 
 /** Numbering: one row per sequence and year, read under an update lock while an invoice is issued. */
@@ -1529,6 +1546,160 @@ export class FinanceActivityEntity {
   @Column() action!: string;
   @Column({ type: 'simple-json', nullable: true }) changes!: Record<string, { from: unknown; to: unknown }> | null;
   @Column({ ...TEXT, nullable: true }) reason!: string;
+  @Column({ nullable: true }) byName!: string;
+  @Column({ nullable: true }) byId!: string;
+  @Column() at!: string;
+}
+
+// ------------------------------------------------------------------ financials, phase 2
+
+/**
+ * A change to the contract: priced, reviewed internally, sent to the client and
+ * approved (or not). Only approved change orders move the revised contract and
+ * the values of the items they touch.
+ */
+@Entity('change_orders')
+@Index('IX_change_orders_project', ['projectId'])
+@Index('UQ_change_orders_number', ['projectId', 'number'], { unique: true })
+export class ChangeOrderEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** CO-001, per project, given when the change order is created. */
+  @Column() number!: string;
+  @Column() title!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  /** client_request | design_change | unforeseen | scope_addition | scope_reduction | allowance | code_requirement | other */
+  @Column({ default: 'client_request' }) reason!: string;
+  @Column({ nullable: true }) requestedBy!: string;
+  /** draft | internal_review | submitted | approved | rejected | cancelled */
+  @Column({ default: 'draft' }) status!: string;
+  @Column({ type: 'int', default: 0 }) scheduleImpactDays!: number;
+  /** Frozen at approval; open change orders are summed live from their items. */
+  @Column({ ...MONEY, nullable: true }) amount!: number | null;
+  @Column({ nullable: true }) dateRequested!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+  @Column({ nullable: true }) submittedAt!: string;
+  @Column({ nullable: true }) submittedBy!: string;
+  @Column({ nullable: true }) internalApprovedAt!: string;
+  @Column({ nullable: true }) internalApprovedBy!: string;
+  /** Who signed for the client, when, and their reference. */
+  @Column({ nullable: true }) clientSigner!: string;
+  @Column({ nullable: true }) clientApprovedDate!: string;
+  @Column({ nullable: true }) clientReference!: string;
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) approvedBy!: string;
+  @Column({ nullable: true }) rejectedAt!: string;
+  @Column({ nullable: true }) rejectedBy!: string;
+  @Column({ nullable: true }) cancelledAt!: string;
+  @Column({ nullable: true }) cancelledBy!: string;
+  @Column({ ...TEXT, nullable: true }) closedReason!: string;
+}
+
+/** One priced change inside a change order, and the schedule-of-values item it changes. */
+@Entity('change_order_items')
+@Index('IX_change_order_items_co', ['changeOrderId'])
+@Index('IX_change_order_items_project', ['projectId'])
+export class ChangeOrderItemEntity {
+  @PrimaryColumn() id!: string;
+  @Column() changeOrderId!: string;
+  @Column('int') projectId!: number;
+  @Column('int') lineOrder!: number;
+  @Column({ ...TEXT }) description!: string;
+  /** phase | task | new_phase | new_task | none (raises the contract; allocated to items later) */
+  @Column({ default: 'none' }) targetType!: string;
+  /** The existing -- or, once approved, the newly created -- phase / task. new_task keeps its milestone in phaseId. */
+  @Column({ nullable: true }) phaseId!: string;
+  @Column({ nullable: true }) taskId!: string;
+  /** Name of the milestone / task created on approval. */
+  @Column({ nullable: true }) newName!: string;
+  /** Positive adds to the contract, negative deducts. */
+  @Column({ ...MONEY }) amount!: number;
+  @Column({ ...MONEY, nullable: true }) cost!: number | null;
+  @Column({ type: 'decimal', precision: 18, scale: 4, nullable: true, transformer: numberFrom }) quantity!: number | null;
+  @Column({ nullable: true }) unit!: string;
+  @Column({ ...MONEY, nullable: true }) rate!: number | null;
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column() createdAt!: string;
+}
+
+/** Costs incurred for the client and billed back to them, usually with a markup. Outside the contract. */
+@Entity('reimbursables')
+@Index('IX_reimbursables_project', ['projectId'])
+@Index('UQ_reimbursables_number', ['projectId', 'number'], { unique: true })
+export class ReimbursableEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() number!: string; // RE-001
+  @Column() date!: string;
+  @Column({ ...TEXT }) description!: string;
+  /** travel | printing | permits_fees | materials | consultants | shipping | equipment | other */
+  @Column({ default: 'other' }) category!: string;
+  @Column({ nullable: true }) vendor!: string;
+  @Column({ ...MONEY }) cost!: number;
+  @Column({ ...PCT, default: 0 }) markupPct!: number;
+  /** False: tracked as a project cost only, never billed. */
+  @Column({ default: true }) billable!: boolean;
+  @Column({ default: false }) taxable!: boolean;
+  @Column({ nullable: true }) phaseId!: string;
+  @Column({ nullable: true }) csiCodeId!: string;
+  /** submitted | approved | rejected | billed */
+  @Column({ default: 'submitted' }) status!: string;
+  @Column({ nullable: true }) submittedBy!: string;
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) approvedBy!: string;
+  @Column({ nullable: true }) rejectedAt!: string;
+  @Column({ nullable: true }) rejectedBy!: string;
+  @Column({ ...TEXT, nullable: true }) rejectedReason!: string;
+  /** The issued invoice it was billed on. */
+  @Column({ nullable: true }) invoiceId!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+}
+
+/** A request to pay back retention held -- for the whole project, a milestone or a task. */
+@Entity('retention_releases')
+@Index('IX_retention_releases_project', ['projectId'])
+@Index('UQ_retention_releases_number', ['projectId', 'number'], { unique: true })
+export class RetentionReleaseEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() number!: string; // RR-001
+  /** project | phase | task */
+  @Column({ default: 'project' }) scope!: string;
+  @Column({ nullable: true }) targetId!: string;
+  @Column({ ...MONEY }) amount!: number;
+  /** substantial_completion | final_completion | milestone_accepted | partial | other */
+  @Column({ default: 'substantial_completion' }) reason!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  /** requested | approved | rejected | billed | cancelled */
+  @Column({ default: 'requested' }) status!: string;
+  @Column({ nullable: true }) requestedBy!: string;
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) approvedBy!: string;
+  @Column({ nullable: true }) rejectedAt!: string;
+  @Column({ nullable: true }) rejectedBy!: string;
+  @Column({ ...TEXT, nullable: true }) closedReason!: string;
+  /** The invoice (draft or issued) billing the release. */
+  @Column({ nullable: true }) invoiceId!: string;
+}
+
+/** Every decision on a financial record: who approved, rejected, submitted or signed, when and why. */
+@Entity('financial_approvals')
+@Index('IX_financial_approvals_project', ['projectId'])
+@Index('IX_financial_approvals_entity', ['entityId'])
+export class FinancialApprovalEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** change_order | reimbursable | retention_release | invoice | credit_note | progress */
+  @Column() entityType!: string;
+  @Column() entityId!: string;
+  /** submitted | internal_approved | client_approved | approved | rejected | cancelled | returned | issued | requested */
+  @Column() decision!: string;
+  @Column({ ...TEXT, nullable: true }) comment!: string;
+  /** For client approvals: who signed. */
+  @Column({ nullable: true }) signer!: string;
+  @Column({ ...MONEY, nullable: true }) amount!: number | null;
   @Column({ nullable: true }) byName!: string;
   @Column({ nullable: true }) byId!: string;
   @Column() at!: string;

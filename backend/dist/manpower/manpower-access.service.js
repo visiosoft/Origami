@@ -35,6 +35,14 @@ let ManpowerAccess = class ManpowerAccess {
         const role = await this.roles.findOneBy({ key: actor.roleKey });
         return !!role?.permissions?.[moduleKey]?.[action];
     }
+    async permissionsOf(actor) {
+        if (!actor.roleKey)
+            return null;
+        if (actor.roleKey === 'admin')
+            return 'all';
+        const role = await this.roles.findOneBy({ key: actor.roleKey });
+        return role?.permissions || null;
+    }
     async require(actor, moduleKey, what) {
         if (!(await this.can(actor, moduleKey))) {
             throw new common_1.ForbiddenException(`Your role doesn't allow you to ${what}.`);

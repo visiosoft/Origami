@@ -7,8 +7,11 @@ import {
   type Group, type Invoice, type Overview, type Payment, type Row, type Settings,
 } from './financeUi';
 import { InvoiceDrawer } from './InvoiceDrawer';
+import { ChangeOrderList } from './ChangeOrders';
+import { ReimbursableList } from './Reimbursables';
+import { RetentionPanel } from './Retention';
 
-type View = 'sov' | 'invoices' | 'payments' | 'activity';
+type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'invoices' | 'payments' | 'activity';
 type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
 
 /**
@@ -37,12 +40,14 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
   useEffect(() => { load(); loadInvoices(); }, [projectId]);
   // Someone else changed a record this screen was showing (a 409): reload rather than overwrite.
   useEffect(() => { const f = () => { load(); loadInvoices(); }; window.addEventListener(STALE_EVENT, f); return () => window.removeEventListener(STALE_EVENT, f); }, [projectId]);
-  const refresh = async () => { await Promise.all([load(), loadInvoices()]); };
+  // Bumped whenever an invoice changes, so panels that depend on invoices (retention, reimbursables) reload.
+  const [tick, setTick] = useState(0);
+  const refresh = async () => { setTick((t) => t + 1); await Promise.all([load(), loadInvoices()]); };
 
-  const newInvoice = async (billReady: boolean) => {
+  const newInvoice = async (billReady: boolean, reimbursableIds?: string[]) => {
     setBusy(true);
     try {
-      const inv = await api.finance.createInvoice(projectId, billReady ? { billReady: true } : { kind: 'standard' }) as Invoice;
+      const inv = await api.finance.createInvoice(projectId, reimbursableIds ? { reimbursableIds } : billReady ? { billReady: true } : { kind: 'standard' }) as Invoice;
       await loadInvoices();
       setOpenInvoice(inv.id);
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not start the invoice')); }
@@ -71,7 +76,7 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
           {data.settings.contractLockedAt ? ' · Contract locked (invoiced)' : ''}
         </div>
         <div onClick={() => setSettingsOpen(true)} style={btn()}>Settings</div>
-        {r.manage && <div onClick={busy ? undefined : () => newInvoice(true)} style={btn(s.billableNow > 0, busy || s.billableNow <= 0)} title={s.billableNow > 0 ? '' : 'Nothing earned is waiting to be billed'}>
+        {r.prepareInvoice && <div onClick={busy ? undefined : () => newInvoice(true)} style={btn(s.billableNow > 0, busy || s.billableNow <= 0)} title={s.billableNow > 0 ? '' : 'Nothing earned is waiting to be billed'}>
           Bill ready work{s.billableNow > 0 ? ` · ${usd0(s.billableNow)}` : ''}
         </div>}
       </div>
@@ -80,7 +85,10 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
 
       {/* view switch */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid ' + LINE }}>
-        {([['sov', 'Schedule of values'], ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`], ['payments', 'Payments'], ['activity', 'Activity']] as [View, string][]).map(([k, l]) => (
+        {([
+          ['sov', 'Schedule of values'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`],
+          ['payments', 'Payments'], ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'], ['activity', 'Activity'],
+        ] as [View, string][]).map(([k, l]) => (
           <div key={k} onClick={() => setView(k)} style={{ padding: '9px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: view === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (view === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>
         ))}
       </div>
@@ -92,8 +100,11 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
             catch (e: any) { failed(toast, e); }
           }} />
       )}
+      {view === 'changes' && <ChangeOrderList projectId={projectId} overview={data} rights={r} onChanged={load} />}
+      {view === 'reimbursables' && <ReimbursableList key={tick} projectId={projectId} overview={data} rights={r} onChanged={load} onBill={(ids) => newInvoice(false, ids)} />}
+      {view === 'retention' && <RetentionPanel key={tick} projectId={projectId} overview={data} rights={r} onOpenInvoice={setOpenInvoice} onChanged={() => Promise.all([load(), loadInvoices()])} />}
       {view === 'invoices' && (
-        <InvoiceList invoices={invoices} canManage={r.manage} busy={busy} billableNow={s.billableNow} onOpen={setOpenInvoice} onNew={newInvoice} />
+        <InvoiceList invoices={invoices} canManage={r.prepareInvoice} busy={busy} billableNow={s.billableNow} onOpen={setOpenInvoice} onNew={newInvoice} />
       )}
       {view === 'payments' && <PaymentList projectId={projectId} onOpenInvoice={setOpenInvoice} />}
       {view === 'activity' && <ActivityList projectId={projectId} />}
@@ -125,14 +136,15 @@ function SummaryCards({ s }: { s: Overview['sov']['summary'] }) {
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
         <Card label="Original contract" value={usd0(s.originalContract)} />
-        <Card label="Approved variations" value={usd0(s.approvedChanges)} sub="Change orders arrive in phase 2" />
+        <Card label="Approved changes" value={usd0(s.approvedChanges)} sub={s.pendingChanges ? `${usd0(s.pendingChanges)} pending approval` : 'Approved change orders'} tone={s.approvedChanges < 0 ? DANGER : undefined} />
         <Card label="Revised contract" value={usd0(s.revisedContract)} />
         <Card label="Earned value" value={usd0(s.ev)} sub={of(s.ev)} />
-        <Card label="Invoiced (contract work)" value={usd0(s.contractWorkInvoiced)} sub={`${usd0(s.invoiceTotals)} incl. tax`} />
+        <Card label="Invoiced (contract work)" value={usd0(s.contractWorkInvoiced)} sub={`${usd0(s.invoiceTotals)} billed after retention & tax`} />
         <Card label="Paid" value={usd0(s.paid)} />
         <Card label="Outstanding" value={usd0(s.arOutstanding)} sub={s.overdueCount ? `${usd0(s.overdue)} overdue (${s.overdueCount})` : undefined} tone={s.overdueCount ? DANGER : undefined} />
         <Card label={s.unbilledEarned < 0 ? 'Over-billed' : 'Unbilled earned'} value={usd0(Math.abs(s.unbilledEarned))} tone={s.unbilledEarned < 0 ? DANGER : s.unbilledEarned > 0 ? '#8A6D12' : undefined} sub={s.billableNow > 0 ? `${usd0(s.billableNow)} ready to invoice` : undefined} />
-        <Card label="Retention held" value={usd0(s.retentionHeld)} />
+        <Card label="Retention held" value={usd0(s.retentionHeld)} sub={s.retentionReleased ? `${usd0(s.retentionReleased)} released` : undefined} />
+        {(s.reimbursablesBilled !== 0 || s.credits !== 0) && <Card label="Outside the contract" value={usd0(s.reimbursablesBilled)} sub={`Reimbursables billed${s.credits ? ` · credits ${usd0(s.credits)}` : ''}`} />}
         <Card label="Remaining contract" value={usd0(s.remainingContract)} sub={of(s.remainingContract)} />
       </div>
       {!s.lumpSum && (
@@ -281,6 +293,7 @@ function SovRow({ row, depth, data, expanded, onToggle, onChanged, onItem, onPro
           {row.name}
         </span>
         {row.valueFromTasks && <span style={{ fontSize: 10.5, color: MUTED }}>from tasks</span>}
+        {!!row.changeOrders && <span title="Approved change orders included in the value" style={{ fontSize: 10.5, color: row.changeOrders > 0 ? '#1E6B36' : DANGER, whiteSpace: 'nowrap' }}>CO {row.changeOrders > 0 ? '+' : '−'}{usd0(Math.abs(row.changeOrders))}</span>}
       </span>
       <span onClick={progressEditable && (data.rights.reportProgress || data.rights.approveProgress) ? () => onProgress(row) : undefined} style={{ cursor: progressEditable ? 'pointer' : 'default', display: 'grid', gap: 3 }} title={`Physical progress ${pct(row.physicalProgress)}`}>
         <span style={{ fontSize: 11.5, color: INK }}>
@@ -290,8 +303,11 @@ function SovRow({ row, depth, data, expanded, onToggle, onChanged, onItem, onPro
       </span>
       <span style={{ textAlign: 'right' }}>
         {editableValue
-          ? <input type="number" min={0} value={val} onChange={(e) => setVal(e.target.value)} onBlur={saveValue} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-            placeholder="—" style={{ ...input, padding: '4px 6px', fontSize: 12.5, textAlign: 'right' }} />
+          ? <span style={{ display: 'grid', gap: 2 }}>
+            <input type="number" min={0} value={val} onChange={(e) => setVal(e.target.value)} onBlur={saveValue} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              placeholder="—" title={row.changeOrders ? 'Base value, before change orders' : undefined} style={{ ...input, padding: '4px 6px', fontSize: 12.5, textAlign: 'right' }} />
+            {!!row.changeOrders && <span style={{ fontSize: 10.5, color: MUTED }}>= {usd0(row.value)} with COs</span>}
+          </span>
           : <span style={{ fontSize: 12.5, fontWeight: 600, fontStyle: row.valueFromTasks ? 'italic' : 'normal' }}>{row.value != null ? usd0(row.value) : '—'}</span>}
       </span>
       {num(row.ev)}
@@ -317,11 +333,12 @@ function SettingsForm({ data, f, set }: { data: Overview; f: Record<string, any>
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
       <div><Label text="Original contract value ($)" /><input type="number" min={0} disabled={locked} value={f.originalContractValue} onChange={(e) => set('originalContractValue', e.target.value)} style={input} />
-        {locked && <div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>Locked since the first invoice -- changes come through change orders.</div>}</div>
+        {locked && <div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>Locked since the first invoice — changes come through change orders.</div>}</div>
       <div><Label text="Original budget ($, optional)" /><input type="number" min={0} value={f.originalBudget} onChange={(e) => set('originalBudget', e.target.value)} style={input} /></div>
       <div><Label text="Retention %" /><input type="number" min={0} max={100} step={0.5} value={f.retentionPct} onChange={(e) => set('retentionPct', e.target.value)} style={input} /></div>
       <div><Label text="Tax % (on invoices)" /><input type="number" min={0} max={100} step={0.25} value={f.taxPct} onChange={(e) => set('taxPct', e.target.value)} style={input} /></div>
       <div><Label text="Payment terms (days)" /><input type="number" min={0} max={365} value={f.paymentTermsDays} onChange={(e) => set('paymentTermsDays', e.target.value)} style={input} /></div>
+      <div><Label text="Reimbursable markup %" /><input type="number" min={0} max={100} step={0.5} value={f.reimbursableMarkupPct} onChange={(e) => set('reimbursableMarkupPct', e.target.value)} style={input} /></div>
       <div><Label text="Contract number" /><input value={f.contractNumber} onChange={(e) => set('contractNumber', e.target.value)} style={input} /></div>
       <div><Label text="Client PO number" /><input value={f.poNumber} onChange={(e) => set('poNumber', e.target.value)} style={input} /></div>
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, color: INK, alignSelf: 'end', paddingBottom: 8 }}>
@@ -337,6 +354,7 @@ function SettingsForm({ data, f, set }: { data: Overview; f: Record<string, any>
 const formFrom = (data: Overview, s: Settings) => ({
   originalContractValue: s.exists ? s.originalContractValue : data.suggestedContract || '',
   originalBudget: s.originalBudget ?? '', retentionPct: s.exists ? s.retentionPct : 10, taxPct: s.taxPct ?? 0, paymentTermsDays: s.paymentTermsDays ?? 30,
+  reimbursableMarkupPct: s.reimbursableMarkupPct ?? 0,
   requireProgressApproval: !!s.requireProgressApproval, contractNumber: s.contractNumber || '', poNumber: s.poNumber || '',
   billToName: s.billToName || data.billToDefaults?.name || '', billToEmail: s.billToEmail || data.billToDefaults?.email || '', billToAddress: s.billToAddress || data.billToDefaults?.address || '',
 });
@@ -344,6 +362,7 @@ const payloadFrom = (f: Record<string, any>, locked: boolean) => ({
   ...(locked ? {} : { originalContractValue: Number(f.originalContractValue) || 0 }),
   originalBudget: f.originalBudget === '' ? null : Number(f.originalBudget), retentionPct: Number(f.retentionPct) || 0, taxPct: Number(f.taxPct) || 0,
   paymentTermsDays: Number(f.paymentTermsDays) || 0, requireProgressApproval: !!f.requireProgressApproval, contractNumber: f.contractNumber, poNumber: f.poNumber,
+  reimbursableMarkupPct: Number(f.reimbursableMarkupPct) || 0,
   billToName: f.billToName, billToEmail: f.billToEmail, billToAddress: f.billToAddress,
 });
 
@@ -560,7 +579,11 @@ function InvoiceList({ invoices, canManage, busy, billableNow, onOpen, onNew }: 
                 <b style={{ fontSize: 12.5, color: ACCENT }}>{i.issuedNumber || 'Draft'}</b>
                 <span style={{ fontSize: 12.5 }}>{fmtDate(i.invoiceDate)}</span>
                 <span style={{ fontSize: 12.5, color: i.overdue ? DANGER : undefined }}>{fmtDate(i.dueDate)}</span>
-                <span style={{ fontSize: 12.5, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{i.description || (i.kind === 'progress' ? 'Progress claim' : 'Invoice')}</span>
+                <span style={{ fontSize: 12.5, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {i.kind === 'credit' ? <b style={{ color: '#3C5C8A' }}>{i.creditType === 'write_off' ? 'Write-off · ' : 'Credit · '}</b> : i.kind === 'retention' ? <b style={{ color: '#3C5C8A' }}>Retention · </b> : null}
+                  {i.approvalRequestedAt && i.status === 'draft' ? <b style={{ color: '#8A6D12' }}>Awaiting approval · </b> : null}
+                  {i.description || (i.kind === 'progress' ? 'Progress claim' : 'Invoice')}
+                </span>
                 <span style={{ textAlign: 'right', fontSize: 12.5 }}>{usd(i.contractWork)}</span>
                 <b style={{ textAlign: 'right', fontSize: 12.5 }}>{usd(i.total)}</b>
                 <span style={{ textAlign: 'right', fontSize: 12.5 }}>{i.status === 'issued' ? usd(i.paid) : '—'}</span>
@@ -599,7 +622,17 @@ const ACTION_LABEL: Record<string, string> = {
   progress_reported: 'Reported progress', progress_approved: 'Approved progress', milestone_added: 'Added a milestone', invoice_drafted: 'Started an invoice',
   invoice_draft_changed: 'Edited a draft invoice', invoice_draft_deleted: 'Deleted a draft invoice', invoice_issued: 'Issued an invoice', invoice_voided: 'Voided an invoice',
   payment_recorded: 'Recorded a payment', payment_voided: 'Voided a payment',
+  invoice_approval_requested: 'Sent an invoice for approval', credit_drafted: 'Started a credit note', write_off_drafted: 'Started a write-off',
+  credit_issued: 'Issued a credit note', write_off_issued: 'Wrote off a balance', credit_voided: 'Voided a credit note',
+  co_created: 'Raised a change order', co_changed: 'Edited a change order', co_deleted: 'Deleted a change order', co_submitted: 'Submitted a change order',
+  co_sent_to_client: 'Approved a change order internally', co_returned: 'Returned a change order', co_approved: 'Recorded client approval of a change order',
+  co_rejected: 'Rejected a change order', co_cancelled: 'Cancelled a change order', co_reopened: 'Reopened a change order',
+  reimbursable_submitted: 'Submitted a reimbursable', reimbursable_changed: 'Edited a reimbursable', reimbursable_approved: 'Approved a reimbursable',
+  reimbursable_rejected: 'Rejected a reimbursable', reimbursable_deleted: 'Deleted a reimbursable',
+  retention_release_requested: 'Requested a retention release', retention_release_approved: 'Approved a retention release',
+  retention_release_rejected: 'Rejected a retention release', retention_release_cancelled: 'Cancelled a retention release',
 };
+export { ACTION_LABEL };
 
 function ActivityList({ projectId }: { projectId: number }) {
   const [rows, setRows] = useState<any[] | null>(null);

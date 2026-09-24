@@ -3,20 +3,24 @@ import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 import { AddLinkDto } from '../tasks/dto/update-task.dto';
 import { ManpowerAccess } from '../manpower/manpower-access.service';
-import { FinancialsService } from './financials.service';
+import type { TaskAttachment } from '../database/task.types';
+import { FinancialsService, type FinRights } from './financials.service';
 import { InvoicesService } from './invoices.service';
+import { ChangeOrdersService } from './change-orders.service';
+import { ReimbursablesService } from './reimbursables.service';
+import { RetentionService } from './retention.service';
+import { FinanceHubService } from './finance-hub.service';
 export declare class FinanceController {
     private readonly fin;
     private readonly invoices;
+    private readonly cos;
+    private readonly reimbs;
+    private readonly retention;
+    private readonly hub;
     private readonly access;
-    constructor(fin: FinancialsService, invoices: InvoicesService, access: ManpowerAccess);
+    constructor(fin: FinancialsService, invoices: InvoicesService, cos: ChangeOrdersService, reimbs: ReimbursablesService, retention: RetentionService, hub: FinanceHubService, access: ManpowerAccess);
     private actor;
-    rights(a?: string): Promise<{
-        view: boolean;
-        manage: boolean;
-        reportProgress: boolean;
-        approveProgress: boolean;
-    }>;
+    rights(a?: string): Promise<FinRights>;
     brand(a?: string): Promise<{
         companyName: string;
         tagline: string;
@@ -28,6 +32,58 @@ export declare class FinanceController {
         website: string;
         footerNote: string;
     }>;
+    portfolio(a?: string): Promise<any[]>;
+    pending(a?: string): Promise<import("./finance-hub.service").Pending[]>;
+    audit(q: any, a?: string): Promise<{
+        projectName: string;
+        id: string;
+        projectId: number;
+        entityType: string;
+        entityId: string;
+        action: string;
+        changes: Record<string, {
+            from: unknown;
+            to: unknown;
+        }> | null;
+        reason: string;
+        byName: string;
+        byId: string;
+        at: string;
+    }[]>;
+    allCos(a?: string): Promise<any[]>;
+    allReimbs(a?: string): Promise<{
+        projectName: string;
+        attachments: TaskAttachment[];
+        markup: number;
+        billAmount: number;
+        id: string;
+        projectId: number;
+        number: string;
+        date: string;
+        description: string;
+        category: string;
+        vendor: string;
+        cost: number;
+        markupPct: number;
+        billable: boolean;
+        taxable: boolean;
+        phaseId: string;
+        csiCodeId: string;
+        status: string;
+        submittedBy: string;
+        approvedAt: string;
+        approvedBy: string;
+        rejectedAt: string;
+        rejectedBy: string;
+        rejectedReason: string;
+        invoiceId: string;
+        notes: string;
+        createdAt: string;
+        createdBy: string;
+        updatedAt: string;
+        updatedBy: string;
+        version: number;
+    }[]>;
     overview(id: string, a?: string): Promise<{
         project: {
             id: number;
@@ -55,6 +111,7 @@ export declare class FinanceController {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -69,12 +126,7 @@ export declare class FinanceController {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -107,6 +159,7 @@ export declare class FinanceController {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -121,12 +174,7 @@ export declare class FinanceController {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -159,6 +207,7 @@ export declare class FinanceController {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -173,12 +222,7 @@ export declare class FinanceController {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -200,7 +244,7 @@ export declare class FinanceController {
         bankRef: string;
         txnRef: string;
         notes: string;
-        attachments: import("../database/task.types").TaskAttachment[];
+        attachments: TaskAttachment[];
         voidedAt: string;
         voidedByName: string;
         voidReason: string;
@@ -210,6 +254,75 @@ export declare class FinanceController {
         updatedBy: string;
         version: number;
     }[]>;
+    cosOf(id: string, a?: string): Promise<any[]>;
+    newCo(id: string, dto: any, a?: string): Promise<any>;
+    reimbsOf(id: string, a?: string): Promise<{
+        attachments: TaskAttachment[];
+        markup: number;
+        billAmount: number;
+        id: string;
+        projectId: number;
+        number: string;
+        date: string;
+        description: string;
+        category: string;
+        vendor: string;
+        cost: number;
+        markupPct: number;
+        billable: boolean;
+        taxable: boolean;
+        phaseId: string;
+        csiCodeId: string;
+        status: string;
+        submittedBy: string;
+        approvedAt: string;
+        approvedBy: string;
+        rejectedAt: string;
+        rejectedBy: string;
+        rejectedReason: string;
+        invoiceId: string;
+        notes: string;
+        createdAt: string;
+        createdBy: string;
+        updatedAt: string;
+        updatedBy: string;
+        version: number;
+    }[]>;
+    newReimb(id: string, dto: any, a?: string): Promise<{
+        approvals: import("../database/entities").FinancialApprovalEntity[];
+        attachments: TaskAttachment[];
+        markup: number;
+        billAmount: number;
+        id: string;
+        projectId: number;
+        number: string;
+        date: string;
+        description: string;
+        category: string;
+        vendor: string;
+        cost: number;
+        markupPct: number;
+        billable: boolean;
+        taxable: boolean;
+        phaseId: string;
+        csiCodeId: string;
+        status: string;
+        submittedBy: string;
+        approvedAt: string;
+        approvedBy: string;
+        rejectedAt: string;
+        rejectedBy: string;
+        rejectedReason: string;
+        invoiceId: string;
+        notes: string;
+        createdAt: string;
+        createdBy: string;
+        updatedAt: string;
+        updatedBy: string;
+        version: number;
+    }>;
+    retentionOf(id: string, a?: string): Promise<any>;
+    requestRelease(id: string, dto: any, a?: string): Promise<any>;
     item(kind: string, id: string, dto: any, a?: string): Promise<{
         project: {
             id: number;
@@ -237,6 +350,7 @@ export declare class FinanceController {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -251,12 +365,7 @@ export declare class FinanceController {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -289,6 +398,7 @@ export declare class FinanceController {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -303,12 +413,7 @@ export declare class FinanceController {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -341,6 +446,7 @@ export declare class FinanceController {
             contractLockedAt: string;
             reportedProgress: number;
             approvedProgress: number;
+            reimbursableMarkupPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -355,12 +461,7 @@ export declare class FinanceController {
         suggestedContract: number;
         sov: any;
         drafts: number;
-        rights: {
-            view: boolean;
-            manage: boolean;
-            reportProgress: boolean;
-            approveProgress: boolean;
-        };
+        rights: FinRights;
         looseTasks: {
             id: string;
             title: string;
@@ -387,19 +488,161 @@ export declare class FinanceController {
     }>;
     issue(id: string, dto: any, a?: string): Promise<any>;
     void(id: string, dto: any, a?: string): Promise<any>;
+    requestApproval(id: string, dto: any, a?: string): Promise<any>;
+    returnDraft(id: string, dto: any, a?: string): Promise<any>;
+    credit(id: string, dto: any, a?: string): Promise<any>;
     pay(id: string, dto: any, a?: string): Promise<any>;
     voidPayment(id: string, dto: any, a?: string): Promise<any>;
+    co(id: string, a?: string): Promise<any>;
+    coImpact(id: string, a?: string): Promise<any>;
+    updateCo(id: string, dto: any, a?: string): Promise<any>;
+    removeCo(id: string, a?: string): Promise<{
+        id: string;
+        deleted: boolean;
+    }>;
+    actCo(id: string, action: string, dto: any, a?: string): Promise<any>;
+    reimb(id: string, a?: string): Promise<{
+        approvals: import("../database/entities").FinancialApprovalEntity[];
+        attachments: TaskAttachment[];
+        markup: number;
+        billAmount: number;
+        id: string;
+        projectId: number;
+        number: string;
+        date: string;
+        description: string;
+        category: string;
+        vendor: string;
+        cost: number;
+        markupPct: number;
+        billable: boolean;
+        taxable: boolean;
+        phaseId: string;
+        csiCodeId: string;
+        status: string;
+        submittedBy: string;
+        approvedAt: string;
+        approvedBy: string;
+        rejectedAt: string;
+        rejectedBy: string;
+        rejectedReason: string;
+        invoiceId: string;
+        notes: string;
+        createdAt: string;
+        createdBy: string;
+        updatedAt: string;
+        updatedBy: string;
+        version: number;
+    }>;
+    updateReimb(id: string, dto: any, a?: string): Promise<{
+        approvals: import("../database/entities").FinancialApprovalEntity[];
+        attachments: TaskAttachment[];
+        markup: number;
+        billAmount: number;
+        id: string;
+        projectId: number;
+        number: string;
+        date: string;
+        description: string;
+        category: string;
+        vendor: string;
+        cost: number;
+        markupPct: number;
+        billable: boolean;
+        taxable: boolean;
+        phaseId: string;
+        csiCodeId: string;
+        status: string;
+        submittedBy: string;
+        approvedAt: string;
+        approvedBy: string;
+        rejectedAt: string;
+        rejectedBy: string;
+        rejectedReason: string;
+        invoiceId: string;
+        notes: string;
+        createdAt: string;
+        createdBy: string;
+        updatedAt: string;
+        updatedBy: string;
+        version: number;
+    }>;
+    removeReimb(id: string, a?: string): Promise<{
+        id: string;
+        deleted: boolean;
+    }>;
+    decideReimb(id: string, dto: any, a?: string): Promise<{
+        approvals: import("../database/entities").FinancialApprovalEntity[];
+        attachments: TaskAttachment[];
+        markup: number;
+        billAmount: number;
+        id: string;
+        projectId: number;
+        number: string;
+        date: string;
+        description: string;
+        category: string;
+        vendor: string;
+        cost: number;
+        markupPct: number;
+        billable: boolean;
+        taxable: boolean;
+        phaseId: string;
+        csiCodeId: string;
+        status: string;
+        submittedBy: string;
+        approvedAt: string;
+        approvedBy: string;
+        rejectedAt: string;
+        rejectedBy: string;
+        rejectedReason: string;
+        invoiceId: string;
+        notes: string;
+        createdAt: string;
+        createdBy: string;
+        updatedAt: string;
+        updatedBy: string;
+        version: number;
+    }>;
+    decideRelease(id: string, dto: any, a?: string): Promise<any>;
+    billRelease(id: string, a?: string): Promise<any>;
 }
-export declare class FinanceInvoiceFilesController {
-    private readonly invoices;
-    private readonly fin;
-    private readonly auth;
-    private readonly attachments;
-    private readonly access;
-    constructor(invoices: InvoicesService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
+interface FileOwner {
+    addAttachments(id: string, files: any[], actor: any): Promise<TaskAttachment[]>;
+    addLink(id: string, name: string, url: string, actor: any): Promise<TaskAttachment[]>;
+    removeAttachment(id: string, attId: string): Promise<TaskAttachment[]>;
+    attachment(id: string, attId: string): Promise<TaskAttachment>;
+}
+declare abstract class FinanceFilesBase {
+    protected readonly fin: FinancialsService;
+    protected readonly auth: AuthService;
+    protected readonly attachments: AttachmentsService;
+    protected readonly access: ManpowerAccess;
+    constructor(fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
+    protected abstract owner(): FileOwner;
+    protected abstract right: keyof FinRights;
     private manage;
-    upload(id: string, files: any[], a?: string): Promise<import("../database/task.types").TaskAttachment[]>;
-    link(id: string, dto: AddLinkDto, a?: string): Promise<import("../database/task.types").TaskAttachment[]>;
-    remove(id: string, attId: string, a?: string): Promise<import("../database/task.types").TaskAttachment[]>;
+    upload(id: string, files: any[], a?: string): Promise<TaskAttachment[]>;
+    link(id: string, dto: AddLinkDto, a?: string): Promise<TaskAttachment[]>;
+    remove(id: string, attId: string, a?: string): Promise<TaskAttachment[]>;
     content(id: string, attId: string, thumb: string, res: Response): Promise<void>;
 }
+export declare class FinanceInvoiceFilesController extends FinanceFilesBase {
+    private readonly invoices;
+    protected right: keyof FinRights;
+    constructor(invoices: InvoicesService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
+    protected owner(): InvoicesService;
+}
+export declare class FinanceChangeOrderFilesController extends FinanceFilesBase {
+    private readonly cos;
+    protected right: keyof FinRights;
+    constructor(cos: ChangeOrdersService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
+    protected owner(): ChangeOrdersService;
+}
+export declare class FinanceReimbursableFilesController extends FinanceFilesBase {
+    private readonly reimbs;
+    protected right: keyof FinRights;
+    constructor(reimbs: ReimbursablesService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
+    protected owner(): ReimbursablesService;
+}
+export {};

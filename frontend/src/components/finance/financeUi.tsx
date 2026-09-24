@@ -1,4 +1,5 @@
-import { Badge } from '../manpowerUi';
+import { useState } from 'react';
+import { Badge, input as INPUT } from '../manpowerUi';
 
 export interface Figures {
   value: number | null; ev: number; invoiced: number; retention: number; paid: number; billable: number; overBilled: number;
@@ -17,19 +18,26 @@ export interface ItemFin {
 export interface Row extends Figures {
   kind: 'project' | 'phase' | 'task'; id: string; name: string; phaseId?: string | null; category?: string;
   ownValue: number | null; valueFromTasks?: boolean; billedAsWhole?: boolean; deleted?: boolean; fin: ItemFin | null; children?: Row[];
+  changeOrders?: number; retentionReleased?: number;
 }
 export interface Group { category: 'design' | 'construction' | 'other' | 'unphased'; label: string; rows: Row[]; totals: Figures }
 export interface Summary {
   originalContract: number; approvedChanges: number; revisedContract: number; allocated: number; unallocated: number; allocation: 'under' | 'full' | 'over';
   ev: number; contractWorkInvoiced: number; invoiceTotals: number; paid: number; arOutstanding: number; unbilledEarned: number; overBilled: number;
   remainingContract: number; retentionHeld: number; billableNow: number; overdue: number; overdueCount: number; lumpSum: boolean;
+  pendingChanges: number; retentionAccrued: number; retentionReleased: number; reimbursablesBilled: number; credits: number;
 }
 export interface Settings {
   projectId: number; exists: boolean; version: number; currency: string; originalContractValue: number; originalBudget: number | null;
   retentionPct: number; taxPct: number; paymentTermsDays: number; requireProgressApproval: boolean; billToName?: string; billToEmail?: string;
   billToAddress?: string; contractNumber?: string; poNumber?: string; notes?: string; contractLockedAt?: string; reportedProgress: number; approvedProgress: number;
+  reimbursableMarkupPct?: number;
 }
-export interface Rights { view: boolean; manage: boolean; reportProgress: boolean; approveProgress: boolean }
+export interface Rights {
+  view: boolean; manage: boolean; reportProgress: boolean; approveProgress: boolean;
+  prepareInvoice: boolean; issueInvoice: boolean; recordPayment: boolean; approveChangeOrders: boolean; approveReimbursables: boolean; releaseRetention: boolean;
+  viewChangeOrders: boolean; editChangeOrders: boolean; viewReimbursables: boolean; submitReimbursables: boolean;
+}
 export interface Overview {
   project: { id: number; name: string; contractAmt: string; stage: string };
   settings: Settings; billToDefaults: { name: string; email: string; address: string } | null; suggestedContract: number;
@@ -37,7 +45,7 @@ export interface Overview {
   looseTasks?: { id: string; title: string }[];
 }
 export interface InvoiceLine {
-  id: string; kind: 'progress' | 'manual' | 'adjustment'; targetType?: string | null; phaseId?: string | null; taskId?: string | null; lineOrder: number;
+  id: string; kind: 'progress' | 'manual' | 'adjustment' | 'reimbursable' | 'retention_release'; reimbursableId?: string | null; retentionReleaseId?: string | null; creditsLineId?: string | null; targetType?: string | null; phaseId?: string | null; taskId?: string | null; lineOrder: number;
   description: string; billingMethod?: string; contractValue: number | null; prevProgressPct: number | null; currentProgressPct: number | null;
   prevBilled: number | null; amount: number; quantity: number | null; unit?: string | null; rate: number | null; retentionApplies: boolean;
   retentionPct: number; retentionAmount: number; taxable: boolean; taxPct: number; taxAmount: number;
@@ -51,7 +59,11 @@ export interface Invoice {
   periodStart?: string; periodEnd?: string; currency: string; reference?: string; poNumber?: string; description?: string;
   billToName?: string; billToEmail?: string; billToAddress?: string; retentionPct: number; taxPct: number; notes?: string; attachments: any[];
   contractWork: number; retention: number; adjustment: number; tax: number; total: number; paid: number; outstanding: number;
-  paymentStatus: 'draft' | 'void' | 'paid' | 'overdue' | 'partially_paid' | 'unpaid'; overdue: boolean;
+  reimbursable?: number; retentionRelease?: number; credited?: number;
+  paymentStatus: 'draft' | 'void' | 'paid' | 'overdue' | 'partially_paid' | 'unpaid' | 'credit' | 'credit_balance'; overdue: boolean;
+  creditForInvoiceId?: string; creditType?: 'credit' | 'write_off'; creditReason?: string; creditFor?: { id: string; issuedNumber: string } | null;
+  credits?: { id: string; issuedNumber?: string; status: string; creditType?: string; total: number; invoiceDate: string }[];
+  approvalRequestedAt?: string; approvalRequestedBy?: string; approvals?: Approval[];
   issuedAt?: string; issuedByName?: string; voidedAt?: string; voidedByName?: string; voidReason?: string; version: number;
   lines?: InvoiceLine[]; payments?: Payment[]; createdBy?: string;
 }
@@ -74,6 +86,7 @@ export const PaymentBadge = ({ s }: { s: Figures['paymentStatus'] }) => (PAYMENT
 
 const INVOICE: Record<Invoice['paymentStatus'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
   draft: ['Draft', 'grey'], void: ['Void', 'grey'], paid: ['Paid', 'green'], overdue: ['Overdue', 'red'], partially_paid: ['Partly paid', 'blue'], unpaid: ['Unpaid', 'amber'],
+  credit: ['Credit note', 'blue'], credit_balance: ['Credit due to client', 'amber'],
 };
 export const InvoiceBadge = ({ s }: { s: Invoice['paymentStatus'] }) => <Badge tone={INVOICE[s][1]}>{INVOICE[s][0]}</Badge>;
 
@@ -99,4 +112,112 @@ export function failed(toast: (m: string) => void, e: any) {
   const msg = e?.message || 'Something went wrong';
   toast('⚠ ' + msg);
   if (/since you opened it|changed by/i.test(msg)) window.dispatchEvent(new Event(STALE_EVENT));
+}
+
+// ------------------------------------------------------------------ phase 2
+
+export interface Approval { id: string; entityType: string; decision: string; comment?: string; signer?: string; amount?: number | null; byName?: string; at: string }
+
+export interface ChangeOrderItem {
+  id?: string; description: string; targetType: 'phase' | 'task' | 'new_phase' | 'new_task' | 'none'; phaseId?: string | null; taskId?: string | null;
+  newName?: string; amount: number | string; cost?: number | string | null; quantity?: number | string | null; unit?: string; rate?: number | string | null; csiCodeId?: string;
+}
+export interface ChangeOrder {
+  id: string; projectId: number; projectName?: string; number: string; title: string; description?: string; reason: string; requestedBy?: string;
+  status: 'draft' | 'internal_review' | 'submitted' | 'approved' | 'rejected' | 'cancelled'; scheduleImpactDays: number; amount: number | null;
+  dateRequested?: string; notes?: string; attachments: any[]; items: ChangeOrderItem[]; total: number; cost: number; margin: number;
+  submittedAt?: string; submittedBy?: string; internalApprovedAt?: string; internalApprovedBy?: string; clientSigner?: string; clientApprovedDate?: string;
+  clientReference?: string; approvedAt?: string; approvedBy?: string; rejectedAt?: string; rejectedBy?: string; cancelledAt?: string; cancelledBy?: string;
+  closedReason?: string; approvals?: Approval[]; version: number; createdAt: string; createdBy?: string;
+}
+export interface Reimbursable {
+  id: string; projectId: number; projectName?: string; number: string; date: string; description: string; category: string; vendor?: string;
+  cost: number; markupPct: number; markup: number; billAmount: number; billable: boolean; taxable: boolean; phaseId?: string; csiCodeId?: string;
+  status: 'submitted' | 'approved' | 'rejected' | 'billed'; submittedBy?: string; approvedAt?: string; approvedBy?: string; rejectedAt?: string; rejectedBy?: string;
+  rejectedReason?: string; invoiceId?: string; notes?: string; attachments: any[]; approvals?: Approval[]; version: number;
+}
+export interface RetentionRelease {
+  id: string; number: string; scope: 'project' | 'phase' | 'task'; targetId?: string; amount: number; reason: string; notes?: string;
+  status: 'requested' | 'approved' | 'rejected' | 'billed' | 'cancelled'; requestedBy?: string; approvedBy?: string; approvedAt?: string;
+  rejectedBy?: string; closedReason?: string; invoiceId?: string; version: number; createdAt: string;
+}
+
+export const CO_REASONS: [string, string][] = [
+  ['client_request', 'Client request'], ['design_change', 'Design change'], ['unforeseen', 'Unforeseen condition'], ['scope_addition', 'Added scope'],
+  ['scope_reduction', 'Reduced scope'], ['allowance', 'Allowance adjustment'], ['code_requirement', 'Code / permit requirement'], ['other', 'Other'],
+];
+export const REIMB_CATEGORIES: [string, string][] = [
+  ['travel', 'Travel & mileage'], ['printing', 'Printing & reproduction'], ['permits_fees', 'Permits & fees'], ['materials', 'Materials & samples'],
+  ['consultants', 'Consultants'], ['shipping', 'Shipping & delivery'], ['equipment', 'Equipment rental'], ['other', 'Other'],
+];
+export const RELEASE_REASONS: [string, string][] = [
+  ['substantial_completion', 'Substantial completion'], ['final_completion', 'Final completion'], ['milestone_accepted', 'Milestone accepted'], ['partial', 'Partial release'], ['other', 'Other'],
+];
+export const label = (list: [string, string][], k?: string) => list.find(([x]) => x === k)?.[1] || k || '—';
+
+const CO_STATUS: Record<ChangeOrder['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
+  draft: ['Draft', 'grey'], internal_review: ['Internal review', 'amber'], submitted: ['With client', 'blue'], approved: ['Approved', 'green'], rejected: ['Rejected', 'red'], cancelled: ['Cancelled', 'grey'],
+};
+export const CoBadge = ({ s }: { s: ChangeOrder['status'] }) => <Badge tone={CO_STATUS[s][1]}>{CO_STATUS[s][0]}</Badge>;
+const RE_STATUS: Record<Reimbursable['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
+  submitted: ['Awaiting approval', 'amber'], approved: ['Approved · to bill', 'blue'], rejected: ['Rejected', 'red'], billed: ['Billed', 'green'],
+};
+export const ReimbBadge = ({ s }: { s: Reimbursable['status'] }) => <Badge tone={RE_STATUS[s][1]}>{RE_STATUS[s][0]}</Badge>;
+const RR_STATUS: Record<RetentionRelease['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
+  requested: ['Requested', 'amber'], approved: ['Approved · to bill', 'blue'], rejected: ['Rejected', 'red'], billed: ['Billed', 'green'], cancelled: ['Cancelled', 'grey'],
+};
+export const ReleaseBadge = ({ s }: { s: RetentionRelease['status'] }) => <Badge tone={RR_STATUS[s][1]}>{RR_STATUS[s][0]}</Badge>;
+
+const DECISION: Record<string, string> = {
+  submitted: 'Submitted', internal_approved: 'Approved internally · sent to client', client_approved: 'Approved by the client', approved: 'Approved', rejected: 'Rejected',
+  cancelled: 'Cancelled', returned: 'Returned for changes', issued: 'Issued', requested: 'Requested', reopened: 'Reopened',
+};
+
+/** Who decided what, and when -- shown on every record that goes through approval. */
+export function ApprovalTrail({ items }: { items?: Approval[] }) {
+  if (!items?.length) return null;
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Approval trail</div>
+      <div style={{ borderLeft: '2px solid #DCE7DE', paddingLeft: 12, display: 'grid', gap: 8 }}>
+        {items.map((a) => (
+          <div key={a.id} style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+            <b>{DECISION[a.decision] || a.decision}</b>{a.signer ? ` — signed by ${a.signer}` : ''}{a.amount != null ? ` · ${usd(a.amount)}` : ''}
+            <div style={{ color: '#7E9B93', fontSize: 11.5 }}>{a.byName} · {new Date(a.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+            {a.comment && <div style={{ color: '#0B1A12' }}>“{a.comment}”</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A reason, signature or amount asked for inline -- instead of the browser's prompt(). */
+export function ReasonBox({ title, fields, confirm, tone, onCancel, onSubmit }: {
+  title: string; fields: { key: string; label: string; type?: string; required?: boolean; initial?: string; placeholder?: string; options?: [string, string][] }[];
+  confirm: string; tone?: 'danger'; onCancel: () => void; onSubmit: (v: Record<string, string>) => void;
+}) {
+  const [v, setV] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, f.initial || ''])));
+  const ok = fields.every((f) => !f.required || v[f.key]?.trim());
+  return (
+    <div style={{ background: 'white', border: '1px solid ' + (tone === 'danger' ? '#E3C2B3' : '#173326'), borderRadius: 14, padding: '12px 14px', display: 'grid', gap: 10 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: tone === 'danger' ? '#8E2E0A' : '#0B1A12' }}>{title}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+        {fields.map((f) => (
+          <div key={f.key} style={{ gridColumn: f.type === 'textarea' ? '1 / -1' : undefined }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{f.label}{f.required ? ' *' : ''}</div>
+            {f.options
+              ? <select value={v[f.key]} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT}><option value="">Choose…</option>{f.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+              : f.type === 'textarea'
+              ? <textarea rows={2} value={v[f.key]} placeholder={f.placeholder} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={{ ...INPUT, resize: 'vertical' }} />
+              : <input type={f.type || 'text'} value={v[f.key]} placeholder={f.placeholder} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT} />}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div onClick={ok ? () => onSubmit(v) : undefined} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: ok ? 'pointer' : 'default', background: ok ? (tone === 'danger' ? '#8E2E0A' : '#173326') : '#C9D3CE', color: 'white' }}>{confirm}</div>
+        <div onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,.12)' }}>Cancel</div>
+      </div>
+    </div>
+  );
 }

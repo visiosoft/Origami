@@ -87,7 +87,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -521,6 +521,38 @@ export const api = {
     uploadAttachments: (id: string, files: File[]) => requestForm(`/finance-invoices/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/finance-invoices/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/finance-invoices/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    // --- phase 2
+    portfolio: () => request('/finance/portfolio'),
+    approvals: () => request('/finance/approvals'),
+    audit: (q: Record<string, string> = {}) => request(`/finance/audit?${new URLSearchParams(q).toString()}`),
+    requestApproval: (id: string, d: unknown) => request(`/finance/invoices/${id}/request-approval`, { method: 'POST', body: JSON.stringify(d) }),
+    returnDraft: (id: string, d: unknown) => request(`/finance/invoices/${id}/return`, { method: 'POST', body: JSON.stringify(d) }),
+    createCredit: (invoiceId: string, d: unknown) => request(`/finance/invoices/${invoiceId}/credit`, { method: 'POST', body: JSON.stringify(d) }),
+    allChangeOrders: () => request('/finance/change-orders'),
+    changeOrders: (projectId: number) => request(`/finance/projects/${projectId}/change-orders`),
+    createChangeOrder: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/change-orders`, { method: 'POST', body: JSON.stringify(d) }),
+    changeOrder: (id: string) => request(`/finance/change-orders/${id}`),
+    changeOrderImpact: (id: string) => request(`/finance/change-orders/${id}/impact`),
+    updateChangeOrder: (id: string, d: unknown) => request(`/finance/change-orders/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    deleteChangeOrder: (id: string) => request(`/finance/change-orders/${id}`, { method: 'DELETE' }),
+    changeOrderStep: (id: string, action: string, d: unknown) => request(`/finance/change-orders/${id}/${action}`, { method: 'POST', body: JSON.stringify(d) }),
+    coUpload: (id: string, files: File[]) => requestForm(`/finance-change-orders/${id}/attachments`, filesForm(files)),
+    coLink: (id: string, name: string, url: string) => request(`/finance-change-orders/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    coRemoveAttachment: (id: string, attId: string) => request(`/finance-change-orders/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    allReimbursables: () => request('/finance/reimbursables'),
+    reimbursables: (projectId: number) => request(`/finance/projects/${projectId}/reimbursables`),
+    createReimbursable: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/reimbursables`, { method: 'POST', body: JSON.stringify(d) }),
+    reimbursable: (id: string) => request(`/finance/reimbursables/${id}`),
+    updateReimbursable: (id: string, d: unknown) => request(`/finance/reimbursables/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
+    deleteReimbursable: (id: string) => request(`/finance/reimbursables/${id}`, { method: 'DELETE' }),
+    decideReimbursable: (id: string, d: unknown) => request(`/finance/reimbursables/${id}/decision`, { method: 'POST', body: JSON.stringify(d) }),
+    reUpload: (id: string, files: File[]) => requestForm(`/finance-reimbursables/${id}/attachments`, filesForm(files)),
+    reLink: (id: string, name: string, url: string) => request(`/finance-reimbursables/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    reRemoveAttachment: (id: string, attId: string) => request(`/finance-reimbursables/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    retention: (projectId: number) => request(`/finance/projects/${projectId}/retention`),
+    requestRelease: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/retention/releases`, { method: 'POST', body: JSON.stringify(d) }),
+    decideRelease: (id: string, d: unknown) => request(`/finance/retention-releases/${id}/decision`, { method: 'POST', body: JSON.stringify(d) }),
+    billRelease: (id: string) => request(`/finance/retention-releases/${id}/bill`, { method: 'POST', body: '{}' }),
   },
   subcontractorTrades: {
     list: () => request('/subcontractor-trades'),
