@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
@@ -1641,6 +1641,41 @@ export function Pipeline() {
                   </div>
                 </div>
               )}
+
+              {/* Who a referred lead was handed to, or how a rejection went */}
+              {selected.rejectionType && (() => {
+                const st = REJECTION_STYLE[selected.rejectionType];
+                const contact = (selected.referredToContact || '').trim();
+                const href = /@/.test(contact) ? `mailto:${contact}` : /\d{3}/.test(contact) ? `tel:${contact.replace(/[^\d+]/g, '')}` : '';
+                const rows: [string, ReactNode][] = selected.rejectionType === 'referred'
+                  ? [
+                      ['Referred to', selected.referredToName || '—'],
+                      ['Company / Firm', selected.referredToCompany || '—'],
+                      ['Phone or email', contact ? (href ? <a href={href} style={{ color: st.c, fontWeight: 600 }}>{contact}</a> : contact) : '—'],
+                    ]
+                  : [];
+                if (selected.rejectionReason) rows.push(['Reason', selected.rejectionReason]);
+                return (
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>
+                      {selected.rejectionType === 'referred' ? 'Referral' : 'Outcome'}
+                    </div>
+                    <div style={{ borderRadius: 10, background: st.bg, padding: '10px 12px' }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: st.c, marginBottom: rows.length ? 8 : 0 }}>{st.label(selected)}</div>
+                      {rows.length > 0 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          {rows.map(([label, value]) => (
+                            <div key={label} style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.7)', minWidth: 0, gridColumn: label === 'Reason' ? '1 / -1' : undefined }}>
+                              <div style={{ fontSize: 9.5, fontWeight: 600, color: '#7E9B93', marginBottom: 2 }}>{label}</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', overflowWrap: 'anywhere' }}>{value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Zoning Analysis — image uploads */}
               {selected.stage === 'zoning' && (() => {
