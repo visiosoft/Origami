@@ -1,4 +1,5 @@
-﻿import { useState, useEffect, useRef, type ReactNode } from 'react';
+﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { useNavigate } from 'react-router-dom';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
@@ -586,32 +587,14 @@ export function Pipeline() {
     const existing = leadDetails[deal.id];
     // A lead captured before the name was separated has no parts yet -- derive
     // them so the form is editable rather than blank.
-    setNl(existing
+    const rec: NewLead = existing
       ? { ...existing, ...(existing.firstName || existing.lastName ? {} : splitLeadName(existing.leadName)) }
-      : { ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' });
+      : { ...BLANK_LEAD, leadName: deal.name, ...splitLeadName(deal.name), phone: deal.phone, email: deal.email, leadSource: deal.source || '', projectVision: deal.notes || '' };
+    setNl(rec);
+    startLeadSession(deal.id, rec);
     setEditingId(deal.id);
     setFormTab(1);
     setShowNew(true);
-  };
-
-  const saveLead = () => {
-    if (nl.leadName.trim().length < 2) return;
-    if (editingId) {
-      const id = editingId;
-      const resolved = withRoleAssignments(nl);
-      const client = (nl.businessName || '').trim() || nl.leadName.trim();
-      setLeadDetails((prev) => ({ ...prev, [id]: resolved }));
-      setDeals((prev) => prev.map((d) => d.id === id ? { ...d, name: nl.leadName.trim(), client, phone: nl.phone.trim(), email: nl.email.trim(), source: nl.leadSource || d.source, notes: nl.projectVision.trim() } : d));
-      saveLeadWithAudit(id, { ...resolved, expectedUpdatedAt: nl.updatedAt }, 'Lead details edited', id)
-        .then((saved: any) => { setLeadDetails((prev) => ({ ...prev, [id]: { ...resolved, updatedAt: saved?.updatedAt } })); toast('Lead updated'); })
-        .catch((e: Error) => toast(e.message?.includes('updated by someone else') ? `⚠ ${e.message}` : '⚠ Failed to update'));
-      setShowNew(false);
-      setEditingId(null);
-      setNl({ ...BLANK_LEAD });
-      setFormTab(1);
-      return;
-    }
-    createLead();
   };
 
   const deleteLead = (id: string) => {
@@ -624,55 +607,88 @@ export function Pipeline() {
     api.pipeline.remove(id).catch(() => { });
   };
 
-  const createLead = () => {
-    if (nl.leadName.trim().length < 2) return;
-    const resolved = withRoleAssignments(nl);
-    const deal: Deal = {
-      // deals.length is NOT a reliable "next free id" -- the board only ever
-      // loads non-archived deals, and deals/leads can be deleted, so this
-      // regularly landed on an id already used by an unrelated lead. Both
-      // leads.create and pipeline.create upsert by primary key, so a
-      // collision silently merged the new lead's data onto an existing one
-      // (both server-side and in local leadDetails/notesByDeal state).
-      id: 'PL-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
-      name: nl.leadName.trim(),
-      client: (nl.businessName || '').trim() || nl.leadName.trim(),
-      value: '$0',
-      stage: 'new_lead',
-      stageIdx: 0,
-      assignedRole: 'PC',
-      assignee: 'Unassigned',
-      assigneeInit: '?',
-      daysInStage: 0,
-      nextAction: 'Assign & make first contact',
-      nextDue: '—',
-      source: nl.leadSource || 'Website',
-      status: 'in_progress',
-      phone: nl.phone.trim(),
-      email: nl.email.trim(),
-      timeline: [{ date: fmtWhen(), action: `New lead created — ${nl.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
-      notes: nl.projectVision.trim(),
-    };
+  // ---- The lead form saves itself: the first save (once it has a name)
+  // creates the lead, every later one updates only what changed. One audit
+  // entry names the edited fields when the form is closed -- not one per save.
+  const [leadSession, setLeadSession] = useState(0);
+  const [leadSavedRec, setLeadSavedRec] = useState<NewLead | null>(null);
+  const leadIdRef = useRef<string | null>(null);
+  const leadDetailsRef = useRef(leadDetails);
+  leadDetailsRef.current = leadDetails;
+  const startLeadSession = (id: string | null, rec: NewLead) => {
+    leadIdRef.current = id;
+    setLeadSavedRec(id ? rec : null);
+    setLeadSession((n) => n + 1);
+  };
+  const newDealFor = (draft: NewLead): Deal => ({
+    // deals.length is NOT a reliable "next free id" -- the board only ever
+    // loads non-archived deals, and deals/leads can be deleted, so a counter
+    // regularly landed on an id already in use; both stores upsert by key.
+    id: 'PL-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
+    name: draft.leadName.trim(),
+    client: (draft.businessName || '').trim() || draft.leadName.trim(),
+    value: '$0', stage: 'new_lead', stageIdx: 0, assignedRole: 'PC', assignee: 'Unassigned', assigneeInit: '?', daysInStage: 0,
+    nextAction: 'Assign & make first contact', nextDue: '—', source: draft.leadSource || 'Website', status: 'in_progress',
+    phone: draft.phone.trim(), email: draft.email.trim(),
+    timeline: [{ date: fmtWhen(), action: `New lead created — ${draft.potentialProjectType || 'General'}`, role: 'System', type: 'auto' }],
+    notes: draft.projectVision.trim(),
+  });
+  /** Only the changed fields, plus whatever the role-assignment roll-up derives from them. */
+  const leadPatch = (changes: Partial<NewLead>, draft: NewLead) => {
+    const resolved = withRoleAssignments(draft) as any;
+    const keys = new Set([...Object.keys(changes), ...Object.keys(resolved).filter((k) => JSON.stringify(resolved[k]) !== JSON.stringify((draft as any)[k]))]);
+    return { resolved: resolved as NewLead, patch: Object.fromEntries([...keys].map((k) => [k, resolved[k]])) };
+  };
+  const persistLeadForm = async (changes: Partial<NewLead>, draft: NewLead): Promise<NewLead> => {
+    const { resolved, patch } = leadPatch(changes, draft);
+    const existing = leadIdRef.current;
+    if (!existing) {
+      // Save the lead record FIRST -- the card is only added once it has
+      // landed, so a card never exists without its lead.
+      const deal = newDealFor(draft);
+      const saved: any = await api.leads.create({ ...resolved, id: deal.id });
+      leadIdRef.current = deal.id;
+      setEditingId(deal.id);
+      setDeals((prev) => [deal, ...prev]);
+      setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...resolved, updatedAt: saved?.updatedAt } }));
+      setLeadBaseline((prev) => ({ ...prev, [deal.id]: { ...resolved } }));
+      toast(`${deal.name} added to the pipeline`);
+      void api.pipeline.create(deal).catch(() => undefined);
+      return { ...draft, updatedAt: saved?.updatedAt };
+    }
+    const saved: any = await api.leads.update(existing, { ...patch, expectedUpdatedAt: leadDetailsRef.current[existing]?.updatedAt ?? draft.updatedAt });
+    setLeadDetails((prev) => ({ ...prev, [existing]: { ...resolved, updatedAt: saved?.updatedAt } }));
+    setDeals((prev) => prev.map((d) => (d.id === existing ? { ...d, name: draft.leadName.trim(), client: (draft.businessName || '').trim() || draft.leadName.trim(), phone: draft.phone.trim(), email: draft.email.trim(), source: draft.leadSource || d.source, notes: draft.projectVision.trim() } : d)));
+    return { ...draft, updatedAt: saved?.updatedAt };
+  };
+  const LEAD_SKIP = ['updatedAt', 'createdAt', 'id'];
+  const leadFields = Object.keys({ ...BLANK_LEAD, ...nl }).filter((k) => !LEAD_SKIP.includes(k)) as (keyof NewLead)[];
+  const leadNameOk = nl.leadName.trim().length >= 2;
+  const leadAuto = useAutosave<NewLead>({
+    draft: nl, saved: leadSavedRec ?? BLANK_LEAD, fields: leadFields, resetKey: 'lead-form-' + leadSession,
+    enabled: showNew && leadNameOk, label: 'lead',
+    save: (changes, { draft }) => persistLeadForm(changes, draft),
+    onSaved: (row, sent) => setNl((cur) => mergeSaved(cur, row, sent)),
+  });
+  /** One audit entry naming what changed since the lead was last recorded. */
+  const auditLeadEdits = (id: string, cur: NewLead | undefined, since?: NewLead | null) => {
+    const before = since ? withRoleAssignments(since) : leadBaseline[id];
+    if (!cur || !before) return;
+    const changed = (Object.keys(cur) as (keyof NewLead)[]).filter((k) => !LEAD_SKIP.includes(k as string) && JSON.stringify(cur[k] ?? '') !== JSON.stringify(before[k] ?? ''));
+    if (!changed.length) return;
+    api.pipeline.addEvent(id, `Lead details edited: ${changed.join(', ')}`).catch(() => { });
+    setLeadBaseline((prev) => ({ ...prev, [id]: { ...cur } }));
+  };
+  const openNewLead = () => { setNl({ ...BLANK_LEAD }); setEditingId(null); setFormTab(1); startLeadSession(null, { ...BLANK_LEAD }); setShowNew(true); };
+  /** Done / close: whatever is still pending saves, and the edit is recorded once. */
+  const closeLeadForm = () => {
+    if (leadNameOk && leadAuto.dirty) void leadAuto.saveNow();
+    const id = leadIdRef.current;
+    const createdNow = id && !leadSavedRec;
+    if (id && !createdNow) auditLeadEdits(id, withRoleAssignments(nl), leadSavedRec);
     setShowNew(false);
-    setNl({ ...BLANK_LEAD });
-    setFormTab(1);
-    // Save the lead record FIRST -- the pipeline card is only added once it's
-    // actually landed in the database, so a card can never exist on the board
-    // without a backing lead record (that used to happen silently whenever
-    // this leads.create call failed after the deal was already added).
-    api.leads.create({ ...resolved, id: deal.id })
-      .then(() => {
-        setDeals((prev) => [deal, ...prev]);
-        setLeadDetails((prev) => ({ ...prev, [deal.id]: resolved }));
-        setSelectedId(deal.id);
-        setDetailTab('overview');
-        toast(`${deal.name} added to the pipeline`);
-        void api.pipeline.create(deal).catch(() => undefined);
-      })
-      .catch((err) => {
-        console.error('leads.create failed:', err);
-        toast(`⚠ Failed to save "${deal.name}" — nothing was created. Please try again.`);
-      });
+    setEditingId(null);
+    if (createdNow) { setSelectedId(id); setDetailTab('overview'); }
   };
 
   const applyOverride = (id: string, o: Override) => {
@@ -930,6 +946,32 @@ export function Pipeline() {
   }, [selected?.stage, detailTab]);
   const selectedStage = selected ? STAGES.find((st) => st.key === selected.stage) : null;
 
+  // Initial Questions answers save as they're typed, like the form; "Save Lead
+  // Details" still marks the stage done (and needs every answer).
+  const iqId = selected?.stage === 'initial_questions' ? selected.id : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const iqSaved = useMemo(() => (iqId ? leadDetailsRef.current[iqId] ?? null : null), [iqId, !!(iqId && leadDetails[iqId])]);
+  const iqAuto = useAutosave<NewLead>({
+    draft: (iqId && leadDetails[iqId]) || ({} as NewLead), saved: iqSaved, resetKey: 'iq-' + (iqId || 'none'),
+    fields: iqId && leadDetails[iqId] ? (Object.keys(leadDetails[iqId]).filter((k) => !LEAD_SKIP.includes(k)) as (keyof NewLead)[]) : [],
+    enabled: !!iqId && !!iqSaved, label: 'lead',
+    save: async (changes, { draft }) => {
+      const id = iqId!;
+      const { patch } = leadPatch(changes, draft);
+      const saved: any = await api.leads.update(id, { ...patch, expectedUpdatedAt: leadDetailsRef.current[id]?.updatedAt });
+      return { ...draft, updatedAt: saved?.updatedAt };
+    },
+    onSaved: (row, sent) => { if (iqId) setLeadDetails((p) => ({ ...p, [iqId]: mergeSaved(p[iqId] || row, row, sent) })); },
+  });
+  // Leaving a lead's Initial Questions: record what was edited there, once.
+  const prevIq = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevIq.current;
+    if (prev && prev !== iqId) auditLeadEdits(prev, leadDetailsRef.current[prev]);
+    prevIq.current = iqId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iqId]);
+
   const totalValue = data.reduce((s, d) => s + parseFloat(String(d.value).replace(/[^0-9.]/g, '') || '0') * 1000, 0);
   const overdueCount = data.filter((d) => d.status === 'overdue').length;
   const avgDays = Math.round(data.reduce((s, d) => s + d.daysInStage, 0) / data.length);
@@ -1031,7 +1073,7 @@ export function Pipeline() {
             >
               {showArchived ? 'Hide archived' : 'Show archived'}
             </div>
-            <div onClick={() => { setNl({ ...BLANK_LEAD }); setEditingId(null); setFormTab(1); setShowNew(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
+            <div onClick={openNewLead} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
               <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New Lead
             </div>
           </div>
@@ -1321,7 +1363,10 @@ export function Pipeline() {
                   return (
                     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                       <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 4 }}>Initial Questions — Lead Intake</div>
-                      <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 12 }}>Complete these while on the call — saved to the lead record and visible in Full Details.</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: 10.5, color: '#7E9B93', flex: '1 1 200px' }}>Fill these in during the call — answers save as you type. “Save Lead Details” marks this step done.</div>
+                        <SaveBar auto={iqAuto} />
+                      </div>
                       {LEAD_SECTIONS.map((sec) => {
                         const gateMet = !sec.gate || (ld[sec.gate.key as keyof NewLead] as string) === sec.gate.value;
                         // Explicit clicks win; otherwise a gated section follows its answer.
@@ -1489,10 +1534,12 @@ export function Pipeline() {
                         const when = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                         const entry = { date: when, action: `${selectedStage.name} completed — lead details saved`, role: 'System', type: 'auto' as const };
                         setDeals((prev) => prev.map((d) => d.id === selected.id ? { ...d, name: cur.leadName || d.name, client: (cur.businessName || '').trim() || cur.leadName || d.client, phone: cur.phone, email: cur.email, source: cur.leadSource || d.source, notes: cur.projectVision, timeline: [...(d.timeline || []), entry] } : d));
-                        api.leads.update(selected.id, { ...cur, expectedUpdatedAt: cur.updatedAt })
-                          .then((saved: any) => { setLeadDetails((p) => ({ ...p, [selected.id]: { ...cur, updatedAt: saved?.updatedAt } })); setLeadBaseline((p) => ({ ...p, [selected.id]: { ...cur, updatedAt: saved?.updatedAt } })); })
-                          .catch((e: Error) => toast(e.message?.includes('updated by someone else') ? `⚠ ${e.message}` : '⚠ Failed to save lead'));
-                        toast('Lead details saved');
+                        // The answers go through the same autosave (one request at a time, only what changed).
+                        iqAuto.saveNow().then((ok) => {
+                          if (!ok) { toast(iqAuto.error.includes('updated by someone else') ? `⚠ ${iqAuto.error}` : '⚠ Failed to save lead'); return; }
+                          setLeadBaseline((p) => ({ ...p, [selected.id]: { ...cur } }));
+                          toast('Lead details saved');
+                        });
                       }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: missing.length ? '#9AB0A4' : '#173326', color: 'white' }}>Save Lead Details</div>
                     </div>
                   );
@@ -2027,14 +2074,14 @@ export function Pipeline() {
 
       {/* Lead Intake drawer */}
       {showNew && (
-        <div onClick={() => { setShowNew(false); setEditingId(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, animation: 'fadeIn 0.15s ease' }}>
+        <div onClick={closeLeadForm} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, animation: 'fadeIn 0.15s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, background: 'white', width: 720, maxWidth: '96vw', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
             <div style={{ padding: '20px 28px 14px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>{editingId ? 'Edit Lead' : 'New Lead Intake'}</div>
-                <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>{editingId ? 'Update lead information.' : 'Complete all sections. Enters board at "New Lead" (stage 1/11).'}</div>
+                <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>{editingId ? 'Changes save as you go — Save saves right away.' : 'Saved as soon as it has a project name, then as you go. Enters the board at "New Lead".'}</div>
               </div>
-              <div onClick={() => { setShowNew(false); setEditingId(null); }} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 18 }}>×</div>
+              <div onClick={closeLeadForm} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 18 }}>×</div>
             </div>
 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -2265,9 +2312,8 @@ export function Pipeline() {
 
             {/* Footer */}
             <div style={{ padding: '14px 28px 18px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
-              <span style={{ marginRight: 'auto', fontSize: 11, color: '#7E9B93' }}>{nl.leadName.trim().length < 2 ? 'Lead name required' : 'Ready to save'}</span>
-              <div onClick={() => { setShowNew(false); setEditingId(null); }} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-              <div onClick={saveLead} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: nl.leadName.trim().length >= 2 ? 'pointer' : 'not-allowed', background: nl.leadName.trim().length >= 2 ? '#173326' : '#D6DED8', color: nl.leadName.trim().length >= 2 ? 'white' : '#9AA39D', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>{editingId ? 'Save Changes' : 'Create Lead'}</div>
+              <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={leadAuto} blocked={leadNameOk ? undefined : 'Add a project name (2+ letters) to save'} /></div>
+              <div onClick={closeLeadForm} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>{leadAuto.dirty && !leadNameOk && !editingId ? 'Discard' : 'Done'}</div>
             </div>
           </div>
         </div>

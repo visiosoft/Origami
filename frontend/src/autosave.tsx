@@ -66,6 +66,12 @@ export interface AutosaveOptions<T extends Record<string, any>> {
   delay?: number;
   /** Shown in the top bar while saving ("Saving task…"). */
   label?: string;
+  /**
+   * For an editor that stays mounted between records (a form reopened for
+   * another lead): change it to start a new session -- the baseline resets to
+   * `saved`, and a save still on its way for the old session is never merged in.
+   */
+  resetKey?: string;
 }
 
 export interface Autosave {
@@ -90,6 +96,9 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
   const base = useRef<T | null>(o.saved);
   const inFlight = useRef<Promise<boolean> | null>(null);
   const timer = useRef<number | null>(null);
+  const epoch = useRef(0);
+  // The options as of the last commit -- on a switch to another record these are still the old record's.
+  const committed = useRef(o);
 
   const pending = useCallback((): Partial<T> | null => {
     const { draft, fields } = latest.current;
@@ -109,10 +118,13 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
     if (!changes) { setState('saved'); return true; }
     const isNew = !base.current;
     const sentDraft = latest.current.draft;
+    const ep = epoch.current;
     setState('saving');
     const job = (async () => {
       try {
         const row = await latest.current.save(changes, { isNew, draft: sentDraft });
+        // The editor moved on to another record meanwhile: this reply belongs to the old one.
+        if (ep !== epoch.current) return true;
         const server = (row && typeof row === 'object' ? row : { ...(base.current || {}), ...changes }) as T;
         base.current = server;
         setLastSavedAt(Date.now());
@@ -120,6 +132,7 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
         latest.current.onSaved?.(server, sentDraft);
         return true;
       } catch (e: any) {
+        if (ep !== epoch.current) return false;
         setError(e?.message || 'Could not save');
         setState('error');
         return false;
@@ -130,6 +143,7 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
     inFlight.current = job;
     const ok = await job;
     if (!ok) return false;
+    if (ep !== epoch.current) return true;
     // Typed more while it was saving? Save that too, after the usual pause.
     if (pending()) { setState('dirty'); schedule(); } else setState('saved');
     return true;
@@ -142,10 +156,22 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
   }, [delay, run]);
 
   // The record was reloaded from outside (another id, or a fresh copy with nothing pending): take it as the baseline.
-  const savedKey = o.saved ? JSON.stringify((o.saved as any).id ?? null) : 'new';
+  const savedKey = o.resetKey ?? (o.saved ? JSON.stringify((o.saved as any).id ?? null) : 'new');
   const lastKey = useRef(savedKey);
   useEffect(() => {
-    if (lastKey.current !== savedKey) { lastKey.current = savedKey; base.current = o.saved; setError(''); setState(pending() ? 'dirty' : 'saved'); return; }
+    if (lastKey.current !== savedKey) {
+      // Switched to another record with edits not yet sent: send them for the old one first.
+      const old = committed.current;
+      if (base.current && !inFlight.current && (old.enabled ?? true)) {
+        const c = changedFields(old.draft, base.current, old.fields);
+        if (Object.keys(c).length) void old.save(c, { isNew: false, draft: old.draft }).catch(() => undefined);
+      }
+      lastKey.current = savedKey;
+      epoch.current += 1;
+      if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+      base.current = o.saved; setError(''); setLastSavedAt(null); setState(pending() ? 'dirty' : 'saved');
+      return;
+    }
     if (o.saved && !pending() && state !== 'saving') base.current = o.saved;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedKey, o.saved]);
@@ -174,6 +200,8 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
       if (pending() && (latest.current.enabled ?? true)) void run();
     };
   }, [pending, run]);
+
+  useEffect(() => { committed.current = o; });
 
   const dirty = state === 'dirty' || state === 'error' || !!pending();
   const saveNow = useCallback(() => run(), [run]);
@@ -248,12 +276,12 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
   useEffect(() => { const i = window.setInterval(() => tick((n) => n + 1), 15000); return () => window.clearInterval(i); }, []);
   useEffect(() => { if (!flash) return; const t = window.setTimeout(() => setFlash(false), 2200); return () => window.clearTimeout(t); }, [flash]);
   const { state, dirty, lastSavedAt, error } = auto;
-  const status = blocked && dirty ? blocked
+  const status = blocked ? blocked
     : state === 'saving' ? 'Saving…'
     : state === 'error' ? `Couldn't save — ${error}`
     : state === 'dirty' ? 'Unsaved · autosaves in a moment'
     : lastSavedAt ? `Saved ${ago(lastSavedAt)}` : 'All changes saved';
-  const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || (blocked && dirty) ? '#8A6D12' : '#7E9B93';
+  const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || blocked ? '#8A6D12' : '#7E9B93';
   const canSave = dirty && state !== 'saving' && !blocked;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', minWidth: 0 }}>
@@ -269,7 +297,7 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
           cursor: canSave ? 'pointer' : 'default',
         }}
       >
-        {state === 'saving' ? 'Saving…' : state === 'error' ? 'Retry save' : dirty ? 'Save' : flash ? '✓ Saved' : 'Saved'}
+        {blocked ? 'Save' : state === 'saving' ? 'Saving…' : state === 'error' ? 'Retry save' : dirty ? 'Save' : flash ? '✓ Saved' : 'Saved'}
       </button>
     </div>
   );
