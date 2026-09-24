@@ -183,6 +183,15 @@ export declare class LeadEntity {
     sectionNotes: Record<string, string>;
     sectionCustomFields: Record<string, unknown[]>;
     contacts: unknown[];
+    clientBackground: {
+        facts?: Record<string, string>;
+        notes?: {
+            id: string;
+            text: string;
+            at: string;
+            by?: string;
+        }[];
+    };
     decisionMakers: string;
     preferredContactMethod: string;
     preferredContactMatrix: Record<string, string>;

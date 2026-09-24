@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
+import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate } from 'react-router-dom';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
@@ -391,7 +392,7 @@ export function Pipeline() {
   const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'notes' | 'details' | 'roles' | 'contacts' | 'tasks' | 'programming'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'notes' | 'client' | 'details' | 'roles' | 'contacts' | 'tasks' | 'programming'>('overview');
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   // The lead as last saved, so an edit can say which fields moved.
@@ -665,7 +666,8 @@ export function Pipeline() {
     setDeals((prev) => prev.map((d) => (d.id === existing ? { ...d, name: draft.leadName.trim(), client: (draft.businessName || '').trim() || draft.leadName.trim(), phone: draft.phone.trim(), email: draft.email.trim(), source: draft.leadSource || d.source, notes: draft.projectVision.trim() } : d)));
     return { ...draft, updatedAt: saved?.updatedAt };
   };
-  const LEAD_SKIP = ['updatedAt', 'createdAt', 'id'];
+  // clientBackground has its own tab and its own saves.
+  const LEAD_SKIP = ['updatedAt', 'createdAt', 'id', 'clientBackground'];
   const leadFields = Object.keys({ ...BLANK_LEAD, ...nl }).filter((k) => !LEAD_SKIP.includes(k)) as (keyof NewLead)[];
   const leadNameOk = nl.leadName.trim().length >= 2;
   const leadAuto = useAutosave<NewLead>({
@@ -1243,18 +1245,26 @@ export function Pipeline() {
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'notes', 'tasks', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
+            {(['overview', 'notes', 'client', 'tasks', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
               const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : 0;
               return (
                 <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'tasks' ? 'Tasks' : t === 'programming' ? 'Project Programming' : 'Full Details'}
+                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'client' ? 'Client' : t === 'tasks' ? 'Tasks' : t === 'programming' ? 'Project Programming' : 'Full Details'}
                   {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? '#173326' : '#EFEDE8', color: detailTab === t ? 'white' : '#7E9B93' }}>{count}</span>}
                 </div>
               );
             })}
           </div>
 
-          {detailTab === 'notes' ? (
+          {detailTab === 'client' ? (
+            <ClientBackgroundPanel
+              leadId={selected.id}
+              clientName={(leadDetails[selected.id]?.firstName || '').trim() ? `${leadDetails[selected.id]?.firstName} ${leadDetails[selected.id]?.lastName || ''}`.trim() : selected.client || selected.name}
+              value={(leadDetails[selected.id] as any)?.clientBackground as ClientBackground | undefined}
+              version={() => leadDetailsRef.current[selected.id]?.updatedAt}
+              onSaved={(bg, updatedAt) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), clientBackground: bg, ...(updatedAt ? { updatedAt } : {}) } as NewLead }))}
+            />
+          ) : detailTab === 'notes' ? (
             <div style={{ padding: '16px 20px 24px' }}>
               <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.09)', borderRadius: 12, padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 6 }}>

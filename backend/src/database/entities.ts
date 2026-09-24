@@ -280,6 +280,13 @@ export class LeadEntity {
   // (PC, SC, OR, OC, ON, SH, FY, CA, C2, AD). A lead outgrows the single
   // primary/second contact pair as soon as owners and consultants appear.
   @Column({ type: 'simple-json', nullable: true }) contacts!: unknown[];
+  /**
+   * Who the client is, for rapport -- kept apart from project notes: a few
+   * facts ({ business, family, from, interests, ... }) and dated notes
+   * ([{ id, text, at, by }]). Raw notes stay as written; any AI summary is an
+   * overlay on top, never a replacement.
+   */
+  @Column({ type: 'simple-json', nullable: true }) clientBackground!: { facts?: Record<string, string>; notes?: { id: string; text: string; at: string; by?: string }[] };
   @Column({ nullable: true }) decisionMakers!: string;
   @Column({ nullable: true }) preferredContactMethod!: string;
   // How they want to be reached, per method: Primary | Secondary | No.
