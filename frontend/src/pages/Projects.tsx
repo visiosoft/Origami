@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TaskBoard } from '../components/TaskBoard';
 import { GuestAccessPanel } from '../components/GuestAccessPanel';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
@@ -361,6 +362,16 @@ export function Projects() {
   };
 
   const openProject = (id: number) => { setSelectedId(id); setTab('overview'); loadBoard(id); };
+  // A link like /projects?open=8&tab=financial (e.g. from the Finance guide) opens that project on that tab.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = Number(searchParams.get('open'));
+    if (!id || !projects.some((p) => p.id === id)) return;
+    openProject(id);
+    const t = searchParams.get('tab');
+    if (t === 'phases' || t === 'financial' || t === 'tasks') setTab(t);
+    setSearchParams({}, { replace: true });
+  }, [projects, searchParams]);
   const openNew = () => { setNp(BLANK); setEditingId(null); setShowForm(true); };
   const openEdit = (p: Project) => { setNp({ ...p }); setEditingId(p.id); setSelectedId(null); setShowForm(true); };
   const saveProject = () => {

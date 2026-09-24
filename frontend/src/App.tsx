@@ -9,6 +9,7 @@ import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { ModuleSpec } from './pages/ModuleSpec';
 import { FinanceHome } from './pages/FinanceHome';
+import { FinanceGuide } from './pages/FinanceGuide';
 import { Manpower } from './pages/Manpower';
 import { Settings } from './pages/Settings';
 import { Admin } from './pages/Admin';
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/prequal" element={<ConsultantMatrix />} />
         <Route path="/manpower_con" element={<Manpower />} />
         <Route path="/help" element={<Help />} />
+        <Route path="/help/finance" element={<FinanceGuide />} />
         <Route path="/fin_project" element={<FinanceHome />} />
         <Route path="/changeorders" element={<FinanceHome initial="changes" />} />
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />

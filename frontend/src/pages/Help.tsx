@@ -11,6 +11,7 @@ const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 
 const HELP_TOPICS = [
+  { title: 'Finance guide', body: 'Step by step, on a real project: subcontracts and paying vendors, billing clients and recording payments, and what every number means.', route: 'help/finance' },
   { title: 'Projects & Workflows', body: 'Create and track projects, then attach reusable workflows with their own item checklists.', route: 'projects' },
   { title: 'Task Boards', body: 'Per-project Asana-style boards: custom sections, subtasks, attachments and comments.', route: 'tasks' },
   { title: 'CRM & Leads', body: 'Move leads through the pipeline, score fit, and schedule Google Meets / site visits.', route: 'pipeline' },

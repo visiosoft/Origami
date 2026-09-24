@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, card, fmtDate, headRow, input } from '../components/manpowerUi';
@@ -25,6 +26,7 @@ const TYPE_LABEL: Record<Pending['type'], [string, 'amber' | 'blue' | 'green' | 
  * Change Orders and Reimbursement menu items open the same page on their tab.
  */
 export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
+  const navigate = useNavigate();
   const [rights, setRights] = useState<Rights | null>(null);
   const [tab, setTab] = useState<Tab>(initial);
   const [project, setProject] = useState<{ id: number; name: string } | null>(null);
@@ -44,7 +46,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
   return (
     <div style={{ padding: '28px 32px', background: PAPER, minHeight: '100%' }}>
       <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>{title}</h1>
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>{blurb}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>{blurb} <span onClick={() => navigate('/help/finance')} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>New to this? Read the Finance guide →</span></p>
       {!rights ? <div style={{ marginTop: 20, fontSize: 13, color: MUTED }}>Loading…</div> : !tabs.length ? (
         <div style={{ ...card, padding: 20, marginTop: 20, fontSize: 13, color: MUTED }}>Your role doesn't include project finance, change orders or reimbursables.</div>
       ) : (

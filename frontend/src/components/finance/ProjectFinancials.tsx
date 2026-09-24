@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
@@ -33,6 +34,8 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
   const [invoices, setInvoices] = useState<Invoice[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
+  const navigate = useNavigate();
+  const guide = <span onClick={() => navigate('/help/finance')} title="Step-by-step guide to project finance" style={{ fontSize: 12, color: ACCENT, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>How this works</span>;
 
   const load = async () => {
     try { setData(await api.finance.overview(projectId) as Overview); setError(''); }
@@ -71,6 +74,7 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
               <b>No client contract</b>
               <div style={{ color: MUTED, fontSize: 12.5 }}>{costSide ? 'This project only has costs — what you pay subcontractors, vendors and your own labor.' : "Its financials haven't been set up yet."}</div>
             </div>
+            {guide}
             {r.manage && <div onClick={() => setSetupOpen(true)} style={btn()} title="If a client pays you for this project">Set up client billing</div>}
           </div>
         )}
@@ -89,6 +93,7 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
           {data.settings.requireProgressApproval ? ' · Progress needs approval before billing' : ''}
           {data.settings.contractLockedAt ? ' · Contract locked (invoiced)' : ''}
         </div>
+        {guide}
         <div onClick={() => setSettingsOpen(true)} style={btn()}>Settings</div>
         {r.prepareInvoice && <div onClick={busy ? undefined : () => newInvoice(true)} style={btn(s.billableNow > 0, busy || s.billableNow <= 0)} title={s.billableNow > 0 ? '' : 'Nothing earned is waiting to be billed'}>
           Bill ready work{s.billableNow > 0 ? ` · ${usd0(s.billableNow)}` : ''}
