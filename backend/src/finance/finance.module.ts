@@ -4,6 +4,8 @@ import {
   ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, FinanceSequenceEntity, FinancialApprovalEntity, LeadEntity, PhaseFinancialEntity,
   ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity,
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
+  CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
+  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity,
 } from '../database/entities';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
@@ -15,8 +17,10 @@ import { ChangeOrdersService } from './change-orders.service';
 import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
+import { CostsService } from './costs.service';
+import { ReportsService } from './reports.service';
 import {
-  FinanceChangeOrderFilesController, FinanceController, FinanceInvoiceFilesController, FinanceReimbursableFilesController,
+  FinanceChangeOrderFilesController, FinanceController, FinanceCostFilesController, FinanceInvoiceFilesController, FinanceReimbursableFilesController,
 } from './finance.controller';
 
 /**
@@ -32,12 +36,14 @@ import {
       ProjectFinancialEntity, PhaseFinancialEntity, TaskFinancialEntity, ProgressUpdateEntity,
       ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, FinanceSequenceEntity, FinanceActivityEntity,
       ChangeOrderEntity, ChangeOrderItemEntity, ReimbursableEntity, RetentionReleaseEntity, FinancialApprovalEntity,
+      CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
+      TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity,
     ]),
     AuthModule,
     GoogleModule,
     SettingsModule,
   ],
-  controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService],
+  controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService],
 })
 export class FinanceModule {}

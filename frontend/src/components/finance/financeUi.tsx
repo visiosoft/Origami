@@ -31,12 +31,13 @@ export interface Settings {
   projectId: number; exists: boolean; version: number; currency: string; originalContractValue: number; originalBudget: number | null;
   retentionPct: number; taxPct: number; paymentTermsDays: number; requireProgressApproval: boolean; billToName?: string; billToEmail?: string;
   billToAddress?: string; contractNumber?: string; poNumber?: string; notes?: string; contractLockedAt?: string; reportedProgress: number; approvedProgress: number;
-  reimbursableMarkupPct?: number;
+  reimbursableMarkupPct?: number; laborBurdenPct?: number;
 }
 export interface Rights {
   view: boolean; manage: boolean; reportProgress: boolean; approveProgress: boolean;
   prepareInvoice: boolean; issueInvoice: boolean; recordPayment: boolean; approveChangeOrders: boolean; approveReimbursables: boolean; releaseRetention: boolean;
   viewChangeOrders: boolean; editChangeOrders: boolean; viewReimbursables: boolean; submitReimbursables: boolean;
+  manageCosts: boolean; approveCosts: boolean; viewProfitability: boolean;
 }
 export interface Overview {
   project: { id: number; name: string; contractAmt: string; stage: string };
@@ -221,3 +222,29 @@ export function ReasonBox({ title, fields, confirm, tone, onCancel, onSubmit }: 
     </div>
   );
 }
+
+// ------------------------------------------------------------------ phase 3
+
+/** A table as a CSV download -- every report can be taken to a spreadsheet. */
+export function downloadCsv(filename: string, columns: [string, string][], rows: Record<string, any>[]) {
+  const cell = (v: unknown) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [columns.map(([, l]) => cell(l)).join(','), ...rows.map((r) => columns.map(([k]) => cell(r[k])).join(','))].join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export const COMMITMENT_TYPES: [string, string][] = [['subcontract', 'Subcontract'], ['purchase_order', 'Purchase order'], ['service', 'Service agreement']];
+export const COST_TYPES: [string, string][] = [
+  ['vendor_bill', 'Vendor bill'], ['subcontract_invoice', 'Subcontractor pay app'], ['material', 'Material'], ['equipment', 'Equipment'], ['other', 'Other'],
+];
+const CM_STATUS: Record<string, [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
+  draft: ['Draft', 'grey'], approved: ['Approved', 'green'], closed: ['Closed', 'blue'], void: ['Void', 'grey'],
+  recorded: ['Recorded', 'amber'], paid: ['Paid', 'green'],
+};
+export const CostBadge = ({ s }: { s: string }) => <Badge tone={(CM_STATUS[s] || [s, 'grey'])[1]}>{(CM_STATUS[s] || [s])[0]}</Badge>;

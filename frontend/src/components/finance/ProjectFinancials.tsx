@@ -10,8 +10,9 @@ import { InvoiceDrawer } from './InvoiceDrawer';
 import { ChangeOrderList } from './ChangeOrders';
 import { ReimbursableList } from './Reimbursables';
 import { RetentionPanel } from './Retention';
+import { JobCostPanel, ProfitabilityPanel } from './JobCost';
 
-type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'invoices' | 'payments' | 'activity';
+type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity';
 type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
 
 /**
@@ -87,7 +88,8 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid ' + LINE }}>
         {([
           ['sov', 'Schedule of values'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`],
-          ['payments', 'Payments'], ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'], ['activity', 'Activity'],
+          ['payments', 'Payments'], ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'],
+          ...(r.viewProfitability || r.manageCosts ? [['jobcost', 'Job cost']] : []), ...(r.viewProfitability ? [['profit', 'Profitability']] : []), ['activity', 'Activity'],
         ] as [View, string][]).map(([k, l]) => (
           <div key={k} onClick={() => setView(k)} style={{ padding: '9px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: view === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (view === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>
         ))}
@@ -102,6 +104,8 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
       )}
       {view === 'changes' && <ChangeOrderList projectId={projectId} overview={data} rights={r} onChanged={load} />}
       {view === 'reimbursables' && <ReimbursableList key={tick} projectId={projectId} overview={data} rights={r} onChanged={load} onBill={(ids) => newInvoice(false, ids)} />}
+      {view === 'jobcost' && <JobCostPanel key={tick} projectId={projectId} overview={data} />}
+      {view === 'profit' && <ProfitabilityPanel key={tick} projectId={projectId} />}
       {view === 'retention' && <RetentionPanel key={tick} projectId={projectId} overview={data} rights={r} onOpenInvoice={setOpenInvoice} onChanged={() => Promise.all([load(), loadInvoices()])} />}
       {view === 'invoices' && (
         <InvoiceList invoices={invoices} canManage={r.prepareInvoice} busy={busy} billableNow={s.billableNow} onOpen={setOpenInvoice} onNew={newInvoice} />
@@ -338,6 +342,7 @@ function SettingsForm({ data, f, set }: { data: Overview; f: Record<string, any>
       <div><Label text="Retention %" /><input type="number" min={0} max={100} step={0.5} value={f.retentionPct} onChange={(e) => set('retentionPct', e.target.value)} style={input} /></div>
       <div><Label text="Tax % (on invoices)" /><input type="number" min={0} max={100} step={0.25} value={f.taxPct} onChange={(e) => set('taxPct', e.target.value)} style={input} /></div>
       <div><Label text="Payment terms (days)" /><input type="number" min={0} max={365} value={f.paymentTermsDays} onChange={(e) => set('paymentTermsDays', e.target.value)} style={input} /></div>
+      <div><Label text="Labor burden %" /><input type="number" min={0} max={200} step={0.5} value={f.laborBurdenPct} onChange={(e) => set('laborBurdenPct', e.target.value)} placeholder="e.g. 30" style={input} /></div>
       <div><Label text="Reimbursable markup %" /><input type="number" min={0} max={100} step={0.5} value={f.reimbursableMarkupPct} onChange={(e) => set('reimbursableMarkupPct', e.target.value)} style={input} /></div>
       <div><Label text="Contract number" /><input value={f.contractNumber} onChange={(e) => set('contractNumber', e.target.value)} style={input} /></div>
       <div><Label text="Client PO number" /><input value={f.poNumber} onChange={(e) => set('poNumber', e.target.value)} style={input} /></div>
@@ -354,7 +359,7 @@ function SettingsForm({ data, f, set }: { data: Overview; f: Record<string, any>
 const formFrom = (data: Overview, s: Settings) => ({
   originalContractValue: s.exists ? s.originalContractValue : data.suggestedContract || '',
   originalBudget: s.originalBudget ?? '', retentionPct: s.exists ? s.retentionPct : 10, taxPct: s.taxPct ?? 0, paymentTermsDays: s.paymentTermsDays ?? 30,
-  reimbursableMarkupPct: s.reimbursableMarkupPct ?? 0,
+  reimbursableMarkupPct: s.reimbursableMarkupPct ?? 0, laborBurdenPct: s.laborBurdenPct ?? 0,
   requireProgressApproval: !!s.requireProgressApproval, contractNumber: s.contractNumber || '', poNumber: s.poNumber || '',
   billToName: s.billToName || data.billToDefaults?.name || '', billToEmail: s.billToEmail || data.billToDefaults?.email || '', billToAddress: s.billToAddress || data.billToDefaults?.address || '',
 });
@@ -362,7 +367,7 @@ const payloadFrom = (f: Record<string, any>, locked: boolean) => ({
   ...(locked ? {} : { originalContractValue: Number(f.originalContractValue) || 0 }),
   originalBudget: f.originalBudget === '' ? null : Number(f.originalBudget), retentionPct: Number(f.retentionPct) || 0, taxPct: Number(f.taxPct) || 0,
   paymentTermsDays: Number(f.paymentTermsDays) || 0, requireProgressApproval: !!f.requireProgressApproval, contractNumber: f.contractNumber, poNumber: f.poNumber,
-  reimbursableMarkupPct: Number(f.reimbursableMarkupPct) || 0,
+  reimbursableMarkupPct: Number(f.reimbursableMarkupPct) || 0, laborBurdenPct: Number(f.laborBurdenPct) || 0,
   billToName: f.billToName, billToEmail: f.billToEmail, billToAddress: f.billToAddress,
 });
 
@@ -631,6 +636,11 @@ const ACTION_LABEL: Record<string, string> = {
   reimbursable_rejected: 'Rejected a reimbursable', reimbursable_deleted: 'Deleted a reimbursable',
   retention_release_requested: 'Requested a retention release', retention_release_approved: 'Approved a retention release',
   retention_release_rejected: 'Rejected a retention release', retention_release_cancelled: 'Cancelled a retention release',
+  budget_added: 'Added a budget line', budget_changed: 'Changed a budget line', budget_removed: 'Removed a budget line', forecast_set: 'Set a cost forecast',
+  commitment_created: 'Created a subcontract / PO', commitment_changed: 'Edited a subcontract / PO', commitment_revised: 'Revised an approved subcontract / PO',
+  commitment_approved: 'Approved a subcontract / PO', commitment_closed: 'Closed a subcontract / PO', commitment_voided: 'Voided a subcontract / PO',
+  commitment_reopened: 'Reopened a subcontract / PO', commitment_deleted: 'Deleted a subcontract / PO',
+  cost_recorded: 'Recorded a cost', cost_changed: 'Edited a cost', cost_approved: 'Approved a cost', cost_paid: 'Marked a cost paid', cost_voided: 'Voided a cost', cost_deleted: 'Deleted a cost',
 };
 export { ACTION_LABEL };
 

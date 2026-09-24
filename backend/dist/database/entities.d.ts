@@ -991,6 +991,7 @@ export declare class ProjectFinancialEntity extends FinanceStamped {
     reportedProgress: number;
     approvedProgress: number;
     reimbursableMarkupPct: number;
+    laborBurdenPct: number;
 }
 declare abstract class ItemFinancialBase extends FinanceStamped {
     projectId: number;
@@ -1242,5 +1243,76 @@ export declare class FinancialApprovalEntity {
     byName: string;
     byId: string;
     at: string;
+}
+export declare class CostBudgetLineEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    csiCodeId: string;
+    phaseId: string;
+    taskId: string;
+    description: string;
+    amount: number;
+    notes: string;
+}
+export declare class CommitmentEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    number: string;
+    type: string;
+    contractorId: string;
+    vendorName: string;
+    title: string;
+    scope: string;
+    status: string;
+    dateIssued: string;
+    approvedAt: string;
+    approvedBy: string;
+    closedAt: string;
+    closedBy: string;
+    closedReason: string;
+    notes: string;
+    attachments: TaskAttachment[];
+}
+export declare class CommitmentLineEntity {
+    id: string;
+    commitmentId: string;
+    projectId: number;
+    lineOrder: number;
+    description: string;
+    csiCodeId: string;
+    phaseId: string;
+    taskId: string;
+    amount: number;
+}
+export declare class CostEntryEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    date: string;
+    dueDate: string;
+    type: string;
+    contractorId: string;
+    vendorName: string;
+    reference: string;
+    commitmentId: string;
+    csiCodeId: string;
+    phaseId: string;
+    taskId: string;
+    description: string;
+    amount: number;
+    status: string;
+    approvedBy: string;
+    approvedAt: string;
+    paidDate: string;
+    paymentRef: string;
+    voidReason: string;
+    notes: string;
+    attachments: TaskAttachment[];
+}
+export declare class CostForecastEntity extends FinanceStamped {
+    id: string;
+    projectId: number;
+    csiCodeId: string;
+    eac: number;
+    note: string;
 }
 export {};

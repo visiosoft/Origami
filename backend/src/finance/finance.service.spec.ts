@@ -4,10 +4,12 @@ import { ChangeOrdersService } from './change-orders.service';
 import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
+import { CostsService } from './costs.service';
+import { ReportsService } from './reports.service';
 import {
   ChangeOrderEntity, ChangeOrderItemEntity, FinanceActivityEntity, FinanceSequenceEntity, FinancialApprovalEntity, PhaseFinancialEntity,
   ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectSectionEntity,
-  ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
+  ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity, CommitmentEntity, CommitmentLineEntity,
 } from '../database/entities';
 import { DEFAULT_PROGRAMME } from '../seed-data/programme-template';
 import type { Actor, ManpowerAccess } from '../manpower/manpower-access.service';
@@ -85,16 +87,23 @@ function setup(opts: { contract?: string; phases?: any[]; tasks?: any[] } = {}) 
     pfin: table([], true), phfin: table([], true), tfin: table([], true), progress: table(),
     invoices: table([], true), lines: table(), payments: table([], true), activity: table(), seq: table(),
     cos: table([], true), coItems: table(), approvals: table(), reimbs: table([], true), releases: table([], true), sections: table([{ id: 'S-7-0', projectId: 7, name: 'To do', order: 0 }]),
+    budget: table([], true), commitments: table([], true), commitmentLines: table(), entries: table([], true), forecasts: table([], true),
+    timesheets: table([]), timesheetLines: table([]), dailyLogs: table([]), laborEntries: table([]),
+    employees: table([{ id: 'E1', name: 'Robert Johnson', payType: 'hourly', payRate: 50 }]),
+    codes: table([{ id: 'C03', code: '03', division: 'Concrete', active: true, order: 1 }, { id: 'C09', code: '09', division: 'Finishes', active: true, order: 2 }]),
+    contractors: table([{ id: 'K1', companyName: 'Bay Concrete Inc.', status: 'active' }]),
   };
   const byEntity = new Map<any, any>([
     [ProjectInvoiceEntity, t.invoices], [ProjectInvoiceLineEntity, t.lines], [ProjectPaymentEntity, t.payments], [FinanceSequenceEntity, t.seq],
     [ProjectFinancialEntity, t.pfin], [PhaseFinancialEntity, t.phfin], [TaskFinancialEntity, t.tfin], [FinanceActivityEntity, t.activity],
     [ChangeOrderEntity, t.cos], [ChangeOrderItemEntity, t.coItems], [FinancialApprovalEntity, t.approvals], [ReimbursableEntity, t.reimbs],
     [RetentionReleaseEntity, t.releases], [ProjectPhaseEntity, t.phases], [ProjectTaskEntity, t.tasks], [ProjectSectionEntity, t.sections],
+    [CommitmentEntity, t.commitments], [CommitmentLineEntity, t.commitmentLines],
   ]);
   const manager = { getRepository: (e: any) => byEntity.get(e), transaction: async (fn: any) => fn(manager) };
   t.invoices.manager = manager;
   t.cos.manager = manager;
+  t.commitments.manager = manager;
   const settings = { get: jest.fn(async (k: string) => (k === 'programme.templates' ? LIB : null)) };
   const fin = new FinancialsService(t.projects, t.leads, t.phases, t.tasks, t.pfin, t.phfin, t.tfin, t.progress, t.invoices, t.lines, t.payments, t.activity, settings as any, access, t.cos, t.coItems, t.approvals);
   const inv = new InvoicesService(t.invoices, t.lines, t.payments, t.pfin, fin, t.reimbs, t.releases);
@@ -102,7 +111,10 @@ function setup(opts: { contract?: string; phases?: any[]; tasks?: any[] } = {}) 
   const reimb = new ReimbursablesService(t.reimbs, t.projects, fin);
   const ret = new RetentionService(t.releases, fin, inv);
   const hub = new FinanceHubService(fin, t.projects, t.pfin, t.cos, t.coItems, t.reimbs, t.releases, t.invoices, t.phfin, t.tfin, t.phases, t.tasks, t.activity, t.lines);
-  return { fin, inv, cos, reimb, ret, hub, t };
+  const costs = new CostsService(fin, settings as any, t.budget, t.commitments, t.commitmentLines, t.entries, t.forecasts, t.cos, t.coItems, t.reimbs,
+    t.timesheets, t.timesheetLines, t.dailyLogs, t.laborEntries, t.employees, t.codes, t.contractors);
+  const reports = new ReportsService(fin, costs, cos, t.projects, t.pfin, t.invoices, t.payments, t.releases, t.entries);
+  return { fin, inv, cos, reimb, ret, hub, costs, reports, t };
 }
 
 const v = (rows: any[], pred: (r: any) => boolean) => rows.find(pred)?.version;
@@ -466,5 +478,97 @@ describe('phase 2: reimbursables, retention release and credit notes', () => {
     expect(portfolio[0]).toMatchObject({ projectId: 7, name: 'Marina Tower', pendingChanges: 500 });
     const audit = await s.hub.audit(finance, { projectId: '7', entityType: 'change_order' });
     expect(audit.map((a: any) => a.action)).toEqual(expect.arrayContaining(['co_created', 'co_submitted']));
+  });
+});
+
+describe('phase 3: job cost, profitability and reports', () => {
+  async function costed() {
+    const s = await readyProject({ retention: 10, tax: 0 });
+    await s.fin.saveSettings(7, { laborBurdenPct: 30, version: v(s.t.pfin.rows, () => true) }, finance);
+    let o = await s.costs.saveBudgetLine(7, { csiCodeId: 'C03', description: 'Foundations and slab', amount: 60000 }, finance);
+    o = await s.costs.saveBudgetLine(7, { csiCodeId: 'C09', description: 'Finishes', amount: 90000 }, finance);
+    return { ...s, o };
+  }
+
+  it('job cost is kept from anyone without profitability access; the granular right falls back to financials -> manage', async () => {
+    const s = await costed();
+    await expect(s.costs.overview(7, viewer)).rejects.toThrow(/doesn't include job cost/);
+    expect(await s.fin.rights(finance)).toMatchObject({ manageCosts: true, approveCosts: true, viewProfitability: true });
+    expect(s.o.totals).toMatchObject({ budget: 150000, actual: 0, eac: 150000 });
+  });
+
+  it('commitments: drafted, approved, billed against -- over-billing needs a reason, voiding needs nothing billed', async () => {
+    const s = await costed();
+    let o = await s.costs.saveCommitment(7, { type: 'subcontract', contractorId: 'K1', title: 'Foundations', lines: [{ description: 'Footings and slab', csiCodeId: 'C03', amount: 48000 }] }, finance);
+    let sc = o.commitments[0];
+    expect(sc).toMatchObject({ number: 'SC-001', vendorName: 'Bay Concrete Inc.', status: 'draft', total: 48000 });
+    expect(o.totals.committed).toBe(0); // drafts don't commit anything
+    await expect(s.costs.saveEntry(7, { commitmentId: sc.id, description: 'Pay app 1', amount: 1000, csiCodeId: 'C03' }, finance)).rejects.toThrow(/is draft/);
+    o = await s.costs.commitmentStep(sc.id, 'approve', { version: sc.version }, finance);
+    sc = o.commitments[0];
+    o = await s.costs.saveEntry(7, { commitmentId: sc.id, type: 'subcontract_invoice', reference: 'PA-1', description: 'Pay app 1', amount: 20000, csiCodeId: 'C03', date: '2026-08-10' }, finance);
+    const c03 = o.rows.find((r: any) => r.csiCodeId === 'C03');
+    expect(c03).toMatchObject({ budget: 60000, committed: 48000, commitmentBilled: 20000, open: 28000, actual: 20000, eac: 60000, code: '03', division: 'Concrete' });
+    expect(o.commitments[0]).toMatchObject({ billed: 20000, remaining: 28000 });
+    expect(o.entries[0]).toMatchObject({ vendorName: 'Bay Concrete Inc.', dueDate: '2026-09-09', status: 'recorded' });
+    await expect(s.costs.saveEntry(7, { commitmentId: sc.id, description: 'Pay app 2', amount: 30000, csiCodeId: 'C03' }, finance)).rejects.toThrow(/Revise the commitment, or give a reason/);
+    o = await s.costs.saveEntry(7, { commitmentId: sc.id, description: 'Pay app 2 incl. extra rebar', amount: 30000, csiCodeId: 'C03', overrideReason: 'Rebar extra agreed on site; CO to follow' }, finance);
+    expect(o.rows.find((r: any) => r.csiCodeId === 'C03')).toMatchObject({ actual: 50000, open: 0, eac: 60000 });
+    await expect(s.costs.commitmentStep(sc.id, 'void', { version: o.commitments[0].version, reason: 'x' }, finance)).rejects.toThrow(/close it instead/);
+    o = await s.costs.commitmentStep(sc.id, 'close', { version: o.commitments[0].version }, finance);
+    expect(o.commitments[0].status).toBe('closed');
+    // Revising an approved commitment needs approve rights and a reason; never below billed.
+    const e = o.entries.find((x: any) => x.reference === 'PA-1');
+    o = await s.costs.entryStep(e.id, 'approve', { version: e.version }, finance);
+    o = await s.costs.entryStep(e.id, 'pay', { version: o.entries.find((x: any) => x.id === e.id).version, paidDate: '2026-09-01', paymentRef: 'CHK 1044' }, finance);
+    expect(o.entries.find((x: any) => x.id === e.id)).toMatchObject({ status: 'paid', paymentRef: 'CHK 1044' });
+  });
+
+  it('labor from approved timesheets (with burden), reimbursable costs and change-order costs all land on their codes', async () => {
+    const s = await costed();
+    s.t.timesheets.rows.push({ id: 'TS1', employeeId: 'E1', weekStart: '2026-08-31', status: 'approved' }, { id: 'TS2', employeeId: 'E1', weekStart: '2026-09-07', status: 'draft' });
+    s.t.timesheetLines.rows.push(
+      { id: 'L1', timesheetId: 'TS1', employeeId: 'E1', kind: 'project', projectId: 7, csiCodeId: 'C03', days: { '2026-09-01': { hours: 8 }, '2026-09-02': { hours: 10 } }, order: 0 },
+      { id: 'L2', timesheetId: 'TS2', employeeId: 'E1', kind: 'project', projectId: 7, csiCodeId: 'C03', days: { '2026-09-08': { hours: 8 } }, order: 0 },
+    );
+    // 18 h: 16 ordinary + 2 overtime at 1.5 -> 16x50 + 2x75 = 950, +30% burden = 1,235.
+    let o = await s.costs.overview(7, finance);
+    expect(o.rows.find((r: any) => r.csiCodeId === 'C03')).toMatchObject({ labor: 1235, laborHours: 18, actual: 1235 });
+    expect(o.labor).toMatchObject({ hours: 18, wage: 950, cost: 1235 });
+    expect(o.labor.people[0]).toMatchObject({ name: 'Robert Johnson', hours: 18, otHours: 2 });
+    const r = await s.reimb.create(7, { description: 'Tile samples', cost: 300, csiCodeId: 'C09' }, finance);
+    await s.reimb.decide(r.id, { decision: 'approve', version: r.version }, finance);
+    const co = await s.cos.create(7, { title: 'Upgraded tile', items: [{ description: 'Porcelain upgrade', targetType: 'phase', phaseId: 'PH-D1', amount: 8000, cost: 6000, csiCodeId: 'C09' }] }, finance);
+    await s.cos.act(co.id, 'client_approve', { version: co.version, signer: 'Pat Owner' }, finance);
+    o = await s.costs.overview(7, finance);
+    expect(o.rows.find((r: any) => r.csiCodeId === 'C09')).toMatchObject({ budgetOriginal: 90000, budgetChanges: 6000, budget: 96000, reimbursable: 300, actual: 300 });
+    // Contract 508,000; forecast cost = budget 156,000 (reimbursable cost kept apart) -> margin 352,000.
+    expect(o.profitability).toMatchObject({ contract: 508000, projectedCost: 155700, projectedMargin: 352300, costToDate: 1235 });
+    o = await s.costs.setForecast(7, { csiCodeId: 'C03', eac: 70000, note: 'Soils report: deeper footings' }, finance);
+    expect(o.rows.find((r: any) => r.csiCodeId === 'C03')).toMatchObject({ eac: 70000, eacOverridden: true, variance: -10000 });
+  });
+
+  it('reports: WIP, AR aging, contract vs invoiced and the cash forecast agree with the project', async () => {
+    const s = await costed();
+    await s.fin.reportProgress('task', 'T-1', { pct: 100, version: v(s.t.tfin.rows, (r) => r.taskId === 'T-1') }, pm);
+    const d = await s.inv.createDraft(7, { billReady: true }, finance);
+    const i = await s.inv.issue(d.id, { version: d.version }, finance); // 75,000 - 7,500 = 67,500
+    s.t.invoices.rows.find((x: any) => x.id === i.id).dueDate = '2026-07-01'; // issued long ago
+    await s.inv.recordPayment(i.id, { amount: 7500, date: '2026-07-15' }, finance);
+    await s.costs.saveEntry(7, { description: 'Concrete supply', amount: 12000, csiCodeId: 'C03', date: '2026-09-20', dueDate: '2026-10-20' }, finance);
+    const aging = await s.reports.arAging(finance, '2026-09-24');
+    expect(aging.invoices[0]).toMatchObject({ number: 'INV-2026-0001', bucket: 'd61_90', daysPastDue: 85, outstanding: 60000 });
+    expect(aging.totals).toMatchObject({ d61_90: 60000, total: 60000 });
+    const wip = await s.reports.wip(finance);
+    expect(wip.rows[0]).toMatchObject({ contract: 500000, costToDate: 12000, projectedCost: 150000, billed: 75000, earnedRevenue: 40000, overUnderBilling: 35000 });
+    expect(wip.withoutCosts).toEqual([]);
+    const cvi = await s.reports.contractVsInvoiced(finance);
+    expect(cvi.rows[0]).toMatchObject({ revised: 500000, invoiced: 75000, billedPct: 15, paid: 7500, outstanding: 60000 });
+    const cash = await s.reports.cashForecast(finance, 3);
+    expect(cash.months[0]).toMatchObject({ in: 60000 }); // overdue lands in this month
+    expect(cash.months.reduce((a: number, m: any) => a + m.out, 0)).toBe(12000);
+    await expect(s.reports.wip(viewer)).rejects.toThrow(/job cost/);
+    const forViewer = await s.reports.cashForecast(viewer, 3);
+    expect(forViewer.showCosts).toBe(false);
   });
 });

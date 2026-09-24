@@ -40,6 +40,9 @@ exports.FIN_ACTIONS = {
     approveChangeOrders: 'finx_approve_co',
     approveReimbursables: 'finx_approve_reimb',
     releaseRetention: 'finx_release_retention',
+    manageCosts: 'finx_manage_costs',
+    approveCosts: 'finx_approve_costs',
+    viewProfitability: 'finx_view_profitability',
 };
 exports.CO_OPEN = ['internal_review', 'submitted'];
 exports.BILLING_METHODS = ['fixed', 'percent_complete', 'quantity', 't_and_m', 'reimbursable', 'milestone', 'manual'];
@@ -79,6 +82,9 @@ const DENIED = {
     submitReimbursables: "Your role doesn't allow submitting reimbursables.",
     viewReimbursables: "Your role doesn't include reimbursables.",
     releaseRetention: "Your role doesn't allow releasing retention.",
+    manageCosts: "Your role doesn't allow recording budgets, commitments or costs.",
+    approveCosts: "Your role doesn't allow approving commitments or costs.",
+    viewProfitability: "Your role doesn't include job cost and profitability.",
 };
 let FinancialsService = class FinancialsService {
     constructor(projects, leads, phases, tasks, pfin, phfin, tfin, progress, invoices, lines, payments, activityRepo, settings, access, changeOrders, coItems, approvals) {
@@ -179,7 +185,7 @@ let FinancialsService = class FinancialsService {
     }
     async settingsFor(projectId) {
         const row = await this.pfin.findOneBy({ projectId });
-        return { row, exists: !!row, value: row || { projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } };
+        return { row, exists: !!row, value: row || { projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, laborBurdenPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } };
     }
     async context(projectId) {
         const project = await this.project(projectId);
@@ -259,6 +265,12 @@ let FinancialsService = class FinancialsService {
             patch.taxPct = pctIn(dto.taxPct, 'Tax');
         if (dto.reimbursableMarkupPct !== undefined)
             patch.reimbursableMarkupPct = pctIn(dto.reimbursableMarkupPct, 'Reimbursable markup');
+        if (dto.laborBurdenPct !== undefined) {
+            const n = Number(dto.laborBurdenPct);
+            if (!Number.isFinite(n) || n < 0 || n > 200)
+                throw new common_1.BadRequestException('Labor burden must be between 0 and 200%.');
+            patch.laborBurdenPct = (0, money_1.roundPct)(n);
+        }
         if (dto.paymentTermsDays !== undefined) {
             const d = Number(dto.paymentTermsDays);
             if (!Number.isInteger(d) || d < 0 || d > 365)

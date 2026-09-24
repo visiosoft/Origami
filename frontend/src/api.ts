@@ -87,7 +87,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -553,6 +553,20 @@ export const api = {
     requestRelease: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/retention/releases`, { method: 'POST', body: JSON.stringify(d) }),
     decideRelease: (id: string, d: unknown) => request(`/finance/retention-releases/${id}/decision`, { method: 'POST', body: JSON.stringify(d) }),
     billRelease: (id: string) => request(`/finance/retention-releases/${id}/bill`, { method: 'POST', body: '{}' }),
+    // --- phase 3: job cost and reports
+    costs: (projectId: number) => request(`/finance/projects/${projectId}/costs`),
+    saveBudgetLine: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/budget-lines`, { method: 'POST', body: JSON.stringify(d) }),
+    removeBudgetLine: (id: string) => request(`/finance/budget-lines/${id}`, { method: 'DELETE' }),
+    setForecast: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/forecasts`, { method: 'PUT', body: JSON.stringify(d) }),
+    saveCommitment: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/commitments`, { method: 'POST', body: JSON.stringify(d) }),
+    commitmentStep: (id: string, action: string, d: unknown) => request(`/finance/commitments/${id}/${action}`, { method: 'POST', body: JSON.stringify(d) }),
+    saveCost: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/cost-entries`, { method: 'POST', body: JSON.stringify(d) }),
+    costStep: (id: string, action: string, d: unknown) => request(`/finance/cost-entries/${id}/${action}`, { method: 'POST', body: JSON.stringify(d) }),
+    costUpload: (id: string, files: File[]) => requestForm(`/finance-costs/${id}/attachments`, filesForm(files)),
+    costLink: (id: string, name: string, url: string) => request(`/finance-costs/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    costRemoveAttachment: (id: string, attId: string) => request(`/finance-costs/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    report: (name: 'wip' | 'ar-aging' | 'budget-vs-actual' | 'change-orders' | 'retention' | 'contract-vs-invoiced' | 'cash-forecast', q: Record<string, string> = {}) =>
+      request(`/finance/reports/${name}?${new URLSearchParams(q).toString()}`),
   },
   subcontractorTrades: {
     list: () => request('/subcontractor-trades'),

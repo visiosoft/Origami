@@ -32,6 +32,9 @@ export const FIN_ACTIONS = {
   approveChangeOrders: 'finx_approve_co',
   approveReimbursables: 'finx_approve_reimb',
   releaseRetention: 'finx_release_retention',
+  manageCosts: 'finx_manage_costs',
+  approveCosts: 'finx_approve_costs',
+  viewProfitability: 'finx_view_profitability',
 } as const;
 export type FinRights = {
   view: boolean; manage: boolean; reportProgress: boolean;
@@ -78,6 +81,9 @@ const DENIED: Partial<Record<keyof FinRights, string>> = {
   submitReimbursables: "Your role doesn't allow submitting reimbursables.",
   viewReimbursables: "Your role doesn't include reimbursables.",
   releaseRetention: "Your role doesn't allow releasing retention.",
+  manageCosts: "Your role doesn't allow recording budgets, commitments or costs.",
+  approveCosts: "Your role doesn't allow approving commitments or costs.",
+  viewProfitability: "Your role doesn't include job cost and profitability.",
 };
 
 @Injectable()
@@ -186,7 +192,7 @@ export class FinancialsService {
   /** Settings row, or unsaved defaults (version 0) for a project not set up yet. */
   async settingsFor(projectId: number) {
     const row = await this.pfin.findOneBy({ projectId });
-    return { row, exists: !!row, value: row || ({ projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } as unknown as ProjectFinancialEntity) };
+    return { row, exists: !!row, value: row || ({ projectId, currency: 'USD', fxRate: 1, originalContractValue: 0, originalBudget: null, retentionPct: 0, taxPct: 0, reimbursableMarkupPct: 0, laborBurdenPct: 0, paymentTermsDays: 30, requireProgressApproval: false, reportedProgress: 0, approvedProgress: 0, version: 0 } as unknown as ProjectFinancialEntity) };
   }
 
   /** Everything the schedule of values is computed from. */
@@ -268,6 +274,11 @@ export class FinancialsService {
     if (dto.retentionPct !== undefined) patch.retentionPct = pctIn(dto.retentionPct, 'Retention');
     if (dto.taxPct !== undefined) patch.taxPct = pctIn(dto.taxPct, 'Tax');
     if (dto.reimbursableMarkupPct !== undefined) patch.reimbursableMarkupPct = pctIn(dto.reimbursableMarkupPct, 'Reimbursable markup');
+    if (dto.laborBurdenPct !== undefined) {
+      const n = Number(dto.laborBurdenPct);
+      if (!Number.isFinite(n) || n < 0 || n > 200) throw new BadRequestException('Labor burden must be between 0 and 200%.');
+      patch.laborBurdenPct = roundPct(n);
+    }
     if (dto.paymentTermsDays !== undefined) {
       const d = Number(dto.paymentTermsDays);
       if (!Number.isInteger(d) || d < 0 || d > 365) throw new BadRequestException('Payment terms are 0-365 days.');

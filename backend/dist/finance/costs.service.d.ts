@@ -1,0 +1,93 @@
+import { Repository } from 'typeorm';
+import { ChangeOrderEntity, ChangeOrderItemEntity, CommitmentEntity, CommitmentLineEntity, ContractorEntity, CostBudgetLineEntity, CostEntryEntity, CostForecastEntity, CsiCodeEntity, DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, ReimbursableEntity, TimesheetEntity, TimesheetLineEntity } from '../database/entities';
+import type { Actor } from '../manpower/manpower-access.service';
+import { AttachmentsService, type UploadActor } from '../google/attachments.service';
+import { type TaskAttachment } from '../database/task.types';
+import { SettingsService } from '../settings/settings.service';
+import { FinancialsService } from './financials.service';
+import { type LaborLine } from './costs.calc';
+export declare const COMMITMENT_TYPES: string[];
+export declare const COST_TYPES: string[];
+export declare class CostsService {
+    private readonly fin;
+    private readonly settings;
+    private readonly budget;
+    private readonly commitments;
+    private readonly commitmentLines;
+    private readonly entries;
+    private readonly forecasts;
+    private readonly cos;
+    private readonly coItems;
+    private readonly reimbs;
+    private readonly timesheets;
+    private readonly timesheetLines;
+    private readonly dailyLogs;
+    private readonly laborEntries;
+    private readonly employees;
+    private readonly codes;
+    private readonly contractors;
+    private readonly attachments?;
+    constructor(fin: FinancialsService, settings: SettingsService, budget: Repository<CostBudgetLineEntity>, commitments: Repository<CommitmentEntity>, commitmentLines: Repository<CommitmentLineEntity>, entries: Repository<CostEntryEntity>, forecasts: Repository<CostForecastEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, timesheets: Repository<TimesheetEntity>, timesheetLines: Repository<TimesheetLineEntity>, dailyLogs: Repository<DailyLogEntity>, laborEntries: Repository<LaborLogEntryEntity>, employees: Repository<EmployeeEntity>, codes: Repository<CsiCodeEntity>, contractors: Repository<ContractorEntity>, attachments?: AttachmentsService | undefined);
+    private canSee;
+    private laborSettings;
+    laborAll(): Promise<LaborLine[]>;
+    context(projectId: number, labor?: LaborLine[]): Promise<{
+        jc: {
+            rows: import("./costs.calc").CostRow[];
+            totals: {
+                budgetOriginalC: number;
+                budgetChangesC: number;
+                budgetC: number;
+                committedC: number;
+                commitmentBilledC: number;
+                openC: number;
+                billsC: number;
+                laborC: number;
+                laborHours: number;
+                reimbursableC: number;
+                actualC: number;
+                eacC: number;
+                costToCompleteC: number;
+                varianceC: number;
+            };
+        };
+        budget: CostBudgetLineEntity[];
+        commitments: CommitmentEntity[];
+        lines: CommitmentLineEntity[];
+        entries: CostEntryEntity[];
+        forecasts: CostForecastEntity[];
+        burden: number;
+        labor: LaborLine[];
+        reimbs: ReimbursableEntity[];
+        settings: import("../database/entities").ProjectFinancialEntity;
+    }>;
+    overview(projectId: number, actor: Actor): Promise<any>;
+    saveBudgetLine(projectId: number, dto: any, actor: Actor): Promise<any>;
+    removeBudgetLine(id: string, actor: Actor): Promise<any>;
+    setForecast(projectId: number, dto: {
+        csiCodeId?: string | null;
+        eac?: number | string | null;
+        note?: string;
+    }, actor: Actor): Promise<any>;
+    private commitment;
+    private linesFrom;
+    saveCommitment(projectId: number, dto: any, actor: Actor): Promise<any>;
+    commitmentStep(id: string, action: string, dto: {
+        version?: number;
+        reason?: string;
+    }, actor: Actor): Promise<any>;
+    private entry;
+    saveEntry(projectId: number, dto: any, actor: Actor): Promise<any>;
+    entryStep(id: string, action: string, dto: {
+        version?: number;
+        reason?: string;
+        paidDate?: string;
+        paymentRef?: string;
+    }, actor: Actor): Promise<any>;
+    private holder;
+    addAttachments(id: string, files: any[], actor: UploadActor): Promise<TaskAttachment[]>;
+    addLink(id: string, name: string, url: string, actor: UploadActor): Promise<TaskAttachment[]>;
+    removeAttachment(id: string, attId: string): Promise<TaskAttachment[]>;
+    attachment(id: string, attId: string): Promise<TaskAttachment>;
+}
+export declare function summarizeLabor(lines: LaborLine[], burdenPct: number): any;

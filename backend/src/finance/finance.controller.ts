@@ -14,6 +14,8 @@ import { ChangeOrdersService } from './change-orders.service';
 import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
+import { CostsService } from './costs.service';
+import { ReportsService } from './reports.service';
 
 const kindOf = (k: string) => {
   if (k !== 'phase' && k !== 'task' && k !== 'project') throw new BadRequestException('Unknown item.');
@@ -36,6 +38,8 @@ export class FinanceController {
     private readonly retention: RetentionService,
     private readonly hub: FinanceHubService,
     private readonly access: ManpowerAccess,
+    private readonly costs: CostsService,
+    private readonly reports: ReportsService,
   ) {}
 
   private actor(a?: string) { return this.access.actor(a); }
@@ -64,6 +68,25 @@ export class FinanceController {
   @Post('projects/:id/reimbursables') async newReimb(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.reimbs.create(Number(id), dto, await this.actor(a)); }
   @Get('projects/:id/retention') async retentionOf(@Param('id') id: string, @Headers('authorization') a?: string) { return this.retention.overview(Number(id), await this.actor(a)); }
   @Post('projects/:id/retention/releases') async requestRelease(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.retention.request(Number(id), dto, await this.actor(a)); }
+
+  // --- job cost
+  @Get('projects/:id/costs') async costsOf(@Param('id') id: string, @Headers('authorization') a?: string) { return this.costs.overview(Number(id), await this.actor(a)); }
+  @Post('projects/:id/budget-lines') async budgetLine(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveBudgetLine(Number(id), dto, await this.actor(a)); }
+  @Delete('budget-lines/:id') async removeBudgetLine(@Param('id') id: string, @Headers('authorization') a?: string) { return this.costs.removeBudgetLine(id, await this.actor(a)); }
+  @Put('projects/:id/forecasts') async forecast(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.setForecast(Number(id), dto, await this.actor(a)); }
+  @Post('projects/:id/commitments') async commitment(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveCommitment(Number(id), dto, await this.actor(a)); }
+  @Post('commitments/:id/:action') async commitmentStep(@Param('id') id: string, @Param('action') action: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.commitmentStep(id, action, dto || {}, await this.actor(a)); }
+  @Post('projects/:id/cost-entries') async costEntry(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveEntry(Number(id), dto, await this.actor(a)); }
+  @Post('cost-entries/:id/:action') async costEntryStep(@Param('id') id: string, @Param('action') action: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.entryStep(id, action, dto || {}, await this.actor(a)); }
+
+  // --- reports
+  @Get('reports/wip') async wip(@Headers('authorization') a?: string) { return this.reports.wip(await this.actor(a)); }
+  @Get('reports/ar-aging') async aging(@Query('asOf') asOf: string, @Headers('authorization') a?: string) { return this.reports.arAging(await this.actor(a), asOf); }
+  @Get('reports/budget-vs-actual') async bva(@Query('projectId') projectId: string, @Headers('authorization') a?: string) { return this.reports.budgetVsActual(await this.actor(a), projectId ? Number(projectId) : undefined); }
+  @Get('reports/change-orders') async coRegister(@Headers('authorization') a?: string) { return this.reports.changeOrderRegister(await this.actor(a)); }
+  @Get('reports/retention') async retentionReport(@Headers('authorization') a?: string) { return this.reports.retention(await this.actor(a)); }
+  @Get('reports/contract-vs-invoiced') async contractReport(@Headers('authorization') a?: string) { return this.reports.contractVsInvoiced(await this.actor(a)); }
+  @Get('reports/cash-forecast') async cash(@Query('months') months: string, @Headers('authorization') a?: string) { return this.reports.cashForecast(await this.actor(a), Number(months) || 6); }
 
   // --- items
   @Put('items/:kind/:id') async item(@Param('kind') kind: string, @Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) {
@@ -203,4 +226,14 @@ export class FinanceReimbursableFilesController extends FinanceFilesBase {
     super(fin, auth, attachments, access);
   }
   protected owner() { return this.reimbs; }
+}
+
+@Tiers('internal')
+@Controller('finance-costs')
+export class FinanceCostFilesController extends FinanceFilesBase {
+  protected right: keyof FinRights = 'manageCosts';
+  constructor(private readonly costs: CostsService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess) {
+    super(fin, auth, attachments, access);
+  }
+  protected owner() { return this.costs; }
 }

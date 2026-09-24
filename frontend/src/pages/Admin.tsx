@@ -344,6 +344,9 @@ const FIN_ACTIONS: [string, string, string][] = [
   ['finx_approve_co', 'Approve change orders', 'internal approval and client sign-off'],
   ['finx_approve_reimb', 'Approve reimbursables', 'approve or reject expenses'],
   ['finx_release_retention', 'Release retention', 'approve retention releases'],
+  ['finx_manage_costs', 'Record job costs', 'cost budget, subcontracts / POs and bills'],
+  ['finx_approve_costs', 'Approve job costs', 'approve, close and pay subcontracts, POs and bills'],
+  ['finx_view_profitability', 'See profitability', 'job cost, margins, WIP and cost reports'],
 ];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

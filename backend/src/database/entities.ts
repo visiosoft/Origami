@@ -1352,6 +1352,8 @@ export class ProjectFinancialEntity extends FinanceStamped {
   @Column({ ...PCT, default: 0 }) approvedProgress!: number;
   /** Default markup on reimbursable expenses billed back to the client. */
   @Column({ ...PCT, default: 0 }) reimbursableMarkupPct!: number;
+  /** Payroll taxes, benefits and insurance on top of wages, for labor cost: 30 means wages x 1.3. */
+  @Column({ ...PCT, default: 0 }) laborBurdenPct!: number;
 }
 
 /** Shared by milestone (phase) and task financials. */
@@ -1703,4 +1705,107 @@ export class FinancialApprovalEntity {
   @Column({ nullable: true }) byName!: string;
   @Column({ nullable: true }) byId!: string;
   @Column() at!: string;
+}
+
+// ------------------------------------------------------------------ financials, phase 3: job cost
+
+/** The cost budget, line by line: a cost code (and optionally the milestone or task it serves). */
+@Entity('cost_budget_lines')
+@Index('IX_cost_budget_lines_project', ['projectId'])
+export class CostBudgetLineEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** Null: not yet assigned to a cost code. */
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column({ nullable: true }) phaseId!: string;
+  @Column({ nullable: true }) taskId!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  @Column({ ...MONEY }) amount!: number;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+}
+
+/** A subcontract or purchase order: cost the project is committed to before it's billed. */
+@Entity('commitments')
+@Index('IX_commitments_project', ['projectId'])
+@Index('UQ_commitments_number', ['projectId', 'number'], { unique: true })
+export class CommitmentEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** SC-001 for subcontracts, PO-001 for purchase orders and service agreements. */
+  @Column() number!: string;
+  /** subcontract | purchase_order | service */
+  @Column({ default: 'subcontract' }) type!: string;
+  @Column({ nullable: true }) contractorId!: string;
+  @Column() vendorName!: string;
+  @Column() title!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  /** draft | approved | closed | void */
+  @Column({ default: 'draft' }) status!: string;
+  @Column({ nullable: true }) dateIssued!: string;
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) approvedBy!: string;
+  @Column({ nullable: true }) closedAt!: string;
+  @Column({ nullable: true }) closedBy!: string;
+  @Column({ ...TEXT, nullable: true }) closedReason!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+}
+
+@Entity('commitment_lines')
+@Index('IX_commitment_lines_commitment', ['commitmentId'])
+@Index('IX_commitment_lines_project', ['projectId'])
+export class CommitmentLineEntity {
+  @PrimaryColumn() id!: string;
+  @Column() commitmentId!: string;
+  @Column('int') projectId!: number;
+  @Column('int') lineOrder!: number;
+  @Column({ ...TEXT }) description!: string;
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column({ nullable: true }) phaseId!: string;
+  @Column({ nullable: true }) taskId!: string;
+  @Column({ ...MONEY }) amount!: number;
+}
+
+/** A cost incurred: a vendor bill, subcontractor invoice, material or equipment charge. Labor and reimbursables are counted from their own records. */
+@Entity('cost_entries')
+@Index('IX_cost_entries_project', ['projectId'])
+@Index('IX_cost_entries_commitment', ['commitmentId'])
+export class CostEntryEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() date!: string;
+  @Column({ nullable: true }) dueDate!: string;
+  /** vendor_bill | subcontract_invoice | material | equipment | other */
+  @Column({ default: 'vendor_bill' }) type!: string;
+  @Column({ nullable: true }) contractorId!: string;
+  @Column({ nullable: true }) vendorName!: string;
+  /** The vendor's bill / invoice number. */
+  @Column({ nullable: true }) reference!: string;
+  @Column({ nullable: true }) commitmentId!: string;
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column({ nullable: true }) phaseId!: string;
+  @Column({ nullable: true }) taskId!: string;
+  @Column({ ...TEXT }) description!: string;
+  @Column({ ...MONEY }) amount!: number;
+  /** recorded | approved | paid | void */
+  @Column({ default: 'recorded' }) status!: string;
+  @Column({ nullable: true }) approvedBy!: string;
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) paidDate!: string;
+  @Column({ nullable: true }) paymentRef!: string;
+  @Column({ ...TEXT, nullable: true }) voidReason!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
+}
+
+/** A cost code's forecast at completion, when the team knows better than budget-or-spend. */
+@Entity('cost_forecasts')
+@Index('IX_cost_forecasts_project', ['projectId'])
+export class CostForecastEntity extends FinanceStamped {
+  /** `${projectId}:${csiCodeId || 'none'}` */
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ nullable: true }) csiCodeId!: string;
+  @Column({ ...MONEY }) eac!: number;
+  @Column({ ...TEXT, nullable: true }) note!: string;
 }

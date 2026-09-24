@@ -10,6 +10,8 @@ import { ChangeOrdersService } from './change-orders.service';
 import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
+import { CostsService } from './costs.service';
+import { ReportsService } from './reports.service';
 export declare class FinanceController {
     private readonly fin;
     private readonly invoices;
@@ -18,7 +20,9 @@ export declare class FinanceController {
     private readonly retention;
     private readonly hub;
     private readonly access;
-    constructor(fin: FinancialsService, invoices: InvoicesService, cos: ChangeOrdersService, reimbs: ReimbursablesService, retention: RetentionService, hub: FinanceHubService, access: ManpowerAccess);
+    private readonly costs;
+    private readonly reports;
+    constructor(fin: FinancialsService, invoices: InvoicesService, cos: ChangeOrdersService, reimbs: ReimbursablesService, retention: RetentionService, hub: FinanceHubService, access: ManpowerAccess, costs: CostsService, reports: ReportsService);
     private actor;
     rights(a?: string): Promise<FinRights>;
     brand(a?: string): Promise<{
@@ -112,6 +116,7 @@ export declare class FinanceController {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -160,6 +165,7 @@ export declare class FinanceController {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -208,6 +214,7 @@ export declare class FinanceController {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -323,6 +330,73 @@ export declare class FinanceController {
     }>;
     retentionOf(id: string, a?: string): Promise<any>;
     requestRelease(id: string, dto: any, a?: string): Promise<any>;
+    costsOf(id: string, a?: string): Promise<any>;
+    budgetLine(id: string, dto: any, a?: string): Promise<any>;
+    removeBudgetLine(id: string, a?: string): Promise<any>;
+    forecast(id: string, dto: any, a?: string): Promise<any>;
+    commitment(id: string, dto: any, a?: string): Promise<any>;
+    commitmentStep(id: string, action: string, dto: any, a?: string): Promise<any>;
+    costEntry(id: string, dto: any, a?: string): Promise<any>;
+    costEntryStep(id: string, action: string, dto: any, a?: string): Promise<any>;
+    wip(a?: string): Promise<{
+        asOf: string;
+        rows: any[];
+        withoutCosts: string[];
+    }>;
+    aging(asOf: string, a?: string): Promise<{
+        asOf: string;
+        buckets: readonly ["current", "d1_30", "d31_60", "d61_90", "d90_plus"];
+        totals: {
+            [k: string]: any;
+        };
+        projects: {
+            [k: string]: any;
+        }[];
+        invoices: {
+            total: number;
+            outstanding: number;
+            totalC: undefined;
+            outstandingC: undefined;
+            invoiceId: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            billTo: string;
+            invoiceDate: string;
+            dueDate: string;
+            bucket: "current" | "d1_30" | "d31_60" | "d61_90" | "d90_plus";
+            daysPastDue: number;
+        }[];
+    }>;
+    bva(projectId: string, a?: string): Promise<any>;
+    coRegister(a?: string): Promise<{
+        id: any;
+        projectId: any;
+        projectName: any;
+        number: any;
+        title: any;
+        reason: any;
+        status: any;
+        amount: any;
+        cost: any;
+        margin: any;
+        scheduleImpactDays: any;
+        dateRequested: any;
+        submittedAt: any;
+        approvedDate: any;
+        signer: any;
+        daysToApprove: number | null;
+    }[]>;
+    retentionReport(a?: string): Promise<{
+        rows: any[];
+    }>;
+    contractReport(a?: string): Promise<{
+        rows: any[];
+    }>;
+    cash(months: string, a?: string): Promise<{
+        showCosts: boolean;
+        months: any[];
+    }>;
     item(kind: string, id: string, dto: any, a?: string): Promise<{
         project: {
             id: number;
@@ -351,6 +425,7 @@ export declare class FinanceController {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -399,6 +474,7 @@ export declare class FinanceController {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -447,6 +523,7 @@ export declare class FinanceController {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -644,5 +721,11 @@ export declare class FinanceReimbursableFilesController extends FinanceFilesBase
     protected right: keyof FinRights;
     constructor(reimbs: ReimbursablesService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
     protected owner(): ReimbursablesService;
+}
+export declare class FinanceCostFilesController extends FinanceFilesBase {
+    private readonly costs;
+    protected right: keyof FinRights;
+    constructor(costs: CostsService, fin: FinancialsService, auth: AuthService, attachments: AttachmentsService, access: ManpowerAccess);
+    protected owner(): CostsService;
 }
 export {};

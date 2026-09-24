@@ -6,9 +6,10 @@ import { ProjectFinancials, ACTION_LABEL } from '../components/finance/ProjectFi
 import { ChangeOrderDrawer, ChangeOrderList } from '../components/finance/ChangeOrders';
 import { ReimbursableDrawer, ReimbursableList } from '../components/finance/Reimbursables';
 import { usd, usd0, type Rights } from '../components/finance/financeUi';
+import { FinanceReports } from '../components/finance/Reports';
 
 const PAPER = '#FBF8F2';
-type Tab = 'approvals' | 'portfolio' | 'changes' | 'reimbursables' | 'audit';
+type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
 
 interface Pending {
   type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress';
@@ -32,7 +33,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
 
   const tabs = ([
     ['approvals', 'Approvals', !!rights && (rights.view || rights.viewChangeOrders || rights.viewReimbursables)],
-    ['portfolio', 'Project portfolio', !!rights?.view], ['changes', 'Change orders', !!rights?.viewChangeOrders],
+    ['portfolio', 'Project portfolio', !!rights?.view], ['reports', 'Reports', !!rights?.view], ['changes', 'Change orders', !!rights?.viewChangeOrders],
     ['reimbursables', 'Reimbursables', !!rights?.viewReimbursables], ['audit', 'Audit log', !!rights?.view],
   ] as [Tab, string, boolean][]).filter((t) => t[2]);
   const title = initial === 'changes' ? 'Change Orders' : initial === 'reimbursables' ? 'Reimbursement' : 'Project Finance';
@@ -55,6 +56,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
           </div>
           {tab === 'approvals' && <Approvals rights={rights} onProject={setProject} />}
           {tab === 'portfolio' && <Portfolio onProject={setProject} />}
+          {tab === 'reports' && <FinanceReports rights={rights} onProject={setProject} />}
           {tab === 'changes' && <ChangeOrderList rights={rights} />}
           {tab === 'reimbursables' && <ReimbursableList rights={rights} />}
           {tab === 'audit' && <Audit />}
@@ -174,6 +176,7 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
 const ENTITY_TYPES: [string, string][] = [
   ['', 'Everything'], ['project', 'Contract & settings'], ['phase', 'Milestones'], ['task', 'Tasks'], ['invoice', 'Invoices & credit notes'], ['payment', 'Payments'],
   ['change_order', 'Change orders'], ['reimbursable', 'Reimbursables'], ['retention_release', 'Retention releases'],
+  ['budget', 'Cost budget'], ['commitment', 'Subcontracts & POs'], ['cost', 'Costs'], ['forecast', 'Cost forecasts'],
 ];
 
 function Audit() {

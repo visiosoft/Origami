@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
-exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = void 0;
+exports.CostForecastEntity = exports.CostEntryEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -3652,6 +3652,10 @@ __decorate([
     (0, typeorm_1.Column)({ ...PCT, default: 0 }),
     __metadata("design:type", Number)
 ], ProjectFinancialEntity.prototype, "reimbursableMarkupPct", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...PCT, default: 0 }),
+    __metadata("design:type", Number)
+], ProjectFinancialEntity.prototype, "laborBurdenPct", void 0);
 exports.ProjectFinancialEntity = ProjectFinancialEntity = __decorate([
     (0, typeorm_1.Entity)('project_financials')
 ], ProjectFinancialEntity);
@@ -4639,4 +4643,286 @@ exports.FinancialApprovalEntity = FinancialApprovalEntity = __decorate([
     (0, typeorm_1.Index)('IX_financial_approvals_project', ['projectId']),
     (0, typeorm_1.Index)('IX_financial_approvals_entity', ['entityId'])
 ], FinancialApprovalEntity);
+let CostBudgetLineEntity = class CostBudgetLineEntity extends FinanceStamped {
+};
+exports.CostBudgetLineEntity = CostBudgetLineEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], CostBudgetLineEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], CostBudgetLineEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostBudgetLineEntity.prototype, "csiCodeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostBudgetLineEntity.prototype, "phaseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostBudgetLineEntity.prototype, "taskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CostBudgetLineEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...MONEY }),
+    __metadata("design:type", Number)
+], CostBudgetLineEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CostBudgetLineEntity.prototype, "notes", void 0);
+exports.CostBudgetLineEntity = CostBudgetLineEntity = __decorate([
+    (0, typeorm_1.Entity)('cost_budget_lines'),
+    (0, typeorm_1.Index)('IX_cost_budget_lines_project', ['projectId'])
+], CostBudgetLineEntity);
+let CommitmentEntity = class CommitmentEntity extends FinanceStamped {
+};
+exports.CommitmentEntity = CommitmentEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], CommitmentEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "number", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'subcontract' }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "contractorId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "vendorName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "scope", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'draft' }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "dateIssued", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "approvedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "approvedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "closedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "closedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "closedReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CommitmentEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], CommitmentEntity.prototype, "attachments", void 0);
+exports.CommitmentEntity = CommitmentEntity = __decorate([
+    (0, typeorm_1.Entity)('commitments'),
+    (0, typeorm_1.Index)('IX_commitments_project', ['projectId']),
+    (0, typeorm_1.Index)('UQ_commitments_number', ['projectId', 'number'], { unique: true })
+], CommitmentEntity);
+let CommitmentLineEntity = class CommitmentLineEntity {
+};
+exports.CommitmentLineEntity = CommitmentLineEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], CommitmentLineEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], CommitmentLineEntity.prototype, "commitmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], CommitmentLineEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], CommitmentLineEntity.prototype, "lineOrder", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT }),
+    __metadata("design:type", String)
+], CommitmentLineEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentLineEntity.prototype, "csiCodeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentLineEntity.prototype, "phaseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CommitmentLineEntity.prototype, "taskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...MONEY }),
+    __metadata("design:type", Number)
+], CommitmentLineEntity.prototype, "amount", void 0);
+exports.CommitmentLineEntity = CommitmentLineEntity = __decorate([
+    (0, typeorm_1.Entity)('commitment_lines'),
+    (0, typeorm_1.Index)('IX_commitment_lines_commitment', ['commitmentId']),
+    (0, typeorm_1.Index)('IX_commitment_lines_project', ['projectId'])
+], CommitmentLineEntity);
+let CostEntryEntity = class CostEntryEntity extends FinanceStamped {
+};
+exports.CostEntryEntity = CostEntryEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], CostEntryEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "date", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "dueDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'vendor_bill' }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "contractorId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "vendorName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "reference", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "commitmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "csiCodeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "phaseId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "taskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...MONEY }),
+    __metadata("design:type", Number)
+], CostEntryEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'recorded' }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "approvedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "approvedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "paidDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "paymentRef", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "voidReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CostEntryEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], CostEntryEntity.prototype, "attachments", void 0);
+exports.CostEntryEntity = CostEntryEntity = __decorate([
+    (0, typeorm_1.Entity)('cost_entries'),
+    (0, typeorm_1.Index)('IX_cost_entries_project', ['projectId']),
+    (0, typeorm_1.Index)('IX_cost_entries_commitment', ['commitmentId'])
+], CostEntryEntity);
+let CostForecastEntity = class CostForecastEntity extends FinanceStamped {
+};
+exports.CostForecastEntity = CostForecastEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], CostForecastEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], CostForecastEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], CostForecastEntity.prototype, "csiCodeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...MONEY }),
+    __metadata("design:type", Number)
+], CostForecastEntity.prototype, "eac", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], CostForecastEntity.prototype, "note", void 0);
+exports.CostForecastEntity = CostForecastEntity = __decorate([
+    (0, typeorm_1.Entity)('cost_forecasts'),
+    (0, typeorm_1.Index)('IX_cost_forecasts_project', ['projectId'])
+], CostForecastEntity);
 //# sourceMappingURL=entities.js.map

@@ -15,6 +15,9 @@ export declare const FIN_ACTIONS: {
     readonly approveChangeOrders: "finx_approve_co";
     readonly approveReimbursables: "finx_approve_reimb";
     readonly releaseRetention: "finx_release_retention";
+    readonly manageCosts: "finx_manage_costs";
+    readonly approveCosts: "finx_approve_costs";
+    readonly viewProfitability: "finx_view_profitability";
 };
 export type FinRights = {
     view: boolean;
@@ -124,6 +127,7 @@ export declare class FinancialsService {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -172,6 +176,7 @@ export declare class FinancialsService {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -223,6 +228,7 @@ export declare class FinancialsService {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -275,6 +281,7 @@ export declare class FinancialsService {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -327,6 +334,7 @@ export declare class FinancialsService {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
@@ -380,6 +388,7 @@ export declare class FinancialsService {
             reportedProgress: number;
             approvedProgress: number;
             reimbursableMarkupPct: number;
+            laborBurdenPct: number;
             createdAt: string;
             createdBy: string;
             updatedAt: string;
