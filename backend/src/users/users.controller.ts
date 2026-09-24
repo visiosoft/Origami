@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
-import { Roles } from '../auth/guards/roles.decorator';
+import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
@@ -11,6 +11,18 @@ export class UsersController {
   @Get()
   findAll() {
     return this.usersService.findAll();
+  }
+
+  /**
+   * The team, for people pickers (assignee, collaborators): names and roles
+   * only, for any staff member -- the full list above stays admin-only. Without
+   * this, the pickers were empty for everyone who isn't an administrator.
+   */
+  @Roles()
+  @Tiers('internal')
+  @Get('directory')
+  directory() {
+    return this.usersService.directory();
   }
 
   @Post()

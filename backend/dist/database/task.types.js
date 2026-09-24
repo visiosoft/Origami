@@ -5,6 +5,8 @@ exports.subId = subId;
 exports.normalizeAttachments = normalizeAttachments;
 exports.normalizeList = normalizeList;
 exports.event = event;
+exports.normalizeCollaborators = normalizeCollaborators;
+exports.collaboratorChanges = collaboratorChanges;
 exports.diffEvents = diffEvents;
 exports.TASK_STATUSES = ['Not started', 'In progress', 'Blocked', 'Done'];
 let counter = 0;
@@ -50,6 +52,24 @@ exports.TRACKED_FIELDS = {
     topicType: 'Topic type',
     project: 'Project',
 };
+function normalizeCollaborators(list, assigneeId) {
+    const seen = new Set();
+    const out = [];
+    for (const c of Array.isArray(list) ? list : []) {
+        const id = String(c?.id || '').trim();
+        if (!id || seen.has(id) || id === assigneeId)
+            continue;
+        seen.add(id);
+        out.push({ id, name: String(c?.name || '').trim() || id });
+    }
+    return out;
+}
+function collaboratorChanges(before, after) {
+    const prev = normalizeCollaborators(before);
+    const had = new Set(prev.map((c) => c.id));
+    const has = new Set(after.map((c) => c.id));
+    return { added: after.filter((c) => !had.has(c.id)), removed: prev.filter((c) => !has.has(c.id)) };
+}
 function diffEvents(before, patch, by) {
     const out = [];
     for (const [key, label] of Object.entries(exports.TRACKED_FIELDS)) {

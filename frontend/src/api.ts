@@ -269,6 +269,8 @@ export const api = {
   },
   users: {
     list: () => request('/users'),
+    /** Names and roles of the team, for people pickers -- open to all staff (the full list is admin-only). */
+    directory: () => request('/users/directory'),
     create: (data: unknown) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),

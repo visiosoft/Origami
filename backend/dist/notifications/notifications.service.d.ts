@@ -27,7 +27,14 @@ export declare class NotificationsService {
     private readonly log;
     constructor(users: Repository<UserEntity>, projects: Repository<ProjectEntity>, settings: SettingsService, google: GoogleService);
     taskAssigned(notice: AssignmentNotice): void;
-    sendAssignment(notice: AssignmentNotice): Promise<{
+    taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: {
+        kind: 'added' | 'comment' | 'done';
+        comment?: string;
+    }): void;
+    sendAssignment(notice: AssignmentNotice, follow?: {
+        kind: 'added' | 'comment' | 'done';
+        comment?: string;
+    }): Promise<{
         sent: boolean;
         reason?: string;
     }>;

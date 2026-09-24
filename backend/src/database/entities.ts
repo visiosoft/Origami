@@ -107,6 +107,8 @@ export class TaskEntity {
   @Column() project!: string;
   // --- Added with task attachments / real assignment ---
   @Column({ nullable: true }) assignedToId!: string;   // users.id — `assignedTo` stays as the display name
+  /** People following the task without owning it ("Collaborative"): [{ id, name }]. */
+  @Column({ type: 'simple-json', nullable: true }) collaborators!: { id: string; name: string }[];
   @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[];
   @Column({ type: 'simple-json', nullable: true }) comments!: TaskComment[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
@@ -470,6 +472,8 @@ export class ProjectTaskEntity {
   @Column() createdAt!: string;
   // --- Added with task attachments / real assignment ---
   @Column({ nullable: true }) assigneeId!: string;     // users.id — `assignee` stays as the display name
+  /** People following the task without owning it ("Collaborative"): [{ id, name }]. */
+  @Column({ type: 'simple-json', nullable: true }) collaborators!: { id: string; name: string }[];
   @Column({ nullable: true }) status!: string;         // Not started | In progress | Blocked | Done
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -43,7 +44,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels'];
 
 export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null; initialTaskId?: string | null }) {
   const { can, toast, users } = useApp();
@@ -683,6 +684,11 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
               </Field>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <Field label="Collaborative">
+                  <CollaboratorPicker value={d.collaborators} assigneeId={d.assigneeId} disabled={!canManage} onChange={(collaborators) => set({ collaborators })} />
+                </Field>
+              </div>
               <Field label="Status">
                 <select disabled={!canManage} value={d.status || 'Not started'} onChange={(e) => set({ status: e.target.value as TaskStatus })} style={{ ...inputStyle, width: '100%' }}>
                   {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}

@@ -48,7 +48,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAccess = useCallback(() => {
-    Promise.all([api.users.list(), api.roles.list()])
+    // The full user list is admin-only; everyone else gets the staff directory,
+    // so assignee and collaborator pickers aren't empty for non-admins.
+    Promise.all([
+      api.users.list().catch(() => api.users.directory().catch(() => null)),
+      api.roles.list().catch(() => null),
+    ])
       .then(([u, r]) => {
         if (Array.isArray(u)) setUsers(u as User[]);
         if (Array.isArray(r)) setRoles(r as Role[]);

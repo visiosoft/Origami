@@ -12,6 +12,8 @@ function isRestrictedViewer(claims) {
 }
 const norm = (s) => String(s ?? '').trim().toLowerCase();
 function assignedTo(task, claims) {
+    if ((task.collaborators || []).some((c) => c?.id === claims.sub))
+        return true;
     const id = task.assigneeId ?? task.assignedToId;
     if (id)
         return id === claims.sub;

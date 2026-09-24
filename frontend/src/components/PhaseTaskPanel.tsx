@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CollaboratorPicker } from './CollaboratorPicker';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { useApp } from '../AppContext';
@@ -17,7 +18,7 @@ const input: React.CSSProperties = {
 };
 const PRIORITIES = ['High', 'Medium', 'Low'];
 /** Fields edited in the panel: they autosave together. Subtasks, files and comments act at once. */
-const FIELDS = ['title', 'description', 'assigneeId', 'assignee', 'status', 'completed', 'dueDate', 'priority', 'team', 'checklist', 'labels'];
+const FIELDS = ['title', 'description', 'assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'checklist', 'labels'];
 
 /**
  * A phase task, opened from whichever board you were looking at.
@@ -136,6 +137,10 @@ export function PhaseTaskPanel({
               disabled={!canManage}
               onChange={(u: any) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
             />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            {label('Collaborative', 'Follow the task without owning it — they hear about comments and when it’s done.')}
+            <CollaboratorPicker value={draft.collaborators} assigneeId={draft.assigneeId} disabled={!canManage} onChange={(collaborators) => set({ collaborators })} />
           </div>
           <div>
             {label('Status')}

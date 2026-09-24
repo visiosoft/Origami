@@ -5,5 +5,8 @@ export declare function assignedTo(task: {
     assignee?: string;
     assignedToId?: string;
     assignedTo?: string;
+    collaborators?: {
+        id: string;
+    }[] | null;
 }, claims: SessionClaims): boolean;
 export declare function scopeTasks<T extends Record<string, any>>(tasks: T[], claims: SessionClaims | null): T[];

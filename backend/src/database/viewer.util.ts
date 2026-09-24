@@ -23,9 +23,10 @@ const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 /** Whether a task belongs to this viewer, by id with a name fallback. */
 export function assignedTo(
-  task: { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string },
+  task: { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string; collaborators?: { id: string }[] | null },
   claims: SessionClaims,
 ): boolean {
+  if ((task.collaborators || []).some((c) => c?.id === claims.sub)) return true;
   const id = task.assigneeId ?? task.assignedToId;
   if (id) return id === claims.sub;
   const name = task.assignee ?? task.assignedTo;

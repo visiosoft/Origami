@@ -25,6 +25,7 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     private load;
     private syncStatus;
     create(dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;
+    private notice;
     update(id: string, dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;
     reorder(sectionId: string, ids: string[]): Promise<{
         sectionId: string;

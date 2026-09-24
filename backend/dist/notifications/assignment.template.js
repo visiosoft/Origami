@@ -24,10 +24,18 @@ function assignmentEmail(input) {
     ].filter(Boolean).join('');
     const raw = (input.description || '').trim();
     const excerpt = raw.length > EXCERPT_CHARS ? `${raw.slice(0, EXCERPT_CHARS).trimEnd()}…` : raw;
+    const who = `<strong>${(0, shell_1.escapeHtml)(input.assignerName)}</strong>`;
+    const why = !input.follow ? `${who} assigned you a task.`
+        : input.follow.kind === 'added' ? `${who} added you as a collaborator on this task — you'll hear when it moves.`
+            : input.follow.kind === 'done' ? `${who} marked a task you're collaborating on as done.`
+                : `${who} commented on a task you're collaborating on:`;
+    const quote = input.follow?.kind === 'comment' && input.follow.comment
+        ? `<p style="margin:-8px 0 18px;padding:10px 14px;border-left:3px solid #2F7D4A;background:#F4F7F4;font-size:13.5px;line-height:1.6;color:#0B1A12;white-space:pre-wrap;">${(0, shell_1.escapeHtml)(input.follow.comment.length > 600 ? input.follow.comment.slice(0, 600) + '…' : input.follow.comment)}</p>`
+        : '';
     const body = `
     <p style="margin:0 0 18px;font-size:14px;line-height:1.65;color:#43514D;">
-      Hi ${(0, shell_1.escapeHtml)(first)} — <strong>${(0, shell_1.escapeHtml)(input.assignerName)}</strong> assigned you a task.
-    </p>
+      Hi ${(0, shell_1.escapeHtml)(first)} — ${why}
+    </p>${quote}
     <div style="border:1px solid rgba(20,8,31,0.09);border-radius:10px;padding:16px 18px;margin-bottom:4px;">
       <div style="font-size:15.5px;font-weight:700;color:#0B1A12;line-height:1.4;">${(0, shell_1.escapeHtml)(input.title)}</div>
       ${meta ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:10px;">${meta}</table>` : ''}
@@ -36,14 +44,17 @@ function assignmentEmail(input) {
         : ''}
     </div>`;
     return {
-        subject: `${input.assignerName} assigned you: ${input.title}`,
+        subject: !input.follow ? `${input.assignerName} assigned you: ${input.title}`
+            : input.follow.kind === 'added' ? `You're collaborating on: ${input.title}`
+                : input.follow.kind === 'done' ? `Done: ${input.title}`
+                    : `${input.assignerName} commented on: ${input.title}`,
         html: (0, shell_1.emailShell)({
             brand: input.brand,
-            eyebrow: 'Task assigned',
-            title: 'You have a new task',
+            eyebrow: input.follow ? 'Task you follow' : 'Task assigned',
+            title: !input.follow ? 'You have a new task' : input.follow.kind === 'added' ? 'You were added as a collaborator' : input.follow.kind === 'done' ? 'A task you follow is done' : 'New comment on a task you follow',
             body,
             cta: { label: 'Open task', url: input.url },
-            footer: `You're receiving this because you were assigned this task. `
+            footer: `You're receiving this because you ${input.follow ? 'collaborate on' : 'were assigned'} this task. `
                 + `<a href="${input.settingsUrl}" style="color:#2F7D4A;">Turn these emails off</a>.`,
         }),
     };

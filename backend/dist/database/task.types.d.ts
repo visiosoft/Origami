@@ -25,7 +25,7 @@ export interface ChecklistItem {
 }
 export interface ActivityEvent {
     id: string;
-    type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status';
+    type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
     field?: string;
     from?: string;
     to?: string;
@@ -44,6 +44,15 @@ export declare function event(type: ActivityEvent['type'], by: {
     id?: string;
 }, extra?: Partial<ActivityEvent>): ActivityEvent;
 export declare const TRACKED_FIELDS: Record<string, string>;
+export interface Collaborator {
+    id: string;
+    name: string;
+}
+export declare function normalizeCollaborators(list: unknown, assigneeId?: string | null): Collaborator[];
+export declare function collaboratorChanges(before: unknown, after: Collaborator[]): {
+    added: Collaborator[];
+    removed: Collaborator[];
+};
 export declare function diffEvents(before: Record<string, any>, patch: Record<string, any>, by: {
     name: string;
     id?: string;

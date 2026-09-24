@@ -29,6 +29,15 @@ export class UsersService implements OnApplicationBootstrap {
     }
   }
 
+  /** Staff who can be given or follow work: active or invited, not portal or guest accounts. */
+  async directory() {
+    const rows = await this.repo.find();
+    return rows
+      .filter((u) => u.tier === 'internal' && u.status !== 'suspended' && !String(u.id).startsWith('GUEST-'))
+      .map((u) => ({ id: u.id, name: u.name, email: u.email, tier: u.tier, roleKey: u.roleKey, status: u.status, avatarUrl: u.avatarUrl, createdAt: u.createdAt }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
   async findAll() {
     const rows = await this.repo.find({ order: { createdAt: 'DESC' } });
     return rows.map(publicUser);

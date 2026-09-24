@@ -96,6 +96,10 @@ export declare class PhasesService implements OnApplicationBootstrap {
             comments: import("../database/task.types").TaskComment[];
             createdAt: string;
             assigneeId: string;
+            collaborators: {
+                id: string;
+                name: string;
+            }[];
             status: string;
             checklist: import("../database/task.types").ChecklistItem[];
             labels: string[];

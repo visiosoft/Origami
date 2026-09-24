@@ -7,6 +7,7 @@ import { SectionsService } from './sections.service';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
+  normalizeCollaborators, collaboratorChanges,
 } from '../database/task.types';
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
@@ -131,6 +132,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       status: dto.status || (dto.completed ? 'Done' : 'Not started'),
       checklist: normalizeList(dto.checklist),
       labels: normalizeList<string>(dto.labels),
+      collaborators: normalizeCollaborators(dto.collaborators, assignee.id),
       activity: [event('created', actor, { text: 'created this task' })],
       updatedAt: new Date().toISOString(),
       projectId: dto.projectId == null ? null : Number(dto.projectId),
@@ -144,7 +146,14 @@ export class ProjectTasksService implements OnApplicationBootstrap {
         status: saved.status, assigneeId: assignee.id, actor,
       });
     }
+    const followers = normalizeCollaborators(saved.collaborators);
+    if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
     return this.hydrate(saved);
+  }
+
+  /** The task card an email carries. */
+  private notice(t: ProjectTaskEntity, actor: UploadActor) {
+    return { surface: 'board' as const, taskId: t.id, title: t.title, description: t.description, projectId: t.projectId, dueDate: t.dueDate, priority: t.priority, status: t.status, actor };
   }
 
   async update(id: string, dto: any, actor: UploadActor = { name: 'Unknown' }) {
@@ -161,7 +170,19 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
     this.syncStatus(task, patch);
 
-    const events = diffEvents(task, patch, actor);
+    // Collaborators: a clean list, recorded in the activity, and newcomers told.
+    let joined: { id: string; name: string }[] = [];
+    const collabEvents: ActivityEvent[] = [];
+    if ('collaborators' in patch) {
+      patch.collaborators = normalizeCollaborators(patch.collaborators, patch.assigneeId ?? task.assigneeId);
+      const { added, removed } = collaboratorChanges(task.collaborators, patch.collaborators);
+      joined = added;
+      if (added.length) collabEvents.push(event('collaborators', actor, { text: `added ${added.map((c) => c.name).join(', ')} as collaborator${added.length === 1 ? '' : 's'}` }));
+      if (removed.length) collabEvents.push(event('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
+    }
+    const finished = patch.status === 'Done' && task.status !== 'Done';
+
+    const events = [...diffEvents(task, patch, actor), ...collabEvents];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
       ? String(patch.assigneeId)
       : null;
@@ -178,6 +199,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
         status: saved.status, assigneeId: reassignedTo, actor,
       });
     }
+    if (joined.length) this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
+    if (finished) this.notifications.taskFollowUp(this.notice(saved, actor), normalizeCollaborators(saved.collaborators).map((c) => c.id), { kind: 'done' });
     return this.hydrate(saved);
   }
 
@@ -276,6 +299,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     };
     task.comments = [...normalizeList<TaskComment>(task.comments), comment];
     task.activity = [...normalizeList<ActivityEvent>(task.activity), event('comment', actor, { text: comment.text })];
-    return this.hydrate(await this.repo.save(task));
+    const saved = await this.repo.save(task);
+    // Everyone following the task hears about a comment (the assignee too), except its author.
+    const followers = [...normalizeCollaborators(saved.collaborators).map((c) => c.id), saved.assigneeId].filter(Boolean) as string[];
+    if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
+    return this.hydrate(saved);
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CollaboratorPicker } from '../components/CollaboratorPicker';
 import { DraftScope, SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { useSearchParams } from 'react-router-dom';
 import { TaskBoard } from '../components/TaskBoard';
@@ -31,7 +32,7 @@ const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWo
 /** The fields the project form edits; they autosave together. */
 const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
-const PT_FIELDS = ['assigneeId', 'assignee', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels'];
+const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels'];
 
 export function Projects() {
   const { can, toast } = useApp();
@@ -993,6 +994,11 @@ export function Projects() {
                       onChange={(u: any) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                     />
                   ))}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    {fieldBox('Collaborative', (
+                      <CollaboratorPicker value={d.collaborators} assigneeId={d.assigneeId} disabled={!canManage} onChange={(collaborators) => set({ collaborators })} />
+                    ))}
+                  </div>
                   {fieldBox('Status', (
                     <select disabled={!canManage} value={d.status || 'Not started'} onChange={(e) => set({ status: e.target.value, completed: e.target.value === 'Done' })} style={inputStyle}>
                       {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}

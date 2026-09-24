@@ -18,6 +18,7 @@ export declare class TasksService implements OnApplicationBootstrap {
     private load;
     private daysOpen;
     create(dto: any, actor: UploadActor): Promise<TaskEntity>;
+    private notice;
     update(id: string, dto: any, actor: UploadActor): Promise<TaskEntity>;
     remove(id: string): Promise<{
         id: string;

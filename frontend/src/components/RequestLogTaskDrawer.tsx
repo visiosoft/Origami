@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
@@ -13,7 +14,7 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task }
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: '#EFEDE8', c: '#5C6B65' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'status', 'dueDate', 'description', 'resolution', 'checklist', 'labels'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'description', 'resolution', 'checklist', 'labels'] as const;
 const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 
@@ -105,6 +106,10 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 disabled={!canManage}
                 onChange={(u) => set({ assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
               />
+            </div>
+            <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, gridColumn: '1 / -1' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Collaborative</div>
+              <CollaboratorPicker value={t.collaborators} assigneeId={t.assignedToId} disabled={!canManage} onChange={(collaborators) => set({ collaborators })} />
             </div>
             <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Status</div>

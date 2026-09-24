@@ -37,20 +37,22 @@ export function MyTasks() {
     // assignment carried an id (or assigned to someone with no account).
     const isMine = (assigneeId?: string, assignee?: string) =>
       assigneeId ? assigneeId === id : !!name && !!assignee && assignee.trim().toLowerCase() === name.trim().toLowerCase();
+    // Tasks you collaborate on show here too, marked as such.
+    const following = (t: { collaborators?: { id: string }[] }) => !!id && (t.collaborators || []).some((c) => c.id === id);
 
     const rows: Row[] = [
       ...boardTasks
-        .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && isMine(t.assigneeId, t.assignee))
+        .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && (isMine(t.assigneeId, t.assignee) || following(t)))
         .map((t) => ({
           key: 'b' + t.id,
-          title: t.title,
+          title: following(t) && !isMine(t.assigneeId, t.assignee) ? `${t.title} · collaborating` : t.title,
           context: t.projectId == null ? 'General Tasks' : (projects[t.projectId] || `Project ${t.projectId}`),
           dueDate: t.dueDate,
           priority: t.priority,
           where: 'board' as const,
         })),
       ...logTasks
-        .filter((t) => t.status !== 'Closed' && isMine(t.assignedToId, t.assignedTo))
+        .filter((t) => t.status !== 'Closed' && (isMine(t.assignedToId, t.assignedTo) || following(t)))
         .map((t) => ({
           key: 'l' + t.id,
           title: t.description?.length > 80 ? t.description.slice(0, 80) + '…' : t.description || t.id,

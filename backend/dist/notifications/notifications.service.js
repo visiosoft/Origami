@@ -34,7 +34,15 @@ let NotificationsService = class NotificationsService {
             this.log.warn(`Assignment email failed for ${notice.taskId}: ${err.message}`);
         });
     }
-    async sendAssignment(notice) {
+    taskFollowUp(notice, recipientIds, follow) {
+        const ids = Array.from(new Set(recipientIds.filter((id) => id && id !== notice.actor?.id)));
+        for (const id of ids) {
+            void this.sendAssignment({ ...notice, assigneeId: id }, follow).catch((err) => {
+                this.log.warn(`Follow-up email failed for ${notice.taskId} to ${id}: ${err.message}`);
+            });
+        }
+    }
+    async sendAssignment(notice, follow) {
         const skip = (reason) => {
             this.log.log(`No assignment email for ${notice.taskId}: ${reason}`);
             return { sent: false, reason };
@@ -71,6 +79,7 @@ let NotificationsService = class NotificationsService {
             status: notice.status,
             url: this.taskUrl(base, notice),
             settingsUrl: `${base}/settings?tab=notifications`,
+            follow,
         });
         await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });
         this.log.log(`Assignment email sent to ${user.email} for ${notice.taskId}`);

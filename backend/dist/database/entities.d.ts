@@ -71,6 +71,10 @@ export declare class TaskEntity {
     linkedFile: string;
     project: string;
     assignedToId: string;
+    collaborators: {
+        id: string;
+        name: string;
+    }[];
     attachments: TaskAttachment[];
     comments: TaskComment[];
     activity: ActivityEvent[];
@@ -333,6 +337,10 @@ export declare class ProjectTaskEntity {
     comments: TaskComment[];
     createdAt: string;
     assigneeId: string;
+    collaborators: {
+        id: string;
+        name: string;
+    }[];
     status: string;
     checklist: ChecklistItem[];
     labels: string[];

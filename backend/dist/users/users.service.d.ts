@@ -10,6 +10,16 @@ export declare class UsersService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<UserEntity>, projectTasks: Repository<ProjectTaskEntity>, tasks: Repository<TaskEntity>, auth: AuthService);
     onApplicationBootstrap(): Promise<void>;
+    directory(): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        tier: string;
+        roleKey: string;
+        status: string;
+        avatarUrl: string;
+        createdAt: string;
+    }[]>;
     findAll(): Promise<any[]>;
     private assertEmailFree;
     create(dto: any): Promise<any>;

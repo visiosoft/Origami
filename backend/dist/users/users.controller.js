@@ -24,6 +24,9 @@ let UsersController = class UsersController {
     findAll() {
         return this.usersService.findAll();
     }
+    directory() {
+        return this.usersService.directory();
+    }
     create(dto) {
         return this.usersService.create(dto);
     }
@@ -44,6 +47,14 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, roles_decorator_1.Roles)(),
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Get)('directory'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "directory", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),

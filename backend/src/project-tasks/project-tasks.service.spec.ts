@@ -22,13 +22,14 @@ describe('ProjectTasksService', () => {
     let users: jest.Mocked<Repository<UserEntity>>;
     let sections: jest.Mocked<SectionsService>;
     let service: ProjectTasksService;
+    let notifications: jest.Mocked<NotificationsService>;
 
     beforeEach(() => {
         repo = mockRepo<ProjectTaskEntity>();
         users = mockRepo<UserEntity>();
         sections = { forProject: jest.fn().mockResolvedValue([]) } as unknown as jest.Mocked<SectionsService>;
         const attachments = {} as unknown as AttachmentsService;
-        const notifications = { taskAssigned: jest.fn() } as unknown as NotificationsService;
+        notifications = { taskAssigned: jest.fn(), taskFollowUp: jest.fn() } as unknown as jest.Mocked<NotificationsService>;
         service = new ProjectTasksService(repo, users, sections, attachments, notifications);
     });
 
@@ -77,6 +78,28 @@ describe('ProjectTasksService', () => {
             const { tasks } = await service.board(null);
             expect(sections.forProject).toHaveBeenCalledWith(null);
             expect(tasks).toHaveLength(1);
+        });
+    });
+
+    describe('collaborators', () => {
+        const actor = { name: 'Edward', id: 'U-ED' };
+
+        it('keeps one entry per person, never the assignee, and tells only the newcomers', async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'Collect disclosures', assigneeId: 'U-AS', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [] } as any);
+            const res: any = await service.update('T-1', {
+                collaborators: [{ id: 'U-AN', name: 'Andrea' }, { id: 'U-JL', name: 'Jerrod' }, { id: 'U-JL', name: 'Jerrod' }, { id: 'U-AS', name: 'Astrid' }],
+            }, actor);
+            expect(res.collaborators.map((c: any) => c.id)).toEqual(['U-AN', 'U-JL']);
+            expect(res.activity.some((e: any) => e.type === 'collaborators' && /added Jerrod as collaborator/.test(e.text))).toBe(true);
+            expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.objectContaining({ taskId: 'T-1' }), ['U-JL'], { kind: 'added' });
+        });
+
+        it('lets collaborators know when the task is done, and about comments (with the assignee)', async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'X', status: 'In progress', assigneeId: 'U-AS', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [], comments: [] } as any);
+            await service.update('T-1', { status: 'Done' }, actor);
+            expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.anything(), ['U-AN'], { kind: 'done' });
+            await service.addComment('T-1', 'Client sent the survey', actor);
+            expect(notifications.taskFollowUp).toHaveBeenLastCalledWith(expect.anything(), ['U-AN', 'U-AS'], { kind: 'comment', comment: 'Client sent the survey' });
         });
     });
 });

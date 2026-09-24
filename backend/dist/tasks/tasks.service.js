@@ -107,6 +107,7 @@ let TasksService = class TasksService {
             comments: [],
             checklist: (0, task_types_1.normalizeList)(dto.checklist),
             labels: (0, task_types_1.normalizeList)(dto.labels),
+            collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
             updatedAt: new Date().toISOString(),
         });
@@ -118,7 +119,13 @@ let TasksService = class TasksService {
                 status: saved.status, assigneeId: assignee.id, actor,
             });
         }
+        const followers = (0, task_types_1.normalizeCollaborators)(saved.collaborators);
+        if (followers.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
         return this.hydrate(saved);
+    }
+    notice(t, actor) {
+        return { surface: 'log', taskId: t.id, title: t.description || t.id, projectName: t.project, dueDate: t.dueDate, priority: t.topicType, status: t.status, actor };
     }
     async update(id, dto, actor) {
         const task = await this.load(id);
@@ -137,7 +144,19 @@ let TasksService = class TasksService {
         }
         if (patch.status && patch.status !== 'Closed')
             patch.dateClosed = '';
-        const events = (0, task_types_1.diffEvents)(task, patch, actor);
+        let joined = [];
+        const collabEvents = [];
+        if ('collaborators' in patch) {
+            patch.collaborators = (0, task_types_1.normalizeCollaborators)(patch.collaborators, patch.assignedToId ?? task.assignedToId);
+            const { added, removed } = (0, task_types_1.collaboratorChanges)(task.collaborators, patch.collaborators);
+            joined = added;
+            if (added.length)
+                collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `added ${added.map((c) => c.name).join(', ')} as collaborator${added.length === 1 ? '' : 's'}` }));
+            if (removed.length)
+                collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
+        }
+        const finished = patch.status === 'Closed' && task.status !== 'Closed';
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
         const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
             ? String(patch.assignedToId)
             : null;
@@ -153,6 +172,10 @@ let TasksService = class TasksService {
                 status: saved.status, assigneeId: reassignedTo, actor,
             });
         }
+        if (joined.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
+        if (finished)
+            this.notifications.taskFollowUp(this.notice(saved, actor), (0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), { kind: 'done' });
         return this.hydrate(saved);
     }
     async remove(id) {
@@ -212,7 +235,11 @@ let TasksService = class TasksService {
         };
         task.comments = [...(0, task_types_1.normalizeList)(task.comments), comment];
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('comment', actor, { text: comment.text })];
-        return this.hydrate(await this.repo.save(task));
+        const saved = await this.repo.save(task);
+        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assignedToId].filter(Boolean);
+        if (followers.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
+        return this.hydrate(saved);
     }
 };
 exports.TasksService = TasksService;

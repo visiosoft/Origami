@@ -37,7 +37,7 @@ export interface ChecklistItem {
 /** One entry in a task's history — field edits, comments, files, assignment. */
 export interface ActivityEvent {
   id: string;
-  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status';
+  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
   field?: string;
   from?: string;
   to?: string;
@@ -113,6 +113,30 @@ export const TRACKED_FIELDS: Record<string, string> = {
  * Compare an existing record against an incoming patch and produce one event per
  * meaningful change. Used by both task services so their histories look alike.
  */
+/** Someone following a task without owning it ("Collaborative"). */
+export interface Collaborator { id: string; name: string }
+
+/** A clean list: one entry per user id, never the assignee, never blank. */
+export function normalizeCollaborators(list: unknown, assigneeId?: string | null): Collaborator[] {
+  const seen = new Set<string>();
+  const out: Collaborator[] = [];
+  for (const c of Array.isArray(list) ? list : []) {
+    const id = String((c as any)?.id || '').trim();
+    if (!id || seen.has(id) || id === assigneeId) continue;
+    seen.add(id);
+    out.push({ id, name: String((c as any)?.name || '').trim() || id });
+  }
+  return out;
+}
+
+/** Who joined and who left, for the activity feed and the "you were added" email. */
+export function collaboratorChanges(before: unknown, after: Collaborator[]) {
+  const prev = normalizeCollaborators(before);
+  const had = new Set(prev.map((c) => c.id));
+  const has = new Set(after.map((c) => c.id));
+  return { added: after.filter((c) => !had.has(c.id)), removed: prev.filter((c) => !has.has(c.id)) };
+}
+
 export function diffEvents(
   before: Record<string, any>,
   patch: Record<string, any>,

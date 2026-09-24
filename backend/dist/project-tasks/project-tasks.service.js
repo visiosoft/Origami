@@ -118,6 +118,7 @@ let ProjectTasksService = class ProjectTasksService {
             status: dto.status || (dto.completed ? 'Done' : 'Not started'),
             checklist: (0, task_types_1.normalizeList)(dto.checklist),
             labels: (0, task_types_1.normalizeList)(dto.labels),
+            collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
             updatedAt: new Date().toISOString(),
             projectId: dto.projectId == null ? null : Number(dto.projectId),
@@ -131,7 +132,13 @@ let ProjectTasksService = class ProjectTasksService {
                 status: saved.status, assigneeId: assignee.id, actor,
             });
         }
+        const followers = (0, task_types_1.normalizeCollaborators)(saved.collaborators);
+        if (followers.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
         return this.hydrate(saved);
+    }
+    notice(t, actor) {
+        return { surface: 'board', taskId: t.id, title: t.title, description: t.description, projectId: t.projectId, dueDate: t.dueDate, priority: t.priority, status: t.status, actor };
     }
     async update(id, dto, actor = { name: 'Unknown' }) {
         let task = await this.repo.findOneBy({ id });
@@ -145,7 +152,19 @@ let ProjectTasksService = class ProjectTasksService {
             patch.assigneeId = assignee.id ?? null;
         }
         this.syncStatus(task, patch);
-        const events = (0, task_types_1.diffEvents)(task, patch, actor);
+        let joined = [];
+        const collabEvents = [];
+        if ('collaborators' in patch) {
+            patch.collaborators = (0, task_types_1.normalizeCollaborators)(patch.collaborators, patch.assigneeId ?? task.assigneeId);
+            const { added, removed } = (0, task_types_1.collaboratorChanges)(task.collaborators, patch.collaborators);
+            joined = added;
+            if (added.length)
+                collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `added ${added.map((c) => c.name).join(', ')} as collaborator${added.length === 1 ? '' : 's'}` }));
+            if (removed.length)
+                collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
+        }
+        const finished = patch.status === 'Done' && task.status !== 'Done';
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)
             : null;
@@ -160,6 +179,10 @@ let ProjectTasksService = class ProjectTasksService {
                 status: saved.status, assigneeId: reassignedTo, actor,
             });
         }
+        if (joined.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
+        if (finished)
+            this.notifications.taskFollowUp(this.notice(saved, actor), (0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), { kind: 'done' });
         return this.hydrate(saved);
     }
     async reorder(sectionId, ids) {
@@ -246,7 +269,11 @@ let ProjectTasksService = class ProjectTasksService {
         };
         task.comments = [...(0, task_types_1.normalizeList)(task.comments), comment];
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('comment', actor, { text: comment.text })];
-        return this.hydrate(await this.repo.save(task));
+        const saved = await this.repo.save(task);
+        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assigneeId].filter(Boolean);
+        if (followers.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
+        return this.hydrate(saved);
     }
 };
 exports.ProjectTasksService = ProjectTasksService;

@@ -27,7 +27,7 @@ export interface ChecklistItem { id: string; item: string; done: boolean }
 /** One entry in a task's history — field edits, comments, files, assignment. */
 export interface ActivityEvent {
   id: string;
-  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status';
+  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
   field?: string;
   from?: string;
   to?: string;
@@ -57,6 +57,8 @@ export interface ProjectSection {
 
 export interface ProjectTask {
   id: string;
+  /** People following the task without owning it ("Collaborative"). */
+  collaborators?: { id: string; name: string }[];
   /** null = a General Tasks board task, not tied to any client project. */
   projectId: number | null;
   sectionId: string;

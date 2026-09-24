@@ -11,6 +11,10 @@ export interface AssignmentEmailInput {
     status?: string;
     url: string;
     settingsUrl: string;
+    follow?: {
+        kind: 'added' | 'comment' | 'done';
+        comment?: string;
+    };
 }
 export declare function assignmentEmail(input: AssignmentEmailInput): {
     subject: string;

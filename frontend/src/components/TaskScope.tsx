@@ -6,10 +6,13 @@ const KEY = 'origami.taskScope';
 
 /** Whether a task belongs to this person — by id, falling back to the name. */
 export function isMine(
-  task: { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string },
+  task: { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string; collaborators?: { id: string }[] },
   user?: User,
+  /** Count tasks this person collaborates on too (the "My tasks" filter does; reminders about your own work don't). */
+  includeCollaborating = false,
 ): boolean {
   if (!user) return false;
+  if (includeCollaborating && (task.collaborators || []).some((c) => c.id === user.id)) return true;
   const id = task.assigneeId ?? task.assignedToId;
   if (id) return id === user.id;
   const name = task.assignee ?? task.assignedTo;
@@ -44,7 +47,7 @@ export function useTaskScope() {
   const filter = useCallback(
     <T extends { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string }>(tasks: T[]): T[] => {
       if (restricted) return tasks;              // the server already scoped these
-      if (scope === 'mine') return tasks.filter((t) => isMine(t, currentUser));
+      if (scope === 'mine') return tasks.filter((t) => isMine(t, currentUser, true));
       if (person) {
         const who = users.find((u) => u.id === person);
         return who ? tasks.filter((t) => isMine(t, who)) : tasks;

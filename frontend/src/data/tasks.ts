@@ -4,6 +4,8 @@ import type { Attachment, TaskComment, ActivityEvent, ChecklistItem } from './pr
 
 export interface Task {
   id: string;
+  /** People following the task without owning it ("Collaborative"). */
+  collaborators?: { id: string; name: string }[];
   meetingType: 'Internal' | 'Owner' | 'Subcontractor';
   meetingDate: string;
   assignedTo: string;

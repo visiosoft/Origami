@@ -4,6 +4,16 @@ export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
     findAll(): Promise<any[]>;
+    directory(): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        tier: string;
+        roleKey: string;
+        status: string;
+        avatarUrl: string;
+        createdAt: string;
+    }[]>;
     create(dto: CreateUserDto): Promise<any>;
     resendInvite(id: string): Promise<any>;
     update(id: string, dto: Partial<CreateUserDto>): Promise<any>;

@@ -51,8 +51,22 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Tell the people following a task (collaborators, and for comments the
+   * assignee too) that it moved: they were added, someone commented, or it's
+   * done. Never the person who did it. Fire-and-forget like assignment mail.
+   */
+  taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: { kind: 'added' | 'comment' | 'done'; comment?: string }): void {
+    const ids = Array.from(new Set(recipientIds.filter((id) => id && id !== notice.actor?.id)));
+    for (const id of ids) {
+      void this.sendAssignment({ ...notice, assigneeId: id }, follow).catch((err) => {
+        this.log.warn(`Follow-up email failed for ${notice.taskId} to ${id}: ${(err as Error).message}`);
+      });
+    }
+  }
+
   /** Separated from the fire-and-forget wrapper so the test endpoint can await it. */
-  async sendAssignment(notice: AssignmentNotice): Promise<{ sent: boolean; reason?: string }> {
+  async sendAssignment(notice: AssignmentNotice, follow?: { kind: 'added' | 'comment' | 'done'; comment?: string }): Promise<{ sent: boolean; reason?: string }> {
     const skip = (reason: string) => {
       this.log.log(`No assignment email for ${notice.taskId}: ${reason}`);
       return { sent: false, reason };
@@ -88,6 +102,7 @@ export class NotificationsService {
       status: notice.status,
       url: this.taskUrl(base, notice),
       settingsUrl: `${base}/settings?tab=notifications`,
+      follow,
     });
 
     await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });

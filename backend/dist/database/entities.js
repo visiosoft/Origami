@@ -299,6 +299,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
+], TaskEntity.prototype, "collaborators", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
 ], TaskEntity.prototype, "attachments", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
@@ -1290,6 +1294,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "assigneeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Array)
+], ProjectTaskEntity.prototype, "collaborators", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
