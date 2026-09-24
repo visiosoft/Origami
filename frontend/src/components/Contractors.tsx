@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import { SaveBar, useAutosave } from '../autosave';
 import { useApp } from '../AppContext';
 import { Attachments } from './Attachments';
 import { AddEmployeeDrawer, StatusPill, type Employee, type Trade } from './EmployeeDirectory';
@@ -199,30 +200,28 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
 }) {
   const { toast } = useApp();
   const [draft, setDraft] = useState<Partial<Contractor>>(contractor);
-  const [saving, setSaving] = useState(false);
   const [addingWorker, setAddingWorker] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
-  useEffect(() => setDraft(contractor), [contractor]);
+  useEffect(() => setDraft(contractor), [contractor.id]);
   useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, []);
 
   const keys = DETAIL_FIELDS.flatMap((s) => s.fields.map((f) => f[0])).concat(['status', 'notes'] as (keyof Contractor)[]);
-  const sameTrades = JSON.stringify(draft.tradeIds || []) === JSON.stringify(contractor.tradeIds || []);
-  const dirty = !sameTrades || keys.some((k) => (draft[k] ?? '') !== (contractor[k] ?? ''));
+  const nameMissing = !draft.companyName?.trim();
+  // Saves 3 seconds after typing stops (only the changed fields), or at once with Save.
+  const auto = useAutosave<Partial<Contractor>>({
+    draft, saved: contractor, fields: [...keys, 'tradeIds'], enabled: canManage && !nameMissing, label: 'contractor',
+    save: async (changes) => {
+      const patch = Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, k === 'tradeIds' ? (v || []) : (v ?? '')]));
+      await api.contractors.update(contractor.id, patch);
+      await onChanged();
+      return { ...contractor, ...changes };
+    },
+  });
   const workers = employees.filter((e) => e.contractorId === contractor.id);
   const currentOf = (id: string) => assignments.find((a) => a.current && a.employeeId === id && a.assignmentType === 'regular');
   const projectName = (id: number) => projects.find((p) => p.id === id)?.name || `Project ${id}`;
   const tradeName = (e: Employee) => trades.find((t) => t.id === e.tradeId)?.name || e.trade || '—';
 
-  const save = async () => {
-    if (!draft.companyName?.trim()) { toast('⚠ Company name is required'); return; }
-    setSaving(true);
-    try {
-      await api.contractors.update(contractor.id, { ...Object.fromEntries(keys.map((k) => [k, draft[k] ?? ''])), tradeIds: draft.tradeIds || [] });
-      await onChanged();
-      toast('Saved');
-    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
-    finally { setSaving(false); }
-  };
   const remove = async () => {
     if (!confirm(`Delete ${contractor.companyName}?`)) return;
     try { await api.contractors.remove(contractor.id); await onChanged(); onBack(); }
@@ -291,9 +290,9 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
         <div style={{ ...card, padding: '18px 20px' }}>
           <ContractorForm draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} subTrades={subTrades} />
           {canManage && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div onClick={saving || !dirty ? undefined : save} style={btn(dirty, saving || !dirty)}>{saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</div>
-              {dirty && <div onClick={() => setDraft(contractor)} style={btn()}>Discard</div>}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+              {auto.state === 'dirty' && <div onClick={() => setDraft(contractor)} style={btn()}>Discard</div>}
+              <SaveBar auto={auto} blocked={nameMissing ? 'Company name is required' : undefined} />
             </div>
           )}
         </div>

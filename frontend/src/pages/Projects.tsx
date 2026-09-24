@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { DraftScope, SaveBar } from '../autosave';
+import { DraftScope, SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { useSearchParams } from 'react-router-dom';
 import { TaskBoard } from '../components/TaskBoard';
 import { GuestAccessPanel } from '../components/GuestAccessPanel';
@@ -28,6 +28,8 @@ interface ProjectFilters { priority: string; contractType: string; typeOfWork: s
 interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
+/** The fields the project form edits; they autosave together. */
+const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
 const PT_FIELDS = ['assigneeId', 'assignee', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels'];
 
@@ -373,14 +375,49 @@ export function Projects() {
     if (t === 'phases' || t === 'financial' || t === 'tasks') setTab(t);
     setSearchParams({}, { replace: true });
   }, [projects, searchParams]);
-  const openNew = () => { setNp(BLANK); setEditingId(null); setShowForm(true); };
-  const openEdit = (p: Project) => { setNp({ ...p }); setEditingId(p.id); setSelectedId(null); setShowForm(true); };
-  const saveProject = () => {
-    if (!np.name || np.name.trim().length < 2) { toast('Project name is required'); return; }
-    const payload = { ...np, progress: Number(np.progress) || 0 };
-    const done = (v: string) => { setShowForm(false); setEditingId(null); setNp(BLANK); reload(); toast(`${np.name} ${v}`); };
-    if (editingId != null) api.projects.update(editingId, payload).then(() => done('updated')).catch(() => toast('⚠ Failed to save'));
-    else api.projects.create(payload).then(() => done('created')).catch(() => toast('⚠ Failed to save'));
+  // The project form saves itself: created once it has a name, then only the
+  // changed fields, 3 seconds after typing stops (Save saves at once; Done
+  // saves anything pending and closes).
+  const [projSession, setProjSession] = useState(0);
+  const [projSavedRec, setProjSavedRec] = useState<Partial<Project> | null>(null);
+  const projIdRef = useRef<number | null>(null);
+  const projNameOk = (np.name || '').trim().length >= 2;
+  const projAuto = useAutosave<Partial<Project>>({
+    draft: np, saved: projSavedRec ?? BLANK, fields: PROJECT_FIELDS, resetKey: 'project-form-' + projSession,
+    enabled: showForm && projNameOk, label: 'project',
+    save: async (changes, { draft }) => {
+      const num = (v: unknown) => Number(v) || 0;
+      if (projIdRef.current == null) {
+        const created: any = await api.projects.create({ ...draft, progress: num(draft.progress) });
+        projIdRef.current = created?.id ?? null;
+        setEditingId(created?.id ?? null);
+        reload();
+        toast(`${draft.name} created`);
+        return { ...draft };
+      }
+      const id = projIdRef.current;
+      const patch = 'progress' in changes ? { ...changes, progress: num(changes.progress) } : changes;
+      await api.projects.update(id, patch);
+      // Keep the list in step without reloading every project.
+      setProjects((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } as Project : x)));
+      return { ...draft };
+    },
+    onSaved: (row, sent) => setNp((cur) => mergeSaved(cur, row, sent)),
+  });
+  const startProjectForm = (rec: Partial<Project>, id: number | null) => {
+    setNp(rec);
+    setEditingId(id);
+    projIdRef.current = id;
+    setProjSavedRec(id != null ? rec : null);
+    setProjSession((n) => n + 1);
+    setShowForm(true);
+  };
+  const openNew = () => startProjectForm(BLANK, null);
+  const openEdit = (p: Project) => { setSelectedId(null); startProjectForm({ ...p }, p.id); };
+  const closeProjectForm = () => {
+    if (projNameOk && projAuto.dirty) void projAuto.saveNow();
+    setShowForm(false);
+    setEditingId(null);
   };
   const deleteProject = (p: Project) => {
     if (!confirm(`Delete project "${p.name}"?`)) return;
@@ -1200,11 +1237,11 @@ export function Projects() {
 
       {/* New / Edit Project form */}
       {showForm && (
-        <div onClick={() => setShowForm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+        <div onClick={closeProjectForm} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: 16, boxShadow: '0 24px 60px rgba(20,8,31,0.24)', animation: 'scaleIn 0.18s ease' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700 }}>{editingId != null ? 'Edit project' : 'New project'}</div>
-              <div onClick={() => setShowForm(false)} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>×</div>
+              <div onClick={closeProjectForm} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>×</div>
             </div>
             <div style={{ padding: '18px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -1254,9 +1291,9 @@ export function Projects() {
                 </div>
               ))}
             </div>
-            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', gap: 9 }}>
-              <div onClick={saveProject} style={{ padding: '11px 22px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{editingId != null ? 'Save changes' : 'Create project'}</div>
-              <div onClick={() => setShowForm(false)} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', gap: 9, alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={projAuto} blocked={projNameOk ? undefined : 'Add a project name (2+ letters) to save'} /></div>
+              <div onClick={closeProjectForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>{projAuto.dirty && !projNameOk && editingId == null ? 'Discard' : 'Done'}</div>
             </div>
           </div>
         </div>

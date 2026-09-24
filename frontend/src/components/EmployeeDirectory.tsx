@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { SaveBar, useAutosave } from '../autosave';
 import { useApp } from '../AppContext';
 import { Attachments } from './Attachments';
 import type { Attachment } from '../data/projectTasks';
@@ -611,25 +612,21 @@ function EditableSections({ sectionKeys, employee, employees, trades, contractor
   sectionKeys: string[]; employee: Employee; employees: Employee[]; trades: Trade[]; contractors: Contractor[]; canManage: boolean;
   onSaved: () => Promise<unknown> | void;
 }) {
-  const { toast } = useApp();
   const [draft, setDraft] = useState<Partial<Employee>>(employee);
-  const [saving, setSaving] = useState(false);
-  useEffect(() => setDraft(employee), [employee]);
+  // Another employee starts fresh; a reload of this one (after a save) leaves the draft alone.
+  useEffect(() => setDraft(employee), [employee.id]);
 
   const fieldKeys = sectionKeys.flatMap((k) => SECTIONS[k].fields.map((f) => f.key));
-  const dirty = fieldKeys.some((k) => JSON.stringify(draft[k] ?? null) !== JSON.stringify(employee[k] ?? null));
-
-  const save = async () => {
-    if (fieldKeys.includes('name') && !draft.name?.trim()) { toast('⚠ Full name is required'); return; }
-    setSaving(true);
-    try {
-      const payload = Object.fromEntries(fieldKeys.map((k) => [k, draft[k] ?? null]).filter(([, v]) => v !== null));
-      await api.employees.update(employee.id, payload);
+  const nameMissing = fieldKeys.includes('name') && !draft.name?.trim();
+  // Saves 3 seconds after typing stops (only the changed fields), or at once with Save.
+  const auto = useAutosave<Partial<Employee>>({
+    draft, saved: employee, fields: fieldKeys, enabled: canManage && !nameMissing, label: 'employee',
+    save: async (changes) => {
+      await api.employees.update(employee.id, changes);
       await onSaved();
-      toast('Saved');
-    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
-    finally { setSaving(false); }
-  };
+      return { ...employee, ...changes };
+    },
+  });
 
   return (
     <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, padding: '18px 20px' }}>
@@ -637,9 +634,9 @@ function EditableSections({ sectionKeys, employee, employees, trades, contractor
         <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} employees={employees} trades={trades} contractors={contractors} />
       ))}
       {canManage && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div onClick={saving || !dirty ? undefined : save} style={{ ...btn(dirty), opacity: saving ? 0.6 : 1, cursor: dirty ? 'pointer' : 'default' }}>{saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</div>
-          {dirty && <div onClick={() => setDraft(employee)} style={btn()}>Discard</div>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+          {auto.state === 'dirty' && <div onClick={() => setDraft(employee)} style={btn()}>Discard</div>}
+          <SaveBar auto={auto} blocked={nameMissing ? 'Full name is required' : undefined} />
         </div>
       )}
     </div>
@@ -735,26 +732,35 @@ function RecordsPanel({ kind, employeeId, records, canManage, onChanged }: {
   );
 }
 
+/** The fields a document / certification / contract editor changes; they autosave together. */
+const RECORD_FIELDS: (keyof EmpRecord)[] = ['type', 'title', 'number', 'issuer', 'issueDate', 'expiryDate', 'rate', 'status', 'verification', 'terms', 'notes'] as (keyof EmpRecord)[];
+
 function RecordEditor({ record, kind, canManage, storageReady, onChanged, onDeleted }: {
   record: EmpRecord; kind: RecordKind; canManage: boolean; storageReady: boolean;
   onChanged: () => Promise<unknown> | void; onDeleted: () => void;
 }) {
   const { toast } = useApp();
   const [draft, setDraft] = useState<EmpRecord>(record);
-  useEffect(() => setDraft(record), [record]);
+  useEffect(() => setDraft(record), [record.id]);
   const L = KIND_LABEL[kind];
 
-  const save = async (patch: Partial<EmpRecord>) => {
-    try { await api.employeeRecords.update(record.id, patch); await onChanged(); }
-    catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
-  };
+  // Saves 3 seconds after typing stops (only the changed fields), or at once with Save.
+  const auto = useAutosave<EmpRecord>({
+    draft, saved: record, fields: RECORD_FIELDS, enabled: canManage, label: L.one,
+    save: async (changes) => {
+      // A cleared number is sent as null, so the server clears it too.
+      const patch = Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v === undefined ? null : v]));
+      await api.employeeRecords.update(record.id, patch);
+      await onChanged();
+      return { ...record, ...changes };
+    },
+  });
   const field = (key: keyof EmpRecord, label: string, type: 'text' | 'date' | 'number' = 'text') => (
     <div>
       <Label text={label} />
       <input
         disabled={!canManage} type={type} value={(draft[key] as any) ?? ''}
         onChange={(e) => setDraft({ ...draft, [key]: type === 'number' ? (e.target.value === '' ? undefined : Number(e.target.value)) : e.target.value })}
-        onBlur={(e) => { if ((record[key] ?? '') !== (draft[key] ?? '')) save({ [key]: type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value } as any); }}
         style={input}
       />
     </div>
@@ -762,7 +768,7 @@ function RecordEditor({ record, kind, canManage, storageReady, onChanged, onDele
   const select = (key: keyof EmpRecord, label: string, options: string[] | Opt[]) => (
     <div>
       <Label text={label} />
-      <select disabled={!canManage} value={(draft[key] as any) ?? ''} onChange={(e) => { setDraft({ ...draft, [key]: e.target.value }); save({ [key]: e.target.value } as any); }} style={input}>
+      <select disabled={!canManage} value={(draft[key] as any) ?? ''} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} style={input}>
         {(options as any[]).map((o) => Array.isArray(o) ? <option key={o[0]} value={o[0]}>{o[1]}</option> : <option key={o} value={o}>{o}</option>)}
       </select>
     </div>
@@ -776,6 +782,7 @@ function RecordEditor({ record, kind, canManage, storageReady, onChanged, onDele
 
   return (
     <div style={{ padding: '4px 16px 16px', background: '#FBFAF6' }}>
+      {canManage && <div style={{ paddingTop: 10 }}><SaveBar auto={auto} /></div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12, paddingTop: 12 }}>
         {select('type', 'Type', RECORD_TYPES[kind])}
         {kind === 'document' && field('title', 'Name / description')}
@@ -790,12 +797,12 @@ function RecordEditor({ record, kind, canManage, storageReady, onChanged, onDele
       {kind === 'contract' && (
         <div style={{ marginTop: 12 }}>
           <Label text="Terms" />
-          <textarea disabled={!canManage} value={draft.terms || ''} onChange={(e) => setDraft({ ...draft, terms: e.target.value })} onBlur={(e) => { if ((record.terms || '') !== e.target.value) save({ terms: e.target.value }); }} rows={3} style={{ ...input, resize: 'vertical' }} />
+          <textarea disabled={!canManage} value={draft.terms || ''} onChange={(e) => setDraft({ ...draft, terms: e.target.value })} rows={3} style={{ ...input, resize: 'vertical' }} />
         </div>
       )}
       <div style={{ marginTop: 12 }}>
         <Label text="Notes" />
-        <textarea disabled={!canManage} value={draft.notes || ''} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} onBlur={(e) => { if ((record.notes || '') !== e.target.value) save({ notes: e.target.value }); }} rows={2} style={{ ...input, resize: 'vertical' }} />
+        <textarea disabled={!canManage} value={draft.notes || ''} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} rows={2} style={{ ...input, resize: 'vertical' }} />
       </div>
       <div style={{ marginTop: 14 }}>
         <Attachments

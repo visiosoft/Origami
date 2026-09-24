@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SaveBar, useAutosave } from '../autosave';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -16,6 +17,29 @@ interface NewPerson {
   phone: string; email: string; tier: Person['tier']; projects: string[]; complyDate: string; complyRef: string;
 }
 const BLANK: NewPerson = { name: '', kind: 'Consultant', role: '', company: '', contact: '', phone: '', email: '', tier: 'Consultant', projects: [], complyDate: '', complyRef: '' };
+
+/** What the directory stores for a person, composed from the form and the profile editor. */
+function personPayload(np: NewPerson, profile: PersonProfile): Record<string, any> {
+  const needsComply = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
+  const payload: Record<string, any> = {
+    name: np.name.trim(),
+    role: np.role.trim() || np.kind,
+    company: np.company.trim() || np.name.trim(),
+    contact: np.contact.trim() || undefined,
+    kind: np.kind,
+    tier: np.tier,
+    phone: np.phone.trim() || '—',
+    email: np.email.trim() || '—',
+    projects: [...np.projects],
+    comply: needsComply && np.complyDate.trim() ? { label: 'Insurance', date: np.complyDate.trim(), ok: true, extra: np.complyRef.trim() || 'No reference on file' } : null,
+    ...profile,
+  };
+  // The directory shows one name, composed from the parts the profile holds.
+  const composed = personDisplayName(profile);
+  if (composed) payload.name = composed;
+  return payload;
+}
+const BLANK_PAYLOAD = personPayload(BLANK, normalizeProfile({}));
 
 function ComplyBadge({ comply, small }: { comply: Comply | null; small?: boolean }) {
   if (!comply) return <span style={{ fontSize: small ? 9.5 : 10.5, color: '#7E9B93' }}>n/a</span>;
@@ -84,16 +108,54 @@ export function People() {
     <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? '#173326' : 'white', color: active ? 'white' : '#7E9B93', border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.1)') }}>{label}</div>
   );
 
-  const openNew = () => { setNp(BLANK); setProfile(normalizeProfile({})); setEditingId(null); setShowNew(true); };
+  // The person form saves itself: added to the directory once it has a name,
+  // then only the changed fields, 3 seconds after typing stops.
+  const [personSession, setPersonSession] = useState(0);
+  const [personSaved, setPersonSaved] = useState<Record<string, any> | null>(null);
+  const personIdRef = useRef<number | null>(null);
+  const personDraft = useMemo(() => personPayload(np, profile), [np, profile]);
+  const personNameOk = String(personDraft.name || '').trim().length > 1;
+  const personAuto = useAutosave<Record<string, any>>({
+    draft: personDraft, saved: personSaved ?? BLANK_PAYLOAD, resetKey: 'person-' + personSession,
+    enabled: showNew && personNameOk, label: 'person',
+    save: async (changes, { draft }) => {
+      if (personIdRef.current == null) {
+        const created: any = await api.people.create(draft);
+        personIdRef.current = created?.id ?? null;
+        setEditingId(created?.id ?? null);
+        reload();
+        toast(`${draft.name} added to the People directory`);
+        return { ...draft };
+      }
+      const id = personIdRef.current;
+      await api.people.update(id, changes);
+      setPeople((prev) => prev.map((x) => (x.id === id ? { ...x, ...changes } as Person : x)));
+      return { ...draft };
+    },
+  });
+  const startPersonForm = (form: NewPerson, prof: PersonProfile, id: number | null) => {
+    setNp(form);
+    setProfile(prof);
+    setEditingId(id);
+    personIdRef.current = id;
+    setPersonSaved(id != null ? personPayload(form, prof) : null);
+    setPersonSession((n) => n + 1);
+    setShowNew(true);
+  };
+  const openNew = () => startPersonForm(BLANK, normalizeProfile({}), null);
   const openEdit = (p: Person) => {
-    setNp({
+    setSelectedId(null);
+    // The person's own profile, not whatever the form held last -- saving used to overwrite it.
+    startPersonForm({
       name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '',
       phone: p.phone === '—' ? '' : p.phone, email: p.email === '—' ? '' : p.email, tier: p.tier,
       projects: [...p.projects], complyDate: p.comply?.date || '', complyRef: p.comply?.extra || '',
-    });
-    setEditingId(p.id);
-    setSelectedId(null);
-    setShowNew(true);
+    }, normalizeProfile(p as any), p.id);
+  };
+  const closePersonForm = () => {
+    if (personNameOk && personAuto.dirty) void personAuto.saveNow();
+    setShowNew(false);
+    setEditingId(null);
   };
   const del = (p: Person) => {
     if (!confirm(`Remove ${p.name} from People?`)) return;
@@ -101,33 +163,6 @@ export function People() {
     setSelectedId(null);
     api.people.remove(p.id).then(() => reload()).catch(() => toast('⚠ Failed to delete'));
     toast(`${p.name} removed`);
-  };
-
-  const save = () => {
-    if (np.name.trim().length <= 1) return;
-    const needsComplyLocal = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
-    const payload: Record<string, unknown> = {
-      name: np.name.trim(),
-      role: np.role.trim() || np.kind,
-      company: np.company.trim() || np.name.trim(),
-      contact: np.contact.trim() || undefined,
-      kind: np.kind,
-      tier: np.tier,
-      phone: np.phone.trim() || '—',
-      email: np.email.trim() || '—',
-      projects: [...np.projects],
-      comply: needsComplyLocal && np.complyDate.trim() ? { label: 'Insurance', date: np.complyDate.trim(), ok: true, extra: np.complyRef.trim() || 'No reference on file' } : null,
-      ...profile,
-    };
-    // The directory shows one name, composed from the parts the profile holds.
-    const composed = personDisplayName(profile);
-    if (composed) payload.name = composed;
-    const done = (verb: string) => { setShowNew(false); setNp(BLANK); setEditingId(null); reload(); toast(`${payload.name} ${verb}`); };
-    if (editingId != null) {
-      api.people.update(editingId, payload).then(() => done('updated')).catch(() => toast('⚠ Failed to save'));
-    } else {
-      api.people.create(payload).then(() => done('added to the People directory')).catch(() => toast('⚠ Failed to save'));
-    }
   };
 
   const cardsView = (
@@ -389,14 +424,14 @@ export function People() {
 
       {/* New person panel */}
       {showNew && (
-        <div onClick={() => setShowNew(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 120, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+        <div onClick={closePersonForm} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 120, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100vw', height: '100vh', background: 'white', boxShadow: '-18px 0 48px rgba(20,8,31,0.22)', display: 'flex', flexDirection: 'column', animation: 'slideInRight 0.2s ease' }}>
             <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{editingId != null ? 'Edit person or company' : 'Add to People'}</div>
                 <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>One record serves the directory, the address book and access control.</div>
               </div>
-              <div onClick={() => setShowNew(false)} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 15, flexShrink: 0 }}>×</div>
+              <div onClick={closePersonForm} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 15, flexShrink: 0 }}>×</div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -452,8 +487,8 @@ export function People() {
                     ? `${missingFields(profile).length} required field(s) outstanding`
                     : 'Record complete'}
               </span>
-              <div onClick={save} style={{ padding: '11px 20px', borderRadius: 999, background: valid ? '#173326' : '#D6DED8', color: valid ? 'white' : '#9AA39D', fontSize: 13, fontWeight: 700, cursor: valid ? 'pointer' : 'not-allowed' }}>{editingId != null ? 'Save changes' : 'Save to directory'}</div>
-              <div onClick={() => setShowNew(false)} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
+              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={personNameOk ? undefined : 'Add a name to save'} /></div>
+              <div onClick={closePersonForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>{personAuto.dirty && !personNameOk && editingId == null ? 'Discard' : 'Done'}</div>
 
             </div>
           </div>
