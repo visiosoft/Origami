@@ -36,12 +36,38 @@ function Steps({ items }: { items: ReactNode[] }) {
   );
 }
 
+/** Sample accounts for trying the client view and the subcontractor portal on the example project. */
+const DEMO_LOGINS = [
+  { who: 'Subcontractor portal', as: 'Ehsan Afzal — SC-001', email: 'demo-sub@origami.example', lands: 'Opens the portal: subcontracts, milestones, invoices, payments.' },
+  { who: 'Client', as: `Demo Client — ${EXAMPLE}`, email: 'demo-client@origami.example', lands: 'Opens the client dashboard, limited to this one project.' },
+];
+
+function LoginCard({ who, as, email, lands }: typeof DEMO_LOGINS[number]) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => navigator.clipboard?.writeText(email).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); }).catch(() => {});
+  return (
+    <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, padding: '14px 16px', display: 'grid', gap: 8 }}>
+      <div>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16 }}>{who}</div>
+        <div style={{ fontSize: 12.5, color: MUTED }}>Signs in as {as}</div>
+      </div>
+      <div style={{ background: '#FBF8F2', borderRadius: 10, padding: '8px 10px', display: 'grid', gridTemplateColumns: '54px minmax(0,1fr) auto', gap: 8, alignItems: 'center', fontSize: 13 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: MUTED }}>Email</span>
+        <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, overflowWrap: 'anywhere', userSelect: 'all' }}>{email}</code>
+        <span onClick={copy} style={{ fontSize: 11.5, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: MUTED }}>{lands}</div>
+      <a href="/login" target="_blank" rel="noreferrer" style={{ fontSize: 12.5, fontWeight: 700, color: ACCENT }}>Open the sign-in page →</a>
+    </div>
+  );
+}
+
 function Section({ id, children }: { id: string; children: ReactNode }) {
   return <section id={id} style={{ display: 'grid', gap: 14, scrollMarginTop: 20 }}>{children}</section>;
 }
 
 const TOC: [string, string][] = [
-  ['two-sides', 'The two sides of money'], ['tour', `Tour: ${EXAMPLE}`], ['next-invoice', 'When Ehsan sends an invoice'],
+  ['two-sides', 'The two sides of money'], ['tour', `Tour: ${EXAMPLE}`], ['next-invoice', 'When Ehsan sends an invoice'], ['portal', 'Try it as Ehsan or a client'],
   ['other-events', 'Other things that happen'], ['clients', 'When a client pays you'], ['words', 'What the words mean'], ['rules', 'Good to know'],
 ];
 
@@ -150,6 +176,38 @@ export function FinanceGuide() {
             <div style={{ background: AMBER_SOFT, borderRadius: 12, padding: '12px 16px', fontSize: 14 }}>
               <b style={{ color: AMBER }}>Made a mistake?</b> A cost still marked Recorded can be edited or deleted. Once it's approved or paid, use <b>Void</b> with a reason and record it again — nothing disappears without a trace.
             </div>
+          </Section>
+
+          <Section id="portal">
+            <Eyebrow>Part 2 · The portal</Eyebrow>
+            <H2>Try it as Ehsan or a client</H2>
+            <p style={{ margin: 0 }}>
+              Ehsan can send his invoices himself through the subcontractor portal, instead of you typing them in. Clients get their own login too.
+              These two sample logins let you see exactly what each of them sees — both are linked to {EXAMPLE}.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+              {DEMO_LOGINS.map((d) => <LoginCard key={d.email} {...d} />)}
+            </div>
+            <Result>Passwords aren't written here — this guide is visible to everyone on the team. Ask your administrator for them. Open the logins in a private (incognito) window so you stay signed in as yourself; emails to these sample addresses aren't delivered.</Result>
+            <H3>The round trip, start to finish</H3>
+            <Steps items={[
+              <><b>Sign in as the subcontractor</b> and click <Ui>+ Send an invoice</Ui>. Put a small amount against one milestone, give it an invoice number, and send it.<Saves /><Result>It shows as <b>Waiting for approval</b>. The portal won't let him bill more than is left on a milestone.</Result></>,
+              <><b>Back in your own account:</b> <Ui>Financial</Ui> → <Ui>Project</Ui> → <b>Approvals</b>. It's there as a <b>Subcontractor bill</b>; on the project's Costs list it carries a <b>From portal</b> badge.</>,
+              <><b>Approve it, then mark it paid</b> — exactly as in the steps above. Each time, the portal updates (Approved → Paid, with your payment reference) and he gets an email.</>,
+              <><b>Sending it back.</b> If something's wrong, <Ui>Void</Ui> it with a reason. He sees it as <b>Returned</b> with your reason and can send a corrected one. Bills from the portal can't be deleted, so he always sees what happened.</>,
+            ]} />
+            <H3>What else they see</H3>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
+              <li><b>The subcontractor</b> sees only their own subcontracts: each milestone's value, what's billed and paid, how many of its tasks are done, and the files you share with them. To share a file, open SC-001 and use <b>Shared with Ehsan Afzal</b> — the attachments above it stay internal.</li>
+              <li><b>The client</b> sees only the projects they're linked to in <Ui>People</Ui> (their email on a Client contact), and can't change anything.</li>
+            </ul>
+            <H3>Giving the real people access</H3>
+            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
+              <li><b>A subcontractor:</b> <Ui>Manpower</Ui> → Contractors → open them → <b>Subcontractor portal</b> card → enter their email → <Ui>Give portal access</Ui>. They get an email to set a password.</li>
+              <li><b>Ehsan himself:</b> his Gmail is already an admin login, so use another email of his. His card currently holds the sample login — entering his email there and sending a reset turns it into his.</li>
+              <li><b>A client:</b> add them in <Ui>People</Ui> as a Client with the project, then invite them from <Ui>User Access &amp; Roles</Ui> with the Client role.</li>
+              <li><b>Removing access:</b> <Ui>Remove access</Ui> on the contractor card signs them out at once; for a client, suspend the account.</li>
+            </ul>
           </Section>
 
           <Section id="other-events">
