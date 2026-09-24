@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { EmployeeDirectory, type Employee, type Trade } from '../components/EmployeeDirectory';
@@ -137,7 +138,11 @@ export function Manpower() {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
-  const [openEmployeeId, setOpenEmployeeId] = useState<string | null>(null);
+  // People links here: ?employee=<id> opens that record, ?add=employee opens the Add form.
+  const [params, setParams] = useSearchParams();
+  const [openEmployeeId, setOpenEmployeeId] = useState<string | null>(params.get('employee'));
+  const [startAdding] = useState(params.get('add') === 'employee');
+  useEffect(() => { if (params.get('employee') || params.get('add')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [payrollSettings, setPayrollSettings] = useState<PayrollSettings>(DEFAULT_SETTINGS);
 
   const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});
@@ -181,7 +186,7 @@ export function Manpower() {
       {tab === 'employees' && (
         <EmployeeDirectory employees={employees} trades={trades} projects={projects} assignments={assignments} contractors={contractors}
           reload={reloadEmployees} reloadAssignments={reloadAssignments} canManage={canManage} canFinance={canFinance} payrollSettings={payrollSettings}
-          openId={openEmployeeId} onOpen={setOpenEmployeeId} />
+          openId={openEmployeeId} onOpen={setOpenEmployeeId} startAdding={startAdding} />
       )}
       {tab === 'contractors' && (
         <Contractors employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}

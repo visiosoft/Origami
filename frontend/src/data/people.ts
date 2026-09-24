@@ -3,6 +3,8 @@
 export interface Comply { label: string; date: string; ok: boolean; extra: string }
 export interface Person {
   id: number;
+  /** Staff and contractor workers: their Manpower employee record (the same person, edited there). */
+  employeeId?: string;
   name: string;
   role: string;
   company: string;

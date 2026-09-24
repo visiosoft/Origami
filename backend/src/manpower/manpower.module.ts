@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PeopleModule } from '../people/people.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
@@ -54,6 +55,7 @@ import { SampleDataController } from './sample-data.controller';
 
 @Module({
   imports: [
+    PeopleModule,
     TypeOrmModule.forFeature([
       EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
       TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,

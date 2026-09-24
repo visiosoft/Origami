@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmployeeAssignmentEntity, EmployeeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
+import { StaffDirectorySync } from './staff-directory.sync';
 
 /** Next free "W-0001"-style worker number, never reusing one a deleted employee held. */
 export function nextWorkerId(existing: (string | null | undefined)[]): string {
@@ -20,7 +21,14 @@ export class EmployeesService {
     @InjectRepository(SubcontractorTradeEntity) private readonly trades: Repository<SubcontractorTradeEntity>,
     private readonly attachments: AttachmentsService,
     @InjectRepository(EmployeeAssignmentEntity) private readonly assignments: Repository<EmployeeAssignmentEntity>,
+    private readonly staff?: StaffDirectorySync,
   ) {}
+
+  /** Keep the People entry in step; never let that fail the employee save itself. */
+  private async toPeople(e: EmployeeEntity) {
+    try { await this.staff?.syncEmployee(e); } catch { /* the startup backfill catches up */ }
+    return e;
+  }
 
   findAll() {
     return this.repo.find({ order: { name: 'ASC' } });
@@ -49,7 +57,7 @@ export class EmployeesService {
       workerId: dto.workerId?.trim() || nextWorkerId(all.map((e) => e.workerId)),
       id: dto.id || 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
     };
-    return this.repo.save(this.repo.create(employee as Partial<EmployeeEntity>));
+    return this.toPeople(await this.repo.save(this.repo.create(employee as Partial<EmployeeEntity>)));
   }
 
   async update(id: string, dto: any) {
@@ -67,7 +75,7 @@ export class EmployeesService {
     Object.assign(employee, rest, { id, updatedAt: new Date().toISOString() });
     // The legacy active/inactive flag follows the richer lifecycle status.
     if (rest.employmentStatus) employee.status = rest.employmentStatus === 'active' ? 'active' : 'inactive';
-    return this.repo.save(employee);
+    return this.toPeople(await this.repo.save(employee));
   }
 
   async remove(id: string) {
@@ -78,6 +86,7 @@ export class EmployeesService {
     if (employee) {
       await this.attachments.discard(employee.photo ?? undefined);
       await this.repo.remove(employee);
+      await this.staff?.removeEmployee(id);
     }
     return { id, deleted: true };
   }

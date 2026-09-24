@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { StaffDirectorySync } from '../manpower/staff-directory.sync';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonEntity } from '../database/entities';
@@ -7,6 +8,7 @@ import { PersonEntity } from '../database/entities';
 export class PeopleService {
   constructor(
     @InjectRepository(PersonEntity) private readonly repo: Repository<PersonEntity>,
+    private readonly staff?: StaffDirectorySync,
   ) {}
 
   async findAll(project?: string) {
@@ -74,7 +76,10 @@ export class PeopleService {
   async create(dto: any) {
     const id = Number(dto.id) || (await this.nextId());
     const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
-    return this.repo.save(this.repo.create(person as Partial<PersonEntity>));
+    const saved = await this.repo.save(this.repo.create(person as Partial<PersonEntity>));
+    // Staff are employees too -- one record in both People and Manpower.
+    if (saved.kind === 'Staff' && !saved.employeeId && this.staff) await this.staff.employeeForPerson(saved);
+    return saved;
   }
 
   async update(id: string, dto: any) {
@@ -82,12 +87,17 @@ export class PeopleService {
     const person = await this.repo.findOneBy({ id: numId });
     if (!person) throw new NotFoundException(`Person ${id} not found`);
     Object.assign(person, dto, { id: numId });
-    return this.repo.save(person);
+    const saved = await this.repo.save(person);
+    await this.staff?.personChanged(saved, dto);
+    return saved;
   }
 
   async remove(id: string) {
     const numId = Number(id);
     const person = await this.repo.findOneBy({ id: numId });
+    if (person?.employeeId) {
+      throw new BadRequestException(`${person.name} is also an employee -- end or remove them in Manpower -> Employees and this entry follows.`);
+    }
     if (person) await this.repo.remove(person);
     return { id: numId, deleted: true };
   }

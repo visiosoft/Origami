@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ManpowerModule = void 0;
 const common_1 = require("@nestjs/common");
+const people_module_1 = require("../people/people.module");
 const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
 const auth_module_1 = require("../auth/auth.module");
@@ -59,6 +60,7 @@ exports.ManpowerModule = ManpowerModule;
 exports.ManpowerModule = ManpowerModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            people_module_1.PeopleModule,
             typeorm_1.TypeOrmModule.forFeature([
                 entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.DailyLogEntity, entities_1.LaborLogEntryEntity, entities_1.LeaveRequestEntity, entities_1.ProjectEntity,
                 entities_1.TradeEntity, entities_1.SubcontractorTradeEntity, entities_1.EmployeeRecordEntity, entities_1.EmployeeAssignmentEntity, entities_1.WorkforceRequestEntity, entities_1.ContractorEntity,

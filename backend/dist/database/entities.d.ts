@@ -38,6 +38,7 @@ export declare class PersonEntity {
     email: string;
     projects: string[];
     openTasks: number;
+    employeeId: string;
     since: string;
     comply: unknown;
     last: string;

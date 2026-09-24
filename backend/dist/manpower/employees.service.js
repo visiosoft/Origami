@@ -19,6 +19,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const attachments_service_1 = require("../google/attachments.service");
+const staff_directory_sync_1 = require("./staff-directory.sync");
 function nextWorkerId(existing) {
     const max = existing.reduce((m, id) => {
         const match = /^W-(\d+)$/.exec(id || '');
@@ -27,11 +28,19 @@ function nextWorkerId(existing) {
     return 'W-' + String(max + 1).padStart(4, '0');
 }
 let EmployeesService = class EmployeesService {
-    constructor(repo, trades, attachments, assignments) {
+    constructor(repo, trades, attachments, assignments, staff) {
         this.repo = repo;
         this.trades = trades;
         this.attachments = attachments;
         this.assignments = assignments;
+        this.staff = staff;
+    }
+    async toPeople(e) {
+        try {
+            await this.staff?.syncEmployee(e);
+        }
+        catch { }
+        return e;
     }
     findAll() {
         return this.repo.find({ order: { name: 'ASC' } });
@@ -59,7 +68,7 @@ let EmployeesService = class EmployeesService {
             workerId: dto.workerId?.trim() || nextWorkerId(all.map((e) => e.workerId)),
             id: dto.id || 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
         };
-        return this.repo.save(this.repo.create(employee));
+        return this.toPeople(await this.repo.save(this.repo.create(employee)));
     }
     async update(id, dto) {
         const employee = await this.findOne(id);
@@ -79,7 +88,7 @@ let EmployeesService = class EmployeesService {
         Object.assign(employee, rest, { id, updatedAt: new Date().toISOString() });
         if (rest.employmentStatus)
             employee.status = rest.employmentStatus === 'active' ? 'active' : 'inactive';
-        return this.repo.save(employee);
+        return this.toPeople(await this.repo.save(employee));
     }
     async remove(id) {
         const employee = await this.repo.findOneBy({ id });
@@ -89,6 +98,7 @@ let EmployeesService = class EmployeesService {
         if (employee) {
             await this.attachments.discard(employee.photo ?? undefined);
             await this.repo.remove(employee);
+            await this.staff?.removeEmployee(id);
         }
         return { id, deleted: true };
     }
@@ -119,6 +129,7 @@ exports.EmployeesService = EmployeesService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        staff_directory_sync_1.StaffDirectorySync])
 ], EmployeesService);
 //# sourceMappingURL=employees.service.js.map

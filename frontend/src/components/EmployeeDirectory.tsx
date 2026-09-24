@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { SaveBar, useAutosave } from '../autosave';
+import { DirectoryAccessCard, LoginCard } from './StaffAccessCards';
 import { useApp } from '../AppContext';
 import { Attachments } from './Attachments';
 import type { Attachment } from '../data/projectTasks';
@@ -251,11 +252,14 @@ interface DirectoryProps {
   canFinance: boolean; payrollSettings: PayrollSettings;
   /** Controlled so other screens (deployment, requests, contractors) can open a profile here. */
   openId: string | null; onOpen: (id: string | null) => void;
+  /** Open the Add employee form straight away (People -> Add staff lands here). */
+  startAdding?: boolean;
 }
 
 export function EmployeeDirectory(props: DirectoryProps) {
-  const { employees, trades, projects, assignments, contractors, reload, canManage, openId, onOpen } = props;
-  const [adding, setAdding] = useState(false);
+  const { employees, trades, projects, assignments, contractors, reload, canManage, openId, onOpen, startAdding } = props;
+  const [adding, setAdding] = useState(!!startAdding && canManage);
+  useEffect(() => { if (startAdding && canManage) setAdding(true); }, [startAdding, canManage]);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -519,6 +523,8 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
       {tab === 'overview' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
           <Card title="At a glance"><Facts rows={glance} /></Card>
+          <DirectoryAccessCard employee={employee} canManage={canManage} />
+          <LoginCard employee={employee} onChanged={onChanged} />
           <Card title="Contact">
             <Facts rows={[
               ['Phone', employee.phone],

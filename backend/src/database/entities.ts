@@ -59,6 +59,8 @@ export class PersonEntity {
   @Column() email!: string;
   @Column('simple-json') projects!: string[];
   @Column('int') openTasks!: number;
+  /** Set for staff and contractor workers: the Manpower employee this entry is (one record, two views). */
+  @Column({ nullable: true }) employeeId!: string;
   @Column() since!: string;
   @Column({ type: 'simple-json', nullable: true }) comply!: unknown;
   @Column() last!: string;

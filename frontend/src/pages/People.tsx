@@ -117,7 +117,8 @@ export function People() {
   const personNameOk = String(personDraft.name || '').trim().length > 1;
   const personAuto = useAutosave<Record<string, any>>({
     draft: personDraft, saved: personSaved ?? BLANK_PAYLOAD, resetKey: 'person-' + personSession,
-    enabled: showNew && personNameOk, label: 'person',
+    // New staff go through the employee form (one record), so this form doesn't create them.
+    enabled: showNew && personNameOk && !(np.kind === 'Staff' && personIdRef.current == null), label: 'person',
     save: async (changes, { draft }) => {
       if (personIdRef.current == null) {
         const created: any = await api.people.create(draft);
@@ -153,7 +154,7 @@ export function People() {
     }, normalizeProfile(p as any), p.id);
   };
   const closePersonForm = () => {
-    if (personNameOk && personAuto.dirty) void personAuto.saveNow();
+    if (personNameOk && personAuto.dirty && !(np.kind === 'Staff' && personIdRef.current == null)) void personAuto.saveNow();
     setShowNew(false);
     setEditingId(null);
   };
@@ -414,8 +415,15 @@ export function People() {
             )}
             <div style={{ padding: '18px 24px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div onClick={() => { setSelectedId(null); navigate('/tasks'); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>View their tasks</div>
-              {canManage && <div onClick={() => openEdit(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#2F7D4A' }}>Edit record</div>}
-              {canManage && <div onClick={() => del(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(142,46,10,0.25)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#8E2E0A' }}>Delete</div>}
+              {sel.employeeId ? (
+                // Staff and workers are one record with their employee file -- edited there, in full.
+                <div onClick={() => { setSelectedId(null); navigate(`/manpower_con?employee=${encodeURIComponent(sel.employeeId!)}`); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#173326', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'white' }}>Open full record</div>
+              ) : (
+                <>
+                  {canManage && <div onClick={() => openEdit(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#2F7D4A' }}>Edit record</div>}
+                  {canManage && <div onClick={() => del(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(142,46,10,0.25)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#8E2E0A' }}>Delete</div>}
+                </>
+              )}
             </div>
             <div style={{ padding: '0 24px 24px', fontSize: 10.5, color: '#7E9B93', lineHeight: 1.55 }}>Access tier controls what this person sees. Consultants and subs only see the projects listed above; clients see their own project only.</div>
           </div>
@@ -443,6 +451,15 @@ export function People() {
                   ))}
                 </div>
               </div>
+              {np.kind === 'Staff' && editingId == null && (
+                // Staff are employees too: one record, added with the full employee form.
+                <div style={{ gridColumn: '1 / -1', padding: '14px 16px', borderRadius: 12, background: '#EEF3EE', border: '1px solid #B9CDBD', display: 'grid', gap: 10 }}>
+                  <div style={{ fontSize: 13, color: '#173326', lineHeight: 1.55 }}>
+                    <b>Staff are employees too.</b> Add them once with the full employee record — they appear here in People and in Manpower, and you can give them a login from the same record.
+                  </div>
+                  <div onClick={() => { setShowNew(false); navigate('/manpower_con?add=employee'); }} style={{ justifySelf: 'start', padding: '9px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Add as an employee →</div>
+                </div>
+              )}
               {field(isCompany ? 'Company or firm name' : 'Full name', 'name', isCompany ? 'e.g. Kestrel Electric Co.' : 'e.g. Dana Whitfield', 'required', '1 / -1')}
               {field(isCompany ? 'Trade or discipline' : 'Role or title', 'role', isCompany ? 'e.g. Electrical' : 'e.g. Project Coordinator')}
               {field('Company shown in lists', 'company', isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build')}
@@ -487,7 +504,7 @@ export function People() {
                     ? `${missingFields(profile).length} required field(s) outstanding`
                     : 'Record complete'}
               </span>
-              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={personNameOk ? undefined : 'Add a name to save'} /></div>
+              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={np.kind === 'Staff' && personIdRef.current == null ? 'Staff are added as employees (button above)' : personNameOk ? undefined : 'Add a name to save'} /></div>
               <div onClick={closePersonForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>{personAuto.dirty && !personNameOk && editingId == null ? 'Discard' : 'Done'}</div>
 
             </div>

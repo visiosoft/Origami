@@ -12,15 +12,16 @@ const typeorm_1 = require("@nestjs/typeorm");
 const people_controller_1 = require("./people.controller");
 const people_service_1 = require("./people.service");
 const entities_1 = require("../database/entities");
+const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
 let PeopleModule = class PeopleModule {
 };
 exports.PeopleModule = PeopleModule;
 exports.PeopleModule = PeopleModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity, entities_1.EmployeeEntity, entities_1.ContractorEntity])],
         controllers: [people_controller_1.PeopleController],
-        providers: [people_service_1.PeopleService],
-        exports: [people_service_1.PeopleService],
+        providers: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync],
+        exports: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync],
     })
 ], PeopleModule);
 //# sourceMappingURL=people.module.js.map

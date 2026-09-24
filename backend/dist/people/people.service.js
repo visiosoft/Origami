@@ -14,12 +14,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeopleService = void 0;
 const common_1 = require("@nestjs/common");
+const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 let PeopleService = class PeopleService {
-    constructor(repo) {
+    constructor(repo, staff) {
         this.repo = repo;
+        this.staff = staff;
     }
     async findAll(project) {
         const all = await this.repo.find({ order: { id: 'ASC' } });
@@ -68,7 +70,10 @@ let PeopleService = class PeopleService {
     async create(dto) {
         const id = Number(dto.id) || (await this.nextId());
         const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
-        return this.repo.save(this.repo.create(person));
+        const saved = await this.repo.save(this.repo.create(person));
+        if (saved.kind === 'Staff' && !saved.employeeId && this.staff)
+            await this.staff.employeeForPerson(saved);
+        return saved;
     }
     async update(id, dto) {
         const numId = Number(id);
@@ -76,11 +81,16 @@ let PeopleService = class PeopleService {
         if (!person)
             throw new common_1.NotFoundException(`Person ${id} not found`);
         Object.assign(person, dto, { id: numId });
-        return this.repo.save(person);
+        const saved = await this.repo.save(person);
+        await this.staff?.personChanged(saved, dto);
+        return saved;
     }
     async remove(id) {
         const numId = Number(id);
         const person = await this.repo.findOneBy({ id: numId });
+        if (person?.employeeId) {
+            throw new common_1.BadRequestException(`${person.name} is also an employee -- end or remove them in Manpower -> Employees and this entry follows.`);
+        }
         if (person)
             await this.repo.remove(person);
         return { id: numId, deleted: true };
@@ -90,6 +100,7 @@ exports.PeopleService = PeopleService;
 exports.PeopleService = PeopleService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.PersonEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        staff_directory_sync_1.StaffDirectorySync])
 ], PeopleService);
 //# sourceMappingURL=people.service.js.map
