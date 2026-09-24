@@ -335,7 +335,7 @@ let LeaveService = class LeaveService {
             }
         }
         if (rows.length)
-            await this.adjustments.save(rows);
+            await this.adjustments.save(rows, { chunk: 40 });
         return { year: year + 1, carried: rows.length, days: (0, payroll_calc_1.round2)(rows.reduce((s, r) => s + r.days, 0)) };
     }
     listAdjustments(employeeId) {

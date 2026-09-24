@@ -66,11 +66,11 @@ export class SubcontractorTradesService implements OnApplicationBootstrap {
       e.trade = t ? t.name : oldName.get(e.tradeId) || e.trade;
       e.tradeId = (t?.id ?? null) as any;
     }
-    if (emps.length) await this.employees.save(emps);
+    if (emps.length) await this.employees.save(emps, { chunk: 40 });
 
     const asg = (await this.assignments.find()).filter((a) => stale(a.tradeId));
     for (const a of asg) a.tradeId = (target(a.tradeId)?.id ?? null) as any;
-    if (asg.length) await this.assignments.save(asg);
+    if (asg.length) await this.assignments.save(asg, { chunk: 40 });
 
     const reqs = (await this.requests.find()).filter((r) => (r.lines || []).some((l) => stale(l.tradeId)));
     for (const r of reqs) {
@@ -80,7 +80,7 @@ export class SubcontractorTradesService implements OnApplicationBootstrap {
         return { ...l, tradeId: t?.id || '', designation: l.designation || oldName.get(l.tradeId) };
       });
     }
-    if (reqs.length) await this.requests.save(reqs);
+    if (reqs.length) await this.requests.save(reqs, { chunk: 40 });
     if (emps.length + asg.length + reqs.length) this.log.log(`Moved worker trades onto classifications: ${emps.length} employees, ${asg.length} assignments, ${reqs.length} requests`);
   }
 

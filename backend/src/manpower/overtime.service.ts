@@ -65,7 +65,7 @@ export class OvertimeService {
     if (!items?.length) throw new BadRequestException('Nothing to create.');
     const rows = [];
     for (const item of items) rows.push(await this.build(item, actor));
-    return this.repo.save(rows);
+    return this.repo.save(rows, { chunk: 40 });
   }
 
   private async load(id: string) {

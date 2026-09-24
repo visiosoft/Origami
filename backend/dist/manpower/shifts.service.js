@@ -137,7 +137,7 @@ let ShiftsService = class ShiftsService {
                 id: (0, workforce_util_1.newId)('SA'), employeeId, templateIds, rotateEveryDays: every ?? undefined, startDate: dto.startDate,
                 endDate: dto.endDate || undefined, notes: dto.notes, createdByName: actor.name, createdAt: now,
             }));
-            return repo.save(rows);
+            return repo.save(rows, { chunk: 40 });
         });
     }
     async end(id, endDate, actor) {

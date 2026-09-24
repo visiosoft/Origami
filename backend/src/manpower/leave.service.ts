@@ -345,7 +345,7 @@ export class LeaveService implements OnApplicationBootstrap {
         }));
       }
     }
-    if (rows.length) await this.adjustments.save(rows);
+    if (rows.length) await this.adjustments.save(rows, { chunk: 40 });
     return { year: year + 1, carried: rows.length, days: round2(rows.reduce((s, r) => s + r.days, 0)) };
   }
 

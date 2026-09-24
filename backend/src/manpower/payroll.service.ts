@@ -263,7 +263,7 @@ export class PayrollService {
     run.totals = this.totals(slips);
     await this.runs.manager.transaction(async (m) => {
       await m.getRepository(PayrollRunEntity).save(run);
-      await m.getRepository(PayslipEntity).save(slips);
+      await m.getRepository(PayslipEntity).save(slips, { chunk: 40 });
     });
     return this.getRun(run.id);
   }
@@ -297,7 +297,7 @@ export class PayrollService {
     Object.assign(run, { totals: this.totals(next), settingsSnapshot: s, updatedAt: now });
     await this.runs.manager.transaction(async (m) => {
       if (dropped.length) await m.getRepository(PayslipEntity).remove(dropped);
-      await m.getRepository(PayslipEntity).save(next);
+      await m.getRepository(PayslipEntity).save(next, { chunk: 40 });
       await m.getRepository(PayrollRunEntity).save(run);
     });
     return this.getRun(runId);
@@ -402,11 +402,11 @@ export class PayrollService {
 
       if (ots.length) {
         for (const o of ots) Object.assign(o, { payrollRunId: id, updatedAt: new Date().toISOString() });
-        await otRepo.save(ots);
+        await otRepo.save(ots, { chunk: 40 });
       }
       if (encs.length) {
         for (const a of encs) a.payrollRunId = id;
-        await encRepo.save(encs);
+        await encRepo.save(encs, { chunk: 40 });
       }
       for (const a of advs) {
         const mine = recoveryLines.filter((r) => r.line.refIds?.[0] === a.id);
@@ -418,7 +418,7 @@ export class PayrollService {
         if (remainingOf(a) <= 0.005) a.status = 'settled';
         a.updatedAt = new Date().toISOString();
       }
-      if (advs.length) await advRepo.save(advs);
+      if (advs.length) await advRepo.save(advs, { chunk: 40 });
       Object.assign(run, { status: 'finalized', finalizedByName: actor.name, finalizedAt: new Date().toISOString(), totals: this.totals(slips), updatedAt: new Date().toISOString() });
       await m.getRepository(PayrollRunEntity).save(run);
       return { ...run, payslips: slips };
@@ -437,11 +437,11 @@ export class PayrollService {
       const otRepo = m.getRepository(OvertimeRequestEntity);
       const ots = await otRepo.find({ where: { payrollRunId: id } });
       for (const o of ots) Object.assign(o, { payrollRunId: null as unknown as string, updatedAt: new Date().toISOString() });
-      if (ots.length) await otRepo.save(ots);
+      if (ots.length) await otRepo.save(ots, { chunk: 40 });
       const encRepo = m.getRepository(LeaveAdjustmentEntity);
       const encs = await encRepo.find({ where: { payrollRunId: id } });
       for (const a of encs) a.payrollRunId = null as unknown as string;
-      if (encs.length) await encRepo.save(encs);
+      if (encs.length) await encRepo.save(encs, { chunk: 40 });
       const advRepo = m.getRepository(EmployeeAdvanceEntity);
       const touched = (await advRepo.find()).filter((a) => (a.repayments || []).some((r) => r.runId === id));
       for (const a of touched) {

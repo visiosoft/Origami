@@ -82,7 +82,7 @@ let OvertimeService = class OvertimeService {
         const rows = [];
         for (const item of items)
             rows.push(await this.build(item, actor));
-        return this.repo.save(rows);
+        return this.repo.save(rows, { chunk: 40 });
     }
     async load(id) {
         const o = await this.repo.findOneBy({ id });

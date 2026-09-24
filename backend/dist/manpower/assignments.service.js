@@ -94,7 +94,7 @@ let AssignmentsService = class AssignmentsService {
                     notes: dto.notes, createdByName: actor.name, createdAt: now, updatedAt: now,
                 });
             });
-            const saved = await m.getRepository(entities_1.EmployeeAssignmentEntity).save(rows);
+            const saved = await m.getRepository(entities_1.EmployeeAssignmentEntity).save(rows, { chunk: 40 });
             return saved.map((a) => this.hydrate(a));
         });
     }

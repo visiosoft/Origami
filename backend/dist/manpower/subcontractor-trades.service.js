@@ -64,12 +64,12 @@ let SubcontractorTradesService = class SubcontractorTradesService {
             e.tradeId = (t?.id ?? null);
         }
         if (emps.length)
-            await this.employees.save(emps);
+            await this.employees.save(emps, { chunk: 40 });
         const asg = (await this.assignments.find()).filter((a) => stale(a.tradeId));
         for (const a of asg)
             a.tradeId = (target(a.tradeId)?.id ?? null);
         if (asg.length)
-            await this.assignments.save(asg);
+            await this.assignments.save(asg, { chunk: 40 });
         const reqs = (await this.requests.find()).filter((r) => (r.lines || []).some((l) => stale(l.tradeId)));
         for (const r of reqs) {
             r.lines = r.lines.map((l) => {
@@ -80,7 +80,7 @@ let SubcontractorTradesService = class SubcontractorTradesService {
             });
         }
         if (reqs.length)
-            await this.requests.save(reqs);
+            await this.requests.save(reqs, { chunk: 40 });
         if (emps.length + asg.length + reqs.length)
             this.log.log(`Moved worker trades onto classifications: ${emps.length} employees, ${asg.length} assignments, ${reqs.length} requests`);
     }

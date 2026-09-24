@@ -120,7 +120,7 @@ export class SampleDataService {
         tradeIds: ['C-50', 'C-51', 'C-60'].map((c) => sub.get(c)).filter(Boolean) as string[], licenseNumber: 'CSLB #987234', licenseExpiry: d(15),
         status: 'active', notes: NOTE, attachments: [], createdAt: now, updatedAt: now,
       },
-    ] as unknown as ContractorEntity[]);
+    ] as unknown as ContractorEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- employees
     // Pay components by name, for each person's W-4 / state withholding.
@@ -169,7 +169,7 @@ export class SampleDataService {
       supervisorId: staff.includes(k) ? (k === 'E03' ? id('E04') : k === 'E04' || k === 'E02' ? undefined : id('E04')) : id('E03'),
       hrOfficerId: k === 'E02' ? undefined : id('E02'), payComponents: [],
       status: 'active', employmentStatus: 'active', ...p, createdAt: now, updatedAt: now,
-    })) as unknown as EmployeeEntity[]);
+    })) as unknown as EmployeeEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- documents, certifications, contracts
     const rec = (k: string, n: number, r: Partial<EmployeeRecordEntity>) => ({ id: id(`R${k}${n}`), employeeId: id(k), attachments: [], verification: 'verified', createdAt: now, notes: NOTE, ...r });
@@ -186,7 +186,7 @@ export class SampleDataService {
       rec('E01', 3, { kind: 'contract', type: 'permanent', title: 'Offer letter (at-will)', number: 'EMP-2022-031', issueDate: '2022-02-01', rate: 8750, status: 'active', terms: 'At-will employment; exempt salaried; PTO and benefits per handbook.' }),
       rec('E05', 2, { kind: 'contract', type: 'fixed_term', title: 'Fixed-term agreement', number: 'EMP-2024-004', issueDate: '2024-01-10', expiryDate: d(40), rate: 7900, status: 'active', terms: 'Fixed term, renewable subject to backlog.' }),
       rec('E12', 3, { kind: 'contract', type: 'project', title: 'Project agreement — driver', number: 'EMP-2023-019', issueDate: '2023-04-01', expiryDate: d(-3), rate: 32, status: 'active' }),
-    ] as unknown as EmployeeRecordEntity[]);
+    ] as unknown as EmployeeRecordEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- deployment
     if (p1) {
@@ -200,7 +200,7 @@ export class SampleDataService {
         ...onP1.map((k) => assign(k, p1, { workArea: ['E06', 'E07', 'E10', 'E11'].includes(k) ? 'Building A' : ['E08', 'E14', 'E15'].includes(k) ? 'Parking structure' : undefined })),
         ...onP2.map((k) => assign(k, p2!)),
         ...(p2 ? [assign('E09', p2, { id: id('ASE09T'), assignmentType: 'temporary', startDate: d(1), endDate: d(5), workArea: 'Lot 7', notes: 'Temporary cover for stair stringer welding' })] : []),
-      ] as unknown as EmployeeAssignmentEntity[]);
+      ] as unknown as EmployeeAssignmentEntity[], { chunk: 30 });
 
       await this.requests.save({
         id: id('WR1'), projectId: p2 || p1, workArea: 'Lots 1-8', requiredDate: d(7), durationDays: 30, status: 'submitted',
@@ -232,15 +232,15 @@ export class SampleDataService {
           entryRows.push({ id: id(`LE${i + 1}-${j}`), dailyLogId: logId, employeeId: id(k), csiCodeId: csi.get(code) || csi.values().next().value, hours: h, taskDetail: task, taskStatus: i === 0 ? 'start' : last ? 'completing' : 'continued', team: j < 4 ? 'A' : 'B' });
         });
       });
-      await this.logs.save(logRows as unknown as DailyLogEntity[]);
-      await this.entries.save(entryRows as unknown as LaborLogEntryEntity[]);
+      await this.logs.save(logRows as unknown as DailyLogEntity[], { chunk: 30 });
+      await this.entries.save(entryRows as unknown as LaborLogEntryEntity[], { chunk: 30 });
 
       // Overtime: one approved, two waiting.
       await this.overtime.save([
         { id: id('OT1'), employeeId: id('E09'), projectId: p1, date: days[days.length - 3], hours: 2, otType: 'normal', status: 'approved', source: 'daily_log', reason: 'Stair rails had to finish before inspection', requestedByName: 'David Williams', decidedByName: 'Michael Thompson', decidedAt: now, baseRate: 46, multiplier: 1.5, amount: 138, createdAt: now },
         { id: id('OT2'), employeeId: id('E08'), projectId: p1, date: days[days.length - 1], hours: 3, otType: 'normal', status: 'pending', source: 'manual', reason: 'Conduit before the deck pour', requestedByName: 'David Williams', createdAt: now },
         { id: id('OT3'), employeeId: id('E13'), projectId: p1, date: days[days.length - 2], hours: 4, otType: 'night', status: 'pending', source: 'manual', reason: 'Dewatering the excavation overnight', requestedByName: 'Robert Johnson', createdAt: now },
-      ] as unknown as OvertimeRequestEntity[]);
+      ] as unknown as OvertimeRequestEntity[], { chunk: 30 });
     }
 
     // ---------------------------------------------------------------- leave
@@ -256,7 +256,7 @@ export class SampleDataService {
       lr(4, 'E05', 'LT-CASUAL', 'Personal', d(3), d(3), 'pending', 'DMV appointment', { halfDay: true, days: 0.5 }),
       lr(5, 'E11', 'LT-UNPAID', 'Unpaid', d(-12), d(-10), 'approved', 'Family matter out of state'),
       lr(6, 'E10', 'LT-JURY', 'Jury duty', d(-3), d(-3), 'approved', 'Sacramento County jury summons'),
-    ] as unknown as LeaveRequestEntity[]);
+    ] as unknown as LeaveRequestEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- advances & loans
     const approvals = (stages: string[]) => stages.map((stage) => ({ stage, decision: 'approved' as const, byName: stage === 'manager' ? 'David Williams' : stage === 'hr' ? 'Jennifer Martinez' : 'Finance Officer', at: now }));
@@ -264,7 +264,7 @@ export class SampleDataService {
       { id: id('ADV1'), employeeId: id('E06'), type: 'salary_advance', amount: 1500, requestDate: addDays(monthStart(today, 1), -6), reason: 'Car registration and repairs', installments: 3, installmentAmount: 500, deductionStart: monthStart(today, 1), status: 'disbursed', approvals: approvals(['manager', 'hr', 'finance']), disbursedAt: addDays(monthStart(today, 1), -3), disbursedByName: 'Finance Officer', paymentMethod: 'bank_transfer', repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
       { id: id('ADV2'), employeeId: id('E10'), type: 'emergency_advance', amount: 800, requestDate: d(-2), reason: 'Medical bill for a family member', installments: 2, installmentAmount: 400, deductionStart: d(20), status: 'pending_hr', approvals: approvals(['manager']), repayments: [], recovered: 0, createdByName: 'Robert Johnson', createdAt: now },
       { id: id('ADV3'), employeeId: id('E01'), type: 'loan', amount: 6000, requestDate: d(-3), reason: 'Relocation costs', installments: 12, installmentAmount: 500, deductionStart: d(30), status: 'pending_finance', approvals: approvals(['manager', 'hr']), repayments: [], recovered: 0, createdByName: 'Michael Thompson', createdAt: now },
-    ] as unknown as EmployeeAdvanceEntity[]);
+    ] as unknown as EmployeeAdvanceEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- shifts
     const shift = (n: number, k: string, templateIds: string[], extra: Partial<ShiftAssignmentEntity> = {}) => ({ id: id(`SA${n}`), employeeId: id(k), templateIds, startDate: d(-14), createdByName: by, createdAt: now, ...extra });
@@ -275,7 +275,7 @@ export class SampleDataService {
       shift(8, 'E13', ['SH-12D']),
       shift(9, 'E09', ['SH-DAY'], { startDate: d(-60), endDate: d(-15) }),
       shift(10, 'E09', ['SH-12N'], { notes: 'Night welding while the crane is free' }),
-    ] as unknown as ShiftAssignmentEntity[]);
+    ] as unknown as ShiftAssignmentEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- assets
     const tags = (await this.assets.find()).map((a) => a.assetTag);
@@ -292,33 +292,33 @@ export class SampleDataService {
     const issued: [string, string, string, string?][] = [['AS1', 'E01', d(-300)], ['AS2', 'E04', d(-150)], ['AS3', 'E08', d(-40), d(-7)], ['AS5', 'E12', d(-200)], ['AS6', 'E03', d(-80)]];
     await this.assets.save(assetRows.map(({ k, ...a }) => ({
       status: issued.some(([x]) => x === k) ? 'issued' : 'available', ...a, id: id(k), assetTag: tag(), notes: NOTE, createdAt: now, updatedAt: now,
-    })) as unknown as AssetEntity[]);
+    })) as unknown as AssetEntity[], { chunk: 30 });
     await this.assetIssues.save([
       ...issued.map(([a, e, at, back], i) => ({ id: id(`AI${i + 1}`), assetId: id(a), employeeId: id(e), issuedAt: at, expectedReturn: back, status: 'open', issuedByName: 'Jennifer Martinez' })),
       { id: id('AI9'), assetId: id('AS4'), employeeId: id('E17'), issuedAt: '2023-01-02', status: 'returned', returnedAt: d(-60), returnCondition: 'fair', issuedByName: 'Jennifer Martinez', closedByName: 'Jennifer Martinez' },
-    ] as unknown as AssetIssueEntity[]);
+    ] as unknown as AssetIssueEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- crew housing
     const unit = (k: string, level: string, name: string, parentId?: string) => ({ id: id(k), level, name, parentId, active: true, createdAt: now });
     const unitRows = [unit('C1', 'camp', 'Travel Crew Housing — Elk Grove'), unit('B1', 'building', 'Extended Stay Suites', id('C1')), unit('F1', 'floor', 'Floor 1', id('B1')),
       unit('RM1', 'room', 'Suite 101', id('F1')), unit('RM2', 'room', 'Suite 102', id('F1')), unit('RM3', 'room', 'Supervisor suite', id('B1'))];
     for (const [room, n] of [['RM1', 4], ['RM2', 4], ['RM3', 2]] as [string, number][]) for (let b = 1; b <= n; b++) unitRows.push(unit(`${room}B${b}`, 'bed', `Bed ${b}`, id(room)));
-    await this.units.save(unitRows as unknown as AccommodationUnitEntity[]);
+    await this.units.save(unitRows as unknown as AccommodationUnitEntity[], { chunk: 30 });
     const housed: [string, string][] = [['E06', 'RM1B1'], ['E07', 'RM1B2'], ['E10', 'RM1B3'], ['E11', 'RM1B4'], ['E09', 'RM2B1'], ['E13', 'RM2B2'], ['E08', 'RM2B3'], ['E03', 'RM3B1']];
-    await this.beds.save(housed.map(([e, b], i) => ({ id: id(`BA${i + 1}`), bedId: id(b), employeeId: id(e), checkIn: d(-45), byName: 'Jennifer Martinez' })) as unknown as BedAllocationEntity[]);
+    await this.beds.save(housed.map(([e, b], i) => ({ id: id(`BA${i + 1}`), bedId: id(b), employeeId: id(e), checkIn: d(-45), byName: 'Jennifer Martinez' })) as unknown as BedAllocationEntity[], { chunk: 30 });
     await this.complaints.save([
       { id: id('AC1'), unitId: id('RM2'), title: 'AC not cooling', description: 'Unit blows warm air in the afternoon.', employeeId: id('E08'), status: 'open', reportedByName: 'Robert Johnson', reportedAt: now },
       { id: id('AC2'), unitId: id('B1'), title: 'Bathroom exhaust fan not working', status: 'in_progress', reportedByName: 'Robert Johnson', reportedAt: new Date(Date.now() - 4 * 864e5).toISOString() },
       { id: id('AC3'), unitId: id('RM1'), title: 'Broken window latch', status: 'resolved', resolution: 'Latch replaced by property maintenance.', reportedByName: 'Carlos Hernandez', reportedAt: new Date(Date.now() - 10 * 864e5).toISOString(), resolvedAt: new Date(Date.now() - 8 * 864e5).toISOString() },
-    ] as unknown as AccommodationIssueEntity[]);
+    ] as unknown as AccommodationIssueEntity[], { chunk: 30 });
 
     // ---------------------------------------------------------------- transport
     await this.routes.save([
       { id: id('TR1'), name: 'Crew shuttle — housing to site', vehicle: 'Ford Transit 350 (CA 7XYZ482)', capacity: 14, driverEmployeeId: id('E12'), projectId: p1, departureTime: '06:15', returnTime: '15:45', pickupPoints: ['Extended Stay Suites', 'Elk Grove Park & Ride', 'Laguna Blvd'], status: 'active', notes: NOTE, createdAt: now },
       { id: id('TR2'), name: 'Office pickup (staff)', vehicle: 'Chevrolet Suburban (CA 8DEF915)', capacity: 4, projectId: p2 || p1, departureTime: '07:30', returnTime: '17:00', pickupPoints: ['Downtown Sacramento', 'Natomas'], status: 'active', createdAt: now },
-    ] as unknown as TransportRouteEntity[]);
+    ] as unknown as TransportRouteEntity[], { chunk: 30 });
     const riding: [string, string, string][] = [['E06', 'TR1', 'Extended Stay Suites'], ['E07', 'TR1', 'Extended Stay Suites'], ['E10', 'TR1', 'Extended Stay Suites'], ['E11', 'TR1', 'Extended Stay Suites'], ['E09', 'TR1', 'Extended Stay Suites'], ['E13', 'TR1', 'Elk Grove Park & Ride'], ['E08', 'TR1', 'Laguna Blvd'], ['E01', 'TR2', 'Downtown Sacramento'], ['E05', 'TR2', 'Natomas']];
-    await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })) as unknown as TransportAssignmentEntity[]);
+    await this.riders.save(riding.map(([e, r, p], i) => ({ id: id(`TA${i + 1}`), routeId: id(r), employeeId: id(e), pickupPoint: p, startDate: d(-45), byName: 'Jennifer Martinez' })) as unknown as TransportAssignmentEntity[], { chunk: 30 });
 
     await this.loadTimesheets(p1, p2);
     await this.loadPayroll(actor);
@@ -382,8 +382,8 @@ export class SampleDataService {
     const daysSoFar = Math.max(1, Math.min(5, ((weekday(today) + 6) % 7) + 1));
     add('E05', 0, 'submitted', daysSoFar, { submittedByName: 'Sarah Chen', submittedAt: now, notes: 'Estimating deadline Friday -- may run over' });
     add('E01', 0, 'draft', Math.min(2, daysSoFar));
-    await this.tsSheets.save(sheets as unknown as TimesheetEntity[]);
-    await this.tsLines.save(lines as unknown as TimesheetLineEntity[]);
+    await this.tsSheets.save(sheets as unknown as TimesheetEntity[], { chunk: 30 });
+    await this.tsLines.save(lines as unknown as TimesheetLineEntity[], { chunk: 30 });
   }
 
   /**
@@ -434,8 +434,8 @@ export class SampleDataService {
           entryRows.push({ id: id(`LEP-${date}-${j}`), dailyLogId: logId, employeeId: id(k), csiCodeId: csi.get(code) || csi.values().next().value, hours, taskDetail: task, taskStatus: 'continued', team: j < 4 ? 'A' : 'B' });
         });
       }
-      if (logRows.length) await this.logs.save(logRows as unknown as DailyLogEntity[]);
-      if (entryRows.length) await this.entries.save(entryRows as unknown as LaborLogEntryEntity[]);
+      if (logRows.length) await this.logs.save(logRows as unknown as DailyLogEntity[], { chunk: 30 });
+      if (entryRows.length) await this.entries.save(entryRows as unknown as LaborLogEntryEntity[], { chunk: 30 });
       // Nobody works a day they're on approved leave -- including in the sample week loaded earlier.
       const dateOf = new Map([...existing, ...logRows].map((l) => [l.id, l.date!]));
       const clash = (await this.entries.find({ where: { dailyLogId: sample } })).filter((e) => dateOf.has(e.dailyLogId) && away(e.employeeId.slice(SAMPLE.length), dateOf.get(e.dailyLogId)!));

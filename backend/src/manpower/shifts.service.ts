@@ -121,7 +121,7 @@ export class ShiftsService implements OnApplicationBootstrap {
         id: newId('SA'), employeeId, templateIds, rotateEveryDays: every ?? undefined, startDate: dto.startDate,
         endDate: dto.endDate || undefined, notes: dto.notes, createdByName: actor.name, createdAt: now,
       }));
-      return repo.save(rows);
+      return repo.save(rows, { chunk: 40 });
     });
   }
 

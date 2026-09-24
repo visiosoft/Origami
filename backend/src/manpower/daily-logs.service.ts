@@ -64,7 +64,7 @@ export class DailyLogsService {
       dailyLogId: log!.id, employeeId: e.employeeId, csiCodeId: e.csiCodeId,
       hours: e.hours, taskDetail: e.taskDetail, taskStatus: e.taskStatus, team: e.team,
     } as Partial<LaborLogEntryEntity>));
-    const saved = rows.length ? await this.entries.save(rows) : [];
+    const saved = rows.length ? await this.entries.save(rows, { chunk: 40 }) : [];
     return { log, entries: saved };
   }
 

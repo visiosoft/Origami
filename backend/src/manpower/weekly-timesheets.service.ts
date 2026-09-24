@@ -214,7 +214,7 @@ export class WeeklyTimesheetsService {
       await m.getRepository(TimesheetEntity).save(saved);
       const gone = old.filter((o) => !rows.some((n) => n.id === o.id));
       if (gone.length) await m.getRepository(TimesheetLineEntity).remove(gone);
-      if (rows.length) await m.getRepository(TimesheetLineEntity).save(rows);
+      if (rows.length) await m.getRepository(TimesheetLineEntity).save(rows, { chunk: 40 });
     });
     return this.week(emp.id, start, actor);
   }

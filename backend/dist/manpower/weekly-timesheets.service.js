@@ -223,7 +223,7 @@ let WeeklyTimesheetsService = class WeeklyTimesheetsService {
             if (gone.length)
                 await m.getRepository(entities_1.TimesheetLineEntity).remove(gone);
             if (rows.length)
-                await m.getRepository(entities_1.TimesheetLineEntity).save(rows);
+                await m.getRepository(entities_1.TimesheetLineEntity).save(rows, { chunk: 40 });
         });
         return this.week(emp.id, start, actor);
     }

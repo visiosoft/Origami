@@ -76,7 +76,7 @@ let DailyLogsService = class DailyLogsService {
             dailyLogId: log.id, employeeId: e.employeeId, csiCodeId: e.csiCodeId,
             hours: e.hours, taskDetail: e.taskDetail, taskStatus: e.taskStatus, team: e.team,
         }));
-        const saved = rows.length ? await this.entries.save(rows) : [];
+        const saved = rows.length ? await this.entries.save(rows, { chunk: 40 }) : [];
         return { log, entries: saved };
     }
     async submit(id, actor) {
