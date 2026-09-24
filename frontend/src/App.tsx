@@ -28,6 +28,7 @@ import { MyCalendar } from './pages/MyCalendar';
 import { SignProposal } from './pages/SignProposal';
 import { GuestEntry } from './pages/GuestEntry';
 import { Portal } from './pages/Portal';
+import { FieldDailyLog } from './pages/FieldDailyLog';
 import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
@@ -71,6 +72,8 @@ export default function App() {
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
       <Route path="/guest" element={<GuestEntry />} />
       <Route path="/portal/*" element={<RequireAuth><Portal /></RequireAuth>} />
+      {/* The daily log made for a phone on site -- full screen, outside the app frame. */}
+      <Route path="/daily-log" element={<RequireAuth><NotPortal><FieldDailyLog /></NotPortal></RequireAuth>} />
       <Route element={<RequireAuth><NotPortal><AppShell /></NotPortal></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />

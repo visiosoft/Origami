@@ -23,6 +23,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Dashboard', route: 'dashboard', icon: 'dash' },
     { label: 'My Calendar', route: 'my-calendar', icon: 'cal' },
     { label: 'My Timesheet', route: 'my-timesheet', icon: 'clip', personal: true },
+    { label: 'Daily Log (field)', route: 'daily-log', icon: 'clip', personal: true },
   ] },
   {
     key: 'crm',

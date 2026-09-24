@@ -285,6 +285,7 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={input} />
         {log && <StatusBadge status={log.status} />}
         {log?.rejectionNote && <span style={{ fontSize: 11.5, color: '#8E2E0A' }}>Rejected: {log.rejectionNote}</span>}
+        <a href="/daily-log" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: ACCENT }}>Phone / tablet view →</a>
       </div>
 
       {!projectId ? (
