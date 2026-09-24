@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp } from '../AppContext';
 import { api } from '../api';
+import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
@@ -11,6 +12,8 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, type Task } from '../data
 
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: '#EFEDE8', c: '#5C6B65' };
+/** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
+const FIELDS = ['assignedToId', 'assignedTo', 'status', 'dueDate', 'description', 'resolution', 'checklist', 'labels'] as const;
 const BG = "'Bricolage Grotesque', serif";
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
 
@@ -33,14 +36,18 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   const canManage = can('tasks', 'manage');
   const [t, setT] = useState<Task>(task);
   const [storageReady, setStorageReady] = useState(false);
-  useEffect(() => { setT(task); }, [task]);
+  // Another task opened in the same drawer starts fresh; a reply for this one merges in (below).
+  useEffect(() => { setT(task); }, [task.id]);
   useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false)); }, []);
 
-  const apply = (res: any) => { if (res?.id) { setT(res as Task); onChanged?.(res as Task); } };
-  const saveTask = (patch: Partial<Task>) => {
-    setT((prev) => ({ ...prev, ...patch }));
-    api.tasks.update(t.id, patch).then(apply).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to save')));
-  };
+  /** Edits stay in the draft until Save, or 3 seconds after typing stops; only changed fields are sent. */
+  const auto = useAutosave<Task>({
+    draft: t, saved: task, fields: [...FIELDS], enabled: canManage, label: 'task',
+    save: (changes) => api.tasks.update(t.id, changes) as Promise<Task>,
+    onSaved: (row, sent) => { setT((cur) => mergeSaved(cur, row, sent)); onChanged?.(row); },
+  });
+  const set = (patch: Partial<Task>) => setT((prev) => ({ ...prev, ...patch }));
+  const apply = (res: any) => { if (res?.id) { setT((cur) => keepEdits(cur, res as Task, FIELDS)); onChanged?.(res as Task); } };
   const addComment = async (text: string) => {
     try { apply(await api.tasks.addComment(t.id, text)); }
     catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed to comment')); }
@@ -65,6 +72,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   return (
     <div onClick={() => onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease' }}>
+        {canManage && (
+          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <SaveBar auto={auto} />
+          </div>
+        )}
         {/* Header */}
         <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div style={{ flex: 1 }}>
@@ -90,7 +102,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 valueId={t.assignedToId}
                 valueName={t.assignedTo}
                 disabled={!canManage}
-                onChange={(u) => saveTask({ assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
+                onChange={(u) => set({ assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
               />
             </div>
             <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
@@ -98,7 +110,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               <select
                 disabled={!canManage}
                 value={t.status}
-                onChange={(e) => saveTask({ status: e.target.value as Task['status'] })}
+                onChange={(e) => set({ status: e.target.value as Task['status'] })}
                 style={{ ...inputStyle, padding: '7px 9px' }}
               >
                 {(['Open', 'In Progress', 'Closed'] as const).map((st) => <option key={st} value={st}>{st}</option>)}
@@ -120,7 +132,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 type="date"
                 disabled={!canManage}
                 value={t.dueDate || ''}
-                onChange={(e) => saveTask({ dueDate: e.target.value })}
+                onChange={(e) => set({ dueDate: e.target.value })}
                 style={{ ...inputStyle, padding: '7px 9px' }}
               />
             </div>
@@ -139,9 +151,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           <div style={{ padding: '14px 16px', background: '#FBF8F2', borderRadius: 10 }}>
             <textarea
               disabled={!canManage}
-              defaultValue={t.description}
-              key={'d' + t.id}
-              onBlur={(e) => { if (e.target.value !== t.description) saveTask({ description: e.target.value }); }}
+              value={t.description || ''}
+              onChange={(e) => set({ description: e.target.value })}
               rows={3}
               style={{ ...inputStyle, background: 'white', resize: 'vertical', lineHeight: 1.6 }}
             />
@@ -149,9 +160,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2F7D4A', marginBottom: 6 }}>Resolution</div>
               <textarea
                 disabled={!canManage}
-                defaultValue={t.resolution}
-                key={'r' + t.id}
-                onBlur={(e) => { if (e.target.value !== t.resolution) saveTask({ resolution: e.target.value }); }}
+                value={t.resolution || ''}
+                onChange={(e) => set({ resolution: e.target.value })}
                 rows={2}
                 placeholder="How was this resolved?"
                 style={{ ...inputStyle, background: 'white', resize: 'vertical', lineHeight: 1.6 }}
@@ -163,13 +173,13 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             <Checklist
               items={t.checklist ?? []}
               canManage={canManage}
-              onChange={(checklist: ChecklistItem[]) => saveTask({ checklist })}
+              onChange={(checklist: ChecklistItem[]) => set({ checklist })}
             />
             <LabelPicker
               labels={t.labels ?? []}
               canManage={canManage}
               suggestions={allLabels}
-              onChange={(labels) => saveTask({ labels })}
+              onChange={(labels) => set({ labels })}
             />
           </div>
 

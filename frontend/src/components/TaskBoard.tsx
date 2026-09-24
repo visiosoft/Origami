@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { DraftScope, SaveBar } from '../autosave';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
@@ -41,6 +42,9 @@ function PriorityPill({ p }: { p?: Priority }) {
  * the notification bell. It can only be applied after the board has loaded,
  * since the drawer resolves its task out of `tasks`.
  */
+/** The fields the task panel edits; they autosave together. */
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels'];
+
 export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null; initialTaskId?: string | null }) {
   const { can, toast, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
@@ -650,38 +654,49 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       {view === 'board' ? boardView : view === 'list' ? listView : view === 'timeline' ? timelineView : dashboardView}
 
       {/* Task detail panel */}
+      {/* Edits collect in a draft and save 3 seconds after typing stops, or at once
+          with Save; closing the panel or opening another task saves too. Comments
+          and files still save the moment they're added. */}
       {selected && (
+        <DraftScope key={selected.id} record={selected} fields={BOARD_FIELDS} enabled={canManage} label="task"
+          save={(changes) => api.projectTasks.update(selected.id, changes) as Promise<ProjectTask>} onSaved={replaceTask}>
+        {({ draft: d, set, auto }) => (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(11,26,18,0.22)' }}>
+            {canManage && (
+              <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                <SaveBar auto={auto} />
+              </div>
+            )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <input type="checkbox" checked={selected.completed} disabled={!canManage} onChange={() => updateTask(selected.id, { completed: !selected.completed })} style={{ marginTop: 5 }} />
-              <textarea value={selected.title} disabled={!canManage} onChange={(e) => patchLocal(selected.id, { title: e.target.value })} onBlur={(e) => updateTask(selected.id, { title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#0B1A12', background: 'transparent' }} />
+              <input type="checkbox" checked={!!d.completed} disabled={!canManage} onChange={() => set({ completed: !d.completed })} style={{ marginTop: 5 }} />
+              <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#0B1A12', background: 'transparent' }} />
               <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
             </div>
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Assignee">
                 <AssigneePicker
-                  valueId={selected.assigneeId}
-                  valueName={selected.assignee}
+                  valueId={d.assigneeId}
+                  valueName={d.assignee}
                   disabled={!canManage}
-                  onChange={(u) => updateTask(selected.id, { assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
+                  onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
               </Field>
               <Field label="Status">
-                <select disabled={!canManage} value={selected.status || 'Not started'} onChange={(e) => updateTask(selected.id, { status: e.target.value as TaskStatus })} style={{ ...inputStyle, width: '100%' }}>
+                <select disabled={!canManage} value={d.status || 'Not started'} onChange={(e) => set({ status: e.target.value as TaskStatus })} style={{ ...inputStyle, width: '100%' }}>
                   {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
                 </select>
               </Field>
-              <Field label="Start date"><input type="date" disabled={!canManage} value={selected.startDate || ''} onChange={(e) => updateTask(selected.id, { startDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
-              <Field label="Due date"><input type="date" disabled={!canManage} value={selected.dueDate || ''} onChange={(e) => updateTask(selected.id, { dueDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
-              <Field label="Priority"><select disabled={!canManage} value={selected.priority || ''} onChange={(e) => updateTask(selected.id, { priority: e.target.value as Priority })} style={{ ...inputStyle, width: '100%' }}><option value="">None</option>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></Field>
-              <Field label="Section"><select disabled={!canManage} value={selected.sectionId} onChange={(e) => updateTask(selected.id, { sectionId: e.target.value })} style={{ ...inputStyle, width: '100%' }}>{sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+              <Field label="Start date"><input type="date" disabled={!canManage} value={d.startDate || ''} onChange={(e) => set({ startDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
+              <Field label="Due date"><input type="date" disabled={!canManage} value={d.dueDate || ''} onChange={(e) => set({ dueDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
+              <Field label="Priority"><select disabled={!canManage} value={d.priority || ''} onChange={(e) => set({ priority: e.target.value as Priority })} style={{ ...inputStyle, width: '100%' }}><option value="">None</option>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></Field>
+              <Field label="Section"><select disabled={!canManage} value={d.sectionId} onChange={(e) => set({ sectionId: e.target.value })} style={{ ...inputStyle, width: '100%' }}>{sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             </div>
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
               <FieldLabel>Description</FieldLabel>
-              <textarea disabled={!canManage} value={selected.description || ''} onChange={(e) => patchLocal(selected.id, { description: e.target.value })}
+              <textarea disabled={!canManage} value={d.description || ''} onChange={(e) => set({ description: e.target.value })}
                 onPaste={(e) => {
                   // An image pasted into the description becomes an attachment
                   // rather than nothing at all; text pastes are left alone.
@@ -689,7 +704,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                   if (!files.length || !canManage) return;
                   e.preventDefault();
                   uploadFiles(files).catch((err: Error) => toast('⚠ ' + (err.message || 'Upload failed')));
-                }} onBlur={(e) => updateTask(selected.id, { description: e.target.value })} rows={8} placeholder="Add details…" style={{ ...inputStyle, width: '100%', resize: 'vertical' }} />
+                }} rows={8} placeholder="Add details…" style={{ ...inputStyle, width: '100%', resize: 'vertical' }} />
             </div>
 
             {/* Subtasks */}
@@ -715,19 +730,19 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             {/* Checklist */}
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
               <Checklist
-                items={selected.checklist ?? []}
+                items={d.checklist ?? []}
                 canManage={canManage}
-                onChange={(checklist: ChecklistItem[]) => updateTask(selected.id, { checklist })}
+                onChange={(checklist: ChecklistItem[]) => set({ checklist })}
               />
             </div>
 
             {/* Labels */}
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
               <LabelPicker
-                labels={selected.labels ?? []}
+                labels={d.labels ?? []}
                 canManage={canManage}
                 suggestions={allLabels}
-                onChange={(labels) => updateTask(selected.id, { labels })}
+                onChange={(labels) => set({ labels })}
               />
             </div>
 
@@ -762,6 +777,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             )}
           </div>
         </div>
+        )}
+        </DraftScope>
       )}
     </div>
   );

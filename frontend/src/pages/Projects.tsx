@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { DraftScope, SaveBar } from '../autosave';
 import { useSearchParams } from 'react-router-dom';
 import { TaskBoard } from '../components/TaskBoard';
 import { GuestAccessPanel } from '../components/GuestAccessPanel';
@@ -26,6 +27,9 @@ const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff'
 interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string }
 interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
+
+/** The fields the phase-task panel edits; they autosave together. */
+const PT_FIELDS = ['assigneeId', 'assignee', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels'];
 
 export function Projects() {
   const { can, toast } = useApp();
@@ -163,9 +167,6 @@ export function Projects() {
   const allLabels = Array.from(new Set(boardTasks.flatMap((t: any) => t.labels ?? []))).sort() as string[];
 
   const putTask = (t: any) => setBoardTasks((prev) => prev.map((x) => (x.id === t.id ? t : x)) as BoardTask[]);
-  /** Type-ahead edits show at once; the save follows on blur. */
-  const patchLocal = (id: string, patch: any) =>
-    setBoardTasks((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)) as BoardTask[]);
   const saveTask = async (id: string, patch: any) => {
     try { putTask(await api.projectTasks.update(id, patch)); }
     catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
@@ -902,9 +903,19 @@ export function Projects() {
           { title: '6. Budget & Timeline', rows: [['Reason for Project', lead.reasonForProject], ['Budget Position', lead.budgetPosition], ['Funding Status', lead.fundingStatus], ['Desired Start', lead.desiredStart], ['Expected Duration', lead.expectedDuration], ['Length of Ownership', lead.expectedLengthOfOwnership]] },
           { title: '7. Client Profile', rows: [['Client Personality', lead.clientPersonality]] },
         ].map((s) => ({ title: s.title, rows: s.rows.filter(([, v]) => v && String(v).trim()) as [string, string][] })).filter((s) => s.rows.length > 0) : [];
+        // Edits collect in a draft and save 3 seconds after typing stops, or at
+        // once with Save; closing the panel or opening another task saves too.
         return (
+          <DraftScope key={live?.id || 'demo'} record={live} fields={PT_FIELDS} enabled={canManage} label="task"
+            save={(changes) => api.projectTasks.update(live.id, changes)} onSaved={putTask}>
+          {({ draft: d, set, auto, applied }) => (
           <div onClick={() => setSelPt(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(440px, 96vw)', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
+              {live && canManage && (
+                <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <SaveBar auto={auto} />
+                </div>
+              )}
               <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -939,22 +950,22 @@ export function Projects() {
                 <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                   {fieldBox('Assignee', (
                     <AssigneePicker
-                      valueId={live.assigneeId}
-                      valueName={live.assignee}
+                      valueId={d.assigneeId}
+                      valueName={d.assignee}
                       disabled={!canManage}
-                      onChange={(u: any) => saveTask(live.id, { assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
+                      onChange={(u: any) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                     />
                   ))}
                   {fieldBox('Status', (
-                    <select disabled={!canManage} value={live.status || 'Not started'} onChange={(e) => saveTask(live.id, { status: e.target.value })} style={inputStyle}>
+                    <select disabled={!canManage} value={d.status || 'Not started'} onChange={(e) => set({ status: e.target.value, completed: e.target.value === 'Done' })} style={inputStyle}>
                       {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
                     </select>
                   ))}
                   {fieldBox('Due date', (
-                    <input type="date" disabled={!canManage} value={live.dueDate || ''} onChange={(e) => saveTask(live.id, { dueDate: e.target.value })} style={inputStyle} />
+                    <input type="date" disabled={!canManage} value={d.dueDate || ''} onChange={(e) => set({ dueDate: e.target.value })} style={inputStyle} />
                   ))}
                   {fieldBox('Priority', (
-                    <select disabled={!canManage} value={live.priority || ''} onChange={(e) => saveTask(live.id, { priority: e.target.value })} style={inputStyle}>
+                    <select disabled={!canManage} value={d.priority || ''} onChange={(e) => set({ priority: e.target.value })} style={inputStyle}>
                       <option value="">None</option>
                       {PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
                     </select>
@@ -962,16 +973,16 @@ export function Projects() {
                   {fieldBox('Role', (
                     <select
                       disabled={!canManage}
-                      value={live.team || ''}
-                      onChange={(e) => { patchLocal(live.id, { team: e.target.value }); saveTask(live.id, { team: e.target.value }); }}
+                      value={d.team || ''}
+                      onChange={(e) => set({ team: e.target.value })}
                       style={inputStyle}
                     >
                       <option value="">None</option>
                       {/* A role this task already carries that the roles list
                           no longer offers stays selectable, so switching to a
                           dropdown never silently drops what a task had. */}
-                      {live.team && !teams.includes(live.team) && (
-                        <option value={live.team}>{live.team} (not a current role)</option>
+                      {d.team && !teams.includes(d.team) && (
+                        <option value={d.team}>{d.team} (not a current role)</option>
                       )}
                       {teams.map((tm) => <option key={tm} value={tm}>{tm}</option>)}
                     </select>
@@ -1112,17 +1123,16 @@ export function Projects() {
                     {fieldBox('Description', (
                       <textarea
                         disabled={!canManage}
-                        value={live.description || ''}
-                        onChange={(e) => patchLocal(live.id, { description: e.target.value })}
+                        value={d.description || ''}
+                        onChange={(e) => set({ description: e.target.value })}
                         onPaste={(e) => {
                           // A pasted screenshot becomes an attachment rather than
                           // nothing at all; text pastes are left alone.
                           const files = filesFromClipboard(e).map(nameClipboardFile);
                           if (!files.length || !canManage) return;
                           e.preventDefault();
-                          api.projectTasks.uploadAttachments(live.id, files).then(putTask).catch((err: Error) => toast('⚠ ' + (err.message || 'Upload failed')));
+                          api.projectTasks.uploadAttachments(live.id, files).then(applied).catch((err: Error) => toast('⚠ ' + (err.message || 'Upload failed')));
                         }}
-                        onBlur={(e) => saveTask(live.id, { description: e.target.value })}
                         rows={7}
                         placeholder="Add details…"
                         style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }}
@@ -1151,38 +1161,40 @@ export function Projects() {
                   </div>
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                    <Checklist items={live.checklist ?? []} canManage={canManage} onChange={(checklist: ChecklistItem[]) => saveTask(live.id, { checklist })} />
+                    <Checklist items={d.checklist ?? []} canManage={canManage} onChange={(checklist: ChecklistItem[]) => set({ checklist })} />
                   </div>
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                    <LabelPicker labels={live.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => saveTask(live.id, { labels })} />
+                    <LabelPicker labels={d.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => set({ labels })} />
                   </div>
 
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                     <Attachments
                       scope="project-tasks"
                       taskId={live.id}
-                      attachments={live.attachments ?? []}
+                      attachments={d.attachments ?? []}
                       canManage={canManage}
                       storageReady={storageReady}
-                      onUpload={async (files: File[] | FileList) => { putTask(await api.projectTasks.uploadAttachments(live.id, files)); }}
-                      onRemove={async (att: any) => { putTask(await api.projectTasks.removeAttachment(live.id, att.id)); }}
-                      onAddLink={async (name: string, url: string) => { putTask(await api.projectTasks.addLink(live.id, name, url)); }}
+                      onUpload={async (files: File[] | FileList) => { applied(await api.projectTasks.uploadAttachments(live.id, files)); }}
+                      onRemove={async (att: any) => { applied(await api.projectTasks.removeAttachment(live.id, att.id)); }}
+                      onAddLink={async (name: string, url: string) => { applied(await api.projectTasks.addLink(live.id, name, url)); }}
                     />
                   </div>
 
                   <div style={{ padding: '16px 22px' }}>
                     <ActivityFeed
-                      comments={live.comments ?? []}
-                      activity={live.activity ?? []}
+                      comments={d.comments ?? []}
+                      activity={d.activity ?? []}
                       canManage={canManage}
-                      onComment={async (text: string) => { putTask(await api.projectTasks.addComment(live.id, text)); }}
+                      onComment={async (text: string) => { applied(await api.projectTasks.addComment(live.id, text)); }}
                     />
                   </div>
                 </>
               )}
             </div>
           </div>
+          )}
+          </DraftScope>
         );
       })()}
 

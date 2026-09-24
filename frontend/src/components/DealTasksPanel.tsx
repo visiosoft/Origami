@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+import { DraftScope, SaveBar } from '../autosave';
 import { NewTaskDrawer } from './NewTaskDrawer';
 import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
 import type { Task } from '../data/tasks';
@@ -11,6 +12,7 @@ const input: React.CSSProperties = {
 };
 
 const STATUSES = ['Open', 'In Progress', 'Closed'];
+const NOTE_FIELDS: (keyof Task)[] = ['resolution'];
 /** Labels are free tags on the task -- this one records which pipeline stage it was filed under. */
 const SECTION_PREFIX = 'section:';
 
@@ -62,11 +64,7 @@ export function DealTasksPanel({
   };
 
   const toggleNotes = (id: string) => setOpenNotes((prev) => ({ ...prev, [id]: !prev[id] }));
-  const saveNotes = (t: Task, notes: string) => {
-    if (notes === (t.resolution || '')) return;
-    setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, resolution: notes } : x)));
-    api.tasks.update(t.id, { resolution: notes }).catch(() => load());
-  };
+  const putTask = (res: Task) => setTasks((prev) => prev.map((x) => (x.id === res.id ? res : x)));
 
   const visible = tasks.filter((t) => showClosed || t.status !== 'Closed');
 
@@ -151,16 +149,21 @@ export function DealTasksPanel({
                       <span onClick={() => remove(t)} style={{ fontSize: 11, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer' }}>Remove</span>
                     </div>
                     {openNotes[t.id] && (
-                      <div style={{ padding: '0 12px 10px' }}>
-                        <textarea
-                          key={'notes' + t.id}
-                          defaultValue={t.resolution || ''}
-                          onBlur={(e) => saveNotes(t, e.target.value)}
-                          placeholder="Notes on this task…"
-                          rows={2}
-                          style={{ ...input, width: '100%', resize: 'vertical', lineHeight: 1.5 }}
-                        />
-                      </div>
+                      <DraftScope key={'notes' + t.id} record={t} fields={NOTE_FIELDS} label="task notes"
+                        save={(changes) => api.tasks.update(t.id, changes) as Promise<Task>} onSaved={putTask}>
+                        {({ draft, set, auto }) => (
+                          <div style={{ padding: '0 12px 10px', display: 'grid', gap: 6 }}>
+                            <textarea
+                              value={draft.resolution || ''}
+                              onChange={(e) => set({ resolution: e.target.value })}
+                              placeholder="Notes on this task…"
+                              rows={2}
+                              style={{ ...input, width: '100%', resize: 'vertical', lineHeight: 1.5 }}
+                            />
+                            <SaveBar auto={auto} />
+                          </div>
+                        )}
+                      </DraftScope>
                     )}
                   </div>
                 ))}

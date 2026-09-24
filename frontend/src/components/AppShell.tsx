@@ -5,6 +5,7 @@ import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
 import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
+import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
@@ -59,6 +60,7 @@ export function AppShell() {
   const userRoleName = currentRole?.name ?? 'Admin';
 
   return (
+    <AutosaveProvider>
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
@@ -139,6 +141,8 @@ export function AppShell() {
             </div>
           )}
 
+          <AutosaveIndicator />
+
           <div className="search-box">
             <Icon name="search" size={16} stroke="#7E9B93" strokeWidth={2} />
             <span className="search-placeholder">Search...</span>
@@ -164,5 +168,6 @@ export function AppShell() {
         </div>
       )}
     </div>
+    </AutosaveProvider>
   );
 }
