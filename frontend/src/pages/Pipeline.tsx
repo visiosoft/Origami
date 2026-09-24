@@ -2007,8 +2007,8 @@ export function Pipeline() {
                   <SectionTitle>1. Contact Information</SectionTitle>
                   <FormGrid>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <FormField label="Lead Name" hint="Defaults from First + Last Name below, but can be edited on its own.">
-                        <input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="e.g. a representative or business name" style={inputStyle} />
+                      <FormField label="Project Name" hint="Defaults from First + Last Name below, but can be edited on its own.">
+                        <input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="e.g. Perez Cottage or 1311 Countryside Ct" style={inputStyle} />
                       </FormField>
                     </div>
                     <FormField label="First Name" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
