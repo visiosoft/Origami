@@ -282,6 +282,38 @@ export interface ProgrammeTemplateDef {
 }
 
 export const DEFAULT_TEMPLATE_KEY = 'default';
+
+/**
+ * Phases that are construction work wherever they appear -- the lifecycle
+ * templates are filed under Design but also carry GC selection, construction
+ * administration and closeout, which belong on the Construction side.
+ */
+export const CONSTRUCTION_PHASE_KEYS = ['gc', 'ca', 'closeout'];
+export type PhaseCategory = 'design' | 'construction' | 'other';
+
+/**
+ * Design, construction or other, for one project's phases -- the single rule
+ * the boards, the project pages and the Financial tab all use. A phase from
+ * the project's own template takes that template's category (except the
+ * construction phases above); one it picked up from another template (e.g.
+ * dropped on the Construction board) takes that template's; anything else is
+ * other.
+ */
+export function phaseCategorizer(lib: ProgrammeTemplateDef[], templateKey?: string | null) {
+  const own = (templateKey && lib.find((t) => t.key === templateKey)) || lib[0];
+  const fixed = new Set(CONSTRUCTION_PHASE_KEYS);
+  const construction = new Set<string>();
+  const design = new Set<string>();
+  for (const t of lib) {
+    if (t === own) continue;
+    for (const ph of t.phases) (t.category === 'construction' ? construction : design).add(ph.key);
+  }
+  return (key: string): PhaseCategory => {
+    if (fixed.has(key)) return 'construction';
+    if (own?.phases.some((p) => p.key === key)) return own.category === 'construction' ? 'construction' : 'design';
+    return construction.has(key) ? 'construction' : design.has(key) ? 'design' : 'other';
+  };
+}
 export const DEFAULT_LIBRARY: ProgrammeTemplateDef[] = [{ key: DEFAULT_TEMPLATE_KEY, name: 'Default', phases: DEFAULT_PROGRAMME, category: 'design' }];
 
 export const slugifyTemplateKey = (name: string) =>

@@ -31,7 +31,7 @@ const STATUS = {
   none: { label: 'Not Started', bg: SAND, c: INK3 },
 };
 
-interface Phase { id: string; key: string; name: string; color: string; order: number; hiddenAt?: string | null }
+interface Phase { id: string; key: string; name: string; color: string; order: number; hiddenAt?: string | null; category?: 'design' | 'construction' | 'other' }
 interface Project {
   id: number; name: string; location: string; contractAmt: string; contractType: string;
   priority: string; typeOfWork: string; estStart: string; duration: string; scope: string;
@@ -114,19 +114,23 @@ export function DesignProject() {
   // Phases hidden on this project (ones it doesn't use) stay off the board unless asked for.
   const [showHidden, setShowHidden] = useState(false);
   const hiddenCount = phases.filter((ph) => ph.hiddenAt).length;
+  // Each board shows its own side of the project: Construction the
+  // construction phases (GC selection, CA, closeout and any Construction
+  // template's), Design everything else. The server tags each phase once.
+  const isConstructionPhase = (ph: Phase) => (ph.category ? ph.category === 'construction' : !!constructionKeys?.has(ph.key));
   const scopedPhases = useMemo(
-    () => (board === '/pm' && constructionKeys ? phases.filter((ph) => constructionKeys.has(ph.key)) : phases).filter((ph) => showHidden || !ph.hiddenAt),
+    () => phases.filter((ph) => (board === '/pm' ? isConstructionPhase(ph) : !isConstructionPhase(ph))).filter((ph) => showHidden || !ph.hiddenAt),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [phases, board, constructionKeys, showHidden],
   );
-  // Once the Construction scope is known, make sure the open phase is one of
-  // this board's own -- the initial pick (above) had no way to know that yet.
+  // Make sure the open phase is one of this board's own -- the initial pick
+  // (the project's pinned phase) may sit on the other board.
   useEffect(() => {
-    if (board !== '/pm' || !constructionKeys || phaseFilter === 'all') return;
-    if (constructionKeys.has(phaseFilter)) return;
-    const first = scopedPhases[0]?.key;
-    if (first) setPhaseFilter(first);
+    if (phaseFilter === 'all' || !phases.length) return;
+    if (scopedPhases.some((ph) => ph.key === phaseFilter)) return;
+    setPhaseFilter(scopedPhases[0]?.key ?? 'all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board, constructionKeys, scopedPhases]);
+  }, [board, scopedPhases]);
 
   const stages = useMemo(() => scopedPhases.map((ph) => {
     const items = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);

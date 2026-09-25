@@ -168,14 +168,8 @@ let FinancialsService = class FinancialsService {
         return programme_template_1.DEFAULT_LIBRARY;
     }
     async categories(project) {
-        const lib = await this.library();
-        const construction = new Set();
-        const design = new Set();
-        for (const t of lib)
-            for (const ph of t.phases)
-                ((t.category || 'design') === 'construction' ? construction : design).add(ph.key);
-        const own = project.templateKey ? lib.find((t) => t.key === project.templateKey) : undefined;
-        return (key) => (construction.has(key) || (own?.category === 'construction' && own.phases.some((p) => p.key === key)) ? 'construction' : design.has(key) ? 'design' : 'other');
+        const cat = (0, programme_template_1.phaseCategorizer)(await this.library(), project.templateKey);
+        return (key) => cat(key);
     }
     async project(projectId) {
         const p = await this.projects.findOneBy({ id: projectId });

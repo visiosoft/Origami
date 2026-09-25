@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { ProjectPhaseEntity, ProjectTaskEntity, ProjectEntity } from '../database/entities';
 import { RETIRED_PHASE_KEYS, DEMO_PHASE_TASKS, TEMPLATE_STATUS } from '../seed-data/project-phases';
 import {
-  DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey,
+  DEFAULT_PROGRAMME, DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseProgramme, parseLibrary, slugifyTemplateKey, phaseCategorizer,
   type TemplatePhase, type ProgrammeTemplateDef, type TemplateCategory,
 } from '../seed-data/programme-template';
 import { SettingsService } from '../settings/settings.service';
@@ -346,6 +346,7 @@ export class PhasesService implements OnApplicationBootstrap {
       const template = (project.templateKey && lib.find((t) => t.key === project.templateKey)) || lib[0];
       const plan = template?.phases || DEFAULT_PROGRAMME;
       const templateCategory = template?.category || 'design';
+      const categoryOf = phaseCategorizer(lib, project.templateKey);
       const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !RETIRED_PHASE_KEYS.includes(ph.key));
       const byKey = new Map(rows.map((ph) => [ph.key, ph]));
 
@@ -366,6 +367,7 @@ export class PhasesService implements OnApplicationBootstrap {
           const c = byPhase.get(ph.id) || { total: 0, done: 0 };
           return {
             id: ph.id, key: ph.key, name: ph.name, color: ph.color, order: ph.order,
+            category: categoryOf(ph.key),
             total: c.total, done: c.done,
             progress: c.total ? Math.round((c.done / c.total) * 100) : 0,
             complete: c.total > 0 && c.done === c.total,
@@ -463,7 +465,10 @@ export class PhasesService implements OnApplicationBootstrap {
   }
 
   async board(projectId: number) {
-    const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programmeFor(projectId)]);
+    const [rowPhases, plan, lib, project] = await Promise.all([
+      this.forProject(projectId), this.programmeFor(projectId), this.library(), this.projects.findOneBy({ id: projectId }),
+    ]);
+    const categoryOf = phaseCategorizer(lib, project?.templateKey);
     const rows = await this.tasks.find({ order: { order: 'ASC' } });
     const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
     // Which phases gate the next one is read off the template every time rather
@@ -478,7 +483,7 @@ export class PhasesService implements OnApplicationBootstrap {
     const dependsOn = new Map<string, string[]>(
       plan.map((d, i) => [d.key, d.dependsOn?.length ? d.dependsOn : d.gated && i > 0 ? [plan[i - 1].key] : []]),
     );
-    const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
+    const phases = rowPhases.map((ph) => ({ ...ph, category: categoryOf(ph.key), gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
 
     // How long each task is meant to take, read off the template by its stable
     // id so a change in the Library reaches every project at once. A task with

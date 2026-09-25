@@ -28,6 +28,9 @@ export interface ProgrammeTemplateDef {
     category?: TemplateCategory;
 }
 export declare const DEFAULT_TEMPLATE_KEY = "default";
+export declare const CONSTRUCTION_PHASE_KEYS: string[];
+export type PhaseCategory = 'design' | 'construction' | 'other';
+export declare function phaseCategorizer(lib: ProgrammeTemplateDef[], templateKey?: string | null): (key: string) => PhaseCategory;
 export declare const DEFAULT_LIBRARY: ProgrammeTemplateDef[];
 export declare const slugifyTemplateKey: (name: string) => string;
 export declare function parseLibrary(raw: string | null | undefined): ProgrammeTemplateDef[] | null;

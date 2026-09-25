@@ -10,6 +10,8 @@ const BG = "'Bricolage Grotesque', serif";
 /** One project's progress through the design phases. */
 interface PhaseProgress {
   id: string; key: string; name: string; color: string; order: number;
+  /** Design, construction or other -- decided once, on the server, for every screen. */
+  category?: 'design' | 'construction' | 'other';
   total: number; done: number; progress: number; complete: boolean;
 }
 
@@ -80,6 +82,30 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
   /** The Projects board's own coarse stage label for this scope -- "Design" or "Construction". */
   const stageLabel = scope === 'construction' ? 'Construction' : 'Design';
   const OTHER_COL = '__other';
+  /** Projects the Projects board has moved past design -- they belong on the Construction board. */
+  const inConstruction = (p: DesignProject) => p.stage === 'Construction' || p.stage === 'Closeout';
+
+  /**
+   * Which column a project sits in on this board, or null when it isn't on it.
+   *
+   * Design: a project that has moved on to construction never shows here, even
+   * if design tasks were left unticked. Construction: a construction-stage
+   * project whose derived phase is still a design one (nobody ticked the
+   * design checklist) sits in its first unfinished construction phase instead.
+   */
+  function placeOn(p: DesignProject, keys: Set<string>): string | null {
+    const pinned = p.designPhase && keys.has(p.designPhase) ? p.designPhase : null;
+    if (scope !== 'construction') {
+      if (inConstruction(p)) return null;
+      if (p.currentPhaseKey && keys.has(p.currentPhaseKey)) return p.currentPhaseKey;
+      return p.stage === stageLabel ? OTHER_COL : null;
+    }
+    if (pinned) return pinned;
+    if (p.currentPhaseKey && keys.has(p.currentPhaseKey)) return p.currentPhaseKey;
+    if (!inConstruction(p)) return null;
+    const next = p.phases.find((ph) => ph.category === 'construction' && keys.has(ph.key) && !ph.complete);
+    return next?.key ?? OTHER_COL;
+  }
 
   // The Construction board's columns are the Construction-category template(s)'
   // own phases from the Library -- so a phase shows up here the moment it's
@@ -96,6 +122,12 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
         .forEach((t) => t.phases.forEach((ph, i) => {
           if (!seen.has(ph.key)) seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.order ?? i });
         }));
+      // The lifecycle templates' own construction phases (GC selection, CA,
+      // closeout) -- construction work even though the template is filed under Design.
+      rows.forEach((p) => p.phases.forEach((ph) => {
+        if (ph.category !== 'construction' || seen.has(ph.key)) return;
+        seen.set(ph.key, { key: ph.key, name: ph.name, color: ph.color, order: ph.key === 'gc' ? -1 : 100 + ph.order });
+      }));
     } else {
       rows.forEach((p) => p.phases.forEach((ph) => {
         if (!view.keys.includes(ph.key)) return;
@@ -109,9 +141,10 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
     // catch-all column instead of silently disappearing and throwing the two
     // views' counts out of sync.
     const keySet = new Set(known.map((c) => c.key));
-    const hasStragglers = rows.some((p) => p.stage === stageLabel && (!p.currentPhaseKey || !keySet.has(p.currentPhaseKey)));
+    const hasStragglers = rows.some((p) => placeOn(p, keySet) === OTHER_COL);
     if (hasStragglers) known.push({ key: OTHER_COL, name: 'Other Steps', color: '#9AA39D', order: Number.MAX_SAFE_INTEGER });
     return known;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, templates, view, scope, stageLabel]);
 
   const columnKeys = useMemo(() => new Set(columns.map((c) => c.key)), [columns]);
@@ -129,8 +162,9 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
   // Projects board already counts it under this stage -- keeps the two boards'
   // counts in sync instead of a project quietly vanishing from both.
   const onBoard = useMemo(
-    () => visible.filter((p) => (p.currentPhaseKey && columnKeys.has(p.currentPhaseKey)) || p.stage === stageLabel),
-    [visible, columnKeys, stageLabel],
+    () => visible.filter((p) => placeOn(p, columnKeys) !== null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visible, columnKeys, scope, stageLabel],
   );
   const planned = onBoard.filter((p) => p.taskTotal > 0).length;
 
@@ -145,8 +179,9 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
    */
   const moveTo = (projectId: number, phaseKey: string) => {
     const project = rows.find((p) => p.projectId === projectId);
-    if (!project || project.currentPhaseKey === phaseKey) return;
+    if (!project || placeOn(project, columnKeys) === phaseKey) return;
     const previous = project.currentPhaseKey;
+    const previousPin = project.designPhase;
     const hasPhase = project.phases.some((ph) => ph.key === phaseKey);
     const col = columns.find((c) => c.key === phaseKey);
 
@@ -158,7 +193,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
         if (!hasPhase) return api.projectPhases.overview().then((res: any) => { if (Array.isArray(res)) setRows(res as DesignProject[]); });
       })
       .catch((e: Error) => {
-        setRows((prev) => prev.map((p) => (p.projectId === projectId ? { ...p, currentPhaseKey: previous } : p)));
+        setRows((prev) => prev.map((p) => (p.projectId === projectId ? { ...p, currentPhaseKey: previous, designPhase: previousPin } : p)));
         toast('⚠ ' + e.message);
       });
   };
@@ -215,9 +250,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
         <div style={{ display: 'flex', gap: 10, overflowX: 'auto', flex: 1, minHeight: 0, paddingBottom: 6 }}>
           {columns.map((col) => {
             const isOther = col.key === OTHER_COL;
-            const cards = isOther
-              ? visible.filter((p) => p.stage === stageLabel && (!p.currentPhaseKey || !columnKeys.has(p.currentPhaseKey)))
-              : visible.filter((p) => p.currentPhaseKey === col.key);
+            const cards = visible.filter((p) => placeOn(p, columnKeys) === col.key);
             return (
               <div
                 key={col.key}

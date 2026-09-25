@@ -9,7 +9,7 @@ import {
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { SettingsService } from '../settings/settings.service';
 import { brandingFrom } from '../documents/letterhead';
-import { DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseLibrary, parseProgramme, type ProgrammeTemplateDef } from '../seed-data/programme-template';
+import { DEFAULT_LIBRARY, DEFAULT_TEMPLATE_KEY, parseLibrary, parseProgramme, phaseCategorizer, type ProgrammeTemplateDef } from '../seed-data/programme-template';
 import { newId, todayISO } from '../manpower/workforce.util';
 import { computeSov, lineMath, toDollars, type Category, type IssuedLine, type ItemFin, type SovInput } from './finance.calc';
 import { fromCents, roundPct, sumCents, toCents } from './money';
@@ -175,12 +175,8 @@ export class FinancialsService {
 
   /** Design or construction, the way the boards decide it; anything else (e.g. milestones added here) is Other. */
   async categories(project: ProjectEntity) {
-    const lib = await this.library();
-    const construction = new Set<string>();
-    const design = new Set<string>();
-    for (const t of lib) for (const ph of t.phases) ((t.category || 'design') === 'construction' ? construction : design).add(ph.key);
-    const own = project.templateKey ? lib.find((t) => t.key === project.templateKey) : undefined;
-    return (key: string): Category => (construction.has(key) || (own?.category === 'construction' && own.phases.some((p) => p.key === key)) ? 'construction' : design.has(key) ? 'design' : 'other');
+    const cat = phaseCategorizer(await this.library(), project.templateKey);
+    return (key: string): Category => cat(key);
   }
 
   async project(projectId: number) {

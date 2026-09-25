@@ -46,6 +46,7 @@ export declare class PhasesController {
             name: string;
             color: string;
             order: number;
+            category: import("../seed-data/programme-template").PhaseCategory;
             total: number;
             done: number;
             progress: number;
@@ -57,6 +58,7 @@ export declare class PhasesController {
     }[]>;
     board(projectId: string, claims: SessionClaims | null): Promise<{
         phases: {
+            category: import("../seed-data/programme-template").PhaseCategory;
             gated: boolean;
             dependsOn: string[];
             weeks: number;

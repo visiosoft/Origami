@@ -279,6 +279,7 @@ let PhasesService = class PhasesService {
             const template = (project.templateKey && lib.find((t) => t.key === project.templateKey)) || lib[0];
             const plan = template?.phases || programme_template_1.DEFAULT_PROGRAMME;
             const templateCategory = template?.category || 'design';
+            const categoryOf = (0, programme_template_1.phaseCategorizer)(lib, project.templateKey);
             const rows = phases.filter((ph) => Number(ph.projectId) === Number(project.id) && !project_phases_1.RETIRED_PHASE_KEYS.includes(ph.key));
             const byKey = new Map(rows.map((ph) => [ph.key, ph]));
             const source = [
@@ -293,6 +294,7 @@ let PhasesService = class PhasesService {
                 const c = byPhase.get(ph.id) || { total: 0, done: 0 };
                 return {
                     id: ph.id, key: ph.key, name: ph.name, color: ph.color, order: ph.order,
+                    category: categoryOf(ph.key),
                     total: c.total, done: c.done,
                     progress: c.total ? Math.round((c.done / c.total) * 100) : 0,
                     complete: c.total > 0 && c.done === c.total,
@@ -367,13 +369,16 @@ let PhasesService = class PhasesService {
         return this.repo.find({ where: { projectId }, order: { order: 'ASC' } });
     }
     async board(projectId) {
-        const [rowPhases, plan] = await Promise.all([this.forProject(projectId), this.programmeFor(projectId)]);
+        const [rowPhases, plan, lib, project] = await Promise.all([
+            this.forProject(projectId), this.programmeFor(projectId), this.library(), this.projects.findOneBy({ id: projectId }),
+        ]);
+        const categoryOf = (0, programme_template_1.phaseCategorizer)(lib, project?.templateKey);
         const rows = await this.tasks.find({ order: { order: 'ASC' } });
         const tasks = rows.filter((t) => Number(t.projectId) === projectId && !!t.phaseId);
         const gated = new Set(plan.filter((d) => d.gated).map((d) => d.key));
         const weeks = new Map(plan.map((d) => [d.key, Number(d.weeks) || 0]));
         const dependsOn = new Map(plan.map((d, i) => [d.key, d.dependsOn?.length ? d.dependsOn : d.gated && i > 0 ? [plan[i - 1].key] : []]));
-        const phases = rowPhases.map((ph) => ({ ...ph, gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
+        const phases = rowPhases.map((ph) => ({ ...ph, category: categoryOf(ph.key), gated: gated.has(ph.key), dependsOn: dependsOn.get(ph.key) || [], weeks: weeks.get(ph.key) || 0 }));
         const target = new Map();
         for (const phase of plan) {
             const split = phase.tasks.length && phase.weeks

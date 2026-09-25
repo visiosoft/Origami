@@ -49,6 +49,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
             name: string;
             color: string;
             order: number;
+            category: import("../seed-data/programme-template").PhaseCategory;
             total: number;
             done: number;
             progress: number;
@@ -61,6 +62,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
     forProject(projectId: number): Promise<ProjectPhaseEntity[]>;
     board(projectId: number): Promise<{
         phases: {
+            category: import("../seed-data/programme-template").PhaseCategory;
             gated: boolean;
             dependsOn: string[];
             weeks: number;

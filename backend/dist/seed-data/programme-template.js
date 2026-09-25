@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.slugifyTemplateKey = exports.DEFAULT_LIBRARY = exports.DEFAULT_TEMPLATE_KEY = exports.TEMPLATE_LABELS = exports.TEMPLATE_TEAMS = exports.DEFAULT_PROGRAMME = void 0;
+exports.slugifyTemplateKey = exports.DEFAULT_LIBRARY = exports.CONSTRUCTION_PHASE_KEYS = exports.DEFAULT_TEMPLATE_KEY = exports.TEMPLATE_LABELS = exports.TEMPLATE_TEAMS = exports.DEFAULT_PROGRAMME = void 0;
 exports.parseProgramme = parseProgramme;
+exports.phaseCategorizer = phaseCategorizer;
 exports.parseLibrary = parseLibrary;
 const t = (id, title, team = '', labels = [], days = 0) => ({ id, title, team, labels, days });
 exports.DEFAULT_PROGRAMME = [
@@ -198,6 +199,26 @@ function parseProgramme(raw) {
     }
 }
 exports.DEFAULT_TEMPLATE_KEY = 'default';
+exports.CONSTRUCTION_PHASE_KEYS = ['gc', 'ca', 'closeout'];
+function phaseCategorizer(lib, templateKey) {
+    const own = (templateKey && lib.find((t) => t.key === templateKey)) || lib[0];
+    const fixed = new Set(exports.CONSTRUCTION_PHASE_KEYS);
+    const construction = new Set();
+    const design = new Set();
+    for (const t of lib) {
+        if (t === own)
+            continue;
+        for (const ph of t.phases)
+            (t.category === 'construction' ? construction : design).add(ph.key);
+    }
+    return (key) => {
+        if (fixed.has(key))
+            return 'construction';
+        if (own?.phases.some((p) => p.key === key))
+            return own.category === 'construction' ? 'construction' : 'design';
+        return construction.has(key) ? 'construction' : design.has(key) ? 'design' : 'other';
+    };
+}
 exports.DEFAULT_LIBRARY = [{ key: exports.DEFAULT_TEMPLATE_KEY, name: 'Default', phases: exports.DEFAULT_PROGRAMME, category: 'design' }];
 const slugifyTemplateKey = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'template';
 exports.slugifyTemplateKey = slugifyTemplateKey;
