@@ -10,6 +10,10 @@ import { normalizeAttachments, subId, type TaskAttachment } from '../database/ta
 import { newId, todayISO } from '../manpower/workforce.util';
 import { computeSov, toDollars } from './finance.calc';
 import { assertVersion, FinancialsService } from './financials.service';
+import { GoogleService } from '../google/google.service';
+import { SettingsService } from '../settings/settings.service';
+import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
+import { changeOrderEmailBody, changeOrderHtml } from './co.document';
 import { fromCents, sumCents, toCents } from './money';
 
 export const CO_REASONS = ['client_request', 'design_change', 'unforeseen', 'scope_addition', 'scope_reduction', 'allowance', 'code_requirement', 'other'];
@@ -39,7 +43,42 @@ export class ChangeOrdersService {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly fin: FinancialsService,
     private readonly attachments?: AttachmentsService,
+    private readonly google?: GoogleService,
+    private readonly settings?: SettingsService,
   ) {}
+
+  /**
+   * Email the change order to the client for signature: the signed-off PDF
+   * (letterhead, lines, total, signature blocks) attached, a short summary in
+   * the body. Goes to the project's bill-to contact unless another address is
+   * given; recorded on the approval trail. Only while it's with the client.
+   */
+  private async emailClient(co: ChangeOrderEntity, dto: { to?: string; cc?: string; note?: string }, actor: Actor) {
+    await this.fin.need(actor, 'approveChangeOrders');
+    if (co.status !== 'submitted') throw new BadRequestException('Only a change order under client review can be sent to the client.');
+    if (!this.google || !(await this.google.isConnected())) throw new BadRequestException('No Google account is connected for sending mail (Settings → Integrations).');
+    const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
+    const { value: fs } = await this.fin.settingsFor(co.projectId);
+    const to = String(dto.to || fs.billToEmail || '').replace(/[\r\n]/g, '').trim();
+    if (!EMAIL.test(to)) throw new BadRequestException('Give the client’s email address (or set the bill-to email in the project’s financial settings).');
+    const cc = String(dto.cc || '').split(/[,;]/).map((x) => x.replace(/[\r\n]/g, '').trim()).filter((x) => EMAIL.test(x) && x !== to);
+    const project = await this.fin.project(co.projectId);
+    const doc = this.present(co, await this.items.find({ where: { changeOrderId: co.id } }));
+    const brand = await this.fin.brand(actor);
+    const pdf = await this.google.htmlToPdf(changeOrderHtml(doc as any, brand, project.name), co.number);
+    const note = String(dto.note || '').trim().slice(0, 4000);
+    const emailBrand = this.settings ? await loadEmailBrand(this.settings) : { companyName: brand.companyName || 'Origami', accent: '#173326' };
+    const first = (fs.billToName || '').split(/\s+/)[0];
+    await this.google.sendMail({
+      to, cc: cc.join(', ') || undefined,
+      subject: `Change order ${co.number} for your signature — ${project.name}`,
+      html: emailShell({ brand: emailBrand as any, eyebrow: `Change order · ${co.number}`, title: first ? `Hi ${escapeHtml(first)},` : 'Hello,', body: changeOrderEmailBody(doc as any, project.name, note), footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
+      attachments: [{ filename: `${co.number}.pdf`, mimeType: 'application/pdf', content: pdf }],
+    });
+    await this.fin.approval(null, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, decision: 'sent_to_client', comment: [`Emailed to ${to}${cc.length ? `, cc ${cc.join(', ')}` : ''}`, note].filter(Boolean).join(' · ') }, actor);
+    await this.fin.log(null, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, action: 'co_emailed', changes: { sentTo: { from: null, to } } }, actor);
+    return this.get(co.id, actor);
+  }
 
   private async load(id: string) {
     const co = await this.cos.findOneBy({ id });
@@ -204,6 +243,7 @@ export class ChangeOrdersService {
     };
     const need = (...from: string[]) => { if (!from.includes(co.status)) throw new BadRequestException(`This change order is ${co.status.replace('_', ' ')} -- that step doesn't apply.`); };
     switch (action) {
+      case 'email_client': return this.emailClient(co, dto || {}, actor);
       case 'submit': {
         await this.fin.need(actor, 'editChangeOrders');
         need('draft');

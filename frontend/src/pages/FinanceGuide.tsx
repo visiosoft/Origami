@@ -233,7 +233,7 @@ export function FinanceGuide() {
               <><b>Update progress</b> as work gets done: click a milestone's progress and enter the %. A "Ready to bill" amount appears.</>,
               <><b>Bill the client.</b> <Ui>Bill ready work</Ui> makes a draft invoice from everything ready. Check it, then <Ui>Issue invoice</Ui> — it gets its number and can't be edited after that.</>,
               <><b>Record the payment received</b> when the client pays: open the invoice → <Ui>Record payment received</Ui>.</>,
-              <><b>Extras the client asks for</b> are <Ui>Change orders</Ui>: price it, submit, then record the client's signature. Only then does the contract go up.</>,
+              <><b>Extras the client asks for</b> are <Ui>Change orders</Ui>. <b>Pending</b>: price it and scope it internally. <b>Under client review</b>: <Ui>Approve &amp; send to client</Ui> emails it as a PDF with signature blocks. <b>Approved / Rejected</b>: record the client's answer. Only an approved change order raises the contract.</>,
             ]} />
           </Section>
 

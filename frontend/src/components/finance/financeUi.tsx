@@ -157,7 +157,8 @@ export const RELEASE_REASONS: [string, string][] = [
 export const label = (list: [string, string][], k?: string) => list.find(([x]) => x === k)?.[1] || k || '—';
 
 const CO_STATUS: Record<ChangeOrder['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
-  draft: ['Draft', 'grey'], internal_review: ['Internal review', 'amber'], submitted: ['With client', 'blue'], approved: ['Approved', 'green'], rejected: ['Rejected', 'red'], cancelled: ['Cancelled', 'grey'],
+  // Edward's three phases: Pending (costing it internally), Under client review, Approved / Rejected.
+  draft: ['Pending', 'grey'], internal_review: ['Pending · internal review', 'amber'], submitted: ['Under client review', 'blue'], approved: ['Approved', 'green'], rejected: ['Rejected', 'red'], cancelled: ['Cancelled', 'grey'],
 };
 export const CoBadge = ({ s }: { s: ChangeOrder['status'] }) => <Badge tone={CO_STATUS[s][1]}>{CO_STATUS[s][0]}</Badge>;
 const RE_STATUS: Record<Reimbursable['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
@@ -170,7 +171,7 @@ const RR_STATUS: Record<RetentionRelease['status'], [string, 'grey' | 'amber' | 
 export const ReleaseBadge = ({ s }: { s: RetentionRelease['status'] }) => <Badge tone={RR_STATUS[s][1]}>{RR_STATUS[s][0]}</Badge>;
 
 const DECISION: Record<string, string> = {
-  submitted: 'Submitted', internal_approved: 'Approved internally · sent to client', client_approved: 'Approved by the client', approved: 'Approved', rejected: 'Rejected',
+  submitted: 'Submitted for internal review', internal_approved: 'Approved internally · now under client review', sent_to_client: 'Emailed to the client for signature', client_approved: 'Approved by the client', approved: 'Approved', rejected: 'Rejected',
   cancelled: 'Cancelled', returned: 'Returned for changes', issued: 'Issued', requested: 'Requested', reopened: 'Reopened',
 };
 

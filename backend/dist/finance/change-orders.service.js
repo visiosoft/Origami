@@ -22,6 +22,10 @@ const task_types_1 = require("../database/task.types");
 const workforce_util_1 = require("../manpower/workforce.util");
 const finance_calc_1 = require("./finance.calc");
 const financials_service_1 = require("./financials.service");
+const google_service_1 = require("../google/google.service");
+const settings_service_1 = require("../settings/settings.service");
+const shell_1 = require("../email/shell");
+const co_document_1 = require("./co.document");
 const money_1 = require("./money");
 exports.CO_REASONS = ['client_request', 'design_change', 'unforeseen', 'scope_addition', 'scope_reduction', 'allowance', 'code_requirement', 'other'];
 const TARGETS = ['phase', 'task', 'new_phase', 'new_task', 'none'];
@@ -29,7 +33,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const now = () => new Date().toISOString();
 const fmtUsd = (c) => (c < 0 ? '-$' : '$') + (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 let ChangeOrdersService = class ChangeOrdersService {
-    constructor(cos, items, phases, tasks, projects, fin, attachments) {
+    constructor(cos, items, phases, tasks, projects, fin, attachments, google, settings) {
         this.cos = cos;
         this.items = items;
         this.phases = phases;
@@ -37,6 +41,37 @@ let ChangeOrdersService = class ChangeOrdersService {
         this.projects = projects;
         this.fin = fin;
         this.attachments = attachments;
+        this.google = google;
+        this.settings = settings;
+    }
+    async emailClient(co, dto, actor) {
+        await this.fin.need(actor, 'approveChangeOrders');
+        if (co.status !== 'submitted')
+            throw new common_1.BadRequestException('Only a change order under client review can be sent to the client.');
+        if (!this.google || !(await this.google.isConnected()))
+            throw new common_1.BadRequestException('No Google account is connected for sending mail (Settings → Integrations).');
+        const EMAIL = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
+        const { value: fs } = await this.fin.settingsFor(co.projectId);
+        const to = String(dto.to || fs.billToEmail || '').replace(/[\r\n]/g, '').trim();
+        if (!EMAIL.test(to))
+            throw new common_1.BadRequestException('Give the client’s email address (or set the bill-to email in the project’s financial settings).');
+        const cc = String(dto.cc || '').split(/[,;]/).map((x) => x.replace(/[\r\n]/g, '').trim()).filter((x) => EMAIL.test(x) && x !== to);
+        const project = await this.fin.project(co.projectId);
+        const doc = this.present(co, await this.items.find({ where: { changeOrderId: co.id } }));
+        const brand = await this.fin.brand(actor);
+        const pdf = await this.google.htmlToPdf((0, co_document_1.changeOrderHtml)(doc, brand, project.name), co.number);
+        const note = String(dto.note || '').trim().slice(0, 4000);
+        const emailBrand = this.settings ? await (0, shell_1.loadEmailBrand)(this.settings) : { companyName: brand.companyName || 'Origami', accent: '#173326' };
+        const first = (fs.billToName || '').split(/\s+/)[0];
+        await this.google.sendMail({
+            to, cc: cc.join(', ') || undefined,
+            subject: `Change order ${co.number} for your signature — ${project.name}`,
+            html: (0, shell_1.emailShell)({ brand: emailBrand, eyebrow: `Change order · ${co.number}`, title: first ? `Hi ${(0, shell_1.escapeHtml)(first)},` : 'Hello,', body: (0, co_document_1.changeOrderEmailBody)(doc, project.name, note), footer: `Sent by ${(0, shell_1.escapeHtml)(actor.name)} at ${(0, shell_1.escapeHtml)(emailBrand.companyName)}.` }),
+            attachments: [{ filename: `${co.number}.pdf`, mimeType: 'application/pdf', content: pdf }],
+        });
+        await this.fin.approval(null, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, decision: 'sent_to_client', comment: [`Emailed to ${to}${cc.length ? `, cc ${cc.join(', ')}` : ''}`, note].filter(Boolean).join(' · ') }, actor);
+        await this.fin.log(null, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, action: 'co_emailed', changes: { sentTo: { from: null, to } } }, actor);
+        return this.get(co.id, actor);
     }
     async load(id) {
         const co = await this.cos.findOneBy({ id });
@@ -227,6 +262,7 @@ let ChangeOrdersService = class ChangeOrdersService {
         const need = (...from) => { if (!from.includes(co.status))
             throw new common_1.BadRequestException(`This change order is ${co.status.replace('_', ' ')} -- that step doesn't apply.`); };
         switch (action) {
+            case 'email_client': return this.emailClient(co, dto || {}, actor);
             case 'submit': {
                 await this.fin.need(actor, 'editChangeOrders');
                 need('draft');
@@ -456,6 +492,8 @@ exports.ChangeOrdersService = ChangeOrdersService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         financials_service_1.FinancialsService,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        google_service_1.GoogleService,
+        settings_service_1.SettingsService])
 ], ChangeOrdersService);
 //# sourceMappingURL=change-orders.service.js.map

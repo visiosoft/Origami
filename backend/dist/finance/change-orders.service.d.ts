@@ -4,6 +4,8 @@ import type { Actor } from '../manpower/manpower-access.service';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { type TaskAttachment } from '../database/task.types';
 import { FinancialsService } from './financials.service';
+import { GoogleService } from '../google/google.service';
+import { SettingsService } from '../settings/settings.service';
 export declare const CO_REASONS: string[];
 export declare class ChangeOrdersService {
     private readonly cos;
@@ -13,7 +15,10 @@ export declare class ChangeOrdersService {
     private readonly projects;
     private readonly fin;
     private readonly attachments?;
-    constructor(cos: Repository<ChangeOrderEntity>, items: Repository<ChangeOrderItemEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, fin: FinancialsService, attachments?: AttachmentsService | undefined);
+    private readonly google?;
+    private readonly settings?;
+    constructor(cos: Repository<ChangeOrderEntity>, items: Repository<ChangeOrderItemEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, projects: Repository<ProjectEntity>, fin: FinancialsService, attachments?: AttachmentsService | undefined, google?: GoogleService | undefined, settings?: SettingsService | undefined);
+    private emailClient;
     private load;
     private present;
     list(projectId: number, actor: Actor): Promise<any[]>;

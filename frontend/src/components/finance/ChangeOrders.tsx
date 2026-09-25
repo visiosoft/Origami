@@ -52,7 +52,7 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
   useEffect(() => { load(); }, [projectId]);
   useEffect(() => { if (!projectId) api.projects.list().then((r: any) => setProjects(Array.isArray(r) ? r.map((p: any) => ({ id: p.id, name: p.name })) : [])).catch(() => {}); }, [projectId]);
 
-  const shown = (rows || []).filter((c) => (status === 'all' || (status === 'open' ? ['draft', 'internal_review', 'submitted'].includes(c.status) : c.status === status))
+  const shown = (rows || []).filter((c) => (status === 'all' || (status === 'pending' ? ['draft', 'internal_review'].includes(c.status) : c.status === status))
     && (!q || `${c.number} ${c.title} ${c.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
   const sum = (pred: (c: ChangeOrder) => boolean) => (rows || []).filter(pred).reduce((a, c) => a + (c.total || 0), 0);
   const cols = projectId ? '90px minmax(200px,2fr) 150px 120px 120px 90px 130px' : '90px minmax(160px,1.4fr) minmax(200px,2fr) 150px 120px 120px 90px 130px';
@@ -70,9 +70,9 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
         {[
+          ['Pending', usd0(sum((c) => c.status === 'draft' || c.status === 'internal_review')), `${(rows || []).filter((c) => c.status === 'draft' || c.status === 'internal_review').length} being costed and scoped`],
+          ['Under client review', usd0(sum((c) => c.status === 'submitted')), `${(rows || []).filter((c) => c.status === 'submitted').length} with the client`],
           ['Approved', usd0(sum((c) => c.status === 'approved')), `${(rows || []).filter((c) => c.status === 'approved').length} change orders`],
-          ['Pending', usd0(sum((c) => c.status === 'internal_review' || c.status === 'submitted')), 'In review or with the client'],
-          ['Drafts', usd0(sum((c) => c.status === 'draft')), `${(rows || []).filter((c) => c.status === 'draft').length} being priced`],
           ['Rejected / cancelled', String((rows || []).filter((c) => c.status === 'rejected' || c.status === 'cancelled').length), ''],
         ].map(([l, v, sub]) => (
           <div key={l} style={{ ...card, padding: '10px 14px' }}>
@@ -85,8 +85,8 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search change orders" style={{ ...input, width: 240 }} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...input, width: 180 }}>
-          <option value="all">All statuses</option><option value="open">Open</option><option value="draft">Draft</option><option value="internal_review">Internal review</option>
-          <option value="submitted">With client</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
+          <option value="all">All statuses</option><option value="pending">Pending</option><option value="submitted">Under client review</option>
+          <option value="approved">Approved</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option>
         </select>
         <div style={{ flex: 1 }} />
         {rights.editChangeOrders && <div onClick={() => setAdding(true)} style={btn(true)}>+ Change order</div>}
@@ -131,7 +131,7 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
 
 // ------------------------------------------------------------------ drawer
 
-type Step = null | 'return' | 'reject' | 'cancel' | 'client';
+type Step = null | 'return' | 'reject' | 'cancel' | 'client' | 'email';
 
 export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: { id: string; overview?: Overview; rights: Rights; onClose: () => void; onChanged: () => void }) {
   const { toast } = useApp();
@@ -144,6 +144,13 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
   const [step, setStep] = useState<Step>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The client's email for "Email to client" -- the project's bill-to, read when that step opens.
+  const [billTo, setBillTo] = useState<string | undefined>(undefined);
+  const openEmail = (projectId: number) => {
+    const known = overview && overview.project.id === projectId ? overview.settings.billToEmail : undefined;
+    if (known !== undefined) { setBillTo(known || ''); setStep('email'); return; }
+    api.finance.overview(projectId).then((o: any) => setBillTo(o?.settings?.billToEmail || '')).catch(() => setBillTo('')).finally(() => setStep('email'));
+  };
 
   const apply = (c: ChangeOrder) => {
     setCo(c); setDirty(false); setStep(null);
@@ -171,13 +178,17 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
     } catch (e) { failed(toast, e); if (/since you opened it/.test((e as any)?.message || '')) load(); return null; }
     finally { setBusy(false); }
   };
-  const act = async (action: string, extra: Record<string, unknown> = {}) => {
+  /** Run a step; true when it went through. */
+  const act = async (action: string, extra: Record<string, unknown> = {}): Promise<boolean> => {
     let cur: ChangeOrder | null = co;
     if (dirty && co.status === 'draft') cur = await save();
-    if (!cur) return;
+    if (!cur) return false;
     setBusy(true);
-    try { apply(await api.finance.changeOrderStep(cur.id, action, { version: cur.version, ...extra }) as ChangeOrder); onChanged(); toast('Done'); }
-    catch (e) { failed(toast, e); }
+    try {
+      apply(await api.finance.changeOrderStep(cur.id, action, { version: cur.version, ...extra }) as ChangeOrder); onChanged();
+      toast(action === 'email_client' ? `${cur.number} emailed to the client` : 'Done');
+      return true;
+    } catch (e) { failed(toast, e); return false; }
     finally { setBusy(false); }
   };
   const remove = async () => {
@@ -290,6 +301,10 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
         {step === 'return' && <ReasonBox title="Return to draft" confirm="Return" onCancel={() => setStep(null)} onSubmit={(v) => act('return', { comment: v.comment })} fields={[{ key: 'comment', label: 'What needs changing', type: 'textarea', required: true }]} />}
         {step === 'reject' && <ReasonBox title="Reject change order" tone="danger" confirm="Reject" onCancel={() => setStep(null)} onSubmit={(v) => act('reject', { comment: v.comment })} fields={[{ key: 'comment', label: 'Why', type: 'textarea', required: true }]} />}
         {step === 'cancel' && <ReasonBox title="Cancel change order" tone="danger" confirm="Cancel it" onCancel={() => setStep(null)} onSubmit={(v) => act('cancel', { comment: v.comment })} fields={[{ key: 'comment', label: 'Why', type: 'textarea', required: true }]} />}
+        {step === 'email' && billTo !== undefined && <ReasonBox title="Email the change order to the client for signature" confirm="Send" onCancel={() => setStep(null)}
+          onSubmit={(v) => act('email_client', { to: v.to, cc: v.cc, note: v.note })}
+          fields={[{ key: 'to', label: 'To (client email)', required: true, initial: billTo, placeholder: 'client@example.com' }, { key: 'cc', label: 'Copy to', placeholder: 'Comma-separated, optional' },
+            { key: 'note', label: 'Note above the summary', type: 'textarea', placeholder: 'e.g. As discussed on site Tuesday — please sign and return.' }]} />}
         {step === 'client' && <ReasonBox title="Record the client’s approval" confirm="Approve change order" onCancel={() => setStep(null)} onSubmit={(v) => act('client_approve', v)}
           fields={[{ key: 'signer', label: 'Signed / approved by', required: true }, { key: 'date', label: 'Date', type: 'date', initial: new Date().toISOString().slice(0, 10), required: true }, { key: 'reference', label: 'Reference', placeholder: 'Signed CO, email of 9/20…' }, { key: 'comment', label: 'Note', type: 'textarea' }]} />}
 
@@ -298,14 +313,15 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           {rights.editChangeOrders && ['draft', 'internal_review', 'submitted'].includes(co.status) && <div onClick={() => setStep('cancel')} style={{ ...btn(), color: DANGER }}>Cancel CO</div>}
           <div style={{ flex: 1 }} />
           {editable && <div onClick={busy ? undefined : save} style={btn(false, busy || !dirty)}>Save</div>}
-          {editable && <div onClick={busy ? undefined : () => act('submit')} style={btn(!rights.approveChangeOrders, busy)}>Submit for review</div>}
+          {editable && <div onClick={busy ? undefined : () => act('submit')} style={btn(!rights.approveChangeOrders, busy)}>Submit for internal review</div>}
           {co.status === 'draft' && rights.approveChangeOrders && <div onClick={() => setStep('client')} style={btn(true)} title="The client has already signed it">Record signed approval</div>}
           {co.status === 'internal_review' && rights.approveChangeOrders && <>
             <div onClick={() => setStep('return')} style={btn()}>Return</div>
             <div onClick={() => setStep('reject')} style={{ ...btn(), color: DANGER }}>Reject</div>
-            <div onClick={busy ? undefined : () => act('approve_internal')} style={btn(true, busy)}>Approve &amp; send to client</div>
+            <div onClick={busy ? undefined : async () => { if (await act('approve_internal')) openEmail(co.projectId); }} style={btn(true, busy)} title="Moves it to Under client review, then lets you email it with the PDF">Approve &amp; send to client</div>
           </>}
           {co.status === 'submitted' && rights.approveChangeOrders && <>
+            <div onClick={() => openEmail(co.projectId)} style={btn()} title="The change order as a PDF, with signature blocks">{(co.approvals || []).some((a) => a.decision === 'sent_to_client') ? 'Email again' : 'Email to client'}</div>
             <div onClick={() => setStep('return')} style={btn()}>Return</div>
             <div onClick={() => setStep('reject')} style={{ ...btn(), color: DANGER }}>Client rejected</div>
             <div onClick={() => setStep('client')} style={btn(true)}>Record client approval</div>
