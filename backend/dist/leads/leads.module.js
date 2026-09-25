@@ -18,7 +18,7 @@ let LeadsModule = class LeadsModule {
 exports.LeadsModule = LeadsModule;
 exports.LeadsModule = LeadsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.LeadEntity]), tasks_module_1.TasksModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.LeadEntity, entities_1.ProjectEntity]), tasks_module_1.TasksModule],
         controllers: [leads_controller_1.LeadsController],
         providers: [leads_service_1.LeadsService],
         exports: [leads_service_1.LeadsService],

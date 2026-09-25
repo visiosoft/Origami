@@ -17,15 +17,47 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const lead_address_1 = require("./lead-address");
 const leads_1 = require("../seed-data/leads");
 const tasks_service_1 = require("../tasks/tasks.service");
 const HOMEWORK_TASK_LABEL = 'kind:homework-collection';
 const HOMEWORK_EMPTY_TEXT = 'No homework items selected yet.';
 let LeadsService = class LeadsService {
-    constructor(repo, tasks) {
+    constructor(repo, tasks, projects) {
         this.repo = repo;
         this.tasks = tasks;
+        this.projects = projects;
         this.log = new common_1.Logger('LeadsService');
+    }
+    async syncProjectAddress(lead) {
+        if (!this.projects)
+            return;
+        const address = (0, lead_address_1.leadStreetAddress)(lead);
+        if (!address)
+            return;
+        const project = await this.projects.findOneBy({ leadId: lead.id });
+        if (project && project.location !== address)
+            await this.projects.update({ id: project.id }, { location: address });
+    }
+    async onApplicationBootstrap() {
+        if (!this.projects)
+            return;
+        try {
+            const linked = (await this.projects.find()).filter((p) => p.leadId);
+            let n = 0;
+            for (const p of linked) {
+                const address = (0, lead_address_1.leadStreetAddress)(await this.repo.findOneBy({ id: p.leadId }));
+                if (address && p.location !== address) {
+                    await this.projects.update({ id: p.id }, { location: address });
+                    n++;
+                }
+            }
+            if (n)
+                this.log.log(`Project addresses filled from their leads: ${n}`);
+        }
+        catch (err) {
+            this.log.warn(`Project address backfill skipped: ${err.message}`);
+        }
     }
     async syncHomeworkTask(leadId, homeworkCompleted) {
         const existing = (await this.tasks.findAll(undefined, leadId))
@@ -92,6 +124,7 @@ let LeadsService = class LeadsService {
         if ('homeworkCompleted' in dto) {
             this.syncHomeworkTask(id, dto.homeworkCompleted || []).catch((err) => this.log.warn(`Homework task sync failed for ${id}: ${err.message}`));
         }
+        await this.syncProjectAddress(saved).catch((err) => this.log.warn(`Project address for ${id} not updated: ${err.message}`));
         return saved;
     }
     async remove(id) {
@@ -105,7 +138,9 @@ exports.LeadsService = LeadsService;
 exports.LeadsService = LeadsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        tasks_service_1.TasksService])
+        tasks_service_1.TasksService,
+        typeorm_2.Repository])
 ], LeadsService);
 //# sourceMappingURL=leads.service.js.map

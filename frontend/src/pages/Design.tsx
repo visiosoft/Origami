@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MapLink } from '../components/ContactLinks';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -260,9 +261,8 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                         <div style={{ padding: 12 }}>
                           <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, color: '#0B1A12' }}>{p.name}</div>
                           {p.location && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#7E9B93', marginBottom: 7 }}>
-                              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
-                              {p.location}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#7E9B93', marginBottom: 7, minWidth: 0 }}>
+                              <MapLink address={p.location} />
                             </div>
                           )}
                           {p.typeOfWork && <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 8, lineHeight: 1.4 }}>{p.typeOfWork}</div>}

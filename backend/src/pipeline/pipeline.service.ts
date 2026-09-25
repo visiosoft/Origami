@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
@@ -165,11 +166,12 @@ export class PipelineService implements OnApplicationBootstrap {
    * deal, since leads.create() always runs first) gets blank strings rather
    * than an error, so a card never disappears over it.
    */
-  private overlayLead(deal: DealEntity, lead?: LeadEntity | null): DealEntity & { name: string; client: string; phone: string; email: string } {
+  private overlayLead(deal: DealEntity, lead?: LeadEntity | null): DealEntity & { name: string; client: string; phone: string; email: string; location: string } {
     return {
       ...deal,
       name: lead?.leadName || '',
       client: (lead?.businessName || '').trim() || lead?.leadName || '',
+      location: leadStreetAddress(lead),
       phone: lead?.phone || '',
       email: lead?.email || '',
     };

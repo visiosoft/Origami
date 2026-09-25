@@ -16,6 +16,7 @@ export declare class ProjectsService implements OnApplicationBootstrap {
         value?: string;
         source?: string;
         assignee?: string;
+        location?: string;
     }): Promise<ProjectEntity>;
     update(id: string, dto: any): Promise<ProjectEntity>;
     remove(id: string): Promise<{

@@ -58,13 +58,14 @@ export class ProjectsService implements OnApplicationBootstrap {
    * project row (this one, or the one conversion later updates in place) is
    * left untouched.
    */
-  async ensureForLead(deal: { id: string; name: string; value?: string; source?: string; assignee?: string }) {
+  async ensureForLead(deal: { id: string; name: string; value?: string; source?: string; assignee?: string; location?: string }) {
     const existing = await this.findByLeadId(deal.id);
     if (existing) return existing;
     return this.create({
       name: deal.name,
       stage: 'Kickoff',
       contractAmt: deal.value || '$0',
+      location: deal.location || '',
       referral: deal.source || '',
       contactedBy: (deal.assignee && deal.assignee !== 'Unassigned') ? deal.assignee : '',
       leadId: deal.id,

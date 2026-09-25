@@ -1,11 +1,15 @@
+import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { LeadEntity } from '../database/entities';
+import { LeadEntity, ProjectEntity } from '../database/entities';
 import { TasksService } from '../tasks/tasks.service';
-export declare class LeadsService {
+export declare class LeadsService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly tasks;
+    private readonly projects?;
     private readonly log;
-    constructor(repo: Repository<LeadEntity>, tasks: TasksService);
+    constructor(repo: Repository<LeadEntity>, tasks: TasksService, projects?: Repository<ProjectEntity> | undefined);
+    private syncProjectAddress;
+    onApplicationBootstrap(): Promise<void>;
     private syncHomeworkTask;
     getOptions(): {
         primaryPointOfContact: string[];

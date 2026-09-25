@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { MapLink } from '../components/ContactLinks';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -63,7 +64,7 @@ function FieldDailyLogInner() {
   // For site superintendents (and administrators); the office works in Manpower -> Daily Log.
   const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
   const canEdit = can('manpower_con', 'manage');
-  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: number; name: string; location?: string }[]>([]);
   const [employees, setEmployees] = useState<Emp[]>([]);
   const [codes, setCodes] = useState<Code[]>([]);
   const [assignments, setAssignments] = useState<Assign[]>([]);
@@ -81,7 +82,7 @@ function FieldDailyLogInner() {
 
   useEffect(() => {
     api.projects.list().then((r: any) => {
-      const real = (Array.isArray(r) ? r : []).filter((p: any) => p.stage !== 'Kickoff').map((p: any) => ({ id: p.id, name: p.name }));
+      const real = (Array.isArray(r) ? r : []).filter((p: any) => p.stage !== 'Kickoff').map((p: any) => ({ id: p.id, name: p.name, location: p.location }));
       setProjects(real);
       setProjectId((cur) => (cur && real.some((p: any) => p.id === cur) ? cur : real[0]?.id ?? ''));
     }).catch(() => { });
@@ -193,6 +194,11 @@ function FieldDailyLogInner() {
             {!projectId && <option value="">Choose a project…</option>}
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          {projects.find((p) => p.id === projectId)?.location && (
+            <div style={{ fontSize: 13.5, color: MUTED }}>
+              <MapLink address={projects.find((p) => p.id === projectId)!.location} iconSize={13}>{projects.find((p) => p.id === projectId)!.location} · Directions</MapLink>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 44px auto', gap: 8, alignItems: 'center' }}>
             <Chip onClick={() => setDate(shift(date, -1))}>‹</Chip>
             <label style={{ position: 'relative', minHeight: 44, display: 'grid', placeItems: 'center', borderRadius: 10, border: '1px solid ' + LINE, fontSize: 15, fontWeight: 700 }}>

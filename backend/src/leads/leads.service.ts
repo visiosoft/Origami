@@ -1,7 +1,8 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LeadEntity } from '../database/entities';
+import { LeadEntity, ProjectEntity } from '../database/entities';
+import { leadStreetAddress } from './lead-address';
 import { LEAD_DROPDOWN_OPTIONS } from '../seed-data/leads';
 import { TasksService } from '../tasks/tasks.service';
 
@@ -9,13 +10,39 @@ const HOMEWORK_TASK_LABEL = 'kind:homework-collection';
 const HOMEWORK_EMPTY_TEXT = 'No homework items selected yet.';
 
 @Injectable()
-export class LeadsService {
+export class LeadsService implements OnApplicationBootstrap {
     private readonly log = new Logger('LeadsService');
 
     constructor(
         @InjectRepository(LeadEntity) private readonly repo: Repository<LeadEntity>,
         private readonly tasks: TasksService,
+        @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
     ) { }
+
+    /** The lead's street address is its project's location -- kept in step, so the project shows where to drive. */
+    private async syncProjectAddress(lead: LeadEntity) {
+        if (!this.projects) return;
+        const address = leadStreetAddress(lead);
+        if (!address) return;
+        const project = await this.projects.findOneBy({ leadId: lead.id });
+        if (project && project.location !== address) await this.projects.update({ id: project.id }, { location: address });
+    }
+
+    /** Projects made from a lead before this existed still say "San Jose, County of ..." -- fill them in once. */
+    async onApplicationBootstrap() {
+        if (!this.projects) return;
+        try {
+            const linked = (await this.projects.find()).filter((p) => p.leadId);
+            let n = 0;
+            for (const p of linked) {
+                const address = leadStreetAddress(await this.repo.findOneBy({ id: p.leadId }));
+                if (address && p.location !== address) { await this.projects.update({ id: p.id }, { location: address }); n++; }
+            }
+            if (n) this.log.log(`Project addresses filled from their leads: ${n}`);
+        } catch (err) {
+            this.log.warn(`Project address backfill skipped: ${(err as Error).message}`);
+        }
+    }
 
     /**
      * Keeps a single task per lead listing whichever homework items are
@@ -112,6 +139,7 @@ export class LeadsService {
             this.syncHomeworkTask(id, dto.homeworkCompleted || []).catch((err) =>
                 this.log.warn(`Homework task sync failed for ${id}: ${(err as Error).message}`));
         }
+        await this.syncProjectAddress(saved).catch((err) => this.log.warn(`Project address for ${id} not updated: ${(err as Error).message}`));
         return saved;
     }
 

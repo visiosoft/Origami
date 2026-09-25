@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
 import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
@@ -36,6 +37,12 @@ interface LeadNote { id: string; text: string; stageName: string; date: string; 
 /** When a note was written: its timestamp, or (older notes) the Date.now() in its id. */
 const noteTime = (n: LeadNote) => (n.at ? Date.parse(n.at) : Number(n.id) || 0);
 const newestFirst = (notes: LeadNote[]) => [...notes].sort((a, b) => noteTime(b) - noteTime(a));
+/** "2150 Monterey Rd, Unit B, San Jose, 95112" -- the same one-line address the project carries. */
+const leadAddress = (ld?: { projectStreetAddress?: string; projectStreetName?: string; projectAddress2?: string; projectCity?: string; projectZipCode?: string } | null) => {
+  const num = (ld?.projectStreetAddress || '').trim(); const street = (ld?.projectStreetName || '').trim();
+  const line1 = num && street && !num.toLowerCase().includes(street.toLowerCase()) ? `${num} ${street}` : num || street;
+  return line1 ? [line1, ld?.projectAddress2, ld?.projectCity, ld?.projectZipCode].map((x) => (x || '').trim()).filter(Boolean).join(', ') : '';
+};
 const DOT = '·';
 
 
@@ -866,7 +873,7 @@ export function Pipeline() {
   const scheduleSiteVisit = (deal: Deal, stageName: string) => {
     if (!visitWhen) return;
     const ld = leadDetails[deal.id];
-    const addr = [ld?.projectStreetAddress, ld?.projectStreetName, ld?.projectCity, ld?.projectZipCode].filter(Boolean).join(', ');
+    const addr = leadAddress(ld);
     const start = new Date(visitWhen);
     const end = new Date(start.getTime() + 60 * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -1224,7 +1231,16 @@ export function Pipeline() {
           {/* Name + client + pills */}
           <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#0B1A12', lineHeight: 1.3 }}>{selected.name}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#43514D', margin: '4px 0 10px' }}>{[leadDetails[selected.id]?.firstName, leadDetails[selected.id]?.lastName].filter(Boolean).join(' ') || selected.client}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#43514D', margin: '4px 0 4px' }}>{[leadDetails[selected.id]?.firstName, leadDetails[selected.id]?.lastName].filter(Boolean).join(' ') || selected.client}</div>
+            {(() => {
+              const addr = leadAddress(leadDetails[selected.id]);
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 12, color: '#5C6B65', margin: '0 0 10px' }}>
+                  {addr ? <MapLink address={addr} /> : <span style={{ color: '#9AA39D' }}>No street address yet</span>}
+                  {selected.phone && <PhoneLink phone={selected.phone} />}
+                </div>
+              );
+            })()}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
@@ -1666,7 +1682,7 @@ export function Pipeline() {
               ) : selected.stage === 'site_visit' ? (
                 (() => {
                   const ld = leadDetails[selected.id];
-                  const addr = [ld?.projectStreetAddress, ld?.projectStreetName, ld?.projectCity, ld?.projectZipCode].filter(Boolean).join(', ');
+                  const addr = leadAddress(ld);
                   return (
                     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -1674,7 +1690,7 @@ export function Pipeline() {
                         <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Site Visit — Schedule On-Site</span>
                       </div>
                       <div style={{ fontSize: 10.5, color: '#7E9B93', marginBottom: 10 }}>PC schedules the on-site visit. Full lead details are in the “Full Details” tab.</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: addr ? '#173326' : '#9AA39D', marginBottom: 8 }}>{addr ? `Location: ${addr}` : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: addr ? '#173326' : '#9AA39D', marginBottom: 8 }}>{addr ? <>Location: <MapLink address={addr} pin={false} /></> : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
                       {visitByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#173326', marginBottom: 8 }}>Scheduled: {new Date(visitByDeal[selected.id].when).toLocaleString()}</div>}
                       <input type="datetime-local" value={visitWhen} onChange={(e) => setVisitWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1754,7 +1770,7 @@ export function Pipeline() {
                       return fields.map(([label, value]) => (
                         <div key={label} style={{ padding: '8px 10px', borderRadius: 8, background: '#FBF8F2', minWidth: 0 }}>
                           <div style={{ fontSize: 9.5, fontWeight: 600, color: '#7E9B93', marginBottom: 2 }}>{label}</div>
-                          <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
+                          <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label === 'Phone' ? <PhoneLink phone={value} /> : label === 'Email' ? <EmailLink email={value} /> : value}</div>
                         </div>
                       ));
                     })()}

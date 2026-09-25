@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PipelineService = exports.MAX_FOLLOW_UPS = void 0;
 const common_1 = require("@nestjs/common");
+const lead_address_1 = require("../leads/lead-address");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
@@ -123,6 +124,7 @@ let PipelineService = class PipelineService {
             ...deal,
             name: lead?.leadName || '',
             client: (lead?.businessName || '').trim() || lead?.leadName || '',
+            location: (0, lead_address_1.leadStreetAddress)(lead),
             phone: lead?.phone || '',
             email: lead?.email || '',
         };

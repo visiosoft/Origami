@@ -33,36 +33,42 @@ export declare class PipelineService implements OnApplicationBootstrap {
         client: string;
         phone: string;
         email: string;
+        location: string;
     })[]>;
     findOne(id: string): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     create(dto: any): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     updateStage(id: string, stage: string, actor?: DealActor): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setArchived(id: string, archived: boolean, actor?: DealActor): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setRoles(id: string, roles: Record<string, string>, actor?: DealActor): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setRejection(id: string, rejection: {
         rejectionType: 'internal' | 'client' | 'referred';
@@ -75,12 +81,14 @@ export declare class PipelineService implements OnApplicationBootstrap {
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     logFollowUp(id: string, input: FollowUpInput, actor?: DealActor): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setNotes(id: string, notes: unknown[], change: {
         action: string;
@@ -91,12 +99,14 @@ export declare class PipelineService implements OnApplicationBootstrap {
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     addEvent(id: string, action: string, actor?: DealActor, type?: 'auto' | 'pc' | 'pm'): Promise<DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     private event;
     convertToProject(id: string, opts: {
@@ -110,6 +120,7 @@ export declare class PipelineService implements OnApplicationBootstrap {
             client: string;
             phone: string;
             email: string;
+            location: string;
         };
     }>;
     remove(id: string): Promise<{

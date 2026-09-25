@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { MapLink } from '../components/ContactLinks';
 import { CollaboratorPicker } from '../components/CollaboratorPicker';
 import { DraftScope, SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { useSearchParams } from 'react-router-dom';
@@ -452,9 +453,8 @@ export function Projects() {
       </div>
       <div style={{ padding: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, lineHeight: 1.3 }}>{p.name}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#7E9B93', marginBottom: 8 }}>
-          <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
-          {p.location}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#7E9B93', marginBottom: 8, minWidth: 0 }}>
+          <MapLink address={p.location} />
         </div>
         <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 10, lineHeight: 1.4 }}>{p.typeOfWork}</div>
         <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{p.contractAmt}</div>
@@ -581,9 +581,8 @@ export function Projects() {
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', color: 'white', lineHeight: 1.15 }}>{sel.name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 3 }}>
-                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
-                    {sel.location}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 3, minWidth: 0 }}>
+                    <MapLink address={sel.location} />
                   </div>
                 </div>
                 <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, letterSpacing: '-0.02em', color: 'white' }}>{sel.contractAmt}</div>

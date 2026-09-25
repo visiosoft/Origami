@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { EmailLink, PhoneLink } from '../components/ContactLinks';
 import { SaveBar, useAutosave } from '../autosave';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
@@ -213,8 +214,8 @@ export function People() {
             <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{p.kind}</span>
             <ProjChips p={p} max={2} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12' }}>{p.phone}</div>
-              <div style={{ fontSize: 10.5, color: '#173326', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.email}</div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12' }}><PhoneLink phone={p.phone} /></div>
+              <div style={{ fontSize: 10.5, color: '#173326', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><EmailLink email={p.email} /></div>
             </div>
             <ComplyBadge comply={p.comply} small />
             <span style={{ fontSize: 9.5, fontWeight: 700, background: ts.bg, color: ts.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{p.tier}</span>
@@ -281,8 +282,8 @@ export function People() {
                       <div style={{ fontSize: 10.5, color: '#7E9B93', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role}{contactGroup === 'project' ? ' · ' + p.company : ''}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12' }}>{p.phone}</div>
-                      <div style={{ fontSize: 10, color: '#7E9B93' }}>{p.email}</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12' }}><PhoneLink phone={p.phone} /></div>
+                      <div style={{ fontSize: 10, color: '#7E9B93' }}><EmailLink email={p.email} /></div>
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>{iconBtn('Call', PH)}{iconBtn('Email', EM)}{iconBtn('Copy details', CP)}</div>
                   </div>
@@ -388,7 +389,7 @@ export function People() {
               {([['Kind', sel.kind], ['Access tier', sel.tier], ['Phone', sel.phone], ['Email', sel.email], ['Open tasks', String(sel.openTasks)], ['With us since', sel.since]] as [string, string][]).map((r) => (
                 <div key={r[0]} style={{ padding: '11px 13px', background: '#FBF8F2', borderRadius: 10 }}>
                   <div style={{ fontSize: 9.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{r[0]}</div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', wordBreak: 'break-word' }}>{r[1]}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', wordBreak: 'break-word' }}>{r[0] === 'Phone' ? <PhoneLink phone={r[1]} /> : r[0] === 'Email' ? <EmailLink email={r[1]} /> : r[1]}</div>
                 </div>
               ))}
             </div>

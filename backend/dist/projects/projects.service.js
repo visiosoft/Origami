@@ -67,6 +67,7 @@ let ProjectsService = class ProjectsService {
             name: deal.name,
             stage: 'Kickoff',
             contractAmt: deal.value || '$0',
+            location: deal.location || '',
             referral: deal.source || '',
             contactedBy: (deal.assignee && deal.assignee !== 'Unassigned') ? deal.assignee : '',
             leadId: deal.id,

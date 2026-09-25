@@ -10,6 +10,7 @@ export declare class PipelineController {
         client: string;
         phone: string;
         email: string;
+        location: string;
     })[]>;
     getStages(): import("../seed-data/pipeline").Stage[];
     findOne(id: string): Promise<import("../database/entities").DealEntity & {
@@ -17,30 +18,35 @@ export declare class PipelineController {
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     create(dto: CreateDealDto): Promise<import("../database/entities").DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     updateStage(id: string, stage: string, auth?: string): Promise<import("../database/entities").DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setArchived(id: string, archived: boolean, auth?: string): Promise<import("../database/entities").DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setRoles(id: string, roles: Record<string, string>, auth?: string): Promise<import("../database/entities").DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setRejection(id: string, rejection: {
         rejectionType: 'internal' | 'client' | 'referred';
@@ -53,12 +59,14 @@ export declare class PipelineController {
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     addEvent(id: string, action: string, auth?: string): Promise<import("../database/entities").DealEntity & {
         name: string;
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     convert(id: string, body: {
         stage?: string;
@@ -71,6 +79,7 @@ export declare class PipelineController {
             client: string;
             phone: string;
             email: string;
+            location: string;
         };
     }>;
     logFollowUp(id: string, body: FollowUpInput, auth?: string): Promise<import("../database/entities").DealEntity & {
@@ -78,6 +87,7 @@ export declare class PipelineController {
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     setNotes(id: string, body: {
         notes: unknown[];
@@ -89,6 +99,7 @@ export declare class PipelineController {
         client: string;
         phone: string;
         email: string;
+        location: string;
     }>;
     remove(id: string): Promise<{
         id: string;
