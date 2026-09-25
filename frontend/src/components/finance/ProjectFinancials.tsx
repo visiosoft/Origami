@@ -105,8 +105,9 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
       {/* view switch */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid ' + LINE }}>
         {([
-          ['sov', 'Schedule of values'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`],
-          ['payments', 'Payments'], ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'],
+          // Schedule of values, invoices, payments, change orders -- in that order, as the office reads them.
+          ['sov', 'Schedule of values'], ['invoices', `Invoices${invoices ? ` (${invoices.length})` : ''}`],
+          ['payments', 'Payments'], ...(r.viewChangeOrders ? [['changes', 'Change orders']] : []), ...(r.viewReimbursables ? [['reimbursables', 'Reimbursables']] : []), ['retention', 'Retention'],
           ...(r.viewProfitability || r.manageCosts ? [['jobcost', 'Job cost']] : []), ...(r.viewProfitability ? [['profit', 'Profitability']] : []), ['activity', 'Activity'],
         ] as [View, string][]).map(([k, l]) => (
           <div key={k} onClick={() => setView(k)} style={{ padding: '9px 13px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: view === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (view === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>

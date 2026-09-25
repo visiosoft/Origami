@@ -373,7 +373,7 @@ export function DesignProject() {
             </div>
 
             <div style={{ display: 'flex', gap: 6, marginTop: 20, flexWrap: 'wrap' }}>
-              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['dashboard', 'Dashboard'], ...(rfiView ? [['rfis', 'RFIs']] : []), ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis', string][]).map(([key, label]) => (
+              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ...(rfiView ? [['rfis', 'RFIs']] : []), ['dashboard', 'Dashboard'], ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis', string][]).map(([key, label]) => (
                 <div
                   key={key}
                   onClick={() => setView(key)}
