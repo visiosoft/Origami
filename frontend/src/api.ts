@@ -88,7 +88,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs' | 'finance-commitment-shared';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs' | 'finance-commitment-shared' | 'rfis';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -268,6 +268,24 @@ export const api = {
     create: (data: unknown) => request('/email-templates', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/email-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/email-templates/${id}`, { method: 'DELETE' }),
+  },
+  rfis: {
+    access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
+    list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
+    get: (id: string) => request<any>(`/rfis/${encodeURIComponent(id)}`),
+    create: (data: unknown) => request<any>('/rfis', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) => request<any>(`/rfis/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
+    remove: (id: string) => request(`/rfis/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    send: (id: string, note?: string) => request<any>(`/rfis/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify({ note }) }),
+    markSent: (id: string) => request<any>(`/rfis/${encodeURIComponent(id)}/mark-sent`, { method: 'POST' }),
+    answer: (id: string, data: unknown) => request<any>(`/rfis/${encodeURIComponent(id)}/answer`, { method: 'POST', body: JSON.stringify(data) }),
+    close: (id: string, note?: string) => request<any>(`/rfis/${encodeURIComponent(id)}/close`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reopen: (id: string) => request<any>(`/rfis/${encodeURIComponent(id)}/reopen`, { method: 'POST' }),
+    void: (id: string, reason: string) => request<any>(`/rfis/${encodeURIComponent(id)}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    pdfUrl: (id: string, download = false) => `${API_BASE}/rfis/${encodeURIComponent(id)}/pdf${download ? '?download=1' : ''}`,
+    upload: (id: string, files: File[]) => requestForm<any>(`/rfis/${encodeURIComponent(id)}/attachments`, filesForm(files)),
+    link: (id: string, name: string, url: string) => request<any>(`/rfis/${encodeURIComponent(id)}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
+    removeAttachment: (id: string, attId: string) => request<any>(`/rfis/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attId)}`, { method: 'DELETE' }),
   },
   reminders: {
     /** Every digest, now (admin). */

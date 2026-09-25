@@ -75,12 +75,13 @@ function wantsDigest(user, today) {
     return true;
 }
 let RemindersService = class RemindersService {
-    constructor(projectTasks, tasks, users, projects, phases, settings, google) {
+    constructor(projectTasks, tasks, users, projects, phases, rfis, settings, google) {
         this.projectTasks = projectTasks;
         this.tasks = tasks;
         this.users = users;
         this.projects = projects;
         this.phases = phases;
+        this.rfis = rfis;
         this.settings = settings;
         this.google = google;
         this.log = new common_1.Logger('RemindersService');
@@ -123,7 +124,8 @@ let RemindersService = class RemindersService {
         const [boardTasks, logTasks, users, projects] = await Promise.all([
             this.projectTasks.find(), this.tasks.find(), this.users.find(), this.projects.find(),
         ]);
-        return { boardTasks, logTasks, users, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
+        const openRfis = await this.rfis.find({ where: { status: 'open' } }).catch(() => []);
+        return { boardTasks, logTasks, users, openRfis, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
     }
     tasksFor(user, data, base) {
         const following = (list) => Array.isArray(list) && list.some((c) => c?.id === user.id);
@@ -151,6 +153,15 @@ let RemindersService = class RemindersService {
                 id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
                 project: t.project || '', where: 'log', following: !mine,
                 url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
+            });
+        }
+        for (const r of data.openRfis) {
+            if (r.ownerId !== user.id || !r.dateDue)
+                continue;
+            out.push({
+                id: r.id, title: `${r.number}: ${r.subject} — awaiting answer${r.to?.name ? ` from ${r.to.name}` : ''}`, dueDate: r.dateDue,
+                project: data.projectName.get(Number(r.projectId)) || `Project ${r.projectId}`, where: 'rfi',
+                url: `${base}/rfis?rfi=${encodeURIComponent(r.id)}`,
             });
         }
         return out;
@@ -338,7 +349,9 @@ exports.RemindersService = RemindersService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __param(4, (0, typeorm_1.InjectRepository)(entities_1.ProjectPhaseEntity)),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.RfiEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
 import { api } from '../api';
@@ -778,6 +779,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
             {canManage && (
               <div style={{ padding: '0 22px 24px' }}>
+                <ConvertToRfiButton source={{ taskId: selected.id, type: 'board', projectId: selected.projectId, title: selected.title, description: selected.description }} />
                 <div onClick={() => deleteTask(selected.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
               </div>
             )}

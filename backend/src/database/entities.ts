@@ -1848,3 +1848,64 @@ export class CostForecastEntity extends FinanceStamped {
   @Column({ ...MONEY }) eac!: number;
   @Column({ ...TEXT, nullable: true }) note!: string;
 }
+
+/** A drawing / file in the File Room an RFI points at. */
+export interface RfiDrawingRef { fileId: string; name: string }
+/** Someone an RFI goes to or is copied to -- a People contact, a staff member, or just a name and email. */
+export interface RfiContact { name: string; email?: string; company?: string; personId?: number }
+export interface RfiEvent { at: string; by: string; action: string; note?: string }
+
+/**
+ * A Request for Information: a question to the architect / engineer / owner
+ * that needs a written answer before work can go on. Numbered per project
+ * (RFI-001), sent by email with a PDF copy, answered, then closed; cost or
+ * schedule impact can turn into a change order.
+ */
+@Entity('rfis')
+@Index('UQ_rfis_number', ['projectId', 'number'], { unique: true })
+@Index('IX_rfis_project', ['projectId'])
+export class RfiEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() number!: string;
+  @Column() subject!: string;
+  /** draft | open | answered | closed | void */
+  @Column() status!: string;
+  @Column({ nullable: true }) priority!: string;
+  @Column({ ...TEXT, nullable: true }) question!: string;
+  /** The contractor's proposed answer, if any -- speeds up the reply. */
+  @Column({ ...TEXT, nullable: true }) suggestion!: string;
+  @Column({ nullable: true }) discipline!: string;
+  @Column({ nullable: true }) specSection!: string;
+  /** Sheet / detail as written on the drawings, e.g. "A-201, detail 5". */
+  @Column({ nullable: true }) drawingRef!: string;
+  @Column({ type: 'simple-json', nullable: true }) drawings!: RfiDrawingRef[] | null;
+  @Column({ type: 'simple-json', nullable: true }) to!: RfiContact | null;
+  @Column({ type: 'simple-json', nullable: true }) cc!: RfiContact[] | null;
+  /** Staff member who owns it internally (chases the answer, closes it). */
+  @Column({ nullable: true }) ownerId!: string;
+  @Column({ nullable: true }) ownerName!: string;
+  @Column({ nullable: true }) dateSent!: string;
+  @Column({ nullable: true }) dateDue!: string;
+  @Column({ nullable: true }) dateAnswered!: string;
+  @Column({ nullable: true }) dateClosed!: string;
+  @Column({ ...TEXT, nullable: true }) answer!: string;
+  @Column({ nullable: true }) answeredBy!: string;
+  /** none | yes | tbd */
+  @Column({ nullable: true }) costImpact!: string;
+  @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true, transformer: { to: (v: any) => v, from: (v: any) => (v == null ? null : Number(v)) } }) costAmount!: number | null;
+  @Column({ nullable: true }) scheduleImpact!: string;
+  @Column('int', { nullable: true }) scheduleDays!: number | null;
+  @Column({ nullable: true }) changeOrderId!: string;
+  @Column({ nullable: true }) changeOrderNumber!: string;
+  /** The task it was converted from, if any. */
+  @Column({ nullable: true }) sourceTaskId!: string;
+  @Column({ nullable: true }) sourceTaskType!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: TaskAttachment[] | null;
+  @Column({ type: 'simple-json', nullable: true }) history!: RfiEvent[] | null;
+  @Column({ ...TEXT, nullable: true }) voidReason!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  @Column({ nullable: true }) updatedBy!: string;
+}

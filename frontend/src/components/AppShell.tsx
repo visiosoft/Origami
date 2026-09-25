@@ -15,7 +15,7 @@ const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
  * TEMPORARY — modules considered ready to test, shown green in the sidebar.
  * Remove this set and the `ready` class below once everything has landed.
  */
-const READY_FOR_TESTING = new Set(['pipeline', 'projects', 'people', 'tasks', 'planroom', 'design', 'pm', 'prequal', 'changeorders', 'reimbursement', 'manpower_con', 'fin_project']);
+const READY_FOR_TESTING = new Set(['pipeline', 'projects', 'people', 'tasks', 'planroom', 'design', 'pm', 'prequal', 'changeorders', 'reimbursement', 'manpower_con', 'fin_project', 'rfis']);
 
 const initialsOf = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';

@@ -4,7 +4,7 @@ export interface ReminderTask {
     title: string;
     dueDate: string;
     project: string;
-    where: 'board' | 'log';
+    where: 'board' | 'log' | 'rfi';
     following?: boolean;
     url?: string;
 }

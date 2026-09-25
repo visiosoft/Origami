@@ -21,6 +21,7 @@ import { SettingsModule } from './settings/settings.module';
 import { GoogleModule } from './google/google.module';
 import { AuthModule } from './auth/auth.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { RfisModule } from './rfis/rfis.module';
 import { FileRoomModule } from './file-room/file-room.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SmsModule } from './sms/sms.module';
@@ -63,6 +64,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     GoogleModule,
     AuthModule,
     RemindersModule,
+    RfisModule,
     FileRoomModule,
     ProjectsModule,
     ProjectProgramModule,

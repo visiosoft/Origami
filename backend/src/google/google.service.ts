@@ -227,6 +227,8 @@ export class GoogleService {
   /** Send an HTML email through Gmail as the connected workspace account. */
   async sendMail(opts: {
     to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string;
+    /** Where replies go, when not the sending account (e.g. the RFI's owner). */
+    replyTo?: string;
     attachments?: Array<{ filename: string; mimeType: string; content: Buffer }>;
   }) {
     const token = await this.workspaceToken();
@@ -681,7 +683,7 @@ const CRLF = String.fromCharCode(13, 10);
 
 /** RFC-2822 message, base64url encoded the way the Gmail API wants it. */
 function buildMime(opts: {
-  from: string; to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string;
+  from: string; to: string; subject: string; html: string; text?: string; cc?: string; bcc?: string; replyTo?: string;
   attachments?: Array<{ filename: string; mimeType: string; content: Buffer }>;
 }) {
   const alt = 'alt_' + Math.random().toString(36).slice(2);
@@ -693,6 +695,7 @@ function buildMime(opts: {
     `To: ${opts.to}`,
     opts.cc ? `Cc: ${opts.cc}` : '',
     opts.bcc ? `Bcc: ${opts.bcc}` : '',
+    opts.replyTo ? `Reply-To: ${opts.replyTo}` : '',
     `Subject: =?UTF-8?B?${Buffer.from(opts.subject, 'utf8').toString('base64')}?=`,
     'MIME-Version: 1.0',
     files.length

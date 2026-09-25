@@ -59,6 +59,7 @@ export declare class GoogleService {
         text?: string;
         cc?: string;
         bcc?: string;
+        replyTo?: string;
         attachments?: Array<{
             filename: string;
             mimeType: string;

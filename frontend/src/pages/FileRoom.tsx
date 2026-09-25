@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
@@ -62,9 +63,17 @@ export function FileRoom() {
   const [syncing, setSyncing] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
+  // /planroom?file=<id> (e.g. a drawing linked from an RFI) opens that file in its folder.
+  const [params] = useSearchParams();
+  const linkedFile = params.get('file');
   const load = () => {
     api.fileRoom.list()
-      .then((d) => setData({ ...EMPTY, ...(d as FileRoomData) }))
+      .then((d) => {
+        const next = { ...EMPTY, ...(d as FileRoomData) };
+        setData(next);
+        const hit = linkedFile ? next.files.find((f) => f.id === linkedFile) : null;
+        if (hit && !selectedFileId) { setPath([String(hit.projectId), ...(hit.folderPath || [])]); setSelectedFileId(hit.id); }
+      })
       .catch(() => { })
       .finally(() => setLoading(false));
   };

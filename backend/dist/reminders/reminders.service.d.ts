@@ -1,6 +1,6 @@
 import { OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity } from '../database/entities';
+import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity, RfiEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { type ReminderBuckets, type ReminderTask } from './reminder.templates';
@@ -15,11 +15,12 @@ export declare class RemindersService implements OnApplicationBootstrap, OnModul
     private readonly users;
     private readonly projects;
     private readonly phases;
+    private readonly rfis;
     private readonly settings;
     private readonly google;
     private readonly log;
     private timer;
-    constructor(projectTasks: Repository<ProjectTaskEntity>, tasks: Repository<TaskEntity>, users: Repository<UserEntity>, projects: Repository<ProjectEntity>, phases: Repository<ProjectPhaseEntity>, settings: SettingsService, google: GoogleService);
+    constructor(projectTasks: Repository<ProjectTaskEntity>, tasks: Repository<TaskEntity>, users: Repository<UserEntity>, projects: Repository<ProjectEntity>, phases: Repository<ProjectPhaseEntity>, rfis: Repository<RfiEntity>, settings: SettingsService, google: GoogleService);
     onApplicationBootstrap(): void;
     onModuleDestroy(): void;
     tick(): Promise<void>;

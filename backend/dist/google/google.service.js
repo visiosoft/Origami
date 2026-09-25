@@ -565,6 +565,7 @@ function buildMime(opts) {
         `To: ${opts.to}`,
         opts.cc ? `Cc: ${opts.cc}` : '',
         opts.bcc ? `Bcc: ${opts.bcc}` : '',
+        opts.replyTo ? `Reply-To: ${opts.replyTo}` : '',
         `Subject: =?UTF-8?B?${Buffer.from(opts.subject, 'utf8').toString('base64')}?=`,
         'MIME-Version: 1.0',
         files.length

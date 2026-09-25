@@ -1353,4 +1353,59 @@ export declare class CostForecastEntity extends FinanceStamped {
     eac: number;
     note: string;
 }
+export interface RfiDrawingRef {
+    fileId: string;
+    name: string;
+}
+export interface RfiContact {
+    name: string;
+    email?: string;
+    company?: string;
+    personId?: number;
+}
+export interface RfiEvent {
+    at: string;
+    by: string;
+    action: string;
+    note?: string;
+}
+export declare class RfiEntity {
+    id: string;
+    projectId: number;
+    number: string;
+    subject: string;
+    status: string;
+    priority: string;
+    question: string;
+    suggestion: string;
+    discipline: string;
+    specSection: string;
+    drawingRef: string;
+    drawings: RfiDrawingRef[] | null;
+    to: RfiContact | null;
+    cc: RfiContact[] | null;
+    ownerId: string;
+    ownerName: string;
+    dateSent: string;
+    dateDue: string;
+    dateAnswered: string;
+    dateClosed: string;
+    answer: string;
+    answeredBy: string;
+    costImpact: string;
+    costAmount: number | null;
+    scheduleImpact: string;
+    scheduleDays: number | null;
+    changeOrderId: string;
+    changeOrderNumber: string;
+    sourceTaskId: string;
+    sourceTaskType: string;
+    attachments: TaskAttachment[] | null;
+    history: RfiEvent[] | null;
+    voidReason: string;
+    createdAt: string;
+    createdBy: string;
+    updatedAt: string;
+    updatedBy: string;
+}
 export {};

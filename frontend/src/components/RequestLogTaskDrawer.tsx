@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -247,6 +248,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 
         {canManage && (
           <div style={{ padding: '0 28px 26px' }}>
+            {t.status !== 'Closed' && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: taskHeadline(t.description).title, description: t.description }} />}
             <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
           </div>
         )}

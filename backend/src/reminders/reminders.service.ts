@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity } from '../database/entities';
+import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity, RfiEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { reminderEmail, overdueEmail, progressEmail, overstretchEmail, type ReminderBuckets, type ReminderTask } from './reminder.templates';
@@ -73,6 +73,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     @InjectRepository(ProjectPhaseEntity) private readonly phases: Repository<ProjectPhaseEntity>,
+    @InjectRepository(RfiEntity) private readonly rfis: Repository<RfiEntity>,
     private readonly settings: SettingsService,
     private readonly google: GoogleService,
   ) {}
@@ -135,7 +136,9 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     const [boardTasks, logTasks, users, projects] = await Promise.all([
       this.projectTasks.find(), this.tasks.find(), this.users.find(), this.projects.find(),
     ]);
-    return { boardTasks, logTasks, users, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
+    // RFIs still waiting on an answer -- the owner chases them.
+    const openRfis = await this.rfis.find({ where: { status: 'open' } }).catch(() => [] as RfiEntity[]);
+    return { boardTasks, logTasks, users, openRfis, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
   }
 
   /**
@@ -165,6 +168,14 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
         id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
         project: t.project || '', where: 'log', following: !mine,
         url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
+      });
+    }
+    for (const r of data.openRfis) {
+      if (r.ownerId !== user.id || !r.dateDue) continue;
+      out.push({
+        id: r.id, title: `${r.number}: ${r.subject} — awaiting answer${r.to?.name ? ` from ${r.to.name}` : ''}`, dueDate: r.dateDue,
+        project: data.projectName.get(Number(r.projectId)) || `Project ${r.projectId}`, where: 'rfi',
+        url: `${base}/rfis?rfi=${encodeURIComponent(r.id)}`,
       });
     }
     return out;

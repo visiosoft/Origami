@@ -5,7 +5,7 @@ export interface ReminderTask {
   title: string;
   dueDate: string;
   project: string;
-  where: 'board' | 'log';
+  where: 'board' | 'log' | 'rfi';
   /** A collaborator's copy -- someone else owns it. */
   following?: boolean;
   /** Straight to the task. */

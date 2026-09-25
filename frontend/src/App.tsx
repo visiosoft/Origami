@@ -1,6 +1,7 @@
 import { MyTimesheet } from './pages/MyTimesheet';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { RfisPage } from './pages/Rfis';
 import { AppShell } from './components/AppShell';
 import { DashboardRouter } from './pages/DashboardRouter';
 import { Pipeline } from './pages/Pipeline';
@@ -99,6 +100,7 @@ export default function App() {
         <Route path="/fin_project" element={<FinanceHome />} />
         <Route path="/changeorders" element={<FinanceHome initial="changes" />} />
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />
+        <Route path="/rfis" element={<RfisPage />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>
