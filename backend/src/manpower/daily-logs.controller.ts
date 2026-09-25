@@ -2,6 +2,7 @@ import { Body, Controller, Get, Headers, Param, Post, Put, Query } from '@nestjs
 import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { DailyLogsService } from './daily-logs.service';
+import { DailyLogBackupService } from './daily-log-backup.service';
 import { SaveDailyLogDto, RejectDailyLogDto } from './dto/daily-log.dto';
 
 @Tiers('internal')
@@ -10,6 +11,7 @@ export class DailyLogsController {
   constructor(
     private readonly service: DailyLogsService,
     private readonly auth: AuthService,
+    private readonly backup: DailyLogBackupService,
   ) {}
 
   @Get()
@@ -29,7 +31,17 @@ export class DailyLogsController {
 
   @Post(':id/submit')
   async submit(@Param('id') id: string, @Headers('authorization') auth?: string) {
-    return this.service.submit(id, await this.auth.actor(auth));
+    const log = await this.service.submit(id, await this.auth.actor(auth));
+    // The day goes out by email (PDF + Excel) as a backup -- never holding up the submit.
+    this.backup.afterSubmit(log.id);
+    return log;
+  }
+
+  /** "Email a copy": the same backup, on demand, to the usual list or to given addresses. */
+  @Post(':id/email')
+  email(@Param('id') id: string, @Body() body: { to?: string }) {
+    const to = String(body?.to || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+    return this.backup.send(id, to.length ? to : undefined);
   }
 
   @Post(':id/approve')

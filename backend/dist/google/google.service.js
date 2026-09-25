@@ -411,6 +411,36 @@ let GoogleService = class GoogleService {
             await this.trashDriveFile(doc.id).catch(() => undefined);
         }
     }
+    async csvToXlsx(csv, name = 'sheet') {
+        const token = await this.workspaceToken();
+        const boundary = 'origami_xlsx_' + Math.random().toString(36).slice(2);
+        const metadata = { name, mimeType: 'application/vnd.google-apps.spreadsheet' };
+        const body = Buffer.concat([
+            Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+            Buffer.from(`--${boundary}\r\nContent-Type: text/csv; charset=UTF-8\r\n\r\n`, 'utf8'),
+            Buffer.from(csv, 'utf8'),
+            Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+        ]);
+        const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body: body,
+        });
+        const sheet = await created.json().catch(() => ({}));
+        if (!created.ok || !sheet?.id)
+            throw new common_1.BadRequestException(sheet?.error?.message || 'Could not build the spreadsheet.');
+        try {
+            const res = await fetch(`${DRIVE_FILES_URL}/${sheet.id}/export?mimeType=${encodeURIComponent('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok)
+                throw new common_1.BadRequestException('Drive could not export the spreadsheet.');
+            return Buffer.from(await res.arrayBuffer());
+        }
+        finally {
+            await this.trashDriveFile(sheet.id).catch(() => undefined);
+        }
+    }
     async setPageOrientation(docId, landscape) {
         const token = await this.workspaceToken();
         const res = await fetch(`${DOCS_URL}/${encodeURIComponent(docId)}:batchUpdate`, {

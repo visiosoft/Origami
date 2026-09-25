@@ -521,6 +521,38 @@ export class GoogleService {
   }
 
   /**
+   * Turn CSV into a real Excel file (.xlsx), the same way as the PDF: Drive
+   * imports it as a Google Sheet, exports it as xlsx, and the Sheet is trashed.
+   */
+  async csvToXlsx(csv: string, name = 'sheet'): Promise<Buffer> {
+    const token = await this.workspaceToken();
+    const boundary = 'origami_xlsx_' + Math.random().toString(36).slice(2);
+    const metadata = { name, mimeType: 'application/vnd.google-apps.spreadsheet' };
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+      Buffer.from(`--${boundary}\r\nContent-Type: text/csv; charset=UTF-8\r\n\r\n`, 'utf8'),
+      Buffer.from(csv, 'utf8'),
+      Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+    ]);
+    const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
+    const sheet: any = await created.json().catch(() => ({}));
+    if (!created.ok || !sheet?.id) throw new BadRequestException(sheet?.error?.message || 'Could not build the spreadsheet.');
+    try {
+      const res = await fetch(`${DRIVE_FILES_URL}/${sheet.id}/export?mimeType=${encodeURIComponent('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new BadRequestException('Drive could not export the spreadsheet.');
+      return Buffer.from(await res.arrayBuffer());
+    } finally {
+      await this.trashDriveFile(sheet.id).catch(() => undefined);
+    }
+  }
+
+  /**
    * Landscape, by swapping the page's width and height. US Letter is
    * 612x792pt portrait; this makes it 792x612. Margins are left as Docs'
    * defaults -- the document's own tables are already width="100%", so they

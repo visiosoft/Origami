@@ -230,6 +230,15 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
   const [projectId, setProjectId] = useState<number | ''>('');
   const [date, setDate] = useState(todayISO());
   const [log, setLog] = useState<DailyLog | null>(null);
+  const [emailing, setEmailing] = useState(false);
+  /** The same backup that goes out on submit (PDF + Excel), sent again on request. */
+  const emailCopy = async () => {
+    if (!log?.id) return;
+    setEmailing(true);
+    try { const r = await api.dailyLogs.email(log.id); toast(`Emailed to ${r.to.join(', ')}`); }
+    catch (e: any) { toast('⚠ ' + (e.message || 'Could not email the log')); }
+    finally { setEmailing(false); }
+  };
   const [entries, setEntries] = useState<LaborEntry[]>([]);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -292,6 +301,9 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={input} />
         {log && <StatusBadge status={log.status} />}
         {log?.rejectionNote && <span style={{ fontSize: 11.5, color: '#8E2E0A' }}>Rejected: {log.rejectionNote}</span>}
+        {log?.id && log.status !== 'draft' && (
+          <span onClick={emailing ? undefined : emailCopy} style={{ marginLeft: runsSite ? 0 : 'auto', fontSize: 12.5, fontWeight: 700, color: ACCENT, cursor: 'pointer', order: 2 }}>{emailing ? 'Sending…' : 'Email a copy (PDF + Excel)'}</span>
+        )}
         {runsSite && <a href="/daily-log" style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 700, color: ACCENT }}>Phone / tablet view →</a>}
       </div>
 

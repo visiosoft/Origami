@@ -15,6 +15,8 @@ export const PUBLIC_KEYS = [
   // A banner every signed-in page shows while it's on ("Updates 3-4 pm -- please save your work").
   'app.notice',
   'app.noticeActive',
+  // Who receives each submitted daily log (PDF + Excel), comma-separated; blank = the administrators.
+  'dailyLogs.backupEmails',
   'google.senderEmail',
   'google.allowSignup',
   'google.hostedDomain',

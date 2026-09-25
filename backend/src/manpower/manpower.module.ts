@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DailyLogBackupService } from './daily-log-backup.service';
 import { PeopleModule } from '../people/people.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -74,7 +75,7 @@ import { SampleDataController } from './sample-data.controller';
     PayrollController, OvertimeController, AdvancesController,
     LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController, WeeklyTimesheetsController,
   ],
-  providers: [
+  providers: [DailyLogBackupService, 
     ManpowerAccess, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
     SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,

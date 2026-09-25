@@ -17,11 +17,13 @@ const common_1 = require("@nestjs/common");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const auth_service_1 = require("../auth/auth.service");
 const daily_logs_service_1 = require("./daily-logs.service");
+const daily_log_backup_service_1 = require("./daily-log-backup.service");
 const daily_log_dto_1 = require("./dto/daily-log.dto");
 let DailyLogsController = class DailyLogsController {
-    constructor(service, auth) {
+    constructor(service, auth, backup) {
         this.service = service;
         this.auth = auth;
+        this.backup = backup;
     }
     findAll(status, projectId) {
         return this.service.findAllLogs({ status, projectId: projectId != null ? Number(projectId) : undefined });
@@ -33,7 +35,13 @@ let DailyLogsController = class DailyLogsController {
         return this.service.save(dto, await this.auth.actor(auth));
     }
     async submit(id, auth) {
-        return this.service.submit(id, await this.auth.actor(auth));
+        const log = await this.service.submit(id, await this.auth.actor(auth));
+        this.backup.afterSubmit(log.id);
+        return log;
+    }
+    email(id, body) {
+        const to = String(body?.to || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+        return this.backup.send(id, to.length ? to : undefined);
     }
     async approve(id, auth) {
         return this.service.approve(id, await this.auth.actor(auth));
@@ -76,6 +84,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], DailyLogsController.prototype, "submit", null);
 __decorate([
+    (0, common_1.Post)(':id/email'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], DailyLogsController.prototype, "email", null);
+__decorate([
     (0, common_1.Post)(':id/approve'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Headers)('authorization')),
@@ -96,6 +112,7 @@ exports.DailyLogsController = DailyLogsController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('daily-logs'),
     __metadata("design:paramtypes", [daily_logs_service_1.DailyLogsService,
-        auth_service_1.AuthService])
+        auth_service_1.AuthService,
+        daily_log_backup_service_1.DailyLogBackupService])
 ], DailyLogsController);
 //# sourceMappingURL=daily-logs.controller.js.map

@@ -25,6 +25,7 @@ exports.PUBLIC_KEYS = [
     'app.baseUrl',
     'app.notice',
     'app.noticeActive',
+    'dailyLogs.backupEmails',
     'google.senderEmail',
     'google.allowSignup',
     'google.hostedDomain',

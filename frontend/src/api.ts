@@ -778,6 +778,8 @@ export const api = {
     submit: (id: string) => request(`/daily-logs/${id}/submit`, { method: 'POST' }),
     approve: (id: string) => request(`/daily-logs/${id}/approve`, { method: 'POST' }),
     reject: (id: string, note?: string) => request(`/daily-logs/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    /** Email the day as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
+    email: (id: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>(`/daily-logs/${id}/email`, { method: 'POST', body: JSON.stringify({ to }) }),
   },
   timesheets: {
     /** Hours supervisors logged on daily logs for someone -- a reference, not a timesheet. */

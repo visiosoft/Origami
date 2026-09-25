@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ManpowerModule = void 0;
 const common_1 = require("@nestjs/common");
+const daily_log_backup_service_1 = require("./daily-log-backup.service");
 const people_module_1 = require("../people/people.module");
 const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
@@ -79,7 +80,7 @@ exports.ManpowerModule = ManpowerModule = __decorate([
             payroll_controller_1.PayrollController, overtime_controller_1.OvertimeController, advances_controller_1.AdvancesController,
             leave_controller_1.LeaveController, shifts_controller_1.ShiftsController, assets_controller_1.AssetsController, accommodation_controller_1.AccommodationController, transport_controller_1.TransportController, sample_data_controller_1.SampleDataController, weekly_timesheets_controller_1.WeeklyTimesheetsController,
         ],
-        providers: [
+        providers: [daily_log_backup_service_1.DailyLogBackupService,
             manpower_access_service_1.ManpowerAccess, employees_service_1.EmployeesService, csi_codes_service_1.CsiCodesService, daily_logs_service_1.DailyLogsService, timesheets_service_1.TimesheetsService,
             subcontractor_trades_service_1.SubcontractorTradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService,
             payroll_setup_service_1.PayrollSetupService, payroll_service_1.PayrollService, overtime_service_1.OvertimeService, advances_service_1.AdvancesService,

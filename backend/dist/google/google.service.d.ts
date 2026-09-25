@@ -94,6 +94,7 @@ export declare class GoogleService {
         header?: string;
         footer?: string;
     }, landscape?: boolean): Promise<Buffer>;
+    csvToXlsx(csv: string, name?: string): Promise<Buffer>;
     private setPageOrientation;
     private setRunningHeadFoot;
     trashDriveFile(id: string): Promise<void>;

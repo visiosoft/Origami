@@ -150,7 +150,7 @@ function FieldDailyLogInner() {
       if (!ok || !logIdRef.current) throw new Error(auto.error || 'Could not save the log');
       const r: any = await api.dailyLogs.submit(logIdRef.current);
       setLog(r);
-      toast('Submitted for approval');
+      toast('Submitted — the office gets a PDF + Excel copy by email');
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not submit')); }
     finally { setSubmitting(false); }
   };
