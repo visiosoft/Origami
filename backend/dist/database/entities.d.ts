@@ -25,6 +25,19 @@ export declare class ProjectEntity {
     templateKey: string;
     website: string;
     programOff: boolean;
+    holdSince: string;
+    holdUntil: string;
+    holdReason: string;
+    holdBy: string;
+    holdTaskId: string;
+    holdHistory: {
+        action: 'hold' | 'changed' | 'resumed';
+        at: string;
+        by: string;
+        until?: string;
+        reason?: string;
+        followUp?: string;
+    }[] | null;
 }
 export declare class PersonEntity {
     id: number;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { HoldBadge } from '../components/ProjectHold';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { api } from '../api';
@@ -36,6 +37,7 @@ interface Project {
   id: number; name: string; location: string; contractAmt: string; contractType: string;
   priority: string; typeOfWork: string; estStart: string; duration: string; scope: string;
   referral: string; designPhase?: string;
+  holdSince?: string; holdUntil?: string; holdReason?: string;
 }
 
 /**
@@ -293,6 +295,7 @@ export function DesignProject() {
         <BackLink onClick={() => navigate(board)} label={board === '/pm' ? 'Construction' : 'Design & Preconstruction'} />
 
         <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
+        {project.holdSince && <div style={{ marginTop: 6 }}><HoldBadge project={project} size="md" /></div>}
         {(project.location || project.contractAmt) ? (
           <p style={{ margin: '6px 0 18px', fontSize: 14, color: INK3 }}>
             {[project.location, project.contractAmt].filter(Boolean).join(' · ')}

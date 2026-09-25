@@ -39,6 +39,9 @@ export declare class PhasesController {
         projectProgress: number;
         templateCategory: import("../seed-data/programme-template").TemplateCategory;
         designPhase: string | null;
+        holdSince: string;
+        holdUntil: string;
+        holdReason: string;
         currentPhaseKey: string;
         phases: {
             id: string;

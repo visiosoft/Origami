@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
 import { CollaboratorPicker } from '../components/CollaboratorPicker';
 import { DraftScope, SaveBar, mergeSaved, useAutosave } from '../autosave';
@@ -26,7 +27,7 @@ const PRIORITIES = ['High', 'Medium', 'Low'];
 const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
 const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
 
-interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string }
+interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string }
 interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
@@ -87,13 +88,17 @@ export function Projects() {
     if (filters.contractType && p.contractType !== filters.contractType) return false;
     if (filters.typeOfWork && p.typeOfWork !== filters.typeOfWork) return false;
     if (filters.contactedBy && p.contactedBy !== filters.contactedBy) return false;
+    if (filters.hold === 'active' && isOnHold(p)) return false;
+    if (filters.hold === 'hold' && !isOnHold(p)) return false;
     const q = filters.q.trim().toLowerCase();
     if (q && !p.name.toLowerCase().includes(q) && !p.location.toLowerCase().includes(q)) return false;
     return true;
   };
   const distinctValues = (key: 'priority' | 'contractType' | 'typeOfWork' | 'contactedBy') =>
     Array.from(new Set(projects.map((p) => p[key]).filter(Boolean))).sort();
-  const filtersActive = JSON.stringify(filters) !== JSON.stringify(BLANK_FILTERS);
+  const filtersActive = JSON.stringify({ ...filters, hold: filters.hold || undefined }) !== JSON.stringify(BLANK_FILTERS);
+  // Which project's hold form is open (drawer).
+  const [holdFormFor, setHoldFormFor] = useState<number | null>(null);
 
   const setFilter = (key: keyof ProjectFilters, value: string) => { setFilters((f) => ({ ...f, [key]: value })); setActiveView(''); };
   const clearFilters = () => { setFilters(BLANK_FILTERS); setActiveView(''); };
@@ -445,9 +450,10 @@ export function Projects() {
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(p.id)); e.dataTransfer.effectAllowed = 'move'; setDragId(p.id); }}
       onDragEnd={() => { setDragId(null); setDragOver(null); }}
       onClick={() => openProject(p.id)}
-      style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.id ? 0.4 : 1 }}
+      style={{ background: 'white', borderRadius: 12, border: '1px solid ' + (isOnHold(p) ? 'rgba(147,82,15,0.35)' : 'rgba(20,8,31,0.06)'), overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.id ? 0.4 : 1 }}
     >
-      <div style={{ height: 80, background: `linear-gradient(135deg, ${p.imgColor}, ${p.imgColor}cc)`, position: 'relative' }}>
+      <div style={{ height: 80, background: `linear-gradient(135deg, ${p.imgColor}, ${p.imgColor}cc)`, position: 'relative', filter: isOnHold(p) ? 'saturate(0.35)' : undefined }}>
+        {isOnHold(p) && <span style={{ position: 'absolute', top: 8, left: 8 }}><HoldBadge project={p} /></span>}
         <span style={{ position: 'absolute', top: 8, right: 8, padding: '2px 8px', borderRadius: 6, fontSize: 9, fontWeight: 700, background: 'rgba(255,255,255,0.9)', color: PR_COLORS[p.priority].c, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{p.priority}</span>
         <span style={{ position: 'absolute', bottom: 8, left: 8, padding: '2px 8px', borderRadius: 6, fontSize: 9, fontWeight: 700, background: 'rgba(0,0,0,0.5)', color: 'white' }}>{p.contractType}</span>
       </div>
@@ -513,6 +519,11 @@ export function Projects() {
           <option value="">Anyone responsible</option>
           {distinctValues('contactedBy').map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
+        <select value={filters.hold || ''} onChange={(e) => setFilter('hold', e.target.value)} style={{ ...inputStyle, width: 150, background: 'white' }}>
+          <option value="">Active and on hold</option>
+          <option value="active">Active only</option>
+          <option value="hold">On hold ({projects.filter(isOnHold).length})</option>
+        </select>
         {filtersActive && <div onClick={clearFilters} style={{ fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear</div>}
         <div style={{ flex: 1 }} />
         {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)', whiteSpace: 'nowrap' }}>+ New Project</div>}
@@ -577,6 +588,13 @@ export function Projects() {
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(0,0,0,0.45)', color: 'white' }}>{sel.stage}</span>
                 <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(255,255,255,0.92)', color: PR_COLORS[sel.priority].c }}>{sel.priority}</span>
+                <HoldBadge project={sel} size="md" />
+                {canManage && !isOnHold(sel) && holdFormFor !== sel.id && (
+                  <span onClick={() => setHoldFormFor(sel.id)} title="Park this project and set a follow-up task" style={{ marginLeft: 'auto', marginRight: 36, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(255,255,255,0.2)', color: 'white', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.45)' }}>
+                    <svg width={9} height={9} viewBox="0 0 24 24" fill="currentColor"><rect x={6} y={4} width={4} height={16} rx={1} /><rect x={14} y={4} width={4} height={16} rx={1} /></svg>
+                    Put on hold
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0 }}>
@@ -591,6 +609,15 @@ export function Projects() {
                 <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
               </div>
             </div>
+
+            <ProjectHoldPanel
+              project={sel}
+              open={holdFormFor === sel.id}
+              canManage={canManage}
+              onOpen={() => setHoldFormFor(sel.id)}
+              onClose={() => setHoldFormFor(null)}
+              onSaved={(u) => setProjects((prev) => prev.map((x) => (x.id === u.id ? { ...x, ...u } as Project : x)))}
+            />
 
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px', flexShrink: 0 }}>

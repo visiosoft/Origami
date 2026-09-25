@@ -74,7 +74,12 @@ let ProjectsService = class ProjectsService {
         });
     }
     async update(id, dto) {
-        await this.repo.update({ id: Number(id) }, dto);
+        const patch = { ...(dto || {}) };
+        for (const k of ['holdSince', 'holdUntil', 'holdReason', 'holdBy', 'holdTaskId', 'holdHistory'])
+            delete patch[k];
+        if (!Object.keys(patch).length)
+            return this.findOne(id);
+        await this.repo.update({ id: Number(id) }, patch);
         return this.findOne(id);
     }
     async remove(id) {

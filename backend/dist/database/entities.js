@@ -116,6 +116,30 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true, default: false }),
     __metadata("design:type", Boolean)
 ], ProjectEntity.prototype, "programOff", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "holdSince", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "holdUntil", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "holdReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "holdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "holdTaskId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "holdHistory", void 0);
 exports.ProjectEntity = ProjectEntity = __decorate([
     (0, typeorm_1.Entity)('projects')
 ], ProjectEntity);

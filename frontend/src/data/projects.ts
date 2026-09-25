@@ -30,6 +30,13 @@ export interface Project {
   templateKey?: string;
   /** Rolls over from the originating lead at conversion. */
   website?: string;
+  /** On hold (without leaving its stage) since this ISO time; empty = active. */
+  holdSince?: string;
+  /** YYYY-MM-DD the follow-up task is due. */
+  holdUntil?: string;
+  holdReason?: string;
+  holdBy?: string;
+  holdTaskId?: string;
 }
 
 export const PROJECTS: Project[] = [

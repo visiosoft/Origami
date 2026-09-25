@@ -44,6 +44,15 @@ export class ProjectEntity {
   @Column({ nullable: true }) website!: string; // rolls over from the originating lead at conversion
   /** True when the project doesn't use the Project Program workbook (outsourced, software, small jobs); its answers are kept. */
   @Column({ nullable: true, default: false }) programOff!: boolean;
+  // On hold: parked without leaving its stage, with a follow-up task (holdTaskId)
+  // for whoever picks it back up on holdUntil. Empty holdSince = active.
+  @Column({ nullable: true }) holdSince!: string;
+  @Column({ nullable: true }) holdUntil!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) holdReason!: string;
+  @Column({ nullable: true }) holdBy!: string;
+  @Column({ nullable: true }) holdTaskId!: string;
+  /** Every hold, change and resume, oldest first. */
+  @Column({ type: 'simple-json', nullable: true }) holdHistory!: { action: 'hold' | 'changed' | 'resumed'; at: string; by: string; until?: string; reason?: string; followUp?: string }[] | null;
 }
 
 @Entity('people')

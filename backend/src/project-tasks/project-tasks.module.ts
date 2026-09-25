@@ -9,12 +9,14 @@ import { PhasesController } from './phases.controller';
 import { ProjectTasksService } from './project-tasks.service';
 import { SectionsService } from './sections.service';
 import { PhasesService } from './phases.service';
+import { ProjectHoldService } from './project-hold.service';
+import { ProjectHoldController } from './project-hold.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity]), GoogleModule, AuthModule],
-  controllers: [ProjectTasksController, SectionsController, PhasesController],
-  providers: [ProjectTasksService, SectionsService, PhasesService],
+  controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController],
+  providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService],
 })
 export class ProjectTasksModule {}

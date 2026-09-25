@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { HoldBadge } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -33,6 +34,9 @@ interface DesignProject {
   /** Which section of the Programme Template library the project's template is filed under. */
   templateCategory?: 'design' | 'construction';
   designPhase?: string;
+  holdSince?: string;
+  holdUntil?: string;
+  holdReason?: string;
   currentPhaseKey: string | null;
   phases: PhaseProgress[];
   taskTotal: number;
@@ -292,6 +296,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                         </div>
 
                         <div style={{ padding: 12 }}>
+                          {p.holdSince && <div style={{ marginBottom: 5 }}><HoldBadge project={{ ...p, id: p.projectId }} /></div>}
                           <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, color: '#0B1A12' }}>{p.name}</div>
                           {p.location && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#7E9B93', marginBottom: 7, minWidth: 0 }}>

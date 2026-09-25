@@ -18,6 +18,8 @@ const phases_controller_1 = require("./phases.controller");
 const project_tasks_service_1 = require("./project-tasks.service");
 const sections_service_1 = require("./sections.service");
 const phases_service_1 = require("./phases.service");
+const project_hold_service_1 = require("./project-hold.service");
+const project_hold_controller_1 = require("./project-hold.controller");
 const notifications_module_1 = require("../notifications/notifications.module");
 const settings_module_1 = require("../settings/settings.module");
 let ProjectTasksModule = class ProjectTasksModule {
@@ -26,8 +28,8 @@ exports.ProjectTasksModule = ProjectTasksModule;
 exports.ProjectTasksModule = ProjectTasksModule = __decorate([
     (0, common_1.Module)({
         imports: [settings_module_1.SettingsModule, notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.ProjectPhaseEntity, entities_1.ProjectEntity, entities_1.UserEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
-        controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController, phases_controller_1.PhasesController],
-        providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService, phases_service_1.PhasesService],
+        controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController, phases_controller_1.PhasesController, project_hold_controller_1.ProjectHoldController],
+        providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService, phases_service_1.PhasesService, project_hold_service_1.ProjectHoldService],
     })
 ], ProjectTasksModule);
 //# sourceMappingURL=project-tasks.module.js.map

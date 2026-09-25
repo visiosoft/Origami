@@ -195,6 +195,11 @@ export const api = {
     create: (data: unknown) => request('/projects', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string | number) => request(`/projects/${id}`, { method: 'DELETE' }),
+    /** Put on hold (or change the hold): creates / moves the follow-up task. */
+    hold: (id: string | number, body: { until: string; reason?: string; followUpId?: string }) =>
+      request(`/projects/${id}/hold`, { method: 'POST', body: JSON.stringify(body) }),
+    /** Off hold; its follow-up task is marked done. */
+    resume: (id: string | number) => request(`/projects/${id}/resume`, { method: 'POST' }),
   },
   people: {
     list: (project?: string) => request(`/people${project ? `?project=${encodeURIComponent(project)}` : ''}`),

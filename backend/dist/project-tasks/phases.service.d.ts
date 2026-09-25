@@ -42,6 +42,9 @@ export declare class PhasesService implements OnApplicationBootstrap {
         projectProgress: number;
         templateCategory: TemplateCategory;
         designPhase: string | null;
+        holdSince: string;
+        holdUntil: string;
+        holdReason: string;
         currentPhaseKey: string;
         phases: {
             id: string;

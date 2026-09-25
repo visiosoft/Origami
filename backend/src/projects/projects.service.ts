@@ -73,7 +73,12 @@ export class ProjectsService implements OnApplicationBootstrap {
   }
 
   async update(id: string, dto: any) {
-    await this.repo.update({ id: Number(id) }, dto as Partial<ProjectEntity>);
+    // Hold is changed only through /projects/:id/hold and /resume (they keep the
+    // follow-up task in step) -- a save of a stale copy mustn't undo it.
+    const patch = { ...(dto || {}) };
+    for (const k of ['holdSince', 'holdUntil', 'holdReason', 'holdBy', 'holdTaskId', 'holdHistory']) delete patch[k];
+    if (!Object.keys(patch).length) return this.findOne(id);
+    await this.repo.update({ id: Number(id) }, patch as Partial<ProjectEntity>);
     return this.findOne(id);
   }
 
