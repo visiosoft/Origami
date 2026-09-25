@@ -46,6 +46,21 @@ const leadAddress = (ld?: { projectStreetAddress?: string; projectStreetName?: s
   const line1 = num && street && !num.toLowerCase().includes(street.toLowerCase()) ? `${num} ${street}` : num || street;
   return line1 ? [line1, ld?.projectAddress2, ld?.projectCity, ld?.projectZipCode].map(clean).filter(Boolean).join(', ') : '';
 };
+/** The project-address fields a "same as project" mailing address follows. */
+const PROJECT_ADDRESS_KEYS = ['projectStreetAddress', 'projectStreetName', 'projectAddress2', 'projectCity', 'projectZipCode', 'countyLocation'];
+/** The business mailing address as a copy of the project address. */
+const mailingFromProject = (l: { projectStreetAddress?: string; projectStreetName?: string; projectAddress2?: string; projectCity?: string; projectZipCode?: string; countyLocation?: string }): Address => {
+  const clean = (v?: string) => { const t = (v || '').trim(); return /^(n\/?a|none|-+|—)$/i.test(t) ? '' : t; };
+  return {
+    ...blankAddress(),
+    street: [clean(l.projectStreetAddress), clean(l.projectStreetName)].filter(Boolean).join(' '),
+    unit: clean(l.projectAddress2), city: clean(l.projectCity), state: 'CA', zip: clean(l.projectZipCode), county: clean(l.countyLocation),
+    sameAsProject: true,
+  };
+};
+/** The saved lead wins over what's in memory -- unless the in-memory copy was saved more recently. */
+const newerLead = <T extends { updatedAt?: string }>(server: T, local?: T): T =>
+  local?.updatedAt && server.updatedAt && local.updatedAt > server.updatedAt ? local : server;
 const DOT = '·';
 
 
@@ -400,7 +415,6 @@ export function Pipeline() {
   // Whether the mailing address is currently following the project address.
   // Not stored: checking it copies values once, unchecking lets them diverge,
   // and reopening a lead recomputes nothing -- it just shows what was saved.
-  const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<'overview' | 'notes' | 'client' | 'details' | 'roles' | 'contacts' | 'tasks' | 'files' | 'programming'>('overview');
@@ -559,7 +573,11 @@ export function Pipeline() {
         if (l.siteVisitAt) visits[l.id] = { when: l.siteVisitAt };
         if (l.fitSelections) fits[l.id] = l.fitSelections;
       }
-      setLeadDetails((prev) => ({ ...map, ...prev }));
+      setLeadDetails((prev) => {
+        const next = { ...prev };
+        for (const [id, rec] of Object.entries(map)) next[id] = newerLead(rec, prev[id]);
+        return next;
+      });
       // Snapshot as loaded, so a later save can name what changed.
       setLeadBaseline((prev) => ({ ...map, ...prev }));
       setMeetByDeal((prev) => ({ ...meets, ...prev }));
@@ -583,6 +601,10 @@ export function Pipeline() {
     // The single headline answer is derived, never typed.
     if (k === 'preferredContactMatrix') next.preferredContactMethod = primaryContactMethod(next.preferredContactMatrix);
     if (k === 'projectCity') { const c = countyForCity(String(v)); if (c) next.countyLocation = c; }
+    // A mailing address marked "same as project" follows the project address as it's edited.
+    if (next.addresses?.businessMailing?.sameAsProject && PROJECT_ADDRESS_KEYS.includes(k as string)) {
+      next.addresses = { ...next.addresses, businessMailing: mailingFromProject(next) };
+    }
     return next;
   });
   const toggleHomework = (v: string) => setField('homeworkCompleted', nl.homeworkCompleted.includes(v) ? nl.homeworkCompleted.filter((x) => x !== v) : [...nl.homeworkCompleted, v]);
@@ -599,8 +621,17 @@ export function Pipeline() {
     onRemoveField: (id: string) => setField('sectionCustomFields', { ...(nl.sectionCustomFields || {}), [key]: (nl.sectionCustomFields?.[key] || []).filter((f) => f.id !== id) }),
   });
 
-  const openEdit = (deal: Deal) => {
-    const existing = leadDetails[deal.id];
+  /** Edit Lead: fetch the lead fresh first, so the form never opens on a stale or partial copy (e.g. a blank address). */
+  const openEdit = async (deal: Deal) => {
+    let existing = leadDetails[deal.id];
+    try {
+      const fresh: any = await api.leads.get(deal.id);
+      if (fresh?.id) {
+        existing = newerLead({ ...BLANK_LEAD, ...fresh } as NewLead, existing);
+        const rec = existing;
+        setLeadDetails((p) => ({ ...p, [deal.id]: rec }));
+      }
+    } catch { /* not saved yet, or offline -- fall back to what's loaded */ }
     // A lead captured before the name was separated has no parts yet -- derive
     // them so the form is editable rather than blank.
     const rec: NewLead = existing
@@ -968,6 +999,15 @@ export function Pipeline() {
     if (detailTab === 'programming' && selected?.stage !== 'zoning') setDetailTab('details');
   }, [selected?.stage, detailTab]);
   const selectedStage = selected ? STAGES.find((st) => st.key === selected.stage) : null;
+  // Opening a lead re-reads its saved details, so the panel (e.g. the Site
+  // Visit address) never shows a stale or partial copy from page load.
+  useEffect(() => {
+    const id = selected?.id;
+    if (!id) return;
+    api.leads.get(id)
+      .then((fresh: any) => { if (fresh?.id) setLeadDetails((p) => ({ ...p, [id]: newerLead({ ...BLANK_LEAD, ...(p[id] || {}), ...fresh } as NewLead, p[id]) })); })
+      .catch(() => { /* no lead record yet */ });
+  }, [selected?.id]);
   // The open lead's files (Site Visit photos, surveys, plans), tagged by stage.
   const leadFiles = useLeadFiles(selected?.id);
 
@@ -2280,39 +2320,31 @@ export function Pipeline() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', marginBottom: 12 }}>
                     <input
                       type="checkbox"
-                      checked={mailingSameAsProject}
+                      checked={!!nl.addresses?.businessMailing?.sameAsProject}
                       onChange={(e) => {
                         const on = e.target.checked;
-                        setMailingSameAsProject(on);
-                        if (on) {
-                          setField('addresses', {
-                            ...(nl.addresses || {}),
-                            businessMailing: {
-                              ...blankAddress(),
-                              street: [nl.projectStreetAddress, nl.projectStreetName].filter(Boolean).join(' '),
-                              unit: nl.projectAddress2,
-                              city: nl.projectCity,
-                              state: 'CA',
-                              zip: nl.projectZipCode,
-                              county: nl.countyLocation,
-                            },
-                          });
-                        }
+                        const current = nl.addresses?.businessMailing || blankAddress();
+                        setField('addresses', {
+                          ...(nl.addresses || {}),
+                          // Ticking copies the project address (and keeps following it); unticking keeps the copy, now editable.
+                          businessMailing: on ? mailingFromProject(nl) : { ...current, sameAsProject: false },
+                        });
                       }}
                     />
                     Same as project address
+                    {nl.addresses?.businessMailing?.sameAsProject && <span style={{ fontSize: 11.5, color: '#7E9B93' }}>— follows the project address; untick to enter a different one</span>}
                   </label>
                   {(() => {
                     const addr: Address = nl.addresses?.businessMailing || blankAddress();
                     const setAddr = (patch: Partial<Address>) => setField('addresses', { ...(nl.addresses || {}), businessMailing: { ...addr, ...patch } });
                     return (
                       <FormGrid>
-                        <FormField label="Street"><input disabled={mailingSameAsProject} value={addr.street} onChange={(e) => setAddr({ street: e.target.value })} style={inputStyle} /></FormField>
-                        <FormField label="Unit"><input disabled={mailingSameAsProject} value={addr.unit} onChange={(e) => setAddr({ unit: e.target.value })} style={inputStyle} /></FormField>
-                        <FormField label="City"><input disabled={mailingSameAsProject} value={addr.city} onChange={(e) => setAddr({ city: e.target.value })} style={inputStyle} /></FormField>
-                        <FormField label="State"><input disabled={mailingSameAsProject} value={addr.state} onChange={(e) => setAddr({ state: e.target.value })} style={inputStyle} /></FormField>
-                        <FormField label="ZIP"><input disabled={mailingSameAsProject} value={addr.zip} onChange={(e) => setAddr({ zip: e.target.value })} style={inputStyle} /></FormField>
-                        <FormField label="County"><input disabled={mailingSameAsProject} value={addr.county} onChange={(e) => setAddr({ county: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="Street"><input disabled={!!addr.sameAsProject} value={addr.street} onChange={(e) => setAddr({ street: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="Unit"><input disabled={!!addr.sameAsProject} value={addr.unit} onChange={(e) => setAddr({ unit: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="City"><input disabled={!!addr.sameAsProject} value={addr.city} onChange={(e) => setAddr({ city: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="State"><input disabled={!!addr.sameAsProject} value={addr.state} onChange={(e) => setAddr({ state: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="ZIP"><input disabled={!!addr.sameAsProject} value={addr.zip} onChange={(e) => setAddr({ zip: e.target.value })} style={inputStyle} /></FormField>
+                        <FormField label="County"><input disabled={!!addr.sameAsProject} value={addr.county} onChange={(e) => setAddr({ county: e.target.value })} style={inputStyle} /></FormField>
                       </FormGrid>
                     );
                   })()}

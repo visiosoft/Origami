@@ -28,6 +28,8 @@ export interface Address {
   county: string;
   /** Ticked when the address genuinely doesn't apply, so it stops being missing. */
   notApplicable: boolean;
+  /** A lead's business mailing address: kept the same as the project address (and follows it) while set. */
+  sameAsProject?: boolean;
 }
 
 export const blankAddress = (): Address => ({
