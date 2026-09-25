@@ -39,9 +39,11 @@ const noteTime = (n: LeadNote) => (n.at ? Date.parse(n.at) : Number(n.id) || 0);
 const newestFirst = (notes: LeadNote[]) => [...notes].sort((a, b) => noteTime(b) - noteTime(a));
 /** "2150 Monterey Rd, Unit B, San Jose, 95112" -- the same one-line address the project carries. */
 const leadAddress = (ld?: { projectStreetAddress?: string; projectStreetName?: string; projectAddress2?: string; projectCity?: string; projectZipCode?: string } | null) => {
-  const num = (ld?.projectStreetAddress || '').trim(); const street = (ld?.projectStreetName || '').trim();
+  // "N/A" is how the intake marks a question that doesn't apply -- not part of an address.
+  const clean = (v?: string) => { const t = (v || '').trim(); return /^(n\/?a|none|-+|—)$/i.test(t) ? '' : t; };
+  const num = clean(ld?.projectStreetAddress); const street = clean(ld?.projectStreetName);
   const line1 = num && street && !num.toLowerCase().includes(street.toLowerCase()) ? `${num} ${street}` : num || street;
-  return line1 ? [line1, ld?.projectAddress2, ld?.projectCity, ld?.projectZipCode].map((x) => (x || '').trim()).filter(Boolean).join(', ') : '';
+  return line1 ? [line1, ld?.projectAddress2, ld?.projectCity, ld?.projectZipCode].map(clean).filter(Boolean).join(', ') : '';
 };
 const DOT = '·';
 

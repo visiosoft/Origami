@@ -4,7 +4,7 @@ exports.leadStreetAddress = leadStreetAddress;
 function leadStreetAddress(l) {
     if (!l)
         return '';
-    const clean = (v) => (v || '').trim();
+    const clean = (v) => { const t = (v || '').trim(); return /^(n\/?a|none|-+|—)$/i.test(t) ? '' : t; };
     const number = clean(l.projectStreetAddress);
     const street = clean(l.projectStreetName);
     const line1 = number && street && !number.toLowerCase().includes(street.toLowerCase()) ? `${number} ${street}` : number || street;

@@ -8,7 +8,8 @@ export function leadStreetAddress(l?: {
   projectCity?: string | null; projectZipCode?: string | null;
 } | null): string {
   if (!l) return '';
-  const clean = (v?: string | null) => (v || '').trim();
+  // "N/A" is how the intake marks a question that doesn't apply -- not part of an address.
+  const clean = (v?: string | null) => { const t = (v || '').trim(); return /^(n\/?a|none|-+|—)$/i.test(t) ? '' : t; };
   const number = clean(l.projectStreetAddress);
   const street = clean(l.projectStreetName);
   // Some leads have the whole street in the first field already.

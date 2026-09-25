@@ -37,6 +37,8 @@ export class LeadsService implements OnApplicationBootstrap {
             for (const p of linked) {
                 const address = leadStreetAddress(await this.repo.findOneBy({ id: p.leadId }));
                 if (address && p.location !== address) { await this.projects.update({ id: p.id }, { location: address }); n++; }
+                // A location made only of "N/A" answers isn't an address -- clear it.
+                else if (!address && /^\s*(n\/?a\s*,?\s*)+$/i.test(p.location || '')) { await this.projects.update({ id: p.id }, { location: '' }); n++; }
             }
             if (n) this.log.log(`Project addresses filled from their leads: ${n}`);
         } catch (err) {

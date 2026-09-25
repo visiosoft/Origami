@@ -51,6 +51,10 @@ let LeadsService = class LeadsService {
                     await this.projects.update({ id: p.id }, { location: address });
                     n++;
                 }
+                else if (!address && /^\s*(n\/?a\s*,?\s*)+$/i.test(p.location || '')) {
+                    await this.projects.update({ id: p.id }, { location: '' });
+                    n++;
+                }
             }
             if (n)
                 this.log.log(`Project addresses filled from their leads: ${n}`);
