@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProposalEntity, DealEntity } from '../database/entities';
@@ -20,7 +20,7 @@ export interface ProposalActor { id?: string; name?: string }
  * See `signByToken`.
  */
 @Injectable()
-export class ProposalService {
+export class ProposalService implements OnApplicationBootstrap {
   private readonly log = new Logger('ProposalService');
 
   constructor(
@@ -29,6 +29,23 @@ export class ProposalService {
     private readonly settings: SettingsService,
     private readonly pipeline: PipelineService,
   ) {}
+
+  /** Leads whose proposal already has an amount but whose card and project still say $0 -- once. */
+  async onApplicationBootstrap() {
+    try {
+      const rows = (await this.repo.find()).filter((r) => (r.amount || '').trim());
+      const deals = new Map((await this.deals.find()).map((d) => [d.id, d]));
+      let n = 0;
+      for (const r of rows) {
+        const d = deals.get(r.dealId);
+        if (!d || (d.value && !/^\$?0?$/.test(d.value.trim()))) continue;
+        if (await this.pipeline.setContractValue(r.dealId, r.amount)) n++;
+      }
+      if (n) this.log.log(`Carried ${n} proposal amount(s) to their lead and project`);
+    } catch (e) {
+      this.log.warn(`Proposal amount backfill skipped: ${(e as Error).message}`);
+    }
+  }
 
   async get(dealId: string) {
     if (!dealId) throw new BadRequestException('Which deal?');
@@ -71,6 +88,11 @@ export class ProposalService {
     row.updatedAt = new Date().toISOString();
     row.updatedBy = actor?.name || 'System';
     await this.repo.save(row);
+    // Until the client signs, the proposal's amount is the lead's contract amount -- on the card and in the project.
+    if (row.amount && !row.signedAt) {
+      try { await this.pipeline.setContractValue(dealId, row.amount); }
+      catch (e) { this.log.warn(`Contract amount for ${dealId} not carried over: ${(e as Error).message}`); }
+    }
     return this.get(dealId);
   }
 
@@ -159,6 +181,8 @@ export class ProposalService {
       // (a blinking card) for a person to confirm and convert deliberately.
       const actor: DealActor = { name: `${row.signedByName} (e-signature)` };
       try {
+        // The signed figure is the contract amount from here on.
+        if (row.amount) await this.pipeline.setContractValue(parsed.dealId, row.amount);
         await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
         await this.deals.update(parsed.dealId, { status: 'accepted' });
       } catch (err) {

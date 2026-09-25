@@ -1,3 +1,4 @@
+import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { ProposalEntity, DealEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
@@ -6,13 +7,14 @@ export interface ProposalActor {
     id?: string;
     name?: string;
 }
-export declare class ProposalService {
+export declare class ProposalService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly deals;
     private readonly settings;
     private readonly pipeline;
     private readonly log;
     constructor(repo: Repository<ProposalEntity>, deals: Repository<DealEntity>, settings: SettingsService, pipeline: PipelineService);
+    onApplicationBootstrap(): Promise<void>;
     get(dealId: string): Promise<{
         dealId: string;
         dealName: string;

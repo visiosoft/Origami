@@ -132,6 +132,27 @@ export class PipelineService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * The lead's contract amount (from its proposal) -- shown on the card and
+   * carried into its project's contract amount, so nobody types it twice.
+   * Returns the tidied figure ("$780,000"), or null if nothing changed.
+   */
+  async setContractValue(dealId: string, amount: string) {
+    const raw = String(amount || '').trim();
+    if (!raw) return null;
+    const n = Number(raw.replace(/[^0-9.]/g, ''));
+    const value = Number.isFinite(n) && n > 0 ? '$' + Math.round(n).toLocaleString('en-US') : raw;
+    const deal = await this.repo.findOneBy({ id: dealId });
+    if (!deal) return null;
+    if (deal.value !== value) {
+      deal.value = value;
+      await this.repo.save(deal);
+    }
+    const project = await this.projects.findByLeadId(dealId);
+    if (project && project.contractAmt !== value) await this.projects.update(String(project.id), { contractAmt: value });
+    return value;
+  }
+
   getStages() {
     return STAGES; // stage definitions are static config, not row data
   }

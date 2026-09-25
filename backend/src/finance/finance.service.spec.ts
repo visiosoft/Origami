@@ -553,7 +553,8 @@ describe('phase 3: job cost, profitability and reports', () => {
     await s.fin.reportProgress('task', 'T-1', { pct: 100, version: v(s.t.tfin.rows, (r) => r.taskId === 'T-1') }, pm);
     const d = await s.inv.createDraft(7, { billReady: true }, finance);
     const i = await s.inv.issue(d.id, { version: d.version }, finance); // 75,000 - 7,500 = 67,500
-    s.t.invoices.rows.find((x: any) => x.id === i.id).dueDate = '2026-07-01'; // issued long ago
+    // Issued long ago -- pinned, so the report "as of 2026-09-24" includes it whatever today's date is.
+    Object.assign(s.t.invoices.rows.find((x: any) => x.id === i.id), { invoiceDate: '2026-06-01', dueDate: '2026-07-01' });
     await s.inv.recordPayment(i.id, { amount: 7500, date: '2026-07-15' }, finance);
     await s.costs.saveEntry(7, { description: 'Concrete supply', amount: 12000, csiCodeId: 'C03', date: '2026-09-20', dueDate: '2026-10-20' }, finance);
     const aging = await s.reports.arAging(finance, '2026-09-24');

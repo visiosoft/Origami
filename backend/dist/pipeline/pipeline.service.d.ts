@@ -25,6 +25,7 @@ export declare class PipelineService implements OnApplicationBootstrap {
     constructor(repo: Repository<DealEntity>, leads: Repository<LeadEntity>, projects: ProjectsService);
     onApplicationBootstrap(): Promise<void>;
     private rehomeRetiredStages;
+    setContractValue(dealId: string, amount: string): Promise<string | null>;
     getStages(): import("../seed-data/pipeline").Stage[];
     private overlayLead;
     findAll(includeArchived?: boolean): Promise<(DealEntity & {

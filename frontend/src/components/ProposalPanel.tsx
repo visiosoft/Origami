@@ -28,7 +28,14 @@ const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reje
  * here once it's sent except wait, since the signature is what moves the
  * deal to a project on its own (see ProposalService.signByToken).
  */
-export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string; dealName?: string; dealEmail: string }) {
+/** "$780,000" from whatever was typed -- the same tidy-up the server does. */
+const tidyAmount = (raw: string) => { const n = Number(String(raw).replace(/[^0-9.]/g, '')); return Number.isFinite(n) && n > 0 ? '$' + Math.round(n).toLocaleString('en-US') : raw.trim(); };
+
+export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
+  dealId: string; dealName?: string; dealEmail: string;
+  /** The saved amount is also the lead's contract amount (card and project) -- tell the board. */
+  onAmountSaved?: (value: string) => void;
+}) {
   const { toast } = useApp();
   const [subject, setSubject] = useState('');
   const [html, setHtml] = useState('');
@@ -165,7 +172,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
   const save = () => {
     setSaving(true);
     api.proposals.save(dealId, { subject, html, amount, requiresSecondSignatory })
-      .then(() => toast('Proposal saved'))
+      .then(() => { toast('Proposal saved'); if (amount.trim() && !signedAt) onAmountSaved?.(tidyAmount(amount)); })
       .catch((e: Error) => toast('⚠ ' + e.message))
       .finally(() => setSaving(false));
   };
@@ -175,6 +182,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
     setSending(true);
     Promise.all(files.map(async (f) => ({ filename: f.name, mimeType: f.type || 'application/octet-stream', contentBase64: await fileToBase64(f) })))
       .then((extraAttachments) => api.proposals.save(dealId, { subject, html, amount })
+        .then(() => { if (amount.trim() && !signedAt) onAmountSaved?.(tidyAmount(amount)); })
         .then(() => api.proposals.send(dealId, to.trim(), undefined, extraAttachments)))
       .then((res: any) => {
         setSentAt(new Date().toISOString()); setSentTo(res?.to || to.trim()); setFiles([]);
@@ -248,6 +256,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail }: { dealId: string;
       </div>
       <div style={{ marginBottom: 8 }}>
         <span style={label}>Proposed contract amount</span>
+        <div style={{ fontSize: 10.5, color: '#7E9B93', margin: '0 0 5px' }}>Also the lead’s contract amount — shown on its card and carried into its project.</div>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="$0" style={input} />
       </div>
       <div style={{ marginBottom: 8 }}>

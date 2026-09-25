@@ -29,6 +29,25 @@ let ProposalService = class ProposalService {
         this.pipeline = pipeline;
         this.log = new common_1.Logger('ProposalService');
     }
+    async onApplicationBootstrap() {
+        try {
+            const rows = (await this.repo.find()).filter((r) => (r.amount || '').trim());
+            const deals = new Map((await this.deals.find()).map((d) => [d.id, d]));
+            let n = 0;
+            for (const r of rows) {
+                const d = deals.get(r.dealId);
+                if (!d || (d.value && !/^\$?0?$/.test(d.value.trim())))
+                    continue;
+                if (await this.pipeline.setContractValue(r.dealId, r.amount))
+                    n++;
+            }
+            if (n)
+                this.log.log(`Carried ${n} proposal amount(s) to their lead and project`);
+        }
+        catch (e) {
+            this.log.warn(`Proposal amount backfill skipped: ${e.message}`);
+        }
+    }
     async get(dealId) {
         if (!dealId)
             throw new common_1.BadRequestException('Which deal?');
@@ -71,6 +90,14 @@ let ProposalService = class ProposalService {
         row.updatedAt = new Date().toISOString();
         row.updatedBy = actor?.name || 'System';
         await this.repo.save(row);
+        if (row.amount && !row.signedAt) {
+            try {
+                await this.pipeline.setContractValue(dealId, row.amount);
+            }
+            catch (e) {
+                this.log.warn(`Contract amount for ${dealId} not carried over: ${e.message}`);
+            }
+        }
         return this.get(dealId);
     }
     async signingLink(dealId) {
@@ -137,6 +164,8 @@ let ProposalService = class ProposalService {
         if (fullySigned) {
             const actor = { name: `${row.signedByName} (e-signature)` };
             try {
+                if (row.amount)
+                    await this.pipeline.setContractValue(parsed.dealId, row.amount);
                 await this.pipeline.updateStage(parsed.dealId, 'client_approval', actor);
                 await this.deals.update(parsed.dealId, { status: 'accepted' });
             }
