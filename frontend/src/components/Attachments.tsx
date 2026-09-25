@@ -53,6 +53,10 @@ export interface AttachmentsProps {
   onUpload: (files: File[]) => Promise<void>;
   onRemove: (att: Attachment) => Promise<void>;
   onAddLink: (name: string, url: string) => Promise<void>;
+  /** Take screenshots pasted anywhere on the page (default on). Turn off when several boxes share a page. */
+  paste?: boolean;
+  /** Heading over the files (default "Attachments"). */
+  title?: string;
 }
 
 /**
@@ -91,7 +95,7 @@ export function Attachments(props: AttachmentsProps) {
 
   // Paste a screenshot straight onto the task — the fastest path there is.
   useEffect(() => {
-    if (!canManage) return;
+    if (!canManage || props.paste === false) return;
     const onPaste = (e: ClipboardEvent) => {
       const files = filesFromClipboard(e);
       if (!files.length) return;
@@ -101,7 +105,7 @@ export function Attachments(props: AttachmentsProps) {
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canManage, storageReady, taskId]);
+  }, [canManage, storageReady, taskId, props.paste]);
 
   const images = attachments.filter(isImage);
 
@@ -135,7 +139,7 @@ export function Attachments(props: AttachmentsProps) {
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>
-          Attachments {attachments.length > 0 && <span style={{ color: '#7E9B93' }}>{attachments.length}</span>}
+          {props.title ?? 'Attachments'} {attachments.length > 0 && <span style={{ color: '#7E9B93' }}>{attachments.length}</span>}
         </span>
       </div>
 
@@ -231,7 +235,7 @@ export function Attachments(props: AttachmentsProps) {
           >
             {linkOpen ? 'Cancel' : 'Add link'}
           </div>
-          <span style={{ fontSize: 11, color: '#9AA39D' }}>or paste a screenshot / drop files here</span>
+          <span style={{ fontSize: 11, color: '#9AA39D' }}>{props.paste === false ? 'or drop files here' : 'or paste a screenshot / drop files here'}</span>
         </div>
       )}
 

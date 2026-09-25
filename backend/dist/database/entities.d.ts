@@ -1408,4 +1408,13 @@ export declare class RfiEntity {
     updatedAt: string;
     updatedBy: string;
 }
+export type LeadAttachment = TaskAttachment & {
+    stage?: string;
+    stageName?: string;
+};
+export declare class LeadFilesEntity {
+    leadId: string;
+    attachments: LeadAttachment[] | null;
+    updatedAt: string;
+}
 export {};

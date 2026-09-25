@@ -13,14 +13,18 @@ const leads_controller_1 = require("./leads.controller");
 const leads_service_1 = require("./leads.service");
 const entities_1 = require("../database/entities");
 const tasks_module_1 = require("../tasks/tasks.module");
+const google_module_1 = require("../google/google.module");
+const auth_module_1 = require("../auth/auth.module");
+const lead_files_service_1 = require("./lead-files.service");
+const lead_files_controller_1 = require("./lead-files.controller");
 let LeadsModule = class LeadsModule {
 };
 exports.LeadsModule = LeadsModule;
 exports.LeadsModule = LeadsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.LeadEntity, entities_1.ProjectEntity]), tasks_module_1.TasksModule],
-        controllers: [leads_controller_1.LeadsController],
-        providers: [leads_service_1.LeadsService],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.LeadEntity, entities_1.ProjectEntity, entities_1.LeadFilesEntity]), tasks_module_1.TasksModule, google_module_1.GoogleModule, auth_module_1.AuthModule],
+        controllers: [leads_controller_1.LeadsController, lead_files_controller_1.LeadFilesController],
+        providers: [leads_service_1.LeadsService, lead_files_service_1.LeadFilesService],
         exports: [leads_service_1.LeadsService],
     })
 ], LeadsModule);

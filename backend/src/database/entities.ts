@@ -1909,3 +1909,18 @@ export class RfiEntity {
   @Column({ nullable: true }) updatedAt!: string;
   @Column({ nullable: true }) updatedBy!: string;
 }
+
+/** A file on a lead, tagged with the pipeline stage it was added in (Site Visit photos, the survey, the client's plans). */
+export type LeadAttachment = TaskAttachment & { stage?: string; stageName?: string };
+
+/**
+ * A lead's files -- kept apart from the lead row itself, so saving the lead
+ * form (which sends the whole record) can never drop a file added meanwhile.
+ * Keyed by the lead / deal id (PL-...).
+ */
+@Entity('lead_files')
+export class LeadFilesEntity {
+  @PrimaryColumn() leadId!: string;
+  @Column({ type: 'simple-json', nullable: true }) attachments!: LeadAttachment[] | null;
+  @Column({ nullable: true }) updatedAt!: string;
+}

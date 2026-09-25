@@ -88,7 +88,7 @@ function filesForm(files: File[] | FileList): FormData {
   return form;
 }
 
-export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs' | 'finance-commitment-shared' | 'rfis';
+export type AttachmentScope = 'tasks' | 'project-tasks' | 'employee-records' | 'contractors' | 'finance-invoices' | 'finance-change-orders' | 'finance-reimbursables' | 'finance-costs' | 'finance-commitment-shared' | 'rfis' | 'lead-files';
 
 /**
  * Where the browser fetches an attachment's bytes. Relative on purpose: it works
@@ -268,6 +268,15 @@ export const api = {
     create: (data: unknown) => request('/email-templates', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/email-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/email-templates/${id}`, { method: 'DELETE' }),
+  },
+  leadFiles: {
+    list: (leadId: string) => request<any[]>(`/lead-files/${encodeURIComponent(leadId)}`),
+    /** `stage` tags the files with the pipeline stage they belong to. */
+    upload: (leadId: string, files: File[], stage?: string, stageName?: string) =>
+      requestForm<any[]>(`/lead-files/${encodeURIComponent(leadId)}/attachments${stage ? `?stage=${encodeURIComponent(stage)}&stageName=${encodeURIComponent(stageName || '')}` : ''}`, filesForm(files)),
+    link: (leadId: string, name: string, url: string, stage?: string, stageName?: string) =>
+      request<any[]>(`/lead-files/${encodeURIComponent(leadId)}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url, stage, stageName }) }),
+    remove: (leadId: string, attId: string) => request<any[]>(`/lead-files/${encodeURIComponent(leadId)}/attachments/${encodeURIComponent(attId)}`, { method: 'DELETE' }),
   },
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),

@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { LeadFilesTab, LeadStageFiles, useLeadFiles } from '../components/LeadFiles';
 import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
 import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
@@ -402,7 +403,7 @@ export function Pipeline() {
   const [mailingSameAsProject, setMailingSameAsProject] = useState(false);
   const [formTab, setFormTab] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<'overview' | 'notes' | 'client' | 'details' | 'roles' | 'contacts' | 'tasks' | 'programming'>('overview');
+  const [detailTab, setDetailTab] = useState<'overview' | 'notes' | 'client' | 'details' | 'roles' | 'contacts' | 'tasks' | 'files' | 'programming'>('overview');
   // Edited in place; seeded from the intake fields the first time it is opened.
   const [contactsByDeal, setContactsByDeal] = useState<Record<string, LeadContact[]>>({});
   // The lead as last saved, so an edit can say which fields moved.
@@ -967,6 +968,8 @@ export function Pipeline() {
     if (detailTab === 'programming' && selected?.stage !== 'zoning') setDetailTab('details');
   }, [selected?.stage, detailTab]);
   const selectedStage = selected ? STAGES.find((st) => st.key === selected.stage) : null;
+  // The open lead's files (Site Visit photos, surveys, plans), tagged by stage.
+  const leadFiles = useLeadFiles(selected?.id);
 
   // Initial Questions answers save as they're typed, like the form; "Save Lead
   // Details" still marks the stage done (and needs every answer).
@@ -1264,11 +1267,11 @@ export function Pipeline() {
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px' }}>
-            {(['overview', 'notes', 'client', 'tasks', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
-              const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : 0;
+            {(['overview', 'notes', 'client', 'tasks', 'files', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
+              const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
               return (
                 <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#173326' : 'transparent'), color: detailTab === t ? '#0B1A12' : '#7E9B93', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'client' ? 'Client' : t === 'tasks' ? 'Tasks' : t === 'programming' ? 'Project Programming' : 'Full Details'}
+                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'client' ? 'Client' : t === 'tasks' ? 'Tasks' : t === 'files' ? 'Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
                   {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? '#173326' : '#EFEDE8', color: detailTab === t ? 'white' : '#7E9B93' }}>{count}</span>}
                 </div>
               );
@@ -1325,6 +1328,8 @@ export function Pipeline() {
                 ))}
               </div>
             </div>
+          ) : detailTab === 'files' ? (
+            <LeadFilesTab leadId={selected.id} files={leadFiles.files} onChange={leadFiles.setFiles} stages={STAGES.map((s) => ({ key: s.key, name: s.name }))} currentStage={selected.stage} />
           ) : detailTab === 'tasks' ? (
             <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} openTaskId={convertedTaskId} />
           ) : detailTab === 'contacts' ? (
@@ -1876,6 +1881,13 @@ export function Pipeline() {
                   </div>
                 );
               })()}
+
+              {/* Files for the stage it's on (Site Visit photos, surveys, plans) */}
+              {selectedStage && (
+                <div style={{ paddingTop: 14, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <LeadStageFiles leadId={selected.id} stage={selectedStage.key} stageName={selectedStage.name} files={leadFiles.files} onChange={leadFiles.setFiles} onShowAll={() => setDetailTab('files')} />
+                </div>
+              )}
 
               {/* Latest note -- the full list and the composer live on the Notes tab */}
               <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
