@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ClampText } from './ClampText';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { SaveBar, useAutosave } from '../autosave';
@@ -103,7 +104,7 @@ export function ClientBackgroundPanel({ leadId, clientName, value, version, onSa
               <span style={{ fontSize: 10.5, color: '#7E9B93' }}>{new Date(n.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{n.by ? ` · ${n.by}` : ''}</span>
               {canEdit && <span onClick={() => removeNote(n.id)} style={{ marginLeft: 'auto', fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>}
             </div>
-            <div style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{n.text}</div>
+            <ClampText text={n.text} lines={2} style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55 }} />
           </div>
         ))}
       </div>

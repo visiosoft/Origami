@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate } from 'react-router-dom';
@@ -1300,7 +1301,7 @@ export function Pipeline() {
                         <span onClick={() => deleteNote(selected.id, n.id)} style={{ fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>
                       </span>
                     </div>
-                    <div style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{n.text}</div>
+                    <ClampText text={n.text} lines={2} style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55 }} />
                     <button type="button" onClick={() => setNoteTask({ dealId: selected.id, dealName: selected.name, stageName: n.stageName, text: n.text })} style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11, color: '#173326', cursor: 'pointer', fontWeight: 600 }}>Convert to task</button>
                   </div>
                 ))}
