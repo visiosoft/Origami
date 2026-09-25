@@ -9,6 +9,58 @@ import { loadEmailBrand } from '../email/shell';
 
 const DAY = 86400000;
 const HOUR = 3600000;
+/** The office is in California; a workspace can change it under Settings -> Integrations. */
+export const DEFAULT_REMINDER_TIMEZONE = 'America/Los_Angeles';
+
+/** YYYY-MM-DD plus n days, in plain calendar arithmetic (no timezone drift). */
+export function addDays(date: string, n: number) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+/** A due date as YYYY-MM-DD. Older Request Log rows say just "Apr 26" -- read as this year. */
+export function isoDue(raw: string | null | undefined, today: string): string {
+  const v = (raw || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  const m = /^([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2})$/.exec(v);
+  const month = m ? MONTHS.indexOf(m[1].toLowerCase()) : -1;
+  if (!m || month < 0) return '';
+  return `${today.slice(0, 4)}-${String(month + 1).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+}
+
+/**
+ * Overdue / due today / due in the next 3 days, against the office's own
+ * calendar date -- the server runs on UTC, so "today" must not come from it.
+ */
+export function bucketTasks(tasks: ReminderTask[], today: string): ReminderBuckets {
+  const soonEnd = addDays(today, 3);
+  const out: ReminderBuckets = { overdue: [], today: [], soon: [] };
+  for (const task of tasks) {
+    const due = isoDue(task.dueDate, today);
+    if (!due) continue;
+    if (due < today) out.overdue.push(task);
+    else if (due === today) out.today.push(task);
+    else if (due < soonEnd) out.soon.push(task);
+  }
+  const byDate = (a: ReminderTask, b: ReminderTask) => a.dueDate.localeCompare(b.dueDate);
+  out.overdue.sort(byDate); out.today.sort(byDate); out.soon.sort(byDate);
+  return out;
+}
+
+/**
+ * Whether this person gets the digest today: email on, frequency not off, and
+ * a weekly digest only on Mondays. Never chosen reads as daily.
+ */
+export function wantsDigest(user: Pick<UserEntity, 'notifyByEmail' | 'digestFrequency'>, today: string) {
+  if (user.notifyByEmail === false) return false;
+  const freq = user.digestFrequency || 'daily';
+  if (freq === 'off') return false;
+  if (freq === 'weekly') return new Date(`${today}T12:00:00Z`).getUTCDay() === 1;
+  return true;
+}
 
 @Injectable()
 export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -32,6 +84,9 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
    */
   onApplicationBootstrap() {
     this.timer = setInterval(() => { void this.tick(); }, HOUR);
+    // A restart (every deploy) resets the hourly clock -- check once shortly
+    // after boot too, so a restart just before the send hour doesn't skip a day.
+    setTimeout(() => { void this.tick(); }, 60000).unref?.();
     // Don't hold the process open on shutdown.
     this.timer.unref?.();
   }
@@ -51,7 +106,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     try {
       if ((await this.settings.get('reminders.enabled')) !== 'true') return;
 
-      const timezone = (await this.settings.get('reminders.timezone')) || 'Asia/Dubai';
+      const timezone = await this.timezone();
       const hour = parseInt((await this.settings.get('reminders.hour')) || '7', 10);
       const now = this.localParts(timezone);
       if (now.hour !== hour) return;
@@ -59,7 +114,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
 
       // Claim the day before sending — cheap distributed lock.
       await this.settings.set('reminders.lastRunDate', now.date);
-      await this.run();
+      await this.run(now.date);
 
       // Each of these is opt-in per user and keeps its own once-a-day lock
       // key, so one failing does not block the others or re-run the digest.
@@ -69,6 +124,70 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     } catch (err) {
       this.log.error('Reminder tick failed: ' + (err as Error).message);
     }
+  }
+
+  private async timezone() {
+    return (await this.settings.get('reminders.timezone')) || DEFAULT_REMINDER_TIMEZONE;
+  }
+
+  /** Everything one run needs, read once. */
+  private async load() {
+    const [boardTasks, logTasks, users, projects] = await Promise.all([
+      this.projectTasks.find(), this.tasks.find(), this.users.find(), this.projects.find(),
+    ]);
+    return { boardTasks, logTasks, users, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
+  }
+
+  /**
+   * One person's open, dated tasks: the ones they own, plus the ones they
+   * collaborate on (flagged, so the email can say so). Each links straight
+   * to the task.
+   */
+  private tasksFor(user: UserEntity, data: Awaited<ReturnType<RemindersService['load']>>, base: string): ReminderTask[] {
+    const following = (list: unknown) => Array.isArray(list) && list.some((c: any) => c?.id === user.id);
+    const out: ReminderTask[] = [];
+    for (const t of data.boardTasks) {
+      if (t.completed || t.status === 'Done' || t.parentId || !t.dueDate) continue;
+      const mine = this.isMine(t.assigneeId, t.assignee, user);
+      if (!mine && !following(t.collaborators)) continue;
+      out.push({
+        id: t.id, title: t.title, dueDate: t.dueDate,
+        project: data.projectName.get(Number(t.projectId)) || `Project ${t.projectId}`,
+        where: 'board', following: !mine,
+        url: `${base}/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId}`,
+      });
+    }
+    for (const t of data.logTasks) {
+      if (t.status === 'Closed' || !t.dueDate) continue;
+      const mine = this.isMine(t.assignedToId, t.assignedTo, user);
+      if (!mine && !following(t.collaborators)) continue;
+      out.push({
+        id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
+        project: t.project || '', where: 'log', following: !mine,
+        url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Send one person their digest right now, whatever the schedule says --
+   * "what would my reminder look like today?".
+   */
+  async sendMine(userId: string): Promise<{ sent: boolean; reason?: string; overdue: number; today: number; soon: number }> {
+    const none = { overdue: 0, today: 0, soon: 0 };
+    if (!(await this.google.isConnected())) return { sent: false, reason: 'no Google account is connected for sending mail', ...none };
+    const data = await this.load();
+    const user = data.users.find((u) => u.id === userId);
+    if (!user?.email) return { sent: false, reason: 'your account has no email address', ...none };
+    const today = this.localParts(await this.timezone()).date;
+    const base = await this.settings.baseUrl();
+    const buckets = bucketTasks(this.tasksFor(user, data, base), today);
+    const counts = { overdue: buckets.overdue.length, today: buckets.today.length, soon: buckets.soon.length };
+    if (!counts.overdue && !counts.today && !counts.soon) return { sent: false, reason: 'nothing of yours is overdue or due in the next 3 days', ...counts };
+    const mail = reminderEmail({ name: user.name, buckets, url: `${base}/tasks`, brand: await loadEmailBrand(this.settings) });
+    await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html });
+    return { sent: true, ...counts };
   }
 
   /** The local date and hour in a given IANA timezone. */
@@ -91,19 +210,15 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
   }
 
   /** Build and send every user's digest. Returns a per-user summary. */
-  async run(): Promise<{ sent: number; skipped: number; recipients: string[] }> {
+  async run(today?: string): Promise<{ sent: number; skipped: number; recipients: string[] }> {
     if (!(await this.google.isConnected())) {
       this.log.warn('Reminders skipped — no Google account connected.');
       return { sent: 0, skipped: 0, recipients: [] };
     }
 
-    const [boardTasks, logTasks, users, projects] = await Promise.all([
-      this.projectTasks.find(),
-      this.tasks.find(),
-      this.users.find(),
-      this.projects.find(),
-    ]);
-    const projectName = new Map(projects.map((p) => [Number(p.id), p.name]));
+    const data = await this.load();
+    const { boardTasks, users, projectName } = data;
+    const date = today || this.localParts(await this.timezone()).date;
     const base = await this.settings.baseUrl();
     const brand = await loadEmailBrand(this.settings);
 
@@ -112,25 +227,9 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     const recipients: string[] = [];
 
     for (const user of users) {
-      if (!user.email || user.status === 'suspended') { skipped++; continue; }
+      if (!user.email || user.status === 'suspended' || !wantsDigest(user, date)) { skipped++; continue; }
 
-      const mine: ReminderTask[] = [
-        ...boardTasks
-          .filter((t) => this.isMine(t.assigneeId, t.assignee, user) && !t.completed && t.status !== 'Done' && !t.parentId)
-          .map((t) => ({
-            id: t.id, title: t.title, dueDate: t.dueDate || '',
-            project: projectName.get(Number(t.projectId)) || `Project ${t.projectId}`,
-            where: 'board' as const,
-          })),
-        ...logTasks
-          .filter((t) => this.isMine(t.assignedToId, t.assignedTo, user) && t.status !== 'Closed')
-          .map((t) => ({
-            id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate || '',
-            project: t.project || '', where: 'log' as const,
-          })),
-      ].filter((t) => !!t.dueDate);
-
-      const buckets = this.bucket(mine);
+      const buckets = bucketTasks(this.tasksFor(user, data, base), date);
 
       // Milestones are opt-in and separate from "mine" -- a milestone the
       // office wants everyone to see is still labelled on whoever holds the
@@ -142,7 +241,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
           .filter((t) => this.isMine(t.assigneeId, t.assignee, user) && !t.completed && t.status !== 'Done' && !t.parentId)
           .filter((t) => (t.labels || []).includes('Milestone') && t.dueDate)
           .filter((t) => { const due = Date.parse(t.dueDate); return !Number.isNaN(due) && due <= horizon; })
-          .map((t) => ({ id: t.id, title: t.title, dueDate: t.dueDate || '', project: projectName.get(Number(t.projectId)) || `Project ${t.projectId}`, where: 'board' as const }))
+          .map((t) => ({ id: t.id, title: t.title, dueDate: t.dueDate || '', project: projectName.get(Number(t.projectId)) || `Project ${t.projectId}`, where: 'board' as const, url: `${base}/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId}` }))
           .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       }
 
@@ -168,24 +267,6 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     return !!assignee && assignee.trim().toLowerCase() === user.name.trim().toLowerCase();
   }
 
-  private bucket(tasks: ReminderTask[]): ReminderBuckets {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const todayMs = startOfToday.getTime();
-
-    const out: ReminderBuckets = { overdue: [], today: [], soon: [] };
-    for (const task of tasks) {
-      const due = Date.parse(task.dueDate);
-      if (Number.isNaN(due)) continue;
-      if (due < todayMs) out.overdue.push(task);
-      else if (due < todayMs + DAY) out.today.push(task);
-      else if (due < todayMs + 3 * DAY) out.soon.push(task);
-    }
-    const byDate = (a: ReminderTask, b: ReminderTask) => a.dueDate.localeCompare(b.dueDate);
-    out.overdue.sort(byDate); out.today.sort(byDate); out.soon.sort(byDate);
-    return out;
-  }
-
   /**
    * A standalone overdue notice, separate from the daily digest.
    *
@@ -200,22 +281,13 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     await this.settings.set('reminders.overdueLastRunDate', today);
     if (!(await this.google.isConnected())) return;
 
-    const [boardTasks, logTasks, users, projects] = await Promise.all([
-      this.projectTasks.find(), this.tasks.find(), this.users.find(), this.projects.find(),
-    ]);
-    const projectName = new Map(projects.map((p) => [Number(p.id), p.name]));
+    const data = await this.load();
     const base = await this.settings.baseUrl();
     const brand = await loadEmailBrand(this.settings);
 
-    for (const user of users) {
-      if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true) continue;
-      const mine: ReminderTask[] = [
-        ...boardTasks.filter((t) => this.isMine(t.assigneeId, t.assignee, user) && !t.completed && t.status !== 'Done' && !t.parentId)
-          .map((t) => ({ id: t.id, title: t.title, dueDate: t.dueDate || '', project: projectName.get(Number(t.projectId)) || `Project ${t.projectId}`, where: 'board' as const })),
-        ...logTasks.filter((t) => this.isMine(t.assignedToId, t.assignedTo, user) && t.status !== 'Closed')
-          .map((t) => ({ id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate || '', project: t.project || '', where: 'log' as const })),
-      ].filter((t) => !!t.dueDate);
-      const overdue = this.bucket(mine).overdue;
+    for (const user of data.users) {
+      if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false) continue;
+      const overdue = bucketTasks(this.tasksFor(user, data, base), today).overdue;
       if (!overdue.length) continue;
       const mail = overdueEmail({ name: user.name, tasks: overdue, url: `${base}/tasks`, brand });
       await this.google.sendMail({ to: user.email, subject: mail.subject, html: mail.html })

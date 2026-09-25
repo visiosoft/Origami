@@ -31,7 +31,7 @@ const EMPTY: Form = {
   'google.clientId': '', 'google.clientSecret': '', 'app.baseUrl': '',
   'google.senderEmail': '', 'google.hostedDomain': '',
   'google.attachmentsFolder': '', 'reminders.enabled': '', 'reminders.hour': '7',
-  'reminders.timezone': 'Asia/Dubai',
+  'reminders.timezone': 'America/Los_Angeles',
 };
 
 /**
@@ -235,8 +235,9 @@ export function GoogleSettings() {
         <div style={card}>
           <SectionTitle>Task reminders</SectionTitle>
           <div style={{ fontSize: 12.5, color: '#5C6B65', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
-            A daily digest of overdue and upcoming tasks, emailed to whoever they're assigned to. Sent through the connected
-            account, once per day.
+            A morning email to each person listing their overdue tasks, tasks due today and tasks due in the next 3 days —
+            the ones assigned to them and the ones they collaborate on, each linking straight to the task. Everyone can
+            choose daily, weekly or off for themselves under Settings → Notifications.
           </div>
           <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             <Field label="Send reminders">
@@ -250,8 +251,12 @@ export function GoogleSettings() {
                 {Array.from({ length: 24 }, (_, h) => <option key={h} value={String(h)}>{String(h).padStart(2, '0')}:00</option>)}
               </select>
             </Field>
-            <Field label="Timezone" hint="IANA name, e.g. Asia/Dubai">
-              <input style={inputStyle} value={form['reminders.timezone']} onChange={(e) => set('reminders.timezone', e.target.value)} placeholder="Asia/Dubai" />
+            <Field label="Timezone" hint="Decides what counts as today and overdue">
+              <select style={inputStyle} value={form['reminders.timezone'] || 'America/Los_Angeles'} onChange={(e) => set('reminders.timezone', e.target.value)}>
+                {[...new Set(['America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York', 'Pacific/Honolulu', 'Asia/Dubai', form['reminders.timezone'] || 'America/Los_Angeles'])].map((tz) => (
+                  <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                ))}
+              </select>
             </Field>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
@@ -260,13 +265,13 @@ export function GoogleSettings() {
               onClick={() => {
                 setBusy('reminders'); setError('');
                 api.reminders.run()
-                  .then((r) => toast(r.sent ? `Reminders sent to ${r.sent} person(s)` : 'Nobody has tasks due — nothing sent'))
+                  .then((r) => toast(r.sent ? `Reminders sent to ${r.sent} person(s)` : 'Nobody has tasks due (or everyone has them off) — nothing sent'))
                   .catch((e: Error) => { setError(e.message); toast('⚠ Could not send reminders'); })
                   .finally(() => setBusy(''));
               }}
               style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326' }}
             >
-              {busy === 'reminders' ? 'Sending…' : 'Send now'}
+              {busy === 'reminders' ? 'Sending…' : 'Send to everyone now'}
             </div>
           </div>
           <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 10, lineHeight: 1.55 }}>

@@ -1,4 +1,7 @@
 import { Controller, ForbiddenException, Headers, Post } from '@nestjs/common';
+import { Roles, Tiers } from '../auth/guards/roles.decorator';
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
 import { Public } from '../auth/guards/public.decorator';
 import { RemindersService } from './reminders.service';
 import { SettingsService } from '../settings/settings.service';
@@ -27,5 +30,20 @@ export class RemindersController {
     // scheduler calls the service directly and is unaffected.
     if (!expected || token !== expected) throw new ForbiddenException('Invalid reminder token.');
     return this.reminders.run();
+  }
+
+  /** Settings -> Integrations "Send now": every digest, today, from an admin session. */
+  @Roles('admin')
+  @Post('send-all')
+  sendAll() {
+    return this.reminders.run();
+  }
+
+  /** Settings -> Notifications "Email me my reminder now": the caller's own digest, whatever the schedule. */
+  @Tiers('internal')
+  @Post('mine')
+  mine(@Claims() claims: SessionClaims | null) {
+    if (!claims) throw new ForbiddenException('Sign in first.');
+    return this.reminders.sendMine(claims.sub);
   }
 }

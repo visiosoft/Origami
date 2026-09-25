@@ -6,6 +6,10 @@ export interface ReminderTask {
   dueDate: string;
   project: string;
   where: 'board' | 'log';
+  /** A collaborator's copy -- someone else owns it. */
+  following?: boolean;
+  /** Straight to the task. */
+  url?: string;
 }
 
 export interface ReminderBuckets {
@@ -16,13 +20,20 @@ export interface ReminderBuckets {
   milestones?: ReminderTask[];
 }
 
+/** "Mon, Sep 28" -- the way the office reads a date, not 2026-09-28. */
+export const prettyDate = (d: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+  if (!m) return d;
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+};
+
 const row = (t: ReminderTask, accent: string) => `
   <tr>
     <td style="padding:9px 0;border-bottom:1px solid rgba(20,8,31,0.06);">
-      <div style="font-size:13.5px;font-weight:600;color:#0B1A12;">${escapeHtml(t.title)}</div>
+      <div style="font-size:13.5px;font-weight:600;color:#0B1A12;">${t.url ? `<a href="${escapeHtml(t.url)}" style="color:#0B1A12;text-decoration:none;">${escapeHtml(t.title)}</a>` : escapeHtml(t.title)}</div>
       <div style="font-size:11.5px;color:#7E9B93;margin-top:2px;">
         ${escapeHtml(t.project || 'No project')} ·
-        <span style="color:${accent};font-weight:600;">${escapeHtml(t.dueDate)}</span>
+        <span style="color:${accent};font-weight:600;">${escapeHtml(prettyDate(t.dueDate))}</span>${t.following ? ' · <span style="color:#5C6B65;">you collaborate on this</span>' : ''}
       </div>
     </td>
   </tr>`;
@@ -60,7 +71,7 @@ export function reminderEmail(opts: { name: string; buckets: ReminderBuckets; ur
         ${section('Coming up', soon, '#2F6F68')}
         ${section('Milestones in the next 3 weeks', milestones, '#5B2BC9')}`,
       cta: { label: 'Open Origami', url: opts.url },
-      footer: "You're getting this because tasks are assigned to you. An administrator can turn these off under Settings &rarr; Integrations.",
+      footer: "You're getting this because tasks are assigned to you or you collaborate on them. Choose daily, weekly or off under Settings &rarr; Notifications.",
     }),
   };
 }

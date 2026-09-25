@@ -5,6 +5,8 @@ export interface ReminderTask {
     dueDate: string;
     project: string;
     where: 'board' | 'log';
+    following?: boolean;
+    url?: string;
 }
 export interface ReminderBuckets {
     overdue: ReminderTask[];
@@ -12,6 +14,7 @@ export interface ReminderBuckets {
     soon: ReminderTask[];
     milestones?: ReminderTask[];
 }
+export declare const prettyDate: (d: string) => string;
 export declare function reminderEmail(opts: {
     name: string;
     buckets: ReminderBuckets;

@@ -1,17 +1,25 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.prettyDate = void 0;
 exports.reminderEmail = reminderEmail;
 exports.overdueEmail = overdueEmail;
 exports.progressEmail = progressEmail;
 exports.overstretchEmail = overstretchEmail;
 const shell_1 = require("../email/shell");
+const prettyDate = (d) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d || '');
+    if (!m)
+        return d;
+    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+};
+exports.prettyDate = prettyDate;
 const row = (t, accent) => `
   <tr>
     <td style="padding:9px 0;border-bottom:1px solid rgba(20,8,31,0.06);">
-      <div style="font-size:13.5px;font-weight:600;color:#0B1A12;">${(0, shell_1.escapeHtml)(t.title)}</div>
+      <div style="font-size:13.5px;font-weight:600;color:#0B1A12;">${t.url ? `<a href="${(0, shell_1.escapeHtml)(t.url)}" style="color:#0B1A12;text-decoration:none;">${(0, shell_1.escapeHtml)(t.title)}</a>` : (0, shell_1.escapeHtml)(t.title)}</div>
       <div style="font-size:11.5px;color:#7E9B93;margin-top:2px;">
         ${(0, shell_1.escapeHtml)(t.project || 'No project')} ·
-        <span style="color:${accent};font-weight:600;">${(0, shell_1.escapeHtml)(t.dueDate)}</span>
+        <span style="color:${accent};font-weight:600;">${(0, shell_1.escapeHtml)((0, exports.prettyDate)(t.dueDate))}</span>${t.following ? ' · <span style="color:#5C6B65;">you collaborate on this</span>' : ''}
       </div>
     </td>
   </tr>`;
@@ -45,7 +53,7 @@ function reminderEmail(opts) {
         ${section('Coming up', soon, '#2F6F68')}
         ${section('Milestones in the next 3 weeks', milestones, '#5B2BC9')}`,
             cta: { label: 'Open Origami', url: opts.url },
-            footer: "You're getting this because tasks are assigned to you. An administrator can turn these off under Settings &rarr; Integrations.",
+            footer: "You're getting this because tasks are assigned to you or you collaborate on them. Choose daily, weekly or off under Settings &rarr; Notifications.",
         }),
     };
 }

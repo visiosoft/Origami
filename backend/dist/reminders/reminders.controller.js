@@ -14,6 +14,8 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RemindersController = void 0;
 const common_1 = require("@nestjs/common");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
 const public_decorator_1 = require("../auth/guards/public.decorator");
 const reminders_service_1 = require("./reminders.service");
 const settings_service_1 = require("../settings/settings.service");
@@ -28,6 +30,14 @@ let RemindersController = class RemindersController {
             throw new common_1.ForbiddenException('Invalid reminder token.');
         return this.reminders.run();
     }
+    sendAll() {
+        return this.reminders.run();
+    }
+    mine(claims) {
+        if (!claims)
+            throw new common_1.ForbiddenException('Sign in first.');
+        return this.reminders.sendMine(claims.sub);
+    }
 };
 exports.RemindersController = RemindersController;
 __decorate([
@@ -38,6 +48,21 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], RemindersController.prototype, "run", null);
+__decorate([
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, common_1.Post)('send-all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], RemindersController.prototype, "sendAll", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Post)('mine'),
+    __param(0, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RemindersController.prototype, "mine", null);
 exports.RemindersController = RemindersController = __decorate([
     (0, common_1.Controller)('reminders'),
     __metadata("design:paramtypes", [reminders_service_1.RemindersService,

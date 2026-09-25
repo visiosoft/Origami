@@ -3,6 +3,12 @@ import { Repository } from 'typeorm';
 import { ProjectTaskEntity, TaskEntity, UserEntity, ProjectEntity, ProjectPhaseEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
+import { type ReminderBuckets, type ReminderTask } from './reminder.templates';
+export declare const DEFAULT_REMINDER_TIMEZONE = "America/Los_Angeles";
+export declare function addDays(date: string, n: number): string;
+export declare function isoDue(raw: string | null | undefined, today: string): string;
+export declare function bucketTasks(tasks: ReminderTask[], today: string): ReminderBuckets;
+export declare function wantsDigest(user: Pick<UserEntity, 'notifyByEmail' | 'digestFrequency'>, today: string): boolean;
 export declare class RemindersService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly projectTasks;
     private readonly tasks;
@@ -17,14 +23,23 @@ export declare class RemindersService implements OnApplicationBootstrap, OnModul
     onApplicationBootstrap(): void;
     onModuleDestroy(): void;
     tick(): Promise<void>;
+    private timezone;
+    private load;
+    private tasksFor;
+    sendMine(userId: string): Promise<{
+        sent: boolean;
+        reason?: string;
+        overdue: number;
+        today: number;
+        soon: number;
+    }>;
     private localParts;
-    run(): Promise<{
+    run(today?: string): Promise<{
         sent: number;
         skipped: number;
         recipients: string[];
     }>;
     private isMine;
-    private bucket;
     private runOverdueOnly;
     private runProgressChecks;
     private runOverstretch;

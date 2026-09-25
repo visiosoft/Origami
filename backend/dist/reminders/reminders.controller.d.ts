@@ -1,3 +1,4 @@
+import type { SessionClaims } from '../auth/crypto.util';
 import { RemindersService } from './reminders.service';
 import { SettingsService } from '../settings/settings.service';
 export declare class RemindersController {
@@ -8,5 +9,17 @@ export declare class RemindersController {
         sent: number;
         skipped: number;
         recipients: string[];
+    }>;
+    sendAll(): Promise<{
+        sent: number;
+        skipped: number;
+        recipients: string[];
+    }>;
+    mine(claims: SessionClaims | null): Promise<{
+        sent: boolean;
+        reason?: string;
+        overdue: number;
+        today: number;
+        soon: number;
     }>;
 }

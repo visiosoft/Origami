@@ -47,6 +47,10 @@ export function NotificationSettings() {
   const [overdue, setOverdue] = useState(false);
   const [milestone, setMilestone] = useState(false);
   const [sms, setSms] = useState(false);
+  // The due-date reminder email: daily (the default), weekly on Mondays, or off.
+  const [digest, setDigest] = useState<'daily' | 'weekly' | 'off'>('daily');
+  // Admins see whether the workspace is actually sending them.
+  const [remindersOn, setRemindersOn] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -64,8 +68,10 @@ export function NotificationSettings() {
           setOverdue(me.notifyOnOverdue === true);
           setMilestone(me.notifyOnMilestone === true);
           setSms(me.notifyBySms === true);
+          setDigest(me.digestFrequency === 'weekly' || me.digestFrequency === 'off' ? me.digestFrequency : 'daily');
         }
         if (settings) {
+          setRemindersOn(settings['reminders.enabled'] === 'true');
           setWorkspace(settings['notifications.assignmentEmail'] !== 'false');
           setOverstretchThreshold(settings['reminders.overstretchThreshold'] || '');
         }
@@ -92,6 +98,25 @@ export function NotificationSettings() {
     api.auth.setNotificationPrefsExtra({ [key]: value })
       .then(() => toast(value ? 'Preference on' : 'Preference off'))
       .catch((e: Error) => { setter(previous); setError(e.message); })
+      .finally(() => setSaving(false));
+  };
+
+  const saveDigest = (value: 'daily' | 'weekly' | 'off') => {
+    const previous = digest;
+    setDigest(value);
+    setSaving(true);
+    setError('');
+    api.auth.setNotificationPrefsExtra({ digestFrequency: value })
+      .then(() => toast(value === 'off' ? 'Reminder email off' : value === 'weekly' ? 'Reminder email on Mondays' : 'Reminder email every morning'))
+      .catch((e: Error) => { setDigest(previous); setError(e.message); })
+      .finally(() => setSaving(false));
+  };
+
+  const sendMine = () => {
+    setSaving(true);
+    api.reminders.mine()
+      .then((r) => toast(r.sent ? `Sent — ${r.overdue} overdue, ${r.today} due today, ${r.soon} coming up` : `Not sent — ${r.reason}`))
+      .catch((e: Error) => toast('⚠ ' + e.message))
       .finally(() => setSaving(false));
   };
 
@@ -140,6 +165,37 @@ export function NotificationSettings() {
           {error}
         </div>
       )}
+
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Due-date reminder email</div>
+            <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, lineHeight: 1.55 }}>
+              A morning email of your tasks that are overdue, due today or due in the next 3 days — yours and the ones you
+              collaborate on, each linking straight to the task. Nothing is sent on a day with nothing due.
+            </div>
+            {isAdmin && remindersOn === false && (
+              <div style={{ fontSize: 12, color: '#8E2E0A', fontWeight: 600, marginTop: 6 }}>
+                Reminders are switched off for the workspace — turn them on under Settings → Integrations → Task reminders.
+              </div>
+            )}
+          </div>
+          <select
+            value={digest} disabled={saving}
+            onChange={(e) => saveDigest(e.target.value as 'daily' | 'weekly' | 'off')}
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit', background: 'white' }}
+          >
+            <option value="daily">Every morning</option>
+            <option value="weekly">Mondays only</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <span onClick={saving ? undefined : sendMine} style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}>
+            Email me my reminder now →
+          </span>
+        </div>
+      </div>
 
       <div style={card}>
         {row(

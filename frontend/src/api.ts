@@ -265,7 +265,10 @@ export const api = {
     delete: (id: string) => request(`/email-templates/${id}`, { method: 'DELETE' }),
   },
   reminders: {
-    run: () => request<{ sent: number; skipped: number; recipients: string[] }>('/reminders/run', { method: 'POST' }),
+    /** Every digest, now (admin). */
+    run: () => request<{ sent: number; skipped: number; recipients: string[] }>('/reminders/send-all', { method: 'POST' }),
+    /** Just mine, now -- whatever the schedule says. */
+    mine: () => request<{ sent: boolean; reason?: string; overdue: number; today: number; soon: number }>('/reminders/mine', { method: 'POST' }),
   },
   users: {
     list: () => request('/users'),
