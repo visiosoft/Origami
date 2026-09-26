@@ -25,6 +25,7 @@ const settings_service_1 = require("../settings/settings.service");
 const google_service_1 = require("../google/google.service");
 const reminder_templates_1 = require("./reminder.templates");
 const shell_1 = require("../email/shell");
+const log_statuses_1 = require("../tasks/log-statuses");
 const DAY = 86400000;
 const HOUR = 3600000;
 exports.DEFAULT_REMINDER_TIMEZONE = 'America/Los_Angeles';
@@ -125,7 +126,8 @@ let RemindersService = class RemindersService {
             this.projectTasks.find(), this.tasks.find(), this.users.find(), this.projects.find(),
         ]);
         const openRfis = await this.rfis.find({ where: { status: 'open' } }).catch(() => []);
-        return { boardTasks, logTasks, users, openRfis, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
+        const logStatuses = (0, log_statuses_1.parseLogStatuses)(await this.settings.get(log_statuses_1.LOG_STATUSES_KEY).catch(() => null));
+        return { boardTasks, logTasks, users, openRfis, logStatuses, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
     }
     tasksFor(user, data, base) {
         const following = (list) => Array.isArray(list) && list.some((c) => c?.id === user.id);
@@ -144,7 +146,7 @@ let RemindersService = class RemindersService {
             });
         }
         for (const t of data.logTasks) {
-            if (t.status === 'Closed' || !t.dueDate)
+            if ((0, log_statuses_1.isClosedStatus)(data.logStatuses, t.status) || !t.dueDate)
                 continue;
             const mine = this.isMine(t.assignedToId, t.assignedTo, user);
             if (!mine && !following(t.collaborators))

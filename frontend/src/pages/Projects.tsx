@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { MoneyGlance, TasksAndRfis, WorkGlance } from '../components/ProjectGlance';
 import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
 import { CollaboratorPicker } from '../components/CollaboratorPicker';
 import { DraftScope, SaveBar, mergeSaved, useAutosave } from '../autosave';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { GuestAccessPanel } from '../components/GuestAccessPanel';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { ProjectProgram } from './ProjectProgram';
@@ -38,13 +39,16 @@ const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'complet
 
 export function Projects() {
   const { can, toast } = useApp();
+  const navigate = useNavigate();
   const canManage = can('projects', 'manage');
   const [projects, setProjects] = useState<Project[]>([]);
   const [filters, setFilters] = useState<ProjectFilters>(BLANK_FILTERS);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [activeView, setActiveView] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'rfis' | 'financial' | 'guests'>('overview');
+  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'rfis' | 'subs' | 'financial' | 'guests'>('overview');
+  // The Financial tab can open on Job cost -> Subcontracts & POs (from "+ Subcontract").
+  const [finStart, setFinStart] = useState<'sov' | 'subcontracts'>('sov');
   // Whether this user's role includes project financials (the server decides; can() is permissive for non-admins).
   const [finView, setFinView] = useState(false);
   useEffect(() => { api.finance.access().then((r: any) => setFinView(!!r?.view)).catch(() => setFinView(false)); }, []);
@@ -588,7 +592,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -646,14 +650,26 @@ export function Projects() {
                   Project Program
                 </span>
               </div>}
+              <div onClick={() => setTab('subs')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'subs' ? '#173326' : 'transparent'), color: tab === 'subs' ? '#0B1A12' : '#7E9B93' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M2 18h20" /><path d="M4 18v-3a8 8 0 0 1 16 0v3" /><path d="M10 7V4h4v3" /></svg>
+                  Subcontractors
+                </span>
+              </div>
               {finView && (
-                <div onClick={() => setTab('financial')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'financial' ? '#173326' : 'transparent'), color: tab === 'financial' ? '#0B1A12' : '#7E9B93' }}>
+                <div onClick={() => { setFinStart('sov'); setTab('financial'); }} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'financial' ? '#173326' : 'transparent'), color: tab === 'financial' ? '#0B1A12' : '#7E9B93' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={12} y1={1} x2={12} y2={23} /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                     Financial
                   </span>
                 </div>
               )}
+              <div onClick={() => navigate(`/planroom?project=${sel.id}`)} title="This project's folder in the Plan & File Room" style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid transparent', color: '#7E9B93' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                  Files ↗
+                </span>
+              </div>
               {canManage && (
                 <div onClick={() => setTab('guests')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'guests' ? '#173326' : 'transparent'), color: tab === 'guests' ? '#0B1A12' : '#7E9B93' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -695,6 +711,7 @@ export function Projects() {
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
                   <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}>Open Phase Board</div>
+                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>
                   {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(20,8,31,0.2)', color: '#7E9B93', background: 'white' }}>Project Program off · Turn on</div>}
                   {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Delete</div>}
                 </div>
@@ -726,9 +743,13 @@ export function Projects() {
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                 <TasksAndRfis projectId={sel.id} projectName={sel.name} showRfis={rfiView} view={tab === 'rfis' ? 'rfis' : workView} onView={openWork} />
               </div>
+            ) : tab === 'subs' ? (
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                <ProjectSubcontractors projectId={sel.id} onAddSubcontract={finView ? () => { setFinStart('subcontracts'); setTab('financial'); } : undefined} />
+              </div>
             ) : tab === 'financial' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', background: '#FBF8F2' }}>
-                <ProjectFinancials projectId={sel.id} />
+                <ProjectFinancials key={`${sel.id}-${finStart}`} projectId={sel.id} initialView={finStart} />
               </div>
             ) : tab === 'guests' ? (
               <div style={{ flex: 1, overflowY: 'auto' }}>

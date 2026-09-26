@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -52,7 +53,7 @@ export function MyTasks() {
           where: 'board' as const,
         })),
       ...logTasks
-        .filter((t) => t.status !== 'Closed' && (isMine(t.assignedToId, t.assignedTo) || following(t)))
+        .filter((t) => !isLogClosed(t.status) && (isMine(t.assignedToId, t.assignedTo) || following(t)))
         .map((t) => ({
           key: 'l' + t.id,
           title: t.description?.length > 80 ? t.description.slice(0, 80) + '…' : t.description || t.id,

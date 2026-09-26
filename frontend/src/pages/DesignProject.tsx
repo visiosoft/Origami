@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { RfiLog } from '../components/rfis/Rfis';
 import { HoldBadge } from '../components/ProjectHold';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -66,7 +67,7 @@ export function DesignProject() {
   const [roleFilter, setRoleFilter] = useState('All roles');
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
   const [selected, setSelected] = useState<string[]>([]);
-  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis'>('board');
+  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis' | 'subs'>('board');
   const [rfiView, setRfiView] = useState(false);
   useEffect(() => { api.rfis.access().then((r) => setRfiView(!!r?.view)).catch(() => setRfiView(false)); }, []);
   const [finView, setFinView] = useState(false);
@@ -297,7 +298,14 @@ export function DesignProject() {
       <div style={{ maxWidth: 1280, margin: '0 auto' }}>
         <BackLink onClick={() => navigate(board)} label={board === '/pm' ? 'Construction' : 'Design & Preconstruction'} />
 
-        <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
+          <span onClick={() => navigate(`/planroom?project=${id}`)} title="This project's folder in the Plan & File Room"
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', background: '#fff', color: INK }}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+            Files
+          </span>
+        </div>
         {project.holdSince && <div style={{ marginTop: 6 }}><HoldBadge project={project} size="md" /></div>}
         {(project.location || project.contractAmt) ? (
           <p style={{ margin: '6px 0 18px', fontSize: 14, color: INK3 }}>
@@ -373,7 +381,7 @@ export function DesignProject() {
             </div>
 
             <div style={{ display: 'flex', gap: 6, marginTop: 20, flexWrap: 'wrap' }}>
-              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ...(rfiView ? [['rfis', 'RFIs']] : []), ['dashboard', 'Dashboard'], ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis', string][]).map(([key, label]) => (
+              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ...(rfiView ? [['rfis', 'RFIs']] : []), ['subs', 'Subcontractors'], ['dashboard', 'Dashboard'], ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis' | 'subs', string][]).map(([key, label]) => (
                 <div
                   key={key}
                   onClick={() => setView(key)}
@@ -386,7 +394,7 @@ export function DesignProject() {
               ))}
             </div>
 
-            <div style={{ display: view === 'financials' || view === 'rfis' ? 'none' : 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: view === 'financials' || view === 'rfis' || view === 'subs' ? 'none' : 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 14px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, background: PAPER, flex: '1 1 220px', maxWidth: 340 }}>
                 <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={INK3} strokeWidth={2} strokeLinecap="round"><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
                 <input
@@ -598,6 +606,12 @@ export function DesignProject() {
           {view === 'rfis' && project && (
             <div style={{ padding: '18px 26px 28px' }}>
               <RfiLog projectId={id} projectName={project.name} compact />
+            </div>
+          )}
+
+          {view === 'subs' && (
+            <div style={{ padding: '18px 26px 28px' }}>
+              <ProjectSubcontractors projectId={id} onAddSubcontract={finView ? () => setView('financials') : undefined} />
             </div>
           )}
 

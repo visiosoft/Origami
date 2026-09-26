@@ -10,6 +10,7 @@ import { UpdateTaskDto, AddCommentDto, AddLinkDto } from './dto/update-task.dto'
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
 import { scopeTasks, isRestrictedViewer, assignedTo } from '../database/viewer.util';
+import { Roles } from '../auth/guards/roles.decorator';
 
 @Controller('tasks')
 export class TasksController {
@@ -27,6 +28,19 @@ export class TasksController {
   ) {
     const rows = await this.tasksService.findAll(tab, project);
     return scopeTasks(rows, await this.auth.verify(auth));
+  }
+
+  /** The Request Log's statuses, for every screen that lists or picks one. */
+  @Get('statuses')
+  statuses() {
+    return this.tasksService.statuses();
+  }
+
+  /** Settings -> Request Log statuses (administrators). */
+  @Roles('admin')
+  @Put('statuses')
+  saveStatuses(@Body() body: { statuses?: unknown }) {
+    return this.tasksService.saveStatuses(body?.statuses);
   }
 
   @Get(':id')

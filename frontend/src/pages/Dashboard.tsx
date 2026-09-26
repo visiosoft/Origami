@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -235,7 +236,7 @@ export function Dashboard() {
       .filter((t) => !t.completed && t.status !== 'Done' && t.dueDate && t.dueDate <= todayStr)
       .map((t) => ({ task: t.title, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || `Project ${t.projectId}`), due: daysAgoLabel(t.dueDate!), past: t.dueDate! < todayStr })),
     ...attentionLogTasks
-      .filter((t) => t.status !== 'Closed' && t.dueDate && t.dueDate <= todayStr)
+      .filter((t) => !isLogClosed(t.status) && t.dueDate && t.dueDate <= todayStr)
       .map((t) => ({ task: t.description?.length > 60 ? t.description.slice(0, 60) + '…' : (t.description || t.id), project: t.project || 'General task', due: daysAgoLabel(t.dueDate), past: t.dueDate < todayStr })),
     ...todayMeetings
       .filter((m) => !m.allDay)

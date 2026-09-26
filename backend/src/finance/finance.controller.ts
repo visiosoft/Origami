@@ -15,6 +15,7 @@ import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
 import { CostsService } from './costs.service';
+import { ProjectSubsService } from './project-subs.service';
 import { ReportsService } from './reports.service';
 
 const kindOf = (k: string) => {
@@ -40,6 +41,7 @@ export class FinanceController {
     private readonly access: ManpowerAccess,
     private readonly costs: CostsService,
     private readonly reports: ReportsService,
+    private readonly subs: ProjectSubsService,
   ) {}
 
   private actor(a?: string) { return this.access.actor(a); }
@@ -70,6 +72,8 @@ export class FinanceController {
   @Post('projects/:id/retention/releases') async requestRelease(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.retention.request(Number(id), dto, await this.actor(a)); }
 
   // --- job cost
+  /** The project's Subcontractors tab: any staff member; amounts only with cost rights. */
+  @Get('projects/:id/subcontractors') async subsOf(@Param('id') id: string, @Headers('authorization') a?: string) { return this.subs.list(Number(id), await this.actor(a)); }
   @Get('projects/:id/costs') async costsOf(@Param('id') id: string, @Headers('authorization') a?: string) { return this.costs.overview(Number(id), await this.actor(a)); }
   @Post('projects/:id/budget-lines') async budgetLine(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.costs.saveBudgetLine(Number(id), dto, await this.actor(a)); }
   @Delete('budget-lines/:id') async removeBudgetLine(@Param('id') id: string, @Headers('authorization') a?: string) { return this.costs.removeBudgetLine(id, await this.actor(a)); }

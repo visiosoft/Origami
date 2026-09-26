@@ -11,6 +11,7 @@ import { SchedulingSettings } from './SchedulingSettings';
 import { MyCalendarSettings } from './MyCalendarSettings';
 import { SystemNoticeSettings } from './SystemNoticeSettings';
 import { DailyLogBackupSettings } from './DailyLogBackupSettings';
+import { RequestLogStatusSettings } from './RequestLogStatusSettings';
 import { mergeTokens } from '../data/clientPersonality';
 import { RichTextEditor } from '../components/RichTextEditor';
 import type { ScoringCriterion } from '../data/scoring';
@@ -45,6 +46,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   { group: 'Workspace', items: [
     { key: 'notice', label: 'System notice' },
     { key: 'daily-log-backup', label: 'Daily log backup' },
+    { key: 'request-log-statuses', label: 'Request Log statuses' },
   ] },
   { group: 'Integrations', items: [
     { key: 'google', label: 'Google Workspace' },
@@ -94,6 +96,7 @@ export function Settings() {
           {active === 'google' && <GoogleSettings />}
           {active === 'notice' && <SystemNoticeSettings />}
           {active === 'daily-log-backup' && <DailyLogBackupSettings />}
+          {active === 'request-log-statuses' && <RequestLogStatusSettings />}
           {active === 'cost-codes' && <CostCodesSettings canManage={can('settings', 'manage') || can('manpower_con', 'manage')} />}
         </div>
       </div>

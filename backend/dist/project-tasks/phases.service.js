@@ -37,6 +37,7 @@ function addWorkingDays(from, days) {
 const SECTION_FOR_STATUS = {
     'Not started': 0,
     'In progress': 1,
+    'On hold': 1,
     Blocked: 1,
     Done: 3,
 };

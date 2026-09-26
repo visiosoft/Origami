@@ -117,10 +117,10 @@ type Sub = 'codes' | 'budget' | 'commitments' | 'costs' | 'labor';
  * spent, the forecast at completion, and the budget, subcontracts / POs,
  * bills and labor behind those figures.
  */
-export function JobCostPanel({ projectId, overview }: { projectId: number; overview: Overview }) {
+export function JobCostPanel({ projectId, overview, initialSub }: { projectId: number; overview: Overview; initialSub?: 'commitments' }) {
   const { toast } = useApp();
   const [v, setV] = useState<CostsView | null>(null);
-  const [sub, setSub] = useState<Sub>('codes');
+  const [sub, setSub] = useState<Sub>(initialSub || 'codes');
   const load = () => api.finance.costs(projectId).then((r: any) => setV(r)).catch((e: any) => failed(toast, e));
   useEffect(() => { load(); }, [projectId]);
   const pick = usePickers(overview);

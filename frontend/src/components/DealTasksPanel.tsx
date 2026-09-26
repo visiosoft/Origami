@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { api } from '../api';
 import { DraftScope, SaveBar } from '../autosave';
 import { NewTaskDrawer } from './NewTaskDrawer';
@@ -11,7 +12,6 @@ const input: React.CSSProperties = {
   fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
 };
 
-const STATUSES = ['Open', 'In Progress', 'Closed'];
 const NOTE_FIELDS: (keyof Task)[] = ['resolution'];
 /** Labels are free tags on the task -- this one records which pipeline stage it was filed under. */
 const SECTION_PREFIX = 'section:';
@@ -35,6 +35,7 @@ export function DealTasksPanel({
   /** A task to open as soon as it's loaded -- e.g. one just converted from a note. */
   openTaskId?: string | null;
 }) {
+  const statuses = useLogStatuses();
   // Opens over the lead, so reading a task never takes you out of the CRM.
   const [openId, setOpenId] = useState<string | null>(null);
   // A task made moments ago (from a note, or "+ Add task") opens in full, where files, labels and a checklist go.
@@ -62,7 +63,7 @@ export function DealTasksPanel({
 
   const setStatus = (t: Task, status: string) => {
     setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: status as Task['status'] } : x)));
-    api.tasks.update(t.id, { status, dateClosed: status === 'Closed' ? new Date().toISOString().slice(0, 10) : '' }).catch(() => load());
+    api.tasks.update(t.id, { status, dateClosed: isLogClosed(status) ? new Date().toISOString().slice(0, 10) : '' }).catch(() => load());
   };
 
   const remove = (t: Task) => {
@@ -74,7 +75,7 @@ export function DealTasksPanel({
   const toggleNotes = (id: string) => setOpenNotes((prev) => ({ ...prev, [id]: !prev[id] }));
   const putTask = (res: Task) => setTasks((prev) => prev.map((x) => (x.id === res.id ? res : x)));
 
-  const visible = tasks.filter((t) => showClosed || t.status !== 'Closed');
+  const visible = tasks.filter((t) => showClosed || !isLogClosed(t.status));
 
   // Grouped by section, in the order the lead actually moves through the
   // board -- current stage first, everything else after, "Other" last.
@@ -142,17 +143,17 @@ export function DealTasksPanel({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {secTasks.map((t) => (
-                  <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, opacity: t.status === 'Closed' ? 0.6 : 1 }}>
+                  <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, opacity: isLogClosed(t.status) ? 0.6 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', flexWrap: 'wrap' }}>
                       <div onClick={() => setOpenId(t.id)} style={{ flex: '1 1 200px', minWidth: 0, cursor: 'pointer' }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', textDecoration: t.status === 'Closed' ? 'line-through' : 'none' }}>{taskHeadline(t.description).title || t.id}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', textDecoration: isLogClosed(t.status) ? 'line-through' : 'none' }}>{taskHeadline(t.description).title || t.id}</div>
                         {taskHeadline(t.description).details && (
                           <div style={{ fontSize: 11.5, color: '#5C6B65', lineHeight: 1.45, whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{taskHeadline(t.description).details}</div>
                         )}
                         <div style={{ fontSize: 11, color: '#7E9B93' }}>{t.assignedTo || 'Unassigned'}{t.dueDate ? ` · Due ${t.dueDate}` : ''}</div>
                       </div>
                       <select value={t.status} onChange={(e) => setStatus(t, e.target.value)} style={{ ...input, width: 'auto', padding: '5px 8px', fontSize: 11.5 }}>
-                        {STATUSES.map((s) => <option key={s}>{s}</option>)}
+                        {[...statuses.map((s) => s.name), ...(statuses.some((s) => s.name === t.status) || !t.status ? [] : [t.status])].map((s) => <option key={s}>{s}</option>)}
                       </select>
                       <span onClick={() => toggleNotes(t.id)} style={{ fontSize: 11, fontWeight: 700, color: t.resolution ? '#173326' : '#7E9B93', cursor: 'pointer' }}>
                         {openNotes[t.id] ? 'Hide notes' : t.resolution ? 'Notes' : '+ Notes'}

@@ -107,7 +107,10 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const updateTask = (id: string, patch: Partial<ProjectTask>) => {
     patchLocal(id, patch);
-    api.projectTasks.update(id, patch).catch(() => toast('⚠ Failed to save'));
+    // The server may move a task with it: an "On hold" column and the On hold status go together.
+    api.projectTasks.update(id, patch)
+      .then((res: any) => { if (res?.id && (res.status !== patch.status || res.sectionId !== patch.sectionId)) patchLocal(id, { status: res.status, sectionId: res.sectionId, completed: res.completed }); })
+      .catch(() => toast('⚠ Failed to save'));
   };
   const addTask = (sectionId: string, title: string, parentId: string | null = null) => {
     const t = title.trim(); if (!t) return;

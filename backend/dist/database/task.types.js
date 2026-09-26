@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TRACKED_FIELDS = exports.TASK_STATUSES = void 0;
+exports.TRACKED_FIELDS = exports.isHoldSection = exports.TASK_STATUSES = void 0;
+exports.normalizeTaskStatus = normalizeTaskStatus;
 exports.subId = subId;
 exports.normalizeAttachments = normalizeAttachments;
 exports.normalizeList = normalizeList;
@@ -8,7 +9,17 @@ exports.event = event;
 exports.normalizeCollaborators = normalizeCollaborators;
 exports.collaboratorChanges = collaboratorChanges;
 exports.diffEvents = diffEvents;
-exports.TASK_STATUSES = ['Not started', 'In progress', 'Blocked', 'Done'];
+exports.TASK_STATUSES = ['Not started', 'In progress', 'On hold', 'Done'];
+function normalizeTaskStatus(v) {
+    if (v == null)
+        return undefined;
+    const s = String(v).trim();
+    if (/^(blocked|on[\s-]*hold|hold)$/i.test(s))
+        return 'On hold';
+    return s;
+}
+const isHoldSection = (name) => /^(on[\s-]*hold|blocked)$/i.test((name || '').trim());
+exports.isHoldSection = isHoldSection;
 let counter = 0;
 function subId(prefix) {
     counter = (counter + 1) % 100000;

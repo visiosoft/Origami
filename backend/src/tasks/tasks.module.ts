@@ -6,9 +6,10 @@ import { TaskEntity, UserEntity } from '../database/entities';
 import { GoogleModule } from '../google/google.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [NotificationsModule, TypeOrmModule.forFeature([TaskEntity, UserEntity]), GoogleModule, AuthModule],
+  imports: [NotificationsModule, TypeOrmModule.forFeature([TaskEntity, UserEntity]), GoogleModule, AuthModule, SettingsModule],
   controllers: [TasksController],
   providers: [TasksService],
   exports: [TasksService],

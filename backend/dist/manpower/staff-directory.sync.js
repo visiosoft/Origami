@@ -20,6 +20,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const settings_service_1 = require("../settings/settings.service");
+const workforce_util_1 = require("./workforce.util");
 const blank = (v) => !v || !v.trim() || v.trim() === '—';
 const norm = (v) => (v || '').trim().toLowerCase();
 const isWorker = (e) => !!e.contractorId || e.employmentType === 'contractor_worker';
@@ -90,12 +91,11 @@ let StaffDirectorySync = class StaffDirectorySync {
     }
     async employeeForPerson(p) {
         const all = await this.employees.find();
-        const max = all.reduce((m, e) => { const n = /^W-(\d+)$/.exec(e.workerId || ''); return n ? Math.max(m, Number(n[1])) : m; }, 0);
         const now = new Date().toISOString();
         const emp = await this.employees.save(this.employees.create({
             id: 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
             name: p.name, email: blank(p.email) ? '' : p.email, phone: blank(p.phone) ? '' : p.phone, designation: p.role || '',
-            employmentType: 'full_time', employmentStatus: 'active', status: 'active', workerId: 'W-' + String(max + 1).padStart(4, '0'), createdAt: now, updatedAt: now,
+            employmentType: 'full_time', employmentStatus: 'active', status: 'active', workerId: (0, workforce_util_1.nextWorkerId)(all.map((e) => e.workerId)), createdAt: now, updatedAt: now,
         }));
         p.employeeId = emp.id;
         await this.people.save(p);

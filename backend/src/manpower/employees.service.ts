@@ -4,15 +4,9 @@ import { Repository } from 'typeorm';
 import { EmployeeAssignmentEntity, EmployeeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { StaffDirectorySync } from './staff-directory.sync';
+import { nextWorkerId } from './workforce.util';
 
-/** Next free "W-0001"-style worker number, never reusing one a deleted employee held. */
-export function nextWorkerId(existing: (string | null | undefined)[]): string {
-  const max = existing.reduce((m, id) => {
-    const match = /^W-(\d+)$/.exec(id || '');
-    return match ? Math.max(m, Number(match[1])) : m;
-  }, 0);
-  return 'W-' + String(max + 1).padStart(4, '0');
-}
+export { nextWorkerId };
 
 @Injectable()
 export class EmployeesService {
@@ -54,7 +48,7 @@ export class EmployeesService {
     const employee = {
       status: 'active', employmentStatus: 'active', createdAt: now, updatedAt: now,
       ...(await this.withTradeName(dto)),
-      workerId: dto.workerId?.trim() || nextWorkerId(all.map((e) => e.workerId)),
+      workerId: dto.workerId?.trim() || nextWorkerId(all.map((e) => e.workerId), dto.hireDate),
       id: dto.id || 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
     };
     return this.toPeople(await this.repo.save(this.repo.create(employee as Partial<EmployeeEntity>)));

@@ -28,6 +28,7 @@ const reimbursables_service_1 = require("./reimbursables.service");
 const retention_service_1 = require("./retention.service");
 const finance_hub_service_1 = require("./finance-hub.service");
 const costs_service_1 = require("./costs.service");
+const project_subs_service_1 = require("./project-subs.service");
 const reports_service_1 = require("./reports.service");
 const kindOf = (k) => {
     if (k !== 'phase' && k !== 'task' && k !== 'project')
@@ -35,7 +36,7 @@ const kindOf = (k) => {
     return k;
 };
 let FinanceController = class FinanceController {
-    constructor(fin, invoices, cos, reimbs, retention, hub, access, costs, reports) {
+    constructor(fin, invoices, cos, reimbs, retention, hub, access, costs, reports, subs) {
         this.fin = fin;
         this.invoices = invoices;
         this.cos = cos;
@@ -45,6 +46,7 @@ let FinanceController = class FinanceController {
         this.access = access;
         this.costs = costs;
         this.reports = reports;
+        this.subs = subs;
     }
     actor(a) { return this.access.actor(a); }
     async rights(a) { return this.fin.rights(await this.actor(a)); }
@@ -67,6 +69,7 @@ let FinanceController = class FinanceController {
     async newReimb(id, dto, a) { return this.reimbs.create(Number(id), dto, await this.actor(a)); }
     async retentionOf(id, a) { return this.retention.overview(Number(id), await this.actor(a)); }
     async requestRelease(id, dto, a) { return this.retention.request(Number(id), dto, await this.actor(a)); }
+    async subsOf(id, a) { return this.subs.list(Number(id), await this.actor(a)); }
     async costsOf(id, a) { return this.costs.overview(Number(id), await this.actor(a)); }
     async budgetLine(id, dto, a) { return this.costs.saveBudgetLine(Number(id), dto, await this.actor(a)); }
     async removeBudgetLine(id, a) { return this.costs.removeBudgetLine(id, await this.actor(a)); }
@@ -285,6 +288,14 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "requestRelease", null);
+__decorate([
+    (0, common_1.Get)('projects/:id/subcontractors'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "subsOf", null);
 __decorate([
     (0, common_1.Get)('projects/:id/costs'),
     __param(0, (0, common_1.Param)('id')),
@@ -650,7 +661,8 @@ exports.FinanceController = FinanceController = __decorate([
         finance_hub_service_1.FinanceHubService,
         manpower_access_service_1.ManpowerAccess,
         costs_service_1.CostsService,
-        reports_service_1.ReportsService])
+        reports_service_1.ReportsService,
+        project_subs_service_1.ProjectSubsService])
 ], FinanceController);
 class FinanceFilesBase {
     constructor(fin, auth, attachments, access) {

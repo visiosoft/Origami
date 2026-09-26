@@ -66,6 +66,8 @@ export function FileRoom() {
   // /planroom?file=<id> (e.g. a drawing linked from an RFI) opens that file in its folder.
   const [params] = useSearchParams();
   const linkedFile = params.get('file');
+  // /planroom?project=<id> (the project page's Files button) opens that project's folder.
+  const linkedProject = params.get('project');
   const load = () => {
     api.fileRoom.list()
       .then((d) => {
@@ -73,6 +75,10 @@ export function FileRoom() {
         setData(next);
         const hit = linkedFile ? next.files.find((f) => f.id === linkedFile) : null;
         if (hit && !selectedFileId) { setPath([String(hit.projectId), ...(hit.folderPath || [])]); setSelectedFileId(hit.id); }
+        else if (linkedProject && next.projects.some((p) => String(p.id) === linkedProject)) {
+          setPath((cur) => (cur[0] === 'all' ? [linkedProject] : cur));
+          setOpenProjects((o) => ({ ...o, [linkedProject]: true }));
+        }
       })
       .catch(() => { })
       .finally(() => setLoading(false));

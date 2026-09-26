@@ -16,6 +16,8 @@ exports.TasksService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const settings_service_1 = require("../settings/settings.service");
+const log_statuses_1 = require("./log-statuses");
 const entities_1 = require("../database/entities");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
@@ -23,12 +25,23 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments, notifications) {
+    constructor(repo, users, attachments, notifications, settings) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
         this.notifications = notifications;
+        this.settings = settings;
         this.log = new common_1.Logger('TasksService');
+    }
+    async statuses() {
+        if (!this.settings)
+            return log_statuses_1.DEFAULT_LOG_STATUSES;
+        return (0, log_statuses_1.parseLogStatuses)(await this.settings.get(log_statuses_1.LOG_STATUSES_KEY).catch(() => null));
+    }
+    async saveStatuses(list) {
+        const clean = (0, log_statuses_1.parseLogStatuses)(list);
+        await this.settings.set(log_statuses_1.LOG_STATUSES_KEY, JSON.stringify(clean));
+        return clean;
     }
     async onApplicationBootstrap() {
         try {
@@ -139,10 +152,15 @@ let TasksService = class TasksService {
             patch.assignedTo = assignee.name;
             patch.assignedToId = assignee.id ?? null;
         }
-        if (patch.status === 'Closed' && task.status !== 'Closed' && !patch.dateClosed) {
+        const statuses = await this.statuses();
+        if (patch.status && /^(blocked|on[\s-]*hold)$/i.test(String(patch.status)))
+            patch.status = statuses.find((s) => /^on[\s-]*hold$/i.test(s.name))?.name || patch.status;
+        const closing = !!patch.status && (0, log_statuses_1.isClosedStatus)(statuses, patch.status);
+        const wasClosed = (0, log_statuses_1.isClosedStatus)(statuses, task.status);
+        if (closing && !wasClosed && !patch.dateClosed) {
             patch.dateClosed = new Date().toISOString().slice(0, 10);
         }
-        if (patch.status && patch.status !== 'Closed')
+        if (patch.status && !closing)
             patch.dateClosed = '';
         let joined = [];
         const collabEvents = [];
@@ -155,7 +173,7 @@ let TasksService = class TasksService {
             if (removed.length)
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
-        const finished = patch.status === 'Closed' && task.status !== 'Closed';
+        const finished = closing && !wasClosed;
         const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
         const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
             ? String(patch.assignedToId)
@@ -250,6 +268,7 @@ exports.TasksService = TasksService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        settings_service_1.SettingsService])
 ], TasksService);
 //# sourceMappingURL=tasks.service.js.map

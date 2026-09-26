@@ -48,8 +48,23 @@ export interface ActivityEvent {
 }
 
 /** Statuses for project (board) tasks. Kept in sync with the `completed` flag. */
-export const TASK_STATUSES = ['Not started', 'In progress', 'Blocked', 'Done'] as const;
+export const TASK_STATUSES = ['Not started', 'In progress', 'On hold', 'Done'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+/**
+ * "Blocked" and "On hold" were two names for one thing (Sep 25 meeting) --
+ * one status now, "On hold"; the old spellings still come in from older
+ * screens and imports and are read as it.
+ */
+export function normalizeTaskStatus(v: unknown): string | undefined {
+  if (v == null) return undefined;
+  const s = String(v).trim();
+  if (/^(blocked|on[\s-]*hold|hold)$/i.test(s)) return 'On hold';
+  return s;
+}
+
+/** A board column that means "on hold" -- a task's status and that column move together. */
+export const isHoldSection = (name?: string | null) => /^(on[\s-]*hold|blocked)$/i.test((name || '').trim());
 
 let counter = 0;
 /** Short unique id for json sub-records (no uuid dependency in this app). */

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PicklistsSetup } from '../components/PicklistsSetup';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -48,7 +49,7 @@ const TAB_GROUPS = [
   { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['shifts', 'Shifts'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
   { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
   { label: 'Employee Services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
-  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['sub_trades', 'Subcontractor Trades'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup'], ['sample', 'Sample Data']] },
+  { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['sub_trades', 'Subcontractor Trades'], ['picklists', 'Picklists'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup'], ['sample', 'Sample Data']] },
 ] as const;
 type TabKey = typeof TAB_GROUPS[number]['tabs'][number][0];
 const TAB_LABEL = Object.fromEntries(TAB_GROUPS.flatMap((g) => g.tabs.map(([k, l]) => [k, l]))) as Record<TabKey, string>;
@@ -210,6 +211,7 @@ export function Manpower() {
       {tab === 'transport' && <TransportModule employees={employees} projects={projects} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'leave_setup' && <LeaveSetup canManage={canManage} />}
       {tab === 'sub_trades' && <SubcontractorTradesSetup canManage={canManage} />}
+      {tab === 'picklists' && <PicklistsSetup canManage={canManage} />}
       {tab === 'sample' && <SampleDataPanel canManage={canManage} onChanged={async () => { await Promise.all([reloadEmployees(), reloadAssignments(), reloadContractors()]); }} />}
       {tab === 'csi' && <CostCodesSettings canManage={canManage} onChanged={reloadCsiCodes} />}
       {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}

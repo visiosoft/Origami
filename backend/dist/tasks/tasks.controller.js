@@ -22,6 +22,7 @@ const update_task_dto_1 = require("./dto/update-task.dto");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
 const viewer_util_1 = require("../database/viewer.util");
+const roles_decorator_1 = require("../auth/guards/roles.decorator");
 let TasksController = class TasksController {
     constructor(tasksService, auth, attachments) {
         this.tasksService = tasksService;
@@ -31,6 +32,12 @@ let TasksController = class TasksController {
     async findAll(tab, project, auth) {
         const rows = await this.tasksService.findAll(tab, project);
         return (0, viewer_util_1.scopeTasks)(rows, await this.auth.verify(auth));
+    }
+    statuses() {
+        return this.tasksService.statuses();
+    }
+    saveStatuses(body) {
+        return this.tasksService.saveStatuses(body?.statuses);
     }
     async findOne(id, auth) {
         const claims = await this.auth.verify(auth);
@@ -81,6 +88,20 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", Promise)
 ], TasksController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('statuses'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TasksController.prototype, "statuses", null);
+__decorate([
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, common_1.Put)('statuses'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TasksController.prototype, "saveStatuses", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

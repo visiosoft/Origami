@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { logStatusTone } from '../data/logStatuses';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
@@ -7,7 +8,7 @@ import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, 
 import { TaskBoard } from '../components/TaskBoard';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
-import { ST_COLORS, TT_COLORS, taskHeadline, type Task, type TaskTab } from '../data/tasks';
+import { TT_COLORS, taskHeadline, type Task, type TaskTab } from '../data/tasks';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
@@ -187,7 +188,7 @@ export function Tasks() {
           <div style={{ padding: 40, textAlign: 'center', color: '#7E9B93', fontSize: 14 }}>No tasks in this category.</div>
         ) : (
           tasks.map((t) => {
-            const sc = ST_COLORS[t.status];
+            const sc = logStatusTone(t.status);
             const tc = TT_COLORS[t.topicType];
             const assignedUser = users.find((u) => (t.assignedToId && u.id === t.assignedToId) || u.name === t.assignedTo);
             const desc = taskHeadline(t.description).title;

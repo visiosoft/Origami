@@ -37,13 +37,15 @@ export interface ActivityEvent {
   at: string;
 }
 
-export type TaskStatus = 'Not started' | 'In progress' | 'Blocked' | 'Done';
-export const TASK_STATUSES: TaskStatus[] = ['Not started', 'In progress', 'Blocked', 'Done'];
+/** "Blocked" and "On hold" were one thing under two names -- it's "On hold" now. */
+export type TaskStatus = 'Not started' | 'In progress' | 'On hold' | 'Done';
+export const TASK_STATUSES: TaskStatus[] = ['Not started', 'In progress', 'On hold', 'Done'];
 
-export const STATUS_STYLE: Record<TaskStatus, { bg: string; c: string }> = {
+export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
   'Not started': { bg: '#EFEDE8', c: '#5C6B65' },
   'In progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  Blocked: { bg: '#F2DFD4', c: '#8E2E0A' },
+  'On hold': { bg: '#FBE9AE', c: '#93520F' },
+  Blocked: { bg: '#FBE9AE', c: '#93520F' }, // an older row not yet renamed
   Done: { bg: '#D2EAD3', c: '#1E6B36' },
 };
 

@@ -40,6 +40,13 @@ let ProjectTasksService = class ProjectTasksService {
             }
             await (0, assignee_util_1.backfillAssignees)(this.repo, this.users, 'assigneeId', 'assignee', this.log);
             await this.renameLegacyTitles();
+            const blocked = await this.repo.findBy({ status: 'Blocked' });
+            if (blocked.length) {
+                for (const t of blocked)
+                    t.status = 'On hold';
+                await this.repo.save(blocked);
+                this.log.log(`Renamed ${blocked.length} task status(es) Blocked -> On hold`);
+            }
         }
         catch (err) {
             this.log.error('Task seed failed: ' + err.message);
@@ -94,6 +101,35 @@ let ProjectTasksService = class ProjectTasksService {
             throw new common_1.NotFoundException(`Task ${id} not found`);
         return task;
     }
+    async syncHoldSection(task, patch) {
+        const projectId = patch.projectId !== undefined ? patch.projectId : task.projectId;
+        if (projectId === undefined)
+            return;
+        const sections = await this.sections.forProject(projectId == null ? null : Number(projectId));
+        const hold = sections.find((s) => (0, task_types_1.isHoldSection)(s.name));
+        if (!hold)
+            return;
+        const movingSection = 'sectionId' in patch && patch.sectionId !== task.sectionId;
+        const changingStatus = 'status' in patch && patch.status !== task.status;
+        if (movingSection && !changingStatus) {
+            if (patch.sectionId === hold.id)
+                patch.status = 'On hold';
+            else if (task.sectionId === hold.id && task.status === 'On hold')
+                patch.status = 'In progress';
+        }
+        else if (changingStatus && !movingSection) {
+            if (patch.status === 'On hold') {
+                if (task.sectionId !== hold.id)
+                    patch.sectionId = hold.id;
+            }
+            else if (task.sectionId === hold.id) {
+                const want = patch.status === 'Done' ? /^done$/i : patch.status === 'Not started' ? /^(to[\s-]*do|not started)$/i : /^in[\s-]*progress$/i;
+                const target = sections.find((s) => want.test(s.name.trim()));
+                if (target)
+                    patch.sectionId = target.id;
+            }
+        }
+    }
     syncStatus(task, patch) {
         if ('status' in patch) {
             patch.completed = patch.status === 'Done';
@@ -108,6 +144,15 @@ let ProjectTasksService = class ProjectTasksService {
     }
     async create(dto, actor = { name: 'Unknown' }) {
         const id = dto.id || 'T-' + String(Date.now());
+        if (dto.status) {
+            dto = { ...dto, status: (0, task_types_1.normalizeTaskStatus)(dto.status) };
+            if (dto.status === 'On hold') {
+                const p = { status: 'On hold' };
+                await this.syncHoldSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p);
+                if (p.sectionId)
+                    dto.sectionId = p.sectionId;
+            }
+        }
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assigneeId, name: dto.assignee });
         const task = {
             order: 0, completed: false, parentId: null, attachments: [], comments: [],
@@ -151,6 +196,9 @@ let ProjectTasksService = class ProjectTasksService {
             patch.assignee = assignee.name;
             patch.assigneeId = assignee.id ?? null;
         }
+        if ('status' in patch)
+            patch.status = (0, task_types_1.normalizeTaskStatus)(patch.status);
+        await this.syncHoldSection(task, patch);
         this.syncStatus(task, patch);
         let joined = [];
         const collabEvents = [];

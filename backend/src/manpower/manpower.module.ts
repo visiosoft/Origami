@@ -14,6 +14,7 @@ import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
 import { SettingsModule } from '../settings/settings.module';
 import { ManpowerAccess } from './manpower-access.service';
+import { PicklistsController, PicklistsService } from './picklists';
 import { EmployeesController } from './employees.controller';
 import { EmployeesService } from './employees.service';
 import { CsiCodesController } from './csi-codes.controller';
@@ -69,14 +70,14 @@ import { SampleDataController } from './sample-data.controller';
     GoogleModule,
     SettingsModule,
   ],
-  controllers: [
+  controllers: [PicklistsController, 
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
     SubcontractorTradesController, EmployeeRecordsController, AssignmentsController, WorkforceRequestsController, ContractorsController,
     PayrollController, OvertimeController, AdvancesController,
     LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController, WeeklyTimesheetsController,
   ],
   providers: [DailyLogBackupService, 
-    ManpowerAccess, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
+    ManpowerAccess, PicklistsService, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
     SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
     LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService, WeeklyTimesheetsService,

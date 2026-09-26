@@ -10,6 +10,10 @@ export declare class TasksController {
     private readonly attachments;
     constructor(tasksService: TasksService, auth: AuthService, attachments: AttachmentsService);
     findAll(tab?: string, project?: string, auth?: string): Promise<import("../database/entities").TaskEntity[]>;
+    statuses(): Promise<import("./log-statuses").LogStatus[]>;
+    saveStatuses(body: {
+        statuses?: unknown;
+    }): Promise<import("./log-statuses").LogStatus[]>;
     findOne(id: string, auth?: string): Promise<import("../database/entities").TaskEntity>;
     create(dto: CreateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
     update(id: string, dto: UpdateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;

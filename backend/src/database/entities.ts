@@ -492,7 +492,7 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) assigneeId!: string;     // users.id — `assignee` stays as the display name
   /** People following the task without owning it ("Collaborative"): [{ id, name }]. */
   @Column({ type: 'simple-json', nullable: true }) collaborators!: { id: string; name: string }[];
-  @Column({ nullable: true }) status!: string;         // Not started | In progress | Blocked | Done
+  @Column({ nullable: true }) status!: string;         // Not started | In progress | On hold | Done
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];

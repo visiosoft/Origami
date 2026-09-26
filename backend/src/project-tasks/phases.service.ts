@@ -34,7 +34,8 @@ function addWorkingDays(from: Date, days: number): Date {
 const SECTION_FOR_STATUS: Record<string, number> = {
   'Not started': 0,   // To Do
   'In progress': 1,   // In Progress
-  Blocked: 1,
+  'On hold': 1,
+  Blocked: 1,         // the old name for On hold
   Done: 3,            // Done
 };
 

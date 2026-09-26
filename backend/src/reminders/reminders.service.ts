@@ -6,6 +6,7 @@ import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { reminderEmail, overdueEmail, progressEmail, overstretchEmail, type ReminderBuckets, type ReminderTask } from './reminder.templates';
 import { loadEmailBrand } from '../email/shell';
+import { LOG_STATUSES_KEY, isClosedStatus, parseLogStatuses } from '../tasks/log-statuses';
 
 const DAY = 86400000;
 const HOUR = 3600000;
@@ -138,7 +139,8 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     ]);
     // RFIs still waiting on an answer -- the owner chases them.
     const openRfis = await this.rfis.find({ where: { status: 'open' } }).catch(() => [] as RfiEntity[]);
-    return { boardTasks, logTasks, users, openRfis, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
+    const logStatuses = parseLogStatuses(await this.settings.get(LOG_STATUSES_KEY).catch(() => null));
+    return { boardTasks, logTasks, users, openRfis, logStatuses, projectName: new Map(projects.map((p) => [Number(p.id), p.name])) };
   }
 
   /**
@@ -161,7 +163,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
       });
     }
     for (const t of data.logTasks) {
-      if (t.status === 'Closed' || !t.dueDate) continue;
+      if (isClosedStatus(data.logStatuses, t.status) || !t.dueDate) continue;
       const mine = this.isMine(t.assignedToId, t.assignedTo, user);
       if (!mine && !following(t.collaborators)) continue;
       out.push({

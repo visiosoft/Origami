@@ -12,21 +12,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EmployeesService = void 0;
-exports.nextWorkerId = nextWorkerId;
+exports.EmployeesService = exports.nextWorkerId = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const attachments_service_1 = require("../google/attachments.service");
 const staff_directory_sync_1 = require("./staff-directory.sync");
-function nextWorkerId(existing) {
-    const max = existing.reduce((m, id) => {
-        const match = /^W-(\d+)$/.exec(id || '');
-        return match ? Math.max(m, Number(match[1])) : m;
-    }, 0);
-    return 'W-' + String(max + 1).padStart(4, '0');
-}
+const workforce_util_1 = require("./workforce.util");
+Object.defineProperty(exports, "nextWorkerId", { enumerable: true, get: function () { return workforce_util_1.nextWorkerId; } });
 let EmployeesService = class EmployeesService {
     constructor(repo, trades, attachments, assignments, staff) {
         this.repo = repo;
@@ -65,7 +59,7 @@ let EmployeesService = class EmployeesService {
         const employee = {
             status: 'active', employmentStatus: 'active', createdAt: now, updatedAt: now,
             ...(await this.withTradeName(dto)),
-            workerId: dto.workerId?.trim() || nextWorkerId(all.map((e) => e.workerId)),
+            workerId: dto.workerId?.trim() || (0, workforce_util_1.nextWorkerId)(all.map((e) => e.workerId), dto.hireDate),
             id: dto.id || 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
         };
         return this.toPeople(await this.repo.save(this.repo.create(employee)));

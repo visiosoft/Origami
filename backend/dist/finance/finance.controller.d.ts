@@ -11,6 +11,7 @@ import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
 import { CostsService } from './costs.service';
+import { ProjectSubsService } from './project-subs.service';
 import { ReportsService } from './reports.service';
 export declare class FinanceController {
     private readonly fin;
@@ -22,7 +23,8 @@ export declare class FinanceController {
     private readonly access;
     private readonly costs;
     private readonly reports;
-    constructor(fin: FinancialsService, invoices: InvoicesService, cos: ChangeOrdersService, reimbs: ReimbursablesService, retention: RetentionService, hub: FinanceHubService, access: ManpowerAccess, costs: CostsService, reports: ReportsService);
+    private readonly subs;
+    constructor(fin: FinancialsService, invoices: InvoicesService, cos: ChangeOrdersService, reimbs: ReimbursablesService, retention: RetentionService, hub: FinanceHubService, access: ManpowerAccess, costs: CostsService, reports: ReportsService, subs: ProjectSubsService);
     private actor;
     rights(a?: string): Promise<FinRights>;
     brand(a?: string): Promise<{
@@ -330,6 +332,46 @@ export declare class FinanceController {
     }>;
     retentionOf(id: string, a?: string): Promise<any>;
     requestRelease(id: string, dto: any, a?: string): Promise<any>;
+    subsOf(id: string, a?: string): Promise<{
+        canSeeMoney: boolean;
+        canManage: boolean;
+        rows: {
+            key: string;
+            contractorId?: string;
+            company: string;
+            contactPerson?: string;
+            phone?: string;
+            email?: string;
+            trades: string[];
+            licenseNumber?: string;
+            licenseExpiry?: string;
+            licenseState: string;
+            insuranceExpiry?: string;
+            insuranceState: string;
+            status?: string;
+            portal: boolean;
+            personId?: number;
+            subcontracts: {
+                id: string;
+                number: string;
+                type: string;
+                title: string;
+                status: string;
+                total?: number;
+                billed?: number;
+                remaining?: number;
+            }[];
+        }[];
+        unlinked: {
+            personId: number;
+            name: string;
+            company: string;
+            role: string;
+            phone: string;
+            email: string;
+            contractorId: string | undefined;
+        }[];
+    }>;
     costsOf(id: string, a?: string): Promise<any>;
     budgetLine(id: string, dto: any, a?: string): Promise<any>;
     removeBudgetLine(id: string, a?: string): Promise<any>;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLogStatuses } from '../data/logStatuses';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { TaskTab } from '../data/tasks';
@@ -42,6 +43,7 @@ export function NewTaskDrawer({
   defaultDueDate?: string;
   defaultDueTime?: string;
 }) {
+  const statuses = useLogStatuses();
   const { toast, users } = useApp();
   const [nt, setNt] = useState<NewTask>(() => ({ ...blank(
     fixedProject?.id || '',
@@ -99,7 +101,7 @@ export function NewTaskDrawer({
             <Fld label="Project"><select value={nt.project} onChange={(e) => setNt({ ...nt, project: e.target.value })} style={inputStyle}><option value="">General task — no project</option>{projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Fld>
           )}
           <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
-          <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{['Open', 'In Progress', 'Closed'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
+          <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{statuses.map((s) => s.name).map((o) => <option key={o}>{o}</option>)}</select></Fld>
           {!fixedProject && (
             <Fld label="Meeting Type"><select value={nt.meetingType} onChange={(e) => setNt({ ...nt, meetingType: e.target.value })} style={inputStyle}>{['Internal', 'Owner', 'Subcontractor'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
           )}

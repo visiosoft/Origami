@@ -34,8 +34,10 @@ export interface ActivityEvent {
     byId?: string;
     at: string;
 }
-export declare const TASK_STATUSES: readonly ["Not started", "In progress", "Blocked", "Done"];
+export declare const TASK_STATUSES: readonly ["Not started", "In progress", "On hold", "Done"];
 export type TaskStatus = (typeof TASK_STATUSES)[number];
+export declare function normalizeTaskStatus(v: unknown): string | undefined;
+export declare const isHoldSection: (name?: string | null) => boolean;
 export declare function subId(prefix: string): string;
 export declare function normalizeAttachments(raw: unknown): TaskAttachment[];
 export declare function normalizeList<T>(raw: unknown): T[];

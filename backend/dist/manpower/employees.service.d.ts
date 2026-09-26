@@ -2,7 +2,8 @@ import { Repository } from 'typeorm';
 import { EmployeeAssignmentEntity, EmployeeEntity, SubcontractorTradeEntity } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { StaffDirectorySync } from './staff-directory.sync';
-export declare function nextWorkerId(existing: (string | null | undefined)[]): string;
+import { nextWorkerId } from './workforce.util';
+export { nextWorkerId };
 export declare class EmployeesService {
     private readonly repo;
     private readonly trades;

@@ -48,7 +48,7 @@ describe('People <-> Employees: one record', () => {
     expect(people.rows.find((p) => p.employeeId === 'EMP-L')).toMatchObject({ name: 'Luis Ortega', kind: 'Sub', company: 'Ortiz Framing', email: '—' });
     const jerrod = people.rows.find((p) => p.id === 2);
     expect(jerrod.employeeId).toBeTruthy();
-    expect(employees.rows.find((e) => e.id === jerrod.employeeId)).toMatchObject({ name: 'Jerrod H.', designation: 'Design Phase Lead', workerId: 'W-0004' });
+    expect(employees.rows.find((e) => e.id === jerrod.employeeId)).toMatchObject({ name: 'Jerrod H.', designation: 'Design Phase Lead', workerId: `W-${new Date().getFullYear()}-0004` });
     expect(people.rows.some((p) => p.id === 3)).toBe(false);
     expect(people.rows.find((p) => p.id === 4).employeeId).toBeUndefined(); // clients are untouched
     // Running again changes nothing.

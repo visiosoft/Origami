@@ -1,5 +1,7 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { SettingsService } from '../settings/settings.service';
+import { type LogStatus } from './log-statuses';
 import { TaskEntity, UserEntity } from '../database/entities';
 import { type TaskAttachment } from '../database/task.types';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -9,8 +11,11 @@ export declare class TasksService implements OnApplicationBootstrap {
     private readonly users;
     private readonly attachments;
     private readonly notifications;
+    private readonly settings?;
     private readonly log;
-    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService);
+    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService, settings?: SettingsService | undefined);
+    statuses(): Promise<LogStatus[]>;
+    saveStatuses(list: unknown): Promise<LogStatus[]>;
     onApplicationBootstrap(): Promise<void>;
     private hydrate;
     findAll(tab?: string, project?: string): Promise<TaskEntity[]>;

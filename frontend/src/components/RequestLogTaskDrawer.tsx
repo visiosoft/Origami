@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
@@ -36,6 +37,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 }) {
   const { toast, can } = useApp();
   const canManage = can('tasks', 'manage');
+  const statuses = useLogStatuses();
   const [t, setT] = useState<Task>(task);
   const [storageReady, setStorageReady] = useState(false);
   // Another task opened in the same drawer starts fresh; a reply for this one merges in (below).
@@ -120,7 +122,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 onChange={(e) => set({ status: e.target.value as Task['status'] })}
                 style={{ ...inputStyle, padding: '7px 9px' }}
               >
-                {(['Open', 'In Progress', 'Closed'] as const).map((st) => <option key={st} value={st}>{st}</option>)}
+                {[...statuses.map((s) => s.name), ...(statuses.some((s) => s.name === t.status) || !t.status ? [] : [t.status])].map((st) => <option key={st} value={st}>{st}</option>)}
               </select>
             </div>
             <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
@@ -248,7 +250,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 
         {canManage && (
           <div style={{ padding: '0 28px 26px' }}>
-            {t.status !== 'Closed' && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: taskHeadline(t.description).title, description: t.description }} />}
+            {!isLogClosed(t.status) && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: taskHeadline(t.description).title, description: t.description }} />}
             <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
           </div>
         )}

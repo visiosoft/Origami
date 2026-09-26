@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ContractorEntity, EmployeeEntity, PersonEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
+import { nextWorkerId } from './workforce.util';
 
 const blank = (v?: string | null) => !v || !v.trim() || v.trim() === '—';
 const norm = (v?: string | null) => (v || '').trim().toLowerCase();
@@ -92,12 +93,11 @@ export class StaffDirectorySync implements OnApplicationBootstrap {
   /** A staff member added in People becomes an employee too, linked to that entry. */
   async employeeForPerson(p: PersonEntity): Promise<EmployeeEntity> {
     const all = await this.employees.find();
-    const max = all.reduce((m, e) => { const n = /^W-(\d+)$/.exec(e.workerId || ''); return n ? Math.max(m, Number(n[1])) : m; }, 0);
     const now = new Date().toISOString();
     const emp = await this.employees.save(this.employees.create({
       id: 'EMP-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(),
       name: p.name, email: blank(p.email) ? '' : p.email, phone: blank(p.phone) ? '' : p.phone, designation: p.role || '',
-      employmentType: 'full_time', employmentStatus: 'active', status: 'active', workerId: 'W-' + String(max + 1).padStart(4, '0'), createdAt: now, updatedAt: now,
+      employmentType: 'full_time', employmentStatus: 'active', status: 'active', workerId: nextWorkerId(all.map((e) => e.workerId)), createdAt: now, updatedAt: now,
     } as Partial<EmployeeEntity>));
     p.employeeId = emp.id;
     await this.people.save(p);

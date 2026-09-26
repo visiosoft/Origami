@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SettingsService } from '../settings/settings.service';
+import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, isClosedStatus, parseLogStatuses, type LogStatus } from './log-statuses';
 import { TaskEntity, UserEntity } from '../database/entities';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
@@ -22,7 +24,20 @@ export class TasksService implements OnApplicationBootstrap {
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     private readonly attachments: AttachmentsService,
     private readonly notifications: NotificationsService,
+    private readonly settings?: SettingsService,
   ) {}
+
+  /** The Request Log's statuses -- the defaults, or the list an administrator set in Settings. */
+  async statuses(): Promise<LogStatus[]> {
+    if (!this.settings) return DEFAULT_LOG_STATUSES;
+    return parseLogStatuses(await this.settings.get(LOG_STATUSES_KEY).catch(() => null));
+  }
+
+  async saveStatuses(list: unknown): Promise<LogStatus[]> {
+    const clean = parseLogStatuses(list);
+    await this.settings!.set(LOG_STATUSES_KEY, JSON.stringify(clean));
+    return clean;
+  }
 
   async onApplicationBootstrap() {
     try {
@@ -151,11 +166,16 @@ export class TasksService implements OnApplicationBootstrap {
       patch.assignedToId = assignee.id ?? null;
     }
 
-    // Closing a task stamps the close date; reopening clears it.
-    if (patch.status === 'Closed' && task.status !== 'Closed' && !patch.dateClosed) {
+    // Closing a task (any status marked "closed" in Settings) stamps the close
+    // date; reopening clears it. "Blocked" is the board's old word for On hold.
+    const statuses = await this.statuses();
+    if (patch.status && /^(blocked|on[\s-]*hold)$/i.test(String(patch.status))) patch.status = statuses.find((s) => /^on[\s-]*hold$/i.test(s.name))?.name || patch.status;
+    const closing = !!patch.status && isClosedStatus(statuses, patch.status);
+    const wasClosed = isClosedStatus(statuses, task.status);
+    if (closing && !wasClosed && !patch.dateClosed) {
       patch.dateClosed = new Date().toISOString().slice(0, 10);
     }
-    if (patch.status && patch.status !== 'Closed') patch.dateClosed = '';
+    if (patch.status && !closing) patch.dateClosed = '';
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.
     let joined: { id: string; name: string }[] = [];
@@ -167,7 +187,7 @@ export class TasksService implements OnApplicationBootstrap {
       if (added.length) collabEvents.push(event('collaborators', actor, { text: `added ${added.map((c) => c.name).join(', ')} as collaborator${added.length === 1 ? '' : 's'}` }));
       if (removed.length) collabEvents.push(event('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
     }
-    const finished = patch.status === 'Closed' && task.status !== 'Closed';
+    const finished = closing && !wasClosed;
 
     const events = [...diffEvents(task, patch, actor), ...collabEvents];
     const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId

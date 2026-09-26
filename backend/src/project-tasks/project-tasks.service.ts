@@ -7,7 +7,7 @@ import { SectionsService } from './sections.service';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
-  normalizeCollaborators, collaboratorChanges,
+  normalizeCollaborators, collaboratorChanges, normalizeTaskStatus, isHoldSection,
 } from '../database/task.types';
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
@@ -33,6 +33,13 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       }
       await backfillAssignees(this.repo, this.users, 'assigneeId', 'assignee', this.log);
       await this.renameLegacyTitles();
+      // "Blocked" became "On hold" -- carry saved tasks across once.
+      const blocked = await this.repo.findBy({ status: 'Blocked' });
+      if (blocked.length) {
+        for (const t of blocked) t.status = 'On hold';
+        await this.repo.save(blocked);
+        this.log.log(`Renamed ${blocked.length} task status(es) Blocked -> On hold`);
+      }
     } catch (err) {
       this.log.error('Task seed failed: ' + (err as Error).message);
     }
@@ -110,6 +117,33 @@ export class ProjectTasksService implements OnApplicationBootstrap {
    * `status` and the older `completed` boolean describe the same thing, and both
    * are read in different places, so keep them consistent whichever one changed.
    */
+  /**
+   * A board with an "On hold" column: the status and the column are one thing.
+   * Setting On hold files the task there; dragging it in sets On hold;
+   * dragging it out (or setting another status) takes it off hold.
+   */
+  private async syncHoldSection(task: Partial<ProjectTaskEntity>, patch: Record<string, any>) {
+    const projectId = patch.projectId !== undefined ? patch.projectId : task.projectId;
+    if (projectId === undefined) return;
+    const sections = await this.sections.forProject(projectId == null ? null : Number(projectId));
+    const hold = sections.find((s) => isHoldSection(s.name));
+    if (!hold) return;
+    const movingSection = 'sectionId' in patch && patch.sectionId !== task.sectionId;
+    const changingStatus = 'status' in patch && patch.status !== task.status;
+    if (movingSection && !changingStatus) {
+      if (patch.sectionId === hold.id) patch.status = 'On hold';
+      else if (task.sectionId === hold.id && task.status === 'On hold') patch.status = 'In progress';
+    } else if (changingStatus && !movingSection) {
+      if (patch.status === 'On hold') { if (task.sectionId !== hold.id) patch.sectionId = hold.id; }
+      else if (task.sectionId === hold.id) {
+        // Off hold: back to the column that matches the new status, when the board has one.
+        const want = patch.status === 'Done' ? /^done$/i : patch.status === 'Not started' ? /^(to[\s-]*do|not started)$/i : /^in[\s-]*progress$/i;
+        const target = sections.find((s) => want.test(s.name.trim()));
+        if (target) patch.sectionId = target.id;
+      }
+    }
+  }
+
   private syncStatus(task: ProjectTaskEntity, patch: Record<string, any>) {
     if ('status' in patch) {
       patch.completed = patch.status === 'Done';
@@ -122,6 +156,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
   async create(dto: any, actor: UploadActor = { name: 'Unknown' }) {
     const id = dto.id || 'T-' + String(Date.now());
+    if (dto.status) {
+      dto = { ...dto, status: normalizeTaskStatus(dto.status) };
+      if (dto.status === 'On hold') { const p: Record<string, any> = { status: 'On hold' }; await this.syncHoldSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p); if (p.sectionId) dto.sectionId = p.sectionId; }
+    }
     const assignee = await resolveAssignee(this.users, { id: dto.assigneeId, name: dto.assignee });
     const task = {
       order: 0, completed: false, parentId: null, attachments: [], comments: [],
@@ -168,6 +206,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       patch.assignee = assignee.name;
       patch.assigneeId = assignee.id ?? null;
     }
+    if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
+    await this.syncHoldSection(task, patch);
     this.syncStatus(task, patch);
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.

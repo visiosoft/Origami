@@ -5,8 +5,9 @@ import {
   ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity,
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
-  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
+  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity,
 } from '../database/entities';
+import { ProjectSubsService } from './project-subs.service';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -40,6 +41,7 @@ import {
       ChangeOrderEntity, ChangeOrderItemEntity, ReimbursableEntity, RetentionReleaseEntity, FinancialApprovalEntity,
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
       TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
+      PersonEntity, SubcontractorTradeEntity,
     ]),
     AuthModule,
     GoogleModule,
@@ -47,6 +49,6 @@ import {
   ],
   controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService],
 })
 export class FinanceModule {}

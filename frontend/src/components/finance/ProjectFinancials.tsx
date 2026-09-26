@@ -21,11 +21,12 @@ type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
  * the schedule of values behind every figure. Works for any project -- design,
  * construction, both, or a general job billed as a lump sum.
  */
-export function ProjectFinancials({ projectId, category }: { projectId: number; category?: 'design' | 'construction' }) {
+export function ProjectFinancials({ projectId, category, initialView }: { projectId: number; category?: 'design' | 'construction'; initialView?: 'sov' | 'subcontracts' }) {
   const { toast } = useApp();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
-  const [view, setView] = useState<View>('sov');
+  // "subcontracts" opens Job cost on its Subcontracts & POs list (from a project's Subcontractors tab).
+  const [view, setView] = useState<View>(initialView === 'subcontracts' ? 'jobcost' : 'sov');
   const [filter, setFilter] = useState<Filter>(category || 'all');
   const [openInvoice, setOpenInvoice] = useState<string | null>(null);
   const [item, setItem] = useState<Row | null>(null);
@@ -78,7 +79,7 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
             {r.manage && <div onClick={() => setSetupOpen(true)} style={btn()} title="If a client pays you for this project">Set up client billing</div>}
           </div>
         )}
-        {costSide && <JobCostPanel projectId={projectId} overview={data} />}
+        {costSide && <JobCostPanel projectId={projectId} overview={data} initialSub={initialView === 'subcontracts' ? 'commitments' : undefined} />}
       </div>
     );
   }
@@ -123,7 +124,7 @@ export function ProjectFinancials({ projectId, category }: { projectId: number; 
       )}
       {view === 'changes' && <ChangeOrderList projectId={projectId} overview={data} rights={r} onChanged={load} />}
       {view === 'reimbursables' && <ReimbursableList key={tick} projectId={projectId} overview={data} rights={r} onChanged={load} onBill={(ids) => newInvoice(false, ids)} />}
-      {view === 'jobcost' && <JobCostPanel key={tick} projectId={projectId} overview={data} />}
+      {view === 'jobcost' && <JobCostPanel key={tick} projectId={projectId} overview={data} initialSub={initialView === 'subcontracts' ? 'commitments' : undefined} />}
       {view === 'profit' && <ProfitabilityPanel key={tick} projectId={projectId} />}
       {view === 'retention' && <RetentionPanel key={tick} projectId={projectId} overview={data} rights={r} onOpenInvoice={setOpenInvoice} onChanged={() => Promise.all([load(), loadInvoices()])} />}
       {view === 'invoices' && (

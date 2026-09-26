@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -74,7 +75,7 @@ export function Notifications() {
           to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId}`,
         })),
       ...logTasks
-        .filter((t) => t.status !== 'Closed' && isMine(t, currentUser))
+        .filter((t) => !isLogClosed(t.status) && isMine(t, currentUser))
         .map((t) => ({
           id: 'l' + t.id,
           title: t.description?.length > 70 ? t.description.slice(0, 70) + '…' : t.description || t.id,

@@ -209,6 +209,9 @@ export const api = {
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
   },
   tasks: {
+    /** The Request Log's statuses (Settings -> Request Log statuses). */
+    statuses: () => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses'),
+    saveStatuses: (statuses: unknown) => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses', { method: 'PUT', body: JSON.stringify({ statuses }) }),
     list: (tab?: string, project?: string) => {
       const params = new URLSearchParams();
       if (tab) params.set('tab', tab);
@@ -592,6 +595,8 @@ export const api = {
     decideRelease: (id: string, d: unknown) => request(`/finance/retention-releases/${id}/decision`, { method: 'POST', body: JSON.stringify(d) }),
     billRelease: (id: string) => request(`/finance/retention-releases/${id}/bill`, { method: 'POST', body: '{}' }),
     // --- phase 3: job cost and reports
+    /** A project's Subcontractors tab (any staff; amounts only with cost rights). */
+    projectSubcontractors: (projectId: number) => request<any>(`/finance/projects/${projectId}/subcontractors`),
     costs: (projectId: number) => request(`/finance/projects/${projectId}/costs`),
     saveBudgetLine: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/budget-lines`, { method: 'POST', body: JSON.stringify(d) }),
     removeBudgetLine: (id: string) => request(`/finance/budget-lines/${id}`, { method: 'DELETE' }),
@@ -621,6 +626,11 @@ export const api = {
     attach: (batchId: string, files: File[] | FileList) => requestForm(`/portal/invoices/${encodeURIComponent(batchId)}/attachments`, filesForm(files)),
     billFileUrl: (entryId: string, attId: string) => `${API_BASE}/portal/bills/${encodeURIComponent(entryId)}/files/${encodeURIComponent(attId)}`,
     sharedFileUrl: (subcontractId: string, attId: string) => `${API_BASE}/portal/subcontracts/${encodeURIComponent(subcontractId)}/files/${encodeURIComponent(attId)}`,
+  },
+  /** Manpower -> Setup -> Picklists: departments, designations, skills. */
+  picklists: {
+    get: () => request<{ departments: string[]; designations: string[]; skills: string[] }>('/manpower/picklists'),
+    save: (data: unknown) => request<{ departments: string[]; designations: string[]; skills: string[] }>('/manpower/picklists', { method: 'PUT', body: JSON.stringify(data) }),
   },
   subcontractorTrades: {
     list: () => request('/subcontractor-trades'),

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePicklists } from '../data/picklists';
+import { PickMany, PickOne } from './PicklistInputs';
 import { api } from '../api';
 import { SaveBar, useAutosave } from '../autosave';
 import { DirectoryAccessCard, LoginCard } from './StaffAccessCards';
@@ -95,7 +97,7 @@ function Photo({ emp, size }: { emp: Employee; size: number }) {
 
 // ------------------------------------------------------------------ fields
 
-type FieldKind = 'text' | 'date' | 'number' | 'textarea' | 'select' | 'employee' | 'trade' | 'list' | 'contractor';
+type FieldKind = 'text' | 'date' | 'number' | 'textarea' | 'select' | 'employee' | 'trade' | 'list' | 'contractor' | 'department' | 'designation' | 'skills';
 interface FieldDef { key: keyof Employee; label: string; kind?: FieldKind; options?: Opt[]; wide?: boolean; placeholder?: string; showIf?: (d: Partial<Employee>) => boolean }
 const isContractorWorker = (d: Partial<Employee>) => d.employmentType === 'contractor_worker' || !!d.contractorId;
 interface SectionDef { title: string; fields: FieldDef[] }
@@ -105,7 +107,7 @@ const SECTIONS: Record<string, SectionDef> = {
     title: 'Identity',
     fields: [
       { key: 'name', label: 'Full name *' },
-      { key: 'workerId', label: 'Worker ID', placeholder: 'Assigned automatically if blank' },
+      { key: 'workerId', label: 'Worker ID', placeholder: `Assigned automatically (W-${new Date().getFullYear()}-…) if blank` },
       { key: 'nationalId', label: 'SSN / ITIN', placeholder: '123-45-6789' },
       { key: 'dob', label: 'Date of birth', kind: 'date' },
       { key: 'gender', label: 'Gender', kind: 'select', options: GENDERS },
@@ -134,8 +136,8 @@ const SECTIONS: Record<string, SectionDef> = {
       { key: 'employmentType', label: 'Employment type', kind: 'select', options: EMPLOYMENT_TYPES },
       { key: 'employmentStatus', label: 'Status', kind: 'select', options: EMPLOYMENT_STATUSES },
       { key: 'hireDate', label: 'Joining date', kind: 'date' },
-      { key: 'department', label: 'Department' },
-      { key: 'designation', label: 'Designation' },
+      { key: 'department', label: 'Department', kind: 'department' },
+      { key: 'designation', label: 'Designation', kind: 'designation' },
       { key: 'grade', label: 'Grade / pay scale' },
       { key: 'supervisorId', label: 'Reporting manager', kind: 'employee' },
       { key: 'hrOfficerId', label: 'HR officer', kind: 'employee' },
@@ -149,7 +151,7 @@ const SECTIONS: Record<string, SectionDef> = {
       { key: 'tradeId', label: 'Trade', kind: 'trade' },
       { key: 'skillLevel', label: 'Skill level', kind: 'select', options: SKILL_LEVELS },
       { key: 'yearsExperience', label: 'Years of experience', kind: 'number' },
-      { key: 'expertise', label: 'Skills', kind: 'list', placeholder: 'e.g. MIG, TIG, ARC' },
+      { key: 'expertise', label: 'Skills & trades', kind: 'skills', wide: true, placeholder: 'e.g. Tile setting' },
       { key: 'equipmentCapabilities', label: 'Equipment they can operate', kind: 'list', wide: true, placeholder: 'e.g. Excavator, Forklift' },
     ],
   },
@@ -183,6 +185,10 @@ function FieldInput({ def, value, onChange, disabled, employees, trades, contrac
   employees: Employee[]; trades: Trade[]; contractors: Contractor[]; selfId?: string;
 }) {
   const kind = def.kind || 'text';
+  const lists = usePicklists();
+  if (kind === 'department') return <PickOne value={value} options={lists.departments} onChange={onChange} disabled={disabled} style={input} />;
+  if (kind === 'designation') return <PickOne value={value} options={lists.designations} onChange={onChange} disabled={disabled} style={input} />;
+  if (kind === 'skills') return <PickMany value={value} options={lists.skills} onChange={onChange} disabled={disabled} style={input} placeholder={def.placeholder} />;
   if (kind === 'contractor') {
     return (
       <select disabled={disabled} value={value || ''} onChange={(e) => onChange(e.target.value || null)} style={input}>

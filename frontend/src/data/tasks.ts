@@ -1,3 +1,4 @@
+import { isLogClosed } from './logStatuses';
 // Tasks fixtures + lead-time logic ported from the Origami v4 prototype (getAllTasks / getLeadTime).
 
 import type { Attachment, TaskComment, ActivityEvent, ChecklistItem } from './projectTasks';
@@ -9,7 +10,8 @@ export interface Task {
   meetingType: 'Internal' | 'Owner' | 'Subcontractor';
   meetingDate: string;
   assignedTo: string;
-  status: 'Open' | 'Closed' | 'In Progress';
+  /** One of the Request Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
+  status: string;
   originator: string;
   topicType: 'Task' | 'FYI' | 'RFI';
   description: string;
@@ -98,6 +100,7 @@ export const ST_COLORS: Record<string, { bg: string; c: string }> = {
   Closed: { bg: '#D2EAD3', c: '#1C5230' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
+  'On hold': { bg: '#FBE9AE', c: '#93520F' },
 };
 export const TT_COLORS: Record<string, { bg: string; c: string }> = {
   Task: { bg: '#DCE7DE', c: '#173326' },
@@ -118,7 +121,7 @@ export function getLeadTime(t: Task) {
   const leadTime = leadMap[t.topicType] || 14;
   const openDays = t.daysOpen > 0 ? t.daysOpen : (digits % 26) + 2;
   const variance = openDays - leadTime;
-  const closed = t.status === 'Closed';
+  const closed = isLogClosed(t.status);
   const ok = variance <= 0;
   const label = closed ? (ok ? 'Closed on time' : 'Closed ' + variance + ' days late') : ok ? 'Within lead time' : variance + ' days over lead time';
   const source = (leadMap[t.topicType] ? t.topicType : 'Task') + ' template · ' + leadTime + '-day default';
