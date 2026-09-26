@@ -114,6 +114,16 @@ __decorate([
     __metadata("design:type", String)
 ], CreateEmployeeDto.prototype, "grade", void 0);
 __decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateEmployeeDto.prototype, "vacationDaysPerYear", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], CreateEmployeeDto.prototype, "sickDaysPerYear", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

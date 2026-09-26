@@ -19,6 +19,8 @@ export declare class CreateEmployeeDto {
     designation?: string;
     jobTitle?: string;
     grade?: string;
+    vacationDaysPerYear?: number | null;
+    sickDaysPerYear?: number | null;
     employmentStatus?: string;
     status?: string;
     supervisorId?: string | null;

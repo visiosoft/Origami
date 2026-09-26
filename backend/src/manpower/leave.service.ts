@@ -80,6 +80,15 @@ export function requestDaysInYear(r: Req, year: number, weekendDays: number[], h
   return r.halfDay ? Math.min(n, 0.5) : n;
 }
 
+/**
+ * The leave type as it applies to one employee: their own vacation or sick
+ * allowance (set on their record) in place of the company's, when they have one.
+ */
+export function typeForEmployee<T extends Pick<LeaveTypeEntity, 'id' | 'annualDays'>>(t: T, e?: { vacationDaysPerYear?: number | null; sickDaysPerYear?: number | null } | null): T {
+  const own = t.id === 'LT-ANNUAL' ? e?.vacationDaysPerYear : t.id === 'LT-SICK' ? e?.sickDaysPerYear : null;
+  return own != null && Number.isFinite(Number(own)) ? { ...t, annualDays: Number(own) } : t;
+}
+
 /** A yearly allowance, prorated to the half day for someone who joined during that year. */
 export function entitlementFor(type: Pick<LeaveTypeEntity, 'annualDays' | 'trackBalance'>, hireDate: string | undefined, year: number): number {
   if (!type.trackBalance) return 0;
@@ -267,7 +276,7 @@ export class LeaveService implements OnApplicationBootstrap {
       this.adjustments.find({ where: { employeeId } }),
     ]);
     return types.filter((t) => t.active || reqs.some((r) => r.leaveTypeId === t.id))
-      .map((t) => computeBalance(t, emp.hireDate, year, reqs, adjs, weekendDays, hol));
+      .map((t) => computeBalance(typeForEmployee(t, emp), emp.hireDate, year, reqs, adjs, weekendDays, hol));
   }
 
   /** Available days of every tracked type for everyone on staff -- the HR overview. */
@@ -277,7 +286,7 @@ export class LeaveService implements OnApplicationBootstrap {
     const [emps, reqs, adjs] = await Promise.all([this.employees.find(), this.requests.find(), this.adjustments.find()]);
     return emps.filter((e) => !e.contractorId && !LEFT_STATUSES.includes(lifecycleStatus(e))).map((e) => ({
       employeeId: e.id,
-      balances: tracked.map((t) => computeBalance(t, e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), adjs.filter((a) => a.employeeId === e.id), weekendDays, hol)),
+      balances: tracked.map((t) => computeBalance(typeForEmployee(t, e), e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), adjs.filter((a) => a.employeeId === e.id), weekendDays, hol)),
     }));
   }
 
@@ -337,7 +346,7 @@ export class LeaveService implements OnApplicationBootstrap {
     const rows: LeaveAdjustmentEntity[] = [];
     for (const e of emps.filter((x) => !x.contractorId && !LEFT_STATUSES.includes(lifecycleStatus(x)))) {
       for (const t of carrying) {
-        const bal = computeBalance(t, e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), fresh.filter((a) => a.employeeId === e.id), weekendDays, hol);
+        const bal = computeBalance(typeForEmployee(t, e), e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), fresh.filter((a) => a.employeeId === e.id), weekendDays, hol);
         const carry = round2(Math.min(Math.max(bal.available, 0), t.carryForwardMax));
         if (carry > 0) rows.push(this.adjustments.create({
           id: newId('LA'), employeeId: e.id, leaveTypeId: t.id, year: year + 1, kind: 'carry_forward', days: carry,

@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LeaveService = exports.DEFAULT_LEAVE_TYPES = void 0;
 exports.usFederalHolidays = usFederalHolidays;
 exports.requestDaysInYear = requestDaysInYear;
+exports.typeForEmployee = typeForEmployee;
 exports.entitlementFor = entitlementFor;
 exports.computeBalance = computeBalance;
 const common_1 = require("@nestjs/common");
@@ -79,6 +80,10 @@ function requestDaysInYear(r, year, weekendDays, holidays) {
         return 0;
     const n = (0, calendar_util_1.workingDays)(span[0], span[1], weekendDays, holidays).length;
     return r.halfDay ? Math.min(n, 0.5) : n;
+}
+function typeForEmployee(t, e) {
+    const own = t.id === 'LT-ANNUAL' ? e?.vacationDaysPerYear : t.id === 'LT-SICK' ? e?.sickDaysPerYear : null;
+    return own != null && Number.isFinite(Number(own)) ? { ...t, annualDays: Number(own) } : t;
 }
 function entitlementFor(type, hireDate, year) {
     if (!type.trackBalance)
@@ -250,7 +255,7 @@ let LeaveService = class LeaveService {
             this.adjustments.find({ where: { employeeId } }),
         ]);
         return types.filter((t) => t.active || reqs.some((r) => r.leaveTypeId === t.id))
-            .map((t) => computeBalance(t, emp.hireDate, year, reqs, adjs, weekendDays, hol));
+            .map((t) => computeBalance(typeForEmployee(t, emp), emp.hireDate, year, reqs, adjs, weekendDays, hol));
     }
     async allBalances(year) {
         const { types, weekendDays, hol } = await this.context();
@@ -258,7 +263,7 @@ let LeaveService = class LeaveService {
         const [emps, reqs, adjs] = await Promise.all([this.employees.find(), this.requests.find(), this.adjustments.find()]);
         return emps.filter((e) => !e.contractorId && !workforce_util_1.LEFT_STATUSES.includes((0, workforce_util_1.lifecycleStatus)(e))).map((e) => ({
             employeeId: e.id,
-            balances: tracked.map((t) => computeBalance(t, e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), adjs.filter((a) => a.employeeId === e.id), weekendDays, hol)),
+            balances: tracked.map((t) => computeBalance(typeForEmployee(t, e), e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), adjs.filter((a) => a.employeeId === e.id), weekendDays, hol)),
         }));
     }
     async adjust(dto, actor) {
@@ -325,7 +330,7 @@ let LeaveService = class LeaveService {
         const rows = [];
         for (const e of emps.filter((x) => !x.contractorId && !workforce_util_1.LEFT_STATUSES.includes((0, workforce_util_1.lifecycleStatus)(x)))) {
             for (const t of carrying) {
-                const bal = computeBalance(t, e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), fresh.filter((a) => a.employeeId === e.id), weekendDays, hol);
+                const bal = computeBalance(typeForEmployee(t, e), e.hireDate, year, reqs.filter((r) => r.employeeId === e.id), fresh.filter((a) => a.employeeId === e.id), weekendDays, hol);
                 const carry = (0, payroll_calc_1.round2)(Math.min(Math.max(bal.available, 0), t.carryForwardMax));
                 if (carry > 0)
                     rows.push(this.adjustments.create({

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PayrollReports } from '../components/PayrollReports';
 import { PicklistsSetup } from '../components/PicklistsSetup';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -47,7 +48,7 @@ interface DailyLog {
 const TAB_GROUPS = [
   { label: 'People', tabs: [['employees', 'Employees'], ['contractors', 'Contractors']] },
   { label: 'Operations', tabs: [['deployment', 'Deployment'], ['requests', 'Workforce Requests'], ['shifts', 'Shifts'], ['log', 'Daily Log'], ['approvals', 'Approvals'], ['timesheets', 'Timesheets']] },
-  { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
+  { label: 'Payroll', tabs: [['payroll', 'Payroll'], ['payroll_reports', 'Reports'], ['overtime', 'Overtime'], ['advances', 'Advances & Loans']] },
   { label: 'Employee Services', tabs: [['leave', 'Leave'], ['assets', 'Assets'], ['accommodation', 'Accommodation'], ['transport', 'Transport']] },
   { label: 'Setup', tabs: [['csi', 'Cost Codes'], ['sub_trades', 'Subcontractor Trades'], ['picklists', 'Picklists'], ['leave_setup', 'Leave & Holidays'], ['payroll_setup', 'Payroll Setup'], ['sample', 'Sample Data']] },
 ] as const;
@@ -217,6 +218,7 @@ export function Manpower() {
       {tab === 'picklists' && <PicklistsSetup canManage={canManage} />}
       {tab === 'sample' && <SampleDataPanel canManage={canManage} onChanged={async () => { await Promise.all([reloadEmployees(), reloadAssignments(), reloadContractors()]); }} />}
       {tab === 'csi' && <CostCodesSettings canManage={canManage} onChanged={reloadCsiCodes} />}
+      {tab === 'payroll_reports' && <PayrollReports employees={employees} currency={payrollSettings.currency} />}
       {tab === 'payroll' && <PayrollRuns employees={employees} currency={payrollSettings.currency} canManage={canManage} canFinance={canFinance} />}
       {tab === 'overtime' && <OvertimePanel employees={employees} projects={projects} settings={payrollSettings} canManage={canManage} onOpenEmployee={openEmployee} />}
       {tab === 'advances' && <AdvancesPanel employees={employees} settings={payrollSettings} canManage={canManage} canFinance={canFinance} onOpenEmployee={openEmployee} />}

@@ -520,6 +520,8 @@ export declare class EmployeeEntity {
     department: string;
     designation: string;
     grade: string;
+    vacationDaysPerYear: number | null;
+    sickDaysPerYear: number | null;
     employmentStatus: string;
     hrOfficerId: string;
     bankName: string;

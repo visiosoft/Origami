@@ -8,6 +8,7 @@ import {
 } from '../database/entities';
 import { overlap, shiftOn, workingDays } from './calendar.util';
 import { FINANCE_MODULE, HR_MODULE, ManpowerAccess, type Actor } from './manpower-access.service';
+import { payrollReport } from './payroll-report';
 import { PayrollSetupService } from './payroll-setup.service';
 import { approvedTimesheetHours } from './weekly-timesheets.service';
 import {
@@ -63,6 +64,22 @@ export class PayrollService {
   ) {}
 
   // ------------------------------------------------------------------ reads
+
+  /**
+   * Payroll reports: tax and deduction summaries by employee and by pay run
+   * for a period (runs whose pay period ends in it). HR or finance only --
+   * this is everyone's pay.
+   */
+  async report(q: { from?: string; to?: string; employeeId?: string; drafts?: string }, actor: Actor) {
+    if (!(await this.access.can(actor, HR_MODULE, 'view')) && !(await this.access.can(actor, FINANCE_MODULE, 'view'))) {
+      await this.access.require(actor, HR_MODULE, 'see payroll reports');
+    }
+    const year = new Date().getFullYear();
+    const from = ISO.test(q.from || '') ? q.from! : `${year}-01-01`;
+    const to = ISO.test(q.to || '') ? q.to! : `${year}-12-31`;
+    const [runs, slips, components] = await Promise.all([this.runs.find(), this.slips.find(), this.components.find()]);
+    return payrollReport(runs, slips, components, { from, to, employeeId: q.employeeId || undefined, includeDrafts: q.drafts === '1' });
+  }
 
   listRuns() {
     return this.runs.find({ order: { periodStart: 'DESC' } });

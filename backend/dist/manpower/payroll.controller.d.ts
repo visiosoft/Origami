@@ -75,6 +75,12 @@ export declare class PayrollController {
         id: string;
         deleted: boolean;
     }>;
+    reports(q: {
+        from?: string;
+        to?: string;
+        employeeId?: string;
+        drafts?: string;
+    }, auth?: string): Promise<import("./payroll-report").PayrollReport>;
     runs(): Promise<import("../database/entities").PayrollRunEntity[]>;
     run(id: string): Promise<{
         payslips: import("../database/entities").PayslipEntity[];

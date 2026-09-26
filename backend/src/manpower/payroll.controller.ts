@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { HR_MODULE, ManpowerAccess } from './manpower-access.service';
@@ -91,6 +91,12 @@ export class PayrollController {
   async removeComponent(@Param('id') id: string, @Headers('authorization') auth?: string) {
     await this.access.require(await this.access.actor(auth), HR_MODULE, 'change pay components');
     return this.setup.removeComponent(id);
+  }
+
+  /** Tax and deduction summaries by employee and pay run: ?from&to (YYYY-MM-DD), ?employeeId, ?drafts=1. */
+  @Get('reports')
+  async reports(@Query() q: { from?: string; to?: string; employeeId?: string; drafts?: string }, @Headers('authorization') auth?: string) {
+    return this.payroll.report(q, await this.access.actor(auth));
   }
 
   @Get('runs')

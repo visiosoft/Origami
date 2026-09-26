@@ -22,6 +22,9 @@ export class CreateEmployeeDto {
   @IsString() @IsOptional() designation?: string;
   @IsString() @IsOptional() jobTitle?: string;
   @IsString() @IsOptional() grade?: string;
+  /** Their own yearly vacation / sick allowance in days; null = the company's. */
+  @IsNumber() @IsOptional() vacationDaysPerYear?: number | null;
+  @IsNumber() @IsOptional() sickDaysPerYear?: number | null;
   @IsString() @IsOptional() employmentStatus?: string;
   @IsString() @IsOptional() status?: string;
   @IsString() @IsOptional() supervisorId?: string | null;

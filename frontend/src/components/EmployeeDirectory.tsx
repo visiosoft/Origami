@@ -12,7 +12,7 @@ import { todayISO, US_STATES, type Assignment, type Contractor, type PayrollSett
 import { EmployeePayPanel } from './Payroll';
 import { OvertimePanel } from './Overtime';
 import { AdvancesPanel } from './Advances';
-import { EmployeeLeavePanel } from './Leave';
+import { EmployeeLeavePanel, EmployeeTimeOffCard } from './Leave';
 import { EmployeeShiftPanel } from './Shifts';
 import { EmployeeAssetsPanel } from './Assets';
 import { EmployeeHousingCard } from './Accommodation';
@@ -43,7 +43,7 @@ export interface Employee {
   emergencyContactName?: string; emergencyContactPhone?: string; emergencyContactRelation?: string;
   permanentAddress?: string; currentAddress?: string; photo?: Attachment | null;
   employmentType?: string; hireDate?: string; department?: string; designation?: string; jobTitle?: string;
-  grade?: string; employmentStatus?: string; status: string; supervisorId?: string; hrOfficerId?: string;
+  grade?: string; vacationDaysPerYear?: number | null; sickDaysPerYear?: number | null; employmentStatus?: string; status: string; supervisorId?: string; hrOfficerId?: string;
   userId?: string; payType?: string; payRate?: number; bankName?: string; bankAccount?: string; taxNumber?: string;
   bankRoutingNumber?: string; filingStatus?: string; taxState?: string; flsaStatus?: string; workersCompClass?: string;
   tradeId?: string; trade?: string; skillLevel?: string; yearsExperience?: number;
@@ -139,6 +139,8 @@ const SECTIONS: Record<string, SectionDef> = {
       { key: 'department', label: 'Department', kind: 'department' },
       { key: 'designation', label: 'Designation', kind: 'designation' },
       { key: 'grade', label: 'Grade / pay scale' },
+      { key: 'vacationDaysPerYear', label: 'Vacation days a year', kind: 'number', placeholder: 'Company default' },
+      { key: 'sickDaysPerYear', label: 'Sick days a year', kind: 'number', placeholder: 'Company default' },
       { key: 'supervisorId', label: 'Reporting manager', kind: 'employee' },
       { key: 'hrOfficerId', label: 'HR officer', kind: 'employee' },
       { key: 'contractorId', label: 'Supplied by (contractor)', kind: 'contractor', showIf: isContractorWorker },
@@ -226,7 +228,7 @@ function FieldInput({ def, value, onChange, disabled, employees, trades, contrac
     return <input disabled={disabled} value={(value || []).join(', ')} placeholder={def.placeholder} onChange={(e) => onChange(e.target.value.split(',').map((s) => s.trim()).filter(Boolean))} style={input} />;
   }
   if (kind === 'number') {
-    return <input disabled={disabled} type="number" min={0} value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} style={input} />;
+    return <input disabled={disabled} type="number" min={0} value={value ?? ''} placeholder={def.placeholder} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} style={input} />;
   }
   return <input disabled={disabled} type={kind === 'date' ? 'date' : 'text'} value={value || ''} placeholder={def.placeholder} onChange={(e) => onChange(e.target.value)} style={input} />;
 }
@@ -531,6 +533,7 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
           <Card title="At a glance"><Facts rows={glance} /></Card>
           <DirectoryAccessCard employee={employee} canManage={canManage} />
           <LoginCard employee={employee} onChanged={onChanged} />
+          <EmployeeTimeOffCard employee={employee} canManage={canManage} />
           <Card title="Contact">
             <Facts rows={[
               ['Phone', employee.phone],

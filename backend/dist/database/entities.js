@@ -1935,6 +1935,14 @@ __decorate([
     __metadata("design:type", String)
 ], EmployeeEntity.prototype, "grade", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Object)
+], EmployeeEntity.prototype, "vacationDaysPerYear", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'float', nullable: true }),
+    __metadata("design:type", Object)
+], EmployeeEntity.prototype, "sickDaysPerYear", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], EmployeeEntity.prototype, "employmentStatus", void 0);

@@ -24,6 +24,12 @@ export declare class PayrollService {
     private readonly timesheets?;
     private readonly timesheetLines?;
     constructor(runs: Repository<PayrollRunEntity>, slips: Repository<PayslipEntity>, employees: Repository<EmployeeEntity>, logs: Repository<DailyLogEntity>, entries: Repository<LaborLogEntryEntity>, overtime: Repository<OvertimeRequestEntity>, advances: Repository<EmployeeAdvanceEntity>, components: Repository<PayComponentEntity>, setup: PayrollSetupService, access: ManpowerAccess, leaveRequests: Repository<LeaveRequestEntity>, leaveTypes: Repository<LeaveTypeEntity>, leaveAdjustments: Repository<LeaveAdjustmentEntity>, holidays: Repository<PublicHolidayEntity>, shiftAssignments: Repository<ShiftAssignmentEntity>, shiftTemplates: Repository<ShiftTemplateEntity>, timesheets?: Repository<TimesheetEntity> | undefined, timesheetLines?: Repository<TimesheetLineEntity> | undefined);
+    report(q: {
+        from?: string;
+        to?: string;
+        employeeId?: string;
+        drafts?: string;
+    }, actor: Actor): Promise<import("./payroll-report").PayrollReport>;
     listRuns(): Promise<PayrollRunEntity[]>;
     getRun(id: string): Promise<{
         payslips: PayslipEntity[];

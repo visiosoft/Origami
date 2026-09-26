@@ -19,6 +19,7 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const calendar_util_1 = require("./calendar.util");
 const manpower_access_service_1 = require("./manpower-access.service");
+const payroll_report_1 = require("./payroll-report");
 const payroll_setup_service_1 = require("./payroll-setup.service");
 const weekly_timesheets_service_1 = require("./weekly-timesheets.service");
 const payroll_calc_1 = require("./payroll.calc");
@@ -53,6 +54,16 @@ let PayrollService = class PayrollService {
         this.shiftTemplates = shiftTemplates;
         this.timesheets = timesheets;
         this.timesheetLines = timesheetLines;
+    }
+    async report(q, actor) {
+        if (!(await this.access.can(actor, manpower_access_service_1.HR_MODULE, 'view')) && !(await this.access.can(actor, manpower_access_service_1.FINANCE_MODULE, 'view'))) {
+            await this.access.require(actor, manpower_access_service_1.HR_MODULE, 'see payroll reports');
+        }
+        const year = new Date().getFullYear();
+        const from = ISO.test(q.from || '') ? q.from : `${year}-01-01`;
+        const to = ISO.test(q.to || '') ? q.to : `${year}-12-31`;
+        const [runs, slips, components] = await Promise.all([this.runs.find(), this.slips.find(), this.components.find()]);
+        return (0, payroll_report_1.payrollReport)(runs, slips, components, { from, to, employeeId: q.employeeId || undefined, includeDrafts: q.drafts === '1' });
     }
     listRuns() {
         return this.runs.find({ order: { periodStart: 'DESC' } });

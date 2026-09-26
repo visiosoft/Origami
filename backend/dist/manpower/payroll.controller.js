@@ -197,6 +197,9 @@ let PayrollController = class PayrollController {
         await this.access.require(await this.access.actor(auth), manpower_access_service_1.HR_MODULE, 'change pay components');
         return this.setup.removeComponent(id);
     }
+    async reports(q, auth) {
+        return this.payroll.report(q, await this.access.actor(auth));
+    }
     runs() {
         return this.payroll.listRuns();
     }
@@ -274,6 +277,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], PayrollController.prototype, "removeComponent", null);
+__decorate([
+    (0, common_1.Get)('reports'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], PayrollController.prototype, "reports", null);
 __decorate([
     (0, common_1.Get)('runs'),
     __metadata("design:type", Function),

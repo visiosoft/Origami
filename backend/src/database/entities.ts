@@ -758,6 +758,9 @@ export class EmployeeEntity {
   @Column({ nullable: true }) department!: string;
   @Column({ nullable: true }) designation!: string;
   @Column({ nullable: true }) grade!: string;
+  /** Their own yearly allowances, when not the company's (Vacation (PTO) / Sick leave types). Blank = company default. */
+  @Column({ type: 'float', nullable: true }) vacationDaysPerYear!: number | null;
+  @Column({ type: 'float', nullable: true }) sickDaysPerYear!: number | null;
   /** active | on_leave | suspended | resigned | terminated | contract_expired | demobilized */
   @Column({ nullable: true }) employmentStatus!: string;
   @Column({ nullable: true }) hrOfficerId!: string;

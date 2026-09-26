@@ -10,6 +10,10 @@ export declare function usFederalHolidays(year: number): {
 }[];
 type Req = Pick<LeaveRequestEntity, 'startDate' | 'endDate' | 'halfDay' | 'status' | 'leaveTypeId'>;
 export declare function requestDaysInYear(r: Req, year: number, weekendDays: number[], holidays: Set<string>): number;
+export declare function typeForEmployee<T extends Pick<LeaveTypeEntity, 'id' | 'annualDays'>>(t: T, e?: {
+    vacationDaysPerYear?: number | null;
+    sickDaysPerYear?: number | null;
+} | null): T;
 export declare function entitlementFor(type: Pick<LeaveTypeEntity, 'annualDays' | 'trackBalance'>, hireDate: string | undefined, year: number): number;
 export interface Balance {
     leaveTypeId: string;

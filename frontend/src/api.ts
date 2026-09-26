@@ -684,6 +684,8 @@ export const api = {
     removeAttachment: (id: string, attId: string) => request(`/contractors/${id}/attachments/${attId}`, { method: 'DELETE' }),
   },
   payroll: {
+    /** Tax and deduction summaries: query string from, to, employeeId, drafts=1. */
+    report: (qs: string) => request(`/payroll/reports?${qs}`),
     settings: () => request('/payroll/settings'),
     saveSettings: (data: unknown) => request('/payroll/settings', { method: 'PUT', body: JSON.stringify(data) }),
     components: () => request('/payroll/components'),

@@ -130,3 +130,14 @@ describe('LeaveService', () => {
     expect(e).toMatchObject({ kind: 'encashment', days: -3, amount: 6000 }); // 60,000 / 30 = 2,000 a day
   });
 });
+
+describe('an employee’s own vacation / sick allowance', () => {
+  it('replaces the company’s for Vacation (PTO) and Sick only; blank keeps the company’s', () => {
+    const { typeForEmployee } = require('./leave.service');
+    const vac = { id: 'LT-ANNUAL', annualDays: 10 }, sick = { id: 'LT-SICK', annualDays: 5 }, personal = { id: 'LT-CASUAL', annualDays: 3 };
+    const e = { vacationDaysPerYear: 15, sickDaysPerYear: 8 };
+    expect([typeForEmployee(vac, e).annualDays, typeForEmployee(sick, e).annualDays, typeForEmployee(personal, e).annualDays]).toEqual([15, 8, 3]);
+    expect(typeForEmployee(vac, { vacationDaysPerYear: null }).annualDays).toBe(10);
+    expect(typeForEmployee(vac, null).annualDays).toBe(10);
+  });
+});

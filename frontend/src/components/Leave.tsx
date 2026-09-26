@@ -536,3 +536,79 @@ export function LeaveSetup({ canManage }: { canManage: boolean }) {
     </div>
   );
 }
+
+/**
+ * Vacation and sick leave on the employee's overview (F7): each with its own
+ * balance -- days left, allowance (theirs or the company's), taken and
+ * pending -- and its own "Record" entry. Recorded by HR it's approved
+ * straight away; everything else about leave stays on the Leave tab.
+ */
+export function EmployeeTimeOffCard({ employee, canManage }: { employee: Employee; canManage: boolean }) {
+  const { toast } = useApp();
+  const year = new Date().getFullYear();
+  const [balances, setBalances] = useState<Balance[] | null>(null);
+  const [entry, setEntry] = useState<{ typeId: string; from: string; to: string; halfDay: boolean; reason: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => api.leave.balances(year, employee.id).then((r: any) => setBalances(Array.isArray(r) ? r : [])).catch(() => setBalances([]));
+  useEffect(() => { load(); setEntry(null); }, [employee.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const record = async () => {
+    if (!entry) return;
+    if (!entry.from || !entry.to || entry.to < entry.from) { toast('⚠ Pick the dates'); return; }
+    setBusy(true);
+    try {
+      const req: any = await api.leave.create({ employeeId: employee.id, leaveTypeId: entry.typeId, startDate: entry.from, endDate: entry.to, halfDay: entry.halfDay || undefined, reason: entry.reason || undefined });
+      if (canManage && req?.id && req.status === 'pending') await api.leave.approve(req.id, 'Recorded by HR');
+      toast(canManage ? 'Recorded' : 'Sent for approval');
+      setEntry(null); load();
+    } catch (e: any) { toast('⚠ ' + (e.message || 'Could not record it')); }
+    finally { setBusy(false); }
+  };
+
+  const KINDS: [string, string][] = [['LT-ANNUAL', 'Vacation'], ['LT-SICK', 'Sick leave']];
+  return (
+    <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 12, alignContent: 'start' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>Time off · {year}</div>
+      {balances === null ? <div style={{ fontSize: 12, color: MUTED }}>Loading…</div> : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {KINDS.map(([id, label]) => {
+            const b = balances.find((x) => x.leaveTypeId === id);
+            if (!b) return <div key={id} style={{ fontSize: 12, color: MUTED }}>{label}: not set up (Setup → Leave &amp; Holidays)</div>;
+            const own = id === 'LT-ANNUAL' ? (employee as any).vacationDaysPerYear : (employee as any).sickDaysPerYear;
+            return (
+              <div key={id} style={{ background: '#FBF8F2', borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+                <div style={{ fontFamily: BG, fontSize: 22, fontWeight: 700, color: b.available < 0 ? DANGER : INK }}>{b.available} <span style={{ fontSize: 11.5, fontWeight: 600, color: MUTED, fontFamily: 'inherit' }}>days left</span></div>
+                <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.5 }}>
+                  {b.entitlement} a year{own != null ? ' (their own)' : ''}{b.carriedForward ? ` + ${b.carriedForward} carried` : ''} · {b.used} taken{b.pending ? ` · ${b.pending} pending` : ''}
+                </div>
+                <span onClick={() => setEntry({ typeId: id, from: todayISO(), to: todayISO(), halfDay: false, reason: '' })} style={{ display: 'inline-block', marginTop: 6, fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>
+                  + Record {id === 'LT-SICK' ? 'a sick day' : 'vacation'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {entry && (
+        <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 10, border: '1px solid ' + LINE }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: INK }}>{entry.typeId === 'LT-SICK' ? 'Sick leave' : 'Vacation'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><Label text="From" /><input type="date" value={entry.from} onChange={(e) => setEntry({ ...entry, from: e.target.value, to: entry.to < e.target.value ? e.target.value : entry.to })} style={input} /></div>
+            <div><Label text="To" /><input type="date" value={entry.to} min={entry.from} onChange={(e) => setEntry({ ...entry, to: e.target.value })} style={input} /></div>
+          </div>
+          {entry.from === entry.to && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#43514D' }}>
+              <input type="checkbox" checked={entry.halfDay} onChange={(e) => setEntry({ ...entry, halfDay: e.target.checked })} /> Half day
+            </label>
+          )}
+          <input value={entry.reason} onChange={(e) => setEntry({ ...entry, reason: e.target.value })} placeholder="Note (optional)" style={input} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div onClick={busy ? undefined : record} style={btn(true, busy)}>{busy ? 'Saving…' : canManage ? 'Record' : 'Request'}</div>
+            <div onClick={() => setEntry(null)} style={btn()}>Cancel</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
