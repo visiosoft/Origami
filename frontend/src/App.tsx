@@ -1,6 +1,7 @@
 import { MyTimesheet } from './pages/MyTimesheet';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { ClientUpload } from './pages/ClientUpload';
 import { RfisPage } from './pages/Rfis';
 import { AppShell } from './components/AppShell';
 import { DashboardRouter } from './pages/DashboardRouter';
@@ -72,6 +73,8 @@ export default function App() {
       <Route path="/sign-proposal" element={<SignProposal />} />
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
       <Route path="/guest" element={<GuestEntry />} />
+      {/* Public on purpose — a client uploads their documents from the welcome email's private link. */}
+      <Route path="/upload" element={<ClientUpload />} />
       <Route path="/portal/*" element={<RequireAuth><Portal /></RequireAuth>} />
       {/* The daily log made for a phone on site -- full screen, outside the app frame. */}
       <Route path="/daily-log" element={<RequireAuth><NotPortal><FieldDailyLog /></NotPortal></RequireAuth>} />

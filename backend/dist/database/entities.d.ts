@@ -1420,5 +1420,12 @@ export declare class LeadFilesEntity {
     leadId: string;
     attachments: LeadAttachment[] | null;
     updatedAt: string;
+    uploadNonce: string;
+    uploadItems: string[] | null;
+    uploadExpiresAt: string;
+    welcomeSentAt: string;
+    welcomeSentTo: string;
+    welcomeSentBy: string;
+    welcomeSentById: string;
 }
 export {};

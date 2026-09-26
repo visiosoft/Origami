@@ -278,12 +278,21 @@ export const api = {
   },
   leadFiles: {
     list: (leadId: string) => request<any[]>(`/lead-files/${encodeURIComponent(leadId)}`),
+    /** The client welcome email + private upload link (F11). */
+    welcomeStatus: (leadId: string) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/welcome`),
+    sendWelcome: (leadId: string, d: { to?: string; note?: string; items?: string[] }) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/welcome`, { method: 'POST', body: JSON.stringify(d) }),
+    disableWelcome: (leadId: string) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/welcome/disable`, { method: 'POST' }),
     /** `stage` tags the files with the pipeline stage they belong to. */
     upload: (leadId: string, files: File[], stage?: string, stageName?: string) =>
       requestForm<any[]>(`/lead-files/${encodeURIComponent(leadId)}/attachments${stage ? `?stage=${encodeURIComponent(stage)}&stageName=${encodeURIComponent(stageName || '')}` : ''}`, filesForm(files)),
     link: (leadId: string, name: string, url: string, stage?: string, stageName?: string) =>
       request<any[]>(`/lead-files/${encodeURIComponent(leadId)}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url, stage, stageName }) }),
     remove: (leadId: string, attId: string) => request<any[]>(`/lead-files/${encodeURIComponent(leadId)}/attachments/${encodeURIComponent(attId)}`, { method: 'DELETE' }),
+  },
+  /** The client's own upload page -- no account, keyed by the link's token. */
+  clientUpload: {
+    view: (token: string) => request<any>(`/client-upload?token=${encodeURIComponent(token)}`),
+    upload: (token: string, files: File[], item?: string) => { const f = filesForm(files); if (item) f.append('item', item); return requestForm<any>(`/client-upload/files?token=${encodeURIComponent(token)}`, f); },
   },
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),

@@ -1930,4 +1930,13 @@ export class LeadFilesEntity {
   @PrimaryColumn() leadId!: string;
   @Column({ type: 'simple-json', nullable: true }) attachments!: LeadAttachment[] | null;
   @Column({ nullable: true }) updatedAt!: string;
+  // The client's upload link (welcome email): a new email or "turn off" changes
+  // the nonce, so any older link stops working.
+  @Column({ nullable: true }) uploadNonce!: string;
+  @Column({ type: 'simple-json', nullable: true }) uploadItems!: string[] | null;
+  @Column({ nullable: true }) uploadExpiresAt!: string;
+  @Column({ nullable: true }) welcomeSentAt!: string;
+  @Column({ nullable: true }) welcomeSentTo!: string;
+  @Column({ nullable: true }) welcomeSentBy!: string;
+  @Column({ nullable: true }) welcomeSentById!: string;
 }

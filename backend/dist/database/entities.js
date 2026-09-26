@@ -5180,6 +5180,34 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], LeadFilesEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadFilesEntity.prototype, "uploadNonce", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], LeadFilesEntity.prototype, "uploadItems", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadFilesEntity.prototype, "uploadExpiresAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadFilesEntity.prototype, "welcomeSentAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadFilesEntity.prototype, "welcomeSentTo", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadFilesEntity.prototype, "welcomeSentBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadFilesEntity.prototype, "welcomeSentById", void 0);
 exports.LeadFilesEntity = LeadFilesEntity = __decorate([
     (0, typeorm_1.Entity)('lead_files')
 ], LeadFilesEntity);

@@ -20,11 +20,22 @@ const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
 const lead_files_service_1 = require("./lead-files.service");
+const client_welcome_service_1 = require("./client-welcome.service");
 let LeadFilesController = class LeadFilesController {
-    constructor(files, auth, attachments) {
+    constructor(files, auth, attachments, welcome) {
         this.files = files;
         this.auth = auth;
         this.attachments = attachments;
+        this.welcome = welcome;
+    }
+    welcomeStatus(leadId) {
+        return this.welcome.status(leadId);
+    }
+    async sendWelcome(leadId, dto, a) {
+        return this.welcome.send(leadId, dto || {}, await this.auth.requireActor(a));
+    }
+    disableLink(leadId) {
+        return this.welcome.disable(leadId);
     }
     list(leadId) {
         return this.files.list(leadId);
@@ -49,6 +60,29 @@ let LeadFilesController = class LeadFilesController {
     }
 };
 exports.LeadFilesController = LeadFilesController;
+__decorate([
+    (0, common_1.Get)(':leadId/welcome'),
+    __param(0, (0, common_1.Param)('leadId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], LeadFilesController.prototype, "welcomeStatus", null);
+__decorate([
+    (0, common_1.Post)(':leadId/welcome'),
+    __param(0, (0, common_1.Param)('leadId')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], LeadFilesController.prototype, "sendWelcome", null);
+__decorate([
+    (0, common_1.Post)(':leadId/welcome/disable'),
+    __param(0, (0, common_1.Param)('leadId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], LeadFilesController.prototype, "disableLink", null);
 __decorate([
     (0, common_1.Get)(':leadId'),
     __param(0, (0, common_1.Param)('leadId')),
@@ -100,6 +134,7 @@ exports.LeadFilesController = LeadFilesController = __decorate([
     (0, common_1.Controller)('lead-files'),
     __metadata("design:paramtypes", [lead_files_service_1.LeadFilesService,
         auth_service_1.AuthService,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        client_welcome_service_1.ClientWelcomeService])
 ], LeadFilesController);
 //# sourceMappingURL=lead-files.controller.js.map

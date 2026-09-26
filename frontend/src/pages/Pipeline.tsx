@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { LeadFilesTab, LeadStageFiles, useLeadFiles } from '../components/LeadFiles';
+import { ClientWelcomeCard, LeadFilesTab, LeadStageFiles, useLeadFiles } from '../components/LeadFiles';
 import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
 import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
@@ -1369,7 +1369,10 @@ export function Pipeline() {
               </div>
             </div>
           ) : detailTab === 'files' ? (
+            <>
+            <div style={{ padding: '16px 20px 0' }}><ClientWelcomeCard leadId={selected.id} defaultTo={leadDetails[selected.id]?.email || selected.email} homework={leadDetails[selected.id]?.homeworkCompleted || []} /></div>
             <LeadFilesTab leadId={selected.id} files={leadFiles.files} onChange={leadFiles.setFiles} stages={STAGES.map((s) => ({ key: s.key, name: s.name }))} currentStage={selected.stage} />
+            </>
           ) : detailTab === 'tasks' ? (
             <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} openTaskId={convertedTaskId} />
           ) : detailTab === 'contacts' ? (
@@ -1923,6 +1926,11 @@ export function Pipeline() {
               })()}
 
               {/* Files for the stage it's on (Site Visit photos, surveys, plans) */}
+              {(selected.stage === 'initial_questions' || selected.stage === 'virtual_ff') && (
+                <div style={{ padding: '14px 20px 0' }}>
+                  <ClientWelcomeCard leadId={selected.id} defaultTo={leadDetails[selected.id]?.email || selected.email} homework={leadDetails[selected.id]?.homeworkCompleted || []} />
+                </div>
+              )}
               {selectedStage && (
                 <div style={{ paddingTop: 14, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
                   <LeadStageFiles leadId={selected.id} stage={selectedStage.key} stageName={selectedStage.name} files={leadFiles.files} onChange={leadFiles.setFiles} onShowAll={() => setDetailTab('files')} />

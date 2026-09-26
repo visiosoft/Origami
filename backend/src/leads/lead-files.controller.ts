@@ -7,6 +7,7 @@ import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
 import { AddLinkDto } from '../tasks/dto/update-task.dto';
 import { LeadFilesService } from './lead-files.service';
+import { ClientWelcomeService } from './client-welcome.service';
 
 /**
  * A lead's files, on the routes the shared Attachments component uses
@@ -20,7 +21,24 @@ export class LeadFilesController {
     private readonly files: LeadFilesService,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly welcome: ClientWelcomeService,
   ) {}
+
+  /** The client welcome email + upload link: sent when, link live, uploads so far. */
+  @Get(':leadId/welcome')
+  welcomeStatus(@Param('leadId') leadId: string) {
+    return this.welcome.status(leadId);
+  }
+
+  @Post(':leadId/welcome')
+  async sendWelcome(@Param('leadId') leadId: string, @Body() dto: { to?: string; note?: string; items?: string[] }, @Headers('authorization') a?: string) {
+    return this.welcome.send(leadId, dto || {}, await this.auth.requireActor(a));
+  }
+
+  @Post(':leadId/welcome/disable')
+  disableLink(@Param('leadId') leadId: string) {
+    return this.welcome.disable(leadId);
+  }
 
   @Get(':leadId')
   list(@Param('leadId') leadId: string) {
