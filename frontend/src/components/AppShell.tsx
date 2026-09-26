@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { releaseSeen } from '../data/releaseNotes';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
@@ -59,6 +60,13 @@ export function AppShell() {
 
   const isOpen = (key: string) => openGroups[key] !== false;
 
+  // "New" on Help & Support until the latest release notes have been seen.
+  const [seenRelease, setSeenRelease] = useState(releaseSeen());
+  useEffect(() => {
+    const on = () => setSeenRelease(releaseSeen());
+    window.addEventListener('origami:release-seen', on);
+    return () => window.removeEventListener('origami:release-seen', on);
+  }, []);
   const userName = currentUser?.name ?? 'Edward M.';
   const userRoleName = currentRole?.name ?? 'Admin';
 
@@ -95,6 +103,7 @@ export function AppShell() {
                       <span className="nav-item-label">{item.label}</span>
                       {item.note && <span className="nav-item-note">{item.note}</span>}
                       {item.badge && <span className="nav-item-badge">{item.badge}</span>}
+                      {item.route === 'help' && !seenRelease && <span className="nav-item-badge" title="New release notes under Help & Support → What’s new">New</span>}
                     </NavLink>
                   ))}
                 </div>

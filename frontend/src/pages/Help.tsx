@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { releaseSeen } from '../data/releaseNotes';
+import { WhatsNew } from '../components/WhatsNew';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -22,15 +24,16 @@ export function Help() {
   const navigate = useNavigate();
   const { can, toast, currentUser } = useApp();
   const canManage = can('help', 'manage');
-  const [tab, setTab] = useState<'center' | 'ticket' | 'faq'>('center');
+  // Release notes open first while there's something you haven't seen.
+  const [tab, setTab] = useState<'new' | 'center' | 'ticket' | 'faq'>(() => (releaseSeen() ? 'center' : 'new'));
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12', marginBottom: 4 }}>Help &amp; Support</div>
-      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 18 }}>Find answers, browse FAQs, or raise a support ticket.</div>
+      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 18 }}>See what’s new, find answers, browse FAQs, or raise a support ticket.</div>
 
       <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
-        {([['center', 'Help Center'], ['ticket', 'Submit Ticket'], ['faq', 'FAQs']] as [typeof tab, string][]).map((t) => (
+        {([['new', 'What’s new'], ['center', 'Help Center'], ['ticket', 'Submit Ticket'], ['faq', 'FAQs']] as [typeof tab, string][]).map((t) => (
           <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: '8px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: tab === t[0] ? 'white' : 'transparent', color: tab === t[0] ? '#0B1A12' : '#7E9B93', boxShadow: tab === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
         ))}
       </div>
@@ -54,6 +57,7 @@ export function Help() {
 
       {tab === 'ticket' && <SubmitTicket canManage={canManage} currentUserName={currentUser?.name} currentUserEmail={currentUser?.email} toast={toast} />}
       {tab === 'faq' && <Faqs canManage={canManage} toast={toast} />}
+      {tab === 'new' && <WhatsNew />}
     </div>
   );
 }
