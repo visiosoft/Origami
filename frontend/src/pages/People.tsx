@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SubContractorSummary } from '../components/Contractors';
+import { LoginCard } from '../components/StaffAccessCards';
 import { EmailLink, PhoneLink } from '../components/ContactLinks';
 import { SaveBar, useAutosave } from '../autosave';
 import { useNavigate } from 'react-router-dom';
@@ -414,6 +416,24 @@ export function People() {
                 </div>
               </div>
             )}
+            {sel.contractorId && !sel.employeeId && (
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                <SubContractorSummary contractorId={sel.contractorId} onOpen={() => { setSelectedId(null); navigate(`/manpower_con?contractor=${encodeURIComponent(sel.contractorId!)}`); }} />
+              </div>
+            )}
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+              {sel.kind === 'Staff' || sel.employeeId ? (
+                <div style={{ fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>Their login is managed on their employee record — <span onClick={() => { setSelectedId(null); navigate(sel.employeeId ? `/manpower_con?employee=${encodeURIComponent(sel.employeeId)}` : '/manpower_con'); }} style={{ color: '#173326', fontWeight: 700, cursor: 'pointer' }}>open it</span>.</div>
+              ) : (
+                <LoginCard
+                  subject={{ id: sel.id, name: sel.kind === 'Sub' && sel.contact ? `${sel.contact} (${sel.name})` : sel.name, email: sel.email, userId: sel.userId }}
+                  kind={sel.kind}
+                  projects={sel.projects}
+                  onLink={(userId, email) => api.people.update(String(sel.id), { userId, ...(email ? { email } : {}) })}
+                  onChanged={() => reload()}
+                />
+              )}
+            </div>
             <div style={{ padding: '18px 24px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <div onClick={() => { setSelectedId(null); navigate('/tasks'); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>View their tasks</div>
               {sel.employeeId ? (

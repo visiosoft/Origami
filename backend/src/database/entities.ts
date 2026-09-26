@@ -70,6 +70,10 @@ export class PersonEntity {
   @Column('int') openTasks!: number;
   /** Set for staff and contractor workers: the Manpower employee this entry is (one record, two views). */
   @Column({ nullable: true }) employeeId!: string;
+  /** Set for a subcontracting company: the Manpower contractor this entry is (one record, two views). */
+  @Column({ nullable: true }) contractorId!: string;
+  /** Their sign-in to the platform (users.id), given from this record. */
+  @Column({ nullable: true }) userId!: string;
   @Column() since!: string;
   @Column({ type: 'simple-json', nullable: true }) comply!: unknown;
   @Column() last!: string;

@@ -702,12 +702,17 @@ describe('subcontractor portal', () => {
   });
 
   it('limits outside accounts to the projects they are linked to', async () => {
-    const people = { createQueryBuilder: () => ({ where: (_: string, p: any) => ({ getMany: async () => (p.email === 'client@owner.example' ? [{ projects: ['Marina Tower'] }] : []) }) }) };
+    const people = table([
+      { id: 1, email: 'client@owner.example', projects: ['Marina Tower'] },
+      // A sub whose login uses a different address than the one on file: found by the login it was given from.
+      { id: 2, email: 'luis@ortiz.test', userId: 'U-SUB', projects: ['Hillside'] },
+    ]);
     const projects = table([{ id: 7, name: 'Marina Tower' }, { id: 8, name: 'Hillside' }]);
     const pa = new ProjectAccessService(people as any, projects);
     expect(await pa.allowedIds({ sub: 'U-A', roleKey: 'pm', tier: 'internal' } as any)).toBe('all');
     expect([...(await pa.allowedIds({ sub: 'U-C', roleKey: 'client', tier: 'client', email: 'Client@Owner.example' } as any) as Set<number>)]).toEqual([7]);
     expect((await pa.allowedIds(sub) as Set<number>).size).toBe(0);
+    expect([...(await pa.allowedIds({ sub: 'U-SUB', roleKey: 'subcontractor', tier: 'consultant', email: 'accounts@ortiz.test' } as any) as Set<number>)]).toEqual([8]);
     await expect(pa.assert({ sub: 'U-C', roleKey: 'client', tier: 'client', email: 'client@owner.example' } as any, 8)).rejects.toThrow(/access/);
   });
 });

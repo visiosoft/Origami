@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DirectoryAccessCard, LoginCard } from './StaffAccessCards';
 import { api } from '../api';
 import { SaveBar, useAutosave } from '../autosave';
 import { useApp } from '../AppContext';
@@ -63,13 +64,15 @@ function ContractorForm({ draft, patch, disabled, subTrades }: { draft: Partial<
   );
 }
 
-export function Contractors({ employees, trades, projects, assignments, canManage, reloadEmployees, onOpenEmployee }: {
+export function Contractors({ employees, trades, projects, assignments, canManage, reloadEmployees, onOpenEmployee, initialOpenId }: {
   employees: Employee[]; trades: Trade[]; projects: Project[]; assignments: Assignment[]; canManage: boolean;
   reloadEmployees: () => Promise<unknown> | void; onOpenEmployee: (id: string) => void;
+  /** Open this contractor straight away (a link from People). */
+  initialOpenId?: string | null;
 }) {
   const [contractors, setContractors] = useState<Contractor[] | null>(null);
   const [adding, setAdding] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId || null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [tradeFilter, setTradeFilter] = useState('');
@@ -154,7 +157,8 @@ function AddContractorDrawer({ subTrades, onClose, onCreated }: { subTrades: Sub
   const [subs, setSubs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
-    api.people.list().then((r: any) => setSubs(Array.isArray(r) ? r.filter((p: any) => p.kind === 'Sub') : [])).catch(() => {});
+    // Only People subs that aren't a contractor yet -- the rest already are (one record).
+    api.people.list().then((r: any) => setSubs(Array.isArray(r) ? r.filter((p: any) => p.kind === 'Sub' && !p.contractorId && !p.employeeId) : [])).catch(() => {});
   }, []);
 
   const fromPerson = (id: string) => {
@@ -176,7 +180,7 @@ function AddContractorDrawer({ subTrades, onClose, onCreated }: { subTrades: Sub
   };
 
   return (
-    <Drawer title="Add contractor" subtitle="A subcontractor or labour supplier. Its workers get the same profiles, documents and deployment as your own staff."
+    <Drawer title="Add contractor" subtitle="A subcontractor or labour supplier -- it also appears in People as a Sub (one record). Its workers get the same profiles, documents and deployment as your own staff."
       onClose={onClose}
       footer={<><div onClick={onClose} style={btn()}>Cancel</div><div onClick={saving ? undefined : create} style={btn(true, saving)}>{saving ? 'Adding…' : 'Add contractor'}</div></>}
     >
@@ -198,7 +202,7 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
   contractor: Contractor; subTrades: SubcontractorTrade[]; employees: Employee[]; trades: Trade[]; projects: Project[]; assignments: Assignment[]; canManage: boolean;
   onBack: () => void; onChanged: () => Promise<unknown>; reloadEmployees: () => Promise<unknown> | void; onOpenEmployee: (id: string) => void;
 }) {
-  const { toast } = useApp();
+  const { toast, authUser } = useApp();
   const [draft, setDraft] = useState<Partial<Contractor>>(contractor);
   const [addingWorker, setAddingWorker] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
@@ -306,7 +310,8 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
             onAddLink={async (name, url) => { await api.contractors.addLink(contractor.id, name, url); await onChanged(); }}
           />
         </div>
-        <PortalAccessCard contractor={contractor} />
+        <DirectoryAccessCard contractorId={contractor.id} canManage={canManage} />
+        {authUser?.roleKey === 'admin' ? <ContractorLoginCard contractor={contractor} onChanged={onChanged} /> : <PortalAccessCard contractor={contractor} />}
       </div>
 
       {addingWorker && (
@@ -398,6 +403,51 @@ function PortalAccessCard({ contractor }: { contractor: Contractor }) {
           <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ ...input, marginTop: 6, fontSize: 12 }} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The login on a contractor record -- the same login as on its People entry
+ * (one record): the Subcontractor portal or project access, the admin's pick.
+ */
+function ContractorLoginCard({ contractor, onChanged }: { contractor: Contractor; onChanged: () => Promise<unknown> }) {
+  const [person, setPerson] = useState<any | null | undefined>(undefined);
+  const load = () => api.people.list().then((r: any) => setPerson((Array.isArray(r) ? r : []).find((p: any) => p.contractorId === contractor.id && !p.employeeId) || null)).catch(() => setPerson(null));
+  useEffect(() => { load(); }, [contractor.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (person === undefined) return null;
+  if (!person) return <PortalAccessCard contractor={contractor} />;
+  return (
+    <LoginCard
+      subject={{ id: person.id, name: contractor.contactPerson ? `${contractor.contactPerson} (${contractor.companyName})` : contractor.companyName, email: contractor.email || person.email, userId: person.userId || (contractor as any).userId }}
+      kind="Sub"
+      projects={person.projects || []}
+      onLink={(userId, email) => api.people.update(String(person.id), { userId, ...(email ? { email } : {}) })}
+      onChanged={async () => { await load(); await onChanged(); }}
+    />
+  );
+}
+
+/** A sub company's contractor record at a glance, on its People entry. */
+export function SubContractorSummary({ contractorId, onOpen }: { contractorId: string; onOpen: () => void }) {
+  const [c, setC] = useState<any | null | undefined>(undefined);
+  useEffect(() => { api.contractors.list().then((r: any) => setC((Array.isArray(r) ? r : []).find((x: any) => x.id === contractorId) || null)).catch(() => setC(null)); }, [contractorId]);
+  if (c === undefined) return <div style={{ fontSize: 12, color: MUTED }}>Loading the contractor record…</div>;
+  if (!c) return <div style={{ fontSize: 12, color: MUTED }}>The contractor record is being set up — refresh in a moment.</div>;
+  const day = (d?: string) => (d ? fmtDate(d.slice(0, 10)) : '');
+  const today = new Date().toISOString().slice(0, 10);
+  const exp = (d?: string) => (d ? (d.slice(0, 10) < today ? { color: DANGER, fontWeight: 700 } : {}) : { color: MUTED });
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Contractor record</div>
+      <div style={{ display: 'grid', gap: 5, fontSize: 12.5, color: INK }}>
+        <div>Status: <b style={{ textTransform: 'capitalize' }}>{c.status}</b>{c.workerCount ? ` · ${c.workerCount} worker${c.workerCount === 1 ? '' : 's'} on file` : ''}</div>
+        <div style={exp(c.licenseExpiry)}>Licence {c.licenseNumber ? `#${c.licenseNumber} ` : ''}{c.licenseExpiry ? `${c.licenseExpiry.slice(0, 10) < today ? 'expired' : 'expires'} ${day(c.licenseExpiry)}` : 'not on file'}</div>
+        <div style={exp(c.insuranceExpiry)}>Insurance {c.insuranceExpiry ? `${c.insuranceExpiry.slice(0, 10) < today ? 'expired' : 'expires'} ${day(c.insuranceExpiry)}` : 'not on file'}</div>
+      </div>
+      <div onClick={onOpen} style={{ marginTop: 10, display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>
+        Open contractor record — trades, contract, insurance, workers
+      </div>
     </div>
   );
 }

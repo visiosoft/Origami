@@ -1,12 +1,15 @@
 import { Repository } from 'typeorm';
 import { ContractorEntity, EmployeeEntity } from '../database/entities';
+import { ContractorDirectorySync } from './contractor-directory.sync';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { type TaskAttachment } from '../database/task.types';
 export declare class ContractorsService {
     private readonly repo;
     private readonly employees;
     private readonly attachments;
-    constructor(repo: Repository<ContractorEntity>, employees: Repository<EmployeeEntity>, attachments: AttachmentsService);
+    private readonly directory?;
+    constructor(repo: Repository<ContractorEntity>, employees: Repository<EmployeeEntity>, attachments: AttachmentsService, directory?: ContractorDirectorySync | undefined);
+    private mirror;
     private hydrate;
     private counts;
     findAll(): Promise<{

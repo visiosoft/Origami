@@ -143,7 +143,10 @@ export function Manpower() {
   const [params, setParams] = useSearchParams();
   const [openEmployeeId, setOpenEmployeeId] = useState<string | null>(params.get('employee'));
   const [startAdding] = useState(params.get('add') === 'employee');
-  useEffect(() => { if (params.get('employee') || params.get('add')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ?contractor=<id> (from a sub's People entry) opens that contractor record.
+  const [openContractorId] = useState<string | null>(params.get('contractor'));
+  useEffect(() => { if (openContractorId) setTab('contractors'); }, [openContractorId]);
+  useEffect(() => { if (params.get('employee') || params.get('add') || params.get('contractor')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [payrollSettings, setPayrollSettings] = useState<PayrollSettings>(DEFAULT_SETTINGS);
 
   const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});
@@ -190,7 +193,7 @@ export function Manpower() {
           openId={openEmployeeId} onOpen={setOpenEmployeeId} startAdding={startAdding} />
       )}
       {tab === 'contractors' && (
-        <Contractors employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage}
+        <Contractors employees={employees} trades={trades} projects={projects} assignments={assignments} canManage={canManage} initialOpenId={openContractorId}
           reloadEmployees={async () => { await reloadEmployees(); await reloadContractors(); }} onOpenEmployee={openEmployee} />
       )}
       {tab === 'deployment' && (

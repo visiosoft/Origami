@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ContractorEntity, EmployeeEntity } from '../database/entities';
+import { ContractorDirectorySync } from './contractor-directory.sync';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { normalizeAttachments, subId, type TaskAttachment } from '../database/task.types';
 import { expiryStatus } from './employee-records.service';
@@ -13,7 +14,14 @@ export class ContractorsService {
     @InjectRepository(ContractorEntity) private readonly repo: Repository<ContractorEntity>,
     @InjectRepository(EmployeeEntity) private readonly employees: Repository<EmployeeEntity>,
     private readonly attachments: AttachmentsService,
+    private readonly directory?: ContractorDirectorySync,
   ) {}
+
+  /** Keep the People entry (same record) in step; never let that fail the save. */
+  private async mirror(c: ContractorEntity) {
+    try { await this.directory?.syncContractor(c); } catch { /* the boot backfill catches up */ }
+    return c;
+  }
 
   private hydrate(c: ContractorEntity, workerCount: number) {
     return {
@@ -54,7 +62,8 @@ export class ContractorsService {
     if (dto.contractStart && dto.contractEnd && dto.contractEnd < dto.contractStart) throw new BadRequestException('The contract ends before it starts.');
     const now = new Date().toISOString();
     const c = this.repo.create({ status: 'active', attachments: [], createdAt: now, updatedAt: now, ...dto, id: newId('CTR') } as Partial<ContractorEntity>);
-    return this.one(await this.repo.save(c));
+    const saved = await this.mirror(await this.repo.save(c));
+    return this.one((await this.repo.findOneBy({ id: saved.id })) || saved);
   }
 
   async update(id: string, dto: any) {
@@ -62,7 +71,7 @@ export class ContractorsService {
     const { attachments: _ignored, ...rest } = dto;
     Object.assign(c, rest, { id, updatedAt: new Date().toISOString() });
     if (c.contractStart && c.contractEnd && c.contractEnd < c.contractStart) throw new BadRequestException('The contract ends before it starts.');
-    return this.one(await this.repo.save(c));
+    return this.one(await this.mirror(await this.repo.save(c)));
   }
 
   async remove(id: string) {
@@ -71,6 +80,7 @@ export class ContractorsService {
     if (workers) throw new BadRequestException(`${c.companyName} still has ${workers} worker(s) on record -- set the contractor to Ended instead.`);
     await this.attachments.discardAll(normalizeAttachments(c.attachments));
     await this.repo.remove(c);
+    await this.directory?.removeContractor(id);
     return { id, deleted: true };
   }
 

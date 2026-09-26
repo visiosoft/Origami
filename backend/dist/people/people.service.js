@@ -15,13 +15,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeopleService = void 0;
 const common_1 = require("@nestjs/common");
 const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
+const contractor_directory_sync_1 = require("../manpower/contractor-directory.sync");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 let PeopleService = class PeopleService {
-    constructor(repo, staff) {
+    constructor(repo, staff, subs) {
         this.repo = repo;
         this.staff = staff;
+        this.subs = subs;
     }
     async findAll(project) {
         const all = await this.repo.find({ order: { id: 'ASC' } });
@@ -73,6 +75,8 @@ let PeopleService = class PeopleService {
         const saved = await this.repo.save(this.repo.create(person));
         if (saved.kind === 'Staff' && !saved.employeeId && this.staff)
             await this.staff.employeeForPerson(saved);
+        if ((0, contractor_directory_sync_1.isSubCompany)(saved) && this.subs)
+            await this.subs.contractorForPerson(saved);
         return saved;
     }
     async update(id, dto) {
@@ -83,6 +87,7 @@ let PeopleService = class PeopleService {
         Object.assign(person, dto, { id: numId });
         const saved = await this.repo.save(person);
         await this.staff?.personChanged(saved, dto);
+        await this.subs?.personChanged(saved, dto);
         return saved;
     }
     async remove(id) {
@@ -91,6 +96,8 @@ let PeopleService = class PeopleService {
         if (person?.employeeId) {
             throw new common_1.BadRequestException(`${person.name} is also an employee -- end or remove them in Manpower -> Employees and this entry follows.`);
         }
+        if (person?.contractorId)
+            await this.subs?.removeForPerson(person);
         if (person)
             await this.repo.remove(person);
         return { id: numId, deleted: true };
@@ -101,6 +108,7 @@ exports.PeopleService = PeopleService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.PersonEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        staff_directory_sync_1.StaffDirectorySync])
+        staff_directory_sync_1.StaffDirectorySync,
+        contractor_directory_sync_1.ContractorDirectorySync])
 ], PeopleService);
 //# sourceMappingURL=people.service.js.map

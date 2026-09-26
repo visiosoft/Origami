@@ -34,9 +34,8 @@ let ProjectAccessService = class ProjectAccessService {
         if (claims.roleKey === roles_decorator_1.PORTAL_ROLE)
             return new Set();
         const email = String(claims.email || '').trim().toLowerCase();
-        if (!email)
-            return new Set();
-        const linked = (await this.people.createQueryBuilder('p').where('LOWER(p.email) = :email', { email }).getMany())
+        const linked = (await this.people.find())
+            .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email))
             .flatMap((p) => p.projects || []);
         if (!linked.length)
             return new Set();

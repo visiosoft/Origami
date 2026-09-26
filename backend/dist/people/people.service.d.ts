@@ -1,10 +1,12 @@
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
+import { ContractorDirectorySync } from '../manpower/contractor-directory.sync';
 import { Repository } from 'typeorm';
 import { PersonEntity } from '../database/entities';
 export declare class PeopleService {
     private readonly repo;
     private readonly staff?;
-    constructor(repo: Repository<PersonEntity>, staff?: StaffDirectorySync | undefined);
+    private readonly subs?;
+    constructor(repo: Repository<PersonEntity>, staff?: StaffDirectorySync | undefined, subs?: ContractorDirectorySync | undefined);
     findAll(project?: string): Promise<PersonEntity[]>;
     findOne(id: string): Promise<PersonEntity>;
     isClientOnProject(email: string, projectName: string): Promise<boolean>;

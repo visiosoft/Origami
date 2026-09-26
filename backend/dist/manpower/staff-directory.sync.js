@@ -73,8 +73,8 @@ let StaffDirectorySync = class StaffDirectorySync {
     async syncEmployee(e, candidates) {
         const all = candidates || (await this.people.find());
         let person = all.find((p) => p.employeeId === e.id)
-            || (!blank(e.email) ? all.find((p) => !p.employeeId && norm(p.email) === norm(e.email)) : undefined)
-            || all.find((p) => !p.employeeId && ['Staff', 'Sub'].includes(p.kind) && norm(p.name) === norm(e.name));
+            || (!blank(e.email) ? all.find((p) => !p.employeeId && !p.contractorId && norm(p.email) === norm(e.email)) : undefined)
+            || all.find((p) => !p.employeeId && !p.contractorId && ['Staff', 'Sub'].includes(p.kind) && norm(p.name) === norm(e.name));
         const fields = personFieldsFor(e, await this.companyFor(e));
         if (!person) {
             person = this.people.create({

@@ -74,8 +74,9 @@ export class StaffDirectorySync implements OnApplicationBootstrap {
   async syncEmployee(e: EmployeeEntity, candidates?: PersonEntity[]): Promise<PersonEntity> {
     const all = candidates || (await this.people.find());
     let person = all.find((p) => p.employeeId === e.id)
-      || (!blank(e.email) ? all.find((p) => !p.employeeId && norm(p.email) === norm(e.email)) : undefined)
-      || all.find((p) => !p.employeeId && ['Staff', 'Sub'].includes(p.kind) && norm(p.name) === norm(e.name));
+      // (never a subcontracting company's own entry -- that's the contractor, not one of its workers)
+      || (!blank(e.email) ? all.find((p) => !p.employeeId && !p.contractorId && norm(p.email) === norm(e.email)) : undefined)
+      || all.find((p) => !p.employeeId && !p.contractorId && ['Staff', 'Sub'].includes(p.kind) && norm(p.name) === norm(e.name));
     const fields = personFieldsFor(e, await this.companyFor(e));
     if (!person) {
       person = this.people.create({

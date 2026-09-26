@@ -31,9 +31,10 @@ export class ProjectAccessService {
     if (!claims) throw new UnauthorizedException('Sign in first.');
     if (this.isStaff(claims)) return 'all';
     if (claims.roleKey === PORTAL_ROLE) return new Set();
+    // Their People entries: the one their login was given from (People.userId), and any with the same email.
     const email = String(claims.email || '').trim().toLowerCase();
-    if (!email) return new Set();
-    const linked = (await this.people.createQueryBuilder('p').where('LOWER(p.email) = :email', { email }).getMany())
+    const linked = (await this.people.find())
+      .filter((p) => (p.userId && p.userId === claims.sub) || (!!email && String(p.email || '').trim().toLowerCase() === email))
       .flatMap((p) => p.projects || []);
     if (!linked.length) return new Set();
     const names = new Set(linked);

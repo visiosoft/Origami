@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
+import { ContractorDirectorySync, isSubCompany } from '../manpower/contractor-directory.sync';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonEntity } from '../database/entities';
@@ -9,6 +10,7 @@ export class PeopleService {
   constructor(
     @InjectRepository(PersonEntity) private readonly repo: Repository<PersonEntity>,
     private readonly staff?: StaffDirectorySync,
+    private readonly subs?: ContractorDirectorySync,
   ) {}
 
   async findAll(project?: string) {
@@ -79,6 +81,8 @@ export class PeopleService {
     const saved = await this.repo.save(this.repo.create(person as Partial<PersonEntity>));
     // Staff are employees too -- one record in both People and Manpower.
     if (saved.kind === 'Staff' && !saved.employeeId && this.staff) await this.staff.employeeForPerson(saved);
+    // A sub company is a contractor too -- one record in People and Manpower -> Contractors.
+    if (isSubCompany(saved) && this.subs) await this.subs.contractorForPerson(saved);
     return saved;
   }
 
@@ -89,6 +93,7 @@ export class PeopleService {
     Object.assign(person, dto, { id: numId });
     const saved = await this.repo.save(person);
     await this.staff?.personChanged(saved, dto);
+    await this.subs?.personChanged(saved, dto);
     return saved;
   }
 
@@ -98,6 +103,7 @@ export class PeopleService {
     if (person?.employeeId) {
       throw new BadRequestException(`${person.name} is also an employee -- end or remove them in Manpower -> Employees and this entry follows.`);
     }
+    if (person?.contractorId) await this.subs?.removeForPerson(person);
     if (person) await this.repo.remove(person);
     return { id: numId, deleted: true };
   }

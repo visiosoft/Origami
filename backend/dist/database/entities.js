@@ -195,6 +195,14 @@ __decorate([
     __metadata("design:type", String)
 ], PersonEntity.prototype, "employeeId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "contractorId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "userId", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], PersonEntity.prototype, "since", void 0);

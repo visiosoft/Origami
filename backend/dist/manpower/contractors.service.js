@@ -17,15 +17,24 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const contractor_directory_sync_1 = require("./contractor-directory.sync");
 const attachments_service_1 = require("../google/attachments.service");
 const task_types_1 = require("../database/task.types");
 const employee_records_service_1 = require("./employee-records.service");
 const workforce_util_1 = require("./workforce.util");
 let ContractorsService = class ContractorsService {
-    constructor(repo, employees, attachments) {
+    constructor(repo, employees, attachments, directory) {
         this.repo = repo;
         this.employees = employees;
         this.attachments = attachments;
+        this.directory = directory;
+    }
+    async mirror(c) {
+        try {
+            await this.directory?.syncContractor(c);
+        }
+        catch { }
+        return c;
     }
     hydrate(c, workerCount) {
         return {
@@ -66,7 +75,8 @@ let ContractorsService = class ContractorsService {
             throw new common_1.BadRequestException('The contract ends before it starts.');
         const now = new Date().toISOString();
         const c = this.repo.create({ status: 'active', attachments: [], createdAt: now, updatedAt: now, ...dto, id: (0, workforce_util_1.newId)('CTR') });
-        return this.one(await this.repo.save(c));
+        const saved = await this.mirror(await this.repo.save(c));
+        return this.one((await this.repo.findOneBy({ id: saved.id })) || saved);
     }
     async update(id, dto) {
         const c = await this.load(id);
@@ -74,7 +84,7 @@ let ContractorsService = class ContractorsService {
         Object.assign(c, rest, { id, updatedAt: new Date().toISOString() });
         if (c.contractStart && c.contractEnd && c.contractEnd < c.contractStart)
             throw new common_1.BadRequestException('The contract ends before it starts.');
-        return this.one(await this.repo.save(c));
+        return this.one(await this.mirror(await this.repo.save(c)));
     }
     async remove(id) {
         const c = await this.load(id);
@@ -83,6 +93,7 @@ let ContractorsService = class ContractorsService {
             throw new common_1.BadRequestException(`${c.companyName} still has ${workers} worker(s) on record -- set the contractor to Ended instead.`);
         await this.attachments.discardAll((0, task_types_1.normalizeAttachments)(c.attachments));
         await this.repo.remove(c);
+        await this.directory?.removeContractor(id);
         return { id, deleted: true };
     }
     async addAttachments(id, files, actor) {
@@ -122,6 +133,7 @@ exports.ContractorsService = ContractorsService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        contractor_directory_sync_1.ContractorDirectorySync])
 ], ContractorsService);
 //# sourceMappingURL=contractors.service.js.map

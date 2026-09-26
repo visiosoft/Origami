@@ -5,6 +5,10 @@ export interface Person {
   id: number;
   /** Staff and contractor workers: their Manpower employee record (the same person, edited there). */
   employeeId?: string;
+  /** A subcontracting company: its Manpower contractor record (the same company). */
+  contractorId?: string;
+  /** Their sign-in, given from this record. */
+  userId?: string;
   name: string;
   role: string;
   company: string;
