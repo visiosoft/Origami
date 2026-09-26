@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { PeopleImport } from '../components/PeopleImport';
 import { SubContractorSummary } from '../components/Contractors';
 import { LoginCard } from '../components/StaffAccessCards';
 import { EmailLink, PhoneLink } from '../components/ContactLinks';
@@ -78,6 +79,7 @@ export function People() {
   const [projOpen, setProjOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [np, setNp] = useState<NewPerson>(BLANK);
   const swallow = useRef(false);
 
@@ -364,8 +366,10 @@ export function People() {
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ fontSize: 11.5, color: '#7E9B93' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
+        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'white' }}>Import from spreadsheet</div>}
+        {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
         {canManage && (
-          <div onClick={openNew} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
+          <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
             <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New person or company
           </div>
         )}

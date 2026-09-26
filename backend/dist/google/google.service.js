@@ -411,6 +411,34 @@ let GoogleService = class GoogleService {
             await this.trashDriveFile(doc.id).catch(() => undefined);
         }
     }
+    async spreadsheetToCsv(file, mimeType, name = 'import') {
+        const token = await this.workspaceToken();
+        const boundary = 'origami_csv_' + Math.random().toString(36).slice(2);
+        const metadata = { name, mimeType: 'application/vnd.google-apps.spreadsheet' };
+        const body = Buffer.concat([
+            Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+            Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`, 'utf8'),
+            file,
+            Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+        ]);
+        const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body: body,
+        });
+        const sheet = await created.json().catch(() => ({}));
+        if (!created.ok || !sheet?.id)
+            throw new common_1.BadRequestException(sheet?.error?.message || 'Could not read the spreadsheet.');
+        try {
+            const res = await fetch(`${DRIVE_FILES_URL}/${sheet.id}/export?mimeType=text%2Fcsv`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok)
+                throw new common_1.BadRequestException('Drive could not read the spreadsheet.');
+            return await res.text();
+        }
+        finally {
+            await this.trashDriveFile(sheet.id).catch(() => undefined);
+        }
+    }
     async csvToXlsx(csv, name = 'sheet') {
         const token = await this.workspaceToken();
         const boundary = 'origami_xlsx_' + Math.random().toString(36).slice(2);

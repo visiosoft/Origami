@@ -207,6 +207,10 @@ export const api = {
     create: (data: unknown) => request('/people', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/people/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
+    /** Bulk import (People -> Import): the template's columns, Excel -> CSV, and preview / apply. */
+    importColumns: () => request('/people/import/columns'),
+    importConvert: (file: File) => { const f = new FormData(); f.append('file', file, file.name); return requestForm('/people/import/convert', f); },
+    importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update }) }),
   },
   tasks: {
     /** The Request Log's statuses (Settings -> Request Log statuses). */

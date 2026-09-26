@@ -27,6 +27,8 @@ async function bootstrap() {
     .map((o) => o.trim())
     .filter(Boolean);
   app.enableCors(origins.length ? { origin: origins, credentials: true } : { origin: false });
+  // Room for bulk saves (a People import of a few thousand rows, a long document) -- Express's default is 100kb.
+  app.useBodyParser('json', { limit: '5mb' });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = new DocumentBuilder()

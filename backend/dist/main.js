@@ -16,6 +16,7 @@ async function bootstrap() {
         .map((o) => o.trim())
         .filter(Boolean);
     app.enableCors(origins.length ? { origin: origins, credentials: true } : { origin: false });
+    app.useBodyParser('json', { limit: '5mb' });
     app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true }));
     const config = new swagger_1.DocumentBuilder()
         .setTitle('Origami Design + Build')

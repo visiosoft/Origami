@@ -526,6 +526,36 @@ export class GoogleService {
    * Turn CSV into a real Excel file (.xlsx), the same way as the PDF: Drive
    * imports it as a Google Sheet, exports it as xlsx, and the Sheet is trashed.
    */
+  /**
+   * An Excel (or ODS) upload as CSV, through Drive's own conversion -- the
+   * first sheet only. The temporary Google Sheet is trashed afterwards.
+   */
+  async spreadsheetToCsv(file: Buffer, mimeType: string, name = 'import'): Promise<string> {
+    const token = await this.workspaceToken();
+    const boundary = 'origami_csv_' + Math.random().toString(36).slice(2);
+    const metadata = { name, mimeType: 'application/vnd.google-apps.spreadsheet' };
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+      Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`, 'utf8'),
+      file,
+      Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+    ]);
+    const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
+    const sheet: any = await created.json().catch(() => ({}));
+    if (!created.ok || !sheet?.id) throw new BadRequestException(sheet?.error?.message || 'Could not read the spreadsheet.');
+    try {
+      const res = await fetch(`${DRIVE_FILES_URL}/${sheet.id}/export?mimeType=text%2Fcsv`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new BadRequestException('Drive could not read the spreadsheet.');
+      return await res.text();
+    } finally {
+      await this.trashDriveFile(sheet.id).catch(() => undefined);
+    }
+  }
+
   async csvToXlsx(csv: string, name = 'sheet'): Promise<Buffer> {
     const token = await this.workspaceToken();
     const boundary = 'origami_xlsx_' + Math.random().toString(36).slice(2);
