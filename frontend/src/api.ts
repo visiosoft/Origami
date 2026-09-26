@@ -279,6 +279,9 @@ export const api = {
   leadFiles: {
     list: (leadId: string) => request<any[]>(`/lead-files/${encodeURIComponent(leadId)}`),
     /** The client welcome email + private upload link (F11). */
+    /** Every file on a lead / project: its own, the client's, its tasks', RFIs', File Room -- numbered. */
+    all: (leadId: string) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/all`),
+    allForProject: (projectId: number) => request<any>(`/lead-files/project/${projectId}/all`),
     welcomeStatus: (leadId: string) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/welcome`),
     sendWelcome: (leadId: string, d: { to?: string; note?: string; items?: string[] }) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/welcome`, { method: 'POST', body: JSON.stringify(d) }),
     disableWelcome: (leadId: string) => request<any>(`/lead-files/${encodeURIComponent(leadId)}/welcome/disable`, { method: 'POST' }),

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AllFiles } from '../components/AllFiles';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { MoneyGlance, TasksAndRfis, WorkGlance } from '../components/ProjectGlance';
 import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
@@ -46,7 +47,7 @@ export function Projects() {
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [activeView, setActiveView] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'rfis' | 'subs' | 'financial' | 'guests'>('overview');
+  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'rfis' | 'subs' | 'files' | 'financial' | 'guests'>('overview');
   // The Financial tab can open on Job cost -> Subcontracts & POs (from "+ Subcontract").
   const [finStart, setFinStart] = useState<'sov' | 'subcontracts'>('sov');
   // Whether this user's role includes project financials (the server decides; can() is permissive for non-admins).
@@ -592,7 +593,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -664,10 +665,10 @@ export function Projects() {
                   </span>
                 </div>
               )}
-              <div onClick={() => navigate(`/planroom?project=${sel.id}`)} title="This project's folder in the Plan & File Room" style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid transparent', color: '#7E9B93' }}>
+              <div onClick={() => setTab('files')} title="Every file on this project -- its lead's, the client's, its tasks', RFIs' and the Plan & File Room" style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'files' ? '#173326' : 'transparent'), color: tab === 'files' ? '#0B1A12' : '#7E9B93' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-                  Files ↗
+                  Files
                 </span>
               </div>
               {canManage && (
@@ -742,6 +743,14 @@ export function Projects() {
             ) : tab === 'tasks' || tab === 'rfis' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                 <TasksAndRfis projectId={sel.id} projectName={sel.name} showRfis={rfiView} view={tab === 'rfis' ? 'rfis' : workView} onView={openWork} />
+              </div>
+            ) : tab === 'files' ? (
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: 12.5, color: '#7E9B93', flex: 1, minWidth: 240 }}>Everything on this project in one list, numbered in the order it was added — including what came in while it was a lead.</div>
+                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Open the Plan &amp; File Room</div>
+                </div>
+                <AllFiles projectId={sel.id} />
               </div>
             ) : tab === 'subs' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>

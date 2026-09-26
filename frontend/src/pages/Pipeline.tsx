@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { AllFiles } from '../components/AllFiles';
 import { ClientWelcomeCard, LeadFilesTab, LeadStageFiles, useLeadFiles } from '../components/LeadFiles';
 import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
 import { ClampText } from '../components/ClampText';
@@ -1371,6 +1372,11 @@ export function Pipeline() {
           ) : detailTab === 'files' ? (
             <>
             <div style={{ padding: '16px 20px 0' }}><ClientWelcomeCard leadId={selected.id} defaultTo={leadDetails[selected.id]?.email || selected.email} homework={leadDetails[selected.id]?.homeworkCompleted || []} /></div>
+            <div style={{ padding: '14px 20px 0' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', marginBottom: 8 }}>Every file on this lead</div>
+              <AllFiles leadId={selected.id} reloadKey={leadFiles.files.length} />
+            </div>
+            <div style={{ padding: '18px 20px 0', fontSize: 12.5, fontWeight: 700, color: '#0B1A12' }}>Add files by stage</div>
             <LeadFilesTab leadId={selected.id} files={leadFiles.files} onChange={leadFiles.setFiles} stages={STAGES.map((s) => ({ key: s.key, name: s.name }))} currentStage={selected.stage} />
             </>
           ) : detailTab === 'tasks' ? (

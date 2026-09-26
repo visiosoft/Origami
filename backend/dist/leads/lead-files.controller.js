@@ -21,12 +21,20 @@ const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
 const lead_files_service_1 = require("./lead-files.service");
 const client_welcome_service_1 = require("./client-welcome.service");
+const all_files_service_1 = require("./all-files.service");
 let LeadFilesController = class LeadFilesController {
-    constructor(files, auth, attachments, welcome) {
+    constructor(files, auth, attachments, welcome, all) {
         this.files = files;
         this.auth = auth;
         this.attachments = attachments;
         this.welcome = welcome;
+        this.all = all;
+    }
+    allForProject(projectId) {
+        return this.all.forProject(Number(projectId));
+    }
+    allForLead(leadId) {
+        return this.all.forLead(leadId);
     }
     welcomeStatus(leadId) {
         return this.welcome.status(leadId);
@@ -60,6 +68,20 @@ let LeadFilesController = class LeadFilesController {
     }
 };
 exports.LeadFilesController = LeadFilesController;
+__decorate([
+    (0, common_1.Get)('project/:projectId/all'),
+    __param(0, (0, common_1.Param)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], LeadFilesController.prototype, "allForProject", null);
+__decorate([
+    (0, common_1.Get)(':leadId/all'),
+    __param(0, (0, common_1.Param)('leadId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], LeadFilesController.prototype, "allForLead", null);
 __decorate([
     (0, common_1.Get)(':leadId/welcome'),
     __param(0, (0, common_1.Param)('leadId')),
@@ -135,6 +157,7 @@ exports.LeadFilesController = LeadFilesController = __decorate([
     __metadata("design:paramtypes", [lead_files_service_1.LeadFilesService,
         auth_service_1.AuthService,
         attachments_service_1.AttachmentsService,
-        client_welcome_service_1.ClientWelcomeService])
+        client_welcome_service_1.ClientWelcomeService,
+        all_files_service_1.AllFilesService])
 ], LeadFilesController);
 //# sourceMappingURL=lead-files.controller.js.map
