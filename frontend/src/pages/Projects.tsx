@@ -470,9 +470,13 @@ export function Projects() {
       </div>
       <div style={{ padding: 14 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, lineHeight: 1.3 }}>{p.name}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#7E9B93', marginBottom: 8, minWidth: 0 }}>
-          <MapLink address={p.location} />
-        </div>
+        {/* Plain text on the board card -- the whole card opens the project; the map link is in the project panel. */}
+        {p.location && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#7E9B93', marginBottom: 8, minWidth: 0 }}>
+            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.location}</span>
+          </div>
+        )}
         <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 10, lineHeight: 1.4 }}>{p.typeOfWork}</div>
         <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{p.contractAmt}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
