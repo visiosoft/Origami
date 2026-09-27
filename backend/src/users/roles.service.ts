@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 import { AppSettingEntity, RoleEntity } from '../database/entities';
 import { DEFAULT_ROLES, SITE_SUPER_PERMISSIONS } from '../seed-data/users';
 
-/** Marks the one-time trim of the Site Superintendent role (2026-09-27). */
-export const SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed';
+/** Marks the one-time trim of the Site Superintendent role (v2: 2026-09-28, projects dropped too). */
+export const SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed.v2';
 
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
@@ -34,8 +34,8 @@ export class RolesService implements OnApplicationBootstrap {
   }
 
   /**
-   * Once: the Site Superintendent role sees only the dashboard, projects,
-   * tasks and the File Room. After that it's edited like any other role.
+   * Once: the Site Superintendent role sees only its own dashboard, tasks
+   * and the File Room. After that it's edited like any other role.
    */
   async trimSiteSuper() {
     if (await this.settings.findOneBy({ key: SITE_SUPER_TRIM_KEY })) return;
@@ -43,7 +43,7 @@ export class RolesService implements OnApplicationBootstrap {
     if (role) {
       role.permissions = SITE_SUPER_PERMISSIONS;
       await this.repo.save(role);
-      this.log.log('Site Superintendent role trimmed to dashboard, projects, tasks and File Room');
+      this.log.log('Site Superintendent role trimmed to dashboard, tasks and File Room');
     }
     await this.settings.save({ key: SITE_SUPER_TRIM_KEY, value: new Date().toISOString(), updatedAt: new Date().toISOString() });
   }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { RecentTimesheets, TimesheetEditor, mondayOf, type CsiCode } from '../components/Timesheets';
 import { BG, INK, MUTED, card, todayISO, type Project } from '../components/manpowerUi';
@@ -6,7 +7,8 @@ import { BG, INK, MUTED, card, todayISO, type Project } from '../components/manp
 /** Every internal user's own weekly timesheet: fill in, submit, see what was approved. */
 export function MyTimesheet() {
   const [me, setMe] = useState<{ id: string; name: string } | null | undefined>(undefined);
-  const [week, setWeek] = useState(mondayOf(todayISO()));
+  const [params] = useSearchParams();
+  const [week, setWeek] = useState(() => mondayOf(/^\d{4}-\d{2}-\d{2}$/.test(params.get('week') || '') ? params.get('week')! : todayISO()));
   const [projects, setProjects] = useState<Project[]>([]);
   const [csiCodes, setCsiCodes] = useState<CsiCode[]>([]);
   const [refresh, setRefresh] = useState(0);

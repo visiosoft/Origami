@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MapLink } from '../components/ContactLinks';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AutosaveProvider, SaveBar, useAutosave } from '../autosave';
@@ -69,8 +69,10 @@ function FieldDailyLogInner() {
   const [employees, setEmployees] = useState<Emp[]>([]);
   const [codes, setCodes] = useState<Code[]>([]);
   const [assignments, setAssignments] = useState<Assign[]>([]);
-  const [projectId, setProjectId] = useState<number | ''>(() => { try { return Number(localStorage.getItem(PROJECT_KEY)) || ''; } catch { return ''; } });
-  const [date, setDate] = useState(localISO());
+  // ?project=&date= opens a past log (from the superintendent's dashboard).
+  const [params] = useSearchParams();
+  const [projectId, setProjectId] = useState<number | ''>(() => { const p = Number(params.get('project')); if (p) return p; try { return Number(localStorage.getItem(PROJECT_KEY)) || ''; } catch { return ''; } });
+  const [date, setDate] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('date') || '') ? params.get('date')! : localISO()));
   const [log, setLog] = useState<Log | null>(null);
   const [saved, setSaved] = useState<Day | null>(null);
   const [draft, setDraft] = useState<Day>({ notes: '', entries: [] });

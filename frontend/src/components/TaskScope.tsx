@@ -19,6 +19,13 @@ export function isMine(
   return !!name && name.trim().toLowerCase() === user.name.trim().toLowerCase();
 }
 
+/** Whether this person raised the task (the "created" entry in its activity). */
+export function raisedBy(task: { activity?: { type: string; byId?: string }[] }, userId?: string): boolean {
+  if (!userId) return false;
+  const created = (task.activity || []).find((a) => a.type === 'created');
+  return !!created && created.byId === userId;
+}
+
 /**
  * The "my tasks / everyone's" preference, shared by every task surface and
  * remembered between visits.

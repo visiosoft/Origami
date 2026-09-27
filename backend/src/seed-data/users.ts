@@ -46,7 +46,7 @@ const perms = (view: string[], manage: string[] = []): RolePermissions =>
     MODULE_KEYS.map((k) => [k, { view: view.includes(k) || manage.includes(k), manage: manage.includes(k) }]),
   );
 
-export const SITE_SUPER_PERMISSIONS = perms(['dashboard', 'projects', 'tasks', 'planroom']);
+export const SITE_SUPER_PERMISSIONS = perms(['dashboard', 'tasks', 'planroom']);
 
 export const DEFAULT_ROLES: RoleSeed[] = [
   {
@@ -96,8 +96,8 @@ export const DEFAULT_ROLES: RoleSeed[] = [
   {
     key: 'site_super', name: 'Site Superintendent', description: 'On-site construction execution.',
     tier: 'internal', order: 7, isSystem: false,
-    // Kept to what the site needs (agreed 2026-09-27): the dashboard, projects,
-    // tasks and the File Room, to view. The phone daily log and their own
+    // Kept to what the site needs (agreed 2026-09-28): their own dashboard and
+    // tasks, and the File Room, to view -- no projects list or company figures. The phone daily log and their own
     // timesheet come with being a superintendent, not from this map.
     permissions: SITE_SUPER_PERMISSIONS,
   },

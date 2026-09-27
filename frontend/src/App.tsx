@@ -9,6 +9,7 @@ import { Pipeline } from './pages/Pipeline';
 import { Projects } from './pages/Projects';
 import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
+import { SuperintendentTasks, isSiteSuper } from './pages/SuperintendentHome';
 import { ModuleSpec } from './pages/ModuleSpec';
 import { FinanceHome } from './pages/FinanceHome';
 import { FinanceGuide } from './pages/FinanceGuide';
@@ -86,7 +87,7 @@ export default function App() {
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />
-        <Route path="/tasks" element={<Tasks />} />
+        <Route path="/tasks" element={<TasksRouter />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Admin />} />
         <Route path="/design" element={<Design />} />
@@ -108,4 +109,10 @@ export default function App() {
       </Route>
     </Routes>
   );
+}
+
+/** A site superintendent's Tasks page is just their own work and requests. */
+function TasksRouter() {
+  const { currentUser } = useApp();
+  return isSiteSuper(currentUser?.roleKey) ? <SuperintendentTasks /> : <Tasks />;
 }

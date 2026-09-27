@@ -1,7 +1,7 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { AppSettingEntity, RoleEntity } from '../database/entities';
-export declare const SITE_SUPER_TRIM_KEY = "roles.siteSuperTrimmed";
+export declare const SITE_SUPER_TRIM_KEY = "roles.siteSuperTrimmed.v2";
 export declare class RolesService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly settings;

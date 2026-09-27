@@ -3,6 +3,7 @@ import { CollaboratorPicker } from './CollaboratorPicker';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { useApp } from '../AppContext';
+import { isMine } from './TaskScope';
 import { AssigneePicker } from './AssigneePicker';
 import { Attachments, filesFromClipboard, nameClipboardFile } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
@@ -46,8 +47,9 @@ export function PhaseTaskPanel({
   /** Called after a structural change (a subtask added or deleted). */
   onReload?: () => void;
 }) {
-  const { can, toast } = useApp();
-  const canManage = can('projects', 'manage');
+  const { can, toast, currentUser } = useApp();
+  // Project managers edit any task; anyone edits a task that's theirs.
+  const canManage = can('projects', 'manage') || isMine(task, currentUser, true);
   const [storageReady, setStorageReady] = useState(false);
   const [teams, setTeams] = useState<string[]>(['Automation']);
   const [subDraft, setSubDraft] = useState('');

@@ -136,7 +136,7 @@ export function AppShell() {
             {pageBadge && <span className="page-badge">{pageBadge}</span>}
           </div>
 
-          {tier === 'internal' && (
+          {tier === 'internal' && currentUser?.roleKey !== 'site_super' && (
             <div className="view-switch">
               <span className="view-switch-label">View as:</span>
               <div className="view-switch-track">

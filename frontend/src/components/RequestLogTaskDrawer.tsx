@@ -3,6 +3,7 @@ import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
+import { isMine, raisedBy } from './TaskScope';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
@@ -35,8 +36,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   /** Raise it when opening over another panel (the CRM lead panel sits at 120). */
   zIndex?: number;
 }) {
-  const { toast, can } = useApp();
-  const canManage = can('tasks', 'manage');
+  const { toast, can, currentUser } = useApp();
+  // Deleting is for task managers; updating is also open to the task's own people
+  // (assignee, collaborators, whoever raised it) -- e.g. a superintendent's requests.
+  const canDelete = can('tasks', 'manage');
+  const canManage = canDelete || isMine(task, currentUser, true) || raisedBy(task, currentUser?.id);
   const statuses = useLogStatuses();
   const [t, setT] = useState<Task>(task);
   const [storageReady, setStorageReady] = useState(false);
@@ -248,7 +252,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           />
         </div>
 
-        {canManage && (
+        {canDelete && (
           <div style={{ padding: '0 28px 26px' }}>
             {!isLogClosed(t.status) && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: taskHeadline(t.description).title, description: t.description }} />}
             <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>

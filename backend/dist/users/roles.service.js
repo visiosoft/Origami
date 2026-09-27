@@ -18,7 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const users_1 = require("../seed-data/users");
-exports.SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed';
+exports.SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed.v2';
 let RolesService = class RolesService {
     constructor(repo, settings) {
         this.repo = repo;
@@ -46,7 +46,7 @@ let RolesService = class RolesService {
         if (role) {
             role.permissions = users_1.SITE_SUPER_PERMISSIONS;
             await this.repo.save(role);
-            this.log.log('Site Superintendent role trimmed to dashboard, projects, tasks and File Room');
+            this.log.log('Site Superintendent role trimmed to dashboard, tasks and File Room');
         }
         await this.settings.save({ key: exports.SITE_SUPER_TRIM_KEY, value: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }

@@ -15,14 +15,14 @@ const repoOf = (rows: any[]) => ({
 });
 
 describe('RolesService.trimSiteSuper', () => {
-  it('cuts the Site Superintendent role to dashboard, projects, tasks and File Room, once', async () => {
+  it('cuts the Site Superintendent role to dashboard, tasks and File Room, once', async () => {
     const roles = repoOf([{ key: 'site_super', permissions: { manpower_con: { view: true, manage: true }, rfis: { view: true, manage: true } } }]);
     const settings = repoOf([]);
     const svc = new RolesService(roles as any, settings as any);
     await svc.trimSiteSuper();
     const p = roles.rows[0].permissions;
     expect(p).toEqual(SITE_SUPER_PERMISSIONS);
-    expect(Object.entries(p).filter(([, v]: any) => v.view).map(([k]) => k).sort()).toEqual(['dashboard', 'planroom', 'projects', 'tasks']);
+    expect(Object.entries(p).filter(([, v]: any) => v.view).map(([k]) => k).sort()).toEqual(['dashboard', 'planroom', 'tasks']);
     expect(Object.values(p).some((v: any) => v.manage)).toBe(false);
     expect(settings.rows.map((r) => r.key)).toEqual([SITE_SUPER_TRIM_KEY]);
 
