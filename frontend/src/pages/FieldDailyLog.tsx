@@ -3,68 +3,69 @@ import { MapLink } from '../components/ContactLinks';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { AutosaveProvider, SaveBar, useAutosave } from '../autosave';
-import { ServerStatusBanner } from '../components/ServerStatusBanner';
-import { LogoMark } from '../components/Logo';
+import { SaveBar, useAutosave } from '../autosave';
 
 // ------------------------------------------------------------------ shapes
 
 interface Entry { employeeId: string; csiCodeId?: string; hours?: number; taskDetail?: string; taskStatus?: string; team?: string }
 interface Day { notes: string; entries: Entry[] }
 interface Log { id: string | null; status: string; rejectionNote?: string; submittedAt?: string; approvedByName?: string }
-interface Emp { id: string; name: string; workerId?: string; tradeId?: string; trade?: string; employmentStatus?: string; status?: string }
+interface Emp { id: string; name: string; workerId?: string; tradeId?: string; trade?: string; designation?: string; employmentStatus?: string; status?: string }
 interface Code { id: string; code: string; division: string; active: boolean }
 interface Assign { employeeId: string; projectId: number; startDate: string; endDate?: string }
 
 const INK = '#0B1A12';
-const MUTED = '#5E7A71';
+const MUTED = '#7E9B93';
 const ACCENT = '#173326';
-const PAPER = '#F4F6F1';
-const LINE = 'rgba(20,8,31,.10)';
+const LINE = 'rgba(20,8,31,.08)';
 const BG = "'Bricolage Grotesque', serif";
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
-const STATUSES: [string, string][] = [['start', 'Start'], ['continued', 'Continued'], ['completing', 'Completing']];
+const STATUSES: [string, string][] = [['start', 'Start'], ['continued', 'Cont.'], ['completing', 'Done']];
+const QUICK_HOURS = [4, 8, 10, 12];
+const TEAMS = ['A', 'B', 'C', 'D'];
 const QUICK_NOTES = ['Weather delay', 'Inspection passed', 'Inspection failed', 'Material delivered', 'Toolbox / safety talk', 'Visitor on site', 'Equipment issue', 'Waiting on another trade'];
 const PROJECT_KEY = 'origami.fieldProject';
+// Columns: worker · hours · cost code · task · team · work done
+const COLS = 'minmax(190px, 1.3fr) 250px minmax(150px, 1fr) 150px 128px minmax(170px, 1.4fr)';
 
 const localISO = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const shift = (iso: string, days: number) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + days); return localISO(d); };
 const niceDate = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-// ------------------------------------------------------------------ small touch controls
+// ------------------------------------------------------------------ small controls
 
-function Chip({ on, onClick, children, wide }: { on?: boolean; onClick: () => void; children: ReactNode; wide?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} style={{
-      minHeight: 40, padding: wide ? '0 16px' : '0 12px', borderRadius: 10, fontSize: 14, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
-      border: '1px solid ' + (on ? ACCENT : LINE), background: on ? ACCENT : '#fff', color: on ? '#fff' : INK, whiteSpace: 'nowrap',
-    }}>{children}</button>
-  );
-}
+const cellBtn = (on: boolean, disabled?: boolean): React.CSSProperties => ({
+  minWidth: 30, height: 28, padding: '0 7px', borderRadius: 7, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+  cursor: disabled ? 'default' : 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(20,8,31,.12)'),
+  background: on ? ACCENT : 'white', color: on ? 'white' : INK, whiteSpace: 'nowrap', opacity: disabled && !on ? 0.55 : 1,
+});
+const cellInput: React.CSSProperties = {
+  boxSizing: 'border-box', height: 30, borderRadius: 7, border: '1px solid rgba(20,8,31,.12)', padding: '0 8px',
+  fontSize: 12.5, fontFamily: 'inherit', background: 'white', color: INK, outline: 'none', width: '100%', minWidth: 0,
+};
+const pill = (on: boolean): React.CSSProperties => ({
+  padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+  border: '1px solid ' + (on ? ACCENT : 'rgba(20,8,31,.12)'), background: on ? ACCENT : 'white', color: on ? 'white' : '#43514D',
+});
 
-function Label({ children }: { children: ReactNode }) {
-  return <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: MUTED, marginBottom: 6 }}>{children}</div>;
+function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
+  return <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, ...style }}>{children}</div>;
 }
 
 // ------------------------------------------------------------------ the page
 
 /**
- * The daily log, made for a phone on site: pick the project, tap the crew in,
- * set hours and cost codes with taps rather than typing, add a note from
- * ready-made lines, submit. It saves by itself as you go, so a dropped signal
- * or a closed tab loses nothing. The same log the office sees under
- * Manpower -> Daily Log, and approving it there makes the timesheets.
+ * The superintendent's daily log, as a sheet: every employee is a row, and a
+ * click on an hours button puts them on today's log. Cost code, task, team and
+ * what they worked on sit on the same row; "fill down" sets everyone at once,
+ * and the arrow keys / Enter move between rows. It saves by itself 3 seconds
+ * after the last change. The same log the office sees under Manpower -> Daily
+ * Log, and approving it there makes the timesheets.
  */
 export function FieldDailyLog() {
-  return <AutosaveProvider><FieldDailyLogInner /></AutosaveProvider>;
-}
-
-function FieldDailyLogInner() {
-  const { currentUser, authUser, toast, toastMsg } = useApp();
+  const { authUser, toast } = useApp();
   // Only for site superintendents; the office works in Manpower -> Daily Log.
   const runsSite = !!authUser?.isSuperintendent;
-  // The superintendent fills the log in from here without needing Manpower in their role.
-  const canEdit = runsSite;
   const [projects, setProjects] = useState<{ id: number; name: string; location?: string }[]>([]);
   const [employees, setEmployees] = useState<Emp[]>([]);
   const [codes, setCodes] = useState<Code[]>([]);
@@ -78,10 +79,11 @@ function FieldDailyLogInner() {
   const [draft, setDraft] = useState<Day>({ notes: '', entries: [] });
   const [loadKey, setLoadKey] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [openDetail, setOpenDetail] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [who, setWho] = useState<'crew' | 'all'>('crew');
+  const [query, setQuery] = useState('');
   const logIdRef = useRef<string | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.projects.list().then((r: any) => {
@@ -112,9 +114,9 @@ function FieldDailyLogInner() {
   }, [projectId, date]);
 
   const locked = !!log && log.status !== 'draft' && log.status !== 'rejected';
-  const editable = canEdit && !!projectId && !locked && !loading;
+  const editable = runsSite && !!projectId && !locked && !loading;
 
-  // Saves 3 seconds after the last tap -- the whole day in one request.
+  // Saves 3 seconds after the last change -- the whole day in one request.
   const auto = useAutosave<Day>({
     draft, saved, resetKey: `day-${projectId}-${date}-${loadKey}`, enabled: editable, label: 'daily log',
     save: async (_c, { draft: d }) => {
@@ -125,29 +127,47 @@ function FieldDailyLogInner() {
     },
   });
 
-  // ---- who's here
+  // ---- rows: on the log first, then the crew deployed here, then everyone else
   const onSite = useMemo(() => new Set(assignments.filter((a) => a.projectId === projectId && a.startDate <= date && (!a.endDate || a.endDate >= date)).map((a) => a.employeeId)), [assignments, projectId, date]);
+  const entryOf = (id: string) => draft.entries.find((e) => e.employeeId === id);
   const inLog = new Set(draft.entries.map((e) => e.employeeId));
-  const crewMissing = employees.filter((e) => onSite.has(e.id) && !inLog.has(e.id));
-  const others = employees.filter((e) => !inLog.has(e.id)).sort((a, b) => Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name));
-  const empOf = (id: string) => employees.find((e) => e.id === id);
+  const q = query.trim().toLowerCase();
+  const rows = employees
+    .filter((e) => inLog.has(e.id) || who === 'all' || onSite.has(e.id))
+    .filter((e) => !q || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(q))
+    .sort((a, b) => Number(inLog.has(b.id)) - Number(inLog.has(a.id)) || Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name));
+  // Logged people who are no longer on the employee list still show, so nothing on the log is hidden.
+  const orphans = draft.entries.filter((e) => !employees.some((x) => x.id === e.employeeId));
+  const hiddenCount = employees.length - employees.filter((e) => inLog.has(e.id) || onSite.has(e.id)).length;
+
   const codeOf = (id?: string) => codes.find((c) => c.id === id);
-  // The codes to offer as one-tap chips: the ones already used today, then the rest by order.
-  const usedCodes = Array.from(new Set(draft.entries.map((e) => e.csiCodeId).filter(Boolean))) as string[];
-  const chipCodes = [...usedCodes.map((id) => codeOf(id)).filter(Boolean) as Code[], ...codes.filter((c) => !usedCodes.includes(c.id))].slice(0, 4);
+  const lastCode = draft.entries.map((e) => e.csiCodeId).filter(Boolean).pop() || '';
 
   const setEntries = (fn: (e: Entry[]) => Entry[]) => setDraft((d) => ({ ...d, entries: fn(d.entries) }));
-  const patch = (id: string, p: Partial<Entry>) => setEntries((es) => es.map((e) => (e.employeeId === id ? { ...e, ...p } : e)));
-  const addPeople = (ids: string[]) => setEntries((es) => [...es, ...ids.map((id) => ({ employeeId: id, hours: 8, taskStatus: 'continued', csiCodeId: usedCodes[0] || '', taskDetail: '', team: '' }))]);
+  /** Change a row; a row not on the log yet joins it (8 h, the last cost code used). */
+  const patch = (id: string, p: Partial<Entry>) => setEntries((es) => (es.some((e) => e.employeeId === id)
+    ? es.map((e) => (e.employeeId === id ? { ...e, ...p } : e))
+    : [...es, { employeeId: id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '', ...p }]));
   const remove = (id: string) => setEntries((es) => es.filter((e) => e.employeeId !== id));
+  const setHours = (id: string, h: number) => (h > 0 ? patch(id, { hours: h }) : remove(id));
   const everyone = (p: Partial<Entry>) => setEntries((es) => es.map((e) => ({ ...e, ...p })));
+  const addCrew = () => setEntries((es) => [...es, ...employees.filter((e) => onSite.has(e.id) && !es.some((x) => x.employeeId === e.id)).map((e) => ({ employeeId: e.id, hours: 8, taskStatus: 'continued', csiCodeId: lastCode, taskDetail: '', team: '' }))]);
   const addNote = (line: string) => setDraft((d) => ({ ...d, notes: d.notes.trim() ? `${d.notes.trim()}\n${line}` : line }));
   const totalHours = draft.entries.reduce((a, e) => a + (Number(e.hours) || 0), 0);
   const noCode = draft.entries.filter((e) => !e.csiCodeId).length;
+  const crewMissing = employees.filter((e) => onSite.has(e.id) && !inLog.has(e.id)).length;
+
+  /** Arrow keys / Enter move between rows in the same column, like a spreadsheet. */
+  const move = (ev: React.KeyboardEvent<HTMLElement>, col: string, row: number) => {
+    const dir = ev.key === 'ArrowDown' || (ev.key === 'Enter' && !ev.shiftKey) ? 1 : ev.key === 'ArrowUp' || (ev.key === 'Enter' && ev.shiftKey) ? -1 : 0;
+    if (!dir) return;
+    const next = sheetRef.current?.querySelector<HTMLElement>(`[data-cell="${col}-${row + dir}"]`);
+    if (next) { ev.preventDefault(); next.focus(); if (next instanceof HTMLInputElement) next.select(); }
+  };
 
   const submit = async () => {
-    if (!draft.entries.length) { toast('⚠ Add at least one worker first'); return; }
-    if (noCode) { toast(`⚠ ${noCode} worker${noCode === 1 ? ' has' : 's have'} no cost code yet`); return; }
+    if (!draft.entries.length) { toast('⚠ Put at least one person on the log first'); return; }
+    if (noCode) { toast(`⚠ ${noCode} ${noCode === 1 ? 'row has' : 'rows have'} no cost code yet`); return; }
     setSubmitting(true);
     try {
       const ok = await auto.saveNow();
@@ -164,195 +184,172 @@ function FieldDailyLogInner() {
     approved: ['#D2EAD3', '#1E6B36', 'Approved — timesheets created'], rejected: ['#F2DFD4', '#8E2E0A', 'Sent back — fix and submit again'],
   };
   const st = statusStyle[log?.status || 'draft'] || statusStyle.draft;
+  const project = projects.find((p) => p.id === projectId);
 
   if (!runsSite) {
     return (
-      <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", display: 'grid', placeItems: 'center', padding: 16 }}>
-        <div style={{ maxWidth: 440, background: '#fff', borderRadius: 16, border: '1px solid ' + LINE, padding: 22, display: 'grid', gap: 10 }}>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20 }}>This is the superintendent’s daily log</div>
-          <div style={{ fontSize: 14, color: MUTED, lineHeight: 1.6 }}>
-            It’s for whoever runs the site — the Site Superintendent role, or an employee whose designation is Superintendent.
-            To see or approve daily logs, use <b style={{ color: INK }}>Manpower → Daily Log</b> and <b style={{ color: INK }}>Approvals</b>.
-          </div>
-          <Link to="/manpower_con" style={{ justifySelf: 'start', padding: '10px 18px', borderRadius: 999, background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>Open Manpower</Link>
+      <Card style={{ maxWidth: 480, padding: 22, display: 'grid', gap: 10 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, color: INK }}>This is the superintendent’s daily log</div>
+        <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.6 }}>
+          It’s for whoever runs the site — the Site Superintendent role, or an employee whose designation is Superintendent.
+          To see or approve daily logs, use <b style={{ color: INK }}>Manpower → Daily Log</b> and <b style={{ color: INK }}>Approvals</b>.
         </div>
-      </div>
+        <Link to="/manpower_con" style={{ justifySelf: 'start', padding: '9px 18px', borderRadius: 999, background: ACCENT, color: '#fff', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Open Manpower</Link>
+      </Card>
     );
   }
 
-  return (
-    <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", paddingBottom: 120 }}>
-      {/* header */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: '#fff', borderBottom: '1px solid ' + LINE }}>
-        <ServerStatusBanner />
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link to="/dashboard" title="Back to the app" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: MUTED, fontSize: 13, fontWeight: 700, gap: 6 }}>
-            <LogoMark size={24} /> ←
-          </Link>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 19, flex: 1 }}>Daily Log</div>
-          <div style={{ fontSize: 12, color: MUTED, textAlign: 'right' }}>{currentUser?.name}</div>
+  const row = (emp: Emp | undefined, id: string, i: number) => {
+    const e = entryOf(id);
+    const on = !!e;
+    const code = codeOf(e?.csiCodeId);
+    return (
+      <div key={id} style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, background: on ? (e!.csiCodeId ? '#F6FAF6' : '#FFF9E6') : 'white', minWidth: 1100 }}>
+        {/* worker */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 999, flex: 'none', background: on ? '#2E8B57' : 'transparent', border: on ? 'none' : '1.5px solid rgba(20,8,31,.18)' }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name || 'Unknown worker'}</div>
+            <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[emp?.workerId, emp?.trade || emp?.designation].filter(Boolean).join(' · ')}
+              {onSite.has(id) && <span style={{ marginLeft: 6, fontWeight: 700, color: '#1E6B36' }}>on site</span>}
+            </div>
+          </div>
         </div>
-        <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px 12px', display: 'grid', gap: 8 }}>
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : '')} style={{ minHeight: 44, borderRadius: 10, border: '1px solid ' + LINE, padding: '0 12px', fontSize: 15, fontFamily: 'inherit', fontWeight: 600, background: '#fff', color: INK }}>
+        {/* hours */}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <input data-cell={`h-${i}`} type="number" min={0} max={24} step={0.5} disabled={!editable} value={on ? e!.hours ?? '' : ''} placeholder="0"
+            onChange={(ev) => setHours(id, Math.min(24, Math.max(0, Number(ev.target.value) || 0)))} onKeyDown={(ev) => move(ev, 'h', i)}
+            style={{ ...cellInput, width: 52, textAlign: 'center', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} aria-label={`Hours for ${emp?.name || id}`} />
+          {QUICK_HOURS.map((h) => <button key={h} type="button" disabled={!editable} onClick={() => setHours(id, on && e!.hours === h ? 0 : h)} style={cellBtn(on && Number(e!.hours) === h, !editable)}>{h}</button>)}
+          {on && editable && <button type="button" title="Take off the log" onClick={() => remove(id)} style={{ ...cellBtn(false), color: '#8E2E0A', minWidth: 26, padding: 0 }}>×</button>}
+        </div>
+        {/* cost code */}
+        <select data-cell={`c-${i}`} disabled={!editable} value={e?.csiCodeId || ''} onChange={(ev) => patch(id, { csiCodeId: ev.target.value })} onKeyDown={(ev) => move(ev, 'c', i)}
+          title={code ? `${code.code} — ${code.division}` : ''}
+          style={{ ...cellInput, borderColor: on && !e!.csiCodeId ? '#D9B650' : 'rgba(20,8,31,.12)', color: code ? INK : MUTED }}>
+          <option value="">{on ? 'Pick a code…' : '—'}</option>
+          {codes.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.division}</option>)}
+        </select>
+        {/* task */}
+        <div style={{ display: 'flex', gap: 3 }}>
+          {STATUSES.map(([k, l]) => <button key={k} type="button" disabled={!editable || !on} onClick={() => patch(id, { taskStatus: k })} style={cellBtn(on && (e!.taskStatus || 'continued') === k, !editable || !on)}>{l}</button>)}
+        </div>
+        {/* team */}
+        <div style={{ display: 'flex', gap: 3 }}>
+          {TEAMS.map((t) => <button key={t} type="button" disabled={!editable || !on} onClick={() => patch(id, { team: e?.team === t ? '' : t })} style={cellBtn(on && e!.team === t, !editable || !on)}>{t}</button>)}
+        </div>
+        {/* work done */}
+        <input data-cell={`w-${i}`} disabled={!editable} value={e?.taskDetail || ''} placeholder={on ? 'What they worked on' : ''}
+          onChange={(ev) => (on || ev.target.value ? patch(id, { taskDetail: ev.target.value }) : undefined)} onKeyDown={(ev) => move(ev, 'w', i)} style={cellInput} />
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: 'grid', gap: 14, paddingBottom: 90, animation: 'fadeIn 0.3s ease' }}>
+      {/* project + day */}
+      <Card style={{ padding: '14px 16px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0, display: 'grid', gap: 4 }}>
+          <select value={projectId} onChange={(e) => setProjectId(e.target.value ? Number(e.target.value) : '')} style={{ ...cellInput, height: 38, fontSize: 14, fontWeight: 700 }}>
             {!projectId && <option value="">Choose a project…</option>}
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
-          {projects.find((p) => p.id === projectId)?.location && (
-            <div style={{ fontSize: 13.5, color: MUTED }}>
-              <MapLink address={projects.find((p) => p.id === projectId)!.location} iconSize={13}>{projects.find((p) => p.id === projectId)!.location} · Directions</MapLink>
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 44px auto', gap: 8, alignItems: 'center' }}>
-            <Chip onClick={() => setDate(shift(date, -1))}>‹</Chip>
-            <label style={{ position: 'relative', minHeight: 44, display: 'grid', placeItems: 'center', borderRadius: 10, border: '1px solid ' + LINE, fontSize: 15, fontWeight: 700 }}>
-              {date === localISO() ? `Today · ${niceDate(date)}` : niceDate(date)}
-              <input type="date" value={date} max={localISO()} onChange={(e) => e.target.value && setDate(e.target.value)} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} aria-label="Pick a date" />
-            </label>
-            <Chip onClick={() => date < localISO() && setDate(shift(date, 1))}>›</Chip>
-            {date !== localISO() && <Chip onClick={() => setDate(localISO())}>Today</Chip>}
-          </div>
+          {project?.location && <div style={{ fontSize: 12, color: MUTED }}><MapLink address={project.location} iconSize={12}>{project.location} · Directions</MapLink></div>}
         </div>
-      </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button type="button" onClick={() => setDate(shift(date, -1))} style={{ ...pill(false), padding: '8px 12px' }} aria-label="Previous day">‹</button>
+          <label style={{ position: 'relative', ...pill(true), padding: '8px 16px', minWidth: 150, textAlign: 'center' }}>
+            {date === localISO() ? `Today · ${niceDate(date)}` : niceDate(date)}
+            <input type="date" value={date} max={localISO()} onChange={(e) => e.target.value && setDate(e.target.value)} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} aria-label="Pick a date" />
+          </label>
+          <button type="button" onClick={() => date < localISO() && setDate(shift(date, 1))} style={{ ...pill(false), padding: '8px 12px', opacity: date < localISO() ? 1 : 0.4 }} aria-label="Next day">›</button>
+          {date !== localISO() && <button type="button" onClick={() => setDate(localISO())} style={pill(false)}>Today</button>}
+        </div>
+      </Card>
 
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '14px 16px', display: 'grid', gap: 14 }}>
-        {loading ? <div style={{ fontSize: 14, color: MUTED, padding: 20, textAlign: 'center' }}>Loading…</div> : !projectId ? null : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ padding: '6px 12px', borderRadius: 999, background: st[0], color: st[1], fontSize: 13, fontWeight: 700 }}>{st[2]}</span>
-              <span style={{ fontSize: 13, color: MUTED }}>{draft.entries.length} worker{draft.entries.length === 1 ? '' : 's'} · {totalHours} h</span>
+      {loading ? <div style={{ fontSize: 13, color: MUTED, padding: 20 }}>Loading…</div> : !projectId ? null : (
+        <>
+          {/* status + sheet tools */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ padding: '6px 12px', borderRadius: 999, background: st[0], color: st[1], fontSize: 12.5, fontWeight: 700 }}>{st[2]}</span>
+            <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{draft.entries.length}</b> on the log · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: '#8A6D12' }}> · {noCode} need a cost code</span> : null}</span>
+            <div style={{ flex: 1 }} />
+            <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+              {([['crew', `Crew on site (${onSite.size})`], ['all', `Everyone (${employees.length})`]] as const).map(([k, l]) => (
+                <span key={k} onClick={() => setWho(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: who === k ? 'white' : 'transparent', color: who === k ? INK : MUTED, boxShadow: who === k ? '0 1px 3px rgba(0,0,0,.08)' : 'none', whiteSpace: 'nowrap' }}>{l}</span>
+              ))}
             </div>
-            {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 14, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 12, padding: 12 }}>Sent back: {log.rejectionNote}</div>}
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
+          </div>
+          {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 13, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 12, padding: 12 }}>Sent back: {log.rejectionNote}</div>}
 
-            {/* crew */}
-            {editable && crewMissing.length > 0 && (
-              <button type="button" onClick={() => addPeople(crewMissing.map((e) => e.id))} style={{ minHeight: 52, borderRadius: 12, border: 'none', background: ACCENT, color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
-                + Add today’s crew ({crewMissing.length}) · 8 h each
-              </button>
-            )}
-            {editable && draft.entries.length > 1 && (
-              <div style={{ background: '#fff', borderRadius: 14, border: '1px solid ' + LINE, padding: 14, display: 'grid', gap: 10 }}>
-                <Label>Everyone</Label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[4, 8, 10].map((h) => <Chip key={h} onClick={() => everyone({ hours: h })}>{h} h</Chip>)}
-                  {chipCodes.slice(0, 3).map((c) => <Chip key={c.id} onClick={() => everyone({ csiCodeId: c.id })}>{c.code}</Chip>)}
-                </div>
+          {editable && (
+            <Card style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: '#FBF8F2' }}>
+              {crewMissing > 0 && <button type="button" onClick={addCrew} style={pill(true)}>+ Put the crew on the log ({crewMissing}) · 8 h</button>}
+              {draft.entries.length > 1 && (
+                <>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 4 }}>Fill down</span>
+                  {QUICK_HOURS.map((h) => <button key={h} type="button" onClick={() => everyone({ hours: h })} style={cellBtn(false)}>{h} h</button>)}
+                  <select value="" onChange={(ev) => ev.target.value && everyone({ csiCodeId: ev.target.value })} style={{ ...cellInput, width: 180, height: 28 }}>
+                    <option value="">Cost code for everyone…</option>
+                    {codes.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.division}</option>)}
+                  </select>
+                  {STATUSES.map(([k, l]) => <button key={k} type="button" onClick={() => everyone({ taskStatus: k })} style={cellBtn(false)}>{l}</button>)}
+                  {TEAMS.map((t) => <button key={t} type="button" onClick={() => everyone({ team: t })} style={cellBtn(false)}>Team {t}</button>)}
+                </>
+              )}
+              {crewMissing === 0 && draft.entries.length <= 1 && <span style={{ fontSize: 12.5, color: MUTED }}>Click an hours button on a row to put that person on the log. ↑ ↓ and Enter move between rows.</span>}
+            </Card>
+          )}
+
+          {/* the sheet */}
+          <Card style={{ overflow: 'hidden' }}>
+            <div ref={sheetRef} style={{ overflowX: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', background: '#F4F1EA', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', minWidth: 1100, position: 'sticky', top: 0 }}>
+                <span>Worker</span><span>Hours</span><span>Cost code</span><span>Task</span><span>Team</span><span>Work done</span>
               </div>
-            )}
-
-            {draft.entries.map((e) => {
-              const emp = empOf(e.employeeId);
-              const code = codeOf(e.csiCodeId);
-              return (
-                <div key={e.employeeId} style={{ background: '#fff', borderRadius: 14, border: '1px solid ' + (e.csiCodeId ? LINE : '#EAD48A'), padding: 14, display: 'grid', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700 }}>{emp?.name || 'Unknown worker'}</div>
-                      <div style={{ fontSize: 12.5, color: MUTED }}>{[emp?.workerId, emp?.trade, onSite.has(e.employeeId) ? 'deployed here' : 'not deployed here'].filter(Boolean).join(' · ')}</div>
-                    </div>
-                    {editable && <button type="button" onClick={() => remove(e.employeeId)} aria-label="Remove" style={{ minWidth: 40, minHeight: 40, borderRadius: 10, border: '1px solid ' + LINE, background: '#fff', color: '#8E2E0A', fontSize: 18, cursor: 'pointer' }}>×</button>}
-                  </div>
-
-                  <div>
-                    <Label>Hours</Label>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Chip onClick={() => editable && patch(e.employeeId, { hours: Math.max(0, (Number(e.hours) || 0) - 0.5) })}>−</Chip>
-                      <div style={{ minWidth: 56, textAlign: 'center', fontSize: 20, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{e.hours ?? 0}</div>
-                      <Chip onClick={() => editable && patch(e.employeeId, { hours: Math.min(24, (Number(e.hours) || 0) + 0.5) })}>+</Chip>
-                      {[4, 8, 10, 12].map((h) => <Chip key={h} on={Number(e.hours) === h} onClick={() => editable && patch(e.employeeId, { hours: h })}>{h}</Chip>)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Cost code {!e.csiCodeId && <span style={{ color: '#8A6D12', textTransform: 'none', letterSpacing: 0 }}>— pick one</span>}</Label>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {chipCodes.map((c) => <Chip key={c.id} on={e.csiCodeId === c.id} onClick={() => editable && patch(e.employeeId, { csiCodeId: c.id })}>{c.code}</Chip>)}
-                      <select disabled={!editable} value={code && !chipCodes.includes(code) ? code.id : ''} onChange={(ev) => ev.target.value && patch(e.employeeId, { csiCodeId: ev.target.value })}
-                        style={{ minHeight: 40, borderRadius: 10, border: '1px solid ' + (code && !chipCodes.includes(code) ? ACCENT : LINE), padding: '0 10px', fontSize: 14, fontFamily: 'inherit', background: '#fff', color: INK, maxWidth: '100%' }}>
-                        <option value="">Other code…</option>
-                        {codes.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.division}</option>)}
-                      </select>
-                    </div>
-                    {code && <div style={{ fontSize: 12.5, color: MUTED, marginTop: 5 }}>{code.code} — {code.division}</div>}
-                  </div>
-
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    <div>
-                      <Label>Task</Label>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {STATUSES.map(([k, l]) => <Chip key={k} on={(e.taskStatus || 'continued') === k} onClick={() => editable && patch(e.employeeId, { taskStatus: k })}>{l}</Chip>)}
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Team</Label>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {['A', 'B', 'C', 'D'].map((t) => <Chip key={t} on={e.team === t} onClick={() => editable && patch(e.employeeId, { team: e.team === t ? '' : t })}>{t}</Chip>)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {openDetail[e.employeeId] || e.taskDetail ? (
-                    <textarea disabled={!editable} value={e.taskDetail || ''} onChange={(ev) => patch(e.employeeId, { taskDetail: ev.target.value })} placeholder="What they worked on (optional)" rows={2}
-                      style={{ width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid ' + LINE, padding: 10, fontSize: 15, fontFamily: 'inherit', resize: 'vertical' }} />
-                  ) : editable && (
-                    <button type="button" onClick={() => setOpenDetail((o) => ({ ...o, [e.employeeId]: true }))} style={{ justifySelf: 'start', border: 'none', background: 'none', color: ACCENT, fontWeight: 700, fontSize: 14, padding: 0, cursor: 'pointer', fontFamily: 'inherit' }}>+ Add what they worked on</button>
-                  )}
-                </div>
-              );
-            })}
-
-            {!draft.entries.length && !crewMissing.length && <div style={{ fontSize: 14, color: MUTED, background: '#fff', borderRadius: 14, padding: 16 }}>No one logged yet. Nobody is deployed to this project today — add people below.</div>}
-
-            {editable && (adding ? (
-              <div style={{ background: '#fff', borderRadius: 14, border: '1px solid ' + LINE, padding: 14, display: 'grid', gap: 8 }}>
-                <Label>Add someone</Label>
-                <div style={{ display: 'grid', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
-                  {others.map((e) => (
-                    <button key={e.id} type="button" onClick={() => { addPeople([e.id]); setAdding(false); }} style={{ minHeight: 44, textAlign: 'left', borderRadius: 10, border: '1px solid ' + LINE, background: '#fff', padding: '0 12px', fontSize: 15, fontFamily: 'inherit', cursor: 'pointer', color: INK }}>
-                      {e.name} <span style={{ color: MUTED, fontSize: 12.5 }}>{onSite.has(e.id) ? '· deployed here' : ''}</span>
-                    </button>
-                  ))}
-                  {!others.length && <div style={{ fontSize: 13, color: MUTED }}>Everyone is already on the log.</div>}
-                </div>
-                <Chip onClick={() => setAdding(false)}>Close</Chip>
-              </div>
-            ) : (
-              <Chip wide onClick={() => setAdding(true)}>+ Add someone else</Chip>
-            ))}
-
-            {/* notes */}
-            <div style={{ background: '#fff', borderRadius: 14, border: '1px solid ' + LINE, padding: 14, display: 'grid', gap: 10 }}>
-              <Label>Site notes</Label>
-              {editable && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {QUICK_NOTES.map((q) => <Chip key={q} onClick={() => addNote(q)}>+ {q}</Chip>)}
+              {rows.map((emp, i) => row(emp, emp.id, i))}
+              {orphans.map((e, k) => row(undefined, e.employeeId, rows.length + k))}
+              {!rows.length && !orphans.length && (
+                <div style={{ padding: 22, fontSize: 13, color: MUTED, textAlign: 'center', borderTop: '1px solid ' + LINE }}>
+                  {q ? 'No one matches that search.' : who === 'crew' ? <>Nobody is deployed to this project today. <span onClick={() => setWho('all')} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>Show everyone</span> to log someone else.</> : 'No employees yet.'}
                 </div>
               )}
-              <textarea disabled={!editable} value={draft.notes} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} placeholder="Anything else about today (optional)" rows={4}
-                style={{ width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid ' + LINE, padding: 10, fontSize: 15, fontFamily: 'inherit', resize: 'vertical' }} />
+              {who === 'crew' && hiddenCount > 0 && rows.length > 0 && !q && (
+                <div onClick={() => setWho('all')} style={{ padding: '10px 14px', borderTop: '1px solid ' + LINE, fontSize: 12.5, fontWeight: 700, color: ACCENT, cursor: 'pointer', minWidth: 1100 }}>+ Show {hiddenCount} more {hiddenCount === 1 ? 'person' : 'people'} not deployed here</div>
+              )}
             </div>
-          </>
-        )}
-      </div>
+          </Card>
 
-      {/* bottom bar */}
-      {projectId && !loading && (
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 20, background: '#fff', borderTop: '1px solid ' + LINE, padding: '10px 16px calc(10px + env(safe-area-inset-bottom, 0px))' }}>
-          <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* notes */}
+          <Card style={{ padding: 16, display: 'grid', gap: 10 }}>
+            <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK }}>Site notes</div>
+            {editable && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {QUICK_NOTES.map((n) => <button key={n} type="button" onClick={() => addNote(n)} style={{ ...pill(false), padding: '5px 11px', fontSize: 12 }}>+ {n}</button>)}
+              </div>
+            )}
+            <textarea disabled={!editable} value={draft.notes} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} placeholder="Anything else about today (optional)" rows={3}
+              style={{ width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid rgba(20,8,31,.12)', padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', color: INK }} />
+          </Card>
+
+          {/* save + submit */}
+          <div style={{ position: 'sticky', bottom: 0, zIndex: 5, background: 'white', border: '1px solid ' + LINE, borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 -6px 20px rgba(11,26,18,.06)' }}>
             {editable ? (
               <>
                 <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={auto} /></div>
-                <button type="button" onClick={submitting ? undefined : submit} style={{ minHeight: 48, padding: '0 18px', borderRadius: 12, border: 'none', background: ACCENT, color: '#fff', fontSize: 15, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', opacity: submitting ? 0.6 : 1 }}>
-                  {submitting ? 'Sending…' : 'Submit'}
+                <button type="button" onClick={submitting ? undefined : submit} style={{ padding: '10px 22px', borderRadius: 999, border: 'none', background: ACCENT, color: '#fff', fontSize: 13.5, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap', opacity: submitting ? 0.6 : 1 }}>
+                  {submitting ? 'Sending…' : `Submit day · ${totalHours} h`}
                 </button>
               </>
             ) : (
-              <div style={{ fontSize: 14, color: MUTED }}>{locked ? 'This day has been submitted — the office can send it back if something needs changing.' : 'Read only.'}</div>
+              <div style={{ fontSize: 13, color: MUTED }}>{locked ? 'This day has been submitted — the office can send it back if something needs changing.' : 'Read only.'}</div>
             )}
           </div>
-        </div>
+        </>
       )}
-
-      {toastMsg && <div style={{ position: 'fixed', left: '50%', bottom: 84, transform: 'translateX(-50%)', background: INK, color: '#fff', padding: '10px 16px', borderRadius: 999, fontSize: 14, fontWeight: 600, zIndex: 30, maxWidth: 'calc(100vw - 32px)' }}>{toastMsg}</div>}
     </div>
   );
 }
+

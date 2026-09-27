@@ -77,13 +77,13 @@ export default function App() {
       {/* Public on purpose — a client uploads their documents from the welcome email's private link. */}
       <Route path="/upload" element={<ClientUpload />} />
       <Route path="/portal/*" element={<RequireAuth><Portal /></RequireAuth>} />
-      {/* The daily log made for a phone on site -- full screen, outside the app frame. */}
-      <Route path="/daily-log" element={<RequireAuth><NotPortal><FieldDailyLog /></NotPortal></RequireAuth>} />
       <Route element={<RequireAuth><NotPortal><AppShell /></NotPortal></RequireAuth>}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardRouter />} />
         <Route path="/my-calendar" element={<MyCalendar />} />
         <Route path="/my-timesheet" element={<MyTimesheet />} />
+        {/* The superintendent's daily log -- a sheet of the crew, inside the app. */}
+        <Route path="/daily-log" element={<FieldDailyLog />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />

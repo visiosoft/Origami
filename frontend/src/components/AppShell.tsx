@@ -32,7 +32,8 @@ export function AppShell() {
   // Route guard: if the current user's role can't view this module, bounce to dashboard.
   useEffect(() => {
     if (loadingAccess) return;
-    if (slug === 'dashboard' || slug === 'help' || slug === 'login' || PERSONAL_ROUTES.has(slug)) return;
+    // The daily log decides for itself (superintendents only), so it isn't a role permission either.
+    if (slug === 'dashboard' || slug === 'help' || slug === 'login' || slug === 'daily-log' || PERSONAL_ROUTES.has(slug)) return;
     if (!can(slug, 'view')) navigate('/dashboard', { replace: true });
   }, [slug, loadingAccess, can, navigate]);
 
