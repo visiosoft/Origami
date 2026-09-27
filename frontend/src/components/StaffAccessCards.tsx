@@ -13,7 +13,9 @@ const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', pad
 const chip = (on: boolean): React.CSSProperties => ({ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(20,8,31,.14)'), background: on ? ACCENT : 'white', color: on ? 'white' : INK });
 const realEmail = (e?: string | null) => { const t = (e || '').trim(); return t && t !== '—' && t.includes('@') ? t : ''; };
 
-interface Emp { id: string; name: string; email?: string; userId?: string }
+interface Emp { id: string; name: string; email?: string; userId?: string; designation?: string; jobTitle?: string }
+/** Same test the server uses to decide who gets the phone daily log. */
+const isSuperTitle = (e?: Emp) => /super\s*-?\s*intend/i.test(`${e?.designation || ''} ${e?.jobTitle || ''}`);
 type Dir = { projects: string[]; tier: string; goByName: string; pronouns: string };
 
 /**
@@ -125,10 +127,12 @@ export function LoginCard({ employee, subject, kind = 'Staff', projects, onLink,
   const byEmail = !byId && realEmail(who.email) ? users.find((u) => u.email?.trim().toLowerCase() === realEmail(who.email).toLowerCase()) : undefined;
   const user = byId || byEmail;
   const [email, setEmail] = useState(realEmail(who.email));
-  const [roleKey, setRoleKey] = useState(staff ? '' : DEFAULT_ROLE[kind] || '');
+  // A superintendent by designation starts on the Site Superintendent role.
+  const defaultRole = staff ? (isSuperTitle(employee) && roles.some((r) => r.key === 'site_super') ? 'site_super' : '') : DEFAULT_ROLE[kind] || '';
+  const [roleKey, setRoleKey] = useState(defaultRole);
   const [busy, setBusy] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
-  useEffect(() => { setEmail(realEmail(who.email)); setRoleKey(staff ? '' : DEFAULT_ROLE[kind] || ''); setInviteLink(''); }, [who.id]);
+  useEffect(() => { setEmail(realEmail(who.email)); setRoleKey(defaultRole); setInviteLink(''); }, [who.id, defaultRole]);
   // A login that already exists under their email is theirs: link it to the record once.
   const linked = useRef<string | null>(null);
   useEffect(() => {
@@ -200,6 +204,12 @@ export function LoginCard({ employee, subject, kind = 'Staff', projects, onLink,
             </select>
             {hintOf(user!.roleKey) && <div style={{ fontSize: 11.5, color: MUTED, marginTop: 5, lineHeight: 1.45 }}>{hintOf(user!.roleKey)}</div>}
           </div>
+          {staff && isSuperTitle(employee) && user!.roleKey !== 'site_super' && options.some((r) => r.key === 'site_super') && (
+            <div style={{ fontSize: 11.5, color: '#8A6D12', background: '#FBF0CC', borderRadius: 10, padding: '8px 10px', lineHeight: 1.45, display: 'grid', gap: 6 }}>
+              <span>{who.name.split(' ')[0]}’s designation is Superintendent, but the login is <b>{nameOf(user!.roleKey)}</b>, so they see that role’s pages.</span>
+              <span onClick={busy ? undefined : () => setRole('site_super')} style={{ ...chip(false), justifySelf: 'start' }}>Switch to Site Superintendent</span>
+            </div>
+          )}
           {noProjects && <div style={{ fontSize: 11.5, color: '#8A6D12', lineHeight: 1.45 }}>No projects ticked on this record — they won’t see any until you add one.</div>}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {status === 'invited' && <span onClick={busy ? undefined : resend} style={chip(false)}>Resend invitation</span>}
