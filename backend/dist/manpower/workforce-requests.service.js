@@ -14,10 +14,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WorkforceRequestsService = void 0;
 exports.summarizeLines = summarizeLines;
+exports.approverEmails = approverEmails;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const google_service_1 = require("../google/google.service");
+const settings_service_1 = require("../settings/settings.service");
+const shell_1 = require("../email/shell");
+const manpower_access_service_1 = require("./manpower-access.service");
 const assignments_service_1 = require("./assignments.service");
 const workforce_util_1 = require("./workforce.util");
 function summarizeLines(request, employees, openRegular, openAssignments) {
@@ -34,14 +39,51 @@ function summarizeLines(request, employees, openRegular, openAssignments) {
     });
 }
 const EDITABLE = ['draft', 'rejected'];
+function approverEmails(users, roles, requesterId) {
+    const live = users.filter((u) => u.email && u.status !== 'suspended' && u.tier === 'internal' && u.id !== requesterId);
+    const hr = live.filter((u) => u.roleKey !== 'admin' && roles.find((r) => r.key === u.roleKey)?.permissions?.[manpower_access_service_1.HR_MODULE]?.manage);
+    const pick = hr.length ? hr : live.filter((u) => u.roleKey === 'admin');
+    return Array.from(new Set(pick.map((u) => u.email.trim().toLowerCase())));
+}
 let WorkforceRequestsService = class WorkforceRequestsService {
-    constructor(repo, employees, assignmentsRepo, projects, trades, assignments) {
+    constructor(repo, employees, assignmentsRepo, projects, trades, assignments, users, roles, google, settings) {
         this.repo = repo;
         this.employees = employees;
         this.assignmentsRepo = assignmentsRepo;
         this.projects = projects;
         this.trades = trades;
         this.assignments = assignments;
+        this.users = users;
+        this.roles = roles;
+        this.google = google;
+        this.settings = settings;
+        this.log = new common_1.Logger('WorkforceRequests');
+    }
+    notifySubmitted(id) {
+        void (async () => {
+            if (!this.users || !this.roles || !this.google || !this.settings)
+                return;
+            const r = await this.findOne(id);
+            const to = approverEmails(await this.users.find(), await this.roles.find(), r.requestedById);
+            if (!to.length)
+                return;
+            const [project, trades, brand, base] = await Promise.all([
+                this.projects.findOneBy({ id: r.projectId }), this.trades.find(), (0, shell_1.loadEmailBrand)(this.settings), this.settings.baseUrl(),
+            ]);
+            const tradeName = (tid) => { const t = trades.find((x) => x.id === tid); return t ? `${t.code} ${t.name}` : 'Trade'; };
+            const lines = r.lines.map((l) => `<li>${l.quantity} × ${(0, shell_1.escapeHtml)(tradeName(l.tradeId))}${l.designation ? ` — ${(0, shell_1.escapeHtml)(l.designation)}` : ''}</li>`).join('');
+            const needed = new Date(r.requiredDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+            const body = `<div style="font-size:14px;color:#0B1A12;line-height:1.6;">
+        <p style="margin:0 0 10px;"><b>${(0, shell_1.escapeHtml)(r.requestedByName || 'Someone')}</b> is asking for workers on <b>${(0, shell_1.escapeHtml)(project?.name || 'a project')}</b>${r.workArea ? ` (${(0, shell_1.escapeHtml)(r.workArea)})` : ''}, needed by <b>${needed}</b>${r.durationDays ? ` for ${r.durationDays} days` : ''}.</p>
+        <ul style="margin:0 0 10px;padding-left:20px;">${lines}</ul>
+        ${r.notes ? `<p style="margin:0;color:#43514D;white-space:pre-wrap;">${(0, shell_1.escapeHtml)(r.notes)}</p>` : ''}
+      </div>`;
+            await this.google.sendMail({
+                to: to.join(', '),
+                subject: `Workforce request: ${r.totals.required} worker${r.totals.required === 1 ? '' : 's'} for ${project?.name || 'a project'}`,
+                html: (0, shell_1.emailShell)({ brand, eyebrow: 'Workforce request', title: 'Waiting for your approval', body, cta: { label: 'Review the request', url: `${base}/manpower_con?tab=requests` }, footer: 'You get this because you approve workforce requests in Manpower.' }),
+            });
+        })().catch((e) => this.log.warn(`Workforce request ${id} email failed: ${e.message}`));
     }
     async context() {
         const [employees, openRegular, linked] = await Promise.all([
@@ -102,7 +144,10 @@ let WorkforceRequestsService = class WorkforceRequestsService {
             status: dto.submit ? 'submitted' : 'draft', submittedAt: dto.submit ? now : undefined,
             requestedById: actor.id, requestedByName: actor.name, createdAt: now, updatedAt: now,
         });
-        return this.findOne((await this.repo.save(r)).id);
+        const saved = await this.repo.save(r);
+        if (dto.submit)
+            this.notifySubmitted(saved.id);
+        return this.findOne(saved.id);
     }
     async update(id, dto) {
         const r = await this.load(id);
@@ -132,8 +177,10 @@ let WorkforceRequestsService = class WorkforceRequestsService {
         await this.repo.save(r);
         return this.findOne(id);
     }
-    submit(id) {
-        return this.transition(id, EDITABLE, 'submitted', { submittedAt: new Date().toISOString(), decisionNote: undefined });
+    async submit(id) {
+        const r = await this.transition(id, EDITABLE, 'submitted', { submittedAt: new Date().toISOString(), decisionNote: undefined });
+        this.notifySubmitted(id);
+        return r;
     }
     async approve(id, note, actor) {
         const r = await this.load(id);
@@ -187,11 +234,21 @@ exports.WorkforceRequestsService = WorkforceRequestsService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.EmployeeAssignmentEntity)),
     __param(3, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __param(4, (0, typeorm_1.InjectRepository)(entities_1.SubcontractorTradeEntity)),
+    __param(6, (0, common_1.Optional)()),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
+    __param(7, (0, common_1.Optional)()),
+    __param(7, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
+    __param(8, (0, common_1.Optional)()),
+    __param(9, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        assignments_service_1.AssignmentsService])
+        assignments_service_1.AssignmentsService,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        google_service_1.GoogleService,
+        settings_service_1.SettingsService])
 ], WorkforceRequestsService);
 //# sourceMappingURL=workforce-requests.service.js.map

@@ -1,5 +1,7 @@
 import { Repository } from 'typeorm';
-import { EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, SubcontractorTradeEntity, WorkforceRequestEntity, type WorkforceRequestLine } from '../database/entities';
+import { EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, RoleEntity, SubcontractorTradeEntity, UserEntity, WorkforceRequestEntity, type WorkforceRequestLine } from '../database/entities';
+import { GoogleService } from '../google/google.service';
+import { SettingsService } from '../settings/settings.service';
 import { AssignmentsService } from './assignments.service';
 import type { ManpowerActor } from './daily-logs.service';
 export interface LineSummary extends WorkforceRequestLine {
@@ -9,6 +11,7 @@ export interface LineSummary extends WorkforceRequestLine {
     surplus: number;
 }
 export declare function summarizeLines(request: Pick<WorkforceRequestEntity, 'id' | 'lines'>, employees: EmployeeEntity[], openRegular: Map<string, unknown>, openAssignments: EmployeeAssignmentEntity[]): LineSummary[];
+export declare function approverEmails(users: Pick<UserEntity, 'id' | 'email' | 'roleKey' | 'status' | 'tier'>[], roles: Pick<RoleEntity, 'key' | 'permissions'>[], requesterId?: string): string[];
 export declare class WorkforceRequestsService {
     private readonly repo;
     private readonly employees;
@@ -16,7 +19,13 @@ export declare class WorkforceRequestsService {
     private readonly projects;
     private readonly trades;
     private readonly assignments;
-    constructor(repo: Repository<WorkforceRequestEntity>, employees: Repository<EmployeeEntity>, assignmentsRepo: Repository<EmployeeAssignmentEntity>, projects: Repository<ProjectEntity>, trades: Repository<SubcontractorTradeEntity>, assignments: AssignmentsService);
+    private readonly users?;
+    private readonly roles?;
+    private readonly google?;
+    private readonly settings?;
+    constructor(repo: Repository<WorkforceRequestEntity>, employees: Repository<EmployeeEntity>, assignmentsRepo: Repository<EmployeeAssignmentEntity>, projects: Repository<ProjectEntity>, trades: Repository<SubcontractorTradeEntity>, assignments: AssignmentsService, users?: Repository<UserEntity> | undefined, roles?: Repository<RoleEntity> | undefined, google?: GoogleService | undefined, settings?: SettingsService | undefined);
+    private readonly log;
+    private notifySubmitted;
     private context;
     private withSummary;
     findAll(opts: {

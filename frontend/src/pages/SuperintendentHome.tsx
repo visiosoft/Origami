@@ -10,6 +10,7 @@ import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { StatusBadge, mondayOf } from '../components/Timesheets';
+import { MyWorkforceRequests } from '../components/WorkforceRequests';
 import { ACCENT, BG, INK, LINE, MUTED, card, fmtDate, todayISO } from '../components/manpowerUi';
 
 /**
@@ -189,6 +190,8 @@ export function SuperintendentDashboard() {
         <Section title="Requests I raised" count={openRaised.length} action={<span onClick={() => setShowNew(true)} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ New request</span>}>
           <TaskList rows={openRaised} limit={8} empty="Need something from the office or another team member? Raise a request — it goes on the Request Log and they’re emailed." />
         </Section>
+
+        <MyWorkforceRequests projectNames={w.projects} />
 
         <Section title="My daily logs" count={logs.length} action={<span onClick={() => openLog()} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>Daily log →</span>}>
           {!logs.length ? <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>Logs you fill in on site show up here.</div> : (

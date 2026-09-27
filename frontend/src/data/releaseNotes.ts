@@ -20,6 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-09-28',
     title: 'A home screen made for the superintendent',
     items: [
+      { area: 'Manpower', kind: 'new', text: 'Superintendents can request workers by trade from their dashboard, follow each request through approval and allocation, and fix and resend a rejected one. HR is emailed when a request is waiting for approval.', where: 'Dashboard → Workforce requests · Manpower → Workforce Requests' },
       { area: 'Manpower', kind: 'improved', text: 'The daily log is now a sheet inside the app: one row per employee deployed to that project. Click an hours button to put someone on the log, pick the cost code, task and team on the same row, fill down for everyone, and move with ↑ ↓ / Enter.', where: 'Daily Log (field)' },
       { area: 'Dashboard', kind: 'new', text: 'Superintendents get their own dashboard: today’s daily log, their tasks (overdue first), requests they’ve raised for others, their daily log history and their timesheets — no company figures or charts.', where: 'Dashboard (Site Superintendent role)' },
       { area: 'Tasks', kind: 'new', text: 'A superintendent’s Tasks page shows only their own tasks and the requests they’ve raised, with “+ New request” to ask the office or a team member for something. They can update their own tasks.', where: 'Tasks (Site Superintendent role)' },

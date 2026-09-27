@@ -1,10 +1,14 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
-  EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, SubcontractorTradeEntity,
+  EmployeeAssignmentEntity, EmployeeEntity, ProjectEntity, RoleEntity, SubcontractorTradeEntity, UserEntity,
   WorkforceRequestEntity, type WorkforceRequestLine,
 } from '../database/entities';
+import { GoogleService } from '../google/google.service';
+import { SettingsService } from '../settings/settings.service';
+import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
+import { HR_MODULE } from './manpower-access.service';
 import { AssignmentsService } from './assignments.service';
 import type { ManpowerActor } from './daily-logs.service';
 import { isDeployable, isOpen, newId } from './workforce.util';
@@ -38,6 +42,14 @@ export function summarizeLines(
 
 const EDITABLE = ['draft', 'rejected'];
 
+/** Who hears about a request waiting for approval: HR (manage rights on Manpower), else the administrators; never the requester. */
+export function approverEmails(users: Pick<UserEntity, 'id' | 'email' | 'roleKey' | 'status' | 'tier'>[], roles: Pick<RoleEntity, 'key' | 'permissions'>[], requesterId?: string): string[] {
+  const live = users.filter((u) => u.email && u.status !== 'suspended' && u.tier === 'internal' && u.id !== requesterId);
+  const hr = live.filter((u) => u.roleKey !== 'admin' && roles.find((r) => r.key === u.roleKey)?.permissions?.[HR_MODULE]?.manage);
+  const pick = hr.length ? hr : live.filter((u) => u.roleKey === 'admin');
+  return Array.from(new Set(pick.map((u) => u.email.trim().toLowerCase())));
+}
+
 @Injectable()
 export class WorkforceRequestsService {
   constructor(
@@ -47,7 +59,39 @@ export class WorkforceRequestsService {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     @InjectRepository(SubcontractorTradeEntity) private readonly trades: Repository<SubcontractorTradeEntity>,
     private readonly assignments: AssignmentsService,
+    @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
+    @Optional() @InjectRepository(RoleEntity) private readonly roles?: Repository<RoleEntity>,
+    @Optional() private readonly google?: GoogleService,
+    @Optional() private readonly settings?: SettingsService,
   ) {}
+
+  private readonly log = new Logger('WorkforceRequests');
+
+  /** Email HR that a request is waiting for them. Never holds up or fails the submit. */
+  private notifySubmitted(id: string) {
+    void (async () => {
+      if (!this.users || !this.roles || !this.google || !this.settings) return;
+      const r = await this.findOne(id);
+      const to = approverEmails(await this.users.find(), await this.roles.find(), r.requestedById);
+      if (!to.length) return;
+      const [project, trades, brand, base] = await Promise.all([
+        this.projects.findOneBy({ id: r.projectId }), this.trades.find(), loadEmailBrand(this.settings), this.settings.baseUrl(),
+      ]);
+      const tradeName = (tid: string) => { const t = trades.find((x) => x.id === tid); return t ? `${t.code} ${t.name}` : 'Trade'; };
+      const lines = r.lines.map((l) => `<li>${l.quantity} × ${escapeHtml(tradeName(l.tradeId))}${l.designation ? ` — ${escapeHtml(l.designation)}` : ''}</li>`).join('');
+      const needed = new Date(r.requiredDate + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+      const body = `<div style="font-size:14px;color:#0B1A12;line-height:1.6;">
+        <p style="margin:0 0 10px;"><b>${escapeHtml(r.requestedByName || 'Someone')}</b> is asking for workers on <b>${escapeHtml(project?.name || 'a project')}</b>${r.workArea ? ` (${escapeHtml(r.workArea)})` : ''}, needed by <b>${needed}</b>${r.durationDays ? ` for ${r.durationDays} days` : ''}.</p>
+        <ul style="margin:0 0 10px;padding-left:20px;">${lines}</ul>
+        ${r.notes ? `<p style="margin:0;color:#43514D;white-space:pre-wrap;">${escapeHtml(r.notes)}</p>` : ''}
+      </div>`;
+      await this.google.sendMail({
+        to: to.join(', '),
+        subject: `Workforce request: ${r.totals.required} worker${r.totals.required === 1 ? '' : 's'} for ${project?.name || 'a project'}`,
+        html: emailShell({ brand, eyebrow: 'Workforce request', title: 'Waiting for your approval', body, cta: { label: 'Review the request', url: `${base}/manpower_con?tab=requests` }, footer: 'You get this because you approve workforce requests in Manpower.' }),
+      });
+    })().catch((e) => this.log.warn(`Workforce request ${id} email failed: ${(e as Error).message}`));
+  }
 
   private async context() {
     const [employees, openRegular, linked] = await Promise.all([
@@ -106,7 +150,9 @@ export class WorkforceRequestsService {
       status: dto.submit ? 'submitted' : 'draft', submittedAt: dto.submit ? now : undefined,
       requestedById: actor.id, requestedByName: actor.name, createdAt: now, updatedAt: now,
     } as Partial<WorkforceRequestEntity>);
-    return this.findOne((await this.repo.save(r)).id);
+    const saved = await this.repo.save(r);
+    if (dto.submit) this.notifySubmitted(saved.id);
+    return this.findOne(saved.id);
   }
 
   async update(id: string, dto: any) {
@@ -134,8 +180,10 @@ export class WorkforceRequestsService {
     return this.findOne(id);
   }
 
-  submit(id: string) {
-    return this.transition(id, EDITABLE, 'submitted', { submittedAt: new Date().toISOString(), decisionNote: undefined });
+  async submit(id: string) {
+    const r = await this.transition(id, EDITABLE, 'submitted', { submittedAt: new Date().toISOString(), decisionNote: undefined });
+    this.notifySubmitted(id);
+    return r;
   }
 
   async approve(id: string, note: string | undefined, actor: ManpowerActor) {

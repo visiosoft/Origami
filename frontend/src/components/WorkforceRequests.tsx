@@ -378,3 +378,89 @@ function AllocateDrawer({ employees, assignments, request, line, tradeName, onCl
     </Drawer>
   );
 }
+
+// ------------------------------------------------------------------ the site's own requests
+
+/**
+ * A superintendent's workforce requests, on their dashboard: raise one for
+ * workers by trade, follow it through approval and allocation, fix and resend
+ * a rejected one. HR approves and allocates in Manpower -> Workforce Requests.
+ */
+export function MyWorkforceRequests({ projectNames }: { projectNames: Record<number, string> }) {
+  const { currentUser, toast } = useApp();
+  const [requests, setRequests] = useState<WorkforceRequest[] | null>(null);
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [editing, setEditing] = useState<Partial<WorkforceRequest> | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
+
+  const load = () => api.workforceRequests.list().then((r: any) => setRequests((Array.isArray(r) ? r : []).filter((x: WorkforceRequest) => x.requestedById === currentUser?.id))).catch(() => setRequests([]));
+  useEffect(() => { if (currentUser?.id) void load(); }, [currentUser?.id]);
+  useEffect(() => {
+    api.subcontractorTrades.list().then((r: any) => setTrades((Array.isArray(r) ? r : []).map((t: any) => ({ id: t.id, name: `${t.code} ${t.name}`, active: t.active, order: t.order })))).catch(() => { });
+    api.projects.list().then((r: any) => setProjects((Array.isArray(r) ? r : []).filter((p: any) => p.stage !== 'Kickoff').map((p: any) => ({ id: p.id, name: p.name })))).catch(() => { });
+  }, []);
+
+  const tradeName = (id: string) => trades.find((t) => t.id === id)?.name || 'Trade';
+  const all = requests || [];
+  const live = all.filter((r) => ['draft', 'submitted', 'approved', 'rejected'].includes(r.status));
+  const shown = showClosed ? all : live;
+  const act = async (fn: () => Promise<unknown>, done: string) => {
+    try { await fn(); toast(done); await load(); } catch (e: any) { toast('⚠ ' + (e.message || 'Could not update the request')); }
+  };
+  const newOne = () => setEditing({ requiredDate: todayISO(), lines: [{ tradeId: '', quantity: 1 }] });
+
+  return (
+    <section style={{ ...card, padding: 18, display: 'grid', gap: 12, alignContent: 'start', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: INK, flex: 1 }}>
+          Workforce requests{requests && <span style={{ fontSize: 13, color: MUTED, fontWeight: 600 }}> ({live.length})</span>}
+        </div>
+        <span onClick={newOne} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ Request workers</span>
+      </div>
+      {requests === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : !shown.length ? (
+        <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>Need more people on site? Request workers by trade — HR approves and assigns them to the project.</div>
+      ) : (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {shown.map((r) => {
+            const s = STATUS[r.status] || STATUS.draft;
+            const pct = r.totals.required ? Math.round((r.totals.allocated / r.totals.required) * 100) : 0;
+            return (
+              <div key={r.id} style={{ padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, display: 'grid', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{r.lines.map((l) => `${l.quantity} × ${tradeName(l.tradeId)}`).join(', ')}</div>
+                    <div style={{ fontSize: 11, color: MUTED }}>{projectNames[r.projectId] || projects.find((p) => p.id === r.projectId)?.name || 'Project'}{r.workArea ? ` · ${r.workArea}` : ''} · needed by {fmtDate(r.requiredDate)}</div>
+                  </div>
+                  <Badge tone={s.tone}>{s.label}</Badge>
+                </div>
+                {['approved', 'fulfilled'].includes(r.status) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, height: 6, borderRadius: 999, background: '#EFEDE8', overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? '#1E6B36' : ACCENT }} /></div>
+                    <span style={{ fontSize: 11, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{r.totals.allocated} of {r.totals.required} assigned</span>
+                  </div>
+                )}
+                {r.decisionNote && <div style={{ fontSize: 12, color: r.status === 'rejected' ? DANGER : INK }}>{r.decidedByName ? `${r.decidedByName}: ` : ''}{r.decisionNote}</div>}
+                {['draft', 'rejected', 'submitted'].includes(r.status) && (
+                  <div style={{ display: 'flex', gap: 12, fontSize: 12, fontWeight: 700 }}>
+                    {['draft', 'rejected'].includes(r.status) && <>
+                      <span onClick={() => setEditing(r)} style={{ color: ACCENT, cursor: 'pointer' }}>Edit</span>
+                      <span onClick={() => act(() => api.workforceRequests.submit(r.id), 'Sent for approval')} style={{ color: ACCENT, cursor: 'pointer' }}>{r.status === 'rejected' ? 'Send again' : 'Send for approval'}</span>
+                    </>}
+                    {r.status === 'submitted' && <span onClick={() => { if (confirm('Cancel this request?')) void act(() => api.workforceRequests.cancel(r.id), 'Cancelled'); }} style={{ color: DANGER, cursor: 'pointer' }}>Cancel</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {all.length > live.length && <span onClick={() => setShowClosed((v) => !v)} style={{ fontSize: 12, fontWeight: 700, color: MUTED, cursor: 'pointer' }}>{showClosed ? 'Hide fulfilled & cancelled' : `Show fulfilled & cancelled (${all.length - live.length})`}</span>}
+      {editing && (
+        <RequestEditor request={editing} projects={projects} trades={trades}
+          onClose={() => setEditing(null)}
+          onSaved={async () => { setEditing(null); await load(); }} />
+      )}
+    </section>
+  );
+}

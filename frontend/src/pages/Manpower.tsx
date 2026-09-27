@@ -133,7 +133,8 @@ export function Manpower() {
   const canManage = can('manpower_con', 'manage');
   // Signing off and paying money is a finance permission, separate from HR's.
   const canFinance = can('fin_resources', 'manage');
-  const [tab, setTab] = useState<TabKey>('employees');
+  // ?tab=<key> opens a tab directly (e.g. the workforce-request email's link).
+  const [tab, setTab] = useState<TabKey>(() => { const t = new URLSearchParams(window.location.search).get('tab'); return (TAB_GROUPS.some((g) => g.tabs.some(([k]) => k === t)) ? t : 'employees') as TabKey; });
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [csiCodes, setCsiCodes] = useState<CsiCode[]>([]);
@@ -147,7 +148,7 @@ export function Manpower() {
   // ?contractor=<id> (from a sub's People entry) opens that contractor record.
   const [openContractorId] = useState<string | null>(params.get('contractor'));
   useEffect(() => { if (openContractorId) setTab('contractors'); }, [openContractorId]);
-  useEffect(() => { if (params.get('employee') || params.get('add') || params.get('contractor')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (params.get('employee') || params.get('add') || params.get('contractor') || params.get('tab')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [payrollSettings, setPayrollSettings] = useState<PayrollSettings>(DEFAULT_SETTINGS);
 
   const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});
