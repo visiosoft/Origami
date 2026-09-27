@@ -1,8 +1,11 @@
 import { Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RoleEntity } from '../database/entities';
-import { DEFAULT_ROLES } from '../seed-data/users';
+import { AppSettingEntity, RoleEntity } from '../database/entities';
+import { DEFAULT_ROLES, SITE_SUPER_PERMISSIONS } from '../seed-data/users';
+
+/** Marks the one-time trim of the Site Superintendent role (2026-09-27). */
+export const SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed';
 
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
@@ -10,6 +13,7 @@ export class RolesService implements OnApplicationBootstrap {
 
   constructor(
     @InjectRepository(RoleEntity) private readonly repo: Repository<RoleEntity>,
+    @InjectRepository(AppSettingEntity) private readonly settings: Repository<AppSettingEntity>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -23,9 +27,25 @@ export class RolesService implements OnApplicationBootstrap {
         await this.repo.save(missing as unknown as RoleEntity[]);
         this.log.log(`Seeded ${missing.length} role(s)`);
       }
+      await this.trimSiteSuper();
     } catch (err) {
       this.log.error('Roles seed failed: ' + (err as Error).message);
     }
+  }
+
+  /**
+   * Once: the Site Superintendent role sees only the dashboard, projects,
+   * tasks and the File Room. After that it's edited like any other role.
+   */
+  async trimSiteSuper() {
+    if (await this.settings.findOneBy({ key: SITE_SUPER_TRIM_KEY })) return;
+    const role = await this.repo.findOneBy({ key: 'site_super' });
+    if (role) {
+      role.permissions = SITE_SUPER_PERMISSIONS;
+      await this.repo.save(role);
+      this.log.log('Site Superintendent role trimmed to dashboard, projects, tasks and File Room');
+    }
+    await this.settings.save({ key: SITE_SUPER_TRIM_KEY, value: new Date().toISOString(), updatedAt: new Date().toISOString() });
   }
 
   findAll() {

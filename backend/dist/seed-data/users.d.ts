@@ -24,6 +24,7 @@ export interface UserSeed {
     createdAt: string;
 }
 export declare const MODULE_KEYS: string[];
+export declare const SITE_SUPER_PERMISSIONS: RolePermissions;
 export declare const DEFAULT_ROLES: RoleSeed[];
 export declare const DEFAULT_USERS: UserSeed[];
 export declare const FOUNDER_ADMIN: {

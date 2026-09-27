@@ -10,7 +10,7 @@ export interface NavItem {
   note?: string;
   /** About the signed-in person themselves (their own timesheet): shown to every internal user, not a role permission. */
   personal?: boolean;
-  /** Only for site superintendents (and administrators) -- not a role permission either. */
+  /** Only for site superintendents -- not a role permission either. */
   superintendent?: boolean;
 }
 

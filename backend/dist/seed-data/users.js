@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FOUNDER_ADMIN = exports.DEFAULT_USERS = exports.DEFAULT_ROLES = exports.MODULE_KEYS = void 0;
+exports.FOUNDER_ADMIN = exports.DEFAULT_USERS = exports.DEFAULT_ROLES = exports.SITE_SUPER_PERMISSIONS = exports.MODULE_KEYS = void 0;
 exports.MODULE_KEYS = [
     'dashboard',
     'pipeline', 'projects', 'people', 'tasks',
@@ -12,6 +12,7 @@ exports.MODULE_KEYS = [
 ];
 const allPerms = () => Object.fromEntries(exports.MODULE_KEYS.map((k) => [k, { view: true, manage: true }]));
 const perms = (view, manage = []) => Object.fromEntries(exports.MODULE_KEYS.map((k) => [k, { view: view.includes(k) || manage.includes(k), manage: manage.includes(k) }]));
+exports.SITE_SUPER_PERMISSIONS = perms(['dashboard', 'projects', 'tasks', 'planroom']);
 exports.DEFAULT_ROLES = [
     {
         key: 'admin', name: 'Administrator', description: 'Full access to every module and settings.',
@@ -45,7 +46,7 @@ exports.DEFAULT_ROLES = [
     {
         key: 'site_super', name: 'Site Superintendent', description: 'On-site construction execution.',
         tier: 'internal', order: 7, isSystem: false,
-        permissions: perms(['dashboard', 'projects', 'tasks', 'pm', 'quality', 'schedule', 'rfis', 'changeorders', 'manpower_con', 'planroom', 'library'], ['quality', 'schedule', 'manpower_con', 'rfis']),
+        permissions: exports.SITE_SUPER_PERMISSIONS,
     },
     {
         key: 'architect', name: 'Architect', description: 'Design authority and drawing sets.',

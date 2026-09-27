@@ -12,15 +12,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RolesService = void 0;
+exports.RolesService = exports.SITE_SUPER_TRIM_KEY = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const users_1 = require("../seed-data/users");
+exports.SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed';
 let RolesService = class RolesService {
-    constructor(repo) {
+    constructor(repo, settings) {
         this.repo = repo;
+        this.settings = settings;
         this.log = new common_1.Logger('RolesService');
     }
     async onApplicationBootstrap() {
@@ -31,10 +33,22 @@ let RolesService = class RolesService {
                 await this.repo.save(missing);
                 this.log.log(`Seeded ${missing.length} role(s)`);
             }
+            await this.trimSiteSuper();
         }
         catch (err) {
             this.log.error('Roles seed failed: ' + err.message);
         }
+    }
+    async trimSiteSuper() {
+        if (await this.settings.findOneBy({ key: exports.SITE_SUPER_TRIM_KEY }))
+            return;
+        const role = await this.repo.findOneBy({ key: 'site_super' });
+        if (role) {
+            role.permissions = users_1.SITE_SUPER_PERMISSIONS;
+            await this.repo.save(role);
+            this.log.log('Site Superintendent role trimmed to dashboard, projects, tasks and File Room');
+        }
+        await this.settings.save({ key: exports.SITE_SUPER_TRIM_KEY, value: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }
     findAll() {
         return this.repo.find({ order: { order: 'ASC' } });
@@ -64,6 +78,8 @@ exports.RolesService = RolesService;
 exports.RolesService = RolesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(entities_1.AppSettingEntity)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], RolesService);
 //# sourceMappingURL=roles.service.js.map

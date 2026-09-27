@@ -18,8 +18,9 @@ export const RELEASES: Release[] = [
   {
     id: '2026-09-27',
     date: '2026-09-27',
-    title: 'Daily log (field) is for superintendents only',
+    title: 'Superintendents: a short menu and the daily log',
     items: [
+      { area: 'Settings', kind: 'improved', text: 'The Site Superintendent role now shows just Dashboard, My Timesheet, Daily Log (field), Projects, Tasks and the Plan & File Room — the rest is hidden. Change it any time under User Access & Roles.', where: 'User Access & Roles → Site Superintendent' },
       { area: 'Manpower', kind: 'improved', text: 'The phone daily log shows in the menu only for superintendents — the Site Superintendent role or an employee whose designation is Superintendent. Everyone else sees and approves daily logs in Manpower.', where: 'Daily Log (field) · Manpower → Daily Log' },
     ],
   },

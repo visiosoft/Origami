@@ -60,10 +60,11 @@ export function FieldDailyLog() {
 }
 
 function FieldDailyLogInner() {
-  const { can, currentUser, authUser, toast, toastMsg } = useApp();
+  const { currentUser, authUser, toast, toastMsg } = useApp();
   // Only for site superintendents; the office works in Manpower -> Daily Log.
   const runsSite = !!authUser?.isSuperintendent;
-  const canEdit = can('manpower_con', 'manage');
+  // The superintendent fills the log in from here without needing Manpower in their role.
+  const canEdit = runsSite;
   const [projects, setProjects] = useState<{ id: number; name: string; location?: string }[]>([]);
   const [employees, setEmployees] = useState<Emp[]>([]);
   const [codes, setCodes] = useState<Code[]>([]);
@@ -212,7 +213,6 @@ function FieldDailyLogInner() {
       </div>
 
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '14px 16px', display: 'grid', gap: 14 }}>
-        {!canEdit && <div style={{ fontSize: 13, color: MUTED, background: '#fff', borderRadius: 12, padding: 14 }}>You can view logs here; filling them in needs Manpower access.</div>}
         {loading ? <div style={{ fontSize: 14, color: MUTED, padding: 20, textAlign: 'center' }}>Loading…</div> : !projectId ? null : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
