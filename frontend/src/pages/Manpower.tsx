@@ -233,7 +233,7 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
   projects: Project[]; employees: Employee[]; assignments: Assignment[]; csiCodes: CsiCode[]; canManage: boolean; toast: (m: string) => void;
 }) {
   const { authUser } = useApp();
-  const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
+  const runsSite = !!authUser?.isSuperintendent;
   const [projectId, setProjectId] = useState<number | ''>('');
   const [date, setDate] = useState(todayISO());
   const [log, setLog] = useState<DailyLog | null>(null);

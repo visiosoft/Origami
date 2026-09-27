@@ -61,8 +61,8 @@ export function FieldDailyLog() {
 
 function FieldDailyLogInner() {
   const { can, currentUser, authUser, toast, toastMsg } = useApp();
-  // For site superintendents (and administrators); the office works in Manpower -> Daily Log.
-  const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
+  // Only for site superintendents; the office works in Manpower -> Daily Log.
+  const runsSite = !!authUser?.isSuperintendent;
   const canEdit = can('manpower_con', 'manage');
   const [projects, setProjects] = useState<{ id: number; name: string; location?: string }[]>([]);
   const [employees, setEmployees] = useState<Emp[]>([]);

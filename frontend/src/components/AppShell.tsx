@@ -37,8 +37,8 @@ export function AppShell() {
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
-  // The phone daily log is for whoever runs a site (and administrators).
-  const runsSite = !!authUser?.isSuperintendent || authUser?.roleKey === 'admin';
+  // The phone daily log is only for superintendents (whoever runs a site).
+  const runsSite = !!authUser?.isSuperintendent;
   const visibleGroups = NAV_GROUPS
     .map((g) => ({ ...g, items: g.items.filter((it) => (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
     .filter((g) => g.items.length > 0);

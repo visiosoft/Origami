@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-09-27',
+    date: '2026-09-27',
+    title: 'Daily log (field) is for superintendents only',
+    items: [
+      { area: 'Manpower', kind: 'improved', text: 'The phone daily log shows in the menu only for superintendents — the Site Superintendent role or an employee whose designation is Superintendent. Everyone else sees and approves daily logs in Manpower.', where: 'Daily Log (field) · Manpower → Daily Log' },
+    ],
+  },
+  {
     id: '2026-09-26',
     date: '2026-09-26',
     title: 'RFIs, one record per subcontractor, logins for clients and subs, spreadsheet import',
