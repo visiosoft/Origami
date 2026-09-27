@@ -80,7 +80,6 @@ export function FieldDailyLog() {
   const [loadKey, setLoadKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [who, setWho] = useState<'crew' | 'all'>('crew');
   const [query, setQuery] = useState('');
   const logIdRef = useRef<string | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -127,18 +126,18 @@ export function FieldDailyLog() {
     },
   });
 
-  // ---- rows: on the log first, then the crew deployed here, then everyone else
+  // ---- rows: only the employees deployed to this project (Manpower -> Deployment),
+  // those on the log first. Anyone already on the log stays visible so they can be taken off.
   const onSite = useMemo(() => new Set(assignments.filter((a) => a.projectId === projectId && a.startDate <= date && (!a.endDate || a.endDate >= date)).map((a) => a.employeeId)), [assignments, projectId, date]);
   const entryOf = (id: string) => draft.entries.find((e) => e.employeeId === id);
   const inLog = new Set(draft.entries.map((e) => e.employeeId));
   const q = query.trim().toLowerCase();
   const rows = employees
-    .filter((e) => inLog.has(e.id) || who === 'all' || onSite.has(e.id))
+    .filter((e) => inLog.has(e.id) || onSite.has(e.id))
     .filter((e) => !q || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(q))
     .sort((a, b) => Number(inLog.has(b.id)) - Number(inLog.has(a.id)) || Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name));
   // Logged people who are no longer on the employee list still show, so nothing on the log is hidden.
   const orphans = draft.entries.filter((e) => !employees.some((x) => x.id === e.employeeId));
-  const hiddenCount = employees.length - employees.filter((e) => inLog.has(e.id) || onSite.has(e.id)).length;
 
   const codeOf = (id?: string) => codes.find((c) => c.id === id);
   const lastCode = draft.entries.map((e) => e.csiCodeId).filter(Boolean).pop() || '';
@@ -212,7 +211,7 @@ export function FieldDailyLog() {
             <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name || 'Unknown worker'}</div>
             <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {[emp?.workerId, emp?.trade || emp?.designation].filter(Boolean).join(' · ')}
-              {onSite.has(id) && <span style={{ marginLeft: 6, fontWeight: 700, color: '#1E6B36' }}>on site</span>}
+              {!onSite.has(id) && <span style={{ marginLeft: 6, fontWeight: 700, color: '#8A6D12' }}>not deployed here</span>}
             </div>
           </div>
         </div>
@@ -275,11 +274,7 @@ export function FieldDailyLog() {
             <span style={{ padding: '6px 12px', borderRadius: 999, background: st[0], color: st[1], fontSize: 12.5, fontWeight: 700 }}>{st[2]}</span>
             <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{draft.entries.length}</b> on the log · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: '#8A6D12' }}> · {noCode} need a cost code</span> : null}</span>
             <div style={{ flex: 1 }} />
-            <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
-              {([['crew', `Crew on site (${onSite.size})`], ['all', `Everyone (${employees.length})`]] as const).map(([k, l]) => (
-                <span key={k} onClick={() => setWho(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: who === k ? 'white' : 'transparent', color: who === k ? INK : MUTED, boxShadow: who === k ? '0 1px 3px rgba(0,0,0,.08)' : 'none', whiteSpace: 'nowrap' }}>{l}</span>
-              ))}
-            </div>
+            <span style={{ fontSize: 12.5, color: MUTED }}><b style={{ color: INK }}>{onSite.size}</b> deployed to this project</span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
           </div>
           {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 13, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 12, padding: 12 }}>Sent back: {log.rejectionNote}</div>}
@@ -313,11 +308,8 @@ export function FieldDailyLog() {
               {orphans.map((e, k) => row(undefined, e.employeeId, rows.length + k))}
               {!rows.length && !orphans.length && (
                 <div style={{ padding: 22, fontSize: 13, color: MUTED, textAlign: 'center', borderTop: '1px solid ' + LINE }}>
-                  {q ? 'No one matches that search.' : who === 'crew' ? <>Nobody is deployed to this project today. <span onClick={() => setWho('all')} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>Show everyone</span> to log someone else.</> : 'No employees yet.'}
+                  {q ? 'No one matches that search.' : 'Nobody is deployed to this project on this day. The office assigns the crew in Manpower → Deployment.'}
                 </div>
-              )}
-              {who === 'crew' && hiddenCount > 0 && rows.length > 0 && !q && (
-                <div onClick={() => setWho('all')} style={{ padding: '10px 14px', borderTop: '1px solid ' + LINE, fontSize: 12.5, fontWeight: 700, color: ACCENT, cursor: 'pointer', minWidth: 1100 }}>+ Show {hiddenCount} more {hiddenCount === 1 ? 'person' : 'people'} not deployed here</div>
               )}
             </div>
           </Card>
