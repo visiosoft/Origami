@@ -115,20 +115,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // would let anyone act as an administrator.
   const currentUser = (authUser && users.find((u) => u.id === authUser.id)) || authUser || undefined;
   const tier: Tier = currentUser?.tier ?? 'internal';
-  // Outside accounts can't read the role list (admin only), so their own role's
-  // permissions come with who-am-I; staff keep today's behaviour.
+  // Only administrators can read the role list, so everyone's own role (name
+  // and permissions) comes with who-am-I. Without it a non-admin had no role
+  // here, and the app fell back to showing every page.
   const currentRole = roles.find((r) => r.key === currentUser?.roleKey)
-    || (authUser?.rolePermissions && tier !== 'internal'
-      ? { key: authUser.roleKey, name: authUser.roleKey, tier, order: 0, isSystem: true, permissions: authUser.rolePermissions }
+    || (authUser?.rolePermissions
+      ? { key: authUser.roleKey, name: authUser.roleName || authUser.roleKey, tier, order: 0, isSystem: true, permissions: authUser.rolePermissions }
       : undefined);
 
   const can = useCallback(
     (moduleKey: string, action: Action = 'view'): boolean => {
-      // Before access data has loaded, don't hide anything (avoids a nav flash).
-      if (loadingAccess || !currentRole) return true;
+      // Before we know who's signed in, don't hide anything (avoids a nav flash).
+      if (loadingAccess || !authUser) return true;
+      if (!currentRole) return authUser.roleKey === 'admin';
       return canFor(currentRole, moduleKey, action);
     },
-    [loadingAccess, currentRole],
+    [loadingAccess, authUser, currentRole],
   );
 
   return (

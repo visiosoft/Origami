@@ -233,7 +233,7 @@ let AuthService = class AuthService {
         if (!user)
             throw new common_1.UnauthorizedException('Not signed in.');
         const role = await this.roles.findOneBy({ key: user.roleKey });
-        return { ...publicUser(user), rolePermissions: role?.permissions || {}, isSuperintendent: await this.isSuperintendent(user) };
+        return { ...publicUser(user), roleName: role?.name || user.roleKey, rolePermissions: role?.permissions || {}, isSuperintendent: await this.isSuperintendent(user) };
     }
     async setNotificationPrefs(bearer, prefs) {
         const claims = await this.verify(bearer);

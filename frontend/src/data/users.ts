@@ -35,6 +35,8 @@ export interface User {
   isSuperintendent?: boolean;
   /** The account's own role permissions, returned by who-am-I. */
   rolePermissions?: RolePermissions;
+  /** The role's display name, from who-am-I. */
+  roleName?: string;
 }
 
 export { MODULES };

@@ -68,7 +68,7 @@ export function AppShell() {
     return () => window.removeEventListener('origami:release-seen', on);
   }, []);
   const userName = currentUser?.name ?? 'Edward M.';
-  const userRoleName = currentRole?.name ?? 'Admin';
+  const userRoleName = currentRole?.name ?? '';
 
   return (
     <AutosaveProvider>

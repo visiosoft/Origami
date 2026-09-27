@@ -20,6 +20,7 @@ export const RELEASES: Release[] = [
     date: '2026-09-27',
     title: 'Superintendents: a short menu and the daily log',
     items: [
+      { area: 'Everywhere', kind: 'fixed', text: 'Staff who aren’t administrators saw every page and “Admin” under their name, whatever their role. Each login now sees only its role’s pages, with the right role name.' },
       { area: 'Manpower', kind: 'improved', text: 'On an employee whose designation is Superintendent, the Login card starts on the Site Superintendent role, and flags a login that has a different role with a one-click “Switch to Site Superintendent”.', where: 'Manpower → an employee → Login' },
       { area: 'Settings', kind: 'improved', text: 'The Site Superintendent role now shows just Dashboard, My Timesheet, Daily Log (field), Projects, Tasks and the Plan & File Room — the rest is hidden. Change it any time under User Access & Roles.', where: 'User Access & Roles → Site Superintendent' },
       { area: 'Manpower', kind: 'improved', text: 'The phone daily log shows in the menu only for superintendents — the Site Superintendent role or an employee whose designation is Superintendent. Everyone else sees and approves daily logs in Manpower.', where: 'Daily Log (field) · Manpower → Daily Log' },
