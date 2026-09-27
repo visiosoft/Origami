@@ -12,7 +12,7 @@ exports.MODULE_KEYS = [
 ];
 const allPerms = () => Object.fromEntries(exports.MODULE_KEYS.map((k) => [k, { view: true, manage: true }]));
 const perms = (view, manage = []) => Object.fromEntries(exports.MODULE_KEYS.map((k) => [k, { view: view.includes(k) || manage.includes(k), manage: manage.includes(k) }]));
-exports.SITE_SUPER_PERMISSIONS = perms(['dashboard', 'tasks', 'planroom']);
+exports.SITE_SUPER_PERMISSIONS = perms(['dashboard', 'tasks']);
 exports.DEFAULT_ROLES = [
     {
         key: 'admin', name: 'Administrator', description: 'Full access to every module and settings.',
