@@ -81,7 +81,7 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
     const st = bold ? { ...td, fontWeight: 700, color: INK, background: 'var(--panel)' } : td;
     return (
       <tr key={x.key}>
-        <td style={{ ...st, textAlign: 'left', position: 'sticky', left: 0, background: bold ? 'var(--panel)' : 'white' }}>
+        <td style={{ ...st, textAlign: 'left', position: 'sticky', left: 0, background: bold ? 'var(--panel)' : 'var(--surface)' }}>
           <div style={{ fontWeight: 600, color: INK }}>{x.label}</div>{x.sub && <div style={{ fontSize: 11, color: MUTED }}>{x.sub}</div>}
         </td>
         <td style={st}>{x.payslips}</td>
@@ -118,7 +118,7 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
         </label>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           {([['employee', 'By employee'], ['run', 'By pay run']] as const).map(([k, l]) => (
-            <span key={k} onClick={() => setView(k)} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === k ? 'var(--forest)' : 'white', color: view === k ? 'white' : 'var(--body)', border: '1px solid ' + (view === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{l}</span>
+            <span key={k} onClick={() => setView(k)} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === k ? 'var(--forest)' : 'var(--surface)', color: view === k ? 'white' : 'var(--body)', border: '1px solid ' + (view === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{l}</span>
           ))}
           <span onClick={exportCsv} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: r?.totals.payslips ? 'pointer' : 'default', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', opacity: r?.totals.payslips ? 1 : 0.5 }}>Export CSV</span>
         </div>

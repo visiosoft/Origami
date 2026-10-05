@@ -281,7 +281,7 @@ function LeaveCalendar({ employees, projects, assignments, types, settings, onOp
                 const off = settings.weekendDays.includes(dow) || holidayOn.has(d);
                 const t = r ? typeById.get(r.leaveTypeId) : undefined;
                 return (
-                  <div key={d} title={r ? `${t?.name || r.type} · ${STATUS[r.status]?.label}` : ''} style={{ borderTop: '1px solid rgba(var(--rgb-shade), .05)', background: off ? '#F6F2EA' : 'white', display: 'grid', placeItems: 'center' }}>
+                  <div key={d} title={r ? `${t?.name || r.type} · ${STATUS[r.status]?.label}` : ''} style={{ borderTop: '1px solid rgba(var(--rgb-shade), .05)', background: off ? '#F6F2EA' : 'var(--surface)', display: 'grid', placeItems: 'center' }}>
                     {r && !off && <span style={{ width: r.halfDay ? 11 : 22, height: 16, borderRadius: 4, background: typeColor(t), opacity: r.status === 'pending' ? 0.4 : 1 }} />}
                   </div>
                 );

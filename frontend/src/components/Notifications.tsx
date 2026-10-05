@@ -131,7 +131,7 @@ export function Notifications() {
                 style={{
                   padding: '10px 14px', cursor: 'pointer',
                   borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.04)' : 'none',
-                  background: unseen.some((u) => u.id === r.id) ? 'var(--c-f4f9f4)' : 'white',
+                  background: unseen.some((u) => u.id === r.id) ? 'var(--c-f4f9f4)' : 'var(--surface)',
                 }}
               >
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>{r.title}</div>

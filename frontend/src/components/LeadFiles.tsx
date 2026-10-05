@@ -98,7 +98,7 @@ export function LeadFilesTab({ leadId, files, onChange, stages, currentStage }: 
         const mine = files.filter((f) => f.stage === s.key);
         const current = s.key === currentStage;
         return (
-          <div key={s.key} style={{ padding: '12px 14px', background: current ? 'white' : 'var(--panel)', border: '1px solid ' + (current ? 'rgba(var(--rgb-success), 0.35)' : 'rgba(var(--rgb-shade), 0.06)'), borderRadius: 'var(--r-12)' }}>
+          <div key={s.key} style={{ padding: '12px 14px', background: current ? 'var(--surface)' : 'var(--panel)', border: '1px solid ' + (current ? 'rgba(var(--rgb-success), 0.35)' : 'rgba(var(--rgb-shade), 0.06)'), borderRadius: 'var(--r-12)' }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
               {s.name}{current && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'var(--c-d2ead3)', padding: '1px 7px', borderRadius: 999 }}>Current stage</span>}
             </div>
@@ -142,7 +142,7 @@ export function ClientWelcomeCard({ leadId, defaultTo, homework }: { leadId: str
   const off = async () => { if (!confirm('Turn the upload link off? The client won’t be able to upload with it any more.')) return; setSt(await api.leadFiles.disableWelcome(leadId)); toast('Upload link turned off'); };
   if (!can('pipeline', 'manage')) return null;
   const day = (d?: string) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
-  const chip = (on: boolean): React.CSSProperties => ({ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.12)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--body)' });
+  const chip = (on: boolean): React.CSSProperties => ({ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.12)'), background: on ? 'var(--c-d2ead3)' : 'var(--surface)', color: on ? 'var(--forest)' : 'var(--body)' });
   const inputS: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit' };
   const pool = [...new Set([...homework, ...items])];
   return (

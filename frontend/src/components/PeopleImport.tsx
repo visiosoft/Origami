@@ -6,7 +6,7 @@ import { csvToObjects, toCsv } from '../data/csv';
 const INK = 'var(--ink)';
 const MUTED = 'var(--muted)';
 const BG = 'var(--font-display)';
-const btn = (primary = false, off = false): React.CSSProperties => ({ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: off ? 'default' : 'pointer', border: primary ? 'none' : '1px solid rgba(var(--rgb-shade), 0.14)', background: primary ? 'var(--forest)' : 'white', color: primary ? 'white' : 'var(--forest)', opacity: off ? 0.5 : 1, whiteSpace: 'nowrap' });
+const btn = (primary = false, off = false): React.CSSProperties => ({ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: off ? 'default' : 'pointer', border: primary ? 'none' : '1px solid rgba(var(--rgb-shade), 0.14)', background: primary ? 'var(--forest)' : 'var(--surface)', color: primary ? 'white' : 'var(--forest)', opacity: off ? 0.5 : 1, whiteSpace: 'nowrap' });
 
 interface Column { key: string; header: string; hint: string }
 interface PlanRow { row: number; action: 'create' | 'update' | 'skip' | 'error'; name: string; kind: string; email: string; issues: string[] }

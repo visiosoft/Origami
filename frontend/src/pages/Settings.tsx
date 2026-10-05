@@ -307,7 +307,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                   <span key={k} onClick={() => canManage && setDraft({ ...draft, kind: k })} style={{
                     padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: canManage ? 'pointer' : 'default',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
-                    background: (draft.kind || 'email') === k ? 'var(--forest)' : 'white',
+                    background: (draft.kind || 'email') === k ? 'var(--forest)' : 'var(--surface)',
                     color: (draft.kind || 'email') === k ? 'white' : 'var(--muted)',
                     border: '1px solid ' + ((draft.kind || 'email') === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'),
                   }}>{k}</span>

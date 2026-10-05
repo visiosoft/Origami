@@ -57,7 +57,7 @@ export function ClientUpload() {
         <div style={{ fontSize: 14.5, fontWeight: 600 }}>{label}</div>
         {list.length > 0 && <div style={{ fontSize: 12.5, color: 'var(--success)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>✓ {list.map((u) => u.name).join(', ')}</div>}
       </div>
-      <button type="button" disabled={!!busy} onClick={() => choose(item)} style={{ padding: '10px 16px', borderRadius: 999, border: 'none', background: list.length ? 'white' : accent, color: list.length ? accent : 'white', outline: list.length ? `1px solid ${accent}` : 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+      <button type="button" disabled={!!busy} onClick={() => choose(item)} style={{ padding: '10px 16px', borderRadius: 999, border: 'none', background: list.length ? 'var(--surface)' : accent, color: list.length ? accent : 'white', outline: list.length ? `1px solid ${accent}` : 'none', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
         {busy === (item || '__other') ? 'Uploading…' : list.length ? 'Add more' : 'Upload'}
       </button>
     </div>

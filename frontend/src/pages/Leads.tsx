@@ -290,7 +290,7 @@ function RolePicker({ roles, toggleRole, hide }: { roles: string[]; toggleRole: 
                             style={{
                                 padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none',
                                 border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.14)'),
-                                background: on ? 'var(--c-d2ead3)' : 'white',
+                                background: on ? 'var(--c-d2ead3)' : 'var(--surface)',
                                 color: on ? 'var(--forest)' : 'var(--body)',
                                 fontWeight: on ? 700 : 400,
                             }}

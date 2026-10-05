@@ -5,6 +5,7 @@ import App from './App';
 import { AppProvider } from './AppContext';
 import './styles/global.css';
 import './styles/theme-coterie.css';
+import './styles/theme-coterie-pages.css';
 import { applyTheme } from './theme';
 
 applyTheme();

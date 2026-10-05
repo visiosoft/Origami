@@ -22,6 +22,7 @@ export const RELEASES: Release[] = [
     items: [
       { area: 'Everywhere', kind: 'new', text: 'New look across the app: a warm cream background with a soft yellow glow, rounded cream cards, black pill buttons and one yellow highlight colour. The menu is a floating card and the page you are on is a black pill. Headings and numbers use a lighter, larger font, pages ease in, and dashboard figures count up.' },
       { area: 'Everywhere', kind: 'new', text: 'Prefer the original green look? Switch between the New and Classic looks with the round button next to the notifications bell. Your choice is remembered on that computer or phone.', where: 'Top bar → theme button (sun / leaf)' },
+      { area: 'Everywhere', kind: 'improved', text: 'The New look now covers every page: cards lift softly off the cream background, small capital labels become calm sentence-case labels, buttons and chips are pills, the chosen tab is a black pill, inputs and drop-downs are rounded, and pop-ups blur what is behind them.' },
     ],
   },
   {

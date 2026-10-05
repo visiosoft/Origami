@@ -549,7 +549,7 @@ export function Projects() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         <div
           onClick={clearFilters}
-          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: !activeView && !filtersActive ? 'var(--forest)' : 'white', color: !activeView && !filtersActive ? 'white' : 'var(--muted)', border: '1px solid ' + (!activeView && !filtersActive ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.08)'), cursor: 'pointer' }}
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: !activeView && !filtersActive ? 'var(--forest)' : 'var(--surface)', color: !activeView && !filtersActive ? 'white' : 'var(--muted)', border: '1px solid ' + (!activeView && !filtersActive ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.08)'), cursor: 'pointer' }}
         >All</div>
         {savedViews.map((v) => (
           <div
@@ -557,7 +557,7 @@ export function Projects() {
             onClick={() => applyView(v)}
             title="Click to apply. Right-click to delete."
             onContextMenu={(e) => { e.preventDefault(); deleteView(v.name); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: activeView === v.name ? 'var(--forest)' : 'white', color: activeView === v.name ? 'white' : 'var(--muted)', border: '1px solid ' + (activeView === v.name ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.08)'), cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: activeView === v.name ? 'var(--forest)' : 'var(--surface)', color: activeView === v.name ? 'white' : 'var(--muted)', border: '1px solid ' + (activeView === v.name ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.08)'), cursor: 'pointer' }}
           >
             {v.name}
             <span onClick={(e) => { e.stopPropagation(); deleteView(v.name); }} style={{ opacity: 0.6 }}>×</span>
@@ -717,7 +717,7 @@ export function Projects() {
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'var(--forest)', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
                   <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>Open Phase Board</div>
-                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>
+                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'var(--surface)' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>
                   {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--muted)', background: 'var(--surface)' }}>Project Program off · Turn on</div>}
                   {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'var(--surface)', marginLeft: 'auto' }}>Delete</div>}
                 </div>
@@ -790,7 +790,7 @@ export function Projects() {
                       <div
                         key={v}
                         onClick={() => setPhaseView(v)}
-                        style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: phaseView === v ? 'white' : 'transparent', color: phaseView === v ? 'var(--ink)' : 'var(--muted)', boxShadow: phaseView === v ? '0 1px 3px rgba(var(--rgb-shade), 0.1)' : 'none' }}
+                        style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: phaseView === v ? 'var(--seg-on)' : 'transparent', color: phaseView === v ? 'var(--ink)' : 'var(--muted)', boxShadow: phaseView === v ? '0 1px 3px rgba(var(--rgb-shade), 0.1)' : 'none' }}
                       >
                         {v}
                       </div>
@@ -936,7 +936,7 @@ export function Projects() {
                                   <div
                                     key={pt.title}
                                     onClick={() => openPhaseTask(pt, phase)}
-                                    style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '9px 12px 9px 26px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', background: done ? '#FBFDFA' : 'white' }}
+                                    style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '9px 12px 9px 26px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', background: done ? '#FBFDFA' : 'var(--surface)' }}
                                   >
                                     <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 500, color: done ? 'var(--body)' : 'var(--ink)' }}>
                                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ stroke: done ? 'var(--success-deep)' : 'var(--c-c9cdc9)', flexShrink: 0 }}><circle cx={12} cy={12} r={10} /><polyline points="9 12 11.5 14.5 16 10" /></svg>

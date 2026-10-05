@@ -89,7 +89,7 @@ export function ConvertLeadDialog({ deal, contractType, onCancel, onConverted }:
               {PROJECT_STAGES.map((s) => (
                 <label
                   key={s.key}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid ' + (stage === s.key ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: stage === s.key ? 'var(--c-f4f9f4)' : 'white' }}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid ' + (stage === s.key ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: stage === s.key ? 'var(--c-f4f9f4)' : 'var(--surface)' }}
                 >
                   <input type="radio" checked={stage === s.key} onChange={() => setStage(s.key)} style={{ marginTop: 2 }} />
                   <span>

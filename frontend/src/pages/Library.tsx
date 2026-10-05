@@ -44,7 +44,7 @@ export function Library() {
               title={t.hint}
               style={{
                 padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                background: on ? 'var(--forest)' : 'white',
+                background: on ? 'var(--forest)' : 'var(--surface)',
                 color: on ? 'white' : 'var(--muted)',
                 border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.1)'),
               }}

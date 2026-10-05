@@ -320,7 +320,7 @@ function InvoicesPage() {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '16px 0 10px' }}>
         {(['all', 'submitted', 'approved', 'paid', 'returned'] as const).map((k) => {
           const n = (rows || []).filter((r) => k === 'all' || r.status === k).length;
-          return <div key={k} onClick={() => setFilter(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : '#fff', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : 'rgba(var(--rgb-shade), .14)') }}>{k === 'all' ? 'All' : STATUS[k][0].split(' ·')[0]} · {n}</div>;
+          return <div key={k} onClick={() => setFilter(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : 'var(--surface)', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : 'rgba(var(--rgb-shade), .14)') }}>{k === 'all' ? 'All' : STATUS[k][0].split(' ·')[0]} · {n}</div>;
         })}
       </div>
       {rows === null ? <div style={{ fontSize: 13, color: MUTED }}>Loading…</div> : <InvoiceList rows={shown} empty="No invoices here." />}

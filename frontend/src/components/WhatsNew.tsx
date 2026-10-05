@@ -18,7 +18,7 @@ export function WhatsNew() {
     <div style={{ display: 'grid', gap: 18, maxWidth: 860 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {areas.map((a) => (
-          <span key={a} onClick={() => setArea(a)} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (area === a ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: area === a ? 'var(--forest)' : 'white', color: area === a ? 'white' : 'var(--body)' }}>{a}</span>
+          <span key={a} onClick={() => setArea(a)} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (area === a ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: area === a ? 'var(--forest)' : 'var(--surface)', color: area === a ? 'white' : 'var(--body)' }}>{a}</span>
         ))}
       </div>
       {RELEASES.map((r, ri) => {

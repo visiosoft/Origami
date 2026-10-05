@@ -271,7 +271,7 @@ export function TimesheetEditor({ employeeId, weekStart, onWeek, projects, csiCo
                     return (
                       <div key={d} style={{ display: 'grid', gap: 2, justifyItems: 'center', background: off(d) ? '#F6F2EA' : undefined, borderRadius: 6, padding: '2px 0' }}>
                         <input disabled={!editable} type="number" min={0} max={24} step={0.25} value={cell?.hours || ''} onChange={(e) => setHours(i, d, e.target.value)}
-                          style={{ ...input, width: 54, padding: '5px 4px', textAlign: 'center', fontSize: 13, background: cell?.hours ? 'white' : off(d) ? '#F6F2EA' : 'white' }} />
+                          style={{ ...input, width: 54, padding: '5px 4px', textAlign: 'center', fontSize: 13, background: cell?.hours ? 'var(--surface)' : off(d) ? '#F6F2EA' : 'white' }} />
                         {(editable || cell?.note) && (
                           <span onClick={() => setNoteCell(isNote ? null : { i, date: d })} title={cell?.note || 'Add a note for this day'}
                             style={{ fontSize: 10, cursor: 'pointer', color: cell?.note ? ACCENT : '#c8c3cf', fontWeight: cell?.note ? 700 : 400 }}>{cell?.note ? '● note' : '+ note'}</span>

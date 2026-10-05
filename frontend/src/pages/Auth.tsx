@@ -103,7 +103,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div onClick={() => setRemember((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <span style={{ width: 16, height: 16, borderRadius: 5, display: 'grid', placeItems: 'center', flexShrink: 0, background: remember ? 'var(--forest)' : 'white', border: '1px solid ' + (remember ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.2)') }}>
+          <span style={{ width: 16, height: 16, borderRadius: 5, display: 'grid', placeItems: 'center', flexShrink: 0, background: remember ? 'var(--forest)' : 'var(--surface)', border: '1px solid ' + (remember ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.2)') }}>
             <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: remember ? 1 : 0 }}><path d="M20 6L9 17l-5-5" /></svg>
           </span>
           <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--body)' }}>Keep me signed in</span>

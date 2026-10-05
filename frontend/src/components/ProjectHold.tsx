@@ -151,7 +151,7 @@ export function ProjectHoldPanel({ project, open, canManage, onOpen, onClose, on
                 {PRESETS.map((p) => {
                   const d = plus(p.days, p.months);
                   return (
-                    <span key={p.label} onClick={() => setUntil(d)} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: until === d ? 'var(--forest)' : 'white', color: until === d ? 'white' : 'var(--body)', border: '1px solid ' + (until === d ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{p.label}</span>
+                    <span key={p.label} onClick={() => setUntil(d)} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: until === d ? 'var(--forest)' : 'var(--surface)', color: until === d ? 'white' : 'var(--body)', border: '1px solid ' + (until === d ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{p.label}</span>
                   );
                 })}
               </div>

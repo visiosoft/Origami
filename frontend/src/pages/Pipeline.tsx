@@ -1123,7 +1123,7 @@ export function Pipeline() {
           {roleTabs.map(({ r, label }) => {
             const active = roleFilter === r;
             return (
-              <div key={r} onClick={() => setRoleFilter(r)} style={{ padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? (r === 'pc' ? 'var(--c-d2ead3)' : r === 'pm' ? 'var(--mint)' : 'var(--ink)') : 'white', color: active ? (r === 'all' ? 'white' : r === 'pc' ? 'var(--success)' : 'var(--forest)') : 'var(--muted)', border: '1px solid ' + (active ? 'transparent' : 'rgba(var(--rgb-shade), 0.08)') }}>{label}</div>
+              <div key={r} onClick={() => setRoleFilter(r)} style={{ padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? (r === 'pc' ? 'var(--c-d2ead3)' : r === 'pm' ? 'var(--mint)' : 'var(--ink)') : 'var(--surface)', color: active ? (r === 'all' ? 'white' : r === 'pc' ? 'var(--success)' : 'var(--forest)') : 'var(--muted)', border: '1px solid ' + (active ? 'transparent' : 'rgba(var(--rgb-shade), 0.08)') }}>{label}</div>
             );
           })}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1136,7 +1136,7 @@ export function Pipeline() {
             <div
               onClick={() => setShowArchived((v) => !v)}
               title="Archived leads are hidden by default"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: showArchived ? 'var(--mist)' : 'white', color: showArchived ? 'var(--forest)' : 'var(--muted)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: showArchived ? 'var(--mist)' : 'var(--surface)', color: showArchived ? 'var(--forest)' : 'var(--muted)' }}
             >
               {showArchived ? 'Hide archived' : 'Show archived'}
             </div>
@@ -1182,7 +1182,7 @@ export function Pipeline() {
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? 'var(--mist)' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? 'var(--muted)' : 'rgba(var(--rgb-shade), 0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(var(--rgb-shade), 0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(var(--rgb-shade), 0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? 'var(--mist)' : 'var(--surface)', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? 'var(--muted)' : 'rgba(var(--rgb-shade), 0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(var(--rgb-shade), 0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(var(--rgb-shade), 0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 6 }}>{[leadDetails[d.id]?.firstName, leadDetails[d.id]?.lastName].filter(Boolean).join(' ') || d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -1496,7 +1496,7 @@ export function Pipeline() {
                                     style={{
                                       marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
                                       cursor: 'pointer', border: '1px solid ' + (na ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'),
-                                      background: na ? 'var(--forest)' : 'white', color: na ? 'white' : 'var(--muted)',
+                                      background: na ? 'var(--forest)' : 'var(--surface)', color: na ? 'white' : 'var(--muted)',
                                     }}
                                   >
                                     N/A
@@ -1517,7 +1517,7 @@ export function Pipeline() {
                                     Yes, this property is in an HOA
                                   </label>
                                 ) : f.kind === 'pills' ? (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => { const arr = (ld[f.key] as string[]) || []; const on = arr.includes(o); return <div key={o} onClick={() => up(f.key, on ? arr.filter((x) => x !== o) : [...arr, o])} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--ink)', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => { const arr = (ld[f.key] as string[]) || []; const on = arr.includes(o); return <div key={o} onClick={() => up(f.key, on ? arr.filter((x) => x !== o) : [...arr, o])} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'var(--surface)', color: on ? 'var(--forest)' : 'var(--ink)', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}</div>
                                 ) : (
                                   <input type={f.kind} value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} placeholder={f.ph} style={inputStyle} />
                                 )}
@@ -2374,7 +2374,7 @@ export function Pipeline() {
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Homework Completed</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {OPT.homeworkCompleted.map((o) => { const on = nl.homeworkCompleted.includes(o); return <div key={o} onClick={() => toggleHomework(o)} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--ink)', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}
+                        {OPT.homeworkCompleted.map((o) => { const on = nl.homeworkCompleted.includes(o); return <div key={o} onClick={() => toggleHomework(o)} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'var(--surface)', color: on ? 'var(--forest)' : 'var(--ink)', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 6 }}>Select all preliminary work the client has already completed.</div>
                     </div>

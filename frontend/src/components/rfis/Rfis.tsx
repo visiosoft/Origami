@@ -41,7 +41,7 @@ const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: MUTED, 
 const btn = (primary = false, danger = false): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
   border: primary ? 'none' : '1px solid ' + (danger ? 'rgba(142,46,10,0.3)' : 'rgba(var(--rgb-shade), 0.14)'),
-  background: primary ? 'var(--forest)' : 'white', color: primary ? 'white' : danger ? '#8E2E0A' : 'var(--forest)',
+  background: primary ? 'var(--forest)' : 'var(--surface)', color: primary ? 'white' : danger ? '#8E2E0A' : 'var(--forest)',
 });
 
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };

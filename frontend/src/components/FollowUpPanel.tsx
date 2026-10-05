@@ -35,7 +35,7 @@ export interface FollowUp {
 const chip = (on: boolean, tone: 'method' | 'outcome'): React.CSSProperties => ({
   padding: '5px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
   border: '1px solid ' + (on ? (tone === 'method' ? '#5B2BC9' : '#C77A0A') : 'rgba(var(--rgb-shade), 0.12)'),
-  background: on ? (tone === 'method' ? '#F1ECFC' : '#FBEEDC') : 'white',
+  background: on ? (tone === 'method' ? '#F1ECFC' : '#FBEEDC') : 'var(--surface)',
   color: on ? (tone === 'method' ? '#5B2BC9' : '#8a5a1e') : '#5c5666',
 });
 

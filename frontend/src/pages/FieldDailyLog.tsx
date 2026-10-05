@@ -37,7 +37,7 @@ const niceDate = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString
 const cellBtn = (on: boolean, disabled?: boolean): React.CSSProperties => ({
   minWidth: 30, height: 28, padding: '0 7px', borderRadius: 7, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
   cursor: disabled ? 'default' : 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .12)'),
-  background: on ? ACCENT : 'white', color: on ? 'white' : INK, whiteSpace: 'nowrap', opacity: disabled && !on ? 0.55 : 1,
+  background: on ? ACCENT : 'var(--surface)', color: on ? 'white' : INK, whiteSpace: 'nowrap', opacity: disabled && !on ? 0.55 : 1,
 });
 const cellInput: React.CSSProperties = {
   boxSizing: 'border-box', height: 30, borderRadius: 7, border: '1px solid rgba(var(--rgb-shade), .12)', padding: '0 8px',
@@ -45,7 +45,7 @@ const cellInput: React.CSSProperties = {
 };
 const pill = (on: boolean): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .12)'), background: on ? ACCENT : 'white', color: on ? 'white' : 'var(--body)',
+  border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .12)'), background: on ? ACCENT : 'var(--surface)', color: on ? 'white' : 'var(--body)',
 });
 
 function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
@@ -203,7 +203,7 @@ export function FieldDailyLog() {
     const on = !!e;
     const code = codeOf(e?.csiCodeId);
     return (
-      <div key={id} style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, background: on ? (e!.csiCodeId ? '#F6FAF6' : '#FFF9E6') : 'white', minWidth: 1100 }}>
+      <div key={id} style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, background: on ? (e!.csiCodeId ? '#F6FAF6' : '#FFF9E6') : 'var(--surface)', minWidth: 1100 }}>
         {/* worker */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ width: 8, height: 8, borderRadius: 999, flex: 'none', background: on ? '#2E8B57' : 'transparent', border: on ? 'none' : '1.5px solid rgba(var(--rgb-shade), .18)' }} />

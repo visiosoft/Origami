@@ -127,7 +127,7 @@ export function Tasks() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
           {([['board', 'Task Board'], ['log', 'Request Log']] as [typeof mode, string][]).map((m) => (
-            <div key={m[0]} onClick={() => setMode(m[0])} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: mode === m[0] ? 'white' : 'transparent', color: mode === m[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
+            <div key={m[0]} onClick={() => setMode(m[0])} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: mode === m[0] ? 'var(--seg-on)' : 'transparent', color: mode === m[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
           ))}
         </div>
         {mode === 'board' && (
@@ -164,7 +164,7 @@ export function Tasks() {
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'all'} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
         <div style={{ position: 'relative' }}>
-          <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'white' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+          <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'var(--surface)' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
             <span>{pf}</span>
             <svg width={10} height={6} viewBox="0 0 10 6" fill="none" style={{ transform: projOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M1 1l4 4 4-4" stroke={pf === 'All projects' ? '#7E9B93' : 'white'} strokeWidth={1.6} strokeLinecap="round" /></svg>
           </div>

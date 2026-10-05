@@ -18,7 +18,7 @@ export const input: React.CSSProperties = {
 export const btn = (primary = false, disabled = false): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 999,
   fontSize: 12.5, fontWeight: 700, cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
-  background: primary ? ACCENT : '#fff', color: primary ? '#fff' : ACCENT,
+  background: primary ? ACCENT : 'var(--surface)', color: primary ? '#fff' : ACCENT,
   border: '1px solid ' + (primary ? ACCENT : 'rgba(var(--rgb-shade), .14)'), opacity: disabled ? 0.55 : 1,
 });
 

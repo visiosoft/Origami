@@ -54,7 +54,7 @@ export function AllFiles({ leadId, projectId, reloadKey }: { leadId?: string; pr
         {SOURCES.filter(([k]) => k === 'all' || present.has(k)).map(([k, label]) => {
           const n = k === 'all' ? files.length : files.filter((f) => (k === 'tasks' ? f.source === 'lead-task' || f.source === 'project-task' : f.source === k)).length;
           return (
-            <span key={k} onClick={() => setFilter(k)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (filter === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: filter === k ? 'var(--forest)' : 'white', color: filter === k ? 'white' : 'var(--body)' }}>
+            <span key={k} onClick={() => setFilter(k)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (filter === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: filter === k ? 'var(--forest)' : 'var(--surface)', color: filter === k ? 'white' : 'var(--body)' }}>
               {label} <span style={{ opacity: 0.7 }}>{n}</span>
             </span>
           );

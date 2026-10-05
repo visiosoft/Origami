@@ -100,7 +100,7 @@ export function TasksAndRfis({ projectId, projectName, showRfis, view, onView }:
   const pill = (key: 'tasks' | 'rfis', label: string, count?: number, late?: number) => (
     <div onClick={() => onView(key)} style={{
       display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-      background: view === key ? 'var(--forest)' : 'white', color: view === key ? 'white' : 'var(--body)', border: '1px solid ' + (view === key ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'),
+      background: view === key ? 'var(--forest)' : 'var(--surface)', color: view === key ? 'white' : 'var(--body)', border: '1px solid ' + (view === key ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'),
     }}>
       {label}
       {count != null && <span style={{ fontSize: 10.5, padding: '0 6px', borderRadius: 999, background: view === key ? 'rgba(255,255,255,0.2)' : 'var(--c-efede8)' }}>{count}</span>}

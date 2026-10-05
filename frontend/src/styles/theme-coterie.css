@@ -145,7 +145,13 @@
   :root[data-theme="coterie"] .sidebar { border-radius: 22px; }
   :root[data-theme="coterie"] .content { padding: 16px 14px; }
   :root[data-theme="coterie"] .topbar { padding: 8px 14px; }
-  :root[data-theme="coterie"] .page-title { font-size: 22px; }
+  :root[data-theme="coterie"] .page-title { font-size: 24px; }
+  :root[data-theme="coterie"] .search-box { display: none; }
+  :root[data-theme="coterie"] .topbar { flex-wrap: nowrap; }
+  :root[data-theme="coterie"] .page-title { overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+  :root[data-theme="coterie"] .topbar-back,
+  :root[data-theme="coterie"] .topbar-bell,
+  :root[data-theme="coterie"] .theme-toggle { width: 38px; height: 38px; }
 }
 @media (max-width: 480px) {
   :root[data-theme="coterie"] .sidebar { width: 56px; }

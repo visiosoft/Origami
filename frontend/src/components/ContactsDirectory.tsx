@@ -114,7 +114,7 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
             <div key={c.id} style={{ border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 10, overflow: 'hidden', background: 'var(--surface)' }}>
               <div
                 onClick={() => setOpenId(open ? null : c.id)}
-                style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: open ? 'var(--c-f4f9f4)' : 'white' }}
+                style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: open ? 'var(--c-f4f9f4)' : 'var(--surface)' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{contactName(c)}</div>
@@ -180,7 +180,7 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
                             style={{
                               padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none',
                               border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'),
-                              background: on ? 'var(--c-d2ead3)' : 'white',
+                              background: on ? 'var(--c-d2ead3)' : 'var(--surface)',
                               color: on ? 'var(--forest)' : heldElsewhere ? 'var(--c-9aa39d)' : 'var(--ink)',
                               fontWeight: on ? 700 : 400,
                             }}

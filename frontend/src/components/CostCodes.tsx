@@ -56,7 +56,7 @@ export function CostCodesSettings({ canManage, onChanged }: { canManage: boolean
             {shown.map((c) => {
               const div = isDivision(c.code);
               return (
-                <div key={c.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '6px 14px', borderTop: '1px solid ' + (div ? LINE : 'rgba(var(--rgb-shade), .04)'), background: div ? '#FBF9F4' : 'white', opacity: c.active ? 1 : 0.5 }}>
+                <div key={c.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '6px 14px', borderTop: '1px solid ' + (div ? LINE : 'rgba(var(--rgb-shade), .04)'), background: div ? '#FBF9F4' : 'var(--surface)', opacity: c.active ? 1 : 0.5 }}>
                   <input disabled={!canManage} defaultValue={c.code} onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== c.code && upd(c, { code: e.target.value.trim() })}
                     style={{ ...input, padding: '5px 8px', fontSize: 12.5, fontWeight: div ? 700 : 500, marginLeft: div ? 0 : 14, width: div ? '100%' : 'calc(100% - 14px)' }} />
                   <input disabled={!canManage} defaultValue={c.division} onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== c.division && upd(c, { division: e.target.value.trim() })}

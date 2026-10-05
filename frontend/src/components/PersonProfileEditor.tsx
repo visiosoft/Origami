@@ -21,7 +21,7 @@ function Section({ title, hint, open, onToggle, gaps, children }: {
 }) {
   return (
     <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, marginBottom: 10, background: 'var(--surface)', overflow: 'hidden' }}>
-      <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', cursor: 'pointer', background: open ? 'var(--c-f7f9f7)' : 'white' }}>
+      <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', cursor: 'pointer', background: open ? 'var(--c-f7f9f7)' : 'var(--surface)' }}>
         <span style={{ fontSize: 9, color: 'var(--c-9aa39d)', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{title}</span>
         {!!gaps && (
@@ -102,7 +102,7 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
               <span key={c} onClick={() => toggleCategory(c)} style={{
                 padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
                 border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.12)'),
-                background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : '#5c5666',
+                background: on ? 'var(--c-d2ead3)' : 'var(--surface)', color: on ? 'var(--forest)' : '#5c5666',
               }}>{c}</span>
             );
           })}

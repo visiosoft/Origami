@@ -77,7 +77,7 @@ function GroupMenu({ label, tabs, current, onPick }: {
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, cursor: 'pointer',
           fontSize: 14, whiteSpace: 'nowrap', userSelect: 'none',
-          background: active ? ACCENT : '#fff', color: active ? '#fff' : INK,
+          background: active ? ACCENT : 'var(--surface)', color: active ? '#fff' : INK,
           border: '1px solid ' + (active ? ACCENT : 'rgba(var(--rgb-shade), .12)'),
           boxShadow: active ? 'none' : '0 1px 2px rgba(var(--rgb-shade), .04)',
         }}

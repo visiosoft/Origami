@@ -223,7 +223,7 @@ function DetailDrawer({ a, employee, settings, canManage, canFinance, onOpenEmpl
           const done = a.approvals.find((x) => x.stage === st.key);
           const current = a.status === st.status;
           return (
-            <div key={st.key} style={{ ...card, padding: '10px 12px', borderColor: current ? ACCENT : LINE, background: done?.decision === 'approved' ? 'var(--c-f3f8f3)' : done?.decision === 'rejected' ? '#F7ECE6' : 'white' }}>
+            <div key={st.key} style={{ ...card, padding: '10px 12px', borderColor: current ? ACCENT : LINE, background: done?.decision === 'approved' ? 'var(--c-f3f8f3)' : done?.decision === 'rejected' ? '#F7ECE6' : 'var(--surface)' }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.06em' }}>{i + 1}. {st.label}</div>
               <div style={{ fontSize: 12.5, color: INK, marginTop: 4 }}>
                 {done ? <>{done.decision === 'approved' ? '✓' : '✕'} {done.byName}<div style={{ fontSize: 11, color: MUTED }}>{fmtDate(done.at)}{done.note ? ` — ${done.note}` : ''}</div></>

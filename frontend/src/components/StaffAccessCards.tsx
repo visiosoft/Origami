@@ -10,7 +10,7 @@ const card: React.CSSProperties = { background: 'var(--surface)', border: '1px s
 const title: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: INK };
 const label: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 };
 const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.13)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: INK, outline: 'none' };
-const chip = (on: boolean): React.CSSProperties => ({ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .14)'), background: on ? ACCENT : 'white', color: on ? 'white' : INK });
+const chip = (on: boolean): React.CSSProperties => ({ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .14)'), background: on ? ACCENT : 'var(--surface)', color: on ? 'white' : INK });
 const realEmail = (e?: string | null) => { const t = (e || '').trim(); return t && t !== '—' && t.includes('@') ? t : ''; };
 
 interface Emp { id: string; name: string; email?: string; userId?: string; designation?: string; jobTitle?: string }

@@ -251,7 +251,7 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
               {roles.filter((r) => r.tier === t).map((r) => {
                 const on = r.key === selectedKey;
                 return (
-                  <div key={r.key} onClick={() => select(r)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--ink)' : 'var(--body)', background: on ? 'var(--c-e7f0e8)' : 'white', border: '1px solid rgba(var(--rgb-shade), 0.06)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={r.key} onClick={() => select(r)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--ink)' : 'var(--body)', background: on ? 'var(--c-e7f0e8)' : 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{r.name}</span>
                     {r.isSystem && <span style={{ fontSize: 8.5, color: 'var(--muted)' }}>system</span>}
                   </div>

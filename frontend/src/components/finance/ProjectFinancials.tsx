@@ -324,7 +324,7 @@ function SovRow({ row, depth, data, expanded, onToggle, onChanged, onItem, onPro
   const num = (n: number) => <span style={{ textAlign: 'right', fontSize: 12.5 }}>{n ? usd0(n) : <span style={{ color: '#c8c3cf' }}>—</span>}</span>;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', background: row.kind === 'project' ? 'var(--c-f3f8f3)' : 'white', opacity: row.deleted ? 0.6 : 1 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', background: row.kind === 'project' ? 'var(--c-f3f8f3)' : 'var(--surface)', opacity: row.deleted ? 0.6 : 1 }}>
       <span style={{ display: 'flex', gap: 6, alignItems: 'center', paddingLeft: depth * 22, minWidth: 0 }}>
         {onToggle ? <span onClick={onToggle} style={{ cursor: 'pointer', color: MUTED, width: 12, fontSize: 11 }}>{expanded ? '▾' : '▸'}</span> : <span style={{ width: 12 }} />}
         <span onClick={() => onItem(row)} title="Details, deliverables and billing conditions" style={{ fontSize: 13, fontWeight: depth ? 500 : 650, color: INK, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

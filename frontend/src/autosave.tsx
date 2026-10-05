@@ -299,7 +299,7 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
         title={compact ? status : undefined}
         style={{
           padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
-          border: '1px solid ' + (canSave ? 'var(--forest)' : flash ? 'var(--success)' : 'rgba(var(--rgb-shade), .14)'), background: canSave ? 'var(--forest)' : flash ? 'var(--c-d2ead3)' : '#fff', color: canSave ? '#fff' : flash ? 'var(--c-1e6b36)' : 'var(--muted)',
+          border: '1px solid ' + (canSave ? 'var(--forest)' : flash ? 'var(--success)' : 'rgba(var(--rgb-shade), .14)'), background: canSave ? 'var(--forest)' : flash ? 'var(--c-d2ead3)' : 'var(--surface)', color: canSave ? '#fff' : flash ? 'var(--c-1e6b36)' : 'var(--muted)',
           cursor: canSave ? 'pointer' : 'default',
         }}
       >

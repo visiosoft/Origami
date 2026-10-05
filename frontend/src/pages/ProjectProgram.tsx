@@ -485,7 +485,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           {canManage && (
             <div
               onClick={saving ? undefined : save}
-              style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: dirty ? 'var(--forest)' : 'white', color: dirty ? 'white' : 'var(--muted)', border: '1px solid ' + (dirty ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}
+              style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: dirty ? 'var(--forest)' : 'var(--surface)', color: dirty ? 'white' : 'var(--muted)', border: '1px solid ' + (dirty ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}
             >
               {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
             </div>

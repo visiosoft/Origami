@@ -110,7 +110,7 @@ export function People() {
   const [profile, setProfile] = useState<PersonProfile>(() => normalizeProfile({}));
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? 'var(--forest)' : 'white', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.1)') }}>{label}</div>
+    <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.1)') }}>{label}</div>
   );
 
   // The person form saves itself: added to the directory once it has a name,
@@ -335,20 +335,20 @@ export function People() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
           {([['cards', 'Cards'], ['table', 'Table'], ['company', 'Address book']] as [typeof view, string][]).map((v) => (
-            <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'white' : 'transparent', color: view === v[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v[1]}</div>
+            <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'var(--seg-on)' : 'transparent', color: view === v[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v[1]}</div>
           ))}
         </div>
         {view === 'company' && (
           <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
             {([['company', 'Group by company'], ['project', 'Group by project']] as [typeof contactGroup, string][]).map((m) => (
-              <div key={m[0]} onClick={() => setContactGroup(m[0])} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: contactGroup === m[0] ? 'white' : 'transparent', color: contactGroup === m[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: contactGroup === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
+              <div key={m[0]} onClick={() => setContactGroup(m[0])} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: contactGroup === m[0] ? 'var(--seg-on)' : 'transparent', color: contactGroup === m[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: contactGroup === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
             ))}
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', width: '100%' }}>
           {KINDS.map((k) => chip(k, kf === k, () => setKf(k)))}
           <div style={{ marginLeft: 'auto', position: 'relative' }}>
-            <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'white' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
+            <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'var(--surface)' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
               <span>{pf}</span>
               <svg width={10} height={6} viewBox="0 0 10 6" fill="none" style={{ transform: projOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M1 1l4 4 4-4" stroke={pf === 'All projects' ? '#7E9B93' : 'white'} strokeWidth={1.6} strokeLinecap="round" /></svg>
             </div>
@@ -472,7 +472,7 @@ export function People() {
                 {lbl('Kind', 'sets the default access tier')}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {['Staff', 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'].map((o) => (
-                    <div key={o} onClick={() => setNp({ ...np, kind: o as Person['kind'], tier: tierFor[o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.kind === o ? 'var(--forest)' : 'white', color: np.kind === o ? 'white' : 'var(--muted)', border: '1px solid ' + (np.kind === o ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>
+                    <div key={o} onClick={() => setNp({ ...np, kind: o as Person['kind'], tier: tierFor[o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.kind === o ? 'var(--forest)' : 'var(--surface)', color: np.kind === o ? 'white' : 'var(--muted)', border: '1px solid ' + (np.kind === o ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>
                   ))}
                 </div>
               </div>
@@ -496,7 +496,7 @@ export function People() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {projectNames.map((o) => {
                     const active = np.projects.includes(o);
-                    return <div key={o} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--forest)' : 'white', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>;
+                    return <div key={o} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>;
                   })}
                 </div>
               </div>
@@ -504,7 +504,7 @@ export function People() {
                 {lbl('Access tier', 'what they can see in the platform')}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {['Internal', 'Client', 'Consultant'].map((o) => (
-                    <div key={o} onClick={() => setNp({ ...np, tier: o as Person['tier'] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.tier === o ? 'var(--forest)' : 'white', color: np.tier === o ? 'white' : 'var(--muted)', border: '1px solid ' + (np.tier === o ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>
+                    <div key={o} onClick={() => setNp({ ...np, tier: o as Person['tier'] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.tier === o ? 'var(--forest)' : 'var(--surface)', color: np.tier === o ? 'white' : 'var(--muted)', border: '1px solid ' + (np.tier === o ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o}</div>
                   ))}
                 </div>
               </div>

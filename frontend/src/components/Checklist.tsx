@@ -47,7 +47,7 @@ export function Checklist({
               style={{
                 width: 15, height: 15, borderRadius: 5, flexShrink: 0, display: 'grid', placeItems: 'center',
                 cursor: canManage ? 'pointer' : 'default',
-                background: ci.done ? 'var(--success)' : 'white',
+                background: ci.done ? 'var(--success)' : 'var(--surface)',
                 border: '1px solid ' + (ci.done ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.2)'),
               }}
             >

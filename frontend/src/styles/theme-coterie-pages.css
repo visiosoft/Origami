@@ -1,0 +1,139 @@
+/*
+ * The "New" theme across every page. Most screens style themselves inline, so
+ * these rules recognise the shared building blocks by their inline style
+ * (cards, small caps labels, buttons, segmented tabs, inputs, overlays, big
+ * numbers) and give them the minimalist cream look. Scoped to
+ * <html data-theme="coterie">; the Classic theme never sees any of this.
+ */
+
+/* ---------- Cards: soft lift, generous rounding ---------- */
+:root[data-theme="coterie"] .content [style*="border-radius: var(--r-14)"][style*="background: var(--surface)"],
+:root[data-theme="coterie"] .content [style*="border-radius: var(--r-12)"][style*="background: var(--surface)"] {
+  box-shadow: var(--shadow-card);
+  border-color: var(--border) !important;
+}
+
+/* ---------- Labels: sentence case, calm weight, readable size ---------- */
+:root[data-theme="coterie"] [style*="text-transform: uppercase"] {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 500 !important;
+}
+:root[data-theme="coterie"] [style*="text-transform: uppercase"][style*="font-size: 8"],
+:root[data-theme="coterie"] [style*="text-transform: uppercase"][style*="font-size: 9"],
+:root[data-theme="coterie"] [style*="text-transform: uppercase"][style*="font-size: 10px"] {
+  font-size: 11.5px !important;
+}
+:root[data-theme="coterie"] [style*="text-transform: uppercase"][style*="font-size: 10.5px"],
+:root[data-theme="coterie"] [style*="text-transform: uppercase"][style*="font-size: 11px"] {
+  font-size: 12.5px !important;
+}
+:root[data-theme="coterie"] th {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 500 !important;
+  color: var(--muted);
+}
+
+/* ---------- Headings and numbers: light and large ---------- */
+:root[data-theme="coterie"] [style*="font-family: var(--font-display)"] { font-weight: 500; }
+:root[data-theme="coterie"] [style*="font-family: var(--font-display)"][style*="font-size: 2"],
+:root[data-theme="coterie"] [style*="font-family: var(--font-display)"][style*="font-size: 3"],
+:root[data-theme="coterie"] [style*="font-family: var(--font-display)"][style*="font-size: 4"] {
+  font-weight: 400 !important;
+  letter-spacing: -0.035em !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Buttons: pills, medium weight ---------- */
+:root[data-theme="coterie"] button[style*="border-radius: 5px"],
+:root[data-theme="coterie"] button[style*="border-radius: 6px"],
+:root[data-theme="coterie"] button[style*="border-radius: 7px"],
+:root[data-theme="coterie"] button[style*="border-radius: 8px"],
+:root[data-theme="coterie"] button[style*="border-radius: 9px"],
+:root[data-theme="coterie"] button[style*="border-radius: 10px"],
+:root[data-theme="coterie"] button[style*="border-radius: var(--r-12)"] {
+  border-radius: 999px !important;
+}
+:root[data-theme="coterie"] button[style*="font-weight: 700"],
+:root[data-theme="coterie"] button[style*="font-weight: 800"] {
+  font-weight: 600 !important;
+}
+:root[data-theme="coterie"] button[style*="background: var(--forest)"]:not(:disabled):hover,
+:root[data-theme="coterie"] button[style*="background: var(--ink)"]:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -14px rgba(29, 29, 27, 0.7);
+}
+
+/* ---------- Segmented tabs: the chosen one is a black pill ---------- */
+:root[data-theme="coterie"] [style*="background: var(--seg-on)"] {
+  color: #FDFCF9 !important;
+  box-shadow: 0 6px 14px -8px rgba(29, 29, 27, 0.6) !important;
+}
+:root[data-theme="coterie"] [style*="background: var(--seg-on)"] * { color: inherit !important; }
+
+/* ---------- Inputs ---------- */
+:root[data-theme="coterie"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+:root[data-theme="coterie"] select {
+  border-radius: 14px !important;
+  background-color: var(--surface);
+  border-color: rgba(29, 29, 27, 0.1);
+}
+:root[data-theme="coterie"] textarea { border-radius: 16px !important; background-color: var(--surface); }
+:root[data-theme="coterie"] select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B877F' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 32px !important;
+}
+:root[data-theme="coterie"] input[type="checkbox"],
+:root[data-theme="coterie"] input[type="radio"] { accent-color: var(--ink); }
+:root[data-theme="coterie"] input::placeholder,
+:root[data-theme="coterie"] textarea::placeholder { color: #A29E96; }
+
+/* ---------- Overlays, drawers and dialogs ---------- */
+:root[data-theme="coterie"] [style*="position: fixed"][style*="inset: 0px"][style*="background: rgba"] {
+  backdrop-filter: blur(6px) saturate(1.1);
+  -webkit-backdrop-filter: blur(6px) saturate(1.1);
+}
+:root[data-theme="coterie"] [style*="position: fixed"][style*="inset: 0px"][style*="justify-content: flex-end"] > [style*="height: 100%"] {
+  border-radius: 28px 0 0 28px;
+  animation: drawerIn 0.45s var(--ease-out) both !important;
+}
+:root[data-theme="coterie"] [style*="position: fixed"][style*="inset: 0px"][style*="justify-content: center"] > [style*="background: var(--surface)"] {
+  border-radius: 28px !important;
+  animation: popIn 0.35s var(--ease-out) both !important;
+}
+@keyframes drawerIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ---------- Tables: quiet rows ---------- */
+:root[data-theme="coterie"] .content table tbody tr { transition: background-color 0.2s ease; }
+:root[data-theme="coterie"] .content table tbody tr:hover { background-color: rgba(245, 196, 67, 0.08); }
+
+/* ---------- Progress fills ease to their width ---------- */
+:root[data-theme="coterie"] [style*="transition: width"] { transition: width 0.9s var(--ease-out) !important; }
+
+/* ---------- Page wrappers: let the canvas and its glow show through ---------- */
+:root[data-theme="coterie"] .content-inner > [style*="background: var(--panel)"][style*="min-height: 100%"] {
+  background: transparent !important;
+  padding: 4px 0 24px !important;
+}
+
+/* ---------- Clickable chips drawn as boxes: pills too ---------- */
+:root[data-theme="coterie"] [style*="cursor: pointer"][style*="display: inline-flex"][style*="border-radius: 6px"],
+:root[data-theme="coterie"] [style*="cursor: pointer"][style*="display: inline-flex"][style*="border-radius: 7px"],
+:root[data-theme="coterie"] [style*="cursor: pointer"][style*="display: inline-flex"][style*="border-radius: 8px"],
+:root[data-theme="coterie"] [style*="cursor: pointer"][style*="display: inline-flex"][style*="border-radius: 9px"],
+:root[data-theme="coterie"] [style*="cursor: pointer"][style*="display: inline-flex"][style*="border-radius: 10px"] {
+  border-radius: 999px !important;
+}
+
+/* ---------- Project tiles: calmer header colours ---------- */
+:root[data-theme="coterie"] .content [style*="linear-gradient(135deg"] {
+  filter: saturate(0.55) brightness(1.08);
+}

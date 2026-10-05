@@ -287,7 +287,7 @@ export function DesignProject() {
       style={{
         height: 34, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 999,
         border: primary ? 'none' : '1px solid rgba(var(--rgb-shade), .14)',
-        background: primary ? ACCENT : '#fff', color: primary ? '#fff' : '#4A4357',
+        background: primary ? ACCENT : 'var(--surface)', color: primary ? '#fff' : '#4A4357',
         fontSize: 13, fontWeight: 600, cursor: 'pointer',
       }}
     >{text}</div>
@@ -387,7 +387,7 @@ export function DesignProject() {
                   onClick={() => setView(key)}
                   style={{
                     padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                    background: view === key ? ACCENT : '#fff', color: view === key ? '#fff' : '#4A4357',
+                    background: view === key ? ACCENT : 'var(--surface)', color: view === key ? '#fff' : '#4A4357',
                     border: '1px solid ' + (view === key ? ACCENT : 'rgba(var(--rgb-shade), .14)'),
                   }}
                 >{label}</div>

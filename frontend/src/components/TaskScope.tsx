@@ -148,7 +148,7 @@ export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCou
       onClick={() => setScope(value)}
       style={{
         padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-        background: scope === value ? 'white' : 'transparent',
+        background: scope === value ? 'var(--seg-on)' : 'transparent',
         color: scope === value ? 'var(--ink)' : 'var(--muted)',
         boxShadow: scope === value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
         whiteSpace: 'nowrap',

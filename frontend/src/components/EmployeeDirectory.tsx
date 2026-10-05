@@ -33,7 +33,7 @@ const input: React.CSSProperties = {
 const btn = (primary = false): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 999,
   fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  background: primary ? ACCENT : '#fff', color: primary ? '#fff' : ACCENT,
+  background: primary ? ACCENT : 'var(--surface)', color: primary ? '#fff' : ACCENT,
   border: '1px solid ' + (primary ? ACCENT : 'rgba(var(--rgb-shade), .14)'),
 });
 

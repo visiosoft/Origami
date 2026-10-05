@@ -109,7 +109,7 @@ export function FinanceReports({ rights, onProject }: { rights: Rights; onProjec
     <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 18, alignItems: 'start' }}>
       <div style={{ ...card, overflow: 'hidden' }}>
         {available.map(([k, l, d]) => (
-          <div key={k} onClick={() => setKey(k)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', background: key === k ? 'var(--c-e7f0e8)' : 'white' }}>
+          <div key={k} onClick={() => setKey(k)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', background: key === k ? 'var(--c-e7f0e8)' : 'var(--surface)' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: key === k ? ACCENT : INK }}>{l}</div>
             <div style={{ fontSize: 11.5, color: MUTED }}>{d}</div>
           </div>

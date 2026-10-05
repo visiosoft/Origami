@@ -320,7 +320,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             display: 'flex', alignItems: 'center', gap: 9,
             padding: depth ? '8px 14px 8px 46px' : '10px 14px',
             borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer',
-            background: depth ? '#FCFBF9' : 'white',
+            background: depth ? '#FCFBF9' : 'var(--surface)',
           }}
         >
           <span
@@ -632,7 +632,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
           {(['board', 'list', 'timeline', 'dashboard'] as const).map((v) => (
-            <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
+            <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
           ))}
         </div>
         <TaskScopeToggle

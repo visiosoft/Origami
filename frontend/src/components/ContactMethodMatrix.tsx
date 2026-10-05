@@ -65,7 +65,7 @@ export function ContactMethodMatrix({ value, onChange, disabled }: Props) {
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                       width: 17, height: 17, borderRadius: 4, cursor: disabled ? 'default' : 'pointer',
                       border: '1.5px solid ' + (on ? (pref === 'No' ? '#8E2E0A' : 'var(--success)') : 'rgba(var(--rgb-shade), 0.22)'),
-                      background: on ? (pref === 'No' ? '#8E2E0A' : 'var(--success)') : 'white',
+                      background: on ? (pref === 'No' ? '#8E2E0A' : 'var(--success)') : 'var(--surface)',
                       color: 'white', fontSize: 11, fontWeight: 900, lineHeight: 1,
                     }}
                   >

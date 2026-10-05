@@ -92,7 +92,7 @@ export function AccommodationModule({ employees, canManage, onOpenEmployee }: { 
                   <span key={b.id} onClick={() => (a ? onOpenEmployee(a.employeeId) : canManage && b.active ? setAllocating(b) : undefined)}
                     title={a ? `Since ${fmtDate(a.checkIn)}` : r ? `Reserved for ${empName(r.employeeId)} from ${fmtDate(r.checkIn)}` : b.active ? 'Free — click to allocate' : 'Out of use'}
                     style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 9px', borderRadius: 8, fontSize: 11.5, cursor: 'pointer',
-                      background: a ? ACCENT_BG : b.active ? 'white' : 'var(--c-efede8)', border: '1px ' + (a ? 'solid ' + ACCENT_BG : 'dashed rgba(var(--rgb-shade), .2)'), color: a ? ACCENT : MUTED }}>
+                      background: a ? ACCENT_BG : b.active ? 'var(--surface)' : 'var(--c-efede8)', border: '1px ' + (a ? 'solid ' + ACCENT_BG : 'dashed rgba(var(--rgb-shade), .2)'), color: a ? ACCENT : MUTED }}>
                     <b>{b.name}</b>{a ? ` · ${empName(a.employeeId)}` : r ? ` · reserved` : b.active ? ' · free' : ''}
                     {a && canManage && <span onClick={(e) => { e.stopPropagation(); checkout(a); }} title="Check out" style={{ color: DANGER, fontWeight: 700 }}>⏏</span>}
                   </span>

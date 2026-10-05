@@ -342,7 +342,7 @@ export function Dashboard() {
             right={
               <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999, flexShrink: 0 }}>
                 {execTypes.map((t) => (
-                  <div key={t[0]} onClick={() => setExecFilter(t[0])} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: ef === t[0] ? 'white' : 'transparent', color: ef === t[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: ef === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
+                  <div key={t[0]} onClick={() => setExecFilter(t[0])} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: ef === t[0] ? 'var(--seg-on)' : 'transparent', color: ef === t[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: ef === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
                 ))}
               </div>
             }

@@ -222,7 +222,7 @@ export function ProgrammeTemplate() {
           <div
             key={c}
             onClick={() => switchCategory(c)}
-            style={{ padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: categoryTab === c ? 'white' : 'transparent', color: categoryTab === c ? 'var(--ink)' : 'var(--muted)', boxShadow: categoryTab === c ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
+            style={{ padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: categoryTab === c ? 'var(--seg-on)' : 'transparent', color: categoryTab === c ? 'var(--ink)' : 'var(--muted)', boxShadow: categoryTab === c ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
           >{c === 'design' ? 'Design' : 'Construction'}</div>
         ))}
       </div>
@@ -235,7 +235,7 @@ export function ProgrammeTemplate() {
           <div
             key={t.key}
             onClick={() => switchTo(t.key)}
-            style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: t.key === activeKey ? 'var(--forest)' : 'white', color: t.key === activeKey ? 'white' : 'var(--muted)', border: '1px solid ' + (t.key === activeKey ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.08)') }}
+            style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: t.key === activeKey ? 'var(--forest)' : 'var(--surface)', color: t.key === activeKey ? 'white' : 'var(--muted)', border: '1px solid ' + (t.key === activeKey ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.08)') }}
           >{t.name}</div>
         ))}
         <div onClick={() => newTemplate(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--forest)', whiteSpace: 'nowrap' }}>+ New template</div>
@@ -298,7 +298,7 @@ export function ProgrammeTemplate() {
           const open = openPhase === phase.key;
           return (
             <div key={phase.key} style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 11, background: 'var(--surface)', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', borderTop: `3px solid ${phase.color}`, background: open ? 'var(--c-f7f9f7)' : 'white' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', borderTop: `3px solid ${phase.color}`, background: open ? 'var(--c-f7f9f7)' : 'var(--surface)' }}>
                 <span onClick={() => setOpenPhase(open ? null : phase.key)} style={{ fontSize: 9, color: 'var(--c-9aa39d)', cursor: 'pointer', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
                 <input
                   value={phase.name}
@@ -365,7 +365,7 @@ export function ProgrammeTemplate() {
                             <span
                               key={p.key}
                               onClick={() => patchPhase(phase.key, { dependsOn: on ? (phase.dependsOn || []).filter((k) => k !== p.key) : [...(phase.dependsOn || []), p.key] })}
-                              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--body)', fontWeight: on ? 700 : 400 }}
+                              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'var(--surface)', color: on ? 'var(--forest)' : 'var(--body)', fontWeight: on ? 700 : 400 }}
                             >{p.name}</span>
                           );
                         })}
@@ -437,7 +437,7 @@ export function ProgrammeTemplate() {
                                 <span
                                   key={t.id}
                                   onClick={() => patchTask(phase.key, task.id, { dependsOn: on ? (task.dependsOn || []).filter((x) => x !== t.id) : [...(task.dependsOn || []), t.id] })}
-                                  style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--body)', fontWeight: on ? 700 : 400 }}
+                                  style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'var(--surface)', color: on ? 'var(--forest)' : 'var(--body)', fontWeight: on ? 700 : 400 }}
                                 >{t.title}</span>
                               );
                             })}

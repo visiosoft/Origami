@@ -382,7 +382,7 @@ export function FileRoom() {
   );
 
   const pill = (label: string, on: boolean, onClick: () => void) => (
-    <div onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: on ? 'var(--forest)' : 'white', color: on ? 'white' : 'var(--body)', border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{label}</div>
+    <div onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: on ? 'var(--forest)' : 'var(--surface)', color: on ? 'white' : 'var(--body)', border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{label}</div>
   );
 
   return (
@@ -419,7 +419,7 @@ export function FileRoom() {
             <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
               {(['grid', 'list'] as const).map((v) => (
                 <div key={v} onClick={() => setView(v)}
-                     style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'white' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
+                     style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
               ))}
             </div>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
