@@ -44,7 +44,7 @@ export function MyProjectProgram() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [projectId]);
 
   const submit = () => {

@@ -1,10 +1,11 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { releaseSeen } from '../data/releaseNotes';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
 import { ThemeToggle } from './ThemeToggle';
+import { GlobalSearch } from './GlobalSearch';
 import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
@@ -44,6 +45,10 @@ export function AppShell() {
   const visibleGroups = NAV_GROUPS
     .map((g) => ({ ...g, items: g.items.filter((it) => (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
     .filter((g) => g.items.length > 0);
+
+  const searchPages = useMemo(() => visibleGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, route: it.route, icon: it.icon }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(visibleGroups.map((g) => g.items.map((it) => it.route)))]);
 
   const activeItem = (() => {
     for (const group of NAV_GROUPS) {
@@ -157,11 +162,7 @@ export function AppShell() {
 
           <AutosaveIndicator />
 
-          <div className="search-box">
-            <Icon name="search" size={16} stroke="var(--muted)" strokeWidth={2} />
-            <span className="search-placeholder">Search...</span>
-            <span className="search-kbd">⌘K</span>
-          </div>
+          <GlobalSearch pages={searchPages} />
 
           <ThemeToggle />
           <Notifications />

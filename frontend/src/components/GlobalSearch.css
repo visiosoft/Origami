@@ -1,0 +1,133 @@
+/* Global search (⌘K). Colours come from the theme variables, so it follows
+   whichever look is on. */
+button.search-box { font: inherit; color: inherit; text-align: left; }
+
+.gsearch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(var(--rgb-shade), 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 16px;
+  animation: fadeIn 0.15s ease;
+}
+
+.gsearch {
+  width: 100%;
+  max-width: 620px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-14);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  animation: scaleIn 0.18s var(--ease-out);
+}
+
+.gsearch-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.gsearch-input {
+  flex: 1;
+  min-width: 0;
+  border: none !important;
+  outline: none;
+  background: transparent !important;
+  font-size: 16px;
+  color: var(--ink);
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.gsearch-esc {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.gsearch-spin {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--ink);
+  animation: origami-spin 0.7s linear infinite;
+}
+
+.gsearch-list { overflow-y: auto; padding: 6px; }
+.gsearch-group {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 10px 10px 4px;
+}
+.gsearch-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.gsearch-item.is-active { background: var(--mist); }
+:root[data-theme="coterie"] .gsearch-item.is-active { background: var(--yellow-soft); }
+.gsearch-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--body);
+}
+.gsearch-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.gsearch-title { font-size: 13.5px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gsearch-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gsearch-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--body);
+  background: var(--mist);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.gsearch-empty { padding: 26px 12px; text-align: center; font-size: 13px; color: var(--muted); }
+
+.gsearch-foot {
+  display: flex;
+  gap: 16px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+.gsearch-foot kbd {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  padding: 0 5px;
+  margin-right: 3px;
+}
+
+@media (max-width: 640px) {
+  .search-box .search-placeholder, .search-box .search-kbd { display: none; }
+  .search-box { flex: 0 0 auto !important; min-width: 0 !important; }
+  .gsearch-overlay { padding-top: 8vh; }
+  .gsearch-foot { display: none; }
+}

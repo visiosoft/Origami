@@ -128,7 +128,7 @@ export function MyCalendar() {
       .catch(() => { });
   };
 
-  useEffect(() => { if (connected && currentUser) reloadTasks(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [connected, currentUser]);
+  useEffect(() => { if (connected && currentUser) reloadTasks(); }, [connected, currentUser]);
 
   useEffect(() => {
     if (!connected) { setLoading(false); return; }

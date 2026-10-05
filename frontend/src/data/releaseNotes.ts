@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06',
+    date: '2026-10-06',
+    title: 'Search everything from the top bar',
+    items: [
+      { area: 'Everywhere', kind: 'new', text: 'The search box in the top bar now works. Click it or press Ctrl+K (⌘K on a Mac), type a few letters, and jump straight to a project, lead, person, employee, task or page. It only shows what your role can open. Use ↑ ↓ and Enter to pick, Esc to close.', where: 'Top bar → Search' },
+      { area: 'CRM', kind: 'fixed', text: 'Picking “Other” in a lead’s drop-downs (pronouns, lead source and the rest) is recognised again, so the box to say what the other thing is appears.', where: 'CRM & Leads → lead details' },
+    ],
+  },
+  {
     id: '2026-10-05',
     date: '2026-10-05',
     title: 'A new look, and the classic one is a click away',

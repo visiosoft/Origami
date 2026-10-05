@@ -89,7 +89,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       .catch(() => { })
       .finally(() => setLoading(false));
   };
-  useEffect(() => { setLoading(true); loadedProject.current = projectId; load(); /* eslint-disable-next-line */ }, [projectId]);
+  useEffect(() => { setLoading(true); loadedProject.current = projectId; load(); }, [projectId]);
   // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 

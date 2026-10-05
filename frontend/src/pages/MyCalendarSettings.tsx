@@ -45,7 +45,7 @@ export function MyCalendarSettings() {
       next.delete('connected'); next.delete('error');
       setParams(next, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [params, setParams, toast]);
 
   const disconnect = () => {

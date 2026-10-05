@@ -4,7 +4,7 @@ import { SubContractorSummary } from '../components/Contractors';
 import { LoginCard } from '../components/StaffAccessCards';
 import { EmailLink, PhoneLink } from '../components/ContactLinks';
 import { SaveBar, useAutosave } from '../autosave';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { PersonProfileEditor } from '../components/PersonProfileEditor';
@@ -78,6 +78,14 @@ export function People() {
   const [contactGroup, setContactGroup] = useState<'company' | 'project'>('company');
   const [projOpen, setProjOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // /people?open=<personId> (global search) opens that record once it has loaded.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = Number(searchParams.get('open'));
+    if (!id || !people.some((x) => x.id === id)) return;
+    setSelectedId(id);
+    setSearchParams((p) => { p.delete('open'); return p; }, { replace: true });
+  }, [searchParams, people, setSearchParams]);
   const [showNew, setShowNew] = useState(false);
   const [importing, setImporting] = useState(false);
   const [np, setNp] = useState<NewPerson>(BLANK);

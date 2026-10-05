@@ -210,6 +210,7 @@ export function ScoringTemplateEditor() {
 
 /** Mirrors segmentsFor in backend/src/sms/sms.service.ts. */
 function smsSegments(body: string) {
+  // eslint-disable-next-line no-control-regex -- "anything outside ASCII" is the point
   const unicode = /[^\x00-\x7F]/.test(body);
   const single = unicode ? 70 : 160;
   const multi = unicode ? 67 : 153;

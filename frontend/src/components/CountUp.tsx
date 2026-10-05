@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 export function CountUp({ value, duration = 900 }: { value: string | number; duration?: number }) {
   const text = String(value ?? '');
   const m = text.match(/-?\d[\d,]*(\.\d+)?/);
-  const [shown, setShown] = useState(m && document.documentElement.dataset.theme !== 'classic' ? text.replace(m[0], format(0, m[0])) : text);
+  const [shown, setShown] = useState(m && document.documentElement.dataset.theme !== 'classic' ? text.replace(m[0], formatLike(0, m[0])) : text);
   const raf = useRef(0);
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export function CountUp({ value, duration = 900 }: { value: string | number; dur
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 4);
-      setShown(t >= 1 ? text : text.replace(m[0], format(target * eased, m[0])));
+      setShown(t >= 1 ? text : text.replace(m[0], formatLike(target * eased, m[0])));
       if (t < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
@@ -28,7 +28,8 @@ export function CountUp({ value, duration = 900 }: { value: string | number; dur
   return <>{shown}</>;
 }
 
-function format(n: number, like: string) {
+/** n written the way `like` is (same decimals, thousands commas if it has them). */
+export function formatLike(n: number, like: string) {
   const decimals = (like.split('.')[1] || '').length;
   const s = n.toFixed(decimals);
   if (!like.includes(',')) return s;

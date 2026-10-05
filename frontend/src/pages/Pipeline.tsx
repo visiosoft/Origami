@@ -5,7 +5,7 @@ import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
 import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
@@ -408,6 +408,14 @@ export function Pipeline() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [deals, setDeals] = useState<Deal[]>([]);
+  // /pipeline?open=<dealId> (global search) opens that deal once it has loaded.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get('open');
+    if (!id || !deals.some((d) => d.id === id)) return;
+    setSelectedId(id);
+    setSearchParams((p) => { p.delete('open'); return p; }, { replace: true });
+  }, [searchParams, deals, setSearchParams]);
   const [showNew, setShowNew] = useState(false);
   const [nl, setNl] = useState<NewLead>({ ...BLANK_LEAD });
   // A pure UI filter over the city/county lists -- narrows the dropdown, does
@@ -894,7 +902,7 @@ export function Pipeline() {
       setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda, meetingEventId: res?.id } as NewLead }));
       saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }, `${label} scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
       toast(existingEventId ? 'Calendar event updated' : `${label} created on your calendar`);
-    } catch (e: any) {
+    } catch {
       openMeetPopup(deal, start, video);
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
       setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}`, stageName, date: fmtWhen() }] }));

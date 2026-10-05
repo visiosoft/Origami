@@ -69,7 +69,7 @@ function SubmitTicket({ canManage, currentUserName, currentUserEmail, toast }: {
   const [sending, setSending] = useState(false);
 
   const reload = () => { if (canManage) api.tickets.list().then((r) => { if (Array.isArray(r)) setTickets(r as Ticket[]); }).catch(() => { }); };
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [canManage]);
+  useEffect(() => { reload(); }, [canManage]);
 
   const submit = () => {
     if (form.subject.trim().length < 3 || form.message.trim().length < 5) { toast('Add a subject and a short description'); return; }

@@ -44,7 +44,7 @@ export function WorkflowsView({ projectId }: { projectId?: number }) {
   const [applyId, setApplyId] = useState('');
 
   const reload = () => { api.workflows.list(projectId).then((r) => { if (Array.isArray(r)) setWorkflows(r as Workflow[]); }).catch(() => { }); };
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [projectId]);
+  useEffect(() => { reload(); }, [projectId]);
   useEffect(() => {
     if (scoped) api.workflows.list('none').then((r) => { if (Array.isArray(r)) setTemplates(r as Workflow[]); }).catch(() => { });
     else api.projects.list().then((r: any) => { if (Array.isArray(r)) setProjects(r.map((p: any) => ({ id: p.id, name: p.name }))); }).catch(() => { });

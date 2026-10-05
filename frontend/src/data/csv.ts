@@ -3,7 +3,7 @@
  * and line breaks inside quotes, CRLF or LF, and a leading byte-order mark.
  */
 export function parseCsv(text: string): string[][] {
-  const s = text.replace(/^﻿/, '');
+  const s = text.replace(/^\uFEFF/, '');
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = '';
