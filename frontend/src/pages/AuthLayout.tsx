@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Logo } from '../components/Logo';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 const AUTH_POINTS = [
   'Lead to invoice tracked on one timeline',
@@ -11,12 +11,12 @@ const AUTH_POINTS = [
 
 export const authInput: CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 10,
-  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontFamily: 'inherit',
-  fontSize: 13.5, color: '#1D1D1B', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 13.5, color: 'var(--ink)', outline: 'none',
 };
 
 export const label: CSSProperties = {
-  fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F',
+  fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)',
 };
 
 /** The split brand/form frame shared by the log-in and set-password screens. */
@@ -27,9 +27,9 @@ export function AuthLayout({ showBrand, title, subtitle, children }: {
   children: ReactNode;
 }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', background: '#FAF8F3', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", overflow: 'hidden' }}>
-      <div style={{ width: '42%', minWidth: 340, background: '#232321', display: showBrand ? 'flex' : 'none', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 44px', flexShrink: 0 }}>
-        <div style={{ background: '#FAF8F3', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '14px 18px', display: 'inline-flex', width: 'fit-content' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', background: 'var(--panel)', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", overflow: 'hidden' }}>
+      <div style={{ width: '42%', minWidth: 340, background: 'var(--sidebar)', display: showBrand ? 'flex' : 'none', flexDirection: 'column', justifyContent: 'space-between', padding: '40px 44px', flexShrink: 0 }}>
+        <div style={{ background: 'var(--panel)', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '14px 18px', display: 'inline-flex', width: 'fit-content' }}>
           <Logo markSize={30} />
         </div>
 
@@ -52,8 +52,8 @@ export function AuthLayout({ showBrand, title, subtitle, children }: {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 32px', overflowY: 'auto' }}>
         <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 22, animation: 'fadeIn 0.3s ease' }}>
           <div>
-            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', color: '#1D1D1B' }}>{title}</div>
-            <div style={{ fontSize: 13, color: '#8B877F', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div>
+            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', color: 'var(--ink)' }}>{title}</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 5, lineHeight: 1.5 }}>{subtitle}</div>
           </div>
           {children}
         </div>

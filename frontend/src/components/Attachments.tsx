@@ -17,7 +17,7 @@ function Spinner({ size = 16 }: { size?: number }) {
     <span
       style={{
         width: size, height: size, borderRadius: 999, flexShrink: 0,
-        border: '2px solid rgba(76, 122, 63,0.25)', borderTopColor: '#4C7A3F',
+        border: '2px solid rgba(var(--rgb-success), 0.25)', borderTopColor: 'var(--success)',
         display: 'inline-block', animation: 'origami-spin 0.7s linear infinite',
       }}
     />
@@ -127,19 +127,19 @@ export function Attachments(props: AttachmentsProps) {
       }}
       style={{
         borderRadius: 10,
-        border: dragging ? '2px dashed #4C7A3F' : '2px dashed transparent',
-        background: dragging ? '#F2EFE8' : 'transparent',
+        border: dragging ? '2px dashed var(--success)' : '2px dashed transparent',
+        background: dragging ? 'var(--mist)' : 'transparent',
         padding: dragging ? 8 : 0,
         transition: 'background 0.15s',
         position: 'relative',
       }}
     >
       {pending.length > 0 && (
-        <div style={{ position: 'absolute', inset: -4, borderRadius: 18, background: 'rgba(251,248,242,0.35)', zIndex: 1, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: -4, borderRadius: 'var(--r-12)', background: 'rgba(251,248,242,0.35)', zIndex: 1, pointerEvents: 'none' }} />
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F' }}>
-          {props.title ?? 'Attachments'} {attachments.length > 0 && <span style={{ color: '#8B877F' }}>{attachments.length}</span>}
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>
+          {props.title ?? 'Attachments'} {attachments.length > 0 && <span style={{ color: 'var(--muted)' }}>{attachments.length}</span>}
         </span>
       </div>
 
@@ -160,7 +160,7 @@ export function Attachments(props: AttachmentsProps) {
                   title={`${att.name}${att.size ? ` · ${prettySize(att.size)}` : ''}`}
                   style={{
                     height: 76, borderRadius: 9, overflow: 'hidden', cursor: 'pointer',
-                    border: '1px solid rgba(29, 29, 27,0.1)', background: '#FAF8F3',
+                    border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--panel)',
                     display: 'grid', placeItems: 'center', padding: isImage(att) ? 0 : 6,
                   }}
                 >
@@ -176,11 +176,11 @@ export function Attachments(props: AttachmentsProps) {
                   ) : (
                     <div style={{ textAlign: 'center', lineHeight: 1.3 }}>
                       <div style={{ fontSize: 18 }}>{att.kind === 'link' ? '🔗' : '📄'}</div>
-                      <div style={{ fontSize: 9.5, color: '#65615A', wordBreak: 'break-word', maxHeight: 26, overflow: 'hidden' }}>{att.name}</div>
+                      <div style={{ fontSize: 9.5, color: 'var(--c-5c6b65)', wordBreak: 'break-word', maxHeight: 26, overflow: 'hidden' }}>{att.name}</div>
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: '#8B877F', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {att.name}
                 </div>
                 {canManage && (
@@ -200,10 +200,10 @@ export function Attachments(props: AttachmentsProps) {
             );
           })}
           {pending.map((name) => (
-            <div key={name} title={name} style={{ height: 76, borderRadius: 9, border: '1px dashed #4C7A3F', background: '#F2EFE8', display: 'grid', placeItems: 'center' }}>
+            <div key={name} title={name} style={{ height: 76, borderRadius: 9, border: '1px dashed var(--success)', background: 'var(--mist)', display: 'grid', placeItems: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: 4 }}>
                 <Spinner />
-                <div style={{ fontSize: 9.5, color: '#4C7A3F', fontWeight: 700 }}>Uploading…</div>
+                <div style={{ fontSize: 9.5, color: 'var(--success)', fontWeight: 700 }}>Uploading…</div>
               </div>
             </div>
           ))}
@@ -216,7 +216,7 @@ export function Attachments(props: AttachmentsProps) {
             style={{
               padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700,
               cursor: pending.length ? 'progress' : 'pointer', opacity: pending.length ? 0.75 : 1,
-              background: '#F2EFE8', color: '#232321', display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--mist)', color: 'var(--forest)', display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
             <input
@@ -231,11 +231,11 @@ export function Attachments(props: AttachmentsProps) {
           </label>
           <div
             onClick={() => setLinkOpen((v) => !v)}
-            style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#4A4741' }}
+            style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--body)' }}
           >
             {linkOpen ? 'Cancel' : 'Add link'}
           </div>
-          <span style={{ fontSize: 11, color: '#A29E96' }}>{props.paste === false ? 'or drop files here' : 'or paste a screenshot / drop files here'}</span>
+          <span style={{ fontSize: 11, color: 'var(--c-9aa39d)' }}>{props.paste === false ? 'or drop files here' : 'or paste a screenshot / drop files here'}</span>
         </div>
       )}
 
@@ -245,13 +245,13 @@ export function Attachments(props: AttachmentsProps) {
             value={linkName}
             onChange={(e) => setLinkName(e.target.value)}
             placeholder="Label"
-            style={{ flex: '0 0 130px', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+            style={{ flex: '0 0 130px', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
           />
           <input
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
             placeholder="https://…"
-            style={{ flex: 1, minWidth: 160, padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+            style={{ flex: 1, minWidth: 160, padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
           />
           <div
             onClick={async () => {
@@ -259,7 +259,7 @@ export function Attachments(props: AttachmentsProps) {
               await props.onAddLink(linkName || linkUrl, linkUrl);
               setLinkName(''); setLinkUrl(''); setLinkOpen(false); setError('');
             }}
-            style={{ padding: '7px 14px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+            style={{ padding: '7px 14px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
           >
             Add
           </div>
@@ -267,7 +267,7 @@ export function Attachments(props: AttachmentsProps) {
       )}
 
       {!storageReady && canManage && (
-        <div style={{ fontSize: 11, color: '#7A5A0C', background: '#FBE7A8', borderRadius: 8, padding: '7px 10px', marginTop: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: 'var(--c-8a6d12)', background: 'var(--amber-light)', borderRadius: 8, padding: '7px 10px', marginTop: 8, lineHeight: 1.5 }}>
           File uploads need a connected Google account — Settings → Integrations → Google Workspace. Links work either way.
         </div>
       )}
@@ -315,7 +315,7 @@ function Lightbox({ items, current, scope, taskId, onClose, onNavigate }: {
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(29, 29, 27,0.86)', display: 'grid', placeItems: 'center', padding: 32, animation: 'fadeIn 0.15s ease' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(var(--rgb-ink), 0.86)', display: 'grid', placeItems: 'center', padding: 32, animation: 'fadeIn 0.15s ease' }}
     >
       <img
         src={attachmentUrl(scope, taskId, current.id)}

@@ -304,13 +304,13 @@ export function AssignDrawer(props: Ctx & {
         {shown.map((e) => {
           const on = regularOf.get(e.id);
           return (
-            <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', background: picked.has(e.id) ? '#F6F3EC' : 'transparent' }}>
+            <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', background: picked.has(e.id) ? 'var(--c-f3f8f3)' : 'transparent' }}>
               <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} />
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{e.name}</span>
                 <span style={{ fontSize: 11.5, color: MUTED }}> · {e.workerId} · {tradeName(e.tradeId) || e.trade || 'No trade'}{e.skillLevel ? ` (${e.skillLevel.replace('_', '-')})` : ''}</span>
               </span>
-              {on && <span style={{ fontSize: 11, color: '#7A5A0C' }}>on {projectName(on.projectId)}</span>}
+              {on && <span style={{ fontSize: 11, color: 'var(--c-8a6d12)' }}>on {projectName(on.projectId)}</span>}
             </label>
           );
         })}
@@ -451,7 +451,7 @@ export function EmployeeDeploymentPanel(props: Ctx & { employee: Employee; canMa
         {past.map((a) => {
           const r = END_REASON[a.endReason || ''] || { label: 'Ended', tone: 'grey' as const };
           return (
-            <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 16px', borderTop: '1px solid rgba(29, 29, 27,.05)', flexWrap: 'wrap' }}>
+            <div key={a.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 16px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{projectName(a.projectId)}{a.workArea ? ` · ${a.workArea}` : ''}</div>
                 <div style={{ fontSize: 11.5, color: MUTED }}>{fmtDate(a.startDate)} → {fmtDate(a.endDate)}{a.designation ? ` · ${a.designation}` : ''}{a.assignmentType === 'temporary' ? ' · temporary' : ''}</div>

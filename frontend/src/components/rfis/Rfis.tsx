@@ -22,26 +22,26 @@ export interface Rfi {
   createdAt?: string; createdBy?: string;
 }
 
-const BG = "'Outfit', system-ui, sans-serif";
-const INK = '#1D1D1B';
-const MUTED = '#8B877F';
+const BG = 'var(--font-display)';
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
 export const RFI_STATUS: Record<Rfi['status'], { label: string; bg: string; c: string }> = {
-  draft: { label: 'Draft', bg: '#EEEBE4', c: '#65615A' },
-  open: { label: 'Awaiting answer', bg: '#FBE7A8', c: '#93520F' },
+  draft: { label: 'Draft', bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
+  open: { label: 'Awaiting answer', bg: 'var(--amber-light)', c: '#93520F' },
   answered: { label: 'Answered', bg: '#D6E8E5', c: '#2F6F68' },
-  closed: { label: 'Closed', bg: '#EEEBE3', c: '#355C2F' },
+  closed: { label: 'Closed', bg: 'var(--c-e4efe5)', c: 'var(--c-145c33)' },
   void: { label: 'Void', bg: '#F2DFD4', c: '#8E2E0A' },
 };
 const DISCIPLINES = ['Architectural', 'Structural', 'Civil', 'Mechanical', 'Electrical', 'Plumbing', 'Fire Protection', 'Landscape', 'Interior', 'Owner / Client', 'Other'];
 const FIELDS = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'drawings', 'to', 'cc', 'ownerId', 'dateDue', 'priority',
   'costImpact', 'costAmount', 'scheduleImpact', 'scheduleDays', 'answer', 'answeredBy', 'dateAnswered'] as const;
 
-const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 13, fontFamily: 'inherit', color: INK, outline: 'none' };
+const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: INK, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 };
 const btn = (primary = false, danger = false): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
-  border: primary ? 'none' : '1px solid ' + (danger ? 'rgba(142,46,10,0.3)' : 'rgba(29, 29, 27,0.14)'),
-  background: primary ? '#232321' : 'white', color: primary ? 'white' : danger ? '#8E2E0A' : '#232321',
+  border: primary ? 'none' : '1px solid ' + (danger ? 'rgba(142,46,10,0.3)' : 'rgba(var(--rgb-shade), 0.14)'),
+  background: primary ? 'var(--forest)' : 'white', color: primary ? 'white' : danger ? '#8E2E0A' : 'var(--forest)',
 });
 
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -150,7 +150,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
       </div>
 
       {creating && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12, background: '#FAF8F3', borderRadius: 18, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12, background: 'var(--panel)', borderRadius: 'var(--r-12)', marginBottom: 12 }}>
           {!projectId && (
             <select value={newProject} onChange={(e) => setNewProject(e.target.value ? Number(e.target.value) : '')} style={{ ...input, width: 220 }}>
               <option value="">Project…</option>
@@ -168,16 +168,16 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
 
       {loading ? <div style={{ fontSize: 13, color: MUTED, padding: 12 }}>Loading RFIs…</div>
         : !shown.length ? (
-          <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: '#FAF8F3', borderRadius: 18 }}>
+          <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
             {rows.length ? 'No RFIs match.' : 'No RFIs yet. When something on the drawings needs an answer from the architect, engineer or owner, start one here — or use “Convert to RFI” on a task.'}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', background: '#FDFCF9', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.06)' }}>
+          <div style={{ overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 760 }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: MUTED, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   {['No.', 'Subject', ...(projectId ? [] : ['Project']), 'To', 'Status', 'Sent', 'Due', 'Days', 'Ball in court', 'Impact'].map((h) => (
-                    <th key={h} style={{ padding: '10px 12px', borderBottom: '1px solid rgba(29, 29, 27,0.08)', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '10px 12px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -185,24 +185,24 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
                 {shown.map((r) => {
                   const d = daysOpen(r);
                   return (
-                    <tr key={r.id} onClick={() => setOpenRfi(r.id)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(29, 29, 27,0.05)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#FAF8F3'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
-                      <td style={{ padding: '10px 12px', fontWeight: 700, color: '#232321', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{r.number}</td>
+                    <tr key={r.id} onClick={() => setOpenRfi(r.id)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(var(--rgb-shade), 0.05)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--forest)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{r.number}</td>
                       <td style={{ padding: '10px 12px', fontWeight: 600, color: INK, maxWidth: 320 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.subject}</div>
                         {(r.drawingRef || r.discipline) && <div style={{ fontSize: 11, color: MUTED, fontWeight: 500 }}>{[r.discipline, r.drawingRef].filter(Boolean).join(' · ')}</div>}
                       </td>
-                      {!projectId && <td style={{ padding: '10px 12px', color: '#4A4741', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</td>}
-                      <td style={{ padding: '10px 12px', color: '#4A4741', whiteSpace: 'nowrap' }}>{r.to?.name || <span style={{ color: '#BAB6AE' }}>—</span>}</td>
+                      {!projectId && <td style={{ padding: '10px 12px', color: 'var(--body)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</td>}
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{r.to?.name || <span style={{ color: 'var(--c-b5bdb8)' }}>—</span>}</td>
                       <td style={{ padding: '10px 12px' }}><StatusPill r={r} /></td>
-                      <td style={{ padding: '10px 12px', color: '#4A4741', whiteSpace: 'nowrap' }}>{rfiDay(r.dateSent)}</td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: isOverdue(r) ? 700 : 400, color: isOverdue(r) ? '#8E2E0A' : '#4A4741' }}>{rfiDay(r.dateDue)}</td>
-                      <td style={{ padding: '10px 12px', color: '#4A4741', fontVariantNumeric: 'tabular-nums' }}>{d ?? ''}</td>
-                      <td style={{ padding: '10px 12px', color: '#4A4741', whiteSpace: 'nowrap' }}>{r.ballInCourt}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{rfiDay(r.dateSent)}</td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: isOverdue(r) ? 700 : 400, color: isOverdue(r) ? '#8E2E0A' : 'var(--body)' }}>{rfiDay(r.dateDue)}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', fontVariantNumeric: 'tabular-nums' }}>{d ?? ''}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{r.ballInCourt}</td>
                       <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontSize: 11.5 }}>
                         {r.costImpact === 'yes' && <span title="Cost impact" style={{ color: '#8E2E0A', fontWeight: 700, marginRight: 8 }}>$</span>}
                         {r.scheduleImpact === 'yes' && <span title="Schedule impact" style={{ color: '#93520F', fontWeight: 700, marginRight: 8 }}>⏱</span>}
-                        {r.changeOrderNumber && <span style={{ color: '#232321', fontWeight: 700 }}>{r.changeOrderNumber}</span>}
+                        {r.changeOrderNumber && <span style={{ color: 'var(--forest)', fontWeight: 700 }}>{r.changeOrderNumber}</span>}
                       </td>
                     </tr>
                   );
@@ -305,9 +305,9 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   }, [files, fileQuery, draft.drawings]);
 
   const section = (title: string, children: React.ReactNode, extra?: React.ReactNode) => (
-    <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+    <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#232321', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--forest)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
         <div style={{ marginLeft: 'auto' }}>{extra}</div>
       </div>
       {children}
@@ -316,22 +316,22 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   const ro = !editable;
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#FDFCF9', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.15)', animation: 'scaleIn 0.2s ease' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {editable && (
-          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: '#FDFCF9', padding: '10px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} />
           </div>
         )}
 
         {/* Header */}
-        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-            <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: '#232321' }}>{rec.number}</span>
+            <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: 'var(--forest)' }}>{rec.number}</span>
             <StatusPill r={rec} />
             <span style={{ fontSize: 12, color: MUTED }}>{rec.projectName}</span>
-            <div onClick={onClose} style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.08)' }}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth={2} strokeLinecap="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
+            <div onClick={onClose} style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" style={{ stroke: MUTED }} strokeWidth={2} strokeLinecap="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
             </div>
           </div>
           {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
@@ -362,8 +362,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           </div>
 
           {panel === 'send' && (
-            <div style={{ marginTop: 12, padding: 14, background: '#FAF8F3', borderRadius: 18 }}>
-              <div style={{ fontSize: 12.5, color: '#4A4741', marginBottom: 8, lineHeight: 1.5 }}>
+            <div style={{ marginTop: 12, padding: 14, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--body)', marginBottom: 8, lineHeight: 1.5 }}>
                 {draft.to?.email
                   ? <>Emails <b>{draft.to.name}</b> ({draft.to.email}){(draft.cc || []).length ? `, copying ${(draft.cc || []).map((c) => c.name).join(', ')}` : ''} and you, with the RFI attached as a PDF. Replies come back to {draft.ownerName || 'the owner'}.
                     {!rec.dateDue && !draft.dateDue ? ' The answer is due in 7 working days unless you set a date below.' : ''}</>
@@ -377,7 +377,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             </div>
           )}
           {panel === 'answer' && (
-            <div style={{ marginTop: 12, padding: 14, background: '#FAF8F3', borderRadius: 18 }}>
+            <div style={{ marginTop: 12, padding: 14, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
               <div style={lbl}>The answer</div>
               <textarea autoFocus value={answerForm.answer} onChange={(e) => setAnswerForm({ ...answerForm, answer: e.target.value })} rows={5} placeholder="Paste the reply from the email" style={{ ...input, resize: 'vertical' }} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 10 }}>
@@ -392,7 +392,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             </div>
           )}
           {(panel === 'void' || panel === 'close') && (
-            <div style={{ marginTop: 12, padding: 14, background: panel === 'void' ? '#FBEDE6' : '#FAF8F3', borderRadius: 18 }}>
+            <div style={{ marginTop: 12, padding: 14, background: panel === 'void' ? '#FBEDE6' : 'var(--panel)', borderRadius: 'var(--r-12)' }}>
               <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={panel === 'void' ? 'Why is it void? (e.g. duplicate of RFI-004, withdrawn)' : 'Closing note (optional)'} style={{ ...input, resize: 'vertical' }} />
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 {panel === 'void'
@@ -430,22 +430,22 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <div style={{ ...lbl, marginTop: 12 }}>Drawings in the File Room</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             {(draft.drawings || []).map((d) => (
-              <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#F2EFE8', fontSize: 12, fontWeight: 600 }}>
-                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}`} target="_blank" rel="noopener noreferrer" style={{ color: '#232321', textDecoration: 'none' }}>{d.name}</a>
+              <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
+                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{d.name}</a>
                 {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => x.fileId !== d.fileId) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
               </span>
             ))}
-            {!(draft.drawings || []).length && <span style={{ fontSize: 12, color: '#BAB6AE' }}>None linked</span>}
+            {!(draft.drawings || []).length && <span style={{ fontSize: 12, color: 'var(--c-b5bdb8)' }}>None linked</span>}
           </div>
           {!ro && (files.length ? (
             <div>
               <input value={fileQuery} onChange={(e) => setFileQuery(e.target.value)} placeholder={`Find a drawing in this project’s File Room (${files.length} files)…`} style={input} />
               {fileQuery.trim() && (
-                <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 9, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
+                <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 9, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
                   {matchingFiles.length ? matchingFiles.map((f) => (
                     <div key={f.id} onClick={() => { set({ drawings: [...(draft.drawings || []), { fileId: f.id, name: f.name }] }); setFileQuery(''); }}
-                      style={{ padding: '8px 11px', cursor: 'pointer', fontSize: 12.5, borderBottom: '1px solid rgba(29, 29, 27,0.04)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#FAF8F3'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                      style={{ padding: '8px 11px', cursor: 'pointer', fontSize: 12.5, borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
                       <b>{f.name}</b> <span style={{ color: MUTED }}>{(f.folderPath || []).join(' › ')}</span>
                     </div>
                   )) : <div style={{ padding: '8px 11px', fontSize: 12, color: MUTED }}>No match.</div>}
@@ -475,12 +475,12 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
               <div style={lbl}>Copy to</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
                 {(draft.cc || []).map((c, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#FAF8F3', fontSize: 12 }}>
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--panel)', fontSize: 12 }}>
                     {c.name}{c.email ? '' : <span style={{ color: '#8E2E0A' }} title="No email — won't be copied"> ⚠</span>}
                     {!ro && <span onClick={() => set({ cc: (draft.cc || []).filter((_, j) => j !== i) })} style={{ cursor: 'pointer', color: MUTED }}>×</span>}
                   </span>
                 ))}
-                {!(draft.cc || []).length && <span style={{ fontSize: 12, color: '#BAB6AE' }}>Nobody</span>}
+                {!(draft.cc || []).length && <span style={{ fontSize: 12, color: 'var(--c-b5bdb8)' }}>Nobody</span>}
               </div>
               {!ro && people.length > 0 && (
                 <select value="" onChange={(e) => addCc(e.target.value)} style={input}>
@@ -496,7 +496,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             <div><div style={lbl}>Answer needed by</div><input readOnly={ro} type="date" value={draft.dateDue || ''} onChange={(e) => set({ dateDue: e.target.value })} style={input} /></div>
             <div><div style={lbl}>Priority</div>
               <select disabled={ro} value={draft.priority || 'Medium'} onChange={(e) => set({ priority: e.target.value })} style={input}>{['High', 'Medium', 'Low'].map((p) => <option key={p}>{p}</option>)}</select></div>
-            <div><div style={lbl}>Sent</div><div style={{ fontSize: 13, padding: '9px 0', color: '#4A4741' }}>{rec.dateSent ? rfiDay(rec.dateSent) : 'Not yet'}{daysOpen(rec) != null ? ` · ${daysOpen(rec)} day${daysOpen(rec) === 1 ? '' : 's'} open` : ''}</div></div>
+            <div><div style={lbl}>Sent</div><div style={{ fontSize: 13, padding: '9px 0', color: 'var(--body)' }}>{rec.dateSent ? rfiDay(rec.dateSent) : 'Not yet'}{daysOpen(rec) != null ? ` · ${daysOpen(rec)} day${daysOpen(rec) === 1 ? '' : 's'} open` : ''}</div></div>
           </div>
         </>)}
 
@@ -513,7 +513,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
               </select></div>
             {draft.scheduleImpact === 'yes' && <div><div style={lbl}>Days</div><input readOnly={ro} type="number" min={0} value={draft.scheduleDays ?? ''} onChange={(e) => set({ scheduleDays: e.target.value === '' ? null : Number(e.target.value) })} style={input} /></div>}
           </div>
-          {rec.changeOrderNumber && <div style={{ marginTop: 10, fontSize: 12.5, color: '#232321', fontWeight: 600 }}>Change order {rec.changeOrderNumber} drafted from this RFI — open it in the project’s Financial tab.</div>}
+          {rec.changeOrderNumber && <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--forest)', fontWeight: 600 }}>Change order {rec.changeOrderNumber} drafted from this RFI — open it in the project’s Financial tab.</div>}
         </>)}
 
         {section('Files', (
@@ -528,7 +528,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
         {section('History', (
           <div style={{ display: 'grid', gap: 7 }}>
             {[...(rec.history || [])].reverse().map((h, i) => (
-              <div key={i} style={{ fontSize: 12.5, color: '#4A4741', lineHeight: 1.45 }}>
+              <div key={i} style={{ fontSize: 12.5, color: 'var(--body)', lineHeight: 1.45 }}>
                 <b style={{ color: INK }}>{h.by}</b> {h.action}
                 <span style={{ color: MUTED }}> · {new Date(h.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                 {h.note && <div style={{ color: MUTED, fontStyle: 'italic' }}>“{h.note}”</div>}
@@ -570,7 +570,7 @@ export function ConvertToRfiButton({ source }: {
       .finally(() => setBusy(false));
   };
   return (
-    <div onClick={busy ? undefined : go} title="Start a Request for Information from this task" style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321', marginRight: 8 }}>
+    <div onClick={busy ? undefined : go} title="Start a Request for Information from this task" style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.14)', color: 'var(--forest)', marginRight: 8 }}>
       {busy ? 'Converting…' : 'Convert to RFI'}
     </div>
   );

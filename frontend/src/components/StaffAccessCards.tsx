@@ -3,14 +3,14 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { SaveBar, useAutosave } from '../autosave';
 
-const MUTED = '#8B877F';
-const INK = '#1D1D1B';
-const ACCENT = '#232321';
-const card: React.CSSProperties = { background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,.09)', borderRadius: 20, padding: '16px 18px', display: 'grid', gap: 12, alignContent: 'start' };
+const MUTED = 'var(--muted)';
+const INK = 'var(--ink)';
+const ACCENT = 'var(--forest)';
+const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .09)', borderRadius: 'var(--r-14)', padding: '16px 18px', display: 'grid', gap: 12, alignContent: 'start' };
 const title: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: INK };
 const label: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 };
-const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.13)', background: '#FDFCF9', fontFamily: 'inherit', fontSize: 13, color: INK, outline: 'none' };
-const chip = (on: boolean): React.CSSProperties => ({ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(29, 29, 27,.14)'), background: on ? ACCENT : 'white', color: on ? 'white' : INK });
+const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.13)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: INK, outline: 'none' };
+const chip = (on: boolean): React.CSSProperties => ({ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .14)'), background: on ? ACCENT : 'white', color: on ? 'white' : INK });
 const realEmail = (e?: string | null) => { const t = (e || '').trim(); return t && t !== '—' && t.includes('@') ? t : ''; };
 
 interface Emp { id: string; name: string; email?: string; userId?: string; designation?: string; jobTitle?: string }
@@ -145,8 +145,8 @@ export function LoginCard({ employee, subject, kind = 'Staff', projects, onLink,
 
   const status = !user ? 'none' : user.status === 'suspended' ? 'off' : user.hasPassword ? 'active' : 'invited';
   const STATUS: Record<string, [string, string, string]> = {
-    none: ['No login yet', '#EEEBE4', '#65615A'], invited: ['Invited — hasn’t set a password', '#FCEFC4', '#7A5A0C'],
-    active: ['Can sign in', '#E3ECD9', '#3F6B39'], off: ['Login turned off', '#F2DFD4', '#8E2E0A'],
+    none: ['No login yet', 'var(--c-efede8)', 'var(--c-5c6b65)'], invited: ['Invited — hasn’t set a password', 'var(--c-fbf0cc)', 'var(--c-8a6d12)'],
+    active: ['Can sign in', 'var(--c-d2ead3)', 'var(--c-1e6b36)'], off: ['Login turned off', '#F2DFD4', '#8E2E0A'],
   };
   const run = async (fn: () => Promise<void>) => { setBusy(true); try { await fn(); await refreshAccess(); await onChanged(); } catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); } finally { setBusy(false); } };
   const showInvite = (inv?: { sent: boolean; url?: string; error?: string }) => {
@@ -190,7 +190,7 @@ export function LoginCard({ employee, subject, kind = 'Staff', projects, onLink,
             </select>
             {roleKey && hintOf(roleKey) && <div style={{ fontSize: 11.5, color: MUTED, marginTop: 5, lineHeight: 1.45 }}>{hintOf(roleKey)}</div>}
           </div>
-          {noProjects && <div style={{ fontSize: 11.5, color: '#7A5A0C', lineHeight: 1.45 }}>No projects ticked on this record yet — they’ll sign in to an empty screen until you add one.</div>}
+          {noProjects && <div style={{ fontSize: 11.5, color: 'var(--c-8a6d12)', lineHeight: 1.45 }}>No projects ticked on this record yet — they’ll sign in to an empty screen until you add one.</div>}
           <div onClick={busy ? undefined : invite} style={{ justifySelf: 'start', padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white', opacity: busy || !roleKey || !email.trim() ? 0.55 : 1 }}>{busy ? 'Sending…' : 'Send invitation'}</div>
         </>
       ) : (
@@ -205,12 +205,12 @@ export function LoginCard({ employee, subject, kind = 'Staff', projects, onLink,
             {hintOf(user!.roleKey) && <div style={{ fontSize: 11.5, color: MUTED, marginTop: 5, lineHeight: 1.45 }}>{hintOf(user!.roleKey)}</div>}
           </div>
           {staff && isSuperTitle(employee) && user!.roleKey !== 'site_super' && options.some((r) => r.key === 'site_super') && (
-            <div style={{ fontSize: 11.5, color: '#7A5A0C', background: '#FCEFC4', borderRadius: 10, padding: '8px 10px', lineHeight: 1.45, display: 'grid', gap: 6 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--c-8a6d12)', background: 'var(--c-fbf0cc)', borderRadius: 10, padding: '8px 10px', lineHeight: 1.45, display: 'grid', gap: 6 }}>
               <span>{who.name.split(' ')[0]}’s designation is Superintendent, but the login is <b>{nameOf(user!.roleKey)}</b>, so they see that role’s pages.</span>
               <span onClick={busy ? undefined : () => setRole('site_super')} style={{ ...chip(false), justifySelf: 'start' }}>Switch to Site Superintendent</span>
             </div>
           )}
-          {noProjects && <div style={{ fontSize: 11.5, color: '#7A5A0C', lineHeight: 1.45 }}>No projects ticked on this record — they won’t see any until you add one.</div>}
+          {noProjects && <div style={{ fontSize: 11.5, color: 'var(--c-8a6d12)', lineHeight: 1.45 }}>No projects ticked on this record — they won’t see any until you add one.</div>}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {status === 'invited' && <span onClick={busy ? undefined : resend} style={chip(false)}>Resend invitation</span>}
             {status === 'active' && <span onClick={busy ? undefined : resend} style={chip(false)}>Send password reset</span>}

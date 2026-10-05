@@ -3,7 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { STAGES, DEFAULT_SLA_DAYS, slaExempt } from '../data/pipeline';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 /**
  * Settings → Response Times.
@@ -48,13 +48,13 @@ export function PipelineSlaSettings() {
 
   const reset = () => { setDays({ ...DEFAULT_SLA_DAYS }); toast('Back to the defaults — save to apply'); };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>CRM Response Times</div>
-        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>CRM Response Times</div>
+        <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           How long a lead may sit in each stage before its card starts asking for attention. Each card shows the time
           left; once the target passes it turns red and pulses until somebody acts. Set a stage to 0 to stop tracking it.
         </div>
@@ -66,16 +66,16 @@ export function PipelineSlaSettings() {
         </div>
       )}
 
-      <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 6, marginBottom: 16 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 6, marginBottom: 16 }}>
         {tracked.map((stage, i) => (
           <div
             key={stage.key}
-            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderTop: i ? '1px solid rgba(29, 29, 27,0.05)' : 'none' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.05)' : 'none' }}
           >
             <span style={{ width: 8, height: 8, borderRadius: 2, background: stage.color, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1B' }}>{stage.name}</div>
-              <div style={{ fontSize: 10.5, color: '#A29E96', marginTop: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{stage.name}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--c-9aa39d)', marginTop: 1 }}>
                 {stage.owner === 'PC' ? 'Client Coordinator' : 'Project Manager'}
                 {days[stage.key] === DEFAULT_SLA_DAYS[stage.key] ? '' : ` · default ${DEFAULT_SLA_DAYS[stage.key] ?? 0}d`}
               </div>
@@ -86,24 +86,24 @@ export function PipelineSlaSettings() {
               step={0.5}
               value={days[stage.key] ?? 0}
               onChange={(e) => set(stage.key, e.target.value)}
-              style={{ width: 74, boxSizing: 'border-box', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 13, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none', textAlign: 'right' }}
+              style={{ width: 74, boxSizing: 'border-box', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none', textAlign: 'right' }}
             />
-            <span style={{ fontSize: 11.5, color: '#8B877F', width: 30 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--muted)', width: 30 }}>
               {(days[stage.key] ?? 0) === 1 ? 'day' : 'days'}
             </span>
           </div>
         ))}
       </div>
 
-      <div style={{ fontSize: 11.5, color: '#A29E96', marginBottom: 16, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11.5, color: 'var(--c-9aa39d)', marginBottom: 16, lineHeight: 1.5 }}>
         Hold and closed stages are not tracked — parked work is not late. Half days are allowed, so 0.5 is twelve hours.
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
+        <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
           {saving ? 'Saving…' : 'Save response times'}
         </div>
-        <div onClick={reset} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321' }}>
+        <div onClick={reset} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)' }}>
           Restore defaults
         </div>
       </div>

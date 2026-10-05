@@ -14,23 +14,23 @@ const APP_NAME = 'origamidb';
 const OPERATOR = 'Origami Design + Build';
 const CONTACT_EMAIL = 'Systems@origamidb.com';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 const page: React.CSSProperties = {
   minHeight: '100vh',
-  background: '#FAF8F3',
+  background: 'var(--panel)',
   fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-  color: '#1D1D1B',
+  color: 'var(--ink)',
 };
 
 const shell: React.CSSProperties = { maxWidth: 860, margin: '0 auto', padding: '0 24px' };
 
 const h2: React.CSSProperties = {
   fontFamily: BG, fontWeight: 700, fontSize: 21, letterSpacing: '-0.015em',
-  color: '#1D1D1B', margin: '0 0 12px',
+  color: 'var(--ink)', margin: '0 0 12px',
 };
 
-const body: React.CSSProperties = { fontSize: 14.5, lineHeight: 1.75, color: '#4A4741', margin: '0 0 14px' };
+const body: React.CSSProperties = { fontSize: 14.5, lineHeight: 1.75, color: 'var(--body)', margin: '0 0 14px' };
 
 const FEATURES: { title: string; text: string }[] = [
   {
@@ -58,9 +58,9 @@ const FEATURES: { title: string; text: string }[] = [
 export function Home() {
   return (
     <div style={page}>
-      <header style={{ background: '#232321', padding: '54px 0 60px' }}>
+      <header style={{ background: 'var(--sidebar)', padding: '54px 0 60px' }}>
         <div style={shell}>
-          <div style={{ background: '#FAF8F3', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '12px 16px', display: 'inline-flex', marginBottom: 26 }}>
+          <div style={{ background: 'var(--panel)', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '12px 16px', display: 'inline-flex', marginBottom: 26 }}>
             <Logo markSize={28} />
           </div>
           <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 40, lineHeight: 1.12, letterSpacing: '-0.025em', color: '#ffffff', margin: '0 0 14px', maxWidth: 620 }}>
@@ -95,9 +95,9 @@ export function Home() {
           <h2 style={h2}>What it does</h2>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
             {FEATURES.map((f) => (
-              <div key={f.title} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: '16px 18px' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#1D1D1B', marginBottom: 6 }}>{f.title}</div>
-                <div style={{ fontSize: 13, lineHeight: 1.65, color: '#65615A' }}>{f.text}</div>
+              <div key={f.title} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: '16px 18px' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{f.title}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--c-5c6b65)' }}>{f.text}</div>
               </div>
             ))}
           </div>
@@ -116,7 +116,7 @@ export function Home() {
           </p>
           <p style={body}>
             What is collected, how long it is kept and how to have it removed is set out in full in the{' '}
-            <Link to="/privacy" style={{ color: '#4C7A3F', fontWeight: 600 }}>privacy policy</Link>.
+            <Link to="/privacy" style={{ color: 'var(--success)', fontWeight: 600 }}>privacy policy</Link>.
           </p>
         </section>
 
@@ -124,19 +124,19 @@ export function Home() {
           <h2 style={h2}>Contact</h2>
           <p style={body}>
             {APP_NAME} is operated by {OPERATOR}. Questions about the application or about data held in it can be sent to{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#4C7A3F', fontWeight: 600 }}>{CONTACT_EMAIL}</a>.
+            <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: 'var(--success)', fontWeight: 600 }}>{CONTACT_EMAIL}</a>.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
-            <Link to="/login" style={{ padding: '12px 24px', borderRadius: 10, background: '#232321', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
+            <Link to="/login" style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--forest)', color: 'white', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
               Sign in
             </Link>
-            <Link to="/privacy" style={{ padding: '12px 24px', borderRadius: 10, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.12)', color: '#1D1D1B', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            <Link to="/privacy" style={{ padding: '12px 24px', borderRadius: 10, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--ink)', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
               Privacy policy
             </Link>
           </div>
         </section>
 
-        <p style={{ fontSize: 12, color: '#A29E96', marginTop: 44, paddingTop: 18, borderTop: '1px solid rgba(29, 29, 27,0.08)' }}>
+        <p style={{ fontSize: 12, color: 'var(--c-9aa39d)', marginTop: 44, paddingTop: 18, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
           {APP_NAME} · {OPERATOR}
         </p>
       </main>

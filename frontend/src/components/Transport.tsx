@@ -58,7 +58,7 @@ export function TransportModule({ employees, projects, canManage, onOpenEmployee
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: MUTED, marginBottom: 4 }}>
                   <span>{r.riderCount} riding</span><span>{r.capacity ? `${r.capacity} seats` : 'no seat limit'}</span>
                 </div>
-                {r.capacity > 0 && <div style={{ height: 6, borderRadius: 99, background: '#EEEBE4' }}><div style={{ width: `${Math.min(100, (r.riderCount / r.capacity) * 100)}%`, height: '100%', borderRadius: 99, background: full ? DANGER : ACCENT }} /></div>}
+                {r.capacity > 0 && <div style={{ height: 6, borderRadius: 99, background: 'var(--c-efede8)' }}><div style={{ width: `${Math.min(100, (r.riderCount / r.capacity) * 100)}%`, height: '100%', borderRadius: 99, background: full ? DANGER : ACCENT }} /></div>}
               </div>
             </div>
           );
@@ -174,7 +174,7 @@ function RouteDrawer({ route, employees, projects, canManage, onOpenEmployee, on
       <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 8 }}>Riders ({current.length})</div>
       <div style={{ ...card, overflow: 'hidden' }}>
         {[...current, ...upcoming].map((r) => (
-          <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+          <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
             <span onClick={() => onOpenEmployee(r.employeeId)} style={{ flex: 1, fontWeight: 600, color: INK, cursor: 'pointer' }}>{empName(r.employeeId)}</span>
             <span style={{ color: MUTED }}>{r.pickupPoint || '—'}</span>
             <span style={{ color: MUTED, fontSize: 11.5 }}>{r.startDate > today ? `from ${fmtDate(r.startDate)}` : `since ${fmtDate(r.startDate)}`}{r.endDate ? ` until ${fmtDate(r.endDate)}` : ''}</span>

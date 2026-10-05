@@ -149,7 +149,7 @@ function RequestDrawer({ employees, projects, settings, employeeId, onClose, onD
         <div style={{ gridColumn: '1 / -1' }}><Label text="Reason" /><textarea value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} rows={2} placeholder="e.g. Slab pour ran late" style={{ ...input, resize: 'vertical' }} /></div>
       </div>
       {emp && (
-        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: '#F6F3EC', fontSize: 12.5, color: INK }}>
+        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: 'var(--c-f3f8f3)', fontSize: 12.5, color: INK }}>
           Estimated {money(estimate, settings.currency)} — {f.hours || 0} h × {money(base, settings.currency)} × {mult}. {!base && <b style={{ color: DANGER }}>{emp.name} has no pay rate set yet.</b>}
         </div>
       )}

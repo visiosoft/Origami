@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { SaveBar, useAutosave } from '../autosave';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 type Form = { emails: string };
 
 /**
@@ -28,19 +28,19 @@ export function DailyLogBackupSettings() {
   });
 
   return (
-    <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 20, padding: '20px 22px', display: 'grid', gap: 14, maxWidth: 720 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-14)', padding: '20px 22px', display: 'grid', gap: 14, maxWidth: 720 }}>
       <div>
         <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700 }}>Daily log backup</div>
-        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, lineHeight: 1.55 }}>
+        <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, lineHeight: 1.55 }}>
           When a superintendent submits a daily log, it’s emailed here as a <b>PDF</b> and an <b>Excel</b> file — hours by cost code, every worker line and the site notes.
           The superintendent is copied. Leave this empty to send it to the administrators. Needs the Google account connected (Integrations).
         </div>
       </div>
       <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Send each daily log to</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Send each daily log to</div>
         <textarea value={draft.emails} onChange={(e) => setDraft({ emails: e.target.value })} rows={3} placeholder="edward@origamidb.com, astrid@origamidb.com"
-          style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid ' + (bad.length ? '#C9A227' : 'rgba(29, 29, 27,0.14)'), fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }} />
-        <div style={{ fontSize: 11.5, color: bad.length ? '#7A5A0C' : '#8B877F', marginTop: 4 }}>
+          style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8, border: '1px solid ' + (bad.length ? '#C9A227' : 'rgba(var(--rgb-shade), 0.14)'), fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }} />
+        <div style={{ fontSize: 11.5, color: bad.length ? 'var(--c-8a6d12)' : 'var(--muted)', marginTop: 4 }}>
           {bad.length ? `Not an email address: ${bad.join(', ')}` : addresses.length ? `${addresses.length} recipient${addresses.length === 1 ? '' : 's'}` : 'Empty — the administrators get it.'}
         </div>
       </div>

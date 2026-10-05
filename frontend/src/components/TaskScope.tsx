@@ -81,9 +81,9 @@ export function PersonFilter({ person, setPerson, users, visible }: {
       onChange={(e) => setPerson(e.target.value)}
       title="Show one person's tasks"
       style={{
-        padding: '7px 10px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.14)',
-        background: '#FDFCF9', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
-        color: person ? '#1D1D1B' : '#8B877F', outline: 'none', maxWidth: 190,
+        padding: '7px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)',
+        background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
+        color: person ? 'var(--ink)' : 'var(--muted)', outline: 'none', maxWidth: 190,
       }}
     >
       <option value="">Anyone</option>
@@ -100,8 +100,8 @@ export function TaskSearch({ value, onChange, placeholder = 'Search tasks…' }:
 }) {
   return (
     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#A29E96" strokeWidth={2.2} strokeLinecap="round"
-           style={{ position: 'absolute', left: 11, pointerEvents: 'none' }}>
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" strokeWidth={2.2} strokeLinecap="round"
+           style={{ stroke: 'var(--c-9aa39d)', position: 'absolute', left: 11, pointerEvents: 'none' }}>
         <circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" />
       </svg>
       <input
@@ -109,13 +109,13 @@ export function TaskSearch({ value, onChange, placeholder = 'Search tasks…' }:
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         style={{
-          padding: '7px 28px 7px 30px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.14)',
-          background: '#FDFCF9', fontFamily: 'inherit', fontSize: 12, color: '#1D1D1B', outline: 'none', width: 190,
+          padding: '7px 28px 7px 30px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)',
+          background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, color: 'var(--ink)', outline: 'none', width: 190,
         }}
       />
       {value && (
         <span onClick={() => onChange('')} title="Clear"
-              style={{ position: 'absolute', right: 10, cursor: 'pointer', color: '#A29E96', fontSize: 14, lineHeight: 1 }}>×</span>
+              style={{ position: 'absolute', right: 10, cursor: 'pointer', color: 'var(--c-9aa39d)', fontSize: 14, lineHeight: 1 }}>×</span>
       )}
     </div>
   );
@@ -149,7 +149,7 @@ export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCou
       style={{
         padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
         background: scope === value ? 'white' : 'transparent',
-        color: scope === value ? '#1D1D1B' : '#8B877F',
+        color: scope === value ? 'var(--ink)' : 'var(--muted)',
         boxShadow: scope === value ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
         whiteSpace: 'nowrap',
       }}
@@ -158,7 +158,7 @@ export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCou
     </div>
   );
   return (
-    <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999 }}>
+    <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
       {opt('mine', 'My tasks', mineCount)}
       {opt('all', 'Everyone', allCount)}
     </div>

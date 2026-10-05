@@ -61,7 +61,7 @@ export function Icon({
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={style}
+      style={{ stroke, ...style }}
     >
       {paths.map((d, i) => (
         <path key={i} d={d} />

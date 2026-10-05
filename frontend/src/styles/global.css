@@ -1,40 +1,157 @@
 :root {
-  /* Colors — warm cream canvas, cream cards, near-black ink, one yellow */
-  --ink: #1D1D1B;
-  --forest: #232321;
-  --sidebar: #232321;
-  --sidebar-deep: #232321;
-  --canvas: #F3EFE6;
-  --panel: #FAF8F3;
-  --surface: #FDFCF9;
-  --body: #4A4741;
-  --muted: #8B877F;
-  --mint: #FAE7A5;
-  --mist: #F2EFE8;
-  --track: #ECE8DF;
-  --sand: #ECE6DA;
-  --success: #4C7A3F;
-  --success-deep: #34552E;
+  /* Colors */
+  --ink: #0B1A12;
+  --forest: #173326;
+  --sidebar: #0F2417;
+  --sidebar-deep: #0F2417;
+  --canvas: #FDF8EC;
+  --panel: #FBF8F2;
+  --surface: #FFFFFF;
+  --body: #43514D;
+  --muted: #7E9B93;
+  --mint: #DCE7DE;
+  --mist: #EEF3EE;
+  --track: #EDF2ED;
+  --sand: #EDE3D0;
+  --success: #2F7D4A;
+  --success-deep: #1C5230;
   --alert: #8E2E0A;
   --alert-alt: #B8410F;
   --amber: #D2822E;
   --amber-deep: #93520F;
-  --amber-light: #FBE7A8;
-  --gold: #F5C443;
+  --amber-light: #FBE9AE;
+  --gold: #D9B94F;
+  --teal: #2F6F68;
+  --teal-light: #D6E8E5;
+  --border: rgba(20, 8, 31, 0.06);
+  --border-strong: rgba(20, 8, 31, 0.12);
+  --shadow-pop: 0 12px 30px rgba(11, 26, 18, 0.16);
+
+  --surface-on: #FFFFFF;
+  --yellow: #D9B94F;
+  --yellow-soft: #FBE9AE;
+  --yellow-ink: #8A6D12;
+  --shadow-card: none;
+  --radius-card: 14px;
+  --r-14: 14px;
+  --r-12: 12px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Colours used directly by components (classic values) */
+  --c-145c33: #145C33;
+  --c-16a34a: #16A34A;
+  --c-1e6b36: #1E6B36;
+  --c-245c3a: #245C3A;
+  --c-3a423e: #3A423E;
+  --c-5c6b65: #5C6B65;
+  --c-8a6d12: #8A6D12;
+  --c-9aa39d: #9AA39D;
+  --c-9ab0a4: #9AB0A4;
+  --c-b5bdb8: #B5BDB8;
+  --c-b9cdbd: #B9CDBD;
+  --c-c9cdc9: #C9CDC9;
+  --c-c9d4cc: #C9D4CC;
+  --c-cfe3d2: #CFE3D2;
+  --c-d2ead3: #D2EAD3;
+  --c-d6ded8: #D6DED8;
+  --c-d6e0d7: #D6E0D7;
+  --c-e0b84a: #E0B84A;
+  --c-e4efe5: #E4EFE5;
+  --c-e7f0e8: #E7F0E8;
+  --c-edefec: #EDEFEC;
+  --c-edf4ec: #EDF4EC;
+  --c-efede8: #EFEDE8;
+  --c-f0eee9: #F0EEE9;
+  --c-f3f8f3: #F3F8F3;
+  --c-f4f1e8: #F4F1E8;
+  --c-f4f9f4: #F4F9F4;
+  --c-f7f3ea: #F7F3EA;
+  --c-f7f9f7: #F7F9F7;
+  --c-fbf0cc: #FBF0CC;
+  --rgb-shade: 20, 8, 31;
+  --rgb-ink: 11, 26, 18;
+  --rgb-forest: 23, 51, 38;
+  --rgb-ink2: 16, 39, 26;
+  --rgb-ink3: 19, 32, 25;
+  --rgb-success: 47, 125, 74;
+  --rgb-success-deep: 28, 82, 48;
+  --rgb-success2: 30, 107, 54;
+  --rgb-gold: 217, 185, 79;
+
+  /* Type */
+  --font-display: 'Bricolage Grotesque', serif;
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* ---- New theme: warm cream canvas, cream cards, near-black ink, one yellow ---- */
+:root[data-theme="coterie"] {
+  --sidebar-deep: #232321;
+  --canvas: #F3EFE6;
+  --surface: #FDFCF9;
+  --track: #ECE8DF;
   --yellow: #F5C443;
   --yellow-soft: #FAE7A5;
   --yellow-ink: #5A430A;
-  --teal: #2F6F68;
-  --teal-light: #D6E8E5;
   --border: rgba(29, 29, 27, 0.06);
   --border-strong: rgba(29, 29, 27, 0.12);
   --shadow-card: 0 1px 2px rgba(29, 29, 27, 0.03), 0 12px 32px -18px rgba(29, 29, 27, 0.14);
   --shadow-pop: 0 18px 40px -12px rgba(29, 29, 27, 0.22);
   --radius-card: 28px;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  /* Type */
+  --r-14: 20px;
+  --r-12: 18px;
+  --ink: #1D1D1B;
+  --sidebar: #232321;
+  --c-145c33: #355C2F;
+  --c-16a34a: #5B8C3E;
+  --forest: #232321;
+  --success-deep: #34552E;
+  --c-1e6b36: #3F6B39;
+  --c-245c3a: #3A5F33;
+  --success: #4C7A3F;
+  --c-3a423e: #3D3B37;
+  --body: #4A4741;
+  --c-5c6b65: #65615A;
+  --muted: #8B877F;
+  --c-8a6d12: #7A5A0C;
+  --c-9aa39d: #A29E96;
+  --c-9ab0a4: #ABA79E;
+  --c-b5bdb8: #BAB6AE;
+  --c-b9cdbd: #EED27A;
+  --c-c9cdc9: #CFCBC3;
+  --c-c9d4cc: #D4D0C7;
+  --c-cfe3d2: #D8E5CC;
+  --c-d2ead3: #E3ECD9;
+  --c-d6ded8: #DFDBD2;
+  --c-d6e0d7: #DFDBD2;
+  --gold: #F5C443;
+  --mint: #FAE7A5;
+  --c-e0b84a: #F5C443;
+  --c-e4efe5: #EEEBE3;
+  --c-e7f0e8: #F0EDE6;
+  --sand: #ECE6DA;
+  --c-edefec: #EFECE5;
+  --c-edf4ec: #F2EFE8;
+  --mist: #F2EFE8;
+  --c-efede8: #EEEBE4;
+  --c-f0eee9: #EFECE6;
+  --c-f3f8f3: #F6F3EC;
+  --c-f4f1e8: #F3F0E8;
+  --c-f4f9f4: #F7F4EE;
+  --c-f7f3ea: #F5F1E8;
+  --c-f7f9f7: #F8F6F1;
+  --amber-light: #FBE7A8;
+  --c-fbf0cc: #FCEFC4;
+  --panel: #FAF8F3;
+  --rgb-shade: 29, 29, 27;
+  --rgb-ink: 29, 29, 27;
+  --rgb-forest: 35, 35, 33;
+  --rgb-ink2: 29, 29, 27;
+  --rgb-ink3: 29, 29, 27;
+  --rgb-success: 76, 122, 63;
+  --rgb-success-deep: 52, 85, 46;
+  --rgb-success2: 63, 107, 57;
+  --rgb-gold: 245, 196, 67;
   --font-display: 'Outfit', system-ui, sans-serif;
   --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -52,30 +169,6 @@ html, body, #root {
   line-height: 1.65;
   color: var(--ink);
   background: var(--canvas);
-  /* Only light/medium display weights are loaded; never fake a bold. */
-  font-synthesis: none;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv11', 'ss01';
-}
-
-/* The soft yellow light in the top-right corner of every screen. */
-body {
-  background:
-    radial-gradient(1100px 620px at 100% -10%, rgba(248, 222, 150, 0.55), transparent 62%),
-    radial-gradient(800px 500px at -10% 110%, rgba(250, 240, 214, 0.6), transparent 60%),
-    var(--canvas);
-  background-attachment: fixed;
-}
-#root { background: transparent; }
-
-::selection { background: var(--yellow); color: var(--ink); }
-
-input, textarea, select { font: inherit; }
-input:focus-visible, textarea:focus-visible, select:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(245, 196, 67, 0.45);
-  border-color: rgba(29, 29, 27, 0.25) !important;
 }
 
 a {
@@ -88,29 +181,68 @@ button {
   cursor: pointer;
   border: none;
   background: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Upload spinner (components/Attachments.tsx) */
+@keyframes origami-spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ================= New theme only ================= */
+:root[data-theme="coterie"] body,
+:root[data-theme="coterie"] #root {
+  /* Only light/medium display weights are loaded; never fake a bold. */
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* The soft yellow light in the top-right corner of every screen. */
+:root[data-theme="coterie"] body {
+  background:
+    radial-gradient(1100px 620px at 100% -10%, rgba(248, 222, 150, 0.55), transparent 62%),
+    radial-gradient(800px 500px at -10% 110%, rgba(250, 240, 214, 0.6), transparent 60%),
+    var(--canvas);
+  background-attachment: fixed;
+}
+:root[data-theme="coterie"] #root { background: transparent; }
+:root[data-theme="coterie"] ::selection { background: var(--yellow); color: var(--ink); }
+:root[data-theme="coterie"] input:focus-visible,
+:root[data-theme="coterie"] textarea:focus-visible,
+:root[data-theme="coterie"] select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(245, 196, 67, 0.45);
+  border-color: rgba(29, 29, 27, 0.25) !important;
+}
+:root[data-theme="coterie"] button {
   transition: transform 0.18s var(--ease-out), background-color 0.2s ease, color 0.2s ease,
     box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
 }
-button:not(:disabled):active { transform: scale(0.96); }
-button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(245, 196, 67, 0.55); }
+:root[data-theme="coterie"] button:not(:disabled):active { transform: scale(0.96); }
+:root[data-theme="coterie"] button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(245, 196, 67, 0.55); }
 
-/* Numbers line up and read like the dashboard figures. */
-.num, [data-num] { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-weight: 400; letter-spacing: -0.03em; }
-
-/* ---- Motion ---- */
 /* Each page's blocks rise in one after another. */
-.content-inner > *, .content-inner > * > * {
+:root[data-theme="coterie"] .content-inner > *,
+:root[data-theme="coterie"] .content-inner > * > * {
   animation: riseIn 0.6s var(--ease-out) both;
 }
-.content-inner > * > *:nth-child(2) { animation-delay: 0.05s; }
-.content-inner > * > *:nth-child(3) { animation-delay: 0.1s; }
-.content-inner > * > *:nth-child(4) { animation-delay: 0.15s; }
-.content-inner > * > *:nth-child(5) { animation-delay: 0.2s; }
-.content-inner > * > *:nth-child(6) { animation-delay: 0.25s; }
-.content-inner > * > *:nth-child(n+7) { animation-delay: 0.3s; }
-
+:root[data-theme="coterie"] .content-inner > * > *:nth-child(2) { animation-delay: 0.05s; }
+:root[data-theme="coterie"] .content-inner > * > *:nth-child(3) { animation-delay: 0.1s; }
+:root[data-theme="coterie"] .content-inner > * > *:nth-child(4) { animation-delay: 0.15s; }
+:root[data-theme="coterie"] .content-inner > * > *:nth-child(5) { animation-delay: 0.2s; }
+:root[data-theme="coterie"] .content-inner > * > *:nth-child(6) { animation-delay: 0.25s; }
+:root[data-theme="coterie"] .content-inner > * > *:nth-child(n+7) { animation-delay: 0.3s; }
 /* Progress fills grow from the left when they appear. */
-[data-fill], .bar-fill, .budget-bar-fill, .workload-bar-fill { transform-origin: left center; animation: growX 0.9s var(--ease-out) both; }
+:root[data-theme="coterie"] .budget-bar-fill,
+:root[data-theme="coterie"] .workload-bar-fill { transform-origin: left center; animation: growX 0.9s var(--ease-out) both; }
 
 @keyframes riseIn {
   from { opacity: 0; transform: translateY(14px); }
@@ -124,21 +256,13 @@ button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(245, 196, 67, 0
   0% { opacity: 0; transform: scale(0.9); }
   100% { opacity: 1; transform: scale(1); }
 }
-
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; transition-duration: 0.01ms !important; }
+  :root[data-theme="coterie"] *, :root[data-theme="coterie"] *::before, :root[data-theme="coterie"] *::after {
+    animation-duration: 0.01ms !important; animation-delay: 0s !important; transition-duration: 0.01ms !important;
+  }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Smooth hand-over when the theme is switched. */
+:root.theme-switching, :root.theme-switching * {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease, stroke 0.35s ease !important;
 }
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.97); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-/* Upload spinner (components/Attachments.tsx) */
-@keyframes origami-spin { to { transform: rotate(360deg); } }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }

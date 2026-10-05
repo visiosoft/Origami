@@ -75,11 +75,11 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   if (!isLogin) {
     return (
       <AuthLayout showBrand={width > 760} title="Access is by invitation" subtitle="Origami accounts are created by an administrator.">
-        <div style={{ fontSize: 13, lineHeight: 1.7, color: '#4A4741' }}>
+        <div style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--body)' }}>
           Ask an administrator to add you under <strong>User Access &amp; Roles</strong>. You'll get an email with a link to
           choose your password, and can then sign in with that password or with your Google account.
         </div>
-        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: '#232321', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Back to log in</div>
+        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: 'var(--forest)', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Back to log in</div>
       </AuthLayout>
     );
   }
@@ -103,20 +103,20 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div onClick={() => setRemember((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <span style={{ width: 16, height: 16, borderRadius: 5, display: 'grid', placeItems: 'center', flexShrink: 0, background: remember ? '#232321' : 'white', border: '1px solid ' + (remember ? '#232321' : 'rgba(29, 29, 27,0.2)') }}>
+          <span style={{ width: 16, height: 16, borderRadius: 5, display: 'grid', placeItems: 'center', flexShrink: 0, background: remember ? 'var(--forest)' : 'white', border: '1px solid ' + (remember ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.2)') }}>
             <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: remember ? 1 : 0 }}><path d="M20 6L9 17l-5-5" /></svg>
           </span>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: '#4A4741' }}>Keep me signed in</span>
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--body)' }}>Keep me signed in</span>
         </div>
-        <span onClick={() => { setForgotOpen(true); setNotice(''); }} style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 600, color: '#232321', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}>Forgot password?</span>
+        <span onClick={() => { setForgotOpen(true); setNotice(''); }} style={{ marginLeft: 'auto', fontSize: 12.5, fontWeight: 600, color: 'var(--forest)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}>Forgot password?</span>
       </div>
 
       {forgotOpen && (
-        <div style={{ padding: 13, borderRadius: 10, background: '#F2EFE8', border: '1px solid rgba(29, 29, 27,0.08)', display: 'flex', flexDirection: 'column', gap: 9 }}>
-          <div style={{ fontSize: 12.5, color: '#4A4741', lineHeight: 1.55 }}>We'll email a reset link to <strong>{email.trim() || 'your address'}</strong>.</div>
+        <div style={{ padding: 13, borderRadius: 10, background: 'var(--mist)', border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'flex', flexDirection: 'column', gap: 9 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--body)', lineHeight: 1.55 }}>We'll email a reset link to <strong>{email.trim() || 'your address'}</strong>.</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div onClick={busy ? undefined : sendReset} style={{ padding: '9px 16px', borderRadius: 999, background: '#232321', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Send reset link</div>
-            <div onClick={() => setForgotOpen(false)} style={{ padding: '9px 16px', borderRadius: 999, background: '#FDFCF9', color: '#4A4741', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)' }}>Cancel</div>
+            <div onClick={busy ? undefined : sendReset} style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--forest)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Send reset link</div>
+            <div onClick={() => setForgotOpen(false)} style={{ padding: '9px 16px', borderRadius: 999, background: 'var(--surface)', color: 'var(--body)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>Cancel</div>
           </div>
         </div>
       )}
@@ -124,23 +124,23 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
       {notice && <Banner tone="ok" text={notice} />}
       {error && <Banner tone="bad" text={error} />}
 
-      <div onClick={busy ? undefined : submit} style={{ padding: '14px 0', borderRadius: 10, background: busy ? '#ABA79E' : '#232321', color: '#ffffff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>{busy ? 'Signing in…' : 'Log in'}</div>
+      <div onClick={busy ? undefined : submit} style={{ padding: '14px 0', borderRadius: 10, background: busy ? 'var(--c-9ab0a4)' : 'var(--forest)', color: '#ffffff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>{busy ? 'Signing in…' : 'Log in'}</div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ flex: 1, height: 1, background: 'rgba(29, 29, 27,0.09)' }} />
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F' }}>or</span>
-        <span style={{ flex: 1, height: 1, background: 'rgba(29, 29, 27,0.09)' }} />
+        <span style={{ flex: 1, height: 1, background: 'rgba(var(--rgb-shade), 0.09)' }} />
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)' }}>or</span>
+        <span style={{ flex: 1, height: 1, background: 'rgba(var(--rgb-shade), 0.09)' }} />
       </div>
 
       <a
         href={api.auth.googleLoginUrl()}
-        style={{ padding: '13px 0', borderRadius: 10, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.12)', color: '#1D1D1B', textAlign: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, textDecoration: 'none' }}
+        style={{ padding: '13px 0', borderRadius: 10, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--ink)', textAlign: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, textDecoration: 'none' }}
       >
         <GoogleMark />
         <span>Continue with Google</span>
       </a>
 
-      <div style={{ fontSize: 11.5, lineHeight: 1.6, color: '#8B877F', textAlign: 'center' }}>
+      <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--muted)', textAlign: 'center' }}>
         Google sign-in works for accounts an administrator has already added.
       </div>
     </AuthLayout>
@@ -149,7 +149,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
 
 function Banner({ tone, text }: { tone: 'ok' | 'bad'; text: string }) {
   const s = tone === 'ok'
-    ? { bg: '#D8ECD9', border: 'rgba(63, 107, 57,0.2)', dot: '#3F6B39', color: '#3F6B39' }
+    ? { bg: '#D8ECD9', border: 'rgba(var(--rgb-success2), 0.2)', dot: 'var(--c-1e6b36)', color: 'var(--c-1e6b36)' }
     : { bg: '#F7E4DB', border: 'rgba(142,46,10,0.18)', dot: '#8E2E0A', color: '#8E2E0A' };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '11px 14px', borderRadius: 10, background: s.bg, border: `1px solid ${s.border}` }}>

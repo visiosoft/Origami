@@ -4,6 +4,7 @@ import { releaseSeen } from '../data/releaseNotes';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
+import { ThemeToggle } from './ThemeToggle';
 import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
@@ -130,7 +131,7 @@ export function AppShell() {
           <div className="topbar-left">
             {slug !== 'dashboard' && (
               <div className="topbar-back" onClick={() => navigate(-1)} title="Back">
-                <Icon name="back" size={18} stroke="#4A4741" strokeWidth={2} />
+                <Icon name="back" size={18} stroke="var(--body)" strokeWidth={2} />
               </div>
             )}
             <h1 className="page-title">{pageTitle}</h1>
@@ -157,11 +158,12 @@ export function AppShell() {
           <AutosaveIndicator />
 
           <div className="search-box">
-            <Icon name="search" size={16} stroke="#8B877F" strokeWidth={2} />
+            <Icon name="search" size={16} stroke="var(--muted)" strokeWidth={2} />
             <span className="search-placeholder">Search...</span>
             <span className="search-kbd">⌘K</span>
           </div>
 
+          <ThemeToggle />
           <Notifications />
         </header>
 

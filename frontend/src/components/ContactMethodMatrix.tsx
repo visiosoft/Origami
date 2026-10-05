@@ -37,21 +37,21 @@ export function ContactMethodMatrix({ value, onChange, disabled }: Props) {
   };
 
   return (
-    <div style={{ border: '1px solid rgba(29, 29, 27,0.12)', borderRadius: 9, overflow: 'hidden', background: '#FDFCF9' }}>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', borderBottom: '1px solid rgba(29, 29, 27,0.08)', background: '#FAF8F3' }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#8B877F' }}>
+    <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.12)', borderRadius: 9, overflow: 'hidden', background: 'var(--surface)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', background: 'var(--panel)' }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted)' }}>
           Preferred Contact Method
         </span>
         {CONTACT_PREFERENCES.map((p) => (
-          <span key={p} style={{ ...cell, fontSize: 10, fontWeight: 700, color: '#8B877F' }}>{p}</span>
+          <span key={p} style={{ ...cell, fontSize: 10, fontWeight: 700, color: 'var(--muted)' }}>{p}</span>
         ))}
       </div>
 
       {CONTACT_METHODS.map((method, i) => {
         const chosen = matrix[method];
         return (
-          <div key={method} style={{ display: 'flex', alignItems: 'center', padding: '0 10px', borderTop: i ? '1px solid rgba(29, 29, 27,0.04)' : 'none' }}>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: chosen ? '#1D1D1B' : '#5c5666', fontWeight: chosen ? 600 : 400 }}>
+          <div key={method} style={{ display: 'flex', alignItems: 'center', padding: '0 10px', borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.04)' : 'none' }}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: chosen ? 'var(--ink)' : '#5c5666', fontWeight: chosen ? 600 : 400 }}>
               {method}
             </span>
             {CONTACT_PREFERENCES.map((pref) => {
@@ -64,8 +64,8 @@ export function ContactMethodMatrix({ value, onChange, disabled }: Props) {
                     style={{
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                       width: 17, height: 17, borderRadius: 4, cursor: disabled ? 'default' : 'pointer',
-                      border: '1.5px solid ' + (on ? (pref === 'No' ? '#8E2E0A' : '#4C7A3F') : 'rgba(29, 29, 27,0.22)'),
-                      background: on ? (pref === 'No' ? '#8E2E0A' : '#4C7A3F') : 'white',
+                      border: '1.5px solid ' + (on ? (pref === 'No' ? '#8E2E0A' : 'var(--success)') : 'rgba(var(--rgb-shade), 0.22)'),
+                      background: on ? (pref === 'No' ? '#8E2E0A' : 'var(--success)') : 'white',
                       color: 'white', fontSize: 11, fontWeight: 900, lineHeight: 1,
                     }}
                   >

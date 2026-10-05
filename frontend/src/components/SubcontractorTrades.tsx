@@ -19,7 +19,7 @@ export function TradeChips({ trades, ids, max = 2 }: { trades: SubcontractorTrad
   return (
     <span style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }} title={held.map((t) => `${t.code} ${t.name}`).join('\n')}>
       {held.slice(0, max).map((t) => (
-        <span key={t.id} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, background: '#F2EFE8', color: ACCENT, whiteSpace: 'nowrap' }}>
+        <span key={t.id} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 6, background: 'var(--mist)', color: ACCENT, whiteSpace: 'nowrap' }}>
           <b>{t.code}</b> {t.name}
         </span>
       ))}
@@ -47,7 +47,7 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
     <div ref={ref} style={{ position: 'relative' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: held.length ? 8 : 0 }}>
         {held.map((t) => (
-          <span key={t.id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#F2EFE8', color: ACCENT, fontSize: 12 }}>
+          <span key={t.id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', color: ACCENT, fontSize: 12 }}>
             <b>{t.code}</b> {t.name}
             {!disabled && <span onClick={() => onChange(value.filter((x) => x !== t.id))} style={{ cursor: 'pointer', color: MUTED }}>×</span>}
           </span>
@@ -59,7 +59,7 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
       )}
       {disabled && !held.length && <div style={{ fontSize: 12.5, color: MUTED }}>None recorded.</div>}
       {open && !disabled && (
-        <div style={{ position: 'absolute', zIndex: 60, top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 300, overflowY: 'auto', background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,.12)', borderRadius: 10, boxShadow: '0 12px 32px rgba(29, 29, 27,.14)', padding: 4 }}>
+        <div style={{ position: 'absolute', zIndex: 60, top: '100%', left: 0, right: 0, marginTop: 4, maxHeight: 300, overflowY: 'auto', background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .12)', borderRadius: 10, boxShadow: '0 12px 32px rgba(var(--rgb-shade), .14)', padding: 4 }}>
           {SUBTRADE_CATEGORIES.map(([cat, label]) => {
             const inCat = options.filter((t) => t.category === cat);
             if (!inCat.length) return null;
@@ -68,7 +68,7 @@ export function TradePicker({ trades, value, onChange, disabled }: { trades: Sub
                 <div style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.06em', padding: '8px 10px 4px' }}>{label}</div>
                 {inCat.map((t) => (
                   <div key={t.id} onClick={() => { onChange([...value, t.id]); setQ(''); }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = '#F5F1E8'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--c-f7f3ea)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
                     style={{ display: 'flex', gap: 10, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 13 }}>
                     <b style={{ width: 44, color: ACCENT }}>{t.code}</b><span style={{ color: INK }}>{t.name}</span>
                   </div>

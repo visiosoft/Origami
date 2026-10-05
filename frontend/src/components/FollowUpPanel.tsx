@@ -34,15 +34,15 @@ export interface FollowUp {
 
 const chip = (on: boolean, tone: 'method' | 'outcome'): React.CSSProperties => ({
   padding: '5px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
-  border: '1px solid ' + (on ? (tone === 'method' ? '#5B2BC9' : '#C77A0A') : 'rgba(29, 29, 27,0.12)'),
+  border: '1px solid ' + (on ? (tone === 'method' ? '#5B2BC9' : '#C77A0A') : 'rgba(var(--rgb-shade), 0.12)'),
   background: on ? (tone === 'method' ? '#F1ECFC' : '#FBEEDC') : 'white',
   color: on ? (tone === 'method' ? '#5B2BC9' : '#8a5a1e') : '#5c5666',
 });
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 12.5,
+  fontFamily: 'inherit', color: 'var(--ink)', outline: 'none',
 };
 
 const shortWhen = (iso: string) => {
@@ -108,9 +108,9 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
   };
 
   return (
-    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>Follow-up</span>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Follow-up</span>
         <span onClick={() => { setOpen((v) => !v); if (!open) { setDirection(exhausted ? 'in' : 'out'); setOutcome(exhausted ? 'Wants to talk' : 'No answer'); } }}
           style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: '#5B2BC9', cursor: 'pointer' }}>
           {open ? 'Cancel' : exhausted ? '+ Log contact' : '+ Log an attempt'}
@@ -131,22 +131,22 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
               <span style={{
                 width: 18, height: 18, borderRadius: 999, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 9.5, fontWeight: 700,
-                background: made ? '#232321' : isNext ? '#EDE3CF' : '#EFECE6',
+                background: made ? 'var(--forest)' : isNext ? '#EDE3CF' : 'var(--c-f0eee9)',
                 color: made ? 'white' : '#756E80',
               }}>{i + 1}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {made ? (
                   <>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1D1D1B' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>
                       {PLAN[i].split(' · ')[0]} · {made.method} · {made.outcome}
                     </div>
-                    <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 1 }}>
+                    <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
                       {shortWhen(made.at)} · {made.by}
                       {made.target === 'referral' && made.contactName ? ` · via ${made.contactName}` : ''}
                       {made.assignedTo ? ` · handed to ${made.assignedTo}` : ''}
                     </div>
                     {made.note && (
-                      <div style={{ fontSize: 11, color: '#4A4357', marginTop: 4, padding: '6px 9px', background: '#FAF8F3', borderRadius: 7, lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 11, color: '#4A4357', marginTop: 4, padding: '6px 9px', background: 'var(--panel)', borderRadius: 7, lineHeight: 1.4 }}>
                         {made.note}
                       </div>
                     )}
@@ -162,14 +162,14 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
 
       {inbound.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#8B877F', marginBottom: 6 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--muted)', marginBottom: 6 }}>
             They contacted us
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {inbound.map((f, i) => (
-              <div key={i} style={{ padding: '7px 10px', borderRadius: 8, background: '#F2EFE8', border: '1px solid rgba(76, 122, 63,0.16)' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#1D1D1B' }}>{f.method} · {f.outcome}</div>
-                <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 1 }}>
+              <div key={i} style={{ padding: '7px 10px', borderRadius: 8, background: 'var(--mist)', border: '1px solid rgba(var(--rgb-success), 0.16)' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{f.method} · {f.outcome}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
                   {shortWhen(f.at)} · logged by {f.by}
                   {f.contactName ? ` · ${f.contactName}` : ''}
                 </div>
@@ -184,7 +184,7 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
         <div style={{ marginTop: 12, padding: 12, borderRadius: 10, background: '#F9F7FE', border: '1px solid rgba(91,43,201,0.12)' }}>
           {error && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#8E2E0A', marginBottom: 8 }}>{error}</div>}
 
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741', marginBottom: 6 }}>Which way round?</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)', marginBottom: 6 }}>Which way round?</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
             <span onClick={() => { if (!exhausted) { setDirection('out'); setOutcome('No answer'); } }}
               title={exhausted ? `All ${MAX_FOLLOW_UPS} chases have been made` : 'A chase we made'}
@@ -196,12 +196,12 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
             </span>
           </div>
           {direction === 'in' && (
-            <div style={{ fontSize: 10.5, color: '#8B877F', marginBottom: 10, lineHeight: 1.45 }}>
+            <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.45 }}>
               Recorded without using up a chase — them getting in touch is what the chasing was for.
             </div>
           )}
 
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741', marginBottom: 6 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)', marginBottom: 6 }}>
             {direction === 'in' ? 'Who got in touch?' : 'Who did you contact?'}
           </div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -212,12 +212,12 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
             <input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Name of the person you contacted" style={{ ...inputStyle, marginBottom: 10 }} />
           )}
 
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741', marginBottom: 6 }}>{direction === 'in' ? 'How did they reach you?' : 'How did you try?'}</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)', marginBottom: 6 }}>{direction === 'in' ? 'How did they reach you?' : 'How did you try?'}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             {METHODS.map((m) => <span key={m} onClick={() => setMethod(m)} style={chip(method === m, 'method')}>{m}</span>)}
           </div>
 
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741', marginBottom: 6 }}>What happened?</div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)', marginBottom: 6 }}>What happened?</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             {outcomes.map((o) => <span key={o} onClick={() => setOutcome(o)} style={chip(outcome === o, 'outcome')}>{o}</span>)}
           </div>
@@ -226,20 +226,20 @@ export function FollowUpPanel({ dealId, followUps, users, onLogged }: Props) {
 
           {isLast && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741', marginBottom: 5 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)', marginBottom: 5 }}>
                 Hand to <span style={{ color: '#8E2E0A' }}>*</span>
               </div>
               <select value={assignToId} onChange={(e) => setAssignToId(e.target.value)} style={inputStyle}>
                 <option value="">Choose a project manager or admin…</option>
                 {internal.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
-              <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 4, lineHeight: 1.45 }}>
+              <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4, lineHeight: 1.45 }}>
                 This is the last chase, so the lead moves to them rather than being called a fourth time.
               </div>
             </div>
           )}
 
-          <div onClick={saving ? undefined : submit} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, textAlign: 'center', cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
+          <div onClick={saving ? undefined : submit} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, textAlign: 'center', cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
             {saving ? 'Saving…' : direction === 'in' ? 'Log their contact' : `Log attempt ${attempt}`}
           </div>
         </div>

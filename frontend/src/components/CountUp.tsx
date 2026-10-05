@@ -7,11 +7,11 @@ import { useEffect, useRef, useState } from 'react';
 export function CountUp({ value, duration = 900 }: { value: string | number; duration?: number }) {
   const text = String(value ?? '');
   const m = text.match(/-?\d[\d,]*(\.\d+)?/);
-  const [shown, setShown] = useState(m ? text.replace(m[0], format(0, m[0])) : text);
+  const [shown, setShown] = useState(m && document.documentElement.dataset.theme !== 'classic' ? text.replace(m[0], format(0, m[0])) : text);
   const raf = useRef(0);
 
   useEffect(() => {
-    if (!m || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setShown(text); return; }
+    if (!m || document.documentElement.dataset.theme === 'classic' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setShown(text); return; }
     const target = parseFloat(m[0].replace(/,/g, ''));
     const start = performance.now();
     const tick = (now: number) => {

@@ -155,14 +155,14 @@ export function Leads() {
 
             {/* Detail view */}
             {selected && (
-                <div style={{ background: '#FDFCF9', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.06)', padding: 20, marginBottom: 20 }}>
+                <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)', padding: 20, marginBottom: 20 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                         <div>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F' }}>{selected.id} · {selected.createdAt}</div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: '#1D1D1B', marginTop: 4 }}>{selected.leadName}</div>
-                            {selected.namePronunciation && <div style={{ fontSize: 11, color: '#A29E96', fontStyle: 'italic' }}>{selected.namePronunciation}</div>}
+                            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)' }}>{selected.id} · {selected.createdAt}</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginTop: 4 }}>{selected.leadName}</div>
+                            {selected.namePronunciation && <div style={{ fontSize: 11, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>{selected.namePronunciation}</div>}
                         </div>
-                        <button onClick={() => setSelectedId(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 18, color: '#8B877F' }}>✕</button>
+                        <button onClick={() => setSelectedId(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 18, color: 'var(--muted)' }}>✕</button>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px 24px', fontSize: 12 }}>
                         <Field label="Phone" value={selected.phone} />
@@ -201,13 +201,13 @@ export function Leads() {
                     </div>
                     {selected.projectVision && (
                         <div style={{ marginTop: 16 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', marginBottom: 4 }}>Project Vision</div>
-                            <div style={{ fontSize: 12, color: '#1D1D1B', lineHeight: 1.5 }}>{selected.projectVision}</div>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>Project Vision</div>
+                            <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.5 }}>{selected.projectVision}</div>
                         </div>
                     )}
 
                     {/* Everyone involved, with their roles. Same directory as the pipeline lead card. */}
-                    <div style={{ marginTop: 18, marginLeft: -20, marginRight: -20, borderTop: '1px solid rgba(29, 29, 27,0.08)' }}>
+                    <div style={{ marginTop: 18, marginLeft: -20, marginRight: -20, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
                         <ContactsDirectory
                             leadId={selected.id}
                             leadName={selected.leadName}
@@ -229,7 +229,7 @@ export function Leads() {
                         <div className="leads-modal-header">
                             <div className="leads-modal-title">New Lead Intake</div>
                             <button className="leads-modal-close" onClick={close}>
-                                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#8B877F" strokeWidth={2.5} strokeLinecap="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
+                                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--muted)' }} strokeWidth={2.5} strokeLinecap="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
                             </button>
                         </div>
 
@@ -267,8 +267,8 @@ export function Leads() {
 function Field({ label, value }: { label: string; value?: string }) {
     return (
         <div>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
-            <div style={{ color: '#1D1D1B' }}>{value || '—'}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 2 }}>{label}</div>
+            <div style={{ color: 'var(--ink)' }}>{value || '—'}</div>
         </div>
     );
 }
@@ -289,9 +289,9 @@ function RolePicker({ roles, toggleRole, hide }: { roles: string[]; toggleRole: 
                             title={r.hint || r.label}
                             style={{
                                 padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none',
-                                border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.14)'),
-                                background: on ? '#E3ECD9' : 'white',
-                                color: on ? '#232321' : '#4A4741',
+                                border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.14)'),
+                                background: on ? 'var(--c-d2ead3)' : 'white',
+                                color: on ? 'var(--forest)' : 'var(--body)',
                                 fontWeight: on ? 700 : 400,
                             }}
                         >
@@ -400,7 +400,7 @@ function TabSecondContact({ form, set, roles, toggleRole }: { form: NewLead; set
             </div>
             {form.secondPointOfContact === 'Yes' && <>
                 <div className="leads-field full">
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1D1D1B', cursor: 'pointer' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer' }}>
                         <input type="checkbox" checked={sameAsPrimary} onChange={(e) => applySameAsPrimary(e.target.checked)} />
                         Same as Primary Contact
                     </label>
@@ -524,7 +524,7 @@ function TabLocation({ form, set }: { form: NewLead; set: <K extends keyof NewLe
             </div>
             <div className="leads-field">
                 <label>Property has an HOA</label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1D1D1B', cursor: 'pointer', padding: '9px 0' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}>
                     <input type="checkbox" checked={form.hasHOA === 'Yes'} onChange={(e) => set('hasHOA', e.target.checked ? 'Yes' : 'No')} />
                     Yes, this property is in an HOA
                 </label>
@@ -608,7 +608,7 @@ function TabProjectDetails({ form, set, toggleHomework }: { form: NewLead; set: 
                     {findProjectType(form.potentialProjectType) && (
                         <span
                             onClick={() => set('projectVision', appendScope(form.projectVision, findProjectType(form.potentialProjectType)!.scope))}
-                            style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}
+                            style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}
                         >
                             + Standard scope for {findProjectType(form.potentialProjectType)!.code}
                         </span>

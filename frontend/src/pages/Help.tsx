@@ -9,8 +9,8 @@ import {
   type Ticket, type Faq, type TicketPriority, type TicketStatus,
 } from '../data/support';
 
-const BG = "'Outfit', system-ui, sans-serif";
-const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 13, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' };
+const BG = 'var(--font-display)';
+const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
 const HELP_TOPICS = [
   { title: 'Finance guide', body: 'Step by step, on a real project: subcontracts and paying vendors, billing clients and recording payments, and what every number means.', route: 'help/finance' },
@@ -29,12 +29,12 @@ export function Help() {
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#1D1D1B', marginBottom: 4 }}>Help &amp; Support</div>
-      <div style={{ fontSize: 13, color: '#65615A', marginBottom: 18 }}>See what’s new, find answers, browse FAQs, or raise a support ticket.</div>
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: 'var(--ink)', marginBottom: 4 }}>Help &amp; Support</div>
+      <div style={{ fontSize: 13, color: 'var(--c-5c6b65)', marginBottom: 18 }}>See what’s new, find answers, browse FAQs, or raise a support ticket.</div>
 
-      <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999, marginBottom: 20, width: 'fit-content', flexWrap: 'wrap' }}>
         {([['new', 'What’s new'], ['center', 'Help Center'], ['ticket', 'Submit Ticket'], ['faq', 'FAQs']] as [typeof tab, string][]).map((t) => (
-          <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: '8px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: tab === t[0] ? 'white' : 'transparent', color: tab === t[0] ? '#1D1D1B' : '#8B877F', boxShadow: tab === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
+          <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: '8px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: tab === t[0] ? 'white' : 'transparent', color: tab === t[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: tab === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
         ))}
       </div>
 
@@ -42,14 +42,14 @@ export function Help() {
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, marginBottom: 16 }}>
             {HELP_TOPICS.map((h) => (
-              <div key={h.title} onClick={() => navigate('/' + h.route)} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 18, cursor: 'pointer' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#1D1D1B', marginBottom: 6 }}>{h.title}</div>
-                <div style={{ fontSize: 12.5, color: '#65615A', lineHeight: 1.5 }}>{h.body}</div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: '#232321', marginTop: 10 }}>Open →</div>
+              <div key={h.title} onClick={() => navigate('/' + h.route)} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 18, cursor: 'pointer' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>{h.title}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', lineHeight: 1.5 }}>{h.body}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', marginTop: 10 }}>Open →</div>
               </div>
             ))}
           </div>
-          <div style={{ background: '#F2EFE8', border: '1px dashed rgba(35, 35, 33,0.2)', borderRadius: 18, padding: '14px 16px', fontSize: 12.5, color: '#232321', lineHeight: 1.55 }}>
+          <div style={{ background: 'var(--mist)', border: '1px dashed rgba(var(--rgb-forest), 0.2)', borderRadius: 'var(--r-12)', padding: '14px 16px', fontSize: 12.5, color: 'var(--forest)', lineHeight: 1.55 }}>
             Can't find what you need? <strong onClick={() => setTab('ticket')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Submit a ticket</strong> and the team will follow up. Browse <strong onClick={() => setTab('faq')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>FAQs</strong> for quick answers.
           </div>
         </div>
@@ -83,7 +83,7 @@ function SubmitTicket({ canManage, currentUserName, currentUserEmail, toast }: {
 
   return (
     <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      <div style={{ flex: '1 1 420px', maxWidth: 560, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 20 }}>
+      <div style={{ flex: '1 1 420px', maxWidth: 560, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 20 }}>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Submit a ticket</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: '1 / -1' }}><L>Subject</L><input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={inputStyle} /></div>
@@ -93,7 +93,7 @@ function SubmitTicket({ canManage, currentUserName, currentUserEmail, toast }: {
           <div><L>Your email</L><input value={form.requesterEmail} onChange={(e) => setForm({ ...form, requesterEmail: e.target.value })} style={inputStyle} /></div>
           <div style={{ gridColumn: '1 / -1' }}><L>How can we help?</L><textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={5} style={{ ...inputStyle, resize: 'vertical' }} /></div>
         </div>
-        <div onClick={sending ? undefined : submit} style={{ marginTop: 16, display: 'inline-block', padding: '11px 22px', borderRadius: 999, background: sending ? '#ABA79E' : '#232321', color: 'white', fontSize: 13, fontWeight: 700, cursor: sending ? 'default' : 'pointer' }}>{sending ? 'Submitting…' : 'Submit ticket'}</div>
+        <div onClick={sending ? undefined : submit} style={{ marginTop: 16, display: 'inline-block', padding: '11px 22px', borderRadius: 999, background: sending ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white', fontSize: 13, fontWeight: 700, cursor: sending ? 'default' : 'pointer' }}>{sending ? 'Submitting…' : 'Submit ticket'}</div>
       </div>
 
       {canManage && (
@@ -103,18 +103,18 @@ function SubmitTicket({ canManage, currentUserName, currentUserEmail, toast }: {
             {tickets.map((t) => {
               const s = TICKET_STATUS_STYLE[t.status] || TICKET_STATUS_STYLE.Open;
               return (
-                <div key={t.id} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 18, padding: '12px 14px' }}>
+                <div key={t.id} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-12)', padding: '12px 14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1D1D1B', flex: 1 }}>{t.subject}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{t.subject}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: s.bg, color: s.c }}>{t.status}</span>
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 6 }}>{t.category} · {t.priority} · {t.requesterName || '—'} · {t.createdAt}</div>
-                  <div style={{ fontSize: 12, color: '#4A4741', lineHeight: 1.5, marginBottom: 8 }}>{t.message}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 6 }}>{t.category} · {t.priority} · {t.requesterName || '—'} · {t.createdAt}</div>
+                  <div style={{ fontSize: 12, color: 'var(--body)', lineHeight: 1.5, marginBottom: 8 }}>{t.message}</div>
                   <select value={t.status} onChange={(e) => setStatus(t, e.target.value as TicketStatus)} style={{ ...inputStyle, width: 'auto', padding: '5px 8px', fontSize: 11.5 }}>{TICKET_STATUSES.map((o) => <option key={o}>{o}</option>)}</select>
                 </div>
               );
             })}
-            {tickets.length === 0 && <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>No tickets yet.</div>}
+            {tickets.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tickets yet.</div>}
           </div>
         </div>
       )}
@@ -140,21 +140,21 @@ function Faqs({ canManage, toast }: { canManage: boolean; toast: (m: string) => 
 
   return (
     <div style={{ maxWidth: 760 }}>
-      {canManage && <div onClick={addFaq} style={{ display: 'inline-block', padding: '8px 16px', borderRadius: 999, background: '#E3ECD9', color: '#232321', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', marginBottom: 14 }}>+ Add FAQ</div>}
+      {canManage && <div onClick={addFaq} style={{ display: 'inline-block', padding: '8px 16px', borderRadius: 999, background: 'var(--c-d2ead3)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', marginBottom: 14 }}>+ Add FAQ</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {faqs.map((f) => (
-          <div key={f.id} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 18, overflow: 'hidden' }}>
+          <div key={f.id} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-12)', overflow: 'hidden' }}>
             <div onClick={() => setOpenId(openId === f.id ? null : f.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', cursor: 'pointer' }}>
-              <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: '#1D1D1B' }}>{f.question}</span>
-              {f.category && <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', background: '#ECE6DA', padding: '2px 8px', borderRadius: 999 }}>{f.category}</span>}
-              <span style={{ fontSize: 14, color: '#8B877F', transform: openId === f.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>⌄</span>
+              <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{f.question}</span>
+              {f.category && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', background: 'var(--sand)', padding: '2px 8px', borderRadius: 999 }}>{f.category}</span>}
+              <span style={{ fontSize: 14, color: 'var(--muted)', transform: openId === f.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>⌄</span>
             </div>
             {openId === f.id && (
-              <div style={{ padding: '0 16px 14px', fontSize: 13, color: '#4A4741', lineHeight: 1.6 }}>
+              <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--body)', lineHeight: 1.6 }}>
                 {f.answer}
                 {canManage && (
                   <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                    <span onClick={() => setEditing(f)} style={{ fontSize: 12, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>Edit</span>
+                    <span onClick={() => setEditing(f)} style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Edit</span>
                     <span onClick={() => delFaq(f)} style={{ fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer' }}>Delete</span>
                   </div>
                 )}
@@ -162,19 +162,19 @@ function Faqs({ canManage, toast }: { canManage: boolean; toast: (m: string) => 
             )}
           </div>
         ))}
-        {faqs.length === 0 && <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>No FAQs yet.</div>}
+        {faqs.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No FAQs yet.</div>}
       </div>
 
       {editing && (
-        <div onClick={() => setEditing(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: '94vw', background: '#FDFCF9', borderRadius: 16, boxShadow: '0 24px 60px rgba(29, 29, 27,0.24)', padding: 22 }}>
+        <div onClick={() => setEditing(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: '94vw', background: 'var(--surface)', borderRadius: 16, boxShadow: '0 24px 60px rgba(var(--rgb-shade), 0.24)', padding: 22 }}>
             <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, marginBottom: 14 }}>{editing.id ? 'Edit FAQ' : 'New FAQ'}</div>
             <L>Question</L><input value={editing.question} onChange={(e) => setEditing({ ...editing, question: e.target.value })} style={{ ...inputStyle, marginBottom: 12 }} />
             <L>Category</L><input value={editing.category || ''} onChange={(e) => setEditing({ ...editing, category: e.target.value })} style={{ ...inputStyle, marginBottom: 12 }} />
             <L>Answer</L><textarea value={editing.answer} onChange={(e) => setEditing({ ...editing, answer: e.target.value })} rows={5} style={{ ...inputStyle, resize: 'vertical', marginBottom: 14 }} />
             <div style={{ display: 'flex', gap: 9 }}>
-              <div onClick={saveFaq} style={{ padding: '10px 20px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</div>
-              <div onClick={() => setEditing(null)} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#4A4741' }}>Cancel</div>
+              <div onClick={saveFaq} style={{ padding: '10px 20px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</div>
+              <div onClick={() => setEditing(null)} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>Cancel</div>
             </div>
           </div>
         </div>
@@ -184,5 +184,5 @@ function Faqs({ canManage, toast }: { canManage: boolean; toast: (m: string) => 
 }
 
 function L({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{children}</div>;
+  return <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{children}</div>;
 }

@@ -41,7 +41,7 @@ export function HoldBadge({ project, size = 'sm' }: { project: Partial<HoldField
     <span title={project.holdReason ? `On hold: ${project.holdReason}` : 'On hold'} style={{
       display: 'inline-flex', alignItems: 'center', gap: 4, padding: size === 'md' ? '3px 11px' : '2px 8px', borderRadius: 999,
       fontSize: size === 'md' ? 10.5 : 9.5, fontWeight: 700, whiteSpace: 'nowrap',
-      background: due ? '#F2DFD4' : '#FBE7A8', color: due ? '#8E2E0A' : '#93520F',
+      background: due ? '#F2DFD4' : 'var(--amber-light)', color: due ? '#8E2E0A' : '#93520F',
     }}>
       <svg width={size === 'md' ? 10 : 9} height={size === 'md' ? 10 : 9} viewBox="0 0 24 24" fill="currentColor"><rect x={6} y={4} width={4} height={16} rx={1} /><rect x={14} y={4} width={4} height={16} rx={1} /></svg>
       On hold{project.holdUntil ? ` · ${due ? 'follow up now' : holdDay(project.holdUntil)}` : ''}
@@ -56,8 +56,8 @@ const PRESETS: { label: string; days: number; months: number }[] = [
   { label: '3 months', days: 0, months: 3 },
 ];
 
-const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit', background: '#FDFCF9', color: '#1D1D1B' };
-const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 };
+const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)' };
+const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 };
 
 /**
  * The hold strip under a project's header: the banner while it's on hold
@@ -122,20 +122,20 @@ export function ProjectHoldPanel({ project, open, canManage, onOpen, onClose, on
   const due = holdDue(project);
 
   return (
-    <div style={{ padding: '12px 20px', background: due ? '#FBEDE6' : '#FDF6DC', borderBottom: '1px solid rgba(29, 29, 27,0.06)', flexShrink: 0 }}>
+    <div style={{ padding: '12px 20px', background: due ? '#FBEDE6' : '#FDF6DC', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0 }}>
       {onHold && !open && (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: due ? '#8E2E0A' : '#93520F' }}>
               On hold since {holdDay(project.holdSince)}{project.holdBy ? ` (${project.holdBy})` : ''} — {due ? 'follow-up is due' : `follow up ${holdDay(project.holdUntil)}`}
             </div>
-            {project.holdReason && <div style={{ fontSize: 12.5, color: '#4A4741', marginTop: 3, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{project.holdReason}</div>}
-            <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 3 }}>The follow-up is a task on this project, so it shows on the Tasks page and in the reminder email.</div>
+            {project.holdReason && <div style={{ fontSize: 12.5, color: 'var(--body)', marginTop: 3, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{project.holdReason}</div>}
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 3 }}>The follow-up is a task on this project, so it shows on the Tasks page and in the reminder email.</div>
           </div>
           {canManage && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" onClick={onOpen} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontSize: 12, fontWeight: 700, color: '#232321', cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
-              <button type="button" onClick={resume} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, border: 'none', background: '#232321', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>{busy ? 'Saving…' : 'Resume project'}</button>
+              <button type="button" onClick={onOpen} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', fontFamily: 'inherit' }}>Change</button>
+              <button type="button" onClick={resume} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, border: 'none', background: 'var(--forest)', fontSize: 12, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>{busy ? 'Saving…' : 'Resume project'}</button>
             </div>
           )}
         </div>
@@ -143,7 +143,7 @@ export function ProjectHoldPanel({ project, open, canManage, onOpen, onClose, on
 
       {open && (
         <div>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 10 }}>{onHold ? 'Change the hold' : `Put ${project.name} on hold`}</div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>{onHold ? 'Change the hold' : `Put ${project.name} on hold`}</div>
           <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
             <div>
               <div style={label}>Follow up on</div>
@@ -151,7 +151,7 @@ export function ProjectHoldPanel({ project, open, canManage, onOpen, onClose, on
                 {PRESETS.map((p) => {
                   const d = plus(p.days, p.months);
                   return (
-                    <span key={p.label} onClick={() => setUntil(d)} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: until === d ? '#232321' : 'white', color: until === d ? 'white' : '#4A4741', border: '1px solid ' + (until === d ? '#232321' : 'rgba(29, 29, 27,0.12)') }}>{p.label}</span>
+                    <span key={p.label} onClick={() => setUntil(d)} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: until === d ? 'var(--forest)' : 'white', color: until === d ? 'white' : 'var(--body)', border: '1px solid ' + (until === d ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{p.label}</span>
                   );
                 })}
               </div>
@@ -163,7 +163,7 @@ export function ProjectHoldPanel({ project, open, canManage, onOpen, onClose, on
                 {!staff.some((u) => u.id === followUpId) && <option value="">Me</option>}
                 {staff.map((u) => <option key={u.id} value={u.id}>{u.name}{u.id === currentUser?.id ? ' (me)' : ''}</option>)}
               </select>
-              <div style={{ fontSize: 11, color: '#8B877F', marginTop: 5, lineHeight: 1.45 }}>Gets a task due on that date, and the usual reminder email.</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5, lineHeight: 1.45 }}>Gets a task due on that date, and the usual reminder email.</div>
             </div>
           </div>
           <div style={{ marginTop: 12 }}>
@@ -172,10 +172,10 @@ export function ProjectHoldPanel({ project, open, canManage, onOpen, onClose, on
           </div>
           {error && <div style={{ fontSize: 12, fontWeight: 600, color: '#8E2E0A', marginTop: 8 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <button type="button" onClick={submit} disabled={busy} style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: '#232321', fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button type="button" onClick={submit} disabled={busy} style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: 'var(--forest)', fontSize: 12.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
               {busy ? 'Saving…' : onHold ? 'Save changes' : 'Put on hold'}
             </button>
-            <button type="button" onClick={onClose} disabled={busy} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontSize: 12.5, fontWeight: 700, color: '#4A4741', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+            <button type="button" onClick={onClose} disabled={busy} style={{ padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontSize: 12.5, fontWeight: 700, color: 'var(--body)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
           </div>
         </div>
       )}

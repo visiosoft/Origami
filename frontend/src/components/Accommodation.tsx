@@ -77,7 +77,7 @@ export function AccommodationModule({ employees, canManage, onOpenEmployee }: { 
     const childLevels = CHILD[u.level].filter((l) => l !== 'bed');
     return (
       <div key={u.id}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', paddingLeft: 14 + depth * 22, borderTop: '1px solid rgba(29, 29, 27,.05)', opacity: u.active ? 1 : 0.5, background: depth === 0 ? '#FBF9F4' : undefined }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', paddingLeft: 14 + depth * 22, borderTop: '1px solid rgba(var(--rgb-shade), .05)', opacity: u.active ? 1 : 0.5, background: depth === 0 ? '#FBF9F4' : undefined }}>
           {!isRoom ? <span onClick={() => toggle(u.id)} style={{ width: 14, cursor: 'pointer', color: MUTED, fontSize: 11 }}>{open ? '▾' : '▸'}</span> : <span style={{ width: 14 }} />}
           <span style={{ fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', width: 62 }}>{LEVEL_LABEL[u.level]}</span>
           <span style={{ fontSize: 13, fontWeight: depth === 0 ? 700 : 600, color: INK }}>{u.name}</span>
@@ -92,7 +92,7 @@ export function AccommodationModule({ employees, canManage, onOpenEmployee }: { 
                   <span key={b.id} onClick={() => (a ? onOpenEmployee(a.employeeId) : canManage && b.active ? setAllocating(b) : undefined)}
                     title={a ? `Since ${fmtDate(a.checkIn)}` : r ? `Reserved for ${empName(r.employeeId)} from ${fmtDate(r.checkIn)}` : b.active ? 'Free — click to allocate' : 'Out of use'}
                     style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 9px', borderRadius: 8, fontSize: 11.5, cursor: 'pointer',
-                      background: a ? ACCENT_BG : b.active ? 'white' : '#EEEBE4', border: '1px ' + (a ? 'solid ' + ACCENT_BG : 'dashed rgba(29, 29, 27,.2)'), color: a ? ACCENT : MUTED }}>
+                      background: a ? ACCENT_BG : b.active ? 'white' : 'var(--c-efede8)', border: '1px ' + (a ? 'solid ' + ACCENT_BG : 'dashed rgba(var(--rgb-shade), .2)'), color: a ? ACCENT : MUTED }}>
                     <b>{b.name}</b>{a ? ` · ${empName(a.employeeId)}` : r ? ` · reserved` : b.active ? ' · free' : ''}
                     {a && canManage && <span onClick={(e) => { e.stopPropagation(); checkout(a); }} title="Check out" style={{ color: DANGER, fontWeight: 700 }}>⏏</span>}
                   </span>
@@ -148,7 +148,7 @@ export function AccommodationModule({ employees, canManage, onOpenEmployee }: { 
       {view === 'complaints' && (
         <div style={{ ...card, overflow: 'hidden' }}>
           {issues.map((i) => (
-            <div key={i.id} onClick={() => setOpenComplaint(i)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer' }}>
+            <div key={i.id} onClick={() => setOpenComplaint(i)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer' }}>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{i.title}</div>
                 <div style={{ fontSize: 11.5, color: MUTED }}>{pathOf(units, i.unitId)} · {fmtDate(i.reportedAt)} by {i.reportedByName || '—'}{i.employeeId ? ` for ${empName(i.employeeId)}` : ''}</div>
@@ -227,7 +227,7 @@ function AllocateDrawer({ bed, units, allocations, employees, fixedEmployeeId, o
             </select>
           </div>
         )}
-        {current && <div style={{ fontSize: 12, color: '#7A5A0C', background: '#FBF3D6', padding: '8px 10px', borderRadius: 8 }}>Currently in {pathOf(units, current.bedId)} — they'll be checked out of it the day before.</div>}
+        {current && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)', background: '#FBF3D6', padding: '8px 10px', borderRadius: 8 }}>Currently in {pathOf(units, current.bedId)} — they'll be checked out of it the day before.</div>}
         <div><Label text="Check-in" /><input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} style={input} /></div>
         <div><Label text="Notes" /><input value={notes} onChange={(e) => setNotes(e.target.value)} style={input} /></div>
       </div>

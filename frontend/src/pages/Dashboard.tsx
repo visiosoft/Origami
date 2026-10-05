@@ -1,4 +1,5 @@
 import { CountUp } from '../components/CountUp';
+import { tint } from '../theme';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
@@ -13,32 +14,32 @@ import {
 } from '../data/dashboard';
 import './Dashboard.css';
 
-const BG = "'Outfit', system-ui, sans-serif";
-const ocRamp = ['#C7D8CB', '#8AAE95', '#3E8558', '#232321'];
-const INVC = '#8B877F';
-const COLC = '#232321';
+const BG = 'var(--font-display)';
+const ocRamp = ['#C7D8CB', '#8AAE95', '#3E8558', '#173326'];
+const INVC = 'var(--muted)';
+const COLC = 'var(--forest)';
 const OUTC = '#D2822E';
 
 interface Tip { key: string; title: string; rows: (readonly [string, string] | null)[]; accent: string; x: number; y: number }
 
 function Card({ children, extra }: { children: ReactNode; extra?: CSSProperties }) {
   return (
-    <div style={{ background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)', padding: 18, ...extra }}>
+    <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', padding: 18, ...extra }}>
       {children}
     </div>
   );
 }
 
 const mini = (t: string) => (
-  <div style={{ fontSize: 13, fontWeight: 500, color: '#65615A' }}>{t}</div>
+  <div className="dash-mini" style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{t}</div>
 );
 
 function Hdr({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, rowGap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
       <div>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 14.5, color: '#1D1D1B', letterSpacing: '-0.01em' }}>{title}</div>
-        {sub && <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 3 }}>{sub}</div>}
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 14.5, color: 'var(--ink)', letterSpacing: '-0.01em' }}>{title}</div>
+        {sub && <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{sub}</div>}
       </div>
       {right ?? null}
     </div>
@@ -46,14 +47,14 @@ function Hdr({ title, sub, right }: { title: string; sub?: string; right?: React
 }
 
 const bandLabel = (t: string) => (
-  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 400, letterSpacing: '-0.02em', color: '#1D1D1B', paddingLeft: 4, marginTop: 6 }}>{t}</div>
+  <div className="dash-band" style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'rgba(var(--rgb-ink), 0.32)', paddingLeft: 2 }}>{t}</div>
 );
 
 function Swatch({ c, label }: { c: string; label: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
       <div style={{ width: 11, height: 11, borderRadius: 3, background: c }} />
-      <span style={{ fontSize: 9.5, color: '#8B877F', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 9.5, color: 'var(--muted)', fontWeight: 600 }}>{label}</span>
     </div>
   );
 }
@@ -127,7 +128,7 @@ export function Dashboard() {
     e.stopPropagation();
     swallowDoc.current = true;
     const key = title + '|' + rows.length;
-    setTip((cur) => (cur && cur.key === key ? null : { key, title, rows, accent: accent || '#232321', x: e.clientX, y: e.clientY }));
+    setTip((cur) => (cur && cur.key === key ? null : { key, title, rows, accent: accent || 'var(--forest)', x: e.clientX, y: e.clientY }));
   };
 
   let fin = FINANCE;
@@ -147,30 +148,30 @@ export function Dashboard() {
 
   const kpiDefs = isClient
     ? [
-        { k: 'projects', label: 'Your Projects', value: String(fin.length), sub: 'In design & construction', color: '#232321' },
-        { k: 'money', label: 'Contract Value', value: money(rollContract), sub: Math.round((rollUsed / rollContract) * 100) + '% invoiced to date', color: '#4C7A3F' },
+        { k: 'projects', label: 'Your Projects', value: String(fin.length), sub: 'In design & construction', color: 'var(--forest)' },
+        { k: 'money', label: 'Contract Value', value: money(rollContract), sub: Math.round((rollUsed / rollContract) * 100) + '% invoiced to date', color: 'var(--success)' },
         { k: 'tasks', label: 'Awaiting You', value: '3', sub: '2 selections · 1 approval', color: '#D2822E' },
-        { k: 'leads', label: 'Next Milestone', value: 'Sep 15', sub: 'Construction Docs 60%', color: '#3A5F33' },
+        { k: 'leads', label: 'Next Milestone', value: 'Sep 15', sub: 'Construction Docs 60%', color: 'var(--c-245c3a)' },
       ]
     : isCons
     ? [
-        { k: 'projects', label: 'Assigned Projects', value: String(fin.length), sub: 'Active engagements', color: '#232321' },
-        { k: 'money', label: 'Your Billings', value: '$186K', sub: '$41K awaiting payment', color: '#4C7A3F' },
+        { k: 'projects', label: 'Assigned Projects', value: String(fin.length), sub: 'Active engagements', color: 'var(--forest)' },
+        { k: 'money', label: 'Your Billings', value: '$186K', sub: '$41K awaiting payment', color: 'var(--success)' },
         { k: 'tasks', label: 'Open Items', value: '11', sub: '2 past due · 4 this week', color: '#D2822E' },
-        { k: 'leads', label: 'Bid Invitations', value: '4', sub: '2 due within 7 days', color: '#3A5F33' },
+        { k: 'leads', label: 'Bid Invitations', value: '4', sub: '2 due within 7 days', color: 'var(--c-245c3a)' },
       ]
     : [
-        { k: 'projects', label: 'Active Projects', value: '7', sub: '1 signed · 5 design · 1 construction', color: '#232321', helpKey: 'projects' },
-        { k: 'money', label: 'Contract Value', value: money(rollContract), sub: money(rollUsed) + ' used (' + Math.round((rollUsed / rollContract) * 100) + '%) · active only', color: '#4C7A3F', helpKey: 'money' },
+        { k: 'projects', label: 'Active Projects', value: '7', sub: '1 signed · 5 design · 1 construction', color: 'var(--forest)', helpKey: 'projects' },
+        { k: 'money', label: 'Contract Value', value: money(rollContract), sub: money(rollUsed) + ' used (' + Math.round((rollUsed / rollContract) * 100) + '%) · active only', color: 'var(--success)', helpKey: 'money' },
         { k: 'tasks', label: 'Open Tasks', value: '32', sub: '18 open · 14 in progress', color: '#D2822E' },
-        { k: 'leads', label: 'Lead Pipeline', value: '9', sub: '3 won · 1 lost · 5 live', color: '#3A5F33' },
+        { k: 'leads', label: 'Lead Pipeline', value: '9', sub: '3 won · 1 lost · 5 live', color: 'var(--c-245c3a)' },
       ];
 
   const HelpPanel = ({ keyName }: { keyName: string }) => {
     const hc = HELP_CONTENT[keyName];
     return (
-      <div style={{ position: 'absolute', top: 46, right: 10, width: 272, background: '#232321', color: 'white', borderRadius: 18, padding: '14px 16px', zIndex: 30, boxShadow: '0 16px 40px rgba(29, 29, 27,0.28)', animation: 'scaleIn 0.15s ease' }}>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#F5C443', marginBottom: 8 }}>{hc.title}</div>
+      <div style={{ position: 'absolute', top: 46, right: 10, width: 272, background: 'var(--sidebar)', color: 'white', borderRadius: 'var(--r-12)', padding: '14px 16px', zIndex: 30, boxShadow: '0 16px 40px rgba(var(--rgb-ink), 0.28)', animation: 'scaleIn 0.15s ease' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--gold)', marginBottom: 8 }}>{hc.title}</div>
         <div style={{ fontSize: 12, lineHeight: 1.55, color: 'rgba(255,255,255,0.82)', marginBottom: 12 }}>{hc.body}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {hc.rows.map((r) => (
@@ -249,24 +250,24 @@ export function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 11 }}>
         <div style={{ width: 7, height: 7, borderRadius: 999, background: accent }} />
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 13.5 }}>{title}</div>
-        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: accent, background: accent + '16', padding: '2px 7px', borderRadius: 999 }}>{items.length}</span>
+        <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, color: accent, background: tint(accent, '16'), padding: '2px 7px', borderRadius: 999 }}>{items.length}</span>
       </div>
       {items.length ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {items.map((d) => (
-            <div key={d.task} onClick={() => navigate('/tasks')} style={{ padding: '9px 10px', borderRadius: 9, background: '#FAF8F3', borderLeft: '2px solid ' + accent, cursor: 'pointer' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#1D1D1B', lineHeight: 1.35 }}>{d.task}</div>
+            <div key={d.task} onClick={() => navigate('/tasks')} style={{ padding: '9px 10px', borderRadius: 9, background: 'var(--panel)', borderLeft: '2px solid ' + accent, cursor: 'pointer' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.35 }}>{d.task}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                <span style={{ fontSize: 9.5, color: '#8B877F' }}>{d.project}</span>
-                <span style={{ fontSize: 9.5, color: '#8B877F' }}>·</span>
-                <span style={{ fontSize: 9.5, color: '#8B877F' }}>{d.owner}</span>
+                <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>{d.project}</span>
+                <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>·</span>
+                <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>{d.owner}</span>
                 <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, color: accent }}>{d.due}</span>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ fontSize: 11, color: '#8B877F', padding: '10px 0' }}>Nothing in this filter.</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', padding: '10px 0' }}>Nothing in this filter.</div>
       )}
     </Card>
   );
@@ -314,15 +315,15 @@ export function Dashboard() {
       {/* KPI row */}
       <div className="dashboard-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(215px, 1fr))', gap: 10 }}>
         {kpiDefs.map((st) => (
-          <div key={st.k} onClick={setKpi(st.k)} style={{ position: 'relative', background: '#FDFCF9', borderRadius: 20, padding: '15px 16px', cursor: 'pointer', border: kpi === st.k ? '1px solid #1D1D1B' : '1px solid rgba(29, 29, 27,0.06)', ...(kpi === st.k ? { boxShadow: '0 0 0 3px #F5C443' } : {}) }}>
+          <div key={st.k} className={'dash-kpi' + (kpi === st.k ? ' is-on' : '')} onClick={setKpi(st.k)} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 'var(--r-14)', padding: '15px 16px', cursor: 'pointer', transition: 'all 0.15s', border: kpi === st.k ? '1px solid ' + st.color : '1px solid rgba(var(--rgb-shade), 0.06)', boxShadow: kpi === st.k ? '0 0 0 3px ' + tint(st.color, '18') : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
               {mini(st.label)}
               {'helpKey' in st && st.helpKey && (
-                <div onClick={(e) => { e.stopPropagation(); swallowDoc.current = true; setDashHelp(dashHelp === st.helpKey ? null : st.helpKey!); }} style={{ width: 15, height: 15, borderRadius: 999, background: dashHelp === st.helpKey ? '#232321' : '#FAE7A5', color: dashHelp === st.helpKey ? 'white' : '#232321', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', cursor: 'help' }}>?</div>
+                <div onClick={(e) => { e.stopPropagation(); swallowDoc.current = true; setDashHelp(dashHelp === st.helpKey ? null : st.helpKey!); }} style={{ width: 15, height: 15, borderRadius: 999, background: dashHelp === st.helpKey ? 'var(--forest)' : 'var(--mint)', color: dashHelp === st.helpKey ? 'white' : 'var(--forest)', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center', cursor: 'help' }}>?</div>
               )}
-              <div style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: kpi === st.k ? st.color : 'rgba(29, 29, 27,0.2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{kpi === st.k ? 'Filtering' : 'Filter'}</div>
+              <div style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 700, color: kpi === st.k ? st.color : 'rgba(var(--rgb-ink), 0.2)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{kpi === st.k ? 'Filtering' : 'Filter'}</div>
             </div>
-            <div style={{ fontFamily: BG, fontSize: 40, fontWeight: 400, lineHeight: 1.05, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}><CountUp value={st.value} /></div>
+            <div className="dash-kpi-value" style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em' }}><CountUp value={st.value} /></div>
             <div style={{ fontSize: 10.5, color: st.color, fontWeight: 600, marginTop: 4 }}>{st.sub}</div>
             {'helpKey' in st && st.helpKey && dashHelp === st.helpKey && <HelpPanel keyName={st.helpKey} />}
           </div>
@@ -339,9 +340,9 @@ export function Dashboard() {
             title={isClient ? 'Budget & Time Used — Your Projects' : 'Budget & Time vs Used by Project'}
             sub={isClient ? 'Contract, approved change orders and reimbursables' : 'Roll-up of ' + shown.length + ' of ' + fin.length + ' projects · filtered by execution type'}
             right={
-              <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999, flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999, flexShrink: 0 }}>
                 {execTypes.map((t) => (
-                  <div key={t[0]} onClick={() => setExecFilter(t[0])} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: ef === t[0] ? 'white' : 'transparent', color: ef === t[0] ? '#1D1D1B' : '#8B877F', boxShadow: ef === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
+                  <div key={t[0]} onClick={() => setExecFilter(t[0])} style={{ padding: '4px 10px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: ef === t[0] ? 'white' : 'transparent', color: ef === t[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: ef === t[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{t[1]}</div>
                 ))}
               </div>
             }
@@ -350,14 +351,14 @@ export function Dashboard() {
             {!narrow && (
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                 {ticks.map((f, i) => (
-                  <div key={'v' + i} style={{ position: 'absolute', top: 0, bottom: 0, left: f * 100 + '%', width: 1, background: f === 0 ? 'rgba(29, 29, 27,0.14)' : 'rgba(29, 29, 27,0.06)' }} />
+                  <div key={'v' + i} style={{ position: 'absolute', top: 0, bottom: 0, left: f * 100 + '%', width: 1, background: f === 0 ? 'rgba(var(--rgb-shade), 0.14)' : 'rgba(var(--rgb-shade), 0.06)' }} />
                 ))}
               </div>
             )}
             {!narrow && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, overflow: 'hidden' }}>
                 {ticks.slice().reverse().map((f, i) => (
-                  <span key={'t' + i} style={{ fontSize: 9, color: '#8B877F', fontWeight: 600, whiteSpace: 'nowrap' }}>{money(Math.round((maxTotal * f) / 50000) * 50000)}</span>
+                  <span key={'t' + i} style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{money(Math.round((maxTotal * f) / 50000) * 50000)}</span>
                 ))}
               </div>
             )}
@@ -384,59 +385,59 @@ export function Dashboard() {
                     ['Time used', f.timePct + '%'],
                     ['Phase', f.phase],
                     ['Execution / contract', f.exec + ' · ' + f.contract + ' · ' + f.labor],
-                  ], hot ? '#8E2E0A' : '#232321')}>
+                  ], hot ? '#8E2E0A' : 'var(--forest)')}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, rowGap: 4, flexWrap: 'wrap', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#1D1D1B' }}>{f.name}</span>
-                      {pill(f.exec, '#FAE7A5', '#232321')}
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{f.name}</span>
+                      {pill(f.exec, 'var(--mint)', 'var(--forest)')}
                       {pill(f.contract, '#D6E8E5', '#2F6F68')}
-                      {pill(f.labor, '#FBE7A8', '#93520F')}
+                      {pill(f.labor, 'var(--amber-light)', '#93520F')}
                       <span style={{ marginLeft: narrow ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', whiteSpace: 'nowrap' }}>{f.timePct}% Time Used</span>
-                        <span style={{ fontSize: 10, color: 'rgba(29, 29, 27,0.22)' }}>|</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: hot ? '#8E2E0A' : '#232321', whiteSpace: 'nowrap' }}>{dPct}% $ Used</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{f.timePct}% Time Used</span>
+                        <span style={{ fontSize: 10, color: 'rgba(var(--rgb-ink), 0.22)' }}>|</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: hot ? '#8E2E0A' : 'var(--forest)', whiteSpace: 'nowrap' }}>{dPct}% $ Used</span>
                         {hot && <span style={{ fontSize: 10, fontWeight: 700, color: '#8E2E0A' }}>!</span>}
                       </span>
                     </div>
                     <div style={{ position: 'relative', width: barW, minWidth: '8%' }}>
-                      <div style={{ position: 'relative', height: 17, background: '#FAE7A5', border: '1px solid rgba(35, 35, 33,0.18)', borderRadius: 5, overflow: 'hidden', display: 'flex' }}>
-                        <div style={{ width: (f.baseUsed / total) * 100 + '%', background: hot ? '#8E2E0A' : '#4C7A3F', transition: 'width 0.5s ease' }} />
-                        <div style={{ width: (f.coUsed / total) * 100 + '%', background: hot ? '#8E2E0A' : '#4C7A3F', borderLeft: f.coUsed ? '1px solid rgba(255,255,255,0.55)' : 'none' }} />
-                        <div style={{ width: (f.reimbUsed / total) * 100 + '%', background: hot ? '#8E2E0A' : '#4C7A3F', borderLeft: f.reimbUsed ? '1px solid rgba(255,255,255,0.55)' : 'none' }} />
+                      <div style={{ position: 'relative', height: 17, background: 'var(--mint)', border: '1px solid rgba(var(--rgb-forest), 0.18)', borderRadius: 5, overflow: 'hidden', display: 'flex' }}>
+                        <div style={{ width: (f.baseUsed / total) * 100 + '%', background: hot ? '#8E2E0A' : 'var(--success)', transition: 'width 0.5s ease' }} />
+                        <div style={{ width: (f.coUsed / total) * 100 + '%', background: hot ? '#8E2E0A' : 'var(--success)', borderLeft: f.coUsed ? '1px solid rgba(255,255,255,0.55)' : 'none' }} />
+                        <div style={{ width: (f.reimbUsed / total) * 100 + '%', background: hot ? '#8E2E0A' : 'var(--success)', borderLeft: f.reimbUsed ? '1px solid rgba(255,255,255,0.55)' : 'none' }} />
                       </div>
-                      <div style={{ position: 'absolute', top: -2, bottom: -2, left: f.timePct + '%', width: 2, background: '#1D1D1B', transform: 'translateX(-1px)' }} />
-                      <div style={{ position: 'absolute', top: '100%', left: f.timePct + '%', transform: 'translateX(-5px)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid #1D1D1B' }} />
+                      <div style={{ position: 'absolute', top: -2, bottom: -2, left: f.timePct + '%', width: 2, background: 'var(--ink)', transform: 'translateX(-1px)' }} />
+                      <div style={{ position: 'absolute', top: '100%', left: f.timePct + '%', transform: 'translateX(-5px)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid var(--ink)' }} />
                     </div>
                     <div style={{ width: barW, minWidth: '8%', marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                         <div style={{ flex: 1, height: 13, background: '#EDF2ED', borderRadius: 4, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ height: '50%', width: Math.min(f.timePct, 100) + '%', background: '#8B877F', transition: 'width 0.5s ease' }} />
-                          <div style={{ height: '50%', width: Math.min(dPct, 100) + '%', background: hot ? '#8E2E0A' : '#4C7A3F', transition: 'width 0.5s ease' }} />
+                          <div style={{ height: '50%', width: Math.min(f.timePct, 100) + '%', background: 'var(--muted)', transition: 'width 0.5s ease' }} />
+                          <div style={{ height: '50%', width: Math.min(dPct, 100) + '%', background: hot ? '#8E2E0A' : 'var(--success)', transition: 'width 0.5s ease' }} />
                         </div>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#8B877F', flexShrink: 0, whiteSpace: 'nowrap' }}>{f.timePct}% time</span>
-                        <span style={{ fontSize: 9, color: 'rgba(29, 29, 27,0.22)' }}>|</span>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: hot ? '#8E2E0A' : '#4C7A3F', flexShrink: 0, whiteSpace: 'nowrap' }}>{dPct}% spent</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>{f.timePct}% time</span>
+                        <span style={{ fontSize: 9, color: 'rgba(var(--rgb-ink), 0.22)' }}>|</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: hot ? '#8E2E0A' : 'var(--success)', flexShrink: 0, whiteSpace: 'nowrap' }}>{dPct}% spent</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginTop: 9, width: barW }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#232321' }}>{money(f.base)}</span>
-                      <span style={{ fontSize: 9.5, color: '#8B877F' }}>+</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#232321' }}>{money(f.co)}</span>
-                      <span style={{ fontSize: 9.5, color: '#8B877F' }}>+</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#232321' }}>{money(f.reimb)}</span>
-                      <span style={{ fontSize: 9.5, color: '#8B877F', marginLeft: narrow ? 0 : 'auto' }}>{money(used) + ' of ' + money(total) + ' · ' + f.phase}</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--forest)' }}>{money(f.base)}</span>
+                      <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>+</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--forest)' }}>{money(f.co)}</span>
+                      <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>+</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--forest)' }}>{money(f.reimb)}</span>
+                      <span style={{ fontSize: 9.5, color: 'var(--muted)', marginLeft: narrow ? 0 : 'auto' }}>{money(used) + ' of ' + money(total) + ' · ' + f.phase}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-          <div style={{ marginTop: 16, paddingTop: 13, borderTop: '1px solid rgba(29, 29, 27,0.07)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14 }}>
-            <Swatch c="#4C7A3F" label="On track" />
+          <div style={{ marginTop: 16, paddingTop: 13, borderTop: '1px solid rgba(var(--rgb-shade), 0.07)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14 }}>
+            <Swatch c="var(--success)" label="On track" />
             <Swatch c="#8E2E0A" label="Over 90% spent or slipping" />
-            <Swatch c="#8B877F" label="Schedule time used" />
+            <Swatch c="var(--muted)" label="Schedule time used" />
             <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid #1D1D1B' }} />
-              <span style={{ fontSize: 9.5, color: '#8B877F', fontWeight: 600 }}>{narrow ? "Marker = schedule time used · each bar is that project's full contract" : 'Marker = schedule time used · bar length = total contract value'}</span>
+              <div style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid var(--ink)' }} />
+              <span style={{ fontSize: 9.5, color: 'var(--muted)', fontWeight: 600 }}>{narrow ? "Marker = schedule time used · each bar is that project's full contract" : 'Marker = schedule time used · bar length = total contract value'}</span>
             </div>
           </div>
         </Card>
@@ -456,10 +457,10 @@ export function Dashboard() {
           />
           <div style={{ position: 'relative', height: 176 }}>
             {gridVals.map((v, i) => (
-              <div key={'g' + i} style={{ position: 'absolute', left: 44, right: 0, top: i * (CH / (gridVals.length - 1)), height: 1, background: v === 0 ? 'rgba(29, 29, 27,0.16)' : 'rgba(29, 29, 27,0.06)' }} />
+              <div key={'g' + i} style={{ position: 'absolute', left: 44, right: 0, top: i * (CH / (gridVals.length - 1)), height: 1, background: v === 0 ? 'rgba(var(--rgb-shade), 0.16)' : 'rgba(var(--rgb-shade), 0.06)' }} />
             ))}
             {gridVals.map((v, i) => (
-              <div key={'l' + i} style={{ position: 'absolute', left: 0, width: 38, textAlign: 'right', top: i * (CH / (gridVals.length - 1)) - 6, fontSize: 9, color: '#8B877F', fontWeight: 600 }}>{money(v)}</div>
+              <div key={'l' + i} style={{ position: 'absolute', left: 0, width: 38, textAlign: 'right', top: i * (CH / (gridVals.length - 1)) - 6, fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{money(v)}</div>
             ))}
             <div style={{ position: 'absolute', left: 44, right: 0, top: 0, height: CH, display: 'flex', alignItems: 'flex-end', gap: 10 }}>
               {revenueData.map((r) => {
@@ -478,7 +479,7 @@ export function Dashboard() {
                   ], OUTC)}>
                     <div style={{ position: 'relative', width: 17, height: Math.max(invH, 1), background: INVC, borderRadius: '4px 4px 0 0', transition: 'height 0.5s ease' }}>
                       {gap > 0 && (
-                        <div onClick={(e) => { e.stopPropagation(); setInvoiceMonth(r.month); setTip(null); }} title={'Open ' + r.open.length + ' outstanding invoice' + (r.open.length === 1 ? '' : 's')} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: Math.round((gap / axisMax) * CH), background: OUTC, borderRadius: '4px 4px 0 0', cursor: 'pointer', boxShadow: invoiceMonth === r.month ? '0 0 0 2px #1D1D1B' : 'none' }} />
+                        <div onClick={(e) => { e.stopPropagation(); setInvoiceMonth(r.month); setTip(null); }} title={'Open ' + r.open.length + ' outstanding invoice' + (r.open.length === 1 ? '' : 's')} style={{ position: 'absolute', left: 0, right: 0, top: 0, height: Math.round((gap / axisMax) * CH), background: OUTC, borderRadius: '4px 4px 0 0', cursor: 'pointer', boxShadow: invoiceMonth === r.month ? '0 0 0 2px var(--ink)' : 'none' }} />
                       )}
                     </div>
                     <div style={{ width: 17, height: Math.max(colH, 1), background: COLC, borderRadius: '4px 4px 0 0', transition: 'height 0.5s ease' }} />
@@ -488,19 +489,19 @@ export function Dashboard() {
             </div>
             <div style={{ position: 'absolute', left: 44, right: 0, top: CH + 6, display: 'flex', gap: 10 }}>
               {revenueData.map((r) => (
-                <div key={r.month} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#8B877F' }}>{r.month}</div>
+                <div key={r.month} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--muted)' }}>{r.month}</div>
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 14, padding: 12, background: '#FAF8F3', borderRadius: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 14, padding: 12, background: 'var(--panel)', borderRadius: 10 }}>
             <div>{mini(isClient ? 'Total Billed' : 'Total Invoiced')}<div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, marginTop: 2, color: INVC }}>{money(totInv)}</div></div>
             <div>{mini(isClient ? 'Total Paid' : 'Total Collected')}<div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, marginTop: 2, color: COLC }}>{money(totCol)}</div></div>
             <div onClick={() => { setInvoiceMonth('all'); setTip(null); }} style={{ cursor: 'pointer' }}>
               {mini('Outstanding')}
               <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, marginTop: 2, color: OUTC }}>{money(totInv - totCol)}</div>
               <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8E2E0A', marginTop: 3 }}>{money(sumPastDue)} past due · per contract terms</div>
-              <div style={{ fontSize: 9.5, color: '#8B877F', marginTop: 1 }}>{money(sumWithin)} within terms · {money(sumRet)} retention</div>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#232321', marginTop: 4 }}>View invoices →</div>
+              <div style={{ fontSize: 9.5, color: 'var(--muted)', marginTop: 1 }}>{money(sumWithin)} within terms · {money(sumRet)} retention</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--forest)', marginTop: 4 }}>View invoices →</div>
             </div>
           </div>
         </Card>
@@ -523,19 +524,19 @@ export function Dashboard() {
                 ['Share of top of funnel', f.v + '%'],
                 i > 0 ? ['Step conversion', Math.round((f.v / funnelData[i - 1].v) * 100) + '% from ' + funnelData[i - 1].label] : ['Position', 'Top of funnel'],
                 ['Drop-off from previous', i > 0 ? funnelData[i - 1].v - f.v + ' pts' : '—'],
-              ], '#232321')}>
+              ], 'var(--forest)')}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1D1D1B' }}>{f.label}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#8B877F' }}>{f.n}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}>{f.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{f.n}</span>
                 </div>
-                <div style={{ height: 13, background: '#EEEBE4', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ height: 13, background: 'var(--c-efede8)', borderRadius: 4, overflow: 'hidden' }}>
                   <div style={{ width: Math.max(f.v, 2) + '%', height: '100%', background: ocRamp[3 - Math.min(3, Math.floor((i * 4) / funnelData.length))], borderRadius: 4, transition: 'width 0.5s ease' }} />
                 </div>
               </div>
             ))}
           </div>
           {!isClient && (
-            <div onClick={() => navigate('/pipeline')} style={{ marginTop: 14, fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>Open CRM & Leads →</div>
+            <div onClick={() => navigate('/pipeline')} style={{ marginTop: 14, fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Open CRM & Leads →</div>
           )}
         </Card>
 
@@ -544,13 +545,13 @@ export function Dashboard() {
           <Hdr title="Workload — Team, Consultants & Subs" sub="Follows the execution-type filter above" />
           <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
             {['all', 'Staff', 'Consultant', 'Sub', 'Owner'].map((k) => (
-              <div key={k} onClick={() => setDashTeamFilter(k)} style={{ padding: '4px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: tf === k ? '#232321' : '#EEEBE4', color: tf === k ? 'white' : '#8B877F' }}>{k === 'all' ? 'All' : k}</div>
+              <div key={k} onClick={() => setDashTeamFilter(k)} style={{ padding: '4px 9px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: tf === k ? 'var(--forest)' : 'var(--c-efede8)', color: tf === k ? 'white' : 'var(--muted)' }}>{k === 'all' ? 'All' : k}</div>
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {teamShown.map((t) => {
               const pct = Math.round((t.done / t.tasks) * 100);
-              const lc = t.tasks > 10 ? '#B8410F' : t.tasks > 6 ? '#D2822E' : '#4C7A3F';
+              const lc = t.tasks > 10 ? '#B8410F' : t.tasks > 6 ? '#D2822E' : 'var(--success)';
               return (
                 <div key={t.name} style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }} onClick={(e) => openTip(e, t.name, [
                   ['Role', t.role],
@@ -560,14 +561,14 @@ export function Dashboard() {
                   ['Remaining', String(t.tasks - t.done)],
                   ['Load', t.tasks > 10 ? 'Over capacity' : t.tasks > 6 ? 'At capacity' : 'Has room'],
                 ], lc)}>
-                  <div style={{ width: 29, height: 29, borderRadius: 999, background: '#232321', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{t.av}</div>
+                  <div style={{ width: 29, height: 29, borderRadius: 999, background: 'var(--sidebar)', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{t.av}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1D1D1B' }}>{t.name}</span>
-                      <span style={{ fontSize: 9, color: '#8B877F' }}>{t.role}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, color: lc, background: lc + '16', padding: '1px 6px', borderRadius: 999, flexShrink: 0 }}>{t.tasks}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}>{t.name}</span>
+                      <span style={{ fontSize: 9, color: 'var(--muted)' }}>{t.role}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, color: lc, background: tint(lc, '16'), padding: '1px 6px', borderRadius: 999, flexShrink: 0 }}>{t.tasks}</span>
                     </div>
-                    <div style={{ height: 5, background: '#EEEBE4', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ height: 5, background: 'var(--c-efede8)', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ width: pct + '%', height: '100%', background: lc, borderRadius: 999 }} />
                     </div>
                   </div>
@@ -589,16 +590,16 @@ export function Dashboard() {
 
       {/* Activity */}
       <Card>
-        <Hdr title="Recent Activity" sub={kpi === 'all' ? 'Everything across the portfolio' : 'Filtered by the highlighted card above'} right={<div onClick={() => setDashKpi('all')} style={{ fontSize: 11.5, fontWeight: 700, color: kpi === 'all' ? 'rgba(29, 29, 27,0.25)' : '#232321', cursor: 'pointer', flexShrink: 0 }}>Clear filter</div>} />
+        <Hdr title="Recent Activity" sub={kpi === 'all' ? 'Everything across the portfolio' : 'Filtered by the highlighted card above'} right={<div onClick={() => setDashKpi('all')} style={{ fontSize: 11.5, fontWeight: 700, color: kpi === 'all' ? 'rgba(var(--rgb-ink), 0.25)' : 'var(--forest)', cursor: 'pointer', flexShrink: 0 }}>Clear filter</div>} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '8px 22px' }}>
           {act.map((x) => (
-            <div key={x.who + x.act} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(29, 29, 27,0.05)' }}>
+            <div key={x.who + x.act} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(var(--rgb-shade), 0.05)' }}>
               <div style={{ width: 28, height: 28, borderRadius: 999, background: x.c, display: 'grid', placeItems: 'center', fontSize: 9.5, fontWeight: 700, color: 'white', flexShrink: 0 }}>{x.av}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, color: '#1D1D1B', lineHeight: 1.4 }}><span style={{ fontWeight: 700 }}>{x.who}</span> {x.act}</div>
-                <div style={{ fontSize: 10, color: '#8B877F', marginTop: 2 }}>{x.target}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink)', lineHeight: 1.4 }}><span style={{ fontWeight: 700 }}>{x.who}</span> {x.act}</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{x.target}</div>
               </div>
-              <div style={{ fontSize: 9.5, color: '#8B877F', whiteSpace: 'nowrap', flexShrink: 0 }}>{x.when}</div>
+              <div style={{ fontSize: 9.5, color: 'var(--muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>{x.when}</div>
             </div>
           ))}
         </div>
@@ -606,7 +607,7 @@ export function Dashboard() {
 
       {/* Click popover */}
       {tip && (
-        <div style={{ position: 'fixed', left: Math.min(Math.max(tip.x, 130), winW - 130), top: tip.y - 14, transform: 'translate(-50%, -100%)', zIndex: 400, pointerEvents: 'none', background: '#1D1D1B', color: 'white', borderRadius: 10, padding: '10px 12px', minWidth: 190, boxShadow: '0 12px 30px rgba(29, 29, 27,0.3)', animation: 'fadeIn 0.12s ease' }}>
+        <div style={{ position: 'fixed', left: Math.min(Math.max(tip.x, 130), winW - 130), top: tip.y - 14, transform: 'translate(-50%, -100%)', zIndex: 400, pointerEvents: 'none', background: 'var(--ink)', color: 'white', borderRadius: 10, padding: '10px 12px', minWidth: 190, boxShadow: '0 12px 30px rgba(var(--rgb-ink), 0.3)', animation: 'fadeIn 0.12s ease' }}>
           <div style={{ fontFamily: BG, fontSize: 12, fontWeight: 700, marginBottom: 7, paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.14)', color: 'white' }}>
             <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 2, background: tip.accent, marginRight: 6 }} />
             {tip.title}
@@ -624,32 +625,32 @@ export function Dashboard() {
 
       {/* Invoice drawer */}
       {im && (
-        <div onClick={() => setInvoiceMonth(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.34)', zIndex: 500, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 92vw)', background: '#FAF8F3', height: '100%', overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '-14px 0 40px rgba(29, 29, 27,0.2)' }}>
+        <div onClick={() => setInvoiceMonth(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-ink), 0.34)', zIndex: 500, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 92vw)', background: 'var(--panel)', height: '100%', overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '-14px 0 40px rgba(var(--rgb-ink), 0.2)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <div>
                 {mini('Outstanding invoices')}
                 <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginTop: 3 }}>{im === 'all' ? 'All open invoices' : im + ' 2026'}</div>
-                <div style={{ fontSize: 11, color: '#8B877F', marginTop: 3 }}>{drawerItems.length} invoice{drawerItems.length === 1 ? '' : 's'} · {money(drawerTot)} outstanding · classified against programmed contract terms</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>{drawerItems.length} invoice{drawerItems.length === 1 ? '' : 's'} · {money(drawerTot)} outstanding · classified against programmed contract terms</div>
               </div>
-              <div onClick={() => setInvoiceMonth(null)} style={{ marginLeft: 'auto', width: 28, height: 28, borderRadius: 999, background: '#EEEBE4', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#232321', flexShrink: 0 }}>×</div>
+              <div onClick={() => setInvoiceMonth(null)} style={{ marginLeft: 'auto', width: 28, height: 28, borderRadius: 999, background: 'var(--c-efede8)', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--forest)', flexShrink: 0 }}>×</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {([['Past due', drawerItems.reduce((t, x) => t + x.pastDue, 0), '#8E2E0A'], ['Within terms', drawerItems.reduce((t, x) => t + x.withinTerms, 0), '#232321'], ['Retention held', drawerItems.reduce((t, x) => t + x.retHeld, 0), '#93520F']] as [string, number, string][]).map((g) => (
-                <div key={g[0]} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 10, padding: 10 }}>
+              {([['Past due', drawerItems.reduce((t, x) => t + x.pastDue, 0), '#8E2E0A'], ['Within terms', drawerItems.reduce((t, x) => t + x.withinTerms, 0), 'var(--forest)'], ['Retention held', drawerItems.reduce((t, x) => t + x.retHeld, 0), '#93520F']] as [string, number, string][]).map((g) => (
+                <div key={g[0]} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 10, padding: 10 }}>
                   {mini(g[0])}
                   <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, marginTop: 2, color: g[2] }}>{money(g[1])}</div>
                 </div>
               ))}
             </div>
             {drawerItems.map((x) => (
-              <div key={x.id} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.07)', borderLeft: '3px solid ' + (x.status === 'Past due' ? '#8E2E0A' : x.status === 'Retention' ? '#F5C443' : '#8B877F'), borderRadius: 10, padding: '13px 14px' }}>
+              <div key={x.id} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)', borderLeft: '3px solid ' + (x.status === 'Past due' ? '#8E2E0A' : x.status === 'Retention' ? 'var(--gold)' : 'var(--muted)'), borderRadius: 10, padding: '13px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginBottom: 6 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B' }}>{x.id}</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, background: x.status === 'Past due' ? '#F6E0D5' : x.status === 'Retention' ? '#FBE7A8' : '#FAE7A5', color: x.status === 'Past due' ? '#8E2E0A' : x.status === 'Retention' ? '#93520F' : '#232321', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>{x.status === 'Past due' ? 'Past due ' + x.daysLate + 'd' : x.status}</span>
-                  <span style={{ marginLeft: 'auto', fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#1D1D1B' }}>{money(x.unpaid)}</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{x.id}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, background: x.status === 'Past due' ? '#F6E0D5' : x.status === 'Retention' ? 'var(--amber-light)' : 'var(--mint)', color: x.status === 'Past due' ? '#8E2E0A' : x.status === 'Retention' ? '#93520F' : 'var(--forest)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>{x.status === 'Past due' ? 'Past due ' + x.daysLate + 'd' : x.status}</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: BG, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{money(x.unpaid)}</span>
                 </div>
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: '#232321', marginBottom: 8 }}>{x.project}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--forest)', marginBottom: 8 }}>{x.project}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px 12px' }}>
                   {([
                     ['Invoiced', money(x.amount)],
@@ -662,20 +663,20 @@ export function Dashboard() {
                     ['Billing basis', x.billing],
                   ].filter(Boolean) as [string, string][]).map((r, i) => (
                     <div key={i}>
-                      <div style={{ fontSize: 8.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{r[0]}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#1D1D1B', marginTop: 1 }}>{r[1]}</div>
+                      <div style={{ fontSize: 8.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{r[0]}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', marginTop: 1 }}>{r[1]}</div>
                     </div>
                   ))}
                 </div>
-                {x.retHeld > 0 && <div style={{ fontSize: 10, color: '#93520F', marginTop: 8, background: '#FBE7A8', padding: '6px 8px', borderRadius: 6 }}>{x.release}</div>}
+                {x.retHeld > 0 && <div style={{ fontSize: 10, color: '#93520F', marginTop: 8, background: 'var(--amber-light)', padding: '6px 8px', borderRadius: 6 }}>{x.release}</div>}
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                   {['Open invoice', 'Send reminder', 'Log payment'].map((b) => (
-                    <div key={b} style={{ fontSize: 10.5, fontWeight: 700, padding: '5px 10px', borderRadius: 999, background: b === 'Open invoice' ? '#232321' : '#EEEBE4', color: b === 'Open invoice' ? 'white' : '#232321', cursor: 'pointer' }}>{b}</div>
+                    <div key={b} style={{ fontSize: 10.5, fontWeight: 700, padding: '5px 10px', borderRadius: 999, background: b === 'Open invoice' ? 'var(--forest)' : 'var(--c-efede8)', color: b === 'Open invoice' ? 'white' : 'var(--forest)', cursor: 'pointer' }}>{b}</div>
                   ))}
                 </div>
               </div>
             ))}
-            {drawerItems.length === 0 && <div style={{ fontSize: 12, color: '#8B877F', background: '#FDFCF9', padding: 18, borderRadius: 10, textAlign: 'center' }}>Nothing outstanding for this period.</div>}
+            {drawerItems.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--surface)', padding: 18, borderRadius: 10, textAlign: 'center' }}>Nothing outstanding for this period.</div>}
           </div>
         </div>
       )}

@@ -35,7 +35,7 @@ export function ClampText({ text, lines = 2, style }: { text: string; lines?: nu
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          style={{ marginTop: 4, padding: 0, border: 0, background: 'none', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}
+          style={{ marginTop: 4, padding: 0, border: 0, background: 'none', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}
         >
           {open ? 'Show less' : 'Show more'}
         </button>

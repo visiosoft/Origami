@@ -52,7 +52,7 @@ export function printPayslip(slip: Payslip, run: Pick<Run, 'label' | 'periodStar
     .map((l) => `<tr><td>${esc(l.name)}${l.note ? `<div class="n">${esc(l.note)}</div>` : ''}</td><td class="r">${esc(money(l.amount, currency))}</td></tr>`).join('')
     || '<tr><td colspan="2" class="n">None</td></tr>';
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payslip ${esc(e.name)} ${esc(run.label)}</title>
-<style>body{font-family:Arial,sans-serif;color:#1D1D1B;margin:32px;font-size:13px}h1{font-size:20px;margin:0}h2{font-size:13px;margin:22px 0 6px;text-transform:uppercase;letter-spacing:.06em;color:#556}
+<style>body{font-family:Arial,sans-serif;color:var(--ink);margin:32px;font-size:13px}h1{font-size:20px;margin:0}h2{font-size:13px;margin:22px 0 6px;text-transform:uppercase;letter-spacing:.06em;color:#556}
 table{width:100%;border-collapse:collapse}td{padding:6px 0;border-bottom:1px solid #e6e6e6;vertical-align:top}.r{text-align:right;white-space:nowrap}.n{color:#778;font-size:11px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-top:14px}.net{margin-top:20px;padding:12px 14px;background:#EEF4EF;display:flex;justify-content:space-between;font-size:16px;font-weight:bold}</style></head>
 <body><h1>Payslip — ${esc(run.label)}</h1><div class="n">${esc(fmtDate(run.periodStart))} to ${esc(fmtDate(run.periodEnd))}</div>
@@ -115,7 +115,7 @@ export function PayrollRuns({ employees, currency, canManage, canFinance }: {
                     {r.status === 'finalized' ? (
                       <>
                         <div style={{ fontSize: 11, color: MUTED, marginBottom: 3 }}>{pct}% paid</div>
-                        <div style={{ height: 5, borderRadius: 999, background: '#EEEBE4', overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: '#3F6B39' }} /></div>
+                        <div style={{ height: 5, borderRadius: 999, background: 'var(--c-efede8)', overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: 'var(--c-1e6b36)' }} /></div>
                       </>
                     ) : <span style={{ fontSize: 12, color: MUTED }}>—</span>}
                   </span>
@@ -247,7 +247,7 @@ function RunDetail({ runId, employees, currency, canManage, canFinance, onBack }
         <Tile label="Gross" value={money(t.gross, currency)} />
         <Tile label="Deductions" value={money(t.deductions, currency)} />
         <Tile label="Net pay" value={money(t.net, currency)} tone={ACCENT} />
-        {run.status === 'finalized' && <Tile label="Paid so far" value={money(t.paid, currency)} tone="#3F6B39" />}
+        {run.status === 'finalized' && <Tile label="Paid so far" value={money(t.paid, currency)} tone="var(--c-1e6b36)" />}
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 10, alignItems: 'center' }}>
@@ -314,7 +314,7 @@ function PayDrawer({ run, currency, onClose, onDone }: { run: Run; currency: str
       </div>
       <div style={{ ...card, maxHeight: 420, overflowY: 'auto' }}>
         {unpaid.map((p) => (
-          <label key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer' }}>
+          <label key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer' }}>
             <input type="checkbox" checked={picked.has(p.id)} onChange={() => setPicked((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })} />
             <span style={{ flex: 1, fontSize: 13, color: INK }}>{p.employee?.name} <span style={{ color: MUTED, fontSize: 11.5 }}>{p.employee?.bankAccount ? `· ${p.employee.bankName || ''} ${p.employee.bankAccount}` : '· no bank details'}</span></span>
             <span style={{ fontSize: 13, fontWeight: 700 }}>{money(p.net, currency)}</span>
@@ -359,7 +359,7 @@ export function PayslipDrawer({ slip, run, currency, canManage, canFinance, onCl
   const section = (kind: 'earning' | 'deduction') => (
     <div style={{ ...card, overflow: 'hidden', marginBottom: 12 }}>
       {slip.lines.filter((l) => l.kind === kind).map((l) => (
-        <div key={l.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
+        <div key={l.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12.5, color: INK }}>{l.name}{l.source === 'manual' && <span style={{ fontSize: 10.5, color: MUTED }}> · manual</span>}</div>
             {l.note && <div style={{ fontSize: 11, color: MUTED }}>{l.note}</div>}
@@ -368,7 +368,7 @@ export function PayslipDrawer({ slip, run, currency, canManage, canFinance, onCl
         </div>
       ))}
       {!slip.lines.some((l) => l.kind === kind) && <div style={{ padding: '8px 14px', fontSize: 12, color: MUTED }}>None</div>}
-      <div style={{ display: 'flex', padding: '9px 14px', background: '#F5F1E8', fontSize: 12.5, fontWeight: 700 }}>
+      <div style={{ display: 'flex', padding: '9px 14px', background: 'var(--c-f7f3ea)', fontSize: 12.5, fontWeight: 700 }}>
         <span style={{ flex: 1 }}>{kind === 'earning' ? 'Gross pay' : 'Total deductions'}</span>
         <span>{money(kind === 'earning' ? slip.gross : slip.deductions, currency)}</span>
       </div>
@@ -397,7 +397,7 @@ export function PayslipDrawer({ slip, run, currency, canManage, canFinance, onCl
       {section('earning')}
       <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 8 }}>Deductions</div>
       {section('deduction')}
-      <div style={{ display: 'flex', padding: '12px 16px', borderRadius: 18, background: '#EEF4EF', fontSize: 16, fontWeight: 700, color: ACCENT, marginBottom: 18 }}>
+      <div style={{ display: 'flex', padding: '12px 16px', borderRadius: 'var(--r-12)', background: '#EEF4EF', fontSize: 16, fontWeight: 700, color: ACCENT, marginBottom: 18 }}>
         <span style={{ flex: 1 }}>Net pay</span><span>{money(slip.net, currency)}</span>
       </div>
 
@@ -595,7 +595,7 @@ export function EmployeePayPanel({ employee, settings, canManage, canFinance, on
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      {employee.contractorId && <div style={{ ...card, padding: '12px 16px', fontSize: 12.5, color: '#7A5A0C', background: '#FBF6E4' }}>This is a contractor's worker — they're paid by their contractor, not through your payroll. A rate here is used only for costing.</div>}
+      {employee.contractorId && <div style={{ ...card, padding: '12px 16px', fontSize: 12.5, color: 'var(--c-8a6d12)', background: '#FBF6E4' }}>This is a contractor's worker — they're paid by their contractor, not through your payroll. A rate here is used only for costing.</div>}
       <div style={{ ...card, padding: '16px 20px' }}>
         <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK, marginBottom: 12 }}>Pay setup</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
@@ -616,7 +616,7 @@ export function EmployeePayPanel({ employee, settings, canManage, canFinance, on
           <Label text="Allowances and deductions for this employee" />
           <div style={{ ...card, overflow: 'hidden' }}>
             {relevant.map((c) => (
-              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 140px', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
+              <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '1fr 150px 140px', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
                 <span style={{ fontSize: 12.5, color: INK }}>{c.name} <span style={{ fontSize: 11, color: MUTED }}>· {c.kind}{c.calcType !== 'fixed' ? `, % of ${c.calcType === 'percent_gross' ? 'gross' : 'basic'}` : ''}</span></span>
                 <input disabled={!canManage} type="number" min={0} value={values[c.id] ?? ''} placeholder={c.defaultValue ? `Company: ${c.defaultValue}` : 'Not applied'} onChange={(e) => setValues({ ...values, [c.id]: e.target.value })} style={input} />
                 <span style={{ fontSize: 11.5, color: MUTED }}>{unit(c)}{values[c.id] === undefined || values[c.id] === '' ? (c.defaultValue ? ' · company value' : '') : ' · this employee'}</span>

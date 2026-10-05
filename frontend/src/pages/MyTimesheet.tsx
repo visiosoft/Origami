@@ -20,7 +20,7 @@ export function MyTimesheet() {
   }, []);
 
   return (
-    <div style={{ padding: '28px 32px', background: '#FAF8F3', minHeight: '100%' }}>
+    <div style={{ padding: '28px 32px', background: 'var(--panel)', minHeight: '100%' }}>
       <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>My Timesheet</h1>
       <p style={{ margin: '6px 0 18px', fontSize: 13, color: MUTED }}>
         Log the hours you spend on each project and on internal work, add notes, mark any leave, and submit the week for approval. Approved hours go to payroll.

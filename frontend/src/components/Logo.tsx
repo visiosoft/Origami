@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = "'Bricolage Grotesque', serif";
 
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (
@@ -23,8 +23,8 @@ function FallbackLockup({ markSize = 30 }: { markSize?: number }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <LogoMark size={markSize} />
       <div style={{ lineHeight: 1.05 }}>
-        <div style={{ fontFamily: BG, fontWeight: 500, fontSize: 18, letterSpacing: '-0.02em', color: '#232321' }}>Origami</div>
-        <div style={{ fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#8B877F' }}>Design + Build</div>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, letterSpacing: '-0.02em', color: '#173326' }}>Origami</div>
+        <div style={{ fontSize: 8.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#7E9B93' }}>Design + Build</div>
       </div>
     </div>
   );

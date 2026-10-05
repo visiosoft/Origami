@@ -3,16 +3,16 @@ import { useSearchParams } from 'react-router-dom';
 import { api, type GoogleStatus, type DriveFile } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8,
-  border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit',
-  fontSize: 13, color: '#1D1D1B', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--ink)', outline: 'none',
 };
 
 const card: React.CSSProperties = {
-  background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 18, marginBottom: 16,
+  background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 18, marginBottom: 16,
 };
 
 type Form = {
@@ -102,13 +102,13 @@ export function GoogleSettings() {
 
   const ready = !!form['google.clientId'] && !!form['app.baseUrl'];
 
-  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>Google Workspace</div>
-        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Google Workspace</div>
+        <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           One OAuth client powers three things: <strong>Sign in with Google</strong>, <strong>outgoing email</strong> (invitations,
           introduction letters) and <strong>Google Drive</strong> access. Create the client in the Google Cloud console, paste the
           credentials here, then connect the account mail should be sent from.
@@ -143,19 +143,19 @@ export function GoogleSettings() {
           </Field>
         </div>
 
-        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: '#F2EFE8' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F', marginBottom: 5 }}>Authorised redirect URI</div>
-          <div style={{ fontSize: 12.5, color: '#232321', fontWeight: 600, wordBreak: 'break-all' }}>
+        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--mist)' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)', marginBottom: 5 }}>Authorised redirect URI</div>
+          <div style={{ fontSize: 12.5, color: 'var(--forest)', fontWeight: 600, wordBreak: 'break-all' }}>
             {status?.redirectUri || (form['app.baseUrl'] ? `${form['app.baseUrl'].replace(/\/+$/, '')}/api/google/callback` : 'Set the app base URL first')}
           </div>
-          <div style={{ fontSize: 11.5, color: '#65615A', marginTop: 6, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 11.5, color: 'var(--c-5c6b65)', marginTop: 6, lineHeight: 1.55 }}>
             Add this exact URI to your OAuth client in the Google Cloud console, and enable the <strong>Gmail API</strong> and{' '}
             <strong>Google Drive API</strong> for the project.
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-          <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
+          <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
         </div>
       </div>
 
@@ -165,33 +165,33 @@ export function GoogleSettings() {
         {status?.connected ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: '#3F6B39' }} />
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>{status.connectedEmail}</span>
-              <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#E3ECD9', color: '#3F6B39' }}>Connected</span>
-              {status.connectedAt && <span style={{ fontSize: 11.5, color: '#8B877F' }}>since {new Date(status.connectedAt).toLocaleDateString()}</span>}
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--c-1e6b36)' }} />
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{status.connectedEmail}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'var(--c-d2ead3)', color: 'var(--c-1e6b36)' }}>Connected</span>
+              {status.connectedAt && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>since {new Date(status.connectedAt).toLocaleDateString()}</span>}
             </div>
-            <div style={{ fontSize: 12, color: '#65615A', marginTop: 8 }}>
+            <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', marginTop: 8 }}>
               Mail is sent as <strong>{status.senderEmail || status.connectedEmail}</strong>.
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
               <input style={{ ...inputStyle, width: 230 }} value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="Send a test to…" />
-              <div onClick={sendTest} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321' }}>Send test email</div>
-              <a href={api.google.connectUrl()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: '#F2EFE8', color: '#232321', textDecoration: 'none' }}>Reconnect</a>
+              <div onClick={sendTest} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--mist)', color: 'var(--forest)' }}>Send test email</div>
+              <a href={api.google.connectUrl()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: 'var(--mist)', color: 'var(--forest)', textDecoration: 'none' }}>Reconnect</a>
               <div onClick={disconnect} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#F7E4DB', color: '#8E2E0A' }}>Disconnect</div>
             </div>
           </div>
         ) : (
           <div>
-            <div style={{ fontSize: 12.5, color: '#65615A', lineHeight: 1.6, marginBottom: 14, maxWidth: 580 }}>
+            <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', lineHeight: 1.6, marginBottom: 14, maxWidth: 580 }}>
               No account connected yet. Connect the mailbox invitations and project emails should come from — Google will ask for
               permission to send mail and access Drive on its behalf.
             </div>
             {ready ? (
-              <a href={api.google.connectUrl()} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, background: '#232321', color: 'white', textDecoration: 'none' }}>
+              <a href={api.google.connectUrl()} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, background: 'var(--forest)', color: 'white', textDecoration: 'none' }}>
                 Connect Google account
               </a>
             ) : (
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#7A5A0C', background: '#FBE7A8', borderRadius: 8, padding: '9px 13px', display: 'inline-block' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--c-8a6d12)', background: 'var(--amber-light)', borderRadius: 8, padding: '9px 13px', display: 'inline-block' }}>
                 Save a Client ID, Client secret and App base URL first.
               </div>
             )}
@@ -203,7 +203,7 @@ export function GoogleSettings() {
       {status?.connected && (
         <div style={card}>
           <SectionTitle>File attachments</SectionTitle>
-          <div style={{ fontSize: 12.5, color: '#65615A', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
             Files attached to tasks are uploaded to this account's Drive, inside a folder per project. Origami streams them
             back through its own API, so anyone signed in here can see a screenshot without needing access to the Google account.
           </div>
@@ -213,7 +213,7 @@ export function GoogleSettings() {
             </Field>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-            <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Save</div>
+            <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Save</div>
             <div
               onClick={() => {
                 setBusy('drive'); setError('');
@@ -222,7 +222,7 @@ export function GoogleSettings() {
                   .catch((e: Error) => { setError(e.message); toast('⚠ Drive test failed'); })
                   .finally(() => setBusy(''));
               }}
-              style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321' }}
+              style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--mist)', color: 'var(--forest)' }}
             >
               {busy === 'drive' ? 'Testing…' : 'Test Drive access'}
             </div>
@@ -234,7 +234,7 @@ export function GoogleSettings() {
       {status?.connected && (
         <div style={card}>
           <SectionTitle>Task reminders</SectionTitle>
-          <div style={{ fontSize: 12.5, color: '#65615A', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', lineHeight: 1.6, marginBottom: 14, maxWidth: 600 }}>
             A morning email to each person listing their overdue tasks, tasks due today and tasks due in the next 3 days —
             the ones assigned to them and the ones they collaborate on, each linking straight to the task. Everyone can
             choose daily, weekly or off for themselves under Settings → Notifications.
@@ -260,7 +260,7 @@ export function GoogleSettings() {
             </Field>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-            <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Save</div>
+            <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Save</div>
             <div
               onClick={() => {
                 setBusy('reminders'); setError('');
@@ -269,12 +269,12 @@ export function GoogleSettings() {
                   .catch((e: Error) => { setError(e.message); toast('⚠ Could not send reminders'); })
                   .finally(() => setBusy(''));
               }}
-              style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321' }}
+              style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--mist)', color: 'var(--forest)' }}
             >
               {busy === 'reminders' ? 'Sending…' : 'Send to everyone now'}
             </div>
           </div>
-          <div style={{ fontSize: 11, color: '#8B877F', marginTop: 10, lineHeight: 1.55 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, lineHeight: 1.55 }}>
             The scheduler runs inside the app, so the App Service needs <strong>Always On</strong> enabled for it to fire
             reliably. "Send now" works regardless.
           </div>
@@ -304,20 +304,20 @@ function DrivePanel() {
   return (
     <div style={card}>
       <SectionTitle>Google Drive</SectionTitle>
-      <div style={{ fontSize: 12.5, color: '#65615A', marginBottom: 12 }}>Recent files on the connected account — confirms Drive access is working.</div>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginBottom: 12 }}>Recent files on the connected account — confirms Drive access is working.</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <input style={{ ...inputStyle, width: 240 }} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && search()} placeholder="Search file names…" />
-        <div onClick={() => search()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321' }}>{loading ? 'Loading…' : files ? 'Search' : 'Browse Drive'}</div>
+        <div onClick={() => search()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--mist)', color: 'var(--forest)' }}>{loading ? 'Loading…' : files ? 'Search' : 'Browse Drive'}</div>
       </div>
       {error && <div style={{ fontSize: 12.5, fontWeight: 600, color: '#8E2E0A' }}>{error}</div>}
-      {files && files.length === 0 && <div style={{ fontSize: 12.5, color: '#8B877F' }}>No files matched.</div>}
+      {files && files.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>No files matched.</div>}
       {files && files.length > 0 && (
-        <div style={{ border: '1px solid rgba(29, 29, 27,0.07)', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.07)', borderRadius: 10, overflow: 'hidden' }}>
           {files.map((f, i) => (
             <a key={f.id} href={f.webViewLink} target="_blank" rel="noreferrer"
-               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', borderTop: i ? '1px solid rgba(29, 29, 27,0.06)' : 'none', textDecoration: 'none' }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-              <span style={{ fontSize: 11, color: '#8B877F', flexShrink: 0 }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ''}</span>
+               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 13px', borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.06)' : 'none', textDecoration: 'none' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+              <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>{f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : ''}</span>
             </a>
           ))}
         </div>
@@ -327,15 +327,15 @@ function DrivePanel() {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F', marginBottom: 14 }}>{children}</div>;
+  return <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 14 }}>{children}</div>;
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>{label}</label>
+      <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>{label}</label>
       {children}
-      {hint && <span style={{ fontSize: 11, color: '#8B877F', lineHeight: 1.45 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.45 }}>{hint}</span>}
     </div>
   );
 }

@@ -244,9 +244,9 @@ export function AutosaveProvider({ children }: { children: ReactNode }) {
 }
 
 const tone = {
-  saving: { c: '#8B877F', dot: '#C7A64A', text: 'Saving…' },
-  saved: { c: '#4C7A3F', dot: '#4C7A3F', text: 'All changes saved' },
-  dirty: { c: '#7A5A0C', dot: '#F5C443', text: 'Unsaved changes' },
+  saving: { c: 'var(--muted)', dot: '#C7A64A', text: 'Saving…' },
+  saved: { c: 'var(--success)', dot: 'var(--success)', text: 'All changes saved' },
+  dirty: { c: 'var(--c-8a6d12)', dot: 'var(--c-e0b84a)', text: 'Unsaved changes' },
   error: { c: '#8E2E0A', dot: '#8E2E0A', text: "Couldn't save" },
 };
 
@@ -287,7 +287,7 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
     : state === 'error' ? `Couldn't save — ${error}`
     : state === 'dirty' ? 'Unsaved · autosaves in a moment'
     : lastSavedAt ? `Saved ${ago(lastSavedAt)}` : 'All changes saved';
-  const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || blocked ? '#7A5A0C' : '#8B877F';
+  const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || blocked ? 'var(--c-8a6d12)' : 'var(--muted)';
   const canSave = dirty && state !== 'saving' && !blocked;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', minWidth: 0 }}>
@@ -299,7 +299,7 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
         title={compact ? status : undefined}
         style={{
           padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
-          border: '1px solid ' + (canSave ? '#232321' : flash ? '#4C7A3F' : 'rgba(29, 29, 27,.14)'), background: canSave ? '#232321' : flash ? '#E3ECD9' : '#fff', color: canSave ? '#fff' : flash ? '#3F6B39' : '#8B877F',
+          border: '1px solid ' + (canSave ? 'var(--forest)' : flash ? 'var(--success)' : 'rgba(var(--rgb-shade), .14)'), background: canSave ? 'var(--forest)' : flash ? 'var(--c-d2ead3)' : '#fff', color: canSave ? '#fff' : flash ? 'var(--c-1e6b36)' : 'var(--muted)',
           cursor: canSave ? 'pointer' : 'default',
         }}
       >

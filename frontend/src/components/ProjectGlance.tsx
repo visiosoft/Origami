@@ -3,8 +3,8 @@ import { api } from '../api';
 import { TaskBoard } from './TaskBoard';
 import { RfiLog, isOverdue as rfiOverdue, type Rfi } from './rfis/Rfis';
 
-const MUTED = '#8B877F';
-const INK = '#1D1D1B';
+const MUTED = 'var(--muted)';
+const INK = 'var(--ink)';
 const DANGER = '#8E2E0A';
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const usd0 = (n?: number | null) => `$${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
@@ -37,7 +37,7 @@ function useWorkCounts(projectId: number, rfis: boolean) {
 }
 
 const tile = (label: string, value: string | number, sub: string | undefined, onClick: () => void, tone?: string) => (
-  <div onClick={onClick} style={{ padding: '11px 13px', background: '#FAF8F3', borderRadius: 10, cursor: 'pointer', minWidth: 0 }}>
+  <div onClick={onClick} style={{ padding: '11px 13px', background: 'var(--panel)', borderRadius: 10, cursor: 'pointer', minWidth: 0 }}>
     <div style={{ fontSize: 10, fontWeight: 600, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{label}</div>
     <div style={{ fontSize: 18, fontWeight: 700, color: tone || INK, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
     {sub && <div style={{ fontSize: 11, color: tone || MUTED, marginTop: 1 }}>{sub}</div>}
@@ -48,7 +48,7 @@ const tile = (label: string, value: string | number, sub: string | undefined, on
 export function WorkGlance({ projectId, showRfis, onTasks, onRfis }: { projectId: number; showRfis: boolean; onTasks: () => void; onRfis: () => void }) {
   const c = useWorkCounts(projectId, showRfis);
   return (
-    <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+    <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
       <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED, marginBottom: 10 }}>Tasks & RFIs</div>
       {!c ? <div style={{ fontSize: 12, color: MUTED }}>Loading…</div> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
@@ -73,10 +73,10 @@ export function MoneyGlance({ projectId, onOpen }: { projectId: number; onOpen: 
   }, [projectId]);
   if (s === undefined) return null;
   return (
-    <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+    <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
       <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED, marginBottom: 10 }}>Money</div>
       {!s ? (
-        <div onClick={onOpen} style={{ fontSize: 12.5, color: MUTED, cursor: 'pointer' }}>No client billing set up yet — <span style={{ color: '#232321', fontWeight: 700 }}>open Financial →</span></div>
+        <div onClick={onOpen} style={{ fontSize: 12.5, color: MUTED, cursor: 'pointer' }}>No client billing set up yet — <span style={{ color: 'var(--forest)', fontWeight: 700 }}>open Financial →</span></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
           {tile('Contract', usd0(s.revisedContract), s.approvedChanges ? `incl. ${usd0(s.approvedChanges)} changes` : undefined, onOpen)}
@@ -100,10 +100,10 @@ export function TasksAndRfis({ projectId, projectName, showRfis, view, onView }:
   const pill = (key: 'tasks' | 'rfis', label: string, count?: number, late?: number) => (
     <div onClick={() => onView(key)} style={{
       display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-      background: view === key ? '#232321' : 'white', color: view === key ? 'white' : '#4A4741', border: '1px solid ' + (view === key ? '#232321' : 'rgba(29, 29, 27,0.12)'),
+      background: view === key ? 'var(--forest)' : 'white', color: view === key ? 'white' : 'var(--body)', border: '1px solid ' + (view === key ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'),
     }}>
       {label}
-      {count != null && <span style={{ fontSize: 10.5, padding: '0 6px', borderRadius: 999, background: view === key ? 'rgba(255,255,255,0.2)' : '#EEEBE4' }}>{count}</span>}
+      {count != null && <span style={{ fontSize: 10.5, padding: '0 6px', borderRadius: 999, background: view === key ? 'rgba(255,255,255,0.2)' : 'var(--c-efede8)' }}>{count}</span>}
       {!!late && <span style={{ fontSize: 10.5, padding: '0 6px', borderRadius: 999, background: '#F2DFD4', color: DANGER }}>{late} late</span>}
     </div>
   );

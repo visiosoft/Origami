@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { SignaturePad } from '../components/SignaturePad';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 /**
  * The prospect's own page for reviewing and signing a proposal -- reached
@@ -60,9 +60,9 @@ export function SignProposal() {
   };
 
   const shell = (children: React.ReactNode) => (
-    <div style={{ minHeight: '100vh', background: '#FAF8F3', padding: '24px 16px', boxSizing: 'border-box' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--panel)', padding: '24px 16px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: 780, margin: '0 auto' }}>
-        <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 18, color: '#232321', marginBottom: 18 }}>Origami Design + Build</div>
+        <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 18, color: 'var(--forest)', marginBottom: 18 }}>Origami Design + Build</div>
         {children}
       </div>
     </div>
@@ -74,65 +74,65 @@ export function SignProposal() {
   // just-submitted signature shows immediately instead of the cached blank copy.
   const pdfUrl = token ? `${api.proposals.public.pdfUrl(token)}&v=${encodeURIComponent((doc?.signedAt || '0') + (doc?.signedAt2 || ''))}` : '';
 
-  if (loading) return shell(<div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>);
+  if (loading) return shell(<div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>);
   if (!doc) return shell(<div style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600 }}>{error || 'This proposal could not be found.'}</div>);
 
   return shell(
     <div>
-      <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 18, marginBottom: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{doc.dealName}</div>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 21, color: '#1D1D1B', marginTop: 4, marginBottom: 4 }}>{doc.subject}</div>
-        <div style={{ fontSize: 12, color: '#8B877F', marginBottom: 14 }}>Scroll through the document below — the signing section is at the end.</div>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{doc.dealName}</div>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 21, color: 'var(--ink)', marginTop: 4, marginBottom: 4 }}>{doc.subject}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>Scroll through the document below — the signing section is at the end.</div>
         <iframe
           title={doc.subject}
           src={pdfUrl}
-          style={{ width: '100%', height: '70vh', minHeight: 420, border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, display: 'block' }}
+          style={{ width: '100%', height: '70vh', minHeight: 420, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, display: 'block' }}
         />
       </div>
 
-      <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 22 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#1D1D1B', marginBottom: 4 }}>Approval</div>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 22 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 4 }}>Approval</div>
         {fullySigned ? (
           <div>
-            <div style={{ fontSize: 13, color: '#34552E', fontWeight: 600 }}>
+            <div style={{ fontSize: 13, color: 'var(--success-deep)', fontWeight: 600 }}>
               Signed by {doc.signedByName}{doc.signedByName2 ? ` and ${doc.signedByName2}` : ''} on {new Date(doc.signedAt).toLocaleString()}. Your project team has been notified.
             </div>
-            <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 4 }}>Your signature now appears on the document above.</div>
+            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>Your signature now appears on the document above.</div>
           </div>
         ) : (
           <>
             {needsSecondSignature ? (
-              <div style={{ fontSize: 12.5, color: '#34552E', marginBottom: 14, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--success-deep)', marginBottom: 14, lineHeight: 1.6 }}>
                 Signed by {doc.signedByName}. This agreement needs a second signatory — sign below to complete it.
               </div>
             ) : (
-              <div style={{ fontSize: 12.5, color: '#8B877F', marginBottom: 14, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.6 }}>
                 Review the proposal above, then sign below to approve it and move your project forward.
               </div>
             )}
             {error && <div style={{ padding: '9px 12px', borderRadius: 9, background: '#F7E4DB', color: '#8E2E0A', fontSize: 12, fontWeight: 600, marginBottom: 12 }}>{error}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
-                <label style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Your name</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13.5, marginTop: 4 }} />
+                <label style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Your name</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13.5, marginTop: 4 }} />
               </div>
               <div>
-                <label style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Email (optional)</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13.5, marginTop: 4 }} />
+                <label style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Email (optional)</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13.5, marginTop: 4 }} />
               </div>
             </div>
             <SignaturePad onChange={setImage} />
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#4A4741', marginTop: 12, cursor: 'pointer', lineHeight: 1.5 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--body)', marginTop: 12, cursor: 'pointer', lineHeight: 1.5 }}>
               <input type="checkbox" checked={reviewed} onChange={(e) => setReviewed(e.target.checked)} style={{ marginTop: 2 }} />
               I have reviewed the entire document above, page by page.
             </label>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: '#4A4741', marginTop: 8, cursor: 'pointer', lineHeight: 1.5 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, color: 'var(--body)', marginTop: 8, cursor: 'pointer', lineHeight: 1.5 }}>
               <input type="checkbox" checked={certified} onChange={(e) => setCertified(e.target.checked)} style={{ marginTop: 2 }} />
               I certify that this is my legal signature and that I intend to sign this document electronically.
             </label>
             <div
               onClick={submitting ? undefined : submit}
-              style={{ marginTop: 14, display: 'inline-block', padding: '11px 22px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', background: submitting ? '#ABA79E' : '#232321', color: 'white' }}
+              style={{ marginTop: 14, display: 'inline-block', padding: '11px 22px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', background: submitting ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}
             >
               {submitting ? 'Submitting…' : 'Sign & approve'}
             </div>

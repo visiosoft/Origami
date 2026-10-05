@@ -62,7 +62,7 @@ export function WorkforceRequests(props: Ctx & { canManage: boolean; reloadAssig
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
         <Stat label="Open requests" value={open.length} />
         <Stat label="Workers required" value={sum('required')} />
-        <Stat label="Allocated" value={sum('allocated')} tone="#3F6B39" />
+        <Stat label="Allocated" value={sum('allocated')} tone="var(--c-1e6b36)" />
         <Stat label="Shortage" value={sum('shortage')} tone={sum('shortage') ? DANGER : INK} />
       </div>
 
@@ -98,8 +98,8 @@ export function WorkforceRequests(props: Ctx & { canManage: boolean; reloadAssig
                   <span style={{ fontSize: 12.5, color: INK }}>{r.lines.map((l) => `${l.quantity} ${tradeName(l.tradeId)}`).join(', ')}</span>
                   <span>
                     <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 4 }}>{r.totals.allocated} of {r.totals.required}{r.totals.shortage ? ` · short ${r.totals.shortage}` : ''}</div>
-                    <div style={{ height: 6, borderRadius: 999, background: '#EEEBE4', overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? '#3F6B39' : ACCENT }} />
+                    <div style={{ height: 6, borderRadius: 999, background: 'var(--c-efede8)', overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? 'var(--c-1e6b36)' : ACCENT }} />
                     </div>
                   </span>
                   <span><Badge tone={s.tone}>{s.label}</Badge></span>
@@ -211,7 +211,7 @@ function RequestEditor({ request, projects, trades, onClose, onSaved }: {
             <span onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} style={{ cursor: 'pointer', color: DANGER, textAlign: 'center' }}>×</span>
           </div>
         ))}
-        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
+        <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
           <span onClick={() => setLines((ls) => [...ls, { tradeId: '', quantity: 1 }])} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ Add trade</span>
         </div>
       </div>
@@ -282,7 +282,7 @@ function RequestDetail(props: Ctx & {
         <Badge tone={s.tone}>{s.label}</Badge>
         {r.decidedByName && <span style={{ fontSize: 12, color: MUTED }}>{r.status === 'rejected' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : 'Decided'} by {r.decidedByName}{r.decidedAt ? ` on ${fmtDate(r.decidedAt)}` : ''}</span>}
       </div>
-      {r.decisionNote && <div style={{ padding: '10px 12px', borderRadius: 10, background: r.status === 'rejected' ? '#F7ECE6' : '#F6F3EC', fontSize: 12.5, color: INK, marginBottom: 14 }}>{r.decisionNote}</div>}
+      {r.decisionNote && <div style={{ padding: '10px 12px', borderRadius: 10, background: r.status === 'rejected' ? '#F7ECE6' : 'var(--c-f3f8f3)', fontSize: 12.5, color: INK, marginBottom: 14 }}>{r.decisionNote}</div>}
       {r.notes && <div style={{ fontSize: 12.5, color: INK, marginBottom: 14, whiteSpace: 'pre-wrap' }}>{r.notes}</div>}
 
       <div style={{ ...card, overflow: 'hidden', marginBottom: 18 }}>
@@ -292,7 +292,7 @@ function RequestDetail(props: Ctx & {
             <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{tradeName(l.tradeId)}</span>
             <span style={{ fontSize: 12.5 }}>{l.designation || '—'}</span>
             <span style={{ fontSize: 13 }}>{l.quantity}</span>
-            <span style={{ fontSize: 13, color: '#3F6B39', fontWeight: 700 }}>{l.allocated ?? 0}</span>
+            <span style={{ fontSize: 13, color: 'var(--c-1e6b36)', fontWeight: 700 }}>{l.allocated ?? 0}</span>
             <span style={{ fontSize: 13 }}>{l.available ?? 0}</span>
             <span>{l.shortage ? <Badge tone="red">Short {l.shortage}</Badge> : l.surplus ? <Badge tone="amber">+{l.surplus} over</Badge> : <Badge tone="green">Covered</Badge>}</span>
             {r.status === 'approved' && canManage && (
@@ -306,7 +306,7 @@ function RequestDetail(props: Ctx & {
       <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 8 }}>Allocated workers</div>
       <div style={{ ...card, overflow: 'hidden' }}>
         {linked.map((a) => (
-          <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
+          <div key={a.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
             <span onClick={() => onOpenEmployee(a.employeeId)} style={{ flex: 1, fontSize: 13, fontWeight: 600, color: INK, cursor: 'pointer' }}>{empName(a.employeeId)}</span>
             <span style={{ fontSize: 12, color: MUTED }}>{tradeName(a.tradeId || '')} · from {fmtDate(a.startDate)}</span>
             {a.current ? <Badge tone="green">On site</Badge> : <Badge tone="grey">Ended</Badge>}
@@ -361,11 +361,11 @@ function AllocateDrawer({ employees, assignments, request, line, tradeName, onCl
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, color: INK, paddingBottom: 8 }}>
           <input type="checkbox" checked={otherTrades} onChange={(e) => setOtherTrades(e.target.checked)} /> Show other trades too
         </label>
-        <span style={{ fontSize: 12, color: picked.size > need ? '#7A5A0C' : MUTED, paddingBottom: 8 }}>{picked.size} of {need} picked{picked.size > need ? ' — more than needed' : ''}</span>
+        <span style={{ fontSize: 12, color: picked.size > need ? 'var(--c-8a6d12)' : MUTED, paddingBottom: 8 }}>{picked.size} of {need} picked{picked.size > need ? ' — more than needed' : ''}</span>
       </div>
       <div style={{ ...card, maxHeight: 420, overflowY: 'auto', borderColor: LINE }}>
         {pool.map((e) => (
-          <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', background: picked.has(e.id) ? '#F6F3EC' : 'transparent' }}>
+          <label key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', background: picked.has(e.id) ? 'var(--c-f3f8f3)' : 'transparent' }}>
             <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} />
             <span style={{ flex: 1 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{e.name}</span>
@@ -419,14 +419,14 @@ export function MyWorkforceRequests({ projectNames }: { projectNames: Record<num
         <span onClick={newOne} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ Request workers</span>
       </div>
       {requests === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : !shown.length ? (
-        <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>Need more people on site? Request workers by trade — HR approves and assigns them to the project.</div>
+        <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>Need more people on site? Request workers by trade — HR approves and assigns them to the project.</div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
           {shown.map((r) => {
             const s = STATUS[r.status] || STATUS.draft;
             const pct = r.totals.required ? Math.round((r.totals.allocated / r.totals.required) * 100) : 0;
             return (
-              <div key={r.id} style={{ padding: '10px 12px', background: '#FAF8F3', borderRadius: 10, display: 'grid', gap: 6 }}>
+              <div key={r.id} style={{ padding: '10px 12px', background: 'var(--panel)', borderRadius: 10, display: 'grid', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{r.lines.map((l) => `${l.quantity} × ${tradeName(l.tradeId)}`).join(', ')}</div>
@@ -436,7 +436,7 @@ export function MyWorkforceRequests({ projectNames }: { projectNames: Record<num
                 </div>
                 {['approved', 'fulfilled'].includes(r.status) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ flex: 1, height: 6, borderRadius: 999, background: '#EEEBE4', overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? '#3F6B39' : ACCENT }} /></div>
+                    <div style={{ flex: 1, height: 6, borderRadius: 999, background: 'var(--c-efede8)', overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: pct >= 100 ? 'var(--c-1e6b36)' : ACCENT }} /></div>
                     <span style={{ fontSize: 11, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{r.totals.allocated} of {r.totals.required} assigned</span>
                   </div>
                 )}

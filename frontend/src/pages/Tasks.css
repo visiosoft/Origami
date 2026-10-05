@@ -30,7 +30,7 @@
   width: 100%;
   border-collapse: collapse;
   background: var(--surface);
-  border-radius: 18px;
+  border-radius: var(--r-12);
   overflow: hidden;
   border: 1px solid var(--border);
 }

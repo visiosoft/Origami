@@ -66,7 +66,7 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
             {shown.map((r) => {
               const pickable = r.status === 'approved' && r.billable && !r.invoiceId;
               return (
-                <div key={r.id} onClick={() => setOpen(r.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', fontSize: 12.5, opacity: r.status === 'rejected' ? 0.55 : 1 }}>
+                <div key={r.id} onClick={() => setOpen(r.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: r.status === 'rejected' ? 0.55 : 1 }}>
                   {onBill && <span onClick={(e) => e.stopPropagation()}>{pickable && <input type="checkbox" checked={picked.has(r.id)} onChange={(e) => { const n = new Set(picked); if (e.target.checked) n.add(r.id); else n.delete(r.id); setPicked(n); }} />}</span>}
                   <b style={{ color: ACCENT }}>{r.number}</b>
                   {!projectId && <span style={{ color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</span>}

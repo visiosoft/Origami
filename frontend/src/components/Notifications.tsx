@@ -103,24 +103,24 @@ export function Notifications() {
   return (
     <div ref={box} style={{ position: 'relative' }}>
       <div className="topbar-bell" title="Assigned to you" onClick={toggle} style={{ cursor: 'pointer' }}>
-        <Icon name="bell" size={18} stroke="#4A4741" strokeWidth={2} />
+        <Icon name="bell" size={18} stroke="var(--body)" strokeWidth={2} />
         {unseen.length > 0 && <span className="topbar-bell-dot" />}
       </div>
 
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 320, maxWidth: '90vw', zIndex: 200,
-          background: '#FDFCF9', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.08)',
-          boxShadow: '0 18px 44px rgba(29, 29, 27,0.16)', overflow: 'hidden',
+          background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.08)',
+          boxShadow: '0 18px 44px rgba(var(--rgb-ink), 0.16)', overflow: 'hidden',
         }}>
-          <div style={{ padding: '11px 14px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F' }}>Assigned to you</span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#8B877F' }}>{rows.length}</span>
+          <div style={{ padding: '11px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>Assigned to you</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{rows.length}</span>
           </div>
 
           <div style={{ maxHeight: 340, overflowY: 'auto' }}>
             {rows.length === 0 && (
-              <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12, color: '#A29E96' }}>
+              <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12, color: 'var(--c-9aa39d)' }}>
                 Nothing is assigned to you right now.
               </div>
             )}
@@ -130,12 +130,12 @@ export function Notifications() {
                 onClick={() => { setOpen(false); navigate(r.to); }}
                 style={{
                   padding: '10px 14px', cursor: 'pointer',
-                  borderTop: i ? '1px solid rgba(29, 29, 27,0.04)' : 'none',
-                  background: unseen.some((u) => u.id === r.id) ? '#F7F4EE' : 'white',
+                  borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.04)' : 'none',
+                  background: unseen.some((u) => u.id === r.id) ? 'var(--c-f4f9f4)' : 'white',
                 }}
               >
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B', lineHeight: 1.4 }}>{r.title}</div>
-                <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 3 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>{r.title}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>
                   {r.context}{r.at ? ` · ${relativeTime(r.at)}` : ''}
                 </div>
               </div>
@@ -143,7 +143,7 @@ export function Notifications() {
           </div>
 
           <div onClick={() => { setOpen(false); navigate('/tasks'); }}
-               style={{ padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,0.06)', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer', textAlign: 'center' }}>
+               style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', textAlign: 'center' }}>
             Open Tasks
           </div>
         </div>

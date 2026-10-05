@@ -198,12 +198,12 @@ export const DEADLINES: Deadline[] = [
 export interface Activity { who: string; av: string; act: string; target: string; when: string; domain: string; c: string }
 export const ACTIVITY: Activity[] = [
   { who: 'Manju R.', av: 'MR', act: 'approved change order CO-004', target: 'Hayes Valley · +$48,000', when: '25 min ago', domain: 'money', c: '#D2822E' },
-  { who: 'Sara R.', av: 'SR', act: 'moved a lead to Proposal Sent', target: 'JBR Restaurant Fit-out · $620K', when: '1 hr ago', domain: 'leads', c: '#3A5F33' },
+  { who: 'Sara R.', av: 'SR', act: 'moved a lead to Proposal Sent', target: 'JBR Restaurant Fit-out · $620K', when: '1 hr ago', domain: 'leads', c: 'var(--c-245c3a)' },
   { who: 'Bayview Structural', av: 'BS', act: 'answered RFI-018', target: '1390 California · no cost impact', when: '3 hrs ago', domain: 'tasks', c: '#2F6F68' },
-  { who: 'Alejandra P.', av: 'AP', act: 'uploaded Drawing Set Rev C', target: 'Noe Valley · 42 sheets', when: '5 hrs ago', domain: 'projects', c: '#232321' },
+  { who: 'Alejandra P.', av: 'AP', act: 'uploaded Drawing Set Rev C', target: 'Noe Valley · 42 sheets', when: '5 hrs ago', domain: 'projects', c: 'var(--forest)' },
   { who: 'System', av: 'OG', act: 'flagged an insurance expiry', target: 'Ortiz Framing · expires in 14 days', when: 'Yesterday', domain: 'projects', c: '#B8410F' },
-  { who: 'Edward M.', av: 'EM', act: 'closed 4 punch list items', target: '1390 California · Level 2', when: 'Yesterday', domain: 'tasks', c: '#232321' },
-  { who: 'Origami', av: 'OG', act: 'signed a new Design-Build contract', target: 'Perez Cottage · $520,000', when: '2 days ago', domain: 'projects', c: '#4C7A3F' },
+  { who: 'Edward M.', av: 'EM', act: 'closed 4 punch list items', target: '1390 California · Level 2', when: 'Yesterday', domain: 'tasks', c: 'var(--forest)' },
+  { who: 'Origami', av: 'OG', act: 'signed a new Design-Build contract', target: 'Perez Cottage · $520,000', when: '2 days ago', domain: 'projects', c: 'var(--success)' },
 ];
 
 export const HELP_CONTENT: Record<string, { title: string; body: string; rows: [string, string][] }> = {

@@ -42,11 +42,11 @@ export type TaskStatus = 'Not started' | 'In progress' | 'On hold' | 'Done';
 export const TASK_STATUSES: TaskStatus[] = ['Not started', 'In progress', 'On hold', 'Done'];
 
 export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
-  'Not started': { bg: '#EEEBE4', c: '#65615A' },
+  'Not started': { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   'In progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  'On hold': { bg: '#FBE7A8', c: '#93520F' },
-  Blocked: { bg: '#FBE7A8', c: '#93520F' }, // an older row not yet renamed
-  Done: { bg: '#E3ECD9', c: '#3F6B39' },
+  'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
+  Blocked: { bg: 'var(--amber-light)', c: '#93520F' }, // an older row not yet renamed
+  Done: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
 };
 
 export interface ProjectSection {
@@ -109,9 +109,9 @@ export interface ProjectPhase {
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
 
 export const PRIORITY_STYLE: Record<Priority, { bg: string; c: string }> = {
-  Low: { bg: '#EEEBE4', c: '#65615A' },
+  Low: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   Medium: { bg: '#D6E8E5', c: '#2F6F68' },
-  High: { bg: '#FBE7A8', c: '#7A5A0C' },
+  High: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
   Urgent: { bg: '#F2DFD4', c: '#8E2E0A' },
 };
 
@@ -129,9 +129,9 @@ export const checklistProgress = (items?: ChecklistItem[]) => {
 
 /** Deterministic colour for a free-form label, so tags look stable. */
 const LABEL_COLORS = [
-  { bg: '#FAE7A5', c: '#232321' }, { bg: '#D6E8E5', c: '#2F6F68' },
-  { bg: '#FBE7A8', c: '#7A5A0C' }, { bg: '#F2DFD4', c: '#8E2E0A' },
-  { bg: '#EAE0F3', c: '#5B2E86' }, { bg: '#ECE6DA', c: '#6B4F1D' },
+  { bg: 'var(--mint)', c: 'var(--forest)' }, { bg: '#D6E8E5', c: '#2F6F68' },
+  { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' }, { bg: '#F2DFD4', c: '#8E2E0A' },
+  { bg: '#EAE0F3', c: '#5B2E86' }, { bg: 'var(--sand)', c: '#6B4F1D' },
 ];
 export const labelStyle = (label: string) => {
   let hash = 0;

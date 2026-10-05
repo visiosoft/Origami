@@ -40,25 +40,25 @@ export interface Project {
 }
 
 export const PROJECTS: Project[] = [
-  { id: 1, priority: 'High', name: 'Narvaes Residence (91-1062 Kuhina St, Ewa Beach)', location: 'Ewa Beach, HI', typeOfWork: 'Residential · Renovation', contractType: 'Design + Build', contractAmt: '$780,000', estStart: 'Sep 2025', duration: '10 mos', scope: 'Full home remodel with lanai addition', stage: 'Construction', progress: 58, referral: 'Repeat client', contactedBy: 'Sara R.', imgColor: '#8B877F', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=200&fit=crop' },
-  { id: 2, priority: 'High', name: 'Chelliah Residence (4255 Nerissa Circle, Fremont)', location: 'Fremont', typeOfWork: 'Residential · Renovation + ADU', contractType: 'Design + Build', contractAmt: '$640,000', estStart: 'Nov 2025', duration: '9 mos', scope: '1st floor remodel with detached ADU', stage: 'Design', progress: 32, referral: 'Jayaraman referral', contactedBy: 'Origami', imgColor: '#232321', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=200&fit=crop' },
+  { id: 1, priority: 'High', name: 'Narvaes Residence (91-1062 Kuhina St, Ewa Beach)', location: 'Ewa Beach, HI', typeOfWork: 'Residential · Renovation', contractType: 'Design + Build', contractAmt: '$780,000', estStart: 'Sep 2025', duration: '10 mos', scope: 'Full home remodel with lanai addition', stage: 'Construction', progress: 58, referral: 'Repeat client', contactedBy: 'Sara R.', imgColor: '#7E9B93', img: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=200&fit=crop' },
+  { id: 2, priority: 'High', name: 'Chelliah Residence (4255 Nerissa Circle, Fremont)', location: 'Fremont', typeOfWork: 'Residential · Renovation + ADU', contractType: 'Design + Build', contractAmt: '$640,000', estStart: 'Nov 2025', duration: '9 mos', scope: '1st floor remodel with detached ADU', stage: 'Design', progress: 32, referral: 'Jayaraman referral', contactedBy: 'Origami', imgColor: '#173326', img: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=400&h=200&fit=crop' },
   { id: 3, priority: 'Medium', name: "Alejandra's Work Requests", location: 'Multi-site', typeOfWork: 'Service · Work Requests', contractType: 'T&M', contractAmt: '$95,000', estStart: 'Ongoing', duration: 'Rolling', scope: 'Punch list and small-works requests across active homes', stage: 'Construction', progress: 45, referral: '', contactedBy: 'Edward', imgColor: '#D2822E', img: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=200&fit=crop' },
-  { id: 4, priority: 'High', name: 'Jayaraman (4202 Nerissa Circle, Fremont)', location: 'Fremont', typeOfWork: 'ADU', contractType: 'Design + Build', contractAmt: '$455,000', estStart: 'Feb 2025', duration: '6 mos', scope: '1st Floor Remodel · 2nd Floor Addition', stage: 'Construction', progress: 88, referral: '', contactedBy: 'Origami', imgColor: '#F5C443', img: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&h=200&fit=crop' },
+  { id: 4, priority: 'High', name: 'Jayaraman (4202 Nerissa Circle, Fremont)', location: 'Fremont', typeOfWork: 'ADU', contractType: 'Design + Build', contractAmt: '$455,000', estStart: 'Feb 2025', duration: '6 mos', scope: '1st Floor Remodel · 2nd Floor Addition', stage: 'Construction', progress: 88, referral: '', contactedBy: 'Origami', imgColor: '#D9B94F', img: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&h=200&fit=crop' },
   { id: 5, priority: 'Medium', name: 'Hadland (610 Woodrow SC)', location: 'Santa Cruz', typeOfWork: 'Residential · Ground Up · Wood Frame', contractType: 'Build', contractAmt: '$1,150,000', estStart: 'Jan 2026', duration: '13 mos', scope: '2-story single family with attached garage', stage: 'Design', progress: 24, referral: 'Lido Jarrod Design', contactedBy: 'Noor K.', imgColor: '#2F6F68', img: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=200&fit=crop' },
   { id: 6, priority: 'High', name: 'Perez Cottage (724 Happy Valley, SC)', location: 'Santa Cruz', typeOfWork: 'Residential · Cottage Build', contractType: 'Design + Build', contractAmt: '$520,000', estStart: 'Oct 2025', duration: '8 mos', scope: 'Detached cottage build — Evans/Contreras scope', stage: 'Construction', progress: 66, referral: 'Evans / Contreras', contactedBy: 'Ahmed K.', imgColor: '#B87A22', img: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=200&fit=crop' },
   { id: 7, priority: 'Low', name: 'Design & Permit Sequence DETAILED DATES', location: 'Program-wide', typeOfWork: 'Design · Permitting Program', contractType: 'Consulting', contractAmt: '$68,000', estStart: 'Ongoing', duration: 'Rolling', scope: 'Master permit and design milestone tracking across all active jobs', stage: 'Design', progress: 40, referral: '', contactedBy: 'Edward', imgColor: '#2C5F58', img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=200&fit=crop' },
 ];
 
 export const STAGE_CONFIG = [
-  { name: 'Kickoff', color: '#8B877F' },
-  { name: 'Design', color: '#3A5F33' },
-  { name: 'Construction', color: '#232321' },
-  { name: 'Closeout', color: '#232321' },
+  { name: 'Kickoff', color: 'var(--muted)' },
+  { name: 'Design', color: 'var(--c-245c3a)' },
+  { name: 'Construction', color: 'var(--forest)' },
+  { name: 'Closeout', color: 'var(--sidebar)' },
 ] as const;
 
 export const PR_COLORS: Record<string, { bg: string; c: string }> = {
   High: { bg: '#F2DFD4', c: '#8E2E0A' },
-  Medium: { bg: '#FBE7A8', c: '#93520F' },
+  Medium: { bg: 'var(--amber-light)', c: '#93520F' },
   Low: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 
@@ -125,7 +125,7 @@ export const PROJECT_WORKFLOW: WfPhase[] = [
     { title: 'Interior Construction Details', status: 'Open', auto: false, assignee: 'Edward', team: 'Architecture', start: 'Nov 4', end: 'Nov 15', dur: '10d', deps: ['Interior Conceptual Designs (MFS)'] },
     { title: 'Procurement Schedules', status: 'Open', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-generate from selections', start: 'Nov 18', end: 'Nov 22', dur: '5d', deps: ['Interior Schematic Design', 'Interior Construction Details'] },
   ] },
-  { id: 'ca', name: 'Construction Administration', color: '#355C2F', start: 'Nov 25', end: 'Mar 14, 2025', tasks: [
+  { id: 'ca', name: 'Construction Administration', color: 'var(--c-145c33)', start: 'Nov 25', end: 'Mar 14, 2025', tasks: [
     { title: 'Construction Kick-off Meeting', status: 'Open', auto: false, assignee: 'Edward', team: 'Project Management', start: 'Nov 25', end: 'Nov 25', dur: '1d', deps: [] },
     { title: 'Request for Information / Clarifications', status: 'Open', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-log from field reports', start: 'Nov 26', end: 'Mar 7', dur: 'Ongoing', deps: ['Construction Kick-off Meeting'] },
     { title: 'Change Orders / Clarifications', status: 'Open', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-track CO approvals', start: 'Nov 26', end: 'Mar 7', dur: 'Ongoing', deps: ['Construction Kick-off Meeting'] },
@@ -135,9 +135,9 @@ export const PROJECT_WORKFLOW: WfPhase[] = [
   ] },
 ];
 
-export const TEAM_COLORS: Record<string, string> = { 'Project Management': '#232321', 'Admin & Coordination': '#3A5F33', Architecture: '#2F6F68', Design: '#2F6F68', Interiors: '#D2822E', 'Permits & Compliance': '#8E2E0A', Finance: '#4C7A3F', 'Legal & Contracts': '#232321', 'Client / Owner': '#1D1D1B', Automation: '#D2822E', 'Field Operations': '#34552E' };
-export const TEAM_BGS: Record<string, string> = { 'Project Management': '#FAE7A5', 'Admin & Coordination': '#F2EFE8', Architecture: '#D6E8E5', Design: '#D3EAE6', Interiors: '#FBE7A8', 'Permits & Compliance': '#F2DFD4', Finance: '#E3ECD9', 'Legal & Contracts': '#FAE7A5', 'Client / Owner': '#EEEBE4', Automation: '#FBE7A8', 'Field Operations': '#E3ECD9' };
-export const WF_ST_COLORS: Record<string, { bg: string; c: string }> = { Done: { bg: '#E3ECD9', c: '#34552E' }, Open: { bg: '#EEEBE4', c: '#3D3B37' }, 'In Progress': { bg: '#D6E8E5', c: '#2F6F68' } };
+export const TEAM_COLORS: Record<string, string> = { 'Project Management': '#173326', 'Admin & Coordination': '#245C3A', Architecture: '#2F6F68', Design: '#2F6F68', Interiors: '#D2822E', 'Permits & Compliance': '#8E2E0A', Finance: '#2F7D4A', 'Legal & Contracts': '#0F2417', 'Client / Owner': '#0B1A12', Automation: '#D2822E', 'Field Operations': '#1C5230' };
+export const TEAM_BGS: Record<string, string> = { 'Project Management': 'var(--mint)', 'Admin & Coordination': 'var(--mist)', Architecture: '#D6E8E5', Design: '#D3EAE6', Interiors: 'var(--amber-light)', 'Permits & Compliance': '#F2DFD4', Finance: 'var(--c-d2ead3)', 'Legal & Contracts': 'var(--mint)', 'Client / Owner': 'var(--c-efede8)', Automation: 'var(--amber-light)', 'Field Operations': 'var(--c-d2ead3)' };
+export const WF_ST_COLORS: Record<string, { bg: string; c: string }> = { Done: { bg: '#D2EAD3', c: '#1C5230' }, Open: { bg: '#EFEDE8', c: '#3A423E' }, 'In Progress': { bg: '#D6E8E5', c: '#2F6F68' } };
 
 export interface ComputedPhase extends WfPhase {
   count: number; doneCount: number; progress: number; locked: boolean;
@@ -225,8 +225,8 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
       weeks: Number(ph.weeks) || 0,
       weekFrom: weekCursor,
       weekTo: weekCursor + (Number(ph.weeks) || 0),
-      statusBg: allDone ? '#E3ECD9' : locked ? '#EEEBE4' : '#D6E8E5',
-      statusC: allDone ? '#34552E' : locked ? '#A29E96' : '#2F6F68',
+      statusBg: allDone ? 'var(--c-d2ead3)' : locked ? 'var(--c-efede8)' : '#D6E8E5',
+      statusC: allDone ? 'var(--success-deep)' : locked ? 'var(--c-9aa39d)' : '#2F6F68',
       headerOpacity: locked ? '0.55' : '1',
     };
     weekCursor += Number(ph.weeks) || 0;

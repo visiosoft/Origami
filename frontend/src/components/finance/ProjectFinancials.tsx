@@ -155,7 +155,7 @@ function Card({ label, value, sub, tone }: { label: string; value: string; sub?:
 
 function SummaryCards({ s }: { s: Overview['sov']['summary'] }) {
   const of = (n: number) => (s.revisedContract ? `${Math.round((n / s.revisedContract) * 1000) / 10}% of contract` : '');
-  const allocTone = s.allocation === 'over' ? DANGER : s.allocation === 'full' ? '#3F6B39' : MUTED;
+  const allocTone = s.allocation === 'over' ? DANGER : s.allocation === 'full' ? 'var(--c-1e6b36)' : MUTED;
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
@@ -166,7 +166,7 @@ function SummaryCards({ s }: { s: Overview['sov']['summary'] }) {
         <Card label="Billed to client" value={usd0(s.contractWorkInvoiced)} sub={`${usd0(s.invoiceTotals)} after retention & tax`} />
         <Card label="Received" value={usd0(s.paid)} sub="From the client" />
         <Card label="Client owes" value={usd0(s.arOutstanding)} sub={s.overdueCount ? `${usd0(s.overdue)} overdue (${s.overdueCount})` : undefined} tone={s.overdueCount ? DANGER : undefined} />
-        <Card label={s.unbilledEarned < 0 ? 'Billed ahead of work' : 'Done, not yet billed'} value={usd0(Math.abs(s.unbilledEarned))} tone={s.unbilledEarned < 0 ? DANGER : s.unbilledEarned > 0 ? '#7A5A0C' : undefined} sub={s.billableNow > 0 ? `${usd0(s.billableNow)} ready to invoice` : undefined} />
+        <Card label={s.unbilledEarned < 0 ? 'Billed ahead of work' : 'Done, not yet billed'} value={usd0(Math.abs(s.unbilledEarned))} tone={s.unbilledEarned < 0 ? DANGER : s.unbilledEarned > 0 ? 'var(--c-8a6d12)' : undefined} sub={s.billableNow > 0 ? `${usd0(s.billableNow)} ready to invoice` : undefined} />
         <Card label="Retention held" value={usd0(s.retentionHeld)} sub={s.retentionReleased ? `${usd0(s.retentionReleased)} released` : undefined} />
         {(s.reimbursablesBilled !== 0 || s.credits !== 0) && <Card label="Outside the contract" value={usd0(s.reimbursablesBilled)} sub={`Reimbursables billed${s.credits ? ` · credits ${usd0(s.credits)}` : ''}`} />}
         <Card label="Remaining contract" value={usd0(s.remainingContract)} sub={of(s.remainingContract)} />
@@ -174,7 +174,7 @@ function SummaryCards({ s }: { s: Overview['sov']['summary'] }) {
       {!s.lumpSum && (
         <div style={{ ...card, padding: '10px 14px', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: INK, fontWeight: 600 }}>Allocated {usd0(s.allocated)} of {usd0(s.revisedContract)}</span>
-          <div style={{ flex: 1, minWidth: 160, height: 8, borderRadius: 99, background: '#EEEBE4', overflow: 'hidden' }}>
+          <div style={{ flex: 1, minWidth: 160, height: 8, borderRadius: 99, background: 'var(--c-efede8)', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${Math.min(100, s.revisedContract ? (s.allocated / s.revisedContract) * 100 : 0)}%`, background: allocTone === MUTED ? ACCENT : allocTone }} />
           </div>
           <Badge tone={s.allocation === 'over' ? 'red' : s.allocation === 'full' ? 'green' : 'grey'}>
@@ -289,7 +289,7 @@ function GroupBlock({ g, data, open, toggle, onChanged, onItem, onProgress }: {
   const t = g.totals;
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '8px 14px', background: '#F3F0E8', borderTop: '1px solid ' + LINE, fontSize: 11.5, fontWeight: 700, color: INK, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '8px 14px', background: 'var(--c-f4f1e8)', borderTop: '1px solid ' + LINE, fontSize: 11.5, fontWeight: 700, color: INK, alignItems: 'center' }}>
         <span style={{ textTransform: 'uppercase', letterSpacing: '.05em' }}>{g.label}</span><span />
         <span style={{ textAlign: 'right' }}>{t.value != null ? usd0(t.value) : '—'}</span><span style={{ textAlign: 'right' }}>{usd0(t.ev)}</span>
         <span style={{ textAlign: 'right' }}>{usd0(t.invoiced)}</span><span style={{ textAlign: 'right' }}>{usd0(t.billable)}</span>
@@ -324,14 +324,14 @@ function SovRow({ row, depth, data, expanded, onToggle, onChanged, onItem, onPro
   const num = (n: number) => <span style={{ textAlign: 'right', fontSize: 12.5 }}>{n ? usd0(n) : <span style={{ color: '#c8c3cf' }}>—</span>}</span>;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', background: row.kind === 'project' ? '#F6F3EC' : 'white', opacity: row.deleted ? 0.6 : 1 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', background: row.kind === 'project' ? 'var(--c-f3f8f3)' : 'white', opacity: row.deleted ? 0.6 : 1 }}>
       <span style={{ display: 'flex', gap: 6, alignItems: 'center', paddingLeft: depth * 22, minWidth: 0 }}>
         {onToggle ? <span onClick={onToggle} style={{ cursor: 'pointer', color: MUTED, width: 12, fontSize: 11 }}>{expanded ? '▾' : '▸'}</span> : <span style={{ width: 12 }} />}
         <span onClick={() => onItem(row)} title="Details, deliverables and billing conditions" style={{ fontSize: 13, fontWeight: depth ? 500 : 650, color: INK, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {row.name}
         </span>
         {row.valueFromTasks && <span style={{ fontSize: 10.5, color: MUTED }}>from tasks</span>}
-        {!!row.changeOrders && <span title="Approved change orders included in the value" style={{ fontSize: 10.5, color: row.changeOrders > 0 ? '#3F6B39' : DANGER, whiteSpace: 'nowrap' }}>CO {row.changeOrders > 0 ? '+' : '−'}{usd0(Math.abs(row.changeOrders))}</span>}
+        {!!row.changeOrders && <span title="Approved change orders included in the value" style={{ fontSize: 10.5, color: row.changeOrders > 0 ? 'var(--c-1e6b36)' : DANGER, whiteSpace: 'nowrap' }}>CO {row.changeOrders > 0 ? '+' : '−'}{usd0(Math.abs(row.changeOrders))}</span>}
       </span>
       <span onClick={progressEditable && (data.rights.reportProgress || data.rights.approveProgress) ? () => onProgress(row) : undefined} style={{ cursor: progressEditable ? 'pointer' : 'default', display: 'grid', gap: 3 }} title={`Physical progress ${pct(row.physicalProgress)}`}>
         <span style={{ fontSize: 11.5, color: INK }}>
@@ -352,7 +352,7 @@ function SovRow({ row, depth, data, expanded, onToggle, onChanged, onItem, onPro
       <span onClick={row.invoiced ? () => onItem({ ...row, name: row.name, _tab: 'invoices' } as any) : undefined} style={{ textAlign: 'right', fontSize: 12.5, cursor: row.invoiced ? 'pointer' : 'default', color: row.invoiced ? ACCENT : undefined, textDecoration: row.invoiced ? 'underline' : 'none', textDecorationColor: '#cfd8d2' }}>
         {row.invoiced ? usd0(row.invoiced) : <span style={{ color: '#c8c3cf' }}>—</span>}
       </span>
-      <span style={{ textAlign: 'right', fontSize: 12.5, fontWeight: row.billable ? 700 : 400, color: row.billable ? '#7A5A0C' : row.overBilled ? DANGER : undefined }}>
+      <span style={{ textAlign: 'right', fontSize: 12.5, fontWeight: row.billable ? 700 : 400, color: row.billable ? 'var(--c-8a6d12)' : row.overBilled ? DANGER : undefined }}>
         {row.billable ? usd0(row.billable) : row.overBilled ? `−${usd0(row.overBilled)}` : <span style={{ color: '#c8c3cf' }}>—</span>}
       </span>
       {num(row.retention)}{num(row.paid)}{num(row.outstanding)}
@@ -518,7 +518,7 @@ function ItemDrawer({ row, projectId, rights, onClose, onSaved, onOpenInvoice }:
       {tab === 'progress' && (
         <div style={{ ...card, overflow: 'hidden' }}>
           {(history || []).map((h) => (
-            <div key={h.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+            <div key={h.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
               <span style={{ width: 150, color: MUTED }}>{fmtDate(h.at)}</span>
               <span style={{ flex: 1 }}><b>{h.kind === 'approved' ? 'Approved' : 'Reported'}</b> {pct(h.fromPct)} → {pct(h.toPct)}{h.reason ? ` — ${h.reason}` : ''}</span>
               <span style={{ color: MUTED }}>{h.byName}</span>
@@ -530,7 +530,7 @@ function ItemDrawer({ row, projectId, rights, onClose, onSaved, onOpenInvoice }:
       {tab === 'invoices' && (
         <div style={{ ...card, overflow: 'hidden' }}>
           {(lines || []).map((l, i) => (
-            <div key={i} onClick={() => onOpenInvoice(l.invoiceId)} style={{ display: 'flex', gap: 10, padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, cursor: 'pointer' }}>
+            <div key={i} onClick={() => onOpenInvoice(l.invoiceId)} style={{ display: 'flex', gap: 10, padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
               <span style={{ width: 120, fontWeight: 700, color: ACCENT }}>{l.number || 'Draft'}</span>
               <span style={{ width: 110, color: MUTED }}>{fmtDate(l.invoiceDate)}</span>
               <span style={{ flex: 1 }}>{l.prevProgressPct != null ? `${pct(l.prevProgressPct)} → ${pct(l.currentProgressPct)}` : l.description}</span>
@@ -614,13 +614,13 @@ function InvoiceList({ invoices, canManage, busy, billableNow, onOpen, onNew }: 
             <div style={headRow(cols)}><span>Invoice</span><span>Date</span><span>Due</span><span>Description</span><span style={{ textAlign: 'right' }}>Contract work</span><span style={{ textAlign: 'right' }}>Total</span><span style={{ textAlign: 'right' }}>Paid</span><span style={{ textAlign: 'right' }}>Outstanding</span><span>Status</span></div>
             {invoices === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {(invoices || []).map((i) => (
-              <div key={i.id} onClick={() => onOpen(i.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', opacity: i.status === 'void' ? 0.55 : 1 }}>
+              <div key={i.id} onClick={() => onOpen(i.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', opacity: i.status === 'void' ? 0.55 : 1 }}>
                 <b style={{ fontSize: 12.5, color: ACCENT }}>{i.issuedNumber || 'Draft'}</b>
                 <span style={{ fontSize: 12.5 }}>{fmtDate(i.invoiceDate)}</span>
                 <span style={{ fontSize: 12.5, color: i.overdue ? DANGER : undefined }}>{fmtDate(i.dueDate)}</span>
                 <span style={{ fontSize: 12.5, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {i.kind === 'credit' ? <b style={{ color: '#3C5C8A' }}>{i.creditType === 'write_off' ? 'Write-off · ' : 'Credit · '}</b> : i.kind === 'retention' ? <b style={{ color: '#3C5C8A' }}>Retention · </b> : null}
-                  {i.approvalRequestedAt && i.status === 'draft' ? <b style={{ color: '#7A5A0C' }}>Awaiting approval · </b> : null}
+                  {i.approvalRequestedAt && i.status === 'draft' ? <b style={{ color: 'var(--c-8a6d12)' }}>Awaiting approval · </b> : null}
                   {i.description || (i.kind === 'progress' ? 'Progress claim' : 'Invoice')}
                 </span>
                 <span style={{ textAlign: 'right', fontSize: 12.5 }}>{usd(i.contractWork)}</span>
@@ -644,7 +644,7 @@ function PaymentList({ projectId, onOpenInvoice }: { projectId: number; onOpenIn
   return (
     <div style={{ ...card, overflow: 'hidden' }}>
       {(rows || []).map((p) => (
-        <div key={p.id} onClick={() => onOpenInvoice(p.invoiceId)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', fontSize: 12.5, opacity: p.voidedAt ? 0.55 : 1 }}>
+        <div key={p.id} onClick={() => onOpenInvoice(p.invoiceId)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: p.voidedAt ? 0.55 : 1 }}>
           <span style={{ width: 110, color: MUTED }}>{fmtDate(p.date)}</span>
           <b style={{ width: 120, color: ACCENT }}>{p.invoiceNumber}</b>
           <span style={{ flex: 1 }}>{p.method.toUpperCase()}{p.bankRef ? ` · ${p.bankRef}` : ''}{p.txnRef ? ` · ${p.txnRef}` : ''}{p.voidedAt ? ` · voided: ${p.voidReason}` : ''}</span>
@@ -685,7 +685,7 @@ function ActivityList({ projectId }: { projectId: number }) {
   return (
     <div style={{ ...card, overflow: 'hidden' }}>
       {(rows || []).map((a) => (
-        <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+        <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
           <span style={{ width: 120, color: MUTED }}>{fmtDate(a.at)}</span>
           <span style={{ flex: 1, lineHeight: 1.6 }}>
             <b>{a.byName}</b> · {ACTION_LABEL[a.action] || a.action}

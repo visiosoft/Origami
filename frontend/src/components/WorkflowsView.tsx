@@ -7,8 +7,8 @@ import {
   type Workflow, type WorkflowItem, type WorkflowStatus, type WorkflowItemStatus,
 } from '../data/workflows';
 
-const BG = "'Outfit', system-ui, sans-serif";
-const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 13, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' };
+const BG = 'var(--font-display)';
+const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
 function Pill({ label, bg, c }: { label: string; bg: string; c: string }) {
   return <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: bg, color: c }}>{label}</span>;
@@ -18,7 +18,7 @@ function Pill({ label, bg, c }: { label: string; bg: string; c: string }) {
 function TimeStrip({ o, compact }: { o: { estimatedDays?: number | null; plannedStart?: string; plannedEnd?: string; completedAt?: string }; compact?: boolean }) {
   const ad = actualDays(o);
   const chip = (label: string, val: string) => (
-    <span style={{ fontSize: compact ? 9.5 : 10.5, color: '#65615A' }}><span style={{ color: '#A29E96' }}>{label} </span><strong style={{ color: '#232321', fontWeight: 700 }}>{val}</strong></span>
+    <span style={{ fontSize: compact ? 9.5 : 10.5, color: 'var(--c-5c6b65)' }}><span style={{ color: 'var(--c-9aa39d)' }}>{label} </span><strong style={{ color: 'var(--forest)', fontWeight: 700 }}>{val}</strong></span>
   );
   return (
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -101,47 +101,47 @@ export function WorkflowsView({ projectId }: { projectId?: number }) {
               <option value="">Apply a template…</option>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-            <div onClick={applyTemplate} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applyId ? 'pointer' : 'not-allowed', background: applyId ? '#4C7A3F' : '#DFDBD2', color: applyId ? 'white' : '#A29E96' }}>Apply</div>
+            <div onClick={applyTemplate} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applyId ? 'pointer' : 'not-allowed', background: applyId ? 'var(--success)' : 'var(--c-d6ded8)', color: applyId ? 'white' : 'var(--c-9aa39d)' }}>Apply</div>
           </div>
         )}
-        {canManage && <div onClick={newWorkflow} style={{ marginLeft: scoped ? 0 : 'auto', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>+ New Workflow</div>}
+        {canManage && <div onClick={newWorkflow} style={{ marginLeft: scoped ? 0 : 'auto', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>+ New Workflow</div>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {workflows.map((w) => {
           const s = WF_STATUS_STYLE[w.status] || WF_STATUS_STYLE.Draft;
           return (
-            <div key={w.id} onClick={() => setSelectedId(w.id)} style={{ background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)', padding: 16, cursor: 'pointer' }}>
+            <div key={w.id} onClick={() => setSelectedId(w.id)} style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', padding: 16, cursor: 'pointer' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: '#1D1D1B', lineHeight: 1.3 }}>{w.name}</div>
+                <div style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{w.name}</div>
                 <Pill label={w.status} bg={s.bg} c={s.c} />
               </div>
-              {w.description && <div style={{ fontSize: 12, color: '#8B877F', lineHeight: 1.5, marginBottom: 8 }}>{w.description}</div>}
+              {w.description && <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 8 }}>{w.description}</div>}
               <div style={{ marginBottom: 8 }}><TimeStrip o={w} compact /></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#8B877F' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--muted)' }}>
                 {w.owner && <span>👤 {w.owner}</span>}
-                {!scoped && w.projectId != null && <span style={{ background: '#ECE6DA', color: '#1D1D1B', padding: '1px 7px', borderRadius: 999, fontWeight: 700 }}>{projectName(w.projectId) || `Project ${w.projectId}`}</span>}
+                {!scoped && w.projectId != null && <span style={{ background: 'var(--sand)', color: 'var(--ink)', padding: '1px 7px', borderRadius: 999, fontWeight: 700 }}>{projectName(w.projectId) || `Project ${w.projectId}`}</span>}
                 <span style={{ marginLeft: 'auto' }}>Open →</span>
               </div>
             </div>
           );
         })}
-        {workflows.length === 0 && <div style={{ fontSize: 13, color: '#A29E96', fontStyle: 'italic' }}>No workflows yet.</div>}
+        {workflows.length === 0 && <div style={{ fontSize: 13, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No workflows yet.</div>}
       </div>
 
       {/* Right detail panel */}
       {selected && (
-        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 460, maxWidth: '96vw', height: '100%', background: '#FDFCF9', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(29, 29, 27,0.22)' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 460, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <input value={selected.name} disabled={!canManage} onChange={(e) => patchWf(selected.id, { name: e.target.value })} style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: BG, fontSize: 19, fontWeight: 700, color: '#1D1D1B', width: '100%' }} />
-                <div style={{ fontSize: 11, color: '#8B877F', marginTop: 2 }}>{selected.id} · created {selected.createdAt}</div>
+                <input value={selected.name} disabled={!canManage} onChange={(e) => patchWf(selected.id, { name: e.target.value })} style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: BG, fontSize: 19, fontWeight: 700, color: 'var(--ink)', width: '100%' }} />
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{selected.id} · created {selected.createdAt}</div>
               </div>
-              <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', flexShrink: 0 }}>×</div>
+              <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
             </div>
 
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <L label="Status"><select disabled={!canManage} value={selected.status} onChange={(e) => patchWf(selected.id, { status: e.target.value as WorkflowStatus })} style={inputStyle}>{WF_STATUSES.map((o) => <option key={o}>{o}</option>)}</select></L>
               <L label="Owner"><input disabled={!canManage} value={selected.owner || ''} onChange={(e) => patchWf(selected.id, { owner: e.target.value })} style={inputStyle} /></L>
               {!scoped && (
@@ -161,35 +161,35 @@ export function WorkflowsView({ projectId }: { projectId?: number }) {
 
             {/* Items */}
             <div style={{ padding: '16px 22px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Items ({items.length})</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Items ({items.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {items.map((it) => {
                   const s = WF_ITEM_STATUS_STYLE[it.status] || WF_ITEM_STATUS_STYLE.Open;
                   return (
-                    <div key={it.id} style={{ background: '#FAF8F3', borderRadius: 10, padding: '10px 12px' }}>
+                    <div key={it.id} style={{ background: 'var(--panel)', borderRadius: 10, padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <input value={it.title} disabled={!canManage} onChange={(e) => patchItem(it.id, { title: e.target.value })} style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: '#1D1D1B', outline: 'none' }} />
+                        <input value={it.title} disabled={!canManage} onChange={(e) => patchItem(it.id, { title: e.target.value })} style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: 'var(--ink)', outline: 'none' }} />
                         {canManage ? (
                           <select value={it.status} onChange={(e) => patchItem(it.id, { status: e.target.value as WorkflowItemStatus })} style={{ ...inputStyle, width: 'auto', padding: '4px 8px', fontSize: 11 }}>{WF_ITEM_STATUSES.map((o) => <option key={o}>{o}</option>)}</select>
                         ) : <Pill label={it.status} bg={s.bg} c={s.c} />}
                         {canManage && <span onClick={() => deleteItem(it.id)} style={{ fontSize: 13, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                        <input type="number" placeholder="Est. days" disabled={!canManage} value={it.estimatedDays ?? ''} onChange={(e) => patchItem(it.id, { estimatedDays: e.target.value === '' ? null : Number(e.target.value) })} style={{ ...inputStyle, background: '#FDFCF9', width: 90, fontSize: 11.5, padding: '5px 8px' }} />
-                        <input type="date" title="Planned start" disabled={!canManage} value={it.plannedStart || ''} onChange={(e) => patchItem(it.id, { plannedStart: e.target.value })} style={{ ...inputStyle, background: '#FDFCF9', width: 'auto', fontSize: 11.5, padding: '5px 8px' }} />
-                        <input type="date" title="Planned end" disabled={!canManage} value={it.plannedEnd || ''} onChange={(e) => patchItem(it.id, { plannedEnd: e.target.value })} style={{ ...inputStyle, background: '#FDFCF9', width: 'auto', fontSize: 11.5, padding: '5px 8px' }} />
+                        <input type="number" placeholder="Est. days" disabled={!canManage} value={it.estimatedDays ?? ''} onChange={(e) => patchItem(it.id, { estimatedDays: e.target.value === '' ? null : Number(e.target.value) })} style={{ ...inputStyle, background: 'var(--surface)', width: 90, fontSize: 11.5, padding: '5px 8px' }} />
+                        <input type="date" title="Planned start" disabled={!canManage} value={it.plannedStart || ''} onChange={(e) => patchItem(it.id, { plannedStart: e.target.value })} style={{ ...inputStyle, background: 'var(--surface)', width: 'auto', fontSize: 11.5, padding: '5px 8px' }} />
+                        <input type="date" title="Planned end" disabled={!canManage} value={it.plannedEnd || ''} onChange={(e) => patchItem(it.id, { plannedEnd: e.target.value })} style={{ ...inputStyle, background: 'var(--surface)', width: 'auto', fontSize: 11.5, padding: '5px 8px' }} />
                       </div>
                       {it.completedAt && <div style={{ marginBottom: 4 }}><TimeStrip o={it} compact /></div>}
-                      <textarea value={it.notes || ''} disabled={!canManage} placeholder="Notes…" onChange={(e) => patchItem(it.id, { notes: e.target.value })} rows={1} style={{ ...inputStyle, background: '#FDFCF9', resize: 'vertical', fontSize: 12 }} />
+                      <textarea value={it.notes || ''} disabled={!canManage} placeholder="Notes…" onChange={(e) => patchItem(it.id, { notes: e.target.value })} rows={1} style={{ ...inputStyle, background: 'var(--surface)', resize: 'vertical', fontSize: 12 }} />
                     </div>
                   );
                 })}
-                {items.length === 0 && <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No items yet.</div>}
+                {items.length === 0 && <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No items yet.</div>}
               </div>
               {canManage && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                   <input value={itemDraft} onChange={(e) => setItemDraft(e.target.value)} placeholder="Add an item…" style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => { if (e.key === 'Enter') addItem(); }} />
-                  <div onClick={addItem} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Add</div>
+                  <div onClick={addItem} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Add</div>
                 </div>
               )}
             </div>
@@ -209,7 +209,7 @@ export function WorkflowsView({ projectId }: { projectId?: number }) {
 function L({ label, span, children }: { label: string; span?: boolean; children: React.ReactNode }) {
   return (
     <div style={span ? { gridColumn: '1 / -1' } : undefined}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
       {children}
     </div>
   );

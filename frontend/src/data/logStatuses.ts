@@ -1,3 +1,4 @@
+import { tint } from '../theme';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
@@ -9,10 +10,10 @@ export const DEFAULT_LOG_STATUSES: LogStatus[] = [
 ];
 
 const TONES: Record<string, { bg: string; c: string }> = {
-  Closed: { bg: '#E3ECD9', c: '#34552E' },
+  Closed: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  'On hold': { bg: '#FBE7A8', c: '#93520F' },
+  'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
 };
 
 // One copy for the whole app, loaded once and shared by every screen.
@@ -50,6 +51,6 @@ export const isLogClosed = (status?: string | null) => status === 'Closed' || cu
 export function logStatusTone(name?: string | null): { bg: string; c: string } {
   if (name && TONES[name]) return TONES[name];
   const custom = current.find((s) => s.name === name)?.color;
-  if (custom) return { bg: custom + '22', c: custom };
-  return isLogClosed(name) ? TONES.Closed : { bg: '#EEEBE4', c: '#65615A' };
+  if (custom) return { bg: tint(custom, '22'), c: custom };
+  return isLogClosed(name) ? TONES.Closed : { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 }

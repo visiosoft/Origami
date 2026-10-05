@@ -44,13 +44,13 @@ export const WF_STATUSES: WorkflowStatus[] = ['Active', 'Draft', 'Archived'];
 export const WF_ITEM_STATUSES: WorkflowItemStatus[] = ['Open', 'In Progress', 'Done'];
 
 export const WF_STATUS_STYLE: Record<WorkflowStatus, { bg: string; c: string }> = {
-  Active: { bg: '#E3ECD9', c: '#3F6B39' },
-  Draft: { bg: '#EEEBE4', c: '#65615A' },
+  Active: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
+  Draft: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   Archived: { bg: '#F2DFD4', c: '#8E2E0A' },
 };
 
 export const WF_ITEM_STATUS_STYLE: Record<WorkflowItemStatus, { bg: string; c: string }> = {
-  Open: { bg: '#EEEBE4', c: '#3D3B37' },
+  Open: { bg: 'var(--c-efede8)', c: 'var(--c-3a423e)' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  Done: { bg: '#E3ECD9', c: '#34552E' },
+  Done: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
 };

@@ -30,7 +30,7 @@ import { ProposalPanel } from '../components/ProposalPanel';
 import { DealTasksPanel } from '../components/DealTasksPanel';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 const OPT = LEAD_DROPDOWN_OPTIONS;
 
 type Override = Partial<Pick<Deal, 'stage' | 'stageIdx' | 'daysInStage' | 'status'>>;
@@ -210,8 +210,8 @@ const BLANK_LEAD: NewLead = {
 const DELIVERY_STYLE: Record<string, { bg: string; c: string }> = {
   DO: { bg: '#E4DCF7', c: '#5B2BC9' },   // Design Only
   BO: { bg: '#D6E8E5', c: '#2F6F68' },   // Build Only
-  DB: { bg: '#E3ECD9', c: '#34552E' },   // Design Build
-  PDB: { bg: '#FBE7A8', c: '#93520F' },  // Progressive Design Build
+  DB: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },   // Design Build
+  PDB: { bg: 'var(--amber-light)', c: '#93520F' },  // Progressive Design Build
 };
 
 const holdDue = (holdUntil?: string) => !!holdUntil && holdUntil <= new Date().toISOString().slice(0, 10);
@@ -1078,9 +1078,9 @@ export function Pipeline() {
   };
 
   const stats = [
-    { label: 'Active Deals', value: data.length.toString(), color: '#232321' },
-    { label: 'Pipeline Value', value: '$' + (totalValue / 1000000).toFixed(1) + 'M', color: '#4C7A3F' },
-    { label: 'Overdue', value: overdueCount.toString(), color: overdueCount > 0 ? '#B8410F' : '#A29E96' },
+    { label: 'Active Deals', value: data.length.toString(), color: 'var(--forest)' },
+    { label: 'Pipeline Value', value: '$' + (totalValue / 1000000).toFixed(1) + 'M', color: 'var(--success)' },
+    { label: 'Overdue', value: overdueCount.toString(), color: overdueCount > 0 ? '#B8410F' : 'var(--c-9aa39d)' },
     { label: 'Avg Days in Stage', value: avgDays.toString(), color: '#D2822E' },
   ];
 
@@ -1111,8 +1111,8 @@ export function Pipeline() {
         {/* Stats bar */}
         <div style={{ display: 'flex', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: 10, padding: isMobile ? '0 14px 12px' : '0 20px 12px', flexShrink: 0 }}>
           {stats.map((st) => (
-            <div key={st.label} style={{ flex: isMobile ? '1 1 calc(50% - 5px)' : 1, padding: '12px 14px', background: '#FDFCF9', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.06)' }}>
-              <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F' }}>{st.label}</div>
+            <div key={st.label} style={{ flex: isMobile ? '1 1 calc(50% - 5px)' : 1, padding: '12px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+              <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>{st.label}</div>
               <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: st.color, marginTop: 2 }}>{st.value}</div>
             </div>
           ))}
@@ -1123,24 +1123,24 @@ export function Pipeline() {
           {roleTabs.map(({ r, label }) => {
             const active = roleFilter === r;
             return (
-              <div key={r} onClick={() => setRoleFilter(r)} style={{ padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? (r === 'pc' ? '#E3ECD9' : r === 'pm' ? '#FAE7A5' : '#1D1D1B') : 'white', color: active ? (r === 'all' ? 'white' : r === 'pc' ? '#4C7A3F' : '#232321') : '#8B877F', border: '1px solid ' + (active ? 'transparent' : 'rgba(29, 29, 27,0.08)') }}>{label}</div>
+              <div key={r} onClick={() => setRoleFilter(r)} style={{ padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? (r === 'pc' ? 'var(--c-d2ead3)' : r === 'pm' ? 'var(--mint)' : 'var(--ink)') : 'white', color: active ? (r === 'all' ? 'white' : r === 'pc' ? 'var(--success)' : 'var(--forest)') : 'var(--muted)', border: '1px solid ' + (active ? 'transparent' : 'rgba(var(--rgb-shade), 0.08)') }}>{label}</div>
             );
           })}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            {([['#4C7A3F', 'PC'], ['#232321', 'PM'], ['#F5C443', 'Auto']] as [string, string][]).map(([c, l]) => (
+            {([['var(--success)', 'PC'], ['var(--forest)', 'PM'], ['var(--gold)', 'Auto']] as [string, string][]).map(([c, l]) => (
               <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />
-                <span style={{ fontSize: 10, color: '#8B877F', fontWeight: 500 }}>{l}</span>
+                <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 500 }}>{l}</span>
               </div>
             ))}
             <div
               onClick={() => setShowArchived((v) => !v)}
               title="Archived leads are hidden by default"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', background: showArchived ? '#F2EFE8' : 'white', color: showArchived ? '#232321' : '#8B877F' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: showArchived ? 'var(--mist)' : 'white', color: showArchived ? 'var(--forest)' : 'var(--muted)' }}
             >
               {showArchived ? 'Hide archived' : 'Show archived'}
             </div>
-            <div onClick={openNewLead} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(35, 35, 33,0.22)' }}>
+            <div onClick={openNewLead} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 15px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(var(--rgb-forest), 0.22)' }}>
               <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New Lead
             </div>
           </div>
@@ -1155,8 +1155,8 @@ export function Pipeline() {
               // Dim the columns the card being dragged is not allowed into.
               const isBlocked = !!dragging && blockedFor(dragging, stage.key);
               return (
-                <div key={stage.key} onDragOver={(e) => { if (dragging && blockedFor(dragging, stage.key)) { e.dataTransfer.dropEffect = 'none'; return; } e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== stage.key) setDragOver(stage.key); }} onDragLeave={() => { if (dragOver === stage.key) setDragOver(null); }} onDrop={(e) => onDrop(e, stage.key, stage.idx)} style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', background: isDragOver ? '#F2EFE8' : '#FAF8F3', borderRadius: 18, border: isDragOver ? '2px dashed #8B877F' : '1px solid rgba(29, 29, 27,0.04)', maxHeight: '100%', opacity: isBlocked ? 0.35 : 1, transition: 'background 0.15s, border 0.15s, opacity 0.15s' }}>
-                  <div style={{ padding: '10px 10px 8px', borderTop: `3px solid ${stage.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: stage.colorBg, flexShrink: 0 }}>
+                <div key={stage.key} onDragOver={(e) => { if (dragging && blockedFor(dragging, stage.key)) { e.dataTransfer.dropEffect = 'none'; return; } e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== stage.key) setDragOver(stage.key); }} onDragLeave={() => { if (dragOver === stage.key) setDragOver(null); }} onDrop={(e) => onDrop(e, stage.key, stage.idx)} style={{ width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column', background: isDragOver ? 'var(--mist)' : 'var(--panel)', borderRadius: 'var(--r-12)', border: isDragOver ? '2px dashed var(--muted)' : '1px solid rgba(var(--rgb-shade), 0.04)', maxHeight: '100%', opacity: isBlocked ? 0.35 : 1, transition: 'background 0.15s, border 0.15s, opacity 0.15s' }}>
+                  <div style={{ padding: '10px 10px 8px', borderTop: `3px solid ${stage.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: stage.colorBg, flexShrink: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                       <div style={{ width: 6, height: 6, borderRadius: 2, background: stage.color }} />
                       <div style={{ fontSize: 11, fontWeight: 700, color: stage.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stage.name}</div>
@@ -1165,7 +1165,7 @@ export function Pipeline() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ fontSize: 9, fontWeight: 600, color: stage.ownerColor, background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>{stage.owner}</span>
                       {!slaExempt(stage) && !!slaDays[stage.key] && (
-                        <span title="Response-time target for this stage — set under Settings → CRM Response Times" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 600, color: '#8B877F', background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>
+                        <span title="Response-time target for this stage — set under Settings → CRM Response Times" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 9, fontWeight: 600, color: 'var(--muted)', background: 'rgba(255,255,255,0.75)', padding: '1px 6px', borderRadius: 999 }}>
                           <svg width={7} height={7} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><circle cx={12} cy={12} r={10} /><polyline points="12 6 12 12 16 14" /></svg>
                           {slaDays[stage.key]}d target
                         </span>
@@ -1182,15 +1182,15 @@ export function Pipeline() {
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? '#F2EFE8' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? '#8B877F' : 'rgba(29, 29, 27,0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(29, 29, 27,0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(29, 29, 27,0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: '#1D1D1B', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
-                          <div style={{ fontSize: 10, color: '#8B877F', marginBottom: 6 }}>{[leadDetails[d.id]?.firstName, leadDetails[d.id]?.lastName].filter(Boolean).join(' ') || d.client}</div>
+                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? 'var(--mist)' : 'white', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? 'var(--muted)' : 'rgba(var(--rgb-shade), 0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(var(--rgb-shade), 0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(var(--rgb-shade), 0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 6 }}>{[leadDetails[d.id]?.firstName, leadDetails[d.id]?.lastName].filter(Boolean).join(' ') || d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
                             {d.rejectionType && REJECTION_STYLE[d.rejectionType] && (
                               <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: REJECTION_STYLE[d.rejectionType].bg, color: REJECTION_STYLE[d.rejectionType].c }}>{REJECTION_STYLE[d.rejectionType].label(d)}</span>
                             )}
                             <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: ss.bg, color: ss.color }}>{ss.label}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#232321' }}>{d.value}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--forest)' }}>{d.value}</span>
                             {delivery && (
                               <span title={`${delivery.label} — ${delivery.detail}`} style={{ padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800, letterSpacing: '0.04em', background: DELIVERY_STYLE[delivery.code].bg, color: DELIVERY_STYLE[delivery.code].c }}>
                                 {delivery.code}
@@ -1200,7 +1200,7 @@ export function Pipeline() {
                               if (!sla) return null;
                               const tone = sla.overdue
                                 ? { bg: '#F2DFD4', c: '#8E2E0A' }
-                                : sla.dueSoon ? { bg: '#FBE7A8', c: '#93520F' } : { bg: '#E8EFE9', c: '#3F6B52' };
+                                : sla.dueSoon ? { bg: 'var(--amber-light)', c: '#93520F' } : { bg: '#E8EFE9', c: '#3F6B52' };
                               return (
                                 <span
                                   className={sla.overdue ? 'sla-overdue' : undefined}
@@ -1213,23 +1213,23 @@ export function Pipeline() {
                               );
                             })()}
                             {d.holdUntil && (
-                              <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: holdDue(d.holdUntil) ? '#F2DFD4' : '#FBE7A8', color: holdDue(d.holdUntil) ? '#8E2E0A' : '#93520F' }}>
+                              <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: holdDue(d.holdUntil) ? '#F2DFD4' : 'var(--amber-light)', color: holdDue(d.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                                 {holdDue(d.holdUntil) ? 'Due' : d.holdUntil.slice(5)}
                               </span>
                             )}
-                            {d.archived && <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: '#EEEBE4', color: '#8B877F' }}>Archived</span>}
+                            {d.archived && <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: 'var(--c-efede8)', color: 'var(--muted)' }}>Archived</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={d.daysInStage > 4 ? '#B8410F' : '#8B877F'} strokeWidth={2}><circle cx={12} cy={12} r={10} /><polyline points="12 6 12 12 16 14" /></svg>
-                              <span style={{ fontSize: 9, fontWeight: 600, color: d.daysInStage > 4 ? '#B8410F' : '#8B877F' }}>{d.daysInStage}d</span>
+                              <svg width={10} height={10} viewBox="0 0 24 24" fill="none" style={{ stroke: d.daysInStage > 4 ? '#B8410F' : 'var(--muted)' }} strokeWidth={2}><circle cx={12} cy={12} r={10} /><polyline points="12 6 12 12 16 14" /></svg>
+                              <span style={{ fontSize: 9, fontWeight: 600, color: d.daysInStage > 4 ? '#B8410F' : 'var(--muted)' }}>{d.daysInStage}d</span>
                             </div>
-                            <div style={{ width: 18, height: 18, borderRadius: 999, background: d.assigneeInit === '?' ? '#D5D3CC' : '#232321', display: 'grid', placeItems: 'center', fontSize: 7, fontWeight: 700, color: 'white' }}>{d.assigneeInit}</div>
+                            <div style={{ width: 18, height: 18, borderRadius: 999, background: d.assigneeInit === '?' ? '#D5D3CC' : 'var(--sidebar)', display: 'grid', placeItems: 'center', fontSize: 7, fontWeight: 700, color: 'white' }}>{d.assigneeInit}</div>
                           </div>
                         </div>
                       );
                     })}
-                    {cards.length === 0 && <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: 10, color: '#A29E96', fontStyle: 'italic' }}>No deals</div>}
+                    {cards.length === 0 && <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No deals</div>}
                   </div>
                 </div>
               );
@@ -1241,33 +1241,33 @@ export function Pipeline() {
       {/* Detail panel */}
       {selected && selectedStage && (
         <div style={isMobile
-          ? { position: 'fixed', inset: 0, zIndex: 120, background: '#FDFCF9', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }
-          : { position: 'relative', width: panelWidth, flexShrink: 0, borderLeft: '1px solid rgba(29, 29, 27,0.06)', background: '#FDFCF9', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }}>
+          ? { position: 'fixed', inset: 0, zIndex: 120, background: 'var(--surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }
+          : { position: 'relative', width: panelWidth, flexShrink: 0, borderLeft: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'fadeIn 0.2s ease' }}>
           {/* Drag handle — resize the panel by dragging its left edge */}
           {!isMobile && (
             <div onMouseDown={startResize} title="Drag to resize" style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 8, cursor: 'ew-resize', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ width: 3, height: 34, borderRadius: 3, background: '#DFDBD2' }} />
+              <div style={{ width: 3, height: 34, borderRadius: 3, background: 'var(--c-d6e0d7)' }} />
             </div>
           )}
           {/* Scrollable content region */}
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           {/* Top bar */}
           <div style={{ padding: '14px 20px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F' }}>{selected.id} {DOT} {selected.source}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)' }}>{selected.id} {DOT} {selected.source}</div>
             <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#8B877F" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--muted)' }} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
             </div>
           </div>
 
           {/* Pipeline progress — above name */}
-          <div style={{ padding: '10px 20px 14px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 8 }}>Pipeline Progress</div>
+          <div style={{ padding: '10px 20px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+            <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Pipeline Progress</div>
             <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
               {STAGES.map((s, i) => (
-                <div key={s.key} title={s.name} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? s.color : '#DFDBD2' }} />
+                <div key={s.key} title={s.name} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? s.color : 'var(--c-d6e0d7)' }} />
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#8B877F' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--muted)' }}>
               <span>{STAGES[0]?.name}</span>
               <span style={{ fontWeight: 700, color: selectedStage.color }}>{STAGES[selected.stageIdx]?.name || `Stage ${selected.stageIdx + 1}`}</span>
               <span>{ACTIVE_STAGES[ACTIVE_STAGES.length - 1]?.name}</span>
@@ -1275,14 +1275,14 @@ export function Pipeline() {
           </div>
 
           {/* Name + client + pills */}
-          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#1D1D1B', lineHeight: 1.3 }}>{selected.name}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#4A4741', margin: '4px 0 4px' }}>{[leadDetails[selected.id]?.firstName, leadDetails[selected.id]?.lastName].filter(Boolean).join(' ') || selected.client}</div>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{selected.name}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--body)', margin: '4px 0 4px' }}>{[leadDetails[selected.id]?.firstName, leadDetails[selected.id]?.lastName].filter(Boolean).join(' ') || selected.client}</div>
             {(() => {
               const addr = leadAddress(leadDetails[selected.id]);
               return (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 12, color: '#65615A', margin: '0 0 10px' }}>
-                  {addr ? <MapLink address={addr} /> : <span style={{ color: '#A29E96' }}>No street address yet</span>}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 12, color: 'var(--c-5c6b65)', margin: '0 0 10px' }}>
+                  {addr ? <MapLink address={addr} /> : <span style={{ color: 'var(--c-9aa39d)' }}>No street address yet</span>}
                   {selected.phone && <PhoneLink phone={selected.phone} />}
                 </div>
               );
@@ -1290,30 +1290,30 @@ export function Pipeline() {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#ECE6DA', color: '#1D1D1B' }}>{selected.value}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: 'var(--sand)', color: 'var(--ink)' }}>{selected.value}</span>
               {selected.rejectionType && REJECTION_STYLE[selected.rejectionType] && (
                 <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: REJECTION_STYLE[selected.rejectionType].bg, color: REJECTION_STYLE[selected.rejectionType].c }}>{REJECTION_STYLE[selected.rejectionType].label(selected)}</span>
               )}
               {selected.holdUntil && (
-                <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : '#FBE7A8', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
+                <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : 'var(--amber-light)', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
                   {holdDue(selected.holdUntil) ? 'Follow up now' : `Follow up ${selected.holdUntil}`}
                 </span>
               )}
               {selected.archived && (
-                <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: '#EEEBE4', color: '#8B877F' }}>Archived</span>
+                <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: 'var(--c-efede8)', color: 'var(--muted)' }}>Archived</span>
               )}
             </div>
           </div>
 
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
-          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(29, 29, 27,0.06)', padding: '0 20px' }}>
+          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 20px' }}>
             {(['overview', 'notes', 'client', 'tasks', 'files', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
               const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
               return (
-                <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? '#232321' : 'transparent'), color: detailTab === t ? '#1D1D1B' : '#8B877F', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? 'var(--forest)' : 'transparent'), color: detailTab === t ? 'var(--ink)' : 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'client' ? 'Client' : t === 'tasks' ? 'Tasks' : t === 'files' ? 'Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
-                  {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? '#232321' : '#EEEBE4', color: detailTab === t ? 'white' : '#8B877F' }}>{count}</span>}
+                  {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? 'var(--forest)' : 'var(--c-efede8)', color: detailTab === t ? 'white' : 'var(--muted)' }}>{count}</span>}
                 </div>
               );
             })}
@@ -1329,8 +1329,8 @@ export function Pipeline() {
             />
           ) : detailTab === 'notes' ? (
             <div style={{ padding: '16px 20px 24px' }}>
-              <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.09)', borderRadius: 18, padding: '12px 14px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 6 }}>
+              <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 'var(--r-12)', padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 6 }}>
                   {editingNoteId ? 'Edit note' : `New note · ${selectedStage.name}`}
                 </div>
                 <textarea
@@ -1342,29 +1342,29 @@ export function Pipeline() {
                   style={{ ...inputStyle, resize: 'vertical' }}
                 />
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-                  <div onClick={() => submitNote(selected.id, selectedStage.name)} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteDraft.trim() ? 'pointer' : 'not-allowed', background: noteDraft.trim() ? '#232321' : '#DFDBD2', color: noteDraft.trim() ? 'white' : '#A29E96' }}>{editingNoteId ? 'Save note' : 'Add note'}</div>
-                  {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)' }}>Cancel</div>}
-                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#A29E96' }}>Ctrl + Enter to add</span>
+                  <div onClick={() => submitNote(selected.id, selectedStage.name)} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteDraft.trim() ? 'pointer' : 'not-allowed', background: noteDraft.trim() ? 'var(--forest)' : 'var(--c-d6ded8)', color: noteDraft.trim() ? 'white' : 'var(--c-9aa39d)' }}>{editingNoteId ? 'Save note' : 'Add note'}</div>
+                  {editingNoteId && <div onClick={() => { setEditingNoteId(null); setNoteDraft(''); }} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>Cancel</div>}
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'var(--c-9aa39d)' }}>Ctrl + Enter to add</span>
                 </div>
               </div>
 
-              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', margin: '18px 0 8px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', margin: '18px 0 8px' }}>
                 {(notesByDeal[selected.id] || []).length} note{(notesByDeal[selected.id] || []).length === 1 ? '' : 's'} · newest first
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(notesByDeal[selected.id] || []).length === 0 && <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No notes yet — the first one you add shows here.</div>}
+                {(notesByDeal[selected.id] || []).length === 0 && <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No notes yet — the first one you add shows here.</div>}
                 {newestFirst(notesByDeal[selected.id] || []).map((n) => (
-                  <div key={n.id} style={{ background: editingNoteId === n.id ? '#F2EFE8' : '#FAF8F3', borderRadius: 10, padding: '10px 12px', border: '1px solid ' + (editingNoteId === n.id ? '#EED27A' : 'transparent') }}>
+                  <div key={n.id} style={{ background: editingNoteId === n.id ? 'var(--mist)' : 'var(--panel)', borderRadius: 10, padding: '10px 12px', border: '1px solid ' + (editingNoteId === n.id ? 'var(--c-b9cdbd)' : 'transparent') }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: '#4C7A3F', background: '#E3ECD9', padding: '1px 6px', borderRadius: 999 }}>{n.stageName}</span>
-                      <span style={{ fontSize: 10.5, color: '#8B877F' }}>{n.date}{n.by ? ` · ${n.by}` : ''}{n.editedAt ? ' · edited' : ''}</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--success)', background: 'var(--c-d2ead3)', padding: '1px 6px', borderRadius: 999 }}>{n.stageName}</span>
+                      <span style={{ fontSize: 10.5, color: 'var(--muted)' }}>{n.date}{n.by ? ` · ${n.by}` : ''}{n.editedAt ? ' · edited' : ''}</span>
                       <span style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
-                        <span onClick={() => editNote(n)} style={{ fontSize: 11, color: '#232321', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
+                        <span onClick={() => editNote(n)} style={{ fontSize: 11, color: 'var(--forest)', cursor: 'pointer', fontWeight: 600 }}>Edit</span>
                         <span onClick={() => deleteNote(selected.id, n.id)} style={{ fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>
                       </span>
                     </div>
-                    <ClampText text={n.text} lines={2} style={{ fontSize: 12.5, color: '#4A4741', lineHeight: 1.55 }} />
-                    <button type="button" onClick={() => setNoteTask({ dealId: selected.id, dealName: selected.name, stageName: n.stageName, text: n.text })} style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11, color: '#232321', cursor: 'pointer', fontWeight: 600 }}>Convert to task</button>
+                    <ClampText text={n.text} lines={2} style={{ fontSize: 12.5, color: 'var(--body)', lineHeight: 1.55 }} />
+                    <button type="button" onClick={() => setNoteTask({ dealId: selected.id, dealName: selected.name, stageName: n.stageName, text: n.text })} style={{ marginTop: 8, padding: 0, border: 0, background: 'transparent', fontFamily: 'inherit', fontSize: 11, color: 'var(--forest)', cursor: 'pointer', fontWeight: 600 }}>Convert to task</button>
                   </div>
                 ))}
               </div>
@@ -1373,10 +1373,10 @@ export function Pipeline() {
             <>
             <div style={{ padding: '16px 20px 0' }}><ClientWelcomeCard leadId={selected.id} defaultTo={leadDetails[selected.id]?.email || selected.email} homework={leadDetails[selected.id]?.homeworkCompleted || []} /></div>
             <div style={{ padding: '14px 20px 0' }}>
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 8 }}>Every file on this lead</div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Every file on this lead</div>
               <AllFiles leadId={selected.id} reloadKey={leadFiles.files.length} />
             </div>
-            <div style={{ padding: '18px 20px 0', fontSize: 12.5, fontWeight: 700, color: '#1D1D1B' }}>Add files by stage</div>
+            <div style={{ padding: '18px 20px 0', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>Add files by stage</div>
             <LeadFilesTab leadId={selected.id} files={leadFiles.files} onChange={leadFiles.setFiles} stages={STAGES.map((s) => ({ key: s.key, name: s.name }))} currentStage={selected.stage} />
             </>
           ) : detailTab === 'tasks' ? (
@@ -1455,10 +1455,10 @@ export function Pipeline() {
                     return n + (sec.gate && !gateMet ? 1 : sec.fields.length);
                   }, 0);
                   return (
-                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321', marginBottom: 4 }}>Initial Questions — Lead Intake</div>
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)', marginBottom: 4 }}>Initial Questions — Lead Intake</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                        <div style={{ fontSize: 10.5, color: '#8B877F', flex: '1 1 200px' }}>Fill these in during the call — answers save as you type. “Save Lead Details” marks this step done.</div>
+                        <div style={{ fontSize: 10.5, color: 'var(--muted)', flex: '1 1 200px' }}>Fill these in during the call — answers save as you type. “Save Lead Details” marks this step done.</div>
                         <SaveBar auto={iqAuto} />
                       </div>
                       {LEAD_SECTIONS.map((sec) => {
@@ -1469,14 +1469,14 @@ export function Pipeline() {
                         <div key={sec.title} style={{ marginBottom: 14 }}>
                           <div
                             onClick={sec.gate ? () => setLeadSectionOpen((p) => ({ ...p, [sec.title]: !open })) : undefined}
-                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8B877F', marginBottom: 8, cursor: sec.gate ? 'pointer' : 'default' }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 8, cursor: sec.gate ? 'pointer' : 'default' }}
                           >
                             {sec.gate && (
-                              <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', fontSize: 9, color: '#A29E96' }}>▶</span>
+                              <span style={{ display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'none', fontSize: 9, color: 'var(--c-9aa39d)' }}>▶</span>
                             )}
                             <span>{sec.title}</span>
                             {sec.gate && !open && (
-                              <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: '#A29E96' }}>· {sec.gate.emptyLabel}</span>
+                              <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500, color: 'var(--c-9aa39d)' }}>· {sec.gate.emptyLabel}</span>
                             )}
                           </div>
                           <div style={{ display: open ? 'flex' : 'none', flexDirection: 'column', gap: 10 }}>
@@ -1487,7 +1487,7 @@ export function Pipeline() {
                               return (
                               <div key={f.key}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                  <span style={{ fontSize: 10.5, fontWeight: 600, color: answered ? '#8B877F' : '#8E2E0A' }}>
+                                  <span style={{ fontSize: 10.5, fontWeight: 600, color: answered ? 'var(--muted)' : '#8E2E0A' }}>
                                     {f.label}{!answered && ' *'}
                                   </span>
                                   <span
@@ -1495,8 +1495,8 @@ export function Pipeline() {
                                     title={na ? 'Clear' : "Mark this question as not applicable"}
                                     style={{
                                       marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                                      cursor: 'pointer', border: '1px solid ' + (na ? '#232321' : 'rgba(29, 29, 27,0.14)'),
-                                      background: na ? '#232321' : 'white', color: na ? 'white' : '#8B877F',
+                                      cursor: 'pointer', border: '1px solid ' + (na ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'),
+                                      background: na ? 'var(--forest)' : 'white', color: na ? 'white' : 'var(--muted)',
                                     }}
                                   >
                                     N/A
@@ -1512,12 +1512,12 @@ export function Pipeline() {
                                 ) : f.kind === 'matrix' ? (
                                   <ContactMethodMatrix value={ld.preferredContactMatrix} onChange={(m) => up('preferredContactMatrix', m as never)} />
                                 ) : f.kind === 'checkbox' ? (
-                                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#1D1D1B', cursor: 'pointer' }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
                                     <input type="checkbox" checked={ld[f.key] === 'Yes'} onChange={(e) => up(f.key, e.target.checked ? 'Yes' : 'No')} />
                                     Yes, this property is in an HOA
                                   </label>
                                 ) : f.kind === 'pills' ? (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => { const arr = (ld[f.key] as string[]) || []; const on = arr.includes(o); return <div key={o} onClick={() => up(f.key, on ? arr.filter((x) => x !== o) : [...arr, o])} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.1)'), background: on ? '#E3ECD9' : 'white', color: on ? '#232321' : '#1D1D1B', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}</div>
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{(LEAD_DROPDOWN_OPTIONS[f.optKey!] || []).map((o) => { const arr = (ld[f.key] as string[]) || []; const on = arr.includes(o); return <div key={o} onClick={() => up(f.key, on ? arr.filter((x) => x !== o) : [...arr, o])} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--ink)', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}</div>
                                 ) : (
                                   <input type={f.kind} value={(ld[f.key] as string) || ''} onChange={(e) => up(f.key, e.target.value)} placeholder={f.ph} style={inputStyle} />
                                 )}
@@ -1527,9 +1527,9 @@ export function Pipeline() {
                             {sec.title === '1. Contact' && (
                               <>
                                 {(ld.additionalContacts || []).map((c, i) => (
-                                  <div key={c.id} style={{ paddingTop: 10, marginTop: 4, borderTop: '1px solid rgba(29, 29, 27,0.06)' }}>
+                                  <div key={c.id} style={{ paddingTop: 10, marginTop: 4, borderTop: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                      <span style={{ fontSize: 10.5, fontWeight: 700, color: '#232321' }}>Additional Contact {i + 1}</span>
+                                      <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--forest)' }}>Additional Contact {i + 1}</span>
                                       <span
                                         onClick={() => up('additionalContacts', (ld.additionalContacts || []).filter((x) => x.id !== c.id) as never)}
                                         style={{ fontSize: 10, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer' }}
@@ -1545,7 +1545,7 @@ export function Pipeline() {
                                         ['Email', 'email', 'email'],
                                       ] as [string, keyof AdditionalContact, string][]).map(([label, key, kind]) => (
                                         <div key={key}>
-                                          <span style={{ fontSize: 10, fontWeight: 600, color: '#A29E96', display: 'block', marginBottom: 3 }}>{label}</span>
+                                          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-9aa39d)', display: 'block', marginBottom: 3 }}>{label}</span>
                                           {kind === 'select' ? (
                                             <select
                                               value={c[key] as string}
@@ -1566,7 +1566,7 @@ export function Pipeline() {
                                         </div>
                                       ))}
                                       <div>
-                                        <span style={{ fontSize: 10, fontWeight: 600, color: '#A29E96', display: 'block', marginBottom: 3 }}>Preferred Contact Method</span>
+                                        <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-9aa39d)', display: 'block', marginBottom: 3 }}>Preferred Contact Method</span>
                                         <ContactMethodMatrix
                                           value={c.preferredContactMatrix || {}}
                                           onChange={(mx) => up('additionalContacts', (ld.additionalContacts || []).map((x) => (x.id === c.id ? { ...x, preferredContactMatrix: mx, preferredContactMethod: primaryContactMethod(mx) } : x)) as never)}
@@ -1577,7 +1577,7 @@ export function Pipeline() {
                                 ))}
                                 <div
                                   onClick={() => up('additionalContacts', [...(ld.additionalContacts || []), blankAdditionalContact()] as never)}
-                                  style={{ fontSize: 11, fontWeight: 700, color: '#232321', cursor: 'pointer', paddingTop: 4 }}
+                                  style={{ fontSize: 11, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', paddingTop: 4 }}
                                 >
                                   + Add another contact
                                 </div>
@@ -1633,34 +1633,34 @@ export function Pipeline() {
                           setLeadBaseline((p) => ({ ...p, [selected.id]: { ...cur } }));
                           toast('Lead details saved');
                         });
-                      }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: missing.length ? '#ABA79E' : '#232321', color: 'white' }}>Save Lead Details</div>
+                      }} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: missing.length ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>Save Lead Details</div>
                     </div>
                   );
                 })()
               ) : selected.stage === 'virtual_ff' ? (
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: '#F2EFE8' }}>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--mist)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x={1} y={5} width={15} height={14} rx={2} ry={2} /></svg>
-                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321' }}>Virtual F &amp; F — Schedule the meeting</span>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z" /><rect x={1} y={5} width={15} height={14} rx={2} ry={2} /></svg>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)' }}>Virtual F &amp; F — Schedule the meeting</span>
                   </div>
-                  <div style={{ fontSize: 10.5, color: '#8B877F', marginBottom: 10 }}>PC schedules the meeting. Full lead details are in the “Full Details” tab.</div>
+                  <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 10 }}>PC schedules the meeting. Full lead details are in the “Full Details” tab.</div>
                   {meetByDeal[selected.id] && (() => {
                     const missed = new Date(meetByDeal[selected.id].when).getTime() < Date.now();
                     return (
-                      <div style={{ fontSize: 11.5, fontWeight: 600, color: missed ? '#8E2E0A' : '#232321', marginBottom: 8 }}>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: missed ? '#8E2E0A' : 'var(--forest)', marginBottom: 8 }}>
                         {missed ? '⚠ Missed — ' : 'Scheduled: '}
                         {new Date(meetByDeal[selected.id].when).toLocaleString()} ({meetingType === 'phone' ? 'Phone call' : 'Video call'})
-                        {missed && <span style={{ fontWeight: 500, color: '#8B877F' }}> — pick a new time below and save to reschedule</span>}
+                        {missed && <span style={{ fontWeight: 500, color: 'var(--muted)' }}> — pick a new time below and save to reschedule</span>}
                       </div>
                     );
                   })()}
 
-                  <div style={{ display: 'flex', gap: 4, marginBottom: 8, background: '#FDFCF9', padding: 3, borderRadius: 999, width: 'fit-content' }}>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 8, background: 'var(--surface)', padding: 3, borderRadius: 999, width: 'fit-content' }}>
                     {(['video', 'phone'] as const).map((t) => (
                       <div
                         key={t}
                         onClick={() => setMeetingType(t)}
-                        style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: meetingType === t ? '#232321' : 'transparent', color: meetingType === t ? 'white' : '#8B877F' }}
+                        style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: meetingType === t ? 'var(--forest)' : 'transparent', color: meetingType === t ? 'white' : 'var(--muted)' }}
                       >
                         {t === 'video' ? 'Video call' : 'Phone call'}
                       </div>
@@ -1678,12 +1678,12 @@ export function Pipeline() {
                   />
 
                   {meetWhen && (scheduleCalendars.length > 0 || myCalendarConnected) && (
-                    <div style={{ marginBottom: 10, padding: '8px 10px', background: '#FDFCF9', borderRadius: 8 }}>
-                      <div style={{ fontSize: 9.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                    <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--surface)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--c-9aa39d)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                         Availability on {new Date(meetWhen).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                       </div>
                       {availabilityLoading ? (
-                        <div style={{ fontSize: 11, color: '#A29E96' }}>Checking…</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-9aa39d)' }}>Checking…</div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {myCalendarConnected && (() => {
@@ -1691,9 +1691,9 @@ export function Pipeline() {
                             const conflict = myEvents?.some((b) => !b.allDay && pickedMs < new Date(b.end).getTime() && pickedMs + 30 * 60000 > new Date(b.start).getTime());
                             return (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
-                                <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: myEvents === null ? '#DFDBD2' : conflict ? '#C0392B' : '#4C7A3F' }} />
-                                <span style={{ fontWeight: 600, color: '#1D1D1B' }}>You</span>
-                                <span style={{ color: '#8B877F', marginLeft: 'auto' }}>
+                                <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: myEvents === null ? 'var(--c-d6ded8)' : conflict ? '#C0392B' : 'var(--success)' }} />
+                                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>You</span>
+                                <span style={{ color: 'var(--muted)', marginLeft: 'auto' }}>
                                   {myEvents === null ? "can't check" : conflict ? 'busy at this time' : 'free'}
                                 </span>
                               </div>
@@ -1704,9 +1704,9 @@ export function Pipeline() {
                             const conflict = a.busy?.some((b) => pickedMs < new Date(b.end).getTime() && pickedMs + 30 * 60000 > new Date(b.start).getTime());
                             return (
                               <div key={a.email} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
-                                <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: a.busy === null ? '#DFDBD2' : conflict ? '#C0392B' : '#4C7A3F' }} />
-                                <span style={{ fontWeight: 600, color: '#1D1D1B' }}>{a.name || a.email}</span>
-                                <span style={{ color: '#8B877F', marginLeft: 'auto' }}>
+                                <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, background: a.busy === null ? 'var(--c-d6ded8)' : conflict ? '#C0392B' : 'var(--success)' }} />
+                                <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{a.name || a.email}</span>
+                                <span style={{ color: 'var(--muted)', marginLeft: 'auto' }}>
                                   {a.busy === null ? "can't check" : conflict ? 'busy at this time' : 'free'}
                                 </span>
                               </div>
@@ -1715,7 +1715,7 @@ export function Pipeline() {
                         </div>
                       )}
                       {!myCalendarConnected && (
-                        <div style={{ fontSize: 10, color: '#8B877F', marginTop: 6 }}>
+                        <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6 }}>
                           Connect your own calendar under Settings → My Calendar to see your availability here too.
                         </div>
                       )}
@@ -1723,13 +1723,13 @@ export function Pipeline() {
                   )}
 
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <div onClick={() => saveMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? '#4C7A3F' : '#DFDBD2', color: meetWhen ? 'white' : '#A29E96' }}>Save schedule</div>
-                    <div onClick={() => !creatingMeet && scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen && !creatingMeet ? 'pointer' : 'not-allowed', background: meetWhen ? '#232321' : '#DFDBD2', color: meetWhen ? 'white' : '#A29E96' }}>
+                    <div onClick={() => saveMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen ? 'pointer' : 'not-allowed', background: meetWhen ? 'var(--success)' : 'var(--c-d6ded8)', color: meetWhen ? 'white' : 'var(--c-9aa39d)' }}>Save schedule</div>
+                    <div onClick={() => !creatingMeet && scheduleMeet(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: meetWhen && !creatingMeet ? 'pointer' : 'not-allowed', background: meetWhen ? 'var(--forest)' : 'var(--c-d6ded8)', color: meetWhen ? 'white' : 'var(--c-9aa39d)' }}>
                       {creatingMeet ? 'Creating…' : meetingType === 'video' ? 'Save & create Google Meet' : 'Save & add to calendar'}
                     </div>
-                    {meetingType === 'video' && <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321' }}>Start instant Meet</a>}
+                    {meetingType === 'video' && <a href="https://meet.google.com/new" target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, textDecoration: 'none', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)' }}>Start instant Meet</a>}
                   </div>
-                  <div style={{ fontSize: 10, color: '#8B877F', fontStyle: 'italic', marginTop: 6 }}>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6 }}>
                     {meetingType === 'video'
                       ? 'Creates a real calendar event with a Google Meet link and invites the lead. Logged to Activity.'
                       : 'Creates a real calendar event and invites the lead — no video link, no location. Logged to Activity.'}
@@ -1740,20 +1740,20 @@ export function Pipeline() {
                   const ld = leadDetails[selected.id];
                   const addr = leadAddress(ld);
                   return (
-                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: '#F2EFE8' }}>
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--mist)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx={12} cy={10} r={3} /></svg>
-                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321' }}>Site Visit — Schedule On-Site</span>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx={12} cy={10} r={3} /></svg>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)' }}>Site Visit — Schedule On-Site</span>
                       </div>
-                      <div style={{ fontSize: 10.5, color: '#8B877F', marginBottom: 10 }}>PC schedules the on-site visit. Full lead details are in the “Full Details” tab.</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: addr ? '#232321' : '#A29E96', marginBottom: 8 }}>{addr ? <>Location: <MapLink address={addr} pin={false} /></> : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
-                      {visitByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: '#232321', marginBottom: 8 }}>Scheduled: {new Date(visitByDeal[selected.id].when).toLocaleString()}</div>}
+                      <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 10 }}>PC schedules the on-site visit. Full lead details are in the “Full Details” tab.</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: addr ? 'var(--forest)' : 'var(--c-9aa39d)', marginBottom: 8 }}>{addr ? <>Location: <MapLink address={addr} pin={false} /></> : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
+                      {visitByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--forest)', marginBottom: 8 }}>Scheduled: {new Date(visitByDeal[selected.id].when).toLocaleString()}</div>}
                       <input type="datetime-local" value={visitWhen} onChange={(e) => setVisitWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <div onClick={() => saveVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? '#4C7A3F' : '#DFDBD2', color: visitWhen ? 'white' : '#A29E96' }}>Save schedule</div>
-                        <div onClick={() => scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? '#232321' : '#DFDBD2', color: visitWhen ? 'white' : '#A29E96' }}>Save &amp; create invite</div>
+                        <div onClick={() => saveVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? 'var(--success)' : 'var(--c-d6ded8)', color: visitWhen ? 'white' : 'var(--c-9aa39d)' }}>Save schedule</div>
+                        <div onClick={() => scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? 'var(--forest)' : 'var(--c-d6ded8)', color: visitWhen ? 'white' : 'var(--c-9aa39d)' }}>Save &amp; create invite</div>
                       </div>
-                      <div style={{ fontSize: 10, color: '#8B877F', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited and the project address as the location. Logged to Activity.</div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited and the project address as the location. Logged to Activity.</div>
                     </div>
                   );
                 })()
@@ -1766,10 +1766,10 @@ export function Pipeline() {
                   const score = scoreFor(scoringTemplate, sel);
                   const maxTotal = totalPossible(scoringTemplate);
                   return (
-                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: '#F2EFE8' }}>
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--mist)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
-                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321' }}>Project Fit — Qualification Score</span>
+                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
+                        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)' }}>Project Fit — Qualification Score</span>
                       </div>
                       <div style={{ fontSize: 10.5, color: '#5C7169', marginBottom: 10 }}>Score the lead against the checklist. Edit the template in Settings.</div>
                       {scoringTemplate.length === 0 ? (
@@ -1778,18 +1778,18 @@ export function Pipeline() {
                         <>
                           {scoringTemplate.map((c) => (
                             <div key={c.key} style={{ marginBottom: 10 }}>
-                              <div style={{ fontSize: 10.5, fontWeight: 600, color: '#232321', marginBottom: 4 }}>{c.order}. {c.name} <span style={{ color: '#8B877F', fontWeight: 500 }}>· {c.subCriteria} · max {c.maxPoints}</span></div>
+                              <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--forest)', marginBottom: 4 }}>{c.order}. {c.name} <span style={{ color: 'var(--muted)', fontWeight: 500 }}>· {c.subCriteria} · max {c.maxPoints}</span></div>
                               <select value={sel[c.key] || ''} onChange={(e) => setFit(selected.id, c.key, e.target.value)} style={inputStyle}>
                                 <option value="">Select…</option>
                                 {c.options.map((o) => <option key={o.label} value={o.label}>{o.label} ({o.points >= 0 ? '+' : ''}{o.points})</option>)}
                               </select>
                             </div>
                           ))}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: '10px 14px', background: '#FDFCF9', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.08)' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8B877F' }}>Total Score</span>
-                            <span style={{ fontFamily: BG, fontWeight: 800, fontSize: 22, color: '#232321' }}>{score} <span style={{ fontSize: 13, color: '#8B877F', fontWeight: 600 }}>/ {maxTotal}</span></span>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: '10px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>Total Score</span>
+                            <span style={{ fontFamily: BG, fontWeight: 800, fontSize: 22, color: 'var(--forest)' }}>{score} <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>/ {maxTotal}</span></span>
                           </div>
-                          <div onClick={() => saveFit(selected)} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: '#232321', color: 'white' }}>Save Fit Score</div>
+                          <div onClick={() => saveFit(selected)} style={{ marginTop: 10, padding: '10px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Save Fit Score</div>
                         </>
                       )}
                     </div>
@@ -1810,8 +1810,8 @@ export function Pipeline() {
                   }}
                 />
               ) : (
-                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 8 }}>Client</div>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Client</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {(() => {
                       const ld = leadDetails[selected.id];
@@ -1824,9 +1824,9 @@ export function Pipeline() {
                         ['Desired Start', vv(ld?.desiredStart)], ['Property Type', vv(ld?.propertyType)],
                       ];
                       return fields.map(([label, value]) => (
-                        <div key={label} style={{ padding: '8px 10px', borderRadius: 8, background: '#FAF8F3', minWidth: 0 }}>
-                          <div style={{ fontSize: 9.5, fontWeight: 600, color: '#8B877F', marginBottom: 2 }}>{label}</div>
-                          <div style={{ fontSize: 11.5, fontWeight: 500, color: '#1D1D1B', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label === 'Phone' ? <PhoneLink phone={value} /> : label === 'Email' ? <EmailLink email={value} /> : value}</div>
+                        <div key={label} style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--panel)', minWidth: 0 }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginBottom: 2 }}>{label}</div>
+                          <div style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label === 'Phone' ? <PhoneLink phone={value} /> : label === 'Email' ? <EmailLink email={value} /> : value}</div>
                         </div>
                       ));
                     })()}
@@ -1848,8 +1848,8 @@ export function Pipeline() {
                   : [];
                 if (selected.rejectionReason) rows.push(['Reason', selected.rejectionReason]);
                 return (
-                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 8 }}>
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>
                       {selected.rejectionType === 'referred' ? 'Referral' : 'Outcome'}
                     </div>
                     <div style={{ borderRadius: 10, background: st.bg, padding: '10px 12px' }}>
@@ -1858,8 +1858,8 @@ export function Pipeline() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                           {rows.map(([label, value]) => (
                             <div key={label} style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.7)', minWidth: 0, gridColumn: label === 'Reason' ? '1 / -1' : undefined }}>
-                              <div style={{ fontSize: 9.5, fontWeight: 600, color: '#8B877F', marginBottom: 2 }}>{label}</div>
-                              <div style={{ fontSize: 11.5, fontWeight: 500, color: '#1D1D1B', overflow: 'hidden', textOverflow: 'ellipsis', overflowWrap: 'anywhere' }}>{value}</div>
+                              <div style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--muted)', marginBottom: 2 }}>{label}</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', overflowWrap: 'anywhere' }}>{value}</div>
                             </div>
                           ))}
                         </div>
@@ -1873,17 +1873,17 @@ export function Pipeline() {
               {selected.stage === 'zoning' && (() => {
                 const imgs = parseImgs(leadDetails[selected.id]?.zoningImages);
                 return (
-                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: '#F2EFE8' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321', marginBottom: 8 }}>Zoning Images ({imgs.length})</div>
-                    <label style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--mist)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)', marginBottom: 8 }}>Zoning Images ({imgs.length})</div>
+                    <label style={{ display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>
                       + Upload images
                       <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={(e) => { addZoningFiles(selected, e.target.files); e.currentTarget.value = ''; }} />
                     </label>
-                    <span style={{ fontSize: 10, color: '#8B877F', marginLeft: 10 }}>Up to 2MB each · saved to the lead.</span>
+                    <span style={{ fontSize: 10, color: 'var(--muted)', marginLeft: 10 }}>Up to 2MB each · saved to the lead.</span>
                     {imgs.length > 0 && (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 8, marginTop: 10 }}>
                         {imgs.map((im, i) => (
-                          <div key={i} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(29, 29, 27,0.08)' }}>
+                          <div key={i} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
                             <a href={im.dataUrl} target="_blank" rel="noopener noreferrer"><img src={im.dataUrl} alt={im.name} style={{ width: '100%', height: 70, objectFit: 'cover', display: 'block' }} /></a>
                             <div onClick={() => removeZoningImage(selected, i)} title="Remove" style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: 999, background: 'rgba(0,0,0,0.6)', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, cursor: 'pointer' }}>×</div>
                           </div>
@@ -1898,20 +1898,20 @@ export function Pipeline() {
               {selected.stage === 'zoning' && (() => {
                 const za = parseZA(leadDetails[selected.id]?.zoningAnalysis);
                 return (
-                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321' }}>Zoning Code Analysis</div>
-                      <div onClick={() => saveZoningAnalysis(selected)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Save Analysis</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)' }}>Zoning Code Analysis</div>
+                      <div onClick={() => saveZoningAnalysis(selected)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Save Analysis</div>
                     </div>
                     {ZONING_FORM.map((cat) => (
                       <div key={cat.title} style={{ marginBottom: 14 }}>
-                        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#1D1D1B', padding: '6px 10px', background: '#F2EFE8', borderRadius: 8, marginBottom: 8 }}>{cat.title}</div>
+                        <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink)', padding: '6px 10px', background: 'var(--mist)', borderRadius: 8, marginBottom: 8 }}>{cat.title}</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 9, paddingLeft: 2 }}>
                           {cat.fields.map((f) => f.heading ? (
-                            <div key={f.label} style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{f.label}</div>
+                            <div key={f.label} style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>{f.label}</div>
                           ) : (
                             <div key={f.key} style={{ paddingLeft: 4 }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, color: '#4A4741', marginBottom: 3 }}>{f.label}</div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--body)', marginBottom: 3 }}>{f.label}</div>
                               {f.options ? (
                                 <>
                                   <input list={`za-${f.key}`} value={za[f.key!] || ''} onChange={(e) => setZAField(selected, f.key!, e.target.value)} placeholder="Type or select…" autoComplete="off" style={inputStyle} />
@@ -1920,13 +1920,13 @@ export function Pipeline() {
                               ) : (
                                 <input value={za[f.key!] || ''} onChange={(e) => setZAField(selected, f.key!, e.target.value)} placeholder="—" style={inputStyle} />
                               )}
-                              {f.hint && <div style={{ fontSize: 9.5, color: '#A29E96', marginTop: 3, lineHeight: 1.35 }}>{f.hint}</div>}
+                              {f.hint && <div style={{ fontSize: 9.5, color: 'var(--c-9aa39d)', marginTop: 3, lineHeight: 1.35 }}>{f.hint}</div>}
                             </div>
                           ))}
                         </div>
                       </div>
                     ))}
-                    <div onClick={() => saveZoningAnalysis(selected)} style={{ display: 'inline-block', padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Save Analysis</div>
+                    <div onClick={() => saveZoningAnalysis(selected)} style={{ display: 'inline-block', padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Save Analysis</div>
                   </div>
                 );
               })()}
@@ -1938,26 +1938,26 @@ export function Pipeline() {
                 </div>
               )}
               {selectedStage && (
-                <div style={{ paddingTop: 14, borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+                <div style={{ paddingTop: 14, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                   <LeadStageFiles leadId={selected.id} stage={selectedStage.key} stageName={selectedStage.name} files={leadFiles.files} onChange={leadFiles.setFiles} onShowAll={() => setDetailTab('files')} />
                 </div>
               )}
 
               {/* Latest note -- the full list and the composer live on the Notes tab */}
-              <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', flex: 1 }}>Latest note</div>
-                  <span onClick={() => setDetailTab('notes')} style={{ fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', flex: 1 }}>Latest note</div>
+                  <span onClick={() => setDetailTab('notes')} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
                     {(notesByDeal[selected.id] || []).length ? `All notes (${(notesByDeal[selected.id] || []).length}) →` : '+ Add a note →'}
                   </span>
                 </div>
                 {(() => {
                   const latest = newestFirst(notesByDeal[selected.id] || [])[0];
-                  if (!latest) return <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No notes yet.</div>;
+                  if (!latest) return <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No notes yet.</div>;
                   return (
-                    <div onClick={() => setDetailTab('notes')} style={{ background: '#FAF8F3', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
-                      <div style={{ fontSize: 10, color: '#8B877F', marginBottom: 4 }}>{latest.date}{latest.by ? ` · ${latest.by}` : ''}</div>
-                      <div style={{ fontSize: 12, color: '#4A4741', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}>{latest.text}</div>
+                    <div onClick={() => setDetailTab('notes')} style={{ background: 'var(--panel)', borderRadius: 8, padding: '10px 12px', cursor: 'pointer' }}>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>{latest.date}{latest.by ? ` · ${latest.by}` : ''}</div>
+                      <div style={{ fontSize: 12, color: 'var(--body)', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}>{latest.text}</div>
                     </div>
                   );
                 })()}
@@ -1965,8 +1965,8 @@ export function Pipeline() {
 
               {/* Audit trail (stage moves, archives, role changes, notes) */}
               <div style={{ padding: '14px 20px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 4 }}>Audit Trail</div>
-                <div style={{ fontSize: 10.5, color: '#A29E96', marginBottom: 12, lineHeight: 1.5 }}>Who did what, and when, newest first, in your local time. <b style={{ color: '#8B877F' }}>Automatic</b> entries were made by the app itself (or before sign-in was required).</div>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 4 }}>Audit Trail</div>
+                <div style={{ fontSize: 10.5, color: 'var(--c-9aa39d)', marginBottom: 12, lineHeight: 1.5 }}>Who did what, and when, newest first, in your local time. <b style={{ color: 'var(--muted)' }}>Automatic</b> entries were made by the app itself (or before sign-in was required).</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                   {(() => {
                     const noteList = notesByDeal[selected.id] || [];
@@ -1991,7 +1991,7 @@ export function Pipeline() {
                       ...noteList.filter((n) => !logged.includes(n.text)).map((n) => ({ date: n.date, at: n.at, action: `Note (${n.stageName}): ${n.text}`, role: n.by || 'Note', type: 'pc' as const, kind: 'note', _at: n.at ? Date.parse(n.at) : Number(n.id) })),
                     ];
                     const kindOf = (t: any): 'person' | 'note' | 'auto' => (t.kind === 'note' || /^note\b/i.test(t.action) ? 'note' : !t.role || t.role === 'System' ? 'auto' : 'person');
-                    const KIND = { person: { c: '#4C7A3F', b: '#E3ECD9' }, note: { c: '#3C5C8A', b: '#D8E2F0' }, auto: { c: '#7A5A0C', b: '#FBE7A8' } };
+                    const KIND = { person: { c: 'var(--success)', b: 'var(--c-d2ead3)' }, note: { c: '#3C5C8A', b: '#D8E2F0' }, auto: { c: 'var(--c-8a6d12)', b: 'var(--amber-light)' } };
                     const when = (t: any) => (t.at ? new Date(t.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : t.date);
                     const PER_PAGE = 10;
                     const rows = combined
@@ -2010,15 +2010,15 @@ export function Pipeline() {
                         style={{
                           minWidth: 22, textAlign: 'center', padding: '3px 7px', borderRadius: 7, fontSize: 10.5,
                           fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
-                          background: active ? '#232321' : 'transparent',
-                          color: active ? 'white' : disabled ? '#CFCBC3' : '#8B877F',
-                          border: '1px solid ' + (active ? '#232321' : 'rgba(29, 29, 27,0.09)'),
+                          background: active ? 'var(--forest)' : 'transparent',
+                          color: active ? 'white' : disabled ? 'var(--c-c9cdc9)' : 'var(--muted)',
+                          border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.09)'),
                         }}
                       >{labelText}</span>
                     );
                     return (
                       <>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10, color: '#8B877F', marginBottom: 10 }}>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 10, color: 'var(--muted)', marginBottom: 10 }}>
                           {(['person', 'note', 'auto'] as const).map((k) => (
                             <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               <span style={{ width: 8, height: 8, borderRadius: 99, background: KIND[k].b, border: '2px solid ' + KIND[k].c }} />
@@ -2030,21 +2030,21 @@ export function Pipeline() {
                           <div key={start + i} style={{ display: 'flex', gap: 10, paddingBottom: 12 }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 16, flexShrink: 0 }}>
                               <div style={{ width: 10, height: 10, borderRadius: 999, background: KIND[kindOf(t)].b, border: '2px solid ' + KIND[kindOf(t)].c, flexShrink: 0 }} />
-                              {i < shown.length - 1 && <div style={{ width: 1, flex: 1, background: '#DFDBD2', marginTop: 3 }} />}
+                              {i < shown.length - 1 && <div style={{ width: 1, flex: 1, background: 'var(--c-d6e0d7)', marginTop: 3 }} />}
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#CFCBC3', flexShrink: 0 }}>{start + i + 1}</span>
-                                <span style={{ fontSize: 10, fontWeight: 600, color: '#8B877F' }}>{when(t)}</span>
+                                <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--c-c9cdc9)', flexShrink: 0 }}>{start + i + 1}</span>
+                                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)' }}>{when(t)}</span>
                                 <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: KIND[kindOf(t)].b, color: KIND[kindOf(t)].c }}>{kindOf(t) === 'auto' ? 'Automatic' : t.role}</span>
                               </div>
-                              <div style={{ fontSize: 11, fontWeight: 500, color: '#1D1D1B', lineHeight: 1.45, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{t.action}</div>
+                              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.45, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{t.action}</div>
                             </div>
                           </div>
                         ))}
                         {rows.length > PER_PAGE && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', paddingTop: 4, borderTop: '1px solid rgba(29, 29, 27,0.06)' }}>
-                            <span style={{ fontSize: 10, color: '#A29E96', marginRight: 'auto' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', paddingTop: 4, borderTop: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+                            <span style={{ fontSize: 10, color: 'var(--c-9aa39d)', marginRight: 'auto' }}>
                               {start + 1}–{start + shown.length} of {rows.length}
                             </span>
                             {pageBtn(page - 1, '‹', page === 0)}
@@ -2093,15 +2093,15 @@ export function Pipeline() {
                     ...(ld?.sectionCustomFields?.[s.key] || []).filter((f) => f.label || f.value).map((f) => [f.label || 'Custom field', f.value || '']),
                   ] as [string, string][],
                 })).filter((s) => s.rows.length > 0);
-                if (sections.length === 0) return <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
+                if (sections.length === 0) return <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
                 return sections.map((s) => (
                   <div key={s.title} style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#232321', marginBottom: 8 }}>{s.title}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--forest)', marginBottom: 8 }}>{s.title}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {s.rows.map(([label, value]) => (
-                        <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 10px', background: '#FAF8F3', borderRadius: 8 }}>
-                          <span style={{ fontSize: 11, color: '#8B877F', fontWeight: 600, flex: '0 0 44%' }}>{label}</span>
-                          <span style={{ fontSize: 12, color: '#1D1D1B', flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{value}</span>
+                        <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 10px', background: 'var(--panel)', borderRadius: 8 }}>
+                          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, flex: '0 0 44%' }}>{label}</span>
+                          <span style={{ fontSize: 12, color: 'var(--ink)', flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{value}</span>
                         </div>
                       ))}
                     </div>
@@ -2115,61 +2115,61 @@ export function Pipeline() {
 
           {/* Actions */}
           {selectedStage.isDecision ? (
-            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(29, 29, 27,0.06)', flexShrink: 0, background: '#FDFCF9' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8B877F', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0, background: 'var(--surface)' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
               {!rejectChoice ? (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: stageIndex('site_visit'), daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#4C7A3F', color: 'white' }}>✓ Approve — Good Fit</div>
+                  <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: stageIndex('site_visit'), daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'var(--success)', color: 'white' }}>✓ Approve — Good Fit</div>
                   <div onClick={() => setRejectChoice('choosing')} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
                 </div>
               ) : rejectChoice === 'choosing' ? (
                 <div>
-                  <div style={{ fontSize: 11, color: '#8B877F', marginBottom: 8 }}>What happened to this lead?</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>What happened to this lead?</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Rejected — Not a Fit</div>
                     <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Client Rejected</div>
                     <div onClick={() => setRejectChoice({ name: '', company: '', contact: '' })} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#D8E2F0', color: '#3C5C8A' }}>Referred Out</div>
-                    <div onClick={() => setRejectChoice(null)} style={{ padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: '#8B877F' }}>Cancel</div>
+                    <div onClick={() => setRejectChoice(null)} style={{ padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
                   </div>
                 </div>
               ) : (
                 <div>
-                  <div style={{ fontSize: 11, color: '#8B877F', marginBottom: 8 }}>Who was this lead referred to?</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Who was this lead referred to?</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
                     <input value={rejectChoice.name} onChange={(e) => setRejectChoice({ ...rejectChoice, name: e.target.value })} placeholder="Name" style={inputStyle} />
                     <input value={rejectChoice.company} onChange={(e) => setRejectChoice({ ...rejectChoice, company: e.target.value })} placeholder="Company / Firm" style={inputStyle} />
                     <input value={rejectChoice.contact} onChange={(e) => setRejectChoice({ ...rejectChoice, contact: e.target.value })} placeholder="Phone or email" style={inputStyle} />
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <div onClick={() => setRejectChoice('choosing')} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321' }}>Back</div>
-                    <div onClick={() => confirmReject(selected, 'referred', rejectChoice)} style={{ flex: 1, padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: rejectChoice.name.trim() ? 'pointer' : 'not-allowed', background: rejectChoice.name.trim() ? '#3C5C8A' : '#DFDBD2', color: rejectChoice.name.trim() ? 'white' : '#A29E96' }}>Confirm Referral</div>
+                    <div onClick={() => setRejectChoice('choosing')} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)' }}>Back</div>
+                    <div onClick={() => confirmReject(selected, 'referred', rejectChoice)} style={{ flex: 1, padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: rejectChoice.name.trim() ? 'pointer' : 'not-allowed', background: rejectChoice.name.trim() ? '#3C5C8A' : 'var(--c-d6ded8)', color: rejectChoice.name.trim() ? 'white' : 'var(--c-9aa39d)' }}>Confirm Referral</div>
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: '#FDFCF9' }}>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', flexWrap: 'wrap', gap: 8, flexShrink: 0, background: 'var(--surface)' }}>
               {selected.stage === 'referred_monitoring' ? (
-                <div onClick={() => applyOverride(selected.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0 })} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#232321', color: 'white' }}>
+                <div onClick={() => applyOverride(selected.id, { stage: 'rejected', stageIdx: stageIndex('rejected'), daysInStage: 0 })} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>
                   Close monitoring — mark as rejected
                 </div>
               ) : (
-                <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#232321', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
+                <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
               )}
               {selected.stageIdx >= stageIndex('client_approval') && !selectedStage.isHold && !selectedStage.isClosed && !selected.convertedProjectId && (
-                <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#4C7A3F', color: 'white' }}>
+                <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--success)', color: 'white' }}>
                   → Convert to Project
                 </div>
               )}
               {selected.convertedProjectId && (
-                <div onClick={() => navigate('/projects')} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', color: '#4C7A3F' }}>
+                <div onClick={() => navigate('/projects')} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: 'var(--success)' }}>
                   Converted — open project #{selected.convertedProjectId}
                 </div>
               )}
-              <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', color: '#4C7A3F' }}>Edit Lead</div>
-              <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', color: '#8E2E0A' }}>Delete</div>
+              <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: 'var(--success)' }}>Edit Lead</div>
+              <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#8E2E0A' }}>Delete</div>
               {(selectedStage.isHold || selectedStage.isClosed) && (
-                <div onClick={() => archiveDeal(selected, !selected.archived)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', color: '#2F6F68', background: '#F4F8F7' }}>
+                <div onClick={() => archiveDeal(selected, !selected.archived)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#2F6F68', background: '#F4F8F7' }}>
                   {selected.archived ? 'Restore from archive' : 'Archive'}
                 </div>
               )}
@@ -2196,21 +2196,21 @@ export function Pipeline() {
 
       {/* Lead Intake drawer */}
       {showNew && (
-        <div onClick={closeLeadForm} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 200, animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, background: '#FDFCF9', width: 720, maxWidth: '96vw', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.2)', animation: 'scaleIn 0.2s ease' }}>
-            <div style={{ padding: '20px 28px 14px', borderBottom: '1px solid rgba(29, 29, 27,0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div onClick={closeLeadForm} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 200, animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, background: 'var(--surface)', width: 720, maxWidth: '96vw', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)', animation: 'scaleIn 0.2s ease' }}>
+            <div style={{ padding: '20px 28px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>{editingId ? 'Edit Lead' : 'New Lead Intake'}</div>
-                <div style={{ fontSize: 12.5, color: '#8B877F', marginTop: 3 }}>{editingId ? 'Changes save as you go — Save saves right away.' : 'Saved as soon as it has a project name, then as you go. Enters the board at "New Lead".'}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>{editingId ? 'Changes save as you go — Save saves right away.' : 'Saved as soon as it has a project name, then as you go. Enters the board at "New Lead".'}</div>
               </div>
-              <div onClick={closeLeadForm} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', fontSize: 18 }}>×</div>
+              <div onClick={closeLeadForm} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', fontSize: 18 }}>×</div>
             </div>
 
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
               {/* Left section nav */}
-              <div style={{ width: 180, flexShrink: 0, borderRight: '1px solid rgba(29, 29, 27,0.06)', overflowY: 'auto', padding: '12px 0' }}>
+              <div style={{ width: 180, flexShrink: 0, borderRight: '1px solid rgba(var(--rgb-shade), 0.06)', overflowY: 'auto', padding: '12px 0' }}>
                 {TABS.map((t) => (
-                  <div key={t.id} onClick={() => setFormTab(t.id)} style={{ padding: '10px 20px', fontSize: 12, fontWeight: formTab === t.id ? 700 : 500, cursor: 'pointer', color: formTab === t.id ? '#232321' : '#8B877F', background: formTab === t.id ? '#F2EFE8' : 'transparent', borderLeft: formTab === t.id ? '3px solid #4C7A3F' : '3px solid transparent', transition: 'all 0.15s' }}>{t.label}</div>
+                  <div key={t.id} onClick={() => setFormTab(t.id)} style={{ padding: '10px 20px', fontSize: 12, fontWeight: formTab === t.id ? 700 : 500, cursor: 'pointer', color: formTab === t.id ? 'var(--forest)' : 'var(--muted)', background: formTab === t.id ? 'var(--mist)' : 'transparent', borderLeft: formTab === t.id ? '3px solid var(--success)' : '3px solid transparent', transition: 'all 0.15s' }}>{t.label}</div>
                 ))}
               </div>
 
@@ -2241,9 +2241,9 @@ export function Pipeline() {
                   </FormGrid>
 
                   {(nl.additionalContacts || []).map((c, i) => (
-                    <div key={c.id} style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(29, 29, 27,0.08)' }}>
+                    <div key={c.id} style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#232321', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Additional Contact {i + 1}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Additional Contact {i + 1}</div>
                         <div onClick={() => removeContact(c.id)} style={{ fontSize: 11.5, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer' }}>Remove</div>
                       </div>
                       <FormGrid>
@@ -2263,7 +2263,7 @@ export function Pipeline() {
                       </FormGrid>
                     </div>
                   ))}
-                  <div onClick={addContact} style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>
+                  <div onClick={addContact} style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
                     + Add another contact
                   </div>
                   <SectionExtras {...sectionExtrasProps('contact')} />
@@ -2317,7 +2317,7 @@ export function Pipeline() {
                       </select>
                     </FormField>
                     <FormField label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
-                    <FormField label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1D1D1B', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
+                    <FormField label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
                     <FormField label="County">
                       <select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}>
                         <option value="">Select county...</option>
@@ -2328,10 +2328,10 @@ export function Pipeline() {
                   </FormGrid>
 
                   <SectionTitle>Business Mailing Address</SectionTitle>
-                  <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 10, marginTop: -6 }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10, marginTop: -6 }}>
                     Where correspondence goes for the legal entity — not always the same as where the work is.
                   </div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1D1D1B', cursor: 'pointer', marginBottom: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', marginBottom: 12 }}>
                     <input
                       type="checkbox"
                       checked={!!nl.addresses?.businessMailing?.sameAsProject}
@@ -2346,7 +2346,7 @@ export function Pipeline() {
                       }}
                     />
                     Same as project address
-                    {nl.addresses?.businessMailing?.sameAsProject && <span style={{ fontSize: 11.5, color: '#8B877F' }}>— follows the project address; untick to enter a different one</span>}
+                    {nl.addresses?.businessMailing?.sameAsProject && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>— follows the project address; untick to enter a different one</span>}
                   </label>
                   {(() => {
                     const addr: Address = nl.addresses?.businessMailing || blankAddress();
@@ -2372,27 +2372,27 @@ export function Pipeline() {
                     <FormField label="Contract Type" hint={findContractType(nl.contractType)?.detail || 'How the work is delivered: design only, build only, or design-build.'}><select value={nl.contractType} onChange={(e) => setField('contractType', e.target.value)} style={inputStyle}><option value="">Select...</option>{CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{contractTypeLabel(c)}</option>)}</select></FormField>
                     <FormField label="Website" hint="Project or business website, if there is one."><input value={nl.website || ''} onChange={(e) => setField('website', e.target.value)} placeholder="https://example.com" style={inputStyle} /></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Homework Completed</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Homework Completed</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {OPT.homeworkCompleted.map((o) => { const on = nl.homeworkCompleted.includes(o); return <div key={o} onClick={() => toggleHomework(o)} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.1)'), background: on ? '#E3ECD9' : 'white', color: on ? '#232321' : '#1D1D1B', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}
+                        {OPT.homeworkCompleted.map((o) => { const on = nl.homeworkCompleted.includes(o); return <div key={o} onClick={() => toggleHomework(o)} style={{ padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.1)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--ink)', fontWeight: on ? 600 : 400, userSelect: 'none' }}>{o}</div>; })}
                       </div>
-                      <div style={{ fontSize: 10, color: '#A29E96', fontStyle: 'italic', marginTop: 6 }}>Select all preliminary work the client has already completed.</div>
+                      <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 6 }}>Select all preliminary work the client has already completed.</div>
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project Vision / Scope</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project Vision / Scope</div>
                         {findProjectType(nl.potentialProjectType) && (
                           // Appends rather than replaces, so nothing already written is lost.
                           <span
                             onClick={() => setField('projectVision', appendScope(nl.projectVision, findProjectType(nl.potentialProjectType)!.scope))}
-                            style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}
+                            style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}
                           >
                             + Standard scope for {findProjectType(nl.potentialProjectType)!.code}
                           </span>
                         )}
                       </div>
                       <textarea value={nl.projectVision} onChange={(e) => setField('projectVision', e.target.value)} placeholder="Describe what the client wants to accomplish..." rows={5} style={{ ...inputStyle, resize: 'vertical', minHeight: 96 }} />
-                      <div style={{ fontSize: 10, color: '#A29E96', fontStyle: 'italic', marginTop: 4 }}>The standard scope for the selected project type is filled in automatically. Add the specifics for this client.</div>
+                      <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 4 }}>The standard scope for the selected project type is filled in automatically. Add the specifics for this client.</div>
                     </div>
                   </FormGrid>
                   <SectionExtras {...sectionExtrasProps('project')} />
@@ -2414,9 +2414,9 @@ export function Pipeline() {
                   <FormGrid>
                     <FormField label="Decision Makers" hint="Who makes final decisions about scope, budget, and design."><select value={nl.decisionMakers} onChange={(e) => setField('decisionMakers', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.decisionMakers, nl.decisionMakers).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.decisionMakers} field="decisionMakers" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Client Personality</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Client Personality</div>
                       <select value={nl.clientPersonality} onChange={(e) => setField('clientPersonality', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.clientPersonality.map((o) => <option key={o}>{o}</option>)}</select>
-                      <div style={{ fontSize: 10, color: '#A29E96', fontStyle: 'italic', marginTop: 6 }}>Based on the first conversation, select the personality style that most closely reflects how the client communicates and makes decisions.</div>
+                      <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 6 }}>Based on the first conversation, select the personality style that most closely reflects how the client communicates and makes decisions.</div>
                     </div>
                   </FormGrid>
                   <SectionExtras {...sectionExtrasProps('clientProfile')} />
@@ -2425,9 +2425,9 @@ export function Pipeline() {
             </div>
 
             {/* Footer */}
-            <div style={{ padding: '14px 28px 18px', borderTop: '1px solid rgba(29, 29, 27,0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
+            <div style={{ padding: '14px 28px 18px', borderTop: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={leadAuto} blocked={leadNameOk ? undefined : 'Add a project name (2+ letters) to save'} /></div>
-              <div onClick={closeLeadForm} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9' }}>{leadAuto.dirty && !leadNameOk && !editingId ? 'Discard' : 'Done'}</div>
+              <div onClick={closeLeadForm} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)' }}>{leadAuto.dirty && !leadNameOk && !editingId ? 'Discard' : 'Done'}</div>
             </div>
           </div>
         </div>
@@ -2436,10 +2436,10 @@ export function Pipeline() {
   );
 }
 
-const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 13, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' };
-function SectionTitle({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, fontWeight: 700, color: '#232321', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>{children}</div>; }
+const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
+function SectionTitle({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--forest)', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>{children}</div>; }
 function FormGrid({ children }: { children: React.ReactNode }) { return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>{children}</div>; }
-function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return (<div><div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{label}</div>{children}{hint && <div style={{ fontSize: 10, color: '#A29E96', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}</div>); }
+function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return (<div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{label}</div>{children}{hint && <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}</div>); }
 
 /**
  * One row per role: either the primary contact holds it too, or someone
@@ -2460,17 +2460,17 @@ function RoleAssignmentTable({
 
   return (
     <div style={{ gridColumn: '1 / -1' }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Roles</div>
-      <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Roles</div>
+      <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, overflow: 'hidden' }}>
         {CONTACT_ROLES.filter((r) => r.code !== 'PC').map((r, i) => {
           const a = row(r.code);
           return (
-            <div key={r.code} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderTop: i ? '1px solid rgba(29, 29, 27,0.05)' : 'none', flexWrap: 'wrap' }}>
+            <div key={r.code} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.05)' : 'none', flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 170px', minWidth: 150 }}>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B' }}>{r.label}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>{r.label}</span>
                 {r.required && <span style={{ color: '#8E2E0A' }}> *</span>}
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#4A4741', cursor: 'pointer', flexShrink: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--body)', cursor: 'pointer', flexShrink: 0 }}>
                 <input type="checkbox" checked={a.sameAsPrimary} onChange={(e) => patch(r.code, { sameAsPrimary: e.target.checked, name: e.target.checked ? '' : a.name })} />
                 Same as {primaryName.trim() || 'Primary Contact'}
               </label>
@@ -2486,7 +2486,7 @@ function RoleAssignmentTable({
           );
         })}
       </div>
-      <div style={{ fontSize: 10, color: '#A29E96', marginTop: 5, lineHeight: 1.5 }}>Roles marked <b>*</b> are required somewhere on the lead before it converts. Full contact details for anyone named here can be filled in on the Contacts tab once the lead is saved.</div>
+      <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', marginTop: 5, lineHeight: 1.5 }}>Roles marked <b>*</b> are required somewhere on the lead before it converts. Full contact details for anyone named here can be filled in on the Contacts tab once the lead is saved.</div>
     </div>
   );
 }
@@ -2505,7 +2505,7 @@ function SectionExtras({ notes, fields, onNoteChange, onAddField, onFieldChange,
   onRemoveField: (id: string) => void;
 }) {
   return (
-    <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(29, 29, 27,0.08)' }}>
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
       <FormField label="Notes" hint="Anything else worth capturing for this section.">
         <textarea value={notes} onChange={(e) => onNoteChange(e.target.value)} rows={2} placeholder="Optional notes…" style={{ ...inputStyle, resize: 'vertical' }} />
       </FormField>
@@ -2516,7 +2516,7 @@ function SectionExtras({ notes, fields, onNoteChange, onAddField, onFieldChange,
           <div onClick={() => onRemoveField(f.id)} style={{ paddingBottom: 9, fontSize: 11.5, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Remove</div>
         </div>
       ))}
-      <div onClick={onAddField} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>
+      <div onClick={onAddField} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
         + Add custom field
       </div>
     </div>

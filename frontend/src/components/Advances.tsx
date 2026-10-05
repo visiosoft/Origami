@@ -168,7 +168,7 @@ function RequestDrawer({ employees, settings, employeeId, onClose, onDone }: {
         <div style={{ gridColumn: '1 / -1' }}><Label text="Reason" /><textarea value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} rows={2} style={{ ...input, resize: 'vertical' }} /></div>
       </div>
       {amount > 0 && (
-        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: '#F6F3EC', fontSize: 12.5, color: INK, lineHeight: 1.6 }}>
+        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: 'var(--c-f3f8f3)', fontSize: 12.5, color: INK, lineHeight: 1.6 }}>
           {n === 1 ? `Recovered in full from one payroll: ${money(amount, settings.currency)}.` : `${n} deductions of about ${money(per, settings.currency)}.`}
           {' '}Starts {f.deductionStart ? `from ${fmtDate(f.deductionStart)}` : 'the month after it is paid out'}.
           {emp?.payRate && emp.payType === 'monthly' && per > emp.payRate * 0.5 && <div style={{ color: DANGER }}>That's more than half of {emp.name}'s monthly salary per deduction.</div>}
@@ -223,11 +223,11 @@ function DetailDrawer({ a, employee, settings, canManage, canFinance, onOpenEmpl
           const done = a.approvals.find((x) => x.stage === st.key);
           const current = a.status === st.status;
           return (
-            <div key={st.key} style={{ ...card, padding: '10px 12px', borderColor: current ? ACCENT : LINE, background: done?.decision === 'approved' ? '#F6F3EC' : done?.decision === 'rejected' ? '#F7ECE6' : 'white' }}>
+            <div key={st.key} style={{ ...card, padding: '10px 12px', borderColor: current ? ACCENT : LINE, background: done?.decision === 'approved' ? 'var(--c-f3f8f3)' : done?.decision === 'rejected' ? '#F7ECE6' : 'white' }}>
               <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.06em' }}>{i + 1}. {st.label}</div>
               <div style={{ fontSize: 12.5, color: INK, marginTop: 4 }}>
                 {done ? <>{done.decision === 'approved' ? '✓' : '✕'} {done.byName}<div style={{ fontSize: 11, color: MUTED }}>{fmtDate(done.at)}{done.note ? ` — ${done.note}` : ''}</div></>
-                  : current ? <span style={{ color: '#7A5A0C' }}>Waiting</span> : <span style={{ color: MUTED }}>—</span>}
+                  : current ? <span style={{ color: 'var(--c-8a6d12)' }}>Waiting</span> : <span style={{ color: MUTED }}>—</span>}
               </div>
             </div>
           );
@@ -238,7 +238,7 @@ function DetailDrawer({ a, employee, settings, canManage, canFinance, onOpenEmpl
         <div>Repayment: <b>{a.installments === 1 ? 'one deduction' : `${a.installments} instalments of ${money(a.installmentAmount, cur)}`}</b>, from the payroll period covering {fmtDate(a.deductionStart)}</div>
         {a.reason && <div>Reason: {a.reason}</div>}
         {a.disbursedAt && <div>Paid out {fmtDate(a.disbursedAt)} by {a.disbursedByName} · {methodLabel(a.paymentMethod)}{a.paymentRef ? ` · ${a.paymentRef}` : ''}</div>}
-        {['disbursed', 'settled'].includes(a.status) && <div>Recovered <b>{money(a.recovered, cur)}</b> · outstanding <b style={{ color: a.remaining ? DANGER : '#3F6B39' }}>{money(a.remaining, cur)}</b>{a.nextInstallment ? ` · next deduction ${money(a.nextInstallment, cur)}` : ''}</div>}
+        {['disbursed', 'settled'].includes(a.status) && <div>Recovered <b>{money(a.recovered, cur)}</b> · outstanding <b style={{ color: a.remaining ? DANGER : 'var(--c-1e6b36)' }}>{money(a.remaining, cur)}</b>{a.nextInstallment ? ` · next deduction ${money(a.nextInstallment, cur)}` : ''}</div>}
       </div>
 
       {mayDecide && <div style={{ marginBottom: 14 }}><Label text="Note with your decision (optional)" /><input value={note} onChange={(e) => setNote(e.target.value)} style={input} /></div>}
@@ -278,7 +278,7 @@ function DetailDrawer({ a, employee, settings, canManage, canFinance, onOpenEmpl
           <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 8 }}>Repayments</div>
           <div style={{ ...card, overflow: 'hidden' }}>
             {a.repayments.map((r) => (
-              <div key={r.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+              <div key={r.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
                 <span style={{ flex: 1 }}>{fmtDate(r.date)} · {r.method === 'payroll' ? 'Payroll deduction' : 'Manual'}{r.note ? ` · ${r.note}` : ''}</span>
                 <span style={{ fontWeight: 700 }}>{money(r.amount, cur)}</span>
               </div>

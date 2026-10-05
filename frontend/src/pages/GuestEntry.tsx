@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, session } from '../api';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 /**
  * Where a guest access link lands: no login form, just the token from the
@@ -27,13 +27,13 @@ export function GuestEntry() {
   }, [token]);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#FAF8F3', padding: 24 }}>
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--panel)', padding: 24 }}>
       <div style={{ textAlign: 'center', maxWidth: 380 }}>
-        <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 18, color: '#232321', marginBottom: 14 }}>Origami Design + Build</div>
+        <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 18, color: 'var(--forest)', marginBottom: 14 }}>Origami Design + Build</div>
         {error ? (
           <div style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600, lineHeight: 1.6 }}>{error}</div>
         ) : (
-          <div style={{ fontSize: 13, color: '#8B877F' }}>Signing you in…</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)' }}>Signing you in…</div>
         )}
       </div>
     </div>

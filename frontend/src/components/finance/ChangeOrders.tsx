@@ -109,7 +109,7 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {shown.map((c) => (
-              <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', fontSize: 12.5, opacity: c.status === 'cancelled' ? 0.55 : 1 }}>
+              <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: c.status === 'cancelled' ? 0.55 : 1 }}>
                 <b style={{ color: ACCENT }}>{c.number}</b>
                 {!projectId && <span style={{ color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.projectName}</span>}
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
@@ -225,7 +225,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
         </div>
 
         {impact && (impact.ok
-          ? <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: '#F6F3EC' }}>
+          ? <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: 'var(--c-f3f8f3)' }}>
               Approving this changes the contract from <b>{usd(impact.revisedBefore)}</b> to <b>{usd(impact.revisedAfter)}</b>
               {' '}({impact.total >= 0 ? '+' : ''}{usd(impact.total)}). Unallocated afterwards: {usd(impact.unallocatedAfter)}.
             </div>
@@ -249,7 +249,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
                   : <><span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Cost</span></>}
               </div>
               {items.map((it, i) => (
-                <div key={it.id || i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+                <div key={it.id || i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
                   {editable ? <>
                     <input value={it.description} onChange={(e) => patch(i, { description: e.target.value })} placeholder="What changes" style={{ ...input, padding: '5px 7px', fontSize: 12.5 }} />
                     <span style={{ display: 'grid', gap: 4 }}>
@@ -350,14 +350,14 @@ async function printChangeOrder(co: ChangeOrder, where: (it: ChangeOrderItem) =>
   w.document.write('<p style="font-family:Arial;padding:30px;color:#777">Preparing the change order…</p>');
   let b: any = {};
   try { b = await api.finance.brand(); } catch { /* print without the letterhead */ }
-  const accent = b.accentColor || '#232321';
+  const accent = b.accentColor || 'var(--forest)';
   const rows = co.items.map((it) => `<tr><td>${esc(it.description)}<div class="n">${esc(where(it))}</div></td><td class="r">${it.quantity != null && it.quantity !== '' ? `${esc(it.quantity)} ${esc(it.unit || '')} × ${esc(usd(Number(it.rate)))}` : ''}</td><td class="r">${esc(usd(Number(it.amount)))}</td></tr>`).join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(co.number)} — ${esc(co.title)}</title>
-<style>body{font-family:Arial,sans-serif;color:#1D1D1B;margin:36px;font-size:12.5px}.top{display:flex;justify-content:space-between;border-bottom:3px solid ${esc(accent)};padding-bottom:14px}
-.co{font-size:12px;color:#556;line-height:1.5}.co b{font-size:16px;color:#1D1D1B}h1{font-size:24px;margin:0;color:${esc(accent)};text-align:right}.meta{text-align:right;line-height:1.7}
+<style>body{font-family:Arial,sans-serif;color:var(--ink);margin:36px;font-size:12.5px}.top{display:flex;justify-content:space-between;border-bottom:3px solid ${esc(accent)};padding-bottom:14px}
+.co{font-size:12px;color:#556;line-height:1.5}.co b{font-size:16px;color:var(--ink)}h1{font-size:24px;margin:0;color:${esc(accent)};text-align:right}.meta{text-align:right;line-height:1.7}
 table{width:100%;border-collapse:collapse;margin-top:18px}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#778;border-bottom:1px solid #ccc;padding:6px 4px}
-td{padding:7px 4px;border-bottom:1px solid #eee;vertical-align:top}.r{text-align:right;white-space:nowrap}.n{color:#778;font-size:11px;margin-top:2px}.tot td{font-weight:bold;font-size:15px;border-top:2px solid #1D1D1B;border-bottom:none}
-.sig{display:flex;gap:40px;margin-top:60px}.sig div{flex:1;border-top:1px solid #1D1D1B;padding-top:6px;font-size:11px;color:#556}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#778;font-weight:bold;margin:18px 0 4px}</style></head><body>
+td{padding:7px 4px;border-bottom:1px solid #eee;vertical-align:top}.r{text-align:right;white-space:nowrap}.n{color:#778;font-size:11px;margin-top:2px}.tot td{font-weight:bold;font-size:15px;border-top:2px solid var(--ink);border-bottom:none}
+.sig{display:flex;gap:40px;margin-top:60px}.sig div{flex:1;border-top:1px solid var(--ink);padding-top:6px;font-size:11px;color:#556}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#778;font-weight:bold;margin:18px 0 4px}</style></head><body>
 <div class="top"><div class="co">${b.logoDataUrl ? `<img src="${esc(b.logoDataUrl)}" style="max-height:56px;max-width:220px;display:block;margin-bottom:8px">` : ''}<b>${esc(b.companyName || '')}</b><br>${esc(b.address || '')}<br>${esc([b.phone, b.email, b.website].filter(Boolean).join(' · '))}</div>
 <div class="meta"><h1>CHANGE ORDER</h1><b>${esc(co.number)}</b><br>Date: ${esc(fmtDate(co.dateRequested || co.createdAt))}${projectName ? `<br>Project: ${esc(projectName)}` : ''}<br>Reason: ${esc(label(CO_REASONS, co.reason))}</div></div>
 <div class="lbl">${esc(co.title)}</div>${co.description ? `<div style="white-space:pre-line">${esc(co.description)}</div>` : ''}
@@ -365,7 +365,7 @@ td{padding:7px 4px;border-bottom:1px solid #eee;vertical-align:top}.r{text-align
 <tr class="tot"><td>Total change to the contract</td><td></td><td class="r">${esc(usd(co.total))}</td></tr></tbody></table>
 <p>Schedule impact: ${co.scheduleImpactDays ? `${co.scheduleImpactDays > 0 ? '+' : ''}${esc(co.scheduleImpactDays)} calendar days` : 'none'}.</p>
 <p class="n">This change order, once signed, amends the contract by the amount above. All other terms remain unchanged.</p>
-<div class="sig"><div>Client signature, name &amp; date${co.clientSigner ? `<br><b style="color:#1D1D1B">${esc(co.clientSigner)} · ${esc(fmtDate(co.clientApprovedDate))}</b>` : ''}</div><div>For ${esc(b.companyName || 'the contractor')}, name &amp; date</div></div>
+<div class="sig"><div>Client signature, name &amp; date${co.clientSigner ? `<br><b style="color:#0B1A12">${esc(co.clientSigner)} · ${esc(fmtDate(co.clientApprovedDate))}</b>` : ''}</div><div>For ${esc(b.companyName || 'the contractor')}, name &amp; date</div></div>
 <script>window.onload=function(){window.print()}</script></body></html>`;
   w.document.open(); w.document.write(html); w.document.close();
 }

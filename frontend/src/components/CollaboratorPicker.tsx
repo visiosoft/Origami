@@ -44,7 +44,7 @@ export function CollaboratorPicker({ value, onChange, assigneeId, disabled }: {
       {list.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {list.map((c) => (
-            <span key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: disabled ? '3px 10px 3px 3px' : '3px 3px 3px 3px', borderRadius: 999, background: '#F2EFE8', border: '1px solid rgba(29, 29, 27,0.08)', fontSize: 12.5, color: '#1D1D1B' }}>
+            <span key={c.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: disabled ? '3px 10px 3px 3px' : '3px 3px 3px 3px', borderRadius: 999, background: 'var(--mist)', border: '1px solid rgba(var(--rgb-shade), 0.08)', fontSize: 12.5, color: 'var(--ink)' }}>
               <Avatar user={userOf(c.id)} name={c.name} size={24} />
               <span style={{ paddingRight: disabled ? 0 : 2 }}>{c.name}</span>
               {!disabled && (
@@ -53,7 +53,7 @@ export function CollaboratorPicker({ value, onChange, assigneeId, disabled }: {
                   aria-label={`Remove ${c.name} from collaborators`}
                   title={`Remove ${c.name}`}
                   onClick={(e) => { e.stopPropagation(); remove(c); }}
-                  style={{ width: 30, height: 30, marginLeft: 2, borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', color: '#8B877F', fontSize: 15, lineHeight: 1, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0, flexShrink: 0 }}
+                  style={{ width: 30, height: 30, marginLeft: 2, borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', color: 'var(--muted)', fontSize: 15, lineHeight: 1, cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 0, flexShrink: 0 }}
                 >×</button>
               )}
             </span>
@@ -61,22 +61,22 @@ export function CollaboratorPicker({ value, onChange, assigneeId, disabled }: {
         </div>
       )}
       {removed && !disabled && (
-        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: '#4A4741', background: '#FCEFC4', borderRadius: 8, padding: '6px 10px' }}>
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--body)', background: 'var(--c-fbf0cc)', borderRadius: 8, padding: '6px 10px' }}>
           <span style={{ flex: 1 }}>{removed.c.name} removed</span>
-          <button type="button" onClick={undo} style={{ border: 0, background: 'none', padding: '4px 6px', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>Undo</button>
+          <button type="button" onClick={undo} style={{ border: 0, background: 'none', padding: '4px 6px', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Undo</button>
         </div>
       )}
       {!disabled && (
         <select
           value=""
           onChange={(e) => { const u = users.find((x) => x.id === e.target.value); if (u) onChange([...list, { id: u.id, name: u.name }]); }}
-          style={{ boxSizing: 'border-box', width: '100%', minHeight: 36, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit', fontSize: 13, color: '#4A4741', outline: 'none' }}
+          style={{ boxSizing: 'border-box', width: '100%', minHeight: 36, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: 'var(--body)', outline: 'none' }}
         >
           <option value="">{list.length ? '+ Add another collaborator…' : '+ Add a collaborator…'}</option>
           {offered.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       )}
-      {disabled && !list.length && <div style={{ fontSize: 12, color: '#A29E96' }}>No collaborators</div>}
+      {disabled && !list.length && <div style={{ fontSize: 12, color: 'var(--c-9aa39d)' }}>No collaborators</div>}
     </div>
   );
 }

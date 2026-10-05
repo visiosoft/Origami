@@ -54,11 +54,11 @@ export function LeadStageFiles({ leadId, stage, stageName, files, onChange, onSh
   const mine = files.filter((f) => f.stage === stage);
   const others = files.length - mine.length;
   return (
-    <div style={{ margin: '4px 20px 22px', padding: '14px 16px', background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.09)', borderRadius: 18 }}>
+    <div style={{ margin: '4px 20px 22px', padding: '14px 16px', background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 'var(--r-12)' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B' }}>Files · {stageName}</span>
-        <span style={{ fontSize: 11.5, color: '#8B877F' }}>Drop, paste or pick — photos, surveys, the client’s plans.</span>
-        {others > 0 && <span onClick={onShowAll} style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>All files ({files.length}) →</span>}
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>Files · {stageName}</span>
+        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Drop, paste or pick — photos, surveys, the client’s plans.</span>
+        {others > 0 && <span onClick={onShowAll} style={{ marginLeft: 'auto', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>All files ({files.length}) →</span>}
       </div>
       <StageFiles leadId={leadId} stage={stage} stageName={stageName} files={mine} onChange={onChange} canManage={can('pipeline', 'manage')} storageReady={storageReady} paste title="This stage" />
     </div>
@@ -83,14 +83,14 @@ export function LeadFilesTab({ leadId, files, onChange, stages, currentStage }: 
   const loose = files.filter((f) => !f.stage || !known.has(f.stage));
   return (
     <div style={{ padding: '16px 20px 24px', display: 'grid', gap: 12 }}>
-      <div style={{ fontSize: 12, color: '#8B877F', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
         {files.length ? `${files.length} file${files.length === 1 ? '' : 's'} on this lead, by the stage they were added in.` : 'No files on this lead yet.'}
         {' '}Files are stored in the connected Google Drive, in a folder for this lead.
       </div>
       {fromClient.length > 0 && (
-        <div style={{ padding: '12px 14px', background: '#F4F8F4', border: '1px solid rgba(76, 122, 63,0.25)', borderRadius: 18 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 4 }}>Uploaded by the client</div>
-          <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 8 }}>{[...new Set(fromClient.map((f) => (f.stageName || '').replace(/^Client: /, '')).filter((x) => x && x !== 'Uploaded by the client'))].join(' · ') || 'From the upload link in the welcome email'}</div>
+        <div style={{ padding: '12px 14px', background: '#F4F8F4', border: '1px solid rgba(var(--rgb-success), 0.25)', borderRadius: 'var(--r-12)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>Uploaded by the client</div>
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>{[...new Set(fromClient.map((f) => (f.stageName || '').replace(/^Client: /, '')).filter((x) => x && x !== 'Uploaded by the client'))].join(' · ') || 'From the upload link in the welcome email'}</div>
           <StageFiles leadId={leadId} stage="client_upload" stageName="Uploaded by the client" files={fromClient} onChange={onChange} canManage={canManage} storageReady={storageReady} paste={false} title="Files" />
         </div>
       )}
@@ -98,17 +98,17 @@ export function LeadFilesTab({ leadId, files, onChange, stages, currentStage }: 
         const mine = files.filter((f) => f.stage === s.key);
         const current = s.key === currentStage;
         return (
-          <div key={s.key} style={{ padding: '12px 14px', background: current ? 'white' : '#FAF8F3', border: '1px solid ' + (current ? 'rgba(76, 122, 63,0.35)' : 'rgba(29, 29, 27,0.06)'), borderRadius: 18 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 8 }}>
-              {s.name}{current && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: '#4C7A3F', background: '#E3ECD9', padding: '1px 7px', borderRadius: 999 }}>Current stage</span>}
+          <div key={s.key} style={{ padding: '12px 14px', background: current ? 'white' : 'var(--panel)', border: '1px solid ' + (current ? 'rgba(var(--rgb-success), 0.35)' : 'rgba(var(--rgb-shade), 0.06)'), borderRadius: 'var(--r-12)' }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+              {s.name}{current && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'var(--c-d2ead3)', padding: '1px 7px', borderRadius: 999 }}>Current stage</span>}
             </div>
             <StageFiles leadId={leadId} stage={s.key} stageName={s.name} files={mine} onChange={onChange} canManage={canManage} storageReady={storageReady} paste={current} title="Files" />
           </div>
         );
       })}
       {loose.length > 0 && (
-        <div style={{ padding: '12px 14px', background: '#FAF8F3', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 18 }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 8 }}>Other</div>
+        <div style={{ padding: '12px 14px', background: 'var(--panel)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-12)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>Other</div>
           <StageFiles leadId={leadId} files={loose} onChange={onChange} canManage={canManage} storageReady={storageReady} paste={false} title="Files" />
         </div>
       )}
@@ -142,23 +142,23 @@ export function ClientWelcomeCard({ leadId, defaultTo, homework }: { leadId: str
   const off = async () => { if (!confirm('Turn the upload link off? The client won’t be able to upload with it any more.')) return; setSt(await api.leadFiles.disableWelcome(leadId)); toast('Upload link turned off'); };
   if (!can('pipeline', 'manage')) return null;
   const day = (d?: string) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
-  const chip = (on: boolean): React.CSSProperties => ({ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.12)'), background: on ? '#E3ECD9' : 'white', color: on ? '#232321' : '#4A4741' });
-  const inputS: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit' };
+  const chip = (on: boolean): React.CSSProperties => ({ padding: '4px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.12)'), background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : 'var(--body)' });
+  const inputS: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit' };
   const pool = [...new Set([...homework, ...items])];
   return (
-    <div style={{ padding: '12px 14px', background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.09)', borderRadius: 18 }}>
+    <div style={{ padding: '12px 14px', background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 'var(--r-12)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', flex: 1 }}>Welcome email &amp; upload link</span>
-        {st?.sentAt && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: st.linkLive ? '#E3ECD9' : '#EEEBE4', color: st.linkLive ? '#3F6B39' : '#65615A' }}>{st.linkLive ? `Link live until ${day(st.expiresAt)}` : 'Link off'}</span>}
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', flex: 1 }}>Welcome email &amp; upload link</span>
+        {st?.sentAt && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: st.linkLive ? 'var(--c-d2ead3)' : 'var(--c-efede8)', color: st.linkLive ? 'var(--c-1e6b36)' : 'var(--c-5c6b65)' }}>{st.linkLive ? `Link live until ${day(st.expiresAt)}` : 'Link off'}</span>}
       </div>
-      <div style={{ fontSize: 12, color: '#8B877F', margin: '4px 0 8px', lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 8px', lineHeight: 1.5 }}>
         {st?.sentAt
           ? <>Sent {day(st.sentAt)} to {st.sentTo}{st.sentBy ? ` by ${st.sentBy}` : ''} · {st.uploads} file{st.uploads === 1 ? '' : 's'} uploaded by the client.</>
           : 'Thank the client, sum up what they told you, list the documents you need, and give them a private link to upload them — no account needed.'}
       </div>
       {!open ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span onClick={start} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>{st?.sentAt ? 'Send again (new link)' : 'Send welcome email'}</span>
+          <span onClick={start} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>{st?.sentAt ? 'Send again (new link)' : 'Send welcome email'}</span>
           {st?.linkLive && <span onClick={off} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Turn link off</span>}
         </div>
       ) : (
@@ -166,15 +166,15 @@ export function ClientWelcomeCard({ leadId, defaultTo, homework }: { leadId: str
           <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="Client email" style={inputS} />
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="A personal line after the thank-you (optional)" style={{ ...inputS, resize: 'vertical' }} />
           <div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Documents to ask for</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Documents to ask for</div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {pool.map((i) => <span key={i} onClick={() => setItems(items.includes(i) ? items.filter((x) => x !== i) : [...items, i])} style={chip(items.includes(i))}>{i}</span>)}
-              {!pool.length && <span style={{ fontSize: 12, color: '#8B877F' }}>No homework ticked on this lead — the client can still upload anything.</span>}
+              {!pool.length && <span style={{ fontSize: 12, color: 'var(--muted)' }}>No homework ticked on this lead — the client can still upload anything.</span>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span onClick={busy ? undefined : send} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white', opacity: busy || !to.trim() ? 0.55 : 1 }}>{busy ? 'Sending…' : 'Send'}</span>
-            <span onClick={() => setOpen(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)' }}>Cancel</span>
+            <span onClick={busy ? undefined : send} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white', opacity: busy || !to.trim() ? 0.55 : 1 }}>{busy ? 'Sending…' : 'Send'}</span>
+            <span onClick={() => setOpen(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>Cancel</span>
           </div>
         </div>
       )}

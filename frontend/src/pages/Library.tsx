@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ProgrammeTemplate } from './ProgrammeTemplate';
 import { ScoringTemplateEditor, EmailTemplatesEditor } from './Settings';
 
-const BG = "'Outfit', system-ui, sans-serif";
+const BG = 'var(--font-display)';
 
 const TABS = [
   { key: 'programme', label: 'Programme Template', hint: 'Phases and tasks every new project starts from' },
@@ -27,14 +27,14 @@ export function Library() {
   return (
     <div style={{ padding: '18px 22px' }}>
       <div style={{ marginBottom: 16 }}>
-        <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#232321' }}>Document &amp; Template Library</div>
-        <div style={{ fontSize: 12.5, color: '#8B877F', marginTop: 3, maxWidth: 640, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: 'var(--forest)' }}>Document &amp; Template Library</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3, maxWidth: 640, lineHeight: 1.6 }}>
           The things decided once and reused on every job — the delivery programme, how leads are scored, and the
           messages and documents sent out.
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18, borderBottom: '1px solid rgba(29, 29, 27,0.07)', paddingBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18, borderBottom: '1px solid rgba(var(--rgb-shade), 0.07)', paddingBottom: 12 }}>
         {TABS.map((t) => {
           const on = active === t.key;
           return (
@@ -44,9 +44,9 @@ export function Library() {
               title={t.hint}
               style={{
                 padding: '8px 15px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                background: on ? '#232321' : 'white',
-                color: on ? 'white' : '#8B877F',
-                border: '1px solid ' + (on ? '#232321' : 'rgba(29, 29, 27,0.1)'),
+                background: on ? 'var(--forest)' : 'white',
+                color: on ? 'white' : 'var(--muted)',
+                border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.1)'),
               }}
             >
               {t.label}

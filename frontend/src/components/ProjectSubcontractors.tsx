@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { EmailLink, PhoneLink } from './ContactLinks';
 
-const INK = '#1D1D1B';
-const MUTED = '#8B877F';
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
 const DANGER = '#8E2E0A';
 const AMBER = '#93520F';
 
@@ -26,12 +26,12 @@ const day = (iso?: string) => {
 };
 const TYPE: Record<string, string> = { subcontract: 'Subcontract', purchase_order: 'Purchase order', service: 'Service' };
 const STATUS: Record<string, [string, string, string]> = {
-  draft: ['Draft', '#EEEBE4', '#65615A'], approved: ['Approved', '#EEEBE3', '#355C2F'], closed: ['Closed', '#EEEBE4', '#65615A'], void: ['Void', '#F2DFD4', DANGER],
+  draft: ['Draft', 'var(--c-efede8)', 'var(--c-5c6b65)'], approved: ['Approved', 'var(--c-e4efe5)', 'var(--c-145c33)'], closed: ['Closed', 'var(--c-efede8)', 'var(--c-5c6b65)'], void: ['Void', '#F2DFD4', DANGER],
 };
 
 /** "Licence expired Jan 1, 2020" in red; within 30 days in amber; otherwise plain. */
 function Expiry({ label, date, state }: { label: string; date?: string; state: string }) {
-  if (!state) return <span style={{ color: '#BAB6AE' }}>{label}: not on file</span>;
+  if (!state) return <span style={{ color: 'var(--c-b5bdb8)' }}>{label}: not on file</span>;
   const tone = state === 'expired' ? DANGER : state === 'soon' ? AMBER : MUTED;
   return <span style={{ color: tone, fontWeight: state === 'ok' ? 400 : 700 }}>{label} {state === 'expired' ? 'expired' : 'expires'} {day(date)}</span>;
 }
@@ -68,46 +68,46 @@ export function ProjectSubcontractors({ projectId, onAddSubcontract }: { project
           {v.canSeeMoney && live.length > 0 && <> · {usd0(committed)} committed · {usd0(billed)} billed to us</>}
           {flagged > 0 && <> · <b style={{ color: DANGER }}>{flagged} with an expired licence or insurance</b></>}
         </div>
-        <span onClick={() => navigate('/manpower_con')} style={{ fontSize: 12, fontWeight: 700, color: '#232321', cursor: 'pointer' }} title="The contractor directory: licences, insurance, workers, portal access">Contractors directory</span>
+        <span onClick={() => navigate('/manpower_con')} style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }} title="The contractor directory: licences, insurance, workers, portal access">Contractors directory</span>
         {v.canManage && onAddSubcontract && (
-          <div onClick={onAddSubcontract} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>+ Subcontract</div>
+          <div onClick={onAddSubcontract} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>+ Subcontract</div>
         )}
       </div>
 
       {!v.rows.length && (
-        <div style={{ padding: '26px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: '#FAF8F3', borderRadius: 18 }}>
+        <div style={{ padding: '26px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
           No subcontracts on this project yet.{v.canManage ? ' Add one with “+ Subcontract” — it lands in Financial → Job cost → Subcontracts & POs.' : ''}
         </div>
       )}
 
       {v.rows.map((r) => (
-        <div key={r.key} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: '14px 16px' }}>
+        <div key={r.key} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14.5, fontWeight: 700, color: INK }}>{r.company}</span>
             {r.status && r.status !== 'active' && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#F2DFD4', color: DANGER, textTransform: 'capitalize' }}>{r.status}</span>}
             {r.portal && <span title="Can sign in to the subcontractor portal" style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#D6E8E5', color: '#2F6F68' }}>Portal access</span>}
-            {!r.contractorId && <span title="Not in the contractor directory -- a vendor name on a PO" style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#EEEBE4', color: '#65615A' }}>Vendor</span>}
+            {!r.contractorId && <span title="Not in the contractor directory -- a vendor name on a PO" style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'var(--c-efede8)', color: 'var(--c-5c6b65)' }}>Vendor</span>}
           </div>
-          {r.trades.length > 0 && <div style={{ fontSize: 12, color: '#4A4741', marginTop: 3 }}>{r.trades.join(' · ')}</div>}
-          <div style={{ display: 'flex', gap: '4px 14px', flexWrap: 'wrap', fontSize: 12.5, color: '#4A4741', marginTop: 6 }}>
+          {r.trades.length > 0 && <div style={{ fontSize: 12, color: 'var(--body)', marginTop: 3 }}>{r.trades.join(' · ')}</div>}
+          <div style={{ display: 'flex', gap: '4px 14px', flexWrap: 'wrap', fontSize: 12.5, color: 'var(--body)', marginTop: 6 }}>
             {r.contactPerson && <span>{r.contactPerson}</span>}
             {r.phone && <PhoneLink phone={r.phone} />}
             {r.email && <EmailLink email={r.email} />}
           </div>
           {r.contractorId && (
             <div style={{ display: 'flex', gap: '4px 16px', flexWrap: 'wrap', fontSize: 12, marginTop: 6 }}>
-              <span>{r.licenseNumber ? <span style={{ color: '#4A4741' }}>Licence #{r.licenseNumber} · </span> : null}<Expiry label="Licence" date={r.licenseExpiry} state={r.licenseState} /></span>
+              <span>{r.licenseNumber ? <span style={{ color: 'var(--body)' }}>Licence #{r.licenseNumber} · </span> : null}<Expiry label="Licence" date={r.licenseExpiry} state={r.licenseState} /></span>
               <Expiry label="Insurance" date={r.insuranceExpiry} state={r.insuranceState} />
             </div>
           )}
-          <div style={{ marginTop: 10, borderTop: '1px solid rgba(29, 29, 27,0.06)' }}>
+          <div style={{ marginTop: 10, borderTop: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             {r.subcontracts.map((s) => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 0', borderBottom: '1px solid rgba(29, 29, 27,0.04)', fontSize: 12.5 }}>
-                <span style={{ fontWeight: 700, color: '#232321', fontVariantNumeric: 'tabular-nums', minWidth: 62 }}>{s.number}</span>
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 0', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', fontSize: 12.5 }}>
+                <span style={{ fontWeight: 700, color: 'var(--forest)', fontVariantNumeric: 'tabular-nums', minWidth: 62 }}>{s.number}</span>
                 <span style={{ color: INK, flex: 1, minWidth: 160 }}>{s.title} <span style={{ color: MUTED }}>· {TYPE[s.type] || s.type}</span></span>
                 <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: (STATUS[s.status] || STATUS.draft)[1], color: (STATUS[s.status] || STATUS.draft)[2] }}>{(STATUS[s.status] || [s.status])[0]}</span>
                 {v.canSeeMoney && s.total != null && (
-                  <span style={{ color: '#4A4741', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  <span style={{ color: 'var(--body)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                     {usd0(s.total)} committed · {usd0(s.billed)} billed{s.status === 'approved' ? ` · ${usd0(s.remaining)} left` : ''}
                   </span>
                 )}
@@ -118,10 +118,10 @@ export function ProjectSubcontractors({ projectId, onAddSubcontract }: { project
       ))}
 
       {v.unlinked.length > 0 && (
-        <div style={{ background: '#FAF8F3', borderRadius: 18, padding: '12px 16px' }}>
+        <div style={{ background: 'var(--panel)', borderRadius: 'var(--r-12)', padding: '12px 16px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>On this project in People — no subcontract yet</div>
           {v.unlinked.map((p) => (
-            <div key={p.personId} style={{ display: 'flex', gap: '4px 14px', flexWrap: 'wrap', fontSize: 12.5, color: '#4A4741', padding: '5px 0' }}>
+            <div key={p.personId} style={{ display: 'flex', gap: '4px 14px', flexWrap: 'wrap', fontSize: 12.5, color: 'var(--body)', padding: '5px 0' }}>
               <b style={{ color: INK }}>{p.company || p.name}</b>
               {p.company && <span>{p.name}</span>}
               {p.role && <span style={{ color: MUTED }}>{p.role}</span>}

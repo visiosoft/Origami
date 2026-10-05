@@ -9,7 +9,7 @@ import { ReimbursableDrawer, ReimbursableList } from '../components/finance/Reim
 import { usd, usd0, type Rights } from '../components/finance/financeUi';
 import { FinanceReports } from '../components/finance/Reports';
 
-const PAPER = '#FAF8F3';
+const PAPER = 'var(--panel)';
 type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
 
 interface Pending {
@@ -51,7 +51,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
         <div style={{ ...card, padding: 20, marginTop: 20, fontSize: 13, color: MUTED }}>Your role doesn't include project finance, change orders or reimbursables.</div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(29, 29, 27,.09)', margin: '18px 0 20px' }}>
+          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(var(--rgb-shade), .09)', margin: '18px 0 20px' }}>
             {tabs.map(([k, l]) => (
               <div key={k} onClick={() => setTab(k)} style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: tab === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (tab === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>
             ))}
@@ -102,7 +102,7 @@ function Approvals({ rights, onProject }: { rights: Rights; onProject: (p: { id:
             <div style={headRow(cols)}><span>Type</span><span>Project</span><span>What</span><span style={{ textAlign: 'right' }}>Amount</span><span>Waiting since</span><span /></div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {shown.map((p) => (
-              <div key={p.type + p.id} onClick={() => open(p)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, cursor: 'pointer' }}>
+              <div key={p.type + p.id} onClick={() => open(p)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><Badge tone={TYPE_LABEL[p.type][1]}>{TYPE_LABEL[p.type][0]}</Badge></span>
                 <span style={{ color: MUTED }}>{p.projectName}</span>
                 <span><b>{p.title}</b><div style={{ fontSize: 11.5, color: MUTED }}>{p.detail}</div></span>
@@ -159,14 +159,14 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {(rows || []).map((r) => (
-              <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, cursor: 'pointer' }}>
+              <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{r.stage}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
                 {r.hasClientContract ? <>
                   {num(r.revisedContract)}{num(r.contractWorkInvoiced)}{num(r.paid)}
                   <span style={{ textAlign: 'right', color: r.overdueCount ? DANGER : undefined }}>{usd0(r.arOutstanding)}{r.overdueCount ? <div style={{ fontSize: 11 }}>{usd0(r.overdue)} overdue</div> : null}</span>
-                  {num(r.unbilledEarned, r.unbilledEarned < 0 ? DANGER : r.unbilledEarned > 0 ? '#7A5A0C' : undefined)}
+                  {num(r.unbilledEarned, r.unbilledEarned < 0 ? DANGER : r.unbilledEarned > 0 ? 'var(--c-8a6d12)' : undefined)}
                 </> : <><span style={{ textAlign: 'right', color: MUTED }}>—</span><span /><span /><span /><span /></>}
-                {r.committed != null ? <>{num(r.committed)}{num(r.paidOut)}{num(r.stillToPay, r.stillToPay ? '#7A5A0C' : undefined)}</> : <><span /><span /><span /></>}
+                {r.committed != null ? <>{num(r.committed)}{num(r.paidOut)}{num(r.stillToPay, r.stillToPay ? 'var(--c-8a6d12)' : undefined)}</> : <><span /><span /><span /></>}
               </div>
             ))}
             {rows && !rows.length && <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>No project has its financials set up yet — open a project and use its Financial tab.</div>}
@@ -211,7 +211,7 @@ function Audit() {
       <div style={{ ...card, overflow: 'hidden' }}>
         {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
         {(rows || []).map((a) => (
-          <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+          <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
             <span style={{ width: 150, color: MUTED, flexShrink: 0 }}>{new Date(a.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
             <span style={{ width: 180, color: MUTED, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.projectName}</span>
             <span style={{ flex: 1, lineHeight: 1.6 }}>

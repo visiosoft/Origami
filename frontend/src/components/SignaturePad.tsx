@@ -21,7 +21,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string) => void
       canvas.width = rect.width * ratio;
       canvas.height = rect.height * ratio;
       const ctx = canvas.getContext('2d');
-      if (ctx) { ctx.scale(ratio, ratio); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#1D1D1B'; }
+      if (ctx) { ctx.scale(ratio, ratio); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = 'var(--ink)'; }
     };
     resize();
     window.addEventListener('resize', resize);
@@ -74,10 +74,10 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string) => void
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
-        style={{ width: '100%', height: 140, touchAction: 'none', background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.16)', borderRadius: 10, cursor: 'crosshair' }}
+        style={{ width: '100%', height: 140, touchAction: 'none', background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.16)', borderRadius: 10, cursor: 'crosshair' }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-        <span style={{ fontSize: 10.5, color: '#A29E96' }}>Sign above with your finger, stylus or mouse.</span>
+        <span style={{ fontSize: 10.5, color: 'var(--c-9aa39d)' }}>Sign above with your finger, stylus or mouse.</span>
         <span onClick={clear} style={{ fontSize: 11, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer' }}>Clear</span>
       </div>
     </div>

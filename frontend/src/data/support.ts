@@ -28,7 +28,7 @@ export const TICKET_PRIORITIES: TicketPriority[] = ['Low', 'Medium', 'High', 'Ur
 export const TICKET_STATUSES: TicketStatus[] = ['Open', 'In Progress', 'Resolved'];
 
 export const TICKET_STATUS_STYLE: Record<TicketStatus, { bg: string; c: string }> = {
-  Open: { bg: '#FBE7A8', c: '#7A5A0C' },
+  Open: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  Resolved: { bg: '#E3ECD9', c: '#34552E' },
+  Resolved: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
 };

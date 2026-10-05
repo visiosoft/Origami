@@ -185,7 +185,7 @@ function AddContractorDrawer({ subTrades, onClose, onCreated }: { subTrades: Sub
       footer={<><div onClick={onClose} style={btn()}>Cancel</div><div onClick={saving ? undefined : create} style={btn(true, saving)}>{saving ? 'Adding…' : 'Add contractor'}</div></>}
     >
       {subs.length > 0 && (
-        <div style={{ marginBottom: 18, padding: 12, borderRadius: 10, background: '#F5F1E8' }}>
+        <div style={{ marginBottom: 18, padding: 12, borderRadius: 10, background: 'var(--c-f7f3ea)' }}>
           <Label text="Start from the People directory (optional)" />
           <select value={draft.personId ?? ''} onChange={(e) => fromPerson(e.target.value)} style={input}>
             <option value="">— New company —</option>
@@ -445,7 +445,7 @@ export function SubContractorSummary({ contractorId, onOpen }: { contractorId: s
         <div style={exp(c.licenseExpiry)}>Licence {c.licenseNumber ? `#${c.licenseNumber} ` : ''}{c.licenseExpiry ? `${c.licenseExpiry.slice(0, 10) < today ? 'expired' : 'expires'} ${day(c.licenseExpiry)}` : 'not on file'}</div>
         <div style={exp(c.insuranceExpiry)}>Insurance {c.insuranceExpiry ? `${c.insuranceExpiry.slice(0, 10) < today ? 'expired' : 'expires'} ${day(c.insuranceExpiry)}` : 'not on file'}</div>
       </div>
-      <div onClick={onOpen} style={{ marginTop: 10, display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>
+      <div onClick={onOpen} style={{ marginTop: 10, display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>
         Open contractor record — trades, contract, insurance, workers
       </div>
     </div>

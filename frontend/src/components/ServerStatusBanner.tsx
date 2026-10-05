@@ -53,16 +53,16 @@ export function ServerStatusBanner() {
 
   return (
     <>
-      {down && bar('#FCEFC4', '#EAD48A', '#6B540C', (
+      {down && bar('var(--c-fbf0cc)', '#EAD48A', '#6B540C', (
         <>
           <span style={{ width: 8, height: 8, borderRadius: 99, background: '#C7A64A', animation: 'pulse 1s ease-in-out infinite', flexShrink: 0 }} />
           <span><b>Updating the system.</b> The server is restarting — keep working; your changes save as soon as it’s back (usually under a minute).</span>
         </>
       ))}
-      {!down && newBuild && bar('#FAE7A5', '#EED27A', '#232321', (
+      {!down && newBuild && bar('var(--mint)', 'var(--c-b9cdbd)', 'var(--forest)', (
         <>
           <span><b>A new version was just installed.</b> Refresh when you’re at a good point — your changes are saved.</span>
-          {button('Refresh', () => window.location.reload(), '#232321')}
+          {button('Refresh', () => window.location.reload(), 'var(--forest)')}
         </>
       ))}
       {!down && notice && notice !== dismissed && bar('#D8E2F0', '#B5C6DE', '#2B476E', (

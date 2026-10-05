@@ -7,10 +7,10 @@ import {
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 12.5,
+  fontFamily: 'inherit', color: 'var(--ink)', outline: 'none',
 };
-const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: '#4A4741' };
+const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: 'var(--body)' };
 
 const Req = ({ need }: { need: 'R' | 'O' | '-' }) =>
   need === 'R' ? <span style={{ color: '#8E2E0A' }}> *</span> : null;
@@ -20,17 +20,17 @@ function Section({ title, hint, open, onToggle, gaps, children }: {
   title: string; hint?: string; open: boolean; onToggle: () => void; gaps?: number; children: React.ReactNode;
 }) {
   return (
-    <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, marginBottom: 10, background: '#FDFCF9', overflow: 'hidden' }}>
-      <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', cursor: 'pointer', background: open ? '#F8F6F1' : 'white' }}>
-        <span style={{ fontSize: 9, color: '#A29E96', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', flex: 1 }}>{title}</span>
+    <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, marginBottom: 10, background: 'var(--surface)', overflow: 'hidden' }}>
+      <div onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', cursor: 'pointer', background: open ? 'var(--c-f7f9f7)' : 'white' }}>
+        <span style={{ fontSize: 9, color: 'var(--c-9aa39d)', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', flex: 1 }}>{title}</span>
         {!!gaps && (
           <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: '#F7E4DB', color: '#8E2E0A' }}>{gaps} missing</span>
         )}
       </div>
       {open && (
         <div style={{ padding: '4px 12px 14px' }}>
-          {hint && <div style={{ fontSize: 10.5, color: '#A29E96', marginBottom: 9, lineHeight: 1.45 }}>{hint}</div>}
+          {hint && <div style={{ fontSize: 10.5, color: 'var(--c-9aa39d)', marginBottom: 9, lineHeight: 1.45 }}>{hint}</div>}
           {children}
         </div>
       )}
@@ -101,8 +101,8 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
             return (
               <span key={c} onClick={() => toggleCategory(c)} style={{
                 padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
-                border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.12)'),
-                background: on ? '#E3ECD9' : 'white', color: on ? '#232321' : '#5c5666',
+                border: '1px solid ' + (on ? 'var(--success)' : 'rgba(var(--rgb-shade), 0.12)'),
+                background: on ? 'var(--c-d2ead3)' : 'white', color: on ? 'var(--forest)' : '#5c5666',
               }}>{c}</span>
             );
           })}
@@ -173,7 +173,7 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
         return (
           <Section key={a.key} title={a.label} hint={a.hint} open={!!open[a.key]} onToggle={() => toggle(a.key)}
             gaps={gapsFor(a.label)}>
-            <div style={{ fontSize: 10.5, color: need === 'R' ? '#8E2E0A' : '#A29E96', marginBottom: 8, fontWeight: 600 }}>
+            <div style={{ fontSize: 10.5, color: need === 'R' ? '#8E2E0A' : 'var(--c-9aa39d)', marginBottom: 8, fontWeight: 600 }}>
               {need === 'R' ? 'Required' : 'Optional'} for the directories selected
             </div>
             <AddressFields value={profile.addresses[a.key]} onChange={(v) => set('addresses', { ...profile.addresses, [a.key]: v })} />
@@ -184,12 +184,12 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
       <Section title="Licences" open={!!open.licenses} onToggle={() => toggle('licenses')}
         gaps={gapsFor('licence', 'number', 'expiry', 'state')}
         hint="One row per licence. Somebody holding the same licence in three states is three rows.">
-        <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#1D1D1B', cursor: 'pointer', marginBottom: 10, fontWeight: 600 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--ink)', cursor: 'pointer', marginBottom: 10, fontWeight: 600 }}>
           <input type="checkbox" checked={profile.notLicensedDesigner} onChange={(e) => set('notLicensedDesigner', e.target.checked)} />
           Not Licensed Designer
         </label>
         {profile.notLicensedDesigner && (
-          <div style={{ fontSize: 11, color: '#93520F', background: '#FBE7A8', padding: '8px 10px', borderRadius: 8, marginBottom: 10, lineHeight: 1.45 }}>
+          <div style={{ fontSize: 11, color: '#93520F', background: 'var(--amber-light)', padding: '8px 10px', borderRadius: 8, marginBottom: 10, lineHeight: 1.45 }}>
             May design residential work, but not commercial. No licence is required of this person.
           </div>
         )}
@@ -198,11 +198,11 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
           {profile.licenses.map((l, i) => {
             const exp = expiryState(l.expiresOn);
             return (
-              <div key={l.id} style={{ border: '1px solid rgba(29, 29, 27,0.09)', borderRadius: 9, padding: 10, background: '#FBFAF8' }}>
+              <div key={l.id} style={{ border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 9, padding: 10, background: '#FBFAF8' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#8B877F' }}>Licence {i + 1}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>Licence {i + 1}</span>
                   {exp && exp !== 'ok' && (
-                    <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: exp === 'expired' ? '#F2DFD4' : '#FBE7A8', color: exp === 'expired' ? '#8E2E0A' : '#93520F' }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: exp === 'expired' ? '#F2DFD4' : 'var(--amber-light)', color: exp === 'expired' ? '#8E2E0A' : '#93520F' }}>
                       {exp === 'expired' ? 'Expired' : 'Expiring soon'}
                     </span>
                   )}
@@ -227,7 +227,7 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
         </div>
 
         <div onClick={() => set('licenses', [...profile.licenses, blankLicense()])}
-          style={{ marginTop: 10, display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321' }}>
+          style={{ marginTop: 10, display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)' }}>
           + Add a licence
         </div>
       </Section>
@@ -240,9 +240,9 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
           return (
             <div key={key} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: '#1D1D1B' }}>{text}<Req need="R" /></span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink)' }}>{text}<Req need="R" /></span>
                 {exp && exp !== 'ok' && (
-                  <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: exp === 'expired' ? '#F2DFD4' : '#FBE7A8', color: exp === 'expired' ? '#8E2E0A' : '#93520F' }}>
+                  <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: exp === 'expired' ? '#F2DFD4' : 'var(--amber-light)', color: exp === 'expired' ? '#8E2E0A' : '#93520F' }}>
                     {exp === 'expired' ? 'Expired' : 'Expiring soon'}
                   </span>
                 )}
@@ -264,8 +264,8 @@ export function PersonProfileEditor({ profile, onChange }: Props) {
       </Section>
 
       {/* What is still outstanding, so a half-filled record says so. */}
-      <div style={{ padding: '10px 12px', borderRadius: 9, background: gaps.length ? '#F7E4DB' : '#E3ECD9', border: '1px solid ' + (gaps.length ? 'rgba(142,46,10,0.18)' : 'rgba(76, 122, 63,0.2)') }}>
-        <div style={{ fontSize: 11.5, fontWeight: 700, color: gaps.length ? '#8E2E0A' : '#34552E' }}>
+      <div style={{ padding: '10px 12px', borderRadius: 9, background: gaps.length ? '#F7E4DB' : 'var(--c-d2ead3)', border: '1px solid ' + (gaps.length ? 'rgba(142,46,10,0.18)' : 'rgba(var(--rgb-success), 0.2)') }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: gaps.length ? '#8E2E0A' : 'var(--success-deep)' }}>
           {gaps.length ? `${gaps.length} required field${gaps.length === 1 ? '' : 's'} outstanding` : 'Record complete'}
         </div>
         {gaps.length > 0 && (

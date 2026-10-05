@@ -7,11 +7,11 @@ interface IndexedFile {
   source: Source; where: string; taskNumber?: string; scope: 'lead-files' | 'tasks' | 'project-tasks' | 'rfis' | 'file-room'; ownerId: string; url?: string;
 }
 
-const INK = '#1D1D1B';
-const MUTED = '#8B877F';
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
 const SOURCES: [Source | 'all' | 'tasks', string][] = [['all', 'All'], ['lead', 'Lead stages'], ['client', 'From the client'], ['tasks', 'Tasks'], ['rfi', 'RFIs'], ['file-room', 'Plan & File Room']];
 const TONE: Record<Source, [string, string]> = {
-  lead: ['#F2EFE8', '#232321'], client: ['#EEEBE3', '#355C2F'], 'lead-task': ['#FCEFC4', '#7A5A0C'], 'project-task': ['#FCEFC4', '#7A5A0C'],
+  lead: ['var(--mist)', 'var(--forest)'], client: ['var(--c-e4efe5)', 'var(--c-145c33)'], 'lead-task': ['var(--c-fbf0cc)', 'var(--c-8a6d12)'], 'project-task': ['var(--c-fbf0cc)', 'var(--c-8a6d12)'],
   rfi: ['#D6E8E5', '#2F6F68'], 'file-room': ['#E6EAF2', '#3C5C8A'],
 };
 const size = (b?: number) => (!b ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`);
@@ -54,28 +54,28 @@ export function AllFiles({ leadId, projectId, reloadKey }: { leadId?: string; pr
         {SOURCES.filter(([k]) => k === 'all' || present.has(k)).map(([k, label]) => {
           const n = k === 'all' ? files.length : files.filter((f) => (k === 'tasks' ? f.source === 'lead-task' || f.source === 'project-task' : f.source === k)).length;
           return (
-            <span key={k} onClick={() => setFilter(k)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (filter === k ? '#232321' : 'rgba(29, 29, 27,0.12)'), background: filter === k ? '#232321' : 'white', color: filter === k ? 'white' : '#4A4741' }}>
+            <span key={k} onClick={() => setFilter(k)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid ' + (filter === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: filter === k ? 'var(--forest)' : 'white', color: filter === k ? 'white' : 'var(--body)' }}>
               {label} <span style={{ opacity: 0.7 }}>{n}</span>
             </span>
           );
         })}
-        {files.length > 8 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" style={{ marginLeft: 'auto', padding: '6px 11px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', fontSize: 12.5, fontFamily: 'inherit', width: 180 }} />}
+        {files.length > 8 && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search files…" style={{ marginLeft: 'auto', padding: '6px 11px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 12.5, fontFamily: 'inherit', width: 180 }} />}
       </div>
       {!files.length ? (
         <div style={{ fontSize: 12.5, color: MUTED, padding: '10px 0' }}>No files yet — anything added to this {projectId != null ? 'project' : 'lead'}, its tasks{projectId != null ? ', RFIs or the Plan & File Room' : ' or by the client'} shows here.</div>
       ) : (
-        <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, background: '#FDFCF9', overflow: 'hidden' }}>
+        <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', background: 'var(--surface)', overflow: 'hidden' }}>
           {shown.map((f) => {
             const [bg, fg] = TONE[f.source];
             const where = f.taskNumber ? f.where.replace(`Task ${f.taskNumber}`, '').replace(/^ · /, '') : f.where;
             return (
               <a key={`${f.scope}-${f.ownerId}-${f.id}`} href={openUrl(f)} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid rgba(29, 29, 27,0.05)', textDecoration: 'none', color: INK }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#FAF8F3'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.05)', textDecoration: 'none', color: INK }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: MUTED, minWidth: 30, fontVariantNumeric: 'tabular-nums' }}>#{f.n}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {f.taskNumber && <span style={{ fontWeight: 800, color: '#7A5A0C', marginRight: 6 }}>Task {f.taskNumber}</span>}{f.name}
+                    {f.taskNumber && <span style={{ fontWeight: 800, color: 'var(--c-8a6d12)', marginRight: 6 }}>Task {f.taskNumber}</span>}{f.name}
                   </span>
                   <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 2 }}>
                     <span style={{ fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 999, background: bg, color: fg, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{where || 'Task'}</span>

@@ -37,7 +37,7 @@ const usd = (n: number) => '$' + (Number(n) || 0).toLocaleString('en-US', { mini
 const STATUS: Record<Invoice['status'], [string, 'amber' | 'blue' | 'green' | 'red']> = {
   submitted: ['Waiting for approval', 'amber'], approved: ['Approved · payment pending', 'blue'], paid: ['Paid', 'green'], returned: ['Returned', 'red'],
 };
-const PAPER = '#FAF8F3';
+const PAPER = 'var(--panel)';
 
 // ------------------------------------------------------------------ frame
 
@@ -57,7 +57,7 @@ export function Portal() {
   return (
     <div style={{ minHeight: '100vh', background: PAPER, color: INK, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <style>{'@media (max-width: 640px) { .portal-who { display: none; } }'}</style>
-      <header style={{ background: '#FDFCF9', borderBottom: '1px solid ' + LINE }}>
+      <header style={{ background: 'var(--surface)', borderBottom: '1px solid ' + LINE }}>
         <div style={{ maxWidth: 1080, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <Link to="/portal" style={{ display: 'flex', alignItems: 'center' }}><Logo markSize={26} /></Link>
           <div className="portal-who" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: MUTED, borderLeft: '1px solid ' + LINE, paddingLeft: 14 }}>Subcontractor portal</div>
@@ -118,17 +118,17 @@ function Figure({ label, value, hint, tone }: { label: string; value: string; hi
 function MoneyBar({ committed, paid, approved, submitted }: { committed: number; paid: number; approved: number; submitted: number }) {
   const pct = (n: number) => (committed > 0 ? Math.min(100, (n / committed) * 100) : 0);
   return (
-    <div style={{ height: 8, borderRadius: 999, background: '#EEEBE4', overflow: 'hidden', display: 'flex' }}>
-      <div style={{ width: pct(paid) + '%', background: '#4C7A3F' }} />
+    <div style={{ height: 8, borderRadius: 999, background: 'var(--c-efede8)', overflow: 'hidden', display: 'flex' }}>
+      <div style={{ width: pct(paid) + '%', background: 'var(--success)' }} />
       <div style={{ width: pct(approved) + '%', background: '#6D8FBF' }} />
-      <div style={{ width: pct(submitted) + '%', background: '#F5C443' }} />
+      <div style={{ width: pct(submitted) + '%', background: 'var(--c-e0b84a)' }} />
     </div>
   );
 }
 
 function Legend() {
   const dot = (c: string, t: string) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 99, background: c }} />{t}</span>;
-  return <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11.5, color: MUTED }}>{dot('#4C7A3F', 'Paid')}{dot('#6D8FBF', 'Approved')}{dot('#F5C443', 'Waiting for approval')}{dot('#EEEBE4', 'Not invoiced yet')}</div>;
+  return <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11.5, color: MUTED }}>{dot('var(--success)', 'Paid')}{dot('#6D8FBF', 'Approved')}{dot('var(--c-e0b84a)', 'Waiting for approval')}{dot('var(--c-efede8)', 'Not invoiced yet')}</div>;
 }
 
 function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -162,8 +162,8 @@ function Home({ ov }: { ov: Overview }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginTop: 18 }}>
         <Figure label="Your subcontracts" value={usd(ov.totals.committed)} hint={`${ov.subcontracts.length} subcontract${ov.subcontracts.length === 1 ? '' : 's'}`} />
-        <Figure label="Paid to you" value={usd(ov.totals.paid)} tone="#3F6B39" />
-        <Figure label="Waiting for approval" value={usd(ov.totals.awaitingApproval)} tone={ov.totals.awaitingApproval ? '#7A5A0C' : INK} />
+        <Figure label="Paid to you" value={usd(ov.totals.paid)} tone="var(--c-1e6b36)" />
+        <Figure label="Waiting for approval" value={usd(ov.totals.awaitingApproval)} tone={ov.totals.awaitingApproval ? 'var(--c-8a6d12)' : INK} />
         <Figure label="Approved, being paid" value={usd(ov.totals.approvedUnpaid)} tone={ov.totals.approvedUnpaid ? '#3C5C8A' : INK} />
         <Figure label="Still to be paid" value={usd(ov.totals.toBePaid)} hint="on your subcontracts" />
       </div>
@@ -183,7 +183,7 @@ function Home({ ov }: { ov: Overview }) {
               <MoneyBar committed={s.committed} paid={s.paid} approved={s.approved} submitted={s.submitted} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 12 }}>
                 <div><div style={{ color: MUTED }}>Value</div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{usd(s.committed)}</b></div>
-                <div><div style={{ color: MUTED }}>Paid</div><b style={{ fontVariantNumeric: 'tabular-nums', color: '#3F6B39' }}>{usd(s.paid)}</b></div>
+                <div><div style={{ color: MUTED }}>Paid</div><b style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--c-1e6b36)' }}>{usd(s.paid)}</b></div>
                 <div><div style={{ color: MUTED }}>Left to invoice</div><b style={{ fontVariantNumeric: 'tabular-nums' }}>{usd(s.remaining)}</b></div>
               </div>
               <div style={{ fontSize: 11.5, color: MUTED }}>{s.milestones} milestone{s.milestones === 1 ? '' : 's'}{s.sharedFiles ? ` · ${s.sharedFiles} shared file${s.sharedFiles === 1 ? '' : 's'}` : ''} · open →</div>
@@ -226,7 +226,7 @@ function SubcontractPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14 }}>
         <Figure label="Subcontract value" value={usd(d.committed)} />
         <Figure label="Invoiced" value={usd(d.billed)} />
-        <Figure label="Paid to you" value={usd(d.paid)} tone="#3F6B39" />
+        <Figure label="Paid to you" value={usd(d.paid)} tone="var(--c-1e6b36)" />
         <Figure label="Left to invoice" value={usd(d.remaining)} />
       </div>
 
@@ -234,24 +234,24 @@ function SubcontractPage() {
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <div style={{ minWidth: 760 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: '#F5F1E8', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: 'var(--c-f7f3ea)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
                 <span>Milestone</span><span style={{ textAlign: 'right' }}>Value</span><span style={{ textAlign: 'right' }}>Invoiced</span><span style={{ textAlign: 'right' }}>Paid</span><span style={{ textAlign: 'right' }}>Left</span><span>Work progress</span>
               </div>
               {d.milestones.map((m) => {
                 const p = m.progress;
                 const expanded = openM === m.id;
                 return (
-                  <div key={m.id} style={{ borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
+                  <div key={m.id} style={{ borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
                     <div onClick={() => m.tasks.length && setOpenM(expanded ? null : m.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', fontSize: 12.5, cursor: m.tasks.length ? 'pointer' : 'default', fontVariantNumeric: 'tabular-nums' }}>
                       <span style={{ fontWeight: 600 }}>{m.tasks.length > 0 && <span style={{ color: MUTED, marginRight: 6 }}>{expanded ? '▾' : '▸'}</span>}{m.description}</span>
                       <span style={{ textAlign: 'right' }}>{usd(m.amount)}</span>
                       <span style={{ textAlign: 'right' }}>{usd(m.billed)}</span>
-                      <span style={{ textAlign: 'right', color: m.paid ? '#3F6B39' : MUTED }}>{usd(m.paid)}</span>
+                      <span style={{ textAlign: 'right', color: m.paid ? 'var(--c-1e6b36)' : MUTED }}>{usd(m.paid)}</span>
                       <b style={{ textAlign: 'right' }}>{usd(m.remaining)}</b>
                       <span>
                         {p ? (
                           <span style={{ display: 'grid', gap: 4 }}>
-                            <span style={{ height: 6, borderRadius: 99, background: '#EEEBE4', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${(p.done / p.total) * 100}%`, background: ACCENT }} /></span>
+                            <span style={{ height: 6, borderRadius: 99, background: 'var(--c-efede8)', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${(p.done / p.total) * 100}%`, background: ACCENT }} /></span>
                             <span style={{ fontSize: 11, color: MUTED }}>{p.done} of {p.total} tasks done</span>
                           </span>
                         ) : <span style={{ fontSize: 11.5, color: MUTED }}>—</span>}
@@ -261,7 +261,7 @@ function SubcontractPage() {
                       <div style={{ padding: '0 14px 12px 34px', display: 'grid', gap: 4 }}>
                         {m.tasks.map((t) => (
                           <div key={t.id} style={{ display: 'flex', gap: 10, fontSize: 12.5, alignItems: 'baseline' }}>
-                            <span style={{ width: 14, color: t.status === 'Done' ? '#4C7A3F' : MUTED }}>{t.status === 'Done' ? '✓' : '○'}</span>
+                            <span style={{ width: 14, color: t.status === 'Done' ? 'var(--success)' : MUTED }}>{t.status === 'Done' ? '✓' : '○'}</span>
                             <span style={{ flex: 1, textDecoration: t.status === 'Done' ? 'line-through' : 'none', color: t.status === 'Done' ? MUTED : INK }}>{t.title}</span>
                             <span style={{ fontSize: 11.5, color: MUTED }}>{t.status}</span>
                           </div>
@@ -320,7 +320,7 @@ function InvoicesPage() {
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '16px 0 10px' }}>
         {(['all', 'submitted', 'approved', 'paid', 'returned'] as const).map((k) => {
           const n = (rows || []).filter((r) => k === 'all' || r.status === k).length;
-          return <div key={k} onClick={() => setFilter(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : '#fff', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : 'rgba(29, 29, 27,.14)') }}>{k === 'all' ? 'All' : STATUS[k][0].split(' ·')[0]} · {n}</div>;
+          return <div key={k} onClick={() => setFilter(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : '#fff', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : 'rgba(var(--rgb-shade), .14)') }}>{k === 'all' ? 'All' : STATUS[k][0].split(' ·')[0]} · {n}</div>;
         })}
       </div>
       {rows === null ? <div style={{ fontSize: 13, color: MUTED }}>Loading…</div> : <InvoiceList rows={shown} empty="No invoices here." />}
@@ -337,9 +337,9 @@ function Steps({ inv }: { inv: Invoice }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
       {steps.map((s, i) => (
         <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {i > 0 && <span style={{ width: 18, height: 2, background: i <= at ? '#4C7A3F' : '#E4E0D8' }} />}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: i <= at ? '#3F6B39' : MUTED, fontWeight: i === at ? 700 : 500 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 99, background: i <= at ? '#4C7A3F' : '#E4E0D8' }} />{s}
+          {i > 0 && <span style={{ width: 18, height: 2, background: i <= at ? 'var(--success)' : '#E4E0D8' }} />}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: i <= at ? 'var(--c-1e6b36)' : MUTED, fontWeight: i === at ? 700 : 500 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: i <= at ? 'var(--success)' : '#E4E0D8' }} />{s}
           </span>
         </span>
       ))}
@@ -356,7 +356,7 @@ function InvoiceList({ rows, empty }: { rows: Invoice[]; empty: string }) {
         const [label, tone] = STATUS[inv.status];
         const expanded = open === inv.id;
         return (
-          <div key={inv.id} style={{ borderTop: i ? '1px solid rgba(29, 29, 27,.06)' : 'none' }}>
+          <div key={inv.id} style={{ borderTop: i ? '1px solid rgba(var(--rgb-shade), .06)' : 'none' }}>
             <div onClick={() => setOpen(expanded ? null : inv.id)} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '12px 16px', cursor: 'pointer', flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 220px', minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700 }}>Invoice {inv.reference}</div>
@@ -366,7 +366,7 @@ function InvoiceList({ rows, empty }: { rows: Invoice[]; empty: string }) {
               <Badge tone={tone}>{label}</Badge>
               <b style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums', minWidth: 96, textAlign: 'right' }}>{usd(inv.total)}</b>
             </div>
-            {inv.status === 'paid' && inv.paidDate && <div style={{ padding: '0 16px 10px', fontSize: 12, color: '#3F6B39' }}>Paid {fmtDate(inv.paidDate)}{inv.paymentRef ? ` · reference ${inv.paymentRef}` : ''}</div>}
+            {inv.status === 'paid' && inv.paidDate && <div style={{ padding: '0 16px 10px', fontSize: 12, color: 'var(--c-1e6b36)' }}>Paid {fmtDate(inv.paidDate)}{inv.paymentRef ? ` · reference ${inv.paymentRef}` : ''}</div>}
             {inv.status === 'returned' && <div style={{ padding: '0 16px 10px', fontSize: 12, color: DANGER }}>Returned{inv.returnedReason ? `: ${inv.returnedReason}` : ''} — correct it and send it again.</div>}
             {expanded && (
               <div style={{ padding: '0 16px 14px', display: 'grid', gap: 8 }}>
@@ -460,7 +460,7 @@ function NewInvoice({ ov, onSent }: { ov: Overview; onSent: () => void }) {
                 const v = amounts[m.id] || '';
                 const bad = (Number(v) || 0) > m.remaining + 0.001;
                 return (
-                  <div key={m.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 12px', borderTop: i ? '1px solid rgba(29, 29, 27,.05)' : 'none', flexWrap: 'wrap', opacity: m.remaining > 0 ? 1 : 0.55 }}>
+                  <div key={m.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 12px', borderTop: i ? '1px solid rgba(var(--rgb-shade), .05)' : 'none', flexWrap: 'wrap', opacity: m.remaining > 0 ? 1 : 0.55 }}>
                     <div style={{ flex: '1 1 220px', minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{m.description}</div>
                       <div style={{ fontSize: 11.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
@@ -474,7 +474,7 @@ function NewInvoice({ ov, onSent }: { ov: Overview; onSent: () => void }) {
                         <div style={{ position: 'relative', width: 140 }}>
                           <span style={{ position: 'absolute', left: 10, top: 8, fontSize: 13, color: MUTED }}>$</span>
                           <input inputMode="decimal" value={v} onChange={(e) => setAmounts({ ...amounts, [m.id]: e.target.value.replace(/[^0-9.]/g, '') })} placeholder="0.00"
-                            style={{ ...input, paddingLeft: 20, textAlign: 'right', borderColor: bad ? DANGER : 'rgba(29, 29, 27,0.13)', fontVariantNumeric: 'tabular-nums' }} />
+                            style={{ ...input, paddingLeft: 20, textAlign: 'right', borderColor: bad ? DANGER : 'rgba(var(--rgb-shade), 0.13)', fontVariantNumeric: 'tabular-nums' }} />
                         </div>
                       </div>
                     ) : <span style={{ fontSize: 11.5, color: MUTED }}>Fully invoiced</span>}

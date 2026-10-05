@@ -86,7 +86,7 @@ export function RetentionPanel({ projectId, overview, rights, onOpenInvoice, onC
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={headRow(itemCols)}><span>Item</span><span style={{ textAlign: 'right' }}>Accrued</span><span style={{ textAlign: 'right' }}>Released</span><span style={{ textAlign: 'right' }}>Held</span><span /></div>
         {v.items.map((i) => (
-          <div key={i.kind + i.id} style={{ display: 'grid', gridTemplateColumns: itemCols, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
+          <div key={i.kind + i.id} style={{ display: 'grid', gridTemplateColumns: itemCols, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
             <span style={{ paddingLeft: i.kind === 'task' && i.phaseId ? 18 : 0, fontWeight: i.kind === 'task' ? 500 : 650 }}>{i.name}</span>
             <span style={{ textAlign: 'right' }}>{usd(i.accrued)}</span><span style={{ textAlign: 'right' }}>{usd(i.released)}</span><b style={{ textAlign: 'right' }}>{usd(i.held)}</b>
             <span style={{ textAlign: 'right' }}>{v.canRequest && i.held > 0 && i.kind !== 'project' && <span onClick={() => setForm({ scope: i.kind, targetId: i.id, amount: String(heldOn(i.kind, i.id)), reason: 'milestone_accepted', notes: '' })} style={{ fontSize: 12, color: ACCENT, cursor: 'pointer', fontWeight: 700 }}>Release…</span>}</span>
@@ -100,7 +100,7 @@ export function RetentionPanel({ projectId, overview, rights, onOpenInvoice, onC
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={headRow(relCols)}><span>No.</span><span>From</span><span>Reason</span><span style={{ textAlign: 'right' }}>Amount</span><span>Status</span><span /></div>
         {v.releases.map((r) => (
-          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: relCols, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, opacity: r.status === 'cancelled' || r.status === 'rejected' ? 0.6 : 1 }}>
+          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: relCols, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, opacity: r.status === 'cancelled' || r.status === 'rejected' ? 0.6 : 1 }}>
             <b style={{ color: ACCENT }}>{r.number}</b>
             <span>{nameOf(r)}<div style={{ fontSize: 11, color: MUTED }}>{r.requestedBy} · {fmtDate(r.createdAt)}{r.notes ? ` · ${r.notes}` : ''}</div></span>
             <span style={{ color: MUTED }}>{label(RELEASE_REASONS, r.reason)}</span>

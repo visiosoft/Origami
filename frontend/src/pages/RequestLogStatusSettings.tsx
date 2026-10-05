@@ -1,11 +1,12 @@
+import { tint } from '../theme';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { DEFAULT_LOG_STATUSES, loadLogStatuses, logStatusTone, setLogStatuses, type LogStatus } from '../data/logStatuses';
 
-const BG = "'Outfit', system-ui, sans-serif";
-const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit', background: '#FDFCF9', color: '#1D1D1B' };
-const COLORS = ['#8E2E0A', '#93520F', '#2F6F68', '#34552E', '#3C5C8A', '#6B3FA0', '#65615A'];
+const BG = 'var(--font-display)';
+const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)' };
+const COLORS = ['#8E2E0A', '#93520F', '#2F6F68', '#1C5230', '#3C5C8A', '#6B3FA0', '#5C6B65'];
 
 /**
  * Settings -> Request Log statuses. The office's own list for the Request
@@ -22,7 +23,7 @@ export function RequestLogStatusSettings() {
   const [error, setError] = useState('');
   useEffect(() => { loadLogStatuses(true).then((l) => setList(l.map((s) => ({ ...s })))); }, []);
 
-  if (!list) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
+  if (!list) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
   const set = (i: number, patch: Partial<LogStatus>) => setList(list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= list.length) return; const next = [...list]; [next[i], next[j]] = [next[j], next[i]]; setList(next); };
   const fixed = (s: LogStatus) => s.name === 'Open' || s.name === 'Closed';
@@ -40,29 +41,29 @@ export function RequestLogStatusSettings() {
 
   return (
     <div style={{ maxWidth: 680 }}>
-      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>Request Log statuses</div>
-      <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, marginBottom: 16, lineHeight: 1.6 }}>
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Request Log statuses</div>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, marginBottom: 16, lineHeight: 1.6 }}>
         The choices in the Request Log’s Status field. Statuses marked <b>counts as closed</b> finish a task — its close date is
         stamped and it stops showing as open or in reminders. “On hold” matches the task board’s On hold.
       </div>
       {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F7E4DB', fontSize: 12.5, fontWeight: 600, color: '#8E2E0A', marginBottom: 12 }}>{error}</div>}
-      <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 12, display: 'grid', gap: 8 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 12, display: 'grid', gap: 8 }}>
         {list.map((s, i) => {
           const tone = logStatusTone(s.name);
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ display: 'grid', gap: 0 }}>
-                <span onClick={() => move(i, -1)} style={{ cursor: 'pointer', fontSize: 10, color: '#8B877F', lineHeight: 1 }}>▲</span>
-                <span onClick={() => move(i, 1)} style={{ cursor: 'pointer', fontSize: 10, color: '#8B877F', lineHeight: 1 }}>▼</span>
+                <span onClick={() => move(i, -1)} style={{ cursor: 'pointer', fontSize: 10, color: 'var(--muted)', lineHeight: 1 }}>▲</span>
+                <span onClick={() => move(i, 1)} style={{ cursor: 'pointer', fontSize: 10, color: 'var(--muted)', lineHeight: 1 }}>▼</span>
               </span>
               <input value={s.name} disabled={!isAdmin || fixed(s)} onChange={(e) => set(i, { name: e.target.value })} maxLength={30} style={{ ...input, width: 200 }} />
-              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: s.color ? s.color + '22' : tone.bg, color: s.color || tone.c }}>{s.name || '—'}</span>
+              <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: s.color ? tint(s.color, '22') : tone.bg, color: s.color || tone.c }}>{s.name || '—'}</span>
               {!fixed(s) && isAdmin && (
                 <span style={{ display: 'flex', gap: 3 }}>
-                  {COLORS.map((c) => <span key={c} onClick={() => set(i, { color: s.color === c ? undefined : c })} title="Badge colour" style={{ width: 14, height: 14, borderRadius: 999, background: c, cursor: 'pointer', outline: s.color === c ? '2px solid #1D1D1B' : 'none', outlineOffset: 1 }} />)}
+                  {COLORS.map((c) => <span key={c} onClick={() => set(i, { color: s.color === c ? undefined : c })} title="Badge colour" style={{ width: 14, height: 14, borderRadius: 999, background: c, cursor: 'pointer', outline: s.color === c ? '2px solid #0B1A12' : 'none', outlineOffset: 1 }} />)}
                 </span>
               )}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: '#4A4741', marginLeft: 'auto' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--body)', marginLeft: 'auto' }}>
                 <input type="checkbox" checked={!!s.closed} disabled={!isAdmin || s.name === 'Closed' || s.name === 'Open'} onChange={(e) => set(i, { closed: e.target.checked })} />
                 counts as closed
               </label>
@@ -73,12 +74,12 @@ export function RequestLogStatusSettings() {
       </div>
       {isAdmin ? (
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <span onClick={() => list.length < 12 && setList([...list, { name: '' }])} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: list.length < 12 ? 'pointer' : 'default', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321' }}>+ Add status</span>
-          <span onClick={() => setList(DEFAULT_LOG_STATUSES.map((s) => ({ ...s })))} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#8B877F' }}>Back to the defaults</span>
-          <span onClick={saving ? undefined : save} style={{ marginLeft: 'auto', padding: '8px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>{saving ? 'Saving…' : 'Save'}</span>
+          <span onClick={() => list.length < 12 && setList([...list, { name: '' }])} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: list.length < 12 ? 'pointer' : 'default', border: '1px solid rgba(var(--rgb-shade), 0.14)', color: 'var(--forest)' }}>+ Add status</span>
+          <span onClick={() => setList(DEFAULT_LOG_STATUSES.map((s) => ({ ...s })))} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'var(--muted)' }}>Back to the defaults</span>
+          <span onClick={saving ? undefined : save} style={{ marginLeft: 'auto', padding: '8px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save'}</span>
         </div>
-      ) : <div style={{ fontSize: 12, color: '#8B877F', marginTop: 10 }}>Only an administrator can change these.</div>}
-      <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 12, lineHeight: 1.5 }}>
+      ) : <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>Only an administrator can change these.</div>}
+      <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 12, lineHeight: 1.5 }}>
         Removing a status doesn’t change tasks that already have it — they keep it until someone picks another.
       </div>
     </div>

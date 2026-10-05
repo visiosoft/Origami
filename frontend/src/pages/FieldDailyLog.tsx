@@ -14,11 +14,11 @@ interface Emp { id: string; name: string; workerId?: string; tradeId?: string; t
 interface Code { id: string; code: string; division: string; active: boolean }
 interface Assign { employeeId: string; projectId: number; startDate: string; endDate?: string }
 
-const INK = '#1D1D1B';
-const MUTED = '#8B877F';
-const ACCENT = '#232321';
-const LINE = 'rgba(29, 29, 27,.08)';
-const BG = "'Outfit', system-ui, sans-serif";
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
+const ACCENT = 'var(--forest)';
+const LINE = 'rgba(var(--rgb-shade), .08)';
+const BG = 'var(--font-display)';
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
 const STATUSES: [string, string][] = [['start', 'Start'], ['continued', 'Cont.'], ['completing', 'Done']];
 const QUICK_HOURS = [4, 8, 10, 12];
@@ -36,20 +36,20 @@ const niceDate = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString
 
 const cellBtn = (on: boolean, disabled?: boolean): React.CSSProperties => ({
   minWidth: 30, height: 28, padding: '0 7px', borderRadius: 7, fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
-  cursor: disabled ? 'default' : 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(29, 29, 27,.12)'),
+  cursor: disabled ? 'default' : 'pointer', border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .12)'),
   background: on ? ACCENT : 'white', color: on ? 'white' : INK, whiteSpace: 'nowrap', opacity: disabled && !on ? 0.55 : 1,
 });
 const cellInput: React.CSSProperties = {
-  boxSizing: 'border-box', height: 30, borderRadius: 7, border: '1px solid rgba(29, 29, 27,.12)', padding: '0 8px',
-  fontSize: 12.5, fontFamily: 'inherit', background: '#FDFCF9', color: INK, outline: 'none', width: '100%', minWidth: 0,
+  boxSizing: 'border-box', height: 30, borderRadius: 7, border: '1px solid rgba(var(--rgb-shade), .12)', padding: '0 8px',
+  fontSize: 12.5, fontFamily: 'inherit', background: 'var(--surface)', color: INK, outline: 'none', width: '100%', minWidth: 0,
 };
 const pill = (on: boolean): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  border: '1px solid ' + (on ? ACCENT : 'rgba(29, 29, 27,.12)'), background: on ? ACCENT : 'white', color: on ? 'white' : '#4A4741',
+  border: '1px solid ' + (on ? ACCENT : 'rgba(var(--rgb-shade), .12)'), background: on ? ACCENT : 'white', color: on ? 'white' : 'var(--body)',
 });
 
 function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 20, ...style }}>{children}</div>;
+  return <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', ...style }}>{children}</div>;
 }
 
 // ------------------------------------------------------------------ the page
@@ -179,8 +179,8 @@ export function FieldDailyLog() {
   };
 
   const statusStyle: Record<string, [string, string, string]> = {
-    draft: ['#EEEBE4', '#65615A', 'Draft — not sent yet'], submitted: ['#FCEFC4', '#7A5A0C', 'Submitted — waiting for approval'],
-    approved: ['#E3ECD9', '#3F6B39', 'Approved — timesheets created'], rejected: ['#F2DFD4', '#8E2E0A', 'Sent back — fix and submit again'],
+    draft: ['var(--c-efede8)', 'var(--c-5c6b65)', 'Draft — not sent yet'], submitted: ['var(--c-fbf0cc)', 'var(--c-8a6d12)', 'Submitted — waiting for approval'],
+    approved: ['var(--c-d2ead3)', 'var(--c-1e6b36)', 'Approved — timesheets created'], rejected: ['#F2DFD4', '#8E2E0A', 'Sent back — fix and submit again'],
   };
   const st = statusStyle[log?.status || 'draft'] || statusStyle.draft;
   const project = projects.find((p) => p.id === projectId);
@@ -206,12 +206,12 @@ export function FieldDailyLog() {
       <div key={id} style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid ' + LINE, background: on ? (e!.csiCodeId ? '#F6FAF6' : '#FFF9E6') : 'white', minWidth: 1100 }}>
         {/* worker */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 999, flex: 'none', background: on ? '#2E8B57' : 'transparent', border: on ? 'none' : '1.5px solid rgba(29, 29, 27,.18)' }} />
+          <span style={{ width: 8, height: 8, borderRadius: 999, flex: 'none', background: on ? '#2E8B57' : 'transparent', border: on ? 'none' : '1.5px solid rgba(var(--rgb-shade), .18)' }} />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name || 'Unknown worker'}</div>
             <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {[emp?.workerId, emp?.trade || emp?.designation].filter(Boolean).join(' · ')}
-              {!onSite.has(id) && <span style={{ marginLeft: 6, fontWeight: 700, color: '#7A5A0C' }}>not deployed here</span>}
+              {!onSite.has(id) && <span style={{ marginLeft: 6, fontWeight: 700, color: 'var(--c-8a6d12)' }}>not deployed here</span>}
             </div>
           </div>
         </div>
@@ -226,7 +226,7 @@ export function FieldDailyLog() {
         {/* cost code */}
         <select data-cell={`c-${i}`} disabled={!editable} value={e?.csiCodeId || ''} onChange={(ev) => patch(id, { csiCodeId: ev.target.value })} onKeyDown={(ev) => move(ev, 'c', i)}
           title={code ? `${code.code} — ${code.division}` : ''}
-          style={{ ...cellInput, borderColor: on && !e!.csiCodeId ? '#D9B650' : 'rgba(29, 29, 27,.12)', color: code ? INK : MUTED }}>
+          style={{ ...cellInput, borderColor: on && !e!.csiCodeId ? '#D9B650' : 'rgba(var(--rgb-shade), .12)', color: code ? INK : MUTED }}>
           <option value="">{on ? 'Pick a code…' : '—'}</option>
           {codes.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.division}</option>)}
         </select>
@@ -272,15 +272,15 @@ export function FieldDailyLog() {
           {/* status + sheet tools */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ padding: '6px 12px', borderRadius: 999, background: st[0], color: st[1], fontSize: 12.5, fontWeight: 700 }}>{st[2]}</span>
-            <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{draft.entries.length}</b> on the log · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: '#7A5A0C' }}> · {noCode} need a cost code</span> : null}</span>
+            <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{draft.entries.length}</b> on the log · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noCode} need a cost code</span> : null}</span>
             <div style={{ flex: 1 }} />
             <span style={{ fontSize: 12.5, color: MUTED }}><b style={{ color: INK }}>{onSite.size}</b> deployed to this project</span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
           </div>
-          {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 13, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 18, padding: 12 }}>Sent back: {log.rejectionNote}</div>}
+          {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 13, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 'var(--r-12)', padding: 12 }}>Sent back: {log.rejectionNote}</div>}
 
           {editable && (
-            <Card style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: '#FAF8F3' }}>
+            <Card style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)' }}>
               {crewMissing > 0 && <button type="button" onClick={addCrew} style={pill(true)}>+ Put the crew on the log ({crewMissing}) · 8 h</button>}
               {draft.entries.length > 1 && (
                 <>
@@ -323,11 +323,11 @@ export function FieldDailyLog() {
               </div>
             )}
             <textarea disabled={!editable} value={draft.notes} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} placeholder="Anything else about today (optional)" rows={3}
-              style={{ width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid rgba(29, 29, 27,.12)', padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', color: INK }} />
+              style={{ width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), .12)', padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', color: INK }} />
           </Card>
 
           {/* save + submit */}
-          <div style={{ position: 'sticky', bottom: 0, zIndex: 5, background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 20, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 -6px 20px rgba(29, 29, 27,.06)' }}>
+          <div style={{ position: 'sticky', bottom: 0, zIndex: 5, background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 -6px 20px rgba(var(--rgb-ink), .06)' }}>
             {editable ? (
               <>
                 <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={auto} /></div>

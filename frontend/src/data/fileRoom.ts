@@ -42,13 +42,13 @@ export interface FileRoomData {
 export const EXT_STYLE: Record<string, { bg: string; c: string }> = {
   PDF: { bg: '#F2DFD4', c: '#8E2E0A' },
   DWG: { bg: '#D6E8E5', c: '#2F6F68' },
-  XLSX: { bg: '#E3ECD9', c: '#34552E' },
-  XLS: { bg: '#E3ECD9', c: '#34552E' },
-  JPG: { bg: '#FBE7A8', c: '#93520F' },
-  JPEG: { bg: '#FBE7A8', c: '#93520F' },
-  PNG: { bg: '#FBE7A8', c: '#93520F' },
+  XLSX: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
+  XLS: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
+  JPG: { bg: 'var(--amber-light)', c: '#93520F' },
+  JPEG: { bg: 'var(--amber-light)', c: '#93520F' },
+  PNG: { bg: 'var(--amber-light)', c: '#93520F' },
 };
-export const extStyle = (ext?: string) => EXT_STYLE[(ext || '').toUpperCase()] ?? { bg: '#EEEBE4', c: '#4A4741' };
+export const extStyle = (ext?: string) => EXT_STYLE[(ext || '').toUpperCase()] ?? { bg: 'var(--c-efede8)', c: 'var(--body)' };
 
 export const isImage = (f: FileRoomFile) =>
   !!f.mimeType?.startsWith('image/') || ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP'].includes((f.ext || '').toUpperCase());

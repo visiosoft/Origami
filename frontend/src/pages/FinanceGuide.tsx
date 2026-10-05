@@ -2,14 +2,14 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 
-const BG = "'Outfit', system-ui, sans-serif";
-const INK = '#1D1D1B';
+const BG = 'var(--font-display)';
+const INK = 'var(--ink)';
 const MUTED = '#5E7A71';
-const ACCENT = '#232321';
-const SOFT = '#FAE7A5';
-const AMBER = '#7A5A0C';
-const AMBER_SOFT = '#FCEFC4';
-const LINE = 'rgba(29, 29, 27,0.08)';
+const ACCENT = 'var(--forest)';
+const SOFT = 'var(--mint)';
+const AMBER = 'var(--c-8a6d12)';
+const AMBER_SOFT = 'var(--c-fbf0cc)';
+const LINE = 'rgba(var(--rgb-shade), 0.08)';
 /** The worked example the guide walks through: the outsourced software build. */
 const EXAMPLE = 'Origami DB Development';
 
@@ -46,12 +46,12 @@ function LoginCard({ who, as, email, lands }: typeof DEMO_LOGINS[number]) {
   const [copied, setCopied] = useState(false);
   const copy = () => navigator.clipboard?.writeText(email).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); }).catch(() => {});
   return (
-    <div style={{ background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 20, padding: '14px 16px', display: 'grid', gap: 8 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', padding: '14px 16px', display: 'grid', gap: 8 }}>
       <div>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16 }}>{who}</div>
         <div style={{ fontSize: 12.5, color: MUTED }}>Signs in as {as}</div>
       </div>
-      <div style={{ background: '#FAF8F3', borderRadius: 10, padding: '8px 10px', display: 'grid', gridTemplateColumns: '54px minmax(0,1fr) auto', gap: 8, alignItems: 'center', fontSize: 13 }}>
+      <div style={{ background: 'var(--panel)', borderRadius: 10, padding: '8px 10px', display: 'grid', gridTemplateColumns: '54px minmax(0,1fr) auto', gap: 8, alignItems: 'center', fontSize: 13 }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: MUTED }}>Email</span>
         <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, overflowWrap: 'anywhere', userSelect: 'all' }}>{email}</code>
         <span onClick={copy} style={{ fontSize: 11.5, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>{copied ? 'Copied' : 'Copy'}</span>
@@ -83,7 +83,7 @@ export function FinanceGuide() {
   }, []);
   const open = (tab: 'overview' | 'phases' | 'financial') => exampleId && navigate(`/projects?open=${exampleId}&tab=${tab}`);
   const OpenBtn = ({ tab, label }: { tab: 'overview' | 'phases' | 'financial'; label: string }) => (exampleId ? (
-    <span onClick={() => open(tab)} style={{ display: 'inline-flex', marginTop: 6, padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid ' + LINE, background: '#FDFCF9', color: ACCENT }}>{label} →</span>
+    <span onClick={() => open(tab)} style={{ display: 'inline-flex', marginTop: 6, padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid ' + LINE, background: 'var(--surface)', color: ACCENT }}>{label} →</span>
   ) : null);
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -110,7 +110,7 @@ export function FinanceGuide() {
                 ['Clients → you', ['You bill the client for work done', 'The client pays you'], 'Work done, Billed to client, Received, Client owes'],
                 ['You → subcontractors, vendors, consultants', ['You agree a price with them (a subcontract)', 'They bill you, and you pay them'], 'Committed, Billed to us, Paid out, Still to pay'],
               ].map(([t, items, words]) => (
-                <div key={t as string} style={{ background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 20, padding: '14px 16px', display: 'grid', gap: 6 }}>
+                <div key={t as string} style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', padding: '14px 16px', display: 'grid', gap: 6 }}>
                   <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16 }}>{t}</div>
                   <ul style={{ margin: 0, paddingLeft: 18, color: MUTED, fontSize: 13.5 }}>{(items as string[]).map((x) => <li key={x}>{x}</li>)}</ul>
                   <div style={{ fontSize: 12.5, color: MUTED }}>Words you'll see: <b style={{ color: INK, fontWeight: 600 }}>{words}</b></div>
@@ -131,7 +131,7 @@ export function FinanceGuide() {
               <><b>Open the Financial tab.</b><Safe /><br />It says <b>No client contract</b> — right for outsourced work. Below it, the four numbers that matter:
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, margin: '8px 0' }}>
                   {[['Budget', '$12,000', 'What you planned to spend'], ['Committed', '$12,000', 'Agreed with Ehsan'], ['Paid out', '$2,370.50', 'Invoices #1–#3'], ['Still to pay', '$9,629.50', 'Not billed to you yet']].map(([l, v, s], i) => (
-                    <div key={l} style={{ background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 18, padding: '10px 12px' }}>
+                    <div key={l} style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', padding: '10px 12px' }}>
                       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: MUTED }}>{l}</div>
                       <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 19, color: i === 3 ? AMBER : INK, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
                       <div style={{ fontSize: 11.5, color: MUTED }}>{s}</div>
@@ -142,7 +142,7 @@ export function FinanceGuide() {
               <><b>Open the subcontract.</b><Safe /><br />Click <Ui>Subcontracts &amp; POs</Ui>, then <b>SC-001</b> — the agreement with Ehsan: one line per milestone, adding up to $12,000, status <b>Approved</b>. At the bottom, <b>Their bills against it</b> lists what he has billed; the Notes hold the milestone deliverables from the sheet.<Result>Close it with the × — nothing changed.</Result></>,
               <><b>See his bills.</b><Safe /><br />Click <Ui>Costs</Ui>. His Invoices #1, #2 and #3 appear as 8 lines — one per milestone they covered — each marked <b>Paid</b>.</>,
               <><b>See it across all projects.</b><Safe /><br />Left menu: <Ui>Financial</Ui> → <Ui>Project</Ui>. Try <b>Project portfolio</b> (this project shows paid out and still to pay), <b>Reports</b> → Budget vs actual and Cash forecast, and <b>Audit log</b> — who did what, and when.
-                <br /><span onClick={() => navigate('/fin_project')} style={{ display: 'inline-flex', marginTop: 6, padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid ' + LINE, background: '#FDFCF9', color: ACCENT }}>Open Project Finance →</span></>,
+                <br /><span onClick={() => navigate('/fin_project')} style={{ display: 'inline-flex', marginTop: 6, padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid ' + LINE, background: 'var(--surface)', color: ACCENT }}>Open Project Finance →</span></>,
             ]} />
           </Section>
 
@@ -152,7 +152,7 @@ export function FinanceGuide() {
             <p style={{ margin: 0 }}>What you'll do most: record it, approve it, and once you've paid him, mark it paid.</p>
             <Steps items={[
               <><b>Record the bill.</b><Saves /><br />Financial → <Ui>Costs</Ui> → <Ui>+ Cost</Ui>, and fill it in like this:
-                <div style={{ background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 18, overflowX: 'auto', margin: '8px 0' }}>
+                <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', overflowX: 'auto', margin: '8px 0' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
                     <tbody>
                       {[
@@ -173,7 +173,7 @@ export function FinanceGuide() {
               <><b>Attach his invoice PDF.</b><Saves /><br />Open the cost and use <b>Attachments</b> at the bottom. Uploading needs the Google account connected (Settings → Integrations); pasting a link always works.</>,
               <><b>Tick off the work.</b><Saves /><br />On the <Ui>Phase Board</Ui>, open the sub-milestone's task and set its status to <b>Done</b> (or In progress).</>,
             ]} />
-            <div style={{ background: AMBER_SOFT, borderRadius: 18, padding: '12px 16px', fontSize: 14 }}>
+            <div style={{ background: AMBER_SOFT, borderRadius: 'var(--r-12)', padding: '12px 16px', fontSize: 14 }}>
               <b style={{ color: AMBER }}>Made a mistake?</b> A cost still marked Recorded can be edited or deleted. Once it's approved or paid, use <b>Void</b> with a reason and record it again — nothing disappears without a trace.
             </div>
           </Section>
@@ -245,7 +245,7 @@ export function FinanceGuide() {
                 ['Paying side (subcontractors, vendors)', [['Budget', 'What you planned to spend on the job.'], ['Committed', "What you've agreed to pay in approved subcontracts and purchase orders."], ['Billed to us', "What they've invoiced you so far."], ['Paid out', "What you've actually paid them."], ['Still to pay', 'Billed but unpaid, plus agreed but not yet billed.'], ['Forecast', 'What the job will cost by the end — your estimate if you set one.'], ['Variance', 'Budget minus forecast. Red means heading over budget.']]],
                 ['Client side', [['Client contract', 'What the client agreed to pay, plus approved change orders.'], ['Work done', 'The value of work finished so far, by progress.'], ['Ready to bill', "Work done that hasn't been invoiced yet."], ['Billed to client', "What you've invoiced them."], ['Received', "What they've paid you."], ['Client owes', 'Invoiced but not yet paid.'], ['Retention', 'A % the client holds back from each invoice and pays at the end.']]],
               ] as [string, [string, string][]][]).map(([title, terms]) => (
-                <dl key={title} style={{ margin: 0, background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 20, padding: '4px 16px' }}>
+                <dl key={title} style={{ margin: 0, background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', padding: '4px 16px' }}>
                   <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 14.5, padding: '10px 0 2px' }}>{title}</div>
                   {terms.map(([t, d], i) => (
                     <div key={t} style={{ padding: '8px 0', borderTop: i ? '1px solid ' + LINE : 0 }}>
