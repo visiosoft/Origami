@@ -11,11 +11,11 @@ import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const input: React.CSSProperties = {
   boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.13)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.13)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 const PRIORITIES = ['High', 'Medium', 'Low'];
 /** Fields edited in the panel: they autosave together. Subtasks, files and comments act at once. */
@@ -99,38 +99,38 @@ export function PhaseTaskPanel({
 
   const label = (text: string, hint?: string) => (
     <div style={{ marginBottom: 5 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{text}</div>
-      {hint && <div style={{ fontSize: 10.5, color: '#9AA39D', marginTop: 2 }}>{hint}</div>}
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{text}</div>
+      {hint && <div style={{ fontSize: 10.5, color: '#A29E96', marginTop: 2 }}>{hint}</div>}
     </div>
   );
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 96vw)', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 96vw)', height: '100%', background: '#FDFCF9', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.2)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
-          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: '#FDFCF9', padding: '10px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
             <SaveBar auto={auto} />
           </div>
         )}
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
             {parentTask && (
-              <div style={{ fontSize: 11.5, color: '#9AA39D', marginBottom: 4 }}>Subtask of <span style={{ color: '#43514D', fontWeight: 600 }}>{parentTask.title}</span></div>
+              <div style={{ fontSize: 11.5, color: '#A29E96', marginBottom: 4 }}>Subtask of <span style={{ color: '#4A4741', fontWeight: 600 }}>{parentTask.title}</span></div>
             )}
             <textarea
               value={draft.title || ''}
               disabled={!canManage}
               onChange={(e) => set({ title: e.target.value })}
               rows={1}
-              style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#0B1A12', background: 'transparent', lineHeight: 1.3 }}
+              style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#1D1D1B', background: 'transparent', lineHeight: 1.3 }}
             />
           </div>
-          <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
+          <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', flexShrink: 0 }}>×</div>
         </div>
 
-        <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
           <div>
             {label('Assignee')}
             <AssigneePicker
@@ -172,7 +172,7 @@ export function PhaseTaskPanel({
           </div>
         </div>
 
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
           {label('Description')}
           <textarea
             disabled={!canManage}
@@ -192,40 +192,40 @@ export function PhaseTaskPanel({
         </div>
 
         {!parentTask && (
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
           {label('Subtasks')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {subtasksOf(tasks as any, draft.id).map((st: any) => (
-              <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FBF8F2', borderRadius: 8 }}>
+              <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FAF8F3', borderRadius: 8 }}>
                 <input
                   type="checkbox"
                   checked={!!st.completed}
                   disabled={!canManage}
                   onChange={() => api.projectTasks.update(st.id, { completed: !st.completed, status: st.completed ? 'Not started' : 'Done' }).then(onSaved).catch(() => onReload?.())}
                 />
-                <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
+                <span style={{ flex: 1, fontSize: 12.5, color: '#1D1D1B', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
                 {canManage && <span onClick={() => removeTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
               </div>
             ))}
             {canManage && (
               <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                 <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(); }} placeholder="Add a subtask…" style={{ ...input, flex: 1 }} />
-                <div onClick={addSubtask} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
+                <div onClick={addSubtask} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
               </div>
             )}
           </div>
         </div>
         )}
 
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
           <Checklist items={draft.checklist ?? []} canManage={canManage} onChange={(checklist: ChecklistItem[]) => set({ checklist })} />
         </div>
 
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
           <LabelPicker labels={draft.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => set({ labels })} />
         </div>
 
-        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
           <Attachments
             scope="project-tasks"
             taskId={draft.id}

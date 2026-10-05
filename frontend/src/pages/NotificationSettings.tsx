@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 18, marginBottom: 16,
+  background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 18, marginBottom: 16,
 };
 
 function Toggle({ on, onChange, busy }: { on: boolean; onChange: (v: boolean) => void; busy?: boolean }) {
@@ -14,13 +14,13 @@ function Toggle({ on, onChange, busy }: { on: boolean; onChange: (v: boolean) =>
       onClick={busy ? undefined : () => onChange(!on)}
       style={{
         width: 42, height: 24, borderRadius: 999, flexShrink: 0, position: 'relative',
-        background: on ? '#173326' : '#D6DAD6', cursor: busy ? 'default' : 'pointer',
+        background: on ? '#232321' : '#D6DAD6', cursor: busy ? 'default' : 'pointer',
         opacity: busy ? 0.6 : 1, transition: 'background 120ms',
       }}
     >
       <span style={{
         position: 'absolute', top: 3, left: on ? 21 : 3, width: 18, height: 18, borderRadius: 999,
-        background: 'white', transition: 'left 120ms',
+        background: '#FDFCF9', transition: 'left 120ms',
       }} />
     </div>
   );
@@ -139,13 +139,13 @@ export function NotificationSettings() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
   const row = (title: string, hint: string, on: boolean, onChange: (v: boolean) => void) => (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{title}</div>
-        <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, lineHeight: 1.55 }}>{hint}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>{title}</div>
+        <div style={{ fontSize: 12, color: '#65615A', marginTop: 3, lineHeight: 1.55 }}>{hint}</div>
       </div>
       <Toggle on={on} onChange={onChange} busy={saving} />
     </div>
@@ -154,8 +154,8 @@ export function NotificationSettings() {
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Notifications</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>Notifications</div>
+        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 620, lineHeight: 1.6 }}>
           When someone assigns you a task, we email you the details and a link straight to it.
         </div>
       </div>
@@ -169,8 +169,8 @@ export function NotificationSettings() {
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Due-date reminder email</div>
-            <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, lineHeight: 1.55 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>Due-date reminder email</div>
+            <div style={{ fontSize: 12, color: '#65615A', marginTop: 3, lineHeight: 1.55 }}>
               A morning email of your tasks that are overdue, due today or due in the next 3 days — yours and the ones you
               collaborate on, each linking straight to the task. Nothing is sent on a day with nothing due.
             </div>
@@ -183,7 +183,7 @@ export function NotificationSettings() {
           <select
             value={digest} disabled={saving}
             onChange={(e) => saveDigest(e.target.value as 'daily' | 'weekly' | 'off')}
-            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit', background: 'white' }}
+            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit', background: '#FDFCF9' }}
           >
             <option value="daily">Every morning</option>
             <option value="weekly">Mondays only</option>
@@ -191,7 +191,7 @@ export function NotificationSettings() {
           </select>
         </div>
         <div style={{ marginTop: 10 }}>
-          <span onClick={saving ? undefined : sendMine} style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}>
+          <span onClick={saving ? undefined : sendMine} style={{ fontSize: 12.5, fontWeight: 700, color: '#232321', cursor: saving ? 'default' : 'pointer' }}>
             Email me my reminder now →
           </span>
         </div>
@@ -203,7 +203,7 @@ export function NotificationSettings() {
           'Covers the Task Board and the Request Log. You are never emailed for assigning something to yourself.',
           mine, saveMine,
         )}
-        <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ borderTop: '1px solid rgba(29, 29, 27,0.07)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {row(
             'Standalone overdue notice',
             'A separate email the moment the daily digest would otherwise be your only reminder — on top of it, not instead.',
@@ -220,8 +220,8 @@ export function NotificationSettings() {
             sms, saveExtra(setSms, 'notifyBySms'),
           )}
         </div>
-        <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14 }}>
-          <span onClick={saving ? undefined : sendTest} style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}>
+        <div style={{ borderTop: '1px solid rgba(29, 29, 27,0.07)', marginTop: 16, paddingTop: 14 }}>
+          <span onClick={saving ? undefined : sendTest} style={{ fontSize: 12.5, fontWeight: 700, color: '#232321', cursor: saving ? 'default' : 'pointer' }}>
             Send me a sample →
           </span>
         </div>
@@ -234,9 +234,9 @@ export function NotificationSettings() {
             'Turning this off stops assignment emails for everyone, whatever their own preference says.',
             workspace, saveWorkspace,
           )}
-          <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Overstretch threshold</div>
-            <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, marginBottom: 8, lineHeight: 1.55 }}>
+          <div style={{ borderTop: '1px solid rgba(29, 29, 27,0.07)', marginTop: 16, paddingTop: 14 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>Overstretch threshold</div>
+            <div style={{ fontSize: 12, color: '#65615A', marginTop: 3, marginBottom: 8, lineHeight: 1.55 }}>
               A daily notice when someone's open-task count goes over this number. Blank or zero disables it — pick a
               real number before this does anything.
             </div>
@@ -245,7 +245,7 @@ export function NotificationSettings() {
                 type="number" min={0} value={overstretchThreshold}
                 onChange={(e) => setOverstretchThreshold(e.target.value)}
                 placeholder="0 = disabled"
-                style={{ width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit' }}
+                style={{ width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit' }}
               />
               <span
                 onClick={saving ? undefined : () => {
@@ -255,7 +255,7 @@ export function NotificationSettings() {
                     .catch((e: Error) => setError(e.message))
                     .finally(() => setSaving(false));
                 }}
-                style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}
+                style={{ fontSize: 12.5, fontWeight: 700, color: '#232321', cursor: saving ? 'default' : 'pointer' }}
               >
                 Save
               </span>

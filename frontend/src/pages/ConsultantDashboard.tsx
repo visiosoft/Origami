@@ -8,13 +8,13 @@ import type { Person } from '../data/people';
 import type { ProjectTask } from '../data/projectTasks';
 import './Dashboard.css';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 16, flex: '1 1 150px', minWidth: 140 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>{label}</div>
-      <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 26, color: accent || '#173326', lineHeight: 1.1, marginTop: 4 }}>{value}</div>
+    <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 16, flex: '1 1 150px', minWidth: 140 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F' }}>{label}</div>
+      <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 26, color: accent || '#232321', lineHeight: 1.1, marginTop: 4 }}>{value}</div>
     </div>
   );
 }
@@ -84,25 +84,25 @@ export function ConsultantDashboard() {
       <MyTasks />
 
       {!loading && (outside ? !assigned.length : !me) && (
-        <div style={{ padding: '16px 18px', borderRadius: 14, background: '#FBF8F2', border: '1px solid rgba(20,8,31,0.06)', fontSize: 12.5, color: '#7E9B93', marginBottom: 14 }}>
+        <div style={{ padding: '16px 18px', borderRadius: 20, background: '#FAF8F3', border: '1px solid rgba(29, 29, 27,0.06)', fontSize: 12.5, color: '#8B877F', marginBottom: 14 }}>
           No scopes are linked to your account yet. Ask your project manager to add {currentUser?.email || 'your email'} to the People directory as a consultant on your project(s).
         </div>
       )}
 
-      <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18, marginBottom: 14 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 12 }}>My Queue</div>
+      <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 18, marginBottom: 14 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 12 }}>My Queue</div>
         {queue.length === 0 ? (
-          <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>Nothing open on your assigned scopes right now.</div>
+          <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>Nothing open on your assigned scopes right now.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {queue.slice(0, 8).map((t) => (
-              <div key={t.id} onClick={() => navigate('/prequal')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, flexWrap: 'wrap', cursor: 'pointer' }}>
+              <div key={t.id} onClick={() => navigate('/prequal')} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: '#FAF8F3', borderRadius: 10, flexWrap: 'wrap', cursor: 'pointer' }}>
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{t.title}</div>
-                  <div style={{ fontSize: 11, color: '#7E9B93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.projectId != null ? projectsById[t.projectId] : ''}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1B' }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: '#8B877F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.projectId != null ? projectsById[t.projectId] : ''}</div>
                 </div>
-                {t.dueDate && <span style={{ fontSize: 11, color: '#7E9B93' }}>Due {t.dueDate}</span>}
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#EFEDE8', color: '#3A423E' }}>{t.status || 'Open'}</span>
+                {t.dueDate && <span style={{ fontSize: 11, color: '#8B877F' }}>Due {t.dueDate}</span>}
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#EEEBE4', color: '#3D3B37' }}>{t.status || 'Open'}</span>
               </div>
             ))}
           </div>

@@ -8,11 +8,11 @@ import {
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
+  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
 };
 
-const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: '#43514D' };
+const label: React.CSSProperties = { fontSize: 10.5, fontWeight: 700, color: '#4A4741' };
 
 interface Props {
   leadId: string;
@@ -77,17 +77,17 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
 
   return (
     <div style={{ padding: '14px 20px' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#173326', marginBottom: 4 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#232321', marginBottom: 4 }}>
         Contacts
       </div>
-      <div style={{ fontSize: 11.5, color: '#7E9B93', marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 12, lineHeight: 1.5 }}>
         Everyone involved, and what each of them is. One person can hold several roles — a lead is often both the
         primary contact and the decision maker.
       </div>
 
       {/* What still has to be filled before the lead is complete. */}
-      <div style={{ padding: '10px 12px', borderRadius: 9, marginBottom: 14, background: missing.length ? '#F7E4DB' : '#D2EAD3', border: '1px solid ' + (missing.length ? 'rgba(142,46,10,0.18)' : 'rgba(47,125,74,0.2)') }}>
-        <div style={{ fontSize: 11.5, fontWeight: 700, color: missing.length ? '#8E2E0A' : '#1C5230' }}>
+      <div style={{ padding: '10px 12px', borderRadius: 9, marginBottom: 14, background: missing.length ? '#F7E4DB' : '#E3ECD9', border: '1px solid ' + (missing.length ? 'rgba(142,46,10,0.18)' : 'rgba(76, 122, 63,0.2)') }}>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: missing.length ? '#8E2E0A' : '#34552E' }}>
           {missing.length ? `${missing.length} required role${missing.length === 1 ? '' : 's'} unassigned` : 'All required roles assigned'}
         </div>
         {missing.length > 0 && (
@@ -103,7 +103,7 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {contacts.length === 0 && (
-          <div style={{ padding: '18px 14px', textAlign: 'center', fontSize: 12, color: '#9AA39D', background: '#FBF8F2', borderRadius: 9 }}>
+          <div style={{ padding: '18px 14px', textAlign: 'center', fontSize: 12, color: '#A29E96', background: '#FAF8F3', borderRadius: 9 }}>
             No contacts yet. Add the people involved in this project.
           </div>
         )}
@@ -111,27 +111,27 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
         {contacts.map((c) => {
           const open = openId === c.id;
           return (
-            <div key={c.id} style={{ border: '1px solid rgba(20,8,31,0.09)', borderRadius: 10, overflow: 'hidden', background: 'white' }}>
+            <div key={c.id} style={{ border: '1px solid rgba(29, 29, 27,0.09)', borderRadius: 10, overflow: 'hidden', background: '#FDFCF9' }}>
               <div
                 onClick={() => setOpenId(open ? null : c.id)}
-                style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: open ? '#F4F9F4' : 'white' }}
+                style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: open ? '#F7F4EE' : 'white' }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0B1A12' }}>{contactName(c)}</div>
-                  <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1D1D1B' }}>{contactName(c)}</div>
+                  <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 2 }}>
                     {[c.title, c.company].filter(Boolean).join(' · ') || 'No title or company'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '46%' }}>
                   {c.roles.map((code) => (
-                    <span key={code} title={roleLabel(code)} style={{ padding: '2px 6px', borderRadius: 5, fontSize: 9.5, fontWeight: 700, background: '#DCE7DE', color: '#173326' }}>{code}</span>
+                    <span key={code} title={roleLabel(code)} style={{ padding: '2px 6px', borderRadius: 5, fontSize: 9.5, fontWeight: 700, background: '#FAE7A5', color: '#232321' }}>{code}</span>
                   ))}
                 </div>
-                <span style={{ fontSize: 9, color: '#9AA39D', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
+                <span style={{ fontSize: 9, color: '#A29E96', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
               </div>
 
               {open && (
-                <div style={{ padding: '12px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ padding: '12px', borderTop: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
                     {field(c, 'firstName', 'First Name', 'First name')}
                     {field(c, 'lastName', 'Last Name', 'Last name')}
@@ -179,9 +179,9 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
                               : role.hint || role.label}
                             style={{
                               padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none',
-                              border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'),
-                              background: on ? '#D2EAD3' : 'white',
-                              color: on ? '#173326' : heldElsewhere ? '#9AA39D' : '#0B1A12',
+                              border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.1)'),
+                              background: on ? '#E3ECD9' : 'white',
+                              color: on ? '#232321' : heldElsewhere ? '#A29E96' : '#1D1D1B',
                               fontWeight: on ? 700 : 400,
                             }}
                           >
@@ -191,7 +191,7 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
                         );
                       })}
                     </div>
-                    <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 5, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 10, color: '#A29E96', marginTop: 5, lineHeight: 1.5 }}>
                       Roles marked <b>*</b> are required somewhere on the lead. Primary Contact, Secondary Contact,
                       Owner’s Rep, both Contract Authorities and the Approver each sit with one person — assigning
                       one moves it off whoever held it.
@@ -214,13 +214,13 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 14, alignItems: 'center' }}>
-        <div onClick={add} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>
+        <div onClick={add} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321' }}>
           + Add contact
         </div>
-        <div onClick={saving ? undefined : save} style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+        <div onClick={saving ? undefined : save} style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
           {saving ? 'Saving…' : 'Save contacts'}
         </div>
-        {saved && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#2F7D4A' }}>Saved</span>}
+        {saved && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#4C7A3F' }}>Saved</span>}
       </div>
     </div>
   );

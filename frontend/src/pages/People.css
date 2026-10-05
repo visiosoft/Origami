@@ -20,7 +20,7 @@
 .person-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 22px;
   padding: 16px;
   display: flex;
   gap: 12px;

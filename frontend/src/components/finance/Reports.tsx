@@ -36,13 +36,13 @@ function Table({ cols, rows, total, onRow, extra }: { cols: Col[]; rows: Record<
         <div style={{ minWidth: Math.max(800, cols.length * 125) }}>
           <div style={headRow(tpl)}>{cols.map(([k, l, t]) => <span key={k} style={{ textAlign: t === 'money' || t === 'pct' || t === 'num' ? 'right' : 'left' }}>{l}</span>)}</div>
           {rows.map((r, i) => (
-            <div key={i} onClick={onRow ? () => onRow(r) : undefined} style={{ display: 'grid', gridTemplateColumns: tpl, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: onRow ? 'pointer' : 'default' }}>
+            <div key={i} onClick={onRow ? () => onRow(r) : undefined} style={{ display: 'grid', gridTemplateColumns: tpl, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, cursor: onRow ? 'pointer' : 'default' }}>
               {cols.map((c) => <span key={c[0]} style={{ display: 'contents' }}>{cell(r, c)}</span>)}
             </div>
           ))}
           {!rows.length && <div style={{ padding: 20, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>Nothing to report.</div>}
           {total && rows.length > 1 && (
-            <div style={{ display: 'grid', gridTemplateColumns: tpl, gap: 10, padding: '9px 14px', borderTop: '1px solid ' + LINE, background: '#F4F1E8', fontSize: 12.5, fontWeight: 700 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: tpl, gap: 10, padding: '9px 14px', borderTop: '1px solid ' + LINE, background: '#F3F0E8', fontSize: 12.5, fontWeight: 700 }}>
               {cols.map(([k, , t], i) => <span key={k} style={{ textAlign: t === 'money' ? 'right' : 'left' }}>{i === 0 ? 'Total' : t === 'money' ? usd0(rows.reduce((a, r) => a + (Number(r[k]) || 0), 0)) : ''}</span>)}
             </div>
           )}
@@ -109,7 +109,7 @@ export function FinanceReports({ rights, onProject }: { rights: Rights; onProjec
     <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 18, alignItems: 'start' }}>
       <div style={{ ...card, overflow: 'hidden' }}>
         {available.map(([k, l, d]) => (
-          <div key={k} onClick={() => setKey(k)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', background: key === k ? '#E7F0E8' : 'white' }}>
+          <div key={k} onClick={() => setKey(k)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', background: key === k ? '#F0EDE6' : 'white' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: key === k ? ACCENT : INK }}>{l}</div>
             <div style={{ fontSize: 11.5, color: MUTED }}>{d}</div>
           </div>
@@ -141,7 +141,7 @@ export function FinanceReports({ rights, onProject }: { rights: Rights; onProjec
               return (
                 <div key={m.month} style={{ flex: 1, display: 'grid', gap: 4, justifyItems: 'center' }} title={`${m.month}: in ${usd0(m.in)}, out ${usd0(m.out)}`}>
                   <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 110 }}>
-                    <div style={{ width: 16, height: Math.max(2, (m.in / max) * 110), background: '#2F7D4A', borderRadius: 3 }} />
+                    <div style={{ width: 16, height: Math.max(2, (m.in / max) * 110), background: '#4C7A3F', borderRadius: 3 }} />
                     {data.showCosts && <div style={{ width: 16, height: Math.max(2, (m.out / max) * 110), background: '#C8876A', borderRadius: 3 }} />}
                   </div>
                   <span style={{ fontSize: 10.5, color: MUTED }}>{m.month.slice(5)}/{m.month.slice(2, 4)}</span>

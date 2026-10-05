@@ -14,7 +14,7 @@ export function PickOne({ value, options, onChange, disabled, style }: {
     return (
       <div style={{ display: 'flex', gap: 6 }}>
         <input autoFocus disabled={disabled} value={v} onChange={(e) => onChange(e.target.value)} placeholder="Type it" style={{ ...style, flex: 1 }} />
-        <span onClick={() => setTyping(false)} style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>List</span>
+        <span onClick={() => setTyping(false)} style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer', whiteSpace: 'nowrap' }}>List</span>
       </div>
     );
   }
@@ -41,8 +41,8 @@ export function PickMany({ value, options, onChange, disabled, style, placeholde
       {chosen.length > 0 && (
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
           {chosen.map((c) => (
-            <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, background: '#EEF3EE', fontSize: 12, fontWeight: 600, color: '#173326' }}>
-              {c}{!disabled && <span onClick={() => onChange(chosen.filter((x) => x !== c))} style={{ cursor: 'pointer', color: '#7E9B93' }}>×</span>}
+            <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 999, background: '#F2EFE8', fontSize: 12, fontWeight: 600, color: '#232321' }}>
+              {c}{!disabled && <span onClick={() => onChange(chosen.filter((x) => x !== c))} style={{ cursor: 'pointer', color: '#8B877F' }}>×</span>}
             </span>
           ))}
         </div>
@@ -51,7 +51,7 @@ export function PickMany({ value, options, onChange, disabled, style, placeholde
         <div style={{ display: 'flex', gap: 6 }}>
           <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder || 'Type one'} style={{ ...style, flex: 1 }}
             onKeyDown={(e) => { if (e.key === 'Enter') { add(draft); setDraft(''); } if (e.key === 'Escape') setTyping(false); }} />
-          <span onClick={() => { add(draft); setDraft(''); setTyping(false); }} style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>Add</span>
+          <span onClick={() => { add(draft); setDraft(''); setTyping(false); }} style={{ alignSelf: 'center', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>Add</span>
         </div>
       ) : (
         <select value="" onChange={(e) => { if (e.target.value === '__other') setTyping(true); else if (e.target.value) add(e.target.value); }} style={style}>

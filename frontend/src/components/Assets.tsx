@@ -184,7 +184,7 @@ function AssetDrawer({ asset, employees, canManage, currency, onOpenEmployee, on
 
       <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, margin: '6px 0 8px' }}>Custody history</div>
       {history.map((i) => (
-        <div key={i.id} style={{ padding: '8px 0', borderTop: '1px solid rgba(20,8,31,.06)', fontSize: 12.5, lineHeight: 1.6 }}>
+        <div key={i.id} style={{ padding: '8px 0', borderTop: '1px solid rgba(29, 29, 27,.06)', fontSize: 12.5, lineHeight: 1.6 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <b style={{ color: INK }}>{empName(i.employeeId)}</b>
             <Badge tone={i.status === 'open' ? 'blue' : i.status === 'lost' ? 'red' : 'grey'}>{i.status === 'open' ? 'Holding' : i.status === 'lost' ? 'Lost' : 'Returned'}</Badge>
@@ -298,7 +298,7 @@ export function EmployeeAssetsPanel({ employee, employees, canManage, currency }
       <div style={{ ...card, overflow: 'hidden' }}>
         {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
         {holding.map((i) => (
-          <div key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+          <div key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT, width: 80 }}>{i.asset?.assetTag}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{i.asset?.name} <span style={{ fontWeight: 400, color: MUTED, fontSize: 12 }}>· {catLabel(i.asset?.category || '')}</span></div>
@@ -317,7 +317,7 @@ export function EmployeeAssetsPanel({ employee, employees, canManage, currency }
           <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK, marginBottom: 8 }}>Previously held</div>
           <div style={{ ...card, overflow: 'hidden' }}>
             {past.map((i) => (
-              <div key={i.id} style={{ display: 'flex', gap: 12, padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+              <div key={i.id} style={{ display: 'flex', gap: 12, padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
                 <span style={{ width: 80, color: MUTED }}>{i.asset?.assetTag}</span>
                 <span style={{ flex: 1 }}>{i.asset?.name} · {fmtDate(i.issuedAt)} – {fmtDate(i.returnedAt)}{i.returnCondition ? ` · ${condLabel(i.returnCondition).toLowerCase()}` : ''}</span>
                 {i.status === 'lost' && <Badge tone="red">Lost</Badge>}

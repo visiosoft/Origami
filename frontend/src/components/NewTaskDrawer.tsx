@@ -4,11 +4,11 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { TaskTab } from '../data/tasks';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 
 interface NewTask {
@@ -80,14 +80,14 @@ export function NewTaskDrawer({
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: 460, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.18)', animation: 'scaleIn 0.2s ease', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(20,8,31,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 200, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#FDFCF9', width: 460, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.18)', animation: 'scaleIn 0.2s ease', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em' }}>New Task</div>
-            {fixedProject && <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 2 }}>on {fixedProject.name}</div>}
+            {fixedProject && <div style={{ fontSize: 12, color: '#8B877F', marginTop: 2 }}>on {fixedProject.name}</div>}
           </div>
-          <div onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>
+          <div onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F' }}>
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
           </div>
         </div>
@@ -108,9 +108,9 @@ export function NewTaskDrawer({
           <Fld label="Description *" span><textarea value={nt.description} onChange={(e) => setNt({ ...nt, description: e.target.value })} rows={4} placeholder="Describe the task…" style={{ ...inputStyle, resize: 'vertical' }} /></Fld>
           <Fld label="Link to File" span><input value={nt.linkedFile} onChange={(e) => setNt({ ...nt, linkedFile: e.target.value })} placeholder="Attach or paste link" style={inputStyle} /></Fld>
         </div>
-        <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.08)', display: 'flex', gap: 12, justifyContent: 'flex-end', flexShrink: 0 }}>
-          <div onClick={onClose} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-          <div onClick={creating ? undefined : create} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: creating ? 'default' : 'pointer', background: creating ? '#9AB0A4' : '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>
+        <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(29, 29, 27,0.08)', display: 'flex', gap: 12, justifyContent: 'flex-end', flexShrink: 0 }}>
+          <div onClick={onClose} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9' }}>Cancel</div>
+          <div onClick={creating ? undefined : create} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: creating ? 'default' : 'pointer', background: creating ? '#ABA79E' : '#232321', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>
             {creating ? 'Creating…' : 'Create Task'}
           </div>
         </div>
@@ -122,7 +122,7 @@ export function NewTaskDrawer({
 function Fld({ label, span, children }: { label: string; span?: boolean; children: React.ReactNode }) {
   return (
     <div style={span ? { gridColumn: '1 / -1' } : undefined}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
       {children}
     </div>
   );

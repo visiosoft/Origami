@@ -21,7 +21,7 @@ export function PicklistsSetup({ canManage }: { canManage: boolean }) {
   const [error, setError] = useState('');
   const fill = (p: Picklists) => setText({ departments: p.departments.join('\n'), designations: p.designations.join('\n'), skills: p.skills.join('\n') });
   useEffect(() => { loadPicklists(true).then(fill); }, []);
-  if (!text) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (!text) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
   const save = () => {
     const body = Object.fromEntries(LISTS.map(({ key }) => [key, text[key].split('\n').map((s) => s.trim()).filter(Boolean)])) as unknown as Picklists;
@@ -34,24 +34,24 @@ export function PicklistsSetup({ canManage }: { canManage: boolean }) {
 
   return (
     <div style={{ display: 'grid', gap: 14, maxWidth: 1000 }}>
-      <div style={{ fontSize: 12.5, color: '#5C6B65', lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12.5, color: '#65615A', lineHeight: 1.6 }}>
         The choices in the employee form’s <b>Department</b>, <b>Designation</b> and <b>Skills</b> fields — one per line. Anyone filling in the
         form can still pick “Other…” for something not listed. New worker IDs include the year they started, e.g. <b>W-{new Date().getFullYear()}-0012</b>.
       </div>
       {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F7E4DB', fontSize: 12.5, fontWeight: 600, color: '#8E2E0A' }}>{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
         {LISTS.map(({ key, title, hint }) => (
-          <div key={key} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: '12px 14px' }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{title} <span style={{ fontSize: 11.5, fontWeight: 500, color: '#7E9B93' }}>({text[key].split('\n').filter((s) => s.trim()).length})</span></div>
-            <div style={{ fontSize: 11.5, color: '#7E9B93', margin: '3px 0 8px', lineHeight: 1.45 }}>{hint}</div>
+          <div key={key} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: '12px 14px' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>{title} <span style={{ fontSize: 11.5, fontWeight: 500, color: '#8B877F' }}>({text[key].split('\n').filter((s) => s.trim()).length})</span></div>
+            <div style={{ fontSize: 11.5, color: '#8B877F', margin: '3px 0 8px', lineHeight: 1.45 }}>{hint}</div>
             <textarea disabled={!canManage} value={text[key]} onChange={(e) => setText({ ...text, [key]: e.target.value })} rows={14}
-              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical' }} />
+              style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical' }} />
           </div>
         ))}
       </div>
       {canManage
-        ? <div><span onClick={saving ? undefined : save} style={{ display: 'inline-block', padding: '9px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>{saving ? 'Saving…' : 'Save picklists'}</span></div>
-        : <div style={{ fontSize: 12, color: '#7E9B93' }}>Only HR managers can change these.</div>}
+        ? <div><span onClick={saving ? undefined : save} style={{ display: 'inline-block', padding: '9px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>{saving ? 'Saving…' : 'Save picklists'}</span></div>
+        : <div style={{ fontSize: 12, color: '#8B877F' }}>Only HR managers can change these.</div>}
     </div>
   );
 }

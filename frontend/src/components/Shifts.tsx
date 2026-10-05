@@ -148,7 +148,7 @@ export function ShiftRoster({ employees, projects, assignments, settings, canMan
           </div>
           {assigns === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
           {assigns && people.map((e) => (
-            <div key={e.id} style={{ ...bodyRow(cols), padding: '6px 14px', background: picked.has(e.id) ? '#F3F8F3' : undefined }}>
+            <div key={e.id} style={{ ...bodyRow(cols), padding: '6px 14px', background: picked.has(e.id) ? '#F6F3EC' : undefined }}>
               {canManage && <input type="checkbox" checked={picked.has(e.id)} onChange={() => toggle(e.id)} />}
               <span onClick={() => onOpenEmployee(e.id)} style={{ cursor: 'pointer', minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
@@ -157,7 +157,7 @@ export function ShiftRoster({ employees, projects, assignments, settings, canMan
               {days.map((d) => {
                 const c = cellFor(e.id, d);
                 return (
-                  <span key={d} style={{ textAlign: 'center', background: d === today ? '#F3F8F3' : undefined, borderRadius: 6, padding: '3px 0' }}>
+                  <span key={d} style={{ textAlign: 'center', background: d === today ? '#F6F3EC' : undefined, borderRadius: 6, padding: '3px 0' }}>
                     {c.leave ? <span title={`${c.leave} leave`} style={{ fontSize: 10, fontWeight: 700, color: '#3C5C8A', background: '#D8E2F0', padding: '3px 5px', borderRadius: 6 }}>{weeks === 1 ? 'Leave' : 'L'}</span>
                       : c.template ? <Chip t={c.template} /> : <span style={{ color: '#d3cfd8' }}>·</span>}
                   </span>
@@ -223,7 +223,7 @@ export function AssignShiftDrawer({ employees, templates, preselected, onClose, 
       <Label text={`People (${ids.length})`} />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
         {ids.map((id) => (
-          <span key={id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#EFEDE8', fontSize: 12 }}>
+          <span key={id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center', padding: '4px 10px', borderRadius: 999, background: '#EEEBE4', fontSize: 12 }}>
             {nameOf(id)}<span onClick={() => setIds(ids.filter((x) => x !== id))} style={{ cursor: 'pointer', color: MUTED }}>×</span>
           </span>
         ))}
@@ -262,7 +262,7 @@ export function AssignShiftDrawer({ employees, templates, preselected, onClose, 
         {preview.map((d) => {
           const t = byId.get(shiftOn({ templateIds: rotation.filter(Boolean), rotateEveryDays: every, startDate, endDate: endDate || null }, d) || '');
           return (
-            <div key={d} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 8, background: '#F7F3EA' }}>
+            <div key={d} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 8, background: '#F5F1E8' }}>
               <div style={{ fontSize: 10, color: MUTED }}>{new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</div>
               <div style={{ marginTop: 3 }}>{t ? <Chip t={t} /> : <span style={{ color: '#ccc' }}>·</span>}</div>
             </div>
@@ -300,7 +300,7 @@ function ShiftTemplates({ canManage, currency }: { canManage: boolean; currency:
             <div key={t.id} style={bodyRow(cols)}>
               <input disabled={!canManage} defaultValue={t.name} onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && upd(t, { name: e.target.value.trim() })} style={input} />
               <input disabled={!canManage} defaultValue={t.code} onBlur={(e) => e.target.value !== (t.code || '') && upd(t, { code: e.target.value.trim() })} style={input} />
-              <input disabled={!canManage} type="color" value={t.color || '#173326'} onChange={(e) => upd(t, { color: e.target.value })} style={{ width: 32, height: 28, border: 'none', background: 'none', padding: 0 }} />
+              <input disabled={!canManage} type="color" value={t.color || '#232321'} onChange={(e) => upd(t, { color: e.target.value })} style={{ width: 32, height: 28, border: 'none', background: 'none', padding: 0 }} />
               <select disabled={!canManage} value={t.kind} onChange={(e) => upd(t, { kind: e.target.value })} style={input}>{KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               <input disabled={!canManage} type="time" defaultValue={t.startTime} onBlur={(e) => e.target.value && e.target.value !== t.startTime && upd(t, { startTime: e.target.value })} style={input} />
               <input disabled={!canManage} type="time" defaultValue={t.endTime} onBlur={(e) => e.target.value && e.target.value !== t.endTime && upd(t, { endTime: e.target.value })} style={input} />
@@ -367,7 +367,7 @@ export function EmployeeShiftPanel({ employee, employees, canManage, currency }:
               const a = (rows || []).find((x) => shiftOn(x, d));
               const t = a ? byId.get(shiftOn(a, d)!) : undefined;
               return (
-                <div key={d} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 8, background: d === today ? '#DCE7DE' : '#F7F3EA' }}>
+                <div key={d} style={{ textAlign: 'center', padding: '5px 0', borderRadius: 8, background: d === today ? '#FAE7A5' : '#F5F1E8' }}>
                   <div style={{ fontSize: 10, color: MUTED }}>{new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })}</div>
                   <div style={{ marginTop: 3 }}>{t ? <Chip t={t} /> : <span style={{ color: '#ccc' }}>·</span>}</div>
                 </div>

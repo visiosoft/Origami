@@ -39,12 +39,12 @@ export function LabelPicker({
 
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93', marginBottom: 7 }}>Labels</div>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F', marginBottom: 7 }}>Labels</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: canManage ? 8 : 0 }}>
         {labels.map((l) => (
           <LabelChip key={l} label={l} onRemove={canManage ? () => onChange(labels.filter((x) => x !== l)) : undefined} />
         ))}
-        {labels.length === 0 && !canManage && <span style={{ fontSize: 12, color: '#9AA39D' }}>None</span>}
+        {labels.length === 0 && !canManage && <span style={{ fontSize: 12, color: '#A29E96' }}>None</span>}
       </div>
 
       {canManage && (
@@ -54,7 +54,7 @@ export function LabelPicker({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
             placeholder="Add a label and press Enter"
-            style={{ width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
+            style={{ width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
           />
           {unused.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>

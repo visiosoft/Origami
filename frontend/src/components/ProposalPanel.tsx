@@ -6,10 +6,10 @@ import { RichTextEditor } from './RichTextEditor';
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
+  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
 };
-const label: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3, display: 'block' };
+const label: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3, display: 'block' };
 
 interface ProposalTemplate { id: string; name: string; subject?: string; body: string; }
 
@@ -192,35 +192,35 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
       .finally(() => setSending(false));
   };
 
-  if (loading) return <div style={{ padding: '14px 20px', fontSize: 12, color: '#9AA39D' }}>Loading…</div>;
+  if (loading) return <div style={{ padding: '14px 20px', fontSize: 12, color: '#A29E96' }}>Loading…</div>;
 
   return (
-    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(20,8,31,0.06)', background: '#EEF3EE' }}>
+    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: '#F2EFE8' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326' }}>Proposal</span>
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321' }}>Proposal</span>
       </div>
 
       {signedAt ? (
-        <div style={{ padding: '10px 12px', borderRadius: 9, background: requiresSecondSignatory && !signedAt2 ? '#FBE9AE' : '#D2EAD3', marginBottom: 10 }}>
-          <div style={{ color: requiresSecondSignatory && !signedAt2 ? '#8A6D12' : '#1C5230', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+        <div style={{ padding: '10px 12px', borderRadius: 9, background: requiresSecondSignatory && !signedAt2 ? '#FBE7A8' : '#E3ECD9', marginBottom: 10 }}>
+          <div style={{ color: requiresSecondSignatory && !signedAt2 ? '#7A5A0C' : '#34552E', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
             Signed by {signedByName} on {new Date(signedAt).toLocaleString()}
             {requiresSecondSignatory && !signedAt2 && ' — waiting on the second signatory before this moves to Client Review.'}
             {signedAt2 && ` and by ${signedByName2} on ${new Date(signedAt2).toLocaleString()}`}
             {(!requiresSecondSignatory || signedAt2) && ' — moved to Client Review for a final check before converting.'}
           </div>
           {signatureImage && (
-            <img src={signatureImage} alt={`Signature of ${signedByName}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 6, marginBottom: 8, display: 'block' }} />
+            <img src={signatureImage} alt={`Signature of ${signedByName}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(29, 29, 27,0.1)', borderRadius: 8, background: '#FDFCF9', padding: 6, marginBottom: 8, display: 'block' }} />
           )}
           {signatureImage2 && (
-            <img src={signatureImage2} alt={`Signature of ${signedByName2}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 8, background: 'white', padding: 6, marginBottom: 8, display: 'block' }} />
+            <img src={signatureImage2} alt={`Signature of ${signedByName2}`} style={{ maxWidth: 220, height: 'auto', border: '1px solid rgba(29, 29, 27,0.1)', borderRadius: 8, background: '#FDFCF9', padding: 6, marginBottom: 8, display: 'block' }} />
           )}
-          <div onClick={previewing ? undefined : viewSigned} style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: previewing ? 'default' : 'pointer', textDecoration: 'underline' }}>
+          <div onClick={previewing ? undefined : viewSigned} style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: previewing ? 'default' : 'pointer', textDecoration: 'underline' }}>
             {previewing ? 'Rendering…' : '📄 View the signed document'}
           </div>
         </div>
       ) : sentAt ? (
-        <div style={{ padding: '10px 12px', borderRadius: 9, background: '#FBE9AE', color: '#8A6D12', fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+        <div style={{ padding: '10px 12px', borderRadius: 9, background: '#FBE7A8', color: '#7A5A0C', fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
           Sent to {sentTo} on {new Date(sentAt).toLocaleString()} — awaiting signature.
         </div>
       ) : null}
@@ -233,10 +233,10 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
             {agreementTemplates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
           {agreementTemplates.length === 0 && (
-            <div style={{ fontSize: 10, color: '#9AA39D', marginTop: 3 }}>Create one under Document &amp; Template Library → Agreements.</div>
+            <div style={{ fontSize: 10, color: '#A29E96', marginTop: 3 }}>Create one under Document &amp; Template Library → Agreements.</div>
           )}
           {(agreementTemplateId || requiresSecondSignatory) && !signedAt && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#43514D', marginTop: 6, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#4A4741', marginTop: 6, cursor: 'pointer' }}>
               <input type="checkbox" checked={requiresSecondSignatory} onChange={(e) => setRequiresSecondSignatory(e.target.checked)} />
               Requires a second signatory (e.g. husband and wife)
             </label>
@@ -256,7 +256,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
       </div>
       <div style={{ marginBottom: 8 }}>
         <span style={label}>Proposed contract amount</span>
-        <div style={{ fontSize: 10.5, color: '#7E9B93', margin: '0 0 5px' }}>Also the lead’s contract amount — shown on its card and carried into its project.</div>
+        <div style={{ fontSize: 10.5, color: '#8B877F', margin: '0 0 5px' }}>Also the lead’s contract amount — shown on its card and carried into its project.</div>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="$0" style={input} />
       </div>
       <div style={{ marginBottom: 8 }}>
@@ -272,31 +272,31 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
         {files.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
             {files.map((f, i) => (
-              <span key={f.name + i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'white', border: '1px solid rgba(20,8,31,0.1)', borderRadius: 999, padding: '3px 6px 3px 10px', fontSize: 11 }}>
+              <span key={f.name + i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.1)', borderRadius: 999, padding: '3px 6px 3px 10px', fontSize: 11 }}>
                 {f.name}
-                <span onClick={() => removeFile(i)} style={{ cursor: 'pointer', color: '#7E9B93', fontSize: 13, lineHeight: 1 }}>×</span>
+                <span onClick={() => removeFile(i)} style={{ cursor: 'pointer', color: '#8B877F', fontSize: 13, lineHeight: 1 }}>×</span>
               </span>
             ))}
           </div>
         )}
         <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={(e) => addFiles(e.target.files)} />
-        <div onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326', background: 'white' }}>
+        <div onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321', background: '#FDFCF9' }}>
           + Attach file{files.length ? 's' : ''}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <div onClick={previewing ? undefined : preview} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: previewing ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}>
+        <div onClick={previewing ? undefined : preview} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: previewing ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', background: '#FDFCF9' }}>
           {previewing ? 'Rendering…' : '👁 Preview PDF'}
         </div>
-        <div onClick={saving ? undefined : save} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: saving ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}>
+        <div onClick={saving ? undefined : save} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: saving ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', background: '#FDFCF9' }}>
           {saving ? 'Saving…' : 'Save draft'}
         </div>
-        <div onClick={sending ? undefined : send} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: '#173326', color: 'white' }}>
+        <div onClick={sending ? undefined : send} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: '#232321', color: 'white' }}>
           {sending ? 'Sending…' : sentAt ? 'Re-send' : 'Send for signature'}
         </div>
       </div>
-      <div style={{ fontSize: 10, color: '#7E9B93', fontStyle: 'italic', marginTop: 6 }}>
+      <div style={{ fontSize: 10, color: '#8B877F', fontStyle: 'italic', marginTop: 6 }}>
         {agreementTemplateId
           ? 'Emails the agreement as a letterhead PDF with a signing link valid for 10 days — no account needed to sign. Signing moves this deal to a project automatically.'
           : 'Emails the proposal with a letterhead PDF and a signing link valid for 10 days — no account needed to sign. Signing moves this deal to a project automatically.'}

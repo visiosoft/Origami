@@ -6,7 +6,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { PHASE_SCOPES } from '../data/projects';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 /** One project's progress through the design phases. */
 interface PhaseProgress {
@@ -49,7 +49,7 @@ interface LibraryEntryLite { key: string; name: string; phases: TemplatePhaseLit
 
 const PRIORITY_STYLE: Record<string, { bg: string; c: string }> = {
   High: { bg: '#F2DFD4', c: '#8E2E0A' },
-  Medium: { bg: '#FBE9AE', c: '#93520F' },
+  Medium: { bg: '#FBE7A8', c: '#93520F' },
   Low: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 
@@ -146,7 +146,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
     // views' counts out of sync.
     const keySet = new Set(known.map((c) => c.key));
     const hasStragglers = rows.some((p) => placeOn(p, keySet) === OTHER_COL);
-    if (hasStragglers) known.push({ key: OTHER_COL, name: 'Other Steps', color: '#9AA39D', order: Number.MAX_SAFE_INTEGER });
+    if (hasStragglers) known.push({ key: OTHER_COL, name: 'Other Steps', color: '#A29E96', order: Number.MAX_SAFE_INTEGER });
     return known;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, templates, view, scope, stageLabel]);
@@ -220,15 +220,15 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
     if (Number.isFinite(id)) moveTo(id, phaseKey);
   };
 
-  if (loading) return <div style={{ padding: 24, fontSize: 13, color: '#7E9B93' }}>Loading design board…</div>;
+  if (loading) return <div style={{ padding: 24, fontSize: 13, color: '#8B877F' }}>Loading design board…</div>;
 
   return (
     <div style={{ padding: '18px 22px', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <div>
-          <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{view.title}</div>
-          <div style={{ fontSize: 11.5, color: '#9AA39D', marginTop: 2, maxWidth: 520, lineHeight: 1.5 }}>{view.blurb}</div>
-          <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 3 }}>
+          <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#1D1D1B' }}>{view.title}</div>
+          <div style={{ fontSize: 11.5, color: '#A29E96', marginTop: 2, maxWidth: 520, lineHeight: 1.5 }}>{view.blurb}</div>
+          <div style={{ fontSize: 12, color: '#8B877F', marginTop: 3 }}>
             {onBoard.length} project{onBoard.length === 1 ? '' : 's'} · {planned} with a programme
           </div>
         </div>
@@ -236,7 +236,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search projects…"
-          style={{ marginLeft: 'auto', width: 240, maxWidth: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' }}
+          style={{ marginLeft: 'auto', width: 240, maxWidth: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' }}
         />
       </div>
 
@@ -245,7 +245,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
       )}
 
       {columns.length === 0 ? (
-        <div style={{ padding: '30px 20px', textAlign: 'center', fontSize: 13, color: '#9AA39D', background: '#FBF8F2', borderRadius: 12 }}>
+        <div style={{ padding: '30px 20px', textAlign: 'center', fontSize: 13, color: '#A29E96', background: '#FAF8F3', borderRadius: 18 }}>
           {scope === 'construction'
             ? 'No Construction template phases yet. Add them under Document & Template Library → Programme Template → Construction.'
             : "No design phases yet. Open a project's Phase Board to create them."}
@@ -261,12 +261,12 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                 onDragOver={(e) => { if (!canManage || isOther) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== col.key) setDragOver(col.key); }}
                 onDragLeave={() => { if (dragOver === col.key) setDragOver(null); }}
                 onDrop={(e) => { if (isOther) return; onDrop(e, col.key); }}
-                style={{ width: 290, flexShrink: 0, display: 'flex', flexDirection: 'column', background: dragOver === col.key ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: dragOver === col.key ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', maxHeight: '100%', transition: 'background 0.15s, border 0.15s' }}
+                style={{ width: 290, flexShrink: 0, display: 'flex', flexDirection: 'column', background: dragOver === col.key ? '#F2EFE8' : '#FAF8F3', borderRadius: 18, border: dragOver === col.key ? '2px dashed #8B877F' : '1px solid rgba(29, 29, 27,0.04)', maxHeight: '100%', transition: 'background 0.15s, border 0.15s' }}
               >
-                <div style={{ padding: '10px 12px 9px', borderTop: `3px solid ${col.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(20,8,31,0.06)', background: 'white', flexShrink: 0 }}>
+                <div style={{ padding: '10px 12px 9px', borderTop: `3px solid ${col.color}`, borderTopLeftRadius: 11, borderTopRightRadius: 11, borderBottom: '1px solid rgba(29, 29, 27,0.06)', background: '#FDFCF9', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: col.color, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.name}</div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: col.color, background: 'rgba(20,8,31,0.05)', padding: '1px 7px', borderRadius: 999 }}>{cards.length}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: col.color, background: 'rgba(29, 29, 27,0.05)', padding: '1px 7px', borderRadius: 999 }}>{cards.length}</span>
                   </div>
                 </div>
 
@@ -276,7 +276,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                   )}
                   {cards.map((p) => {
                     const phase = p.phases.find((ph) => ph.key === col.key);
-                    const pr = PRIORITY_STYLE[p.priority] || { bg: '#EFEDE8', c: '#43514D' };
+                    const pr = PRIORITY_STYLE[p.priority] || { bg: '#EEEBE4', c: '#4A4741' };
                     return (
                       <div
                         key={p.projectId}
@@ -285,7 +285,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                         onDragEnd={() => { setDragId(null); setDragOver(null); }}
                         onClick={() => navigate(`${scope === 'construction' ? '/pm' : '/design'}/${p.projectId}`)}
                         title={canManage ? `${p.name} — drag to move phase, click to open` : `${p.name} — open`}
-                        style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.projectId ? 0.4 : 1 }}
+                        style={{ background: '#FDFCF9', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.06)', overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.projectId ? 0.4 : 1 }}
                       >
                         {/* Same banner treatment as the Projects page card. */}
                         <div style={{ height: 66, background: `linear-gradient(135deg, ${p.imgColor || col.color}, ${(p.imgColor || col.color)}cc)`, position: 'relative' }}>
@@ -297,38 +297,38 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
 
                         <div style={{ padding: 12 }}>
                           {p.holdSince && <div style={{ marginBottom: 5 }}><HoldBadge project={{ ...p, id: p.projectId }} /></div>}
-                          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, color: '#0B1A12' }}>{p.name}</div>
+                          <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, color: '#1D1D1B' }}>{p.name}</div>
                           {p.location && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#7E9B93', marginBottom: 7, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: '#8B877F', marginBottom: 7, minWidth: 0 }}>
                               <MapLink address={p.location} />
                             </div>
                           )}
-                          {p.typeOfWork && <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 8, lineHeight: 1.4 }}>{p.typeOfWork}</div>}
-                          <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8, color: '#0B1A12' }}>{p.contractAmt}</div>
+                          {p.typeOfWork && <div style={{ fontSize: 10, color: '#8B877F', marginBottom: 8, lineHeight: 1.4 }}>{p.typeOfWork}</div>}
+                          <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8, color: '#1D1D1B' }}>{p.contractAmt}</div>
 
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 9 }}>
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Est. Start</div>
-                              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 1, color: '#0B1A12' }}>{p.estStart || '—'}</div>
+                              <div style={{ fontSize: 9, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Est. Start</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 1, color: '#1D1D1B' }}>{p.estStart || '—'}</div>
                             </div>
                             <div>
-                              <div style={{ fontSize: 9, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Duration</div>
-                              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 1, color: '#0B1A12' }}>{p.duration || '—'}</div>
+                              <div style={{ fontSize: 9, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Duration</div>
+                              <div style={{ fontSize: 11.5, fontWeight: 600, marginTop: 1, color: '#1D1D1B' }}>{p.duration || '—'}</div>
                             </div>
                           </div>
 
                           {p.scope && (
-                            <div style={{ fontSize: 10.5, color: '#43514D', lineHeight: 1.4, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8, marginBottom: 9 }}>{p.scope}</div>
+                            <div style={{ fontSize: 10.5, color: '#4A4741', lineHeight: 1.4, padding: '8px 10px', background: '#FAF8F3', borderRadius: 8, marginBottom: 9 }}>{p.scope}</div>
                           )}
 
                           {/* Progress through this phase, not the project overall. */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ flex: 1, height: 5, background: '#EDE3D0', borderRadius: 999, overflow: 'hidden' }}>
+                            <div style={{ flex: 1, height: 5, background: '#ECE6DA', borderRadius: 999, overflow: 'hidden' }}>
                               <div style={{ width: `${phase?.progress ?? 0}%`, height: '100%', background: col.color, borderRadius: 999, transition: 'width 0.2s' }} />
                             </div>
                             <span style={{ fontSize: 10.5, fontWeight: 700, color: col.color }}>{phase?.progress ?? 0}%</span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: '#7E9B93', marginTop: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9.5, color: '#8B877F', marginTop: 4 }}>
                             <span>{phase && phase.total > 0 ? `${phase.done}/${phase.total} tasks in ${col.name}` : 'No tasks yet'}</span>
                             {p.designPhase && canManage && (
                               <span
@@ -340,7 +340,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
                           </div>
 
                           {p.referral && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#7E9B93', marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(20,8,31,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#8B877F', marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(29, 29, 27,0.04)' }}>
                               <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx={9} cy={7} r={4} /></svg>
                               Ref: <strong>{p.referral}</strong>
                             </div>

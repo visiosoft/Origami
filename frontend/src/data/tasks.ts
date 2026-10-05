@@ -97,20 +97,20 @@ export function taskHeadline(text?: string): { title: string; details: string } 
 }
 
 export const ST_COLORS: Record<string, { bg: string; c: string }> = {
-  Closed: { bg: '#D2EAD3', c: '#1C5230' },
+  Closed: { bg: '#E3ECD9', c: '#34552E' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  'On hold': { bg: '#FBE9AE', c: '#93520F' },
+  'On hold': { bg: '#FBE7A8', c: '#93520F' },
 };
 export const TT_COLORS: Record<string, { bg: string; c: string }> = {
-  Task: { bg: '#DCE7DE', c: '#173326' },
-  FYI: { bg: '#FBE9AE', c: '#93520F' },
+  Task: { bg: '#FAE7A5', c: '#232321' },
+  FYI: { bg: '#FBE7A8', c: '#93520F' },
   RFI: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 export const MT_COLORS: Record<string, { bg: string; c: string }> = {
-  Internal: { bg: '#DCE7DE', c: '#173326' },
-  Owner: { bg: '#D2EAD3', c: '#1C5230' },
-  Subcontractor: { bg: '#FBE9AE', c: '#93520F' },
+  Internal: { bg: '#FAE7A5', c: '#232321' },
+  Owner: { bg: '#E3ECD9', c: '#34552E' },
+  Subcontractor: { bg: '#FBE7A8', c: '#93520F' },
 };
 
 export interface AuditEntry { what: string; by: string; when: string; chip: string; chipBg: string; chipC: string; dot: string }
@@ -126,22 +126,22 @@ export function getLeadTime(t: Task) {
   const label = closed ? (ok ? 'Closed on time' : 'Closed ' + variance + ' days late') : ok ? 'Within lead time' : variance + ' days over lead time';
   const source = (leadMap[t.topicType] ? t.topicType : 'Task') + ' template · ' + leadTime + '-day default';
   const audit: AuditEntry[] = [
-    { what: 'Due date set from template (+' + leadTime + ' days)', by: 'System', when: t.meetingDate, chip: 'Auto', chipBg: '#EFEDE8', chipC: '#43514D', dot: '#7E9B93' },
+    { what: 'Due date set from template (+' + leadTime + ' days)', by: 'System', when: t.meetingDate, chip: 'Auto', chipBg: '#EEEBE4', chipC: '#4A4741', dot: '#8B877F' },
   ];
-  if (variance > 3) audit.unshift({ what: 'Due date moved out by ' + Math.min(variance, 10) + ' days', by: (t.assignedTo || 'Unassigned') + ' → approved by Edward M.', when: 'Approved ' + (t.dueDate || 'pending'), chip: 'Approved', chipBg: '#D2EAD3', chipC: '#1C5230', dot: '#2F7D4A' });
-  if (!closed && variance > 8) audit.unshift({ what: 'Second extension requested', by: t.assignedTo || 'Unassigned', when: 'Awaiting owner approval', chip: 'Pending', chipBg: '#FBE9AE', chipC: '#93520F', dot: '#D2822E' });
-  return { leadTime, openDays, variance, source, audit, label, bg: ok ? '#D2EAD3' : '#F2DFD4', color: ok ? '#1C5230' : '#8E2E0A' };
+  if (variance > 3) audit.unshift({ what: 'Due date moved out by ' + Math.min(variance, 10) + ' days', by: (t.assignedTo || 'Unassigned') + ' → approved by Edward M.', when: 'Approved ' + (t.dueDate || 'pending'), chip: 'Approved', chipBg: '#E3ECD9', chipC: '#34552E', dot: '#4C7A3F' });
+  if (!closed && variance > 8) audit.unshift({ what: 'Second extension requested', by: t.assignedTo || 'Unassigned', when: 'Awaiting owner approval', chip: 'Pending', chipBg: '#FBE7A8', chipC: '#93520F', dot: '#D2822E' });
+  return { leadTime, openDays, variance, source, audit, label, bg: ok ? '#E3ECD9' : '#F2DFD4', color: ok ? '#34552E' : '#8E2E0A' };
 }
 
 export const NEW_TASK_FIELDS = [
-  { label: 'Meeting Type', value: 'Internal', valColor: '#0B1A12', span: 'auto', required: true },
-  { label: 'Meeting Date', value: 'Select date', valColor: '#7E9B93', span: 'auto', required: true },
-  { label: 'Assigned To', value: 'Select person', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Originator', value: 'Select person', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Topic Type', value: 'Task', valColor: '#0B1A12', span: 'auto', required: true },
-  { label: 'Status', value: 'Open', valColor: '#0B1A12', span: 'auto', required: true },
-  { label: 'Due Date', value: 'Select date', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Project', value: 'Select project', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Description', value: 'Describe the task...', valColor: '#7E9B93', span: '1 / -1', required: true },
-  { label: 'Link to File', value: 'Attach or paste link', valColor: '#7E9B93', span: '1 / -1', required: false },
+  { label: 'Meeting Type', value: 'Internal', valColor: '#1D1D1B', span: 'auto', required: true },
+  { label: 'Meeting Date', value: 'Select date', valColor: '#8B877F', span: 'auto', required: true },
+  { label: 'Assigned To', value: 'Select person', valColor: '#8B877F', span: 'auto', required: false },
+  { label: 'Originator', value: 'Select person', valColor: '#8B877F', span: 'auto', required: false },
+  { label: 'Topic Type', value: 'Task', valColor: '#1D1D1B', span: 'auto', required: true },
+  { label: 'Status', value: 'Open', valColor: '#1D1D1B', span: 'auto', required: true },
+  { label: 'Due Date', value: 'Select date', valColor: '#8B877F', span: 'auto', required: false },
+  { label: 'Project', value: 'Select project', valColor: '#8B877F', span: 'auto', required: false },
+  { label: 'Description', value: 'Describe the task...', valColor: '#8B877F', span: '1 / -1', required: true },
+  { label: 'Link to File', value: 'Attach or paste link', valColor: '#8B877F', span: '1 / -1', required: false },
 ];

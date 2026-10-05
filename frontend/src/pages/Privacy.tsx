@@ -13,13 +13,13 @@ import { Logo } from '../components/Logo';
 const LAST_UPDATED = '22 August 2026';
 const CONTACT_EMAIL = 'Systems@origamidb.com';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 const page: React.CSSProperties = {
   minHeight: '100vh',
-  background: '#FBF8F2',
+  background: '#FAF8F3',
   fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
-  color: '#0B1A12',
+  color: '#1D1D1B',
 };
 
 const shell: React.CSSProperties = {
@@ -33,14 +33,14 @@ const h2: React.CSSProperties = {
   fontWeight: 700,
   fontSize: 19,
   letterSpacing: '-0.01em',
-  color: '#0B1A12',
+  color: '#1D1D1B',
   margin: '34px 0 10px',
 };
 
 const p: React.CSSProperties = {
   fontSize: 14,
   lineHeight: 1.75,
-  color: '#43514D',
+  color: '#4A4741',
   margin: '0 0 12px',
 };
 
@@ -58,9 +58,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function Privacy() {
   return (
     <div style={page}>
-      <header style={{ background: '#0F2417', padding: '26px 24px' }}>
+      <header style={{ background: '#232321', padding: '26px 24px' }}>
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ background: '#FBF8F2', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '10px 14px', display: 'inline-flex' }}>
+          <div style={{ background: '#FAF8F3', borderBottom: '3px solid #D2822E', borderRadius: 10, padding: '10px 14px', display: 'inline-flex' }}>
             <Logo markSize={26} />
           </div>
           <div>
@@ -73,7 +73,7 @@ export function Privacy() {
       </header>
 
       <main style={shell}>
-        <p style={{ ...p, fontSize: 12.5, color: '#7E9B93', marginBottom: 24 }}>Last updated: {LAST_UPDATED}</p>
+        <p style={{ ...p, fontSize: 12.5, color: '#8B877F', marginBottom: 24 }}>Last updated: {LAST_UPDATED}</p>
 
         <p style={p}>
           Origami Design + Build ("Origami", "we") is a private project delivery platform used by the staff, clients and
@@ -95,7 +95,7 @@ export function Privacy() {
         <Section title="Google account data">
           <p style={p}>Origami uses Google OAuth in two separate ways.</p>
 
-          <p style={{ ...p, fontWeight: 700, color: '#0B1A12', marginTop: 16 }}>Signing in</p>
+          <p style={{ ...p, fontWeight: 700, color: '#1D1D1B', marginTop: 16 }}>Signing in</p>
           <p style={p}>
             "Continue with Google" requests only <code>openid</code>, <code>email</code> and <code>profile</code>. We use
             your email address to match you to an existing Origami account, and your name and profile picture to show who
@@ -103,7 +103,7 @@ export function Privacy() {
             address.
           </p>
 
-          <p style={{ ...p, fontWeight: 700, color: '#0B1A12', marginTop: 16 }}>The connected workspace account</p>
+          <p style={{ ...p, fontWeight: 700, color: '#1D1D1B', marginTop: 16 }}>The connected workspace account</p>
           <p style={p}>
             An administrator may connect one Google Workspace account that the platform then acts on behalf of. That
             connection requests two additional scopes:
@@ -129,10 +129,10 @@ export function Privacy() {
         </Section>
 
         <Section title="Limited use of Google user data">
-          <p style={{ ...p, background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, padding: '14px 16px' }}>
+          <p style={{ ...p, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, padding: '14px 16px' }}>
             Origami's use and transfer of information received from Google APIs to any other app will adhere to the{' '}
             <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noreferrer"
-               style={{ color: '#2F7D4A', fontWeight: 600 }}>
+               style={{ color: '#4C7A3F', fontWeight: 600 }}>
               Google API Services User Data Policy
             </a>
             , including the Limited Use requirements.
@@ -171,7 +171,7 @@ export function Privacy() {
             <li style={li}>
               Revoke Origami's access to your Google account at any time from{' '}
               <a href="https://myaccount.google.com/permissions" target="_blank" rel="noreferrer"
-                 style={{ color: '#2F7D4A', fontWeight: 600 }}>
+                 style={{ color: '#4C7A3F', fontWeight: 600 }}>
                 your Google account permissions
               </a>
               . Doing so ends Google sign-in and, for a connected workspace account, stops outgoing mail and Drive access.
@@ -199,13 +199,13 @@ export function Privacy() {
         <Section title="Contact">
           <p style={p}>
             Questions about this policy, or requests relating to your information, can be sent to{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#2F7D4A', fontWeight: 600 }}>{CONTACT_EMAIL}</a>.
+            <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#4C7A3F', fontWeight: 600 }}>{CONTACT_EMAIL}</a>.
           </p>
         </Section>
 
-        <p style={{ ...p, fontSize: 12, color: '#9AA39D', marginTop: 36, paddingTop: 18, borderTop: '1px solid rgba(20,8,31,0.08)' }}>
+        <p style={{ ...p, fontSize: 12, color: '#A29E96', marginTop: 36, paddingTop: 18, borderTop: '1px solid rgba(29, 29, 27,0.08)' }}>
           origamidb · Origami Design + Build ·{' '}
-          <Link to="/home" style={{ color: '#2F7D4A', fontWeight: 600 }}>About this application</Link>
+          <Link to="/home" style={{ color: '#4C7A3F', fontWeight: 600 }}>About this application</Link>
         </p>
       </main>
     </div>

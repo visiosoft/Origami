@@ -4,8 +4,8 @@ import { useApp } from '../AppContext';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
+  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
 };
 
 interface Grant {
@@ -72,64 +72,64 @@ export function GuestAccessPanel({ projectId }: { projectId: number }) {
 
   return (
     <div style={{ padding: '20px 24px' }}>
-      <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 4 }}>Guest Access</div>
-      <div style={{ fontSize: 12, color: '#9AA39D', marginBottom: 16, lineHeight: 1.5, maxWidth: 560 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 4 }}>Guest Access</div>
+      <div style={{ fontSize: 12, color: '#A29E96', marginBottom: 16, lineHeight: 1.5, maxWidth: 560 }}>
         Grant a client or consultant a time-limited login instead of a standing password. They land in the ordinary
         app, scoped to this project. Revoke a link any time, or upgrade a frequent partner to a full account.
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8, padding: 14, background: '#FBF8F2', borderRadius: 10 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8, padding: 14, background: '#FAF8F3', borderRadius: 10 }}>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Name</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', marginBottom: 3 }}>Name</div>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" style={{ ...input, width: 160 }} />
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Email</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', marginBottom: 3 }}>Email</div>
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" style={{ ...input, width: 200 }} />
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Tier</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', marginBottom: 3 }}>Tier</div>
           <select value={tier} onChange={(e) => setTier(e.target.value as 'client' | 'consultant')} style={{ ...input, width: 120 }}>
             <option value="client">Client</option>
             <option value="consultant">Consultant</option>
           </select>
         </div>
         <div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', marginBottom: 3 }}>Days</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', marginBottom: 3 }}>Days</div>
           <input type="number" min={1} max={90} value={days} onChange={(e) => setDays(Number(e.target.value) || 10)} style={{ ...input, width: 70 }} />
         </div>
-        <div onClick={creating ? undefined : create} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: creating ? 'default' : 'pointer', background: creating ? '#9AB0A4' : '#173326', color: 'white' }}>
+        <div onClick={creating ? undefined : create} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: creating ? 'default' : 'pointer', background: creating ? '#ABA79E' : '#232321', color: 'white' }}>
           {creating ? 'Granting…' : 'Grant access'}
         </div>
       </div>
 
       {newLink && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 9, background: '#D2EAD3', marginBottom: 16, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#1C5230' }}>Link:</span>
-          <span style={{ fontSize: 11.5, color: '#1C5230', wordBreak: 'break-all', flex: 1, minWidth: 200 }}>{newLink}</span>
-          <span onClick={() => copy(newLink)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 9, background: '#E3ECD9', marginBottom: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#34552E' }}>Link:</span>
+          <span style={{ fontSize: 11.5, color: '#34552E', wordBreak: 'break-all', flex: 1, minWidth: 200 }}>{newLink}</span>
+          <span onClick={() => copy(newLink)} style={{ fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer', whiteSpace: 'nowrap' }}>Copy</span>
         </div>
       )}
 
       {loading ? (
-        <div style={{ fontSize: 12, color: '#9AA39D' }}>Loading…</div>
+        <div style={{ fontSize: 12, color: '#A29E96' }}>Loading…</div>
       ) : grants.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No guest access granted on this project yet.</div>
+        <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No guest access granted on this project yet.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {grants.map((g) => {
             const status = g.revokedAt ? 'Revoked' : g.expired ? 'Expired' : 'Active';
-            const statusColor = status === 'Active' ? { bg: '#D2EAD3', c: '#1C5230' } : status === 'Expired' ? { bg: '#EFEDE8', c: '#7E9B93' } : { bg: '#F2DFD4', c: '#8E2E0A' };
+            const statusColor = status === 'Active' ? { bg: '#E3ECD9', c: '#34552E' } : status === 'Expired' ? { bg: '#EEEBE4', c: '#8B877F' } : { bg: '#F2DFD4', c: '#8E2E0A' };
             return (
-              <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, flexWrap: 'wrap' }}>
+              <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 10, flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12' }}>{g.name} <span style={{ fontWeight: 500, color: '#7E9B93' }}>· {g.tier}</span></div>
-                  <div style={{ fontSize: 11, color: '#7E9B93' }}>{g.email}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B' }}>{g.name} <span style={{ fontWeight: 500, color: '#8B877F' }}>· {g.tier}</span></div>
+                  <div style={{ fontSize: 11, color: '#8B877F' }}>{g.email}</div>
                 </div>
-                <span style={{ fontSize: 10.5, color: '#7E9B93' }}>Expires {new Date(g.expiresAt).toLocaleDateString()}</span>
+                <span style={{ fontSize: 10.5, color: '#8B877F' }}>Expires {new Date(g.expiresAt).toLocaleDateString()}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: statusColor.bg, color: statusColor.c }}>{status}</span>
                 {!g.hasFullAccount && status !== 'Revoked' && (
-                  <span onClick={busyId ? undefined : () => promote(g.id)} style={{ fontSize: 11, fontWeight: 700, color: '#173326', cursor: busyId ? 'default' : 'pointer' }}>Make full account</span>
+                  <span onClick={busyId ? undefined : () => promote(g.id)} style={{ fontSize: 11, fontWeight: 700, color: '#232321', cursor: busyId ? 'default' : 'pointer' }}>Make full account</span>
                 )}
                 {status === 'Active' && (
                   <span onClick={busyId ? undefined : () => revoke(g.id)} style={{ fontSize: 11, fontWeight: 700, color: '#8E2E0A', cursor: busyId ? 'default' : 'pointer' }}>Revoke</span>

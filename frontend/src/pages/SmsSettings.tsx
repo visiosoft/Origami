@@ -2,17 +2,17 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const MASK = '••••••••';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 18, marginBottom: 16,
+  background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 18, marginBottom: 16,
 };
 
 type Form = { 'sms.accountSid': string; 'sms.authToken': string; 'sms.fromNumber': string; 'sms.enabled': string };
@@ -69,15 +69,15 @@ export function SmsSettings() {
       .finally(() => setSending(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
   const enabled = form['sms.enabled'] !== 'false';
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>SMS</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>SMS</div>
+        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           Texting clients from the system, using the same templates as email. Sent through Twilio — the credentials
           come from your Twilio console, and the sending number must be one you own there.
         </div>
@@ -90,59 +90,59 @@ export function SmsSettings() {
       )}
 
       <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: status?.configured ? (status.enabled ? '#2F7D4A' : '#93520F') : '#B8410F' }} />
+        <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: status?.configured ? (status.enabled ? '#4C7A3F' : '#93520F') : '#B8410F' }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0B1A12' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1D1D1B' }}>
             {status?.configured ? (status.enabled ? 'Ready to send' : 'Configured, but switched off') : 'Not configured'}
           </div>
-          <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>
+          <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 2 }}>
             {status?.configured ? `Sending as ${status.fromNumber} · account ${status.accountSid}` : 'Add the account SID, auth token and sending number below.'}
           </div>
         </div>
       </div>
 
       <div style={card}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', marginBottom: 14 }}>Twilio Account</div>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F', marginBottom: 14 }}>Twilio Account</div>
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Account SID</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>Account SID</label>
             <input style={inputStyle} value={form['sms.accountSid']} onChange={(e) => set('sms.accountSid', e.target.value)} placeholder="ACxxxxxxxx…" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Auth Token</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>Auth Token</label>
             <input style={inputStyle} type="password" value={form['sms.authToken']} onChange={(e) => set('sms.authToken', e.target.value)} placeholder={MASK} />
-            <span style={{ fontSize: 11, color: '#7E9B93' }}>Stored masked. Leave as {MASK} to keep the saved token.</span>
+            <span style={{ fontSize: 11, color: '#8B877F' }}>Stored masked. Leave as {MASK} to keep the saved token.</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Sending Number</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>Sending Number</label>
             <input style={inputStyle} value={form['sms.fromNumber']} onChange={(e) => set('sms.fromNumber', e.target.value)} placeholder="+14155550100" />
-            <span style={{ fontSize: 11, color: '#7E9B93' }}>A number on your Twilio account, in +country format.</span>
+            <span style={{ fontSize: 11, color: '#8B877F' }}>A number on your Twilio account, in +country format.</span>
           </div>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: '#0B1A12', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: '#1D1D1B', cursor: 'pointer' }}>
           <input type="checkbox" checked={enabled} onChange={(e) => set('sms.enabled', e.target.checked ? 'true' : 'false')} />
           Sending is on
-          <span style={{ fontSize: 11, color: '#7E9B93' }}>— untick to stop every outgoing text without clearing the credentials.</span>
+          <span style={{ fontSize: 11, color: '#8B877F' }}>— untick to stop every outgoing text without clearing the credentials.</span>
         </label>
       </div>
 
       <div style={card}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', marginBottom: 12 }}>Send a Test</div>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F', marginBottom: 12 }}>Send a Test</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input style={{ ...inputStyle, flex: '1 1 220px' }} value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="+14155551234" />
           <div onClick={sending || !status?.configured ? undefined : sendTest}
-            style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: sending || !status?.configured ? 'default' : 'pointer', background: status?.configured ? (sending ? '#9AB0A4' : '#173326') : '#D6DED8', color: status?.configured ? 'white' : '#9AA39D' }}>
+            style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: sending || !status?.configured ? 'default' : 'pointer', background: status?.configured ? (sending ? '#ABA79E' : '#232321') : '#DFDBD2', color: status?.configured ? 'white' : '#A29E96' }}>
             {sending ? 'Sending…' : 'Send test'}
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#9AA39D', marginTop: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: '#A29E96', marginTop: 8, lineHeight: 1.5 }}>
           Sends one real text and is billed like any other. Save your credentials first.
         </div>
       </div>
 
       <div onClick={saving ? undefined : save}
-        style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+        style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
         {saving ? 'Saving…' : 'Save SMS settings'}
       </div>
     </div>

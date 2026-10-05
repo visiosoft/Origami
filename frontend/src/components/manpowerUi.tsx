@@ -1,17 +1,17 @@
 import type { ReactNode } from 'react';
 import type { Attachment } from '../data/projectTasks';
 
-export const BG = "'Bricolage Grotesque', serif";
-export const INK = '#0B1A12';
-export const MUTED = '#7E9B93';
-export const ACCENT = '#173326';
-export const ACCENT_BG = '#DCE7DE';
-export const LINE = 'rgba(20,8,31,.09)';
+export const BG = "'Outfit', system-ui, sans-serif";
+export const INK = '#1D1D1B';
+export const MUTED = '#8B877F';
+export const ACCENT = '#232321';
+export const ACCENT_BG = '#FAE7A5';
+export const LINE = 'rgba(29, 29, 27,.09)';
 export const DANGER = '#8E2E0A';
 
 export const input: React.CSSProperties = {
   boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.13)', background: 'white', fontFamily: 'inherit',
+  border: '1px solid rgba(29, 29, 27,0.13)', background: '#FDFCF9', fontFamily: 'inherit',
   fontSize: 13, color: INK, outline: 'none',
 };
 
@@ -19,19 +19,19 @@ export const btn = (primary = false, disabled = false): React.CSSProperties => (
   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 999,
   fontSize: 12.5, fontWeight: 700, cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
   background: primary ? ACCENT : '#fff', color: primary ? '#fff' : ACCENT,
-  border: '1px solid ' + (primary ? ACCENT : 'rgba(20,8,31,.14)'), opacity: disabled ? 0.55 : 1,
+  border: '1px solid ' + (primary ? ACCENT : 'rgba(29, 29, 27,.14)'), opacity: disabled ? 0.55 : 1,
 });
 
-export const card: React.CSSProperties = { background: 'white', border: '1px solid ' + LINE, borderRadius: 14 };
+export const card: React.CSSProperties = { background: '#FDFCF9', border: '1px solid ' + LINE, borderRadius: 20 };
 
 export const headRow = (cols: string): React.CSSProperties => ({
-  display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: '#F7F3EA',
+  display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: '#F5F1E8',
   fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4',
 });
 
 export const bodyRow = (cols: string): React.CSSProperties => ({
   display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px',
-  borderTop: '1px solid rgba(20,8,31,.05)',
+  borderTop: '1px solid rgba(29, 29, 27,.05)',
 });
 
 export function Label({ text }: { text: string }) {
@@ -39,11 +39,11 @@ export function Label({ text }: { text: string }) {
 }
 
 const TONES: Record<string, { bg: string; c: string }> = {
-  green: { bg: '#D2EAD3', c: '#1E6B36' },
-  amber: { bg: '#FBE9AE', c: '#8A6D12' },
+  green: { bg: '#E3ECD9', c: '#3F6B39' },
+  amber: { bg: '#FBE7A8', c: '#7A5A0C' },
   red: { bg: '#F2DFD4', c: DANGER },
   blue: { bg: '#D8E2F0', c: '#3C5C8A' },
-  grey: { bg: '#EFEDE8', c: '#5C6B65' },
+  grey: { bg: '#EEEBE4', c: '#65615A' },
 };
 export function Badge({ tone, children }: { tone: keyof typeof TONES; children: ReactNode }) {
   const t = TONES[tone];
@@ -55,9 +55,9 @@ export function Drawer({ title, subtitle, width = 600, onClose, footer, children
   title: string; subtitle?: string; width?: number; onClose: () => void; footer?: ReactNode; children: ReactNode;
 }) {
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: `min(${width}px, 100vw)`, height: '100%', background: 'white', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: `min(${width}px, 100vw)`, height: '100%', background: '#FDFCF9', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.2)' }}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: INK }}>{title}</div>
             {subtitle && <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{subtitle}</div>}
@@ -65,7 +65,7 @@ export function Drawer({ title, subtitle, width = 600, onClose, footer, children
           <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: MUTED, fontSize: 18 }}>×</div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>{children}</div>
-        {footer && <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>{footer}</div>}
+        {footer && <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>{footer}</div>}
       </div>
     </div>
   );

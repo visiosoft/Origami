@@ -19,7 +19,7 @@ const STATUS: Record<string, { label: string; tone: 'amber' | 'green' | 'red' | 
   pending: { label: 'Awaiting approval', tone: 'amber' }, approved: { label: 'Approved', tone: 'green' },
   rejected: { label: 'Rejected', tone: 'red' }, cancelled: { label: 'Cancelled', tone: 'grey' },
 };
-const typeColor = (t?: LeaveType) => t?.color || '#7E9B93';
+const typeColor = (t?: LeaveType) => t?.color || '#8B877F';
 const Dot = ({ color }: { color: string }) => <span style={{ width: 9, height: 9, borderRadius: 999, background: color, display: 'inline-block', flexShrink: 0 }} />;
 const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
 
@@ -158,7 +158,7 @@ export function RequestLeaveDrawer({ employees, types, employeeId, onClose, onDo
         <div style={{ gridColumn: '1 / -1' }}><Label text="Reason" /><textarea value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} rows={2} style={{ ...input, resize: 'vertical' }} /></div>
       </div>
       {(preview || previewError) && (
-        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: previewError ? '#F7ECE6' : '#F3F8F3', fontSize: 12.5, color: previewError ? DANGER : INK, lineHeight: 1.6 }}>
+        <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: previewError ? '#F7ECE6' : '#F6F3EC', fontSize: 12.5, color: previewError ? DANGER : INK, lineHeight: 1.6 }}>
           {previewError || (
             <>
               <b>{days(preview!.days)}</b> of leave.
@@ -262,26 +262,26 @@ function LeaveCalendar({ employees, projects, assignments, types, settings, onOp
       </div>
       <div style={{ ...card, overflow: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: `180px repeat(${dates.length}, ${cell}px)`, minWidth: 180 + dates.length * cell }}>
-          <div style={{ position: 'sticky', left: 0, background: '#F7F3EA', zIndex: 1, padding: '8px 12px', fontSize: 10.5, fontWeight: 700, color: '#9c96a4', textTransform: 'uppercase' }}>Employee</div>
+          <div style={{ position: 'sticky', left: 0, background: '#F5F1E8', zIndex: 1, padding: '8px 12px', fontSize: 10.5, fontWeight: 700, color: '#9c96a4', textTransform: 'uppercase' }}>Employee</div>
           {dates.map((d) => {
             const dow = new Date(d + 'T00:00:00').getDay();
             const off = settings.weekendDays.includes(dow) || holidayOn.has(d);
             return (
-              <div key={d} title={holidayOn.get(d) || ''} style={{ background: d === today ? '#DCE7DE' : off ? '#EFEAE0' : '#F7F3EA', textAlign: 'center', padding: '4px 0', fontSize: 10, color: holidayOn.has(d) ? DANGER : '#6b6478', fontWeight: 700 }}>
+              <div key={d} title={holidayOn.get(d) || ''} style={{ background: d === today ? '#FAE7A5' : off ? '#EFEAE0' : '#F5F1E8', textAlign: 'center', padding: '4px 0', fontSize: 10, color: holidayOn.has(d) ? DANGER : '#6b6478', fontWeight: 700 }}>
                 <div>{'SMTWTFS'[dow]}</div><div>{Number(d.slice(8))}</div>
               </div>
             );
           })}
           {people.map((e) => (
             <div key={e.id} style={{ display: 'contents' }}>
-              <div onClick={() => onOpenEmployee(e.id)} style={{ position: 'sticky', left: 0, background: 'white', zIndex: 1, padding: '6px 12px', fontSize: 12.5, color: INK, borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
+              <div onClick={() => onOpenEmployee(e.id)} style={{ position: 'sticky', left: 0, background: '#FDFCF9', zIndex: 1, padding: '6px 12px', fontSize: 12.5, color: INK, borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name}</div>
               {dates.map((d) => {
                 const r = (data?.requests || []).find((x) => x.employeeId === e.id && x.startDate <= d && x.endDate >= d);
                 const dow = new Date(d + 'T00:00:00').getDay();
                 const off = settings.weekendDays.includes(dow) || holidayOn.has(d);
                 const t = r ? typeById.get(r.leaveTypeId) : undefined;
                 return (
-                  <div key={d} title={r ? `${t?.name || r.type} · ${STATUS[r.status]?.label}` : ''} style={{ borderTop: '1px solid rgba(20,8,31,.05)', background: off ? '#F6F2EA' : 'white', display: 'grid', placeItems: 'center' }}>
+                  <div key={d} title={r ? `${t?.name || r.type} · ${STATUS[r.status]?.label}` : ''} style={{ borderTop: '1px solid rgba(29, 29, 27,.05)', background: off ? '#F6F2EA' : 'white', display: 'grid', placeItems: 'center' }}>
                     {r && !off && <span style={{ width: r.halfDay ? 11 : 22, height: 16, borderRadius: 4, background: typeColor(t), opacity: r.status === 'pending' ? 0.4 : 1 }} />}
                   </div>
                 );
@@ -327,7 +327,7 @@ function BalancesOverview({ employees, onOpenEmployee }: { employees: Employee[]
                 <span key={b.leaveTypeId} style={{ fontSize: 12.5 }}>
                   <b style={{ color: b.available < 0 ? DANGER : INK }}>{b.available}</b>
                   <span style={{ color: MUTED }}> / {Math.round((b.entitlement + b.carriedForward + b.adjusted) * 10) / 10}</span>
-                  {b.pending ? <span style={{ color: '#8A6D12', fontSize: 11 }}> ({b.pending} pending)</span> : null}
+                  {b.pending ? <span style={{ color: '#7A5A0C', fontSize: 11 }}> ({b.pending} pending)</span> : null}
                 </span>
               ))}
             </div>
@@ -426,10 +426,10 @@ export function EmployeeLeavePanel({ employee, employees, canManage, currency }:
           <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK, marginBottom: 10 }}>Balance adjustments</div>
           <div style={{ ...card, overflow: 'hidden' }}>
             {adjustments.map((a) => (
-              <div key={a.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+              <div key={a.id} style={{ display: 'flex', gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
                 <span style={{ width: 110, color: MUTED }}>{a.year} · {a.kind === 'carry_forward' ? 'Carried' : a.kind === 'encashment' ? 'Encashed' : 'Adjusted'}</span>
                 <span style={{ flex: 1 }}>{types.find((t) => t.id === a.leaveTypeId)?.name} — {a.note}{a.amount ? ` · ${money(a.amount, currency)}${a.payrollRunId ? ' (paid)' : ' (next payroll)'}` : ''}</span>
-                <b style={{ color: a.days < 0 ? DANGER : '#1E6B36' }}>{a.days > 0 ? '+' : ''}{a.days}</b>
+                <b style={{ color: a.days < 0 ? DANGER : '#3F6B39' }}>{a.days > 0 ? '+' : ''}{a.days}</b>
               </div>
             ))}
           </div>
@@ -472,7 +472,7 @@ export function LeaveSetup({ canManage }: { canManage: boolean }) {
             {types.map((t) => (
               <div key={t.id} style={bodyRow(cols)}>
                 <input disabled={!canManage} defaultValue={t.name} onBlur={(e) => e.target.value.trim() && e.target.value !== t.name && upd(t, { name: e.target.value.trim() })} style={input} />
-                <input disabled={!canManage} type="color" value={t.color || '#7E9B93'} onChange={(e) => upd(t, { color: e.target.value })} style={{ width: 32, height: 28, border: 'none', background: 'none', padding: 0 }} />
+                <input disabled={!canManage} type="color" value={t.color || '#8B877F'} onChange={(e) => upd(t, { color: e.target.value })} style={{ width: 32, height: 28, border: 'none', background: 'none', padding: 0 }} />
                 <input type="checkbox" disabled={!canManage} checked={t.paid} onChange={(e) => upd(t, { paid: e.target.checked })} />
                 <input type="checkbox" disabled={!canManage} checked={t.trackBalance} onChange={(e) => upd(t, { trackBalance: e.target.checked })} />
                 <input disabled={!canManage || !t.trackBalance} type="number" min={0} defaultValue={t.annualDays} onBlur={(e) => num(e.target.value) !== t.annualDays && upd(t, { annualDays: num(e.target.value) })} style={input} />
@@ -500,7 +500,7 @@ export function LeaveSetup({ canManage }: { canManage: boolean }) {
           </div>
           <div style={{ fontSize: 11.5, color: MUTED, padding: '0 16px 8px' }}>Not counted as leave days; overtime worked on them is holiday overtime.</div>
           {holidays.map((h) => (
-            <div key={h.id} style={{ display: 'flex', gap: 10, padding: '8px 16px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+            <div key={h.id} style={{ display: 'flex', gap: 10, padding: '8px 16px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
               <span style={{ width: 110, color: MUTED }}>{fmtDate(h.date)}</span><span style={{ flex: 1, color: INK }}>{h.name}</span>
               {canManage && <span onClick={() => run(() => api.leave.removeHoliday(h.id), undefined, loadHolidays)} style={{ cursor: 'pointer', color: DANGER }}>×</span>}
             </div>
@@ -576,7 +576,7 @@ export function EmployeeTimeOffCard({ employee, canManage }: { employee: Employe
             if (!b) return <div key={id} style={{ fontSize: 12, color: MUTED }}>{label}: not set up (Setup → Leave &amp; Holidays)</div>;
             const own = id === 'LT-ANNUAL' ? (employee as any).vacationDaysPerYear : (employee as any).sickDaysPerYear;
             return (
-              <div key={id} style={{ background: '#FBF8F2', borderRadius: 10, padding: '10px 12px' }}>
+              <div key={id} style={{ background: '#FAF8F3', borderRadius: 10, padding: '10px 12px' }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
                 <div style={{ fontFamily: BG, fontSize: 22, fontWeight: 700, color: b.available < 0 ? DANGER : INK }}>{b.available} <span style={{ fontSize: 11.5, fontWeight: 600, color: MUTED, fontFamily: 'inherit' }}>days left</span></div>
                 <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.5 }}>
@@ -598,7 +598,7 @@ export function EmployeeTimeOffCard({ employee, canManage }: { employee: Employe
             <div><Label text="To" /><input type="date" value={entry.to} min={entry.from} onChange={(e) => setEntry({ ...entry, to: e.target.value })} style={input} /></div>
           </div>
           {entry.from === entry.to && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#43514D' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#4A4741' }}>
               <input type="checkbox" checked={entry.halfDay} onChange={(e) => setEntry({ ...entry, halfDay: e.target.checked })} /> Half day
             </label>
           )}

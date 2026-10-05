@@ -88,19 +88,19 @@ function SpendBar({ budget, committed, paid, unpaid, open, other }: { budget: nu
   const uncommitted = Math.max(budget - (paid + unpaid + open + other), 0);
   const over = Math.max(paid + unpaid + open + other - budget, 0);
   const parts: [string, number, string][] = [
-    ['Paid out', paid, '#2F7D4A'], ['Billed, unpaid', unpaid, '#D9A441'], ['Other cost to date', other, '#7FA38C'],
-    ['Committed, not yet billed', open, '#CFE3D2'], ['Budget not yet committed', uncommitted, '#EFEDE8'],
+    ['Paid out', paid, '#4C7A3F'], ['Billed, unpaid', unpaid, '#D9A441'], ['Other cost to date', other, '#7FA38C'],
+    ['Committed, not yet billed', open, '#D8E5CC'], ['Budget not yet committed', uncommitted, '#EEEBE4'],
   ];
   if (!budget && !paid && !unpaid && !open && !other) return null;
   return (
     <div style={{ ...card, padding: '12px 16px', display: 'grid', gap: 8 }}>
-      <div style={{ position: 'relative', height: 12, borderRadius: 99, overflow: 'hidden', display: 'flex', background: '#EFEDE8' }}>
+      <div style={{ position: 'relative', height: 12, borderRadius: 99, overflow: 'hidden', display: 'flex', background: '#EEEBE4' }}>
         {parts.filter(([, n]) => n > 0).map(([l, n, c]) => <div key={l} title={`${l}: ${usd(n)}`} style={{ width: `${(n / scale) * 100}%`, background: c }} />)}
         {budget > 0 && over > 0 && <div title="Budget" style={{ position: 'absolute', left: `${(budget / scale) * 100}%`, top: 0, bottom: 0, width: 2, background: DANGER }} />}
       </div>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11.5, color: MUTED }}>
         {parts.filter(([, n]) => n > 0).map(([l, n, c]) => (
-          <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: c, border: c === '#EFEDE8' ? '1px solid #DAD6CD' : 'none' }} />{l} <b style={{ color: INK }}>{usd0(n)}</b></span>
+          <span key={l} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: c, border: c === '#EEEBE4' ? '1px solid #DAD6CD' : 'none' }} />{l} <b style={{ color: INK }}>{usd0(n)}</b></span>
         ))}
         {over > 0 && <span style={{ color: DANGER, fontWeight: 700 }}>{usd0(over)} past the budget</span>}
       </div>
@@ -135,15 +135,15 @@ export function JobCostPanel({ projectId, overview, initialSub }: { projectId: n
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
         <Stat l="Budget" v={usd0(t.budget)} sub={t.budgetChanges ? `incl. ${usd0(t.budgetChanges)} from change orders` : v.originalBudget != null && Math.abs(v.originalBudget - t.budget) >= 1 ? `Settings say ${usd0(v.originalBudget)}` : 'Cost budget'} />
         <Stat l="Committed" v={usd0(t.committed)} sub={`${v.commitments.filter((c) => c.status === 'approved' || c.status === 'closed').length} subcontract${v.commitments.length === 1 ? '' : 's'} / POs`} />
-        <Stat l="Paid out" v={usd0(paidOut)} sub="To subcontractors & vendors" tone={paidOut ? '#1E6B36' : undefined} />
-        <Stat l="Still to pay" v={usd0(stillToPay)} sub={unpaidBills ? `${usd0(unpaidBills)} billed and unpaid` : 'Nothing billed and unpaid'} tone={stillToPay ? '#8A6D12' : undefined} />
+        <Stat l="Paid out" v={usd0(paidOut)} sub="To subcontractors & vendors" tone={paidOut ? '#3F6B39' : undefined} />
+        <Stat l="Still to pay" v={usd0(stillToPay)} sub={unpaidBills ? `${usd0(unpaidBills)} billed and unpaid` : 'Nothing billed and unpaid'} tone={stillToPay ? '#7A5A0C' : undefined} />
       </div>
       <SpendBar budget={t.budget} committed={t.committed} paid={paidOut} unpaid={unpaidBills} open={t.open} other={Math.max(t.actual - paidOut - unpaidBills, 0)} />
       <div style={{ ...card, padding: '10px 16px', display: 'flex', gap: 22, flexWrap: 'wrap', alignItems: 'baseline', fontSize: 12.5 }}>
         <span><span style={{ color: MUTED }}>Cost to date </span><b>{usd0(t.actual)}</b>
           <span style={{ color: MUTED, fontSize: 11.5 }}> ({[t.bills && `bills ${usd0(t.bills)}`, t.labor && `labor ${usd0(t.labor)}`, t.reimbursable && `reimbursables ${usd0(t.reimbursable)}`].filter(Boolean).join(' · ') || 'nothing yet'})</span></span>
         <span><span style={{ color: MUTED }}>Forecast at completion </span><b>{usd0(t.eac)}</b></span>
-        <span><span style={{ color: MUTED }}>Variance </span><b style={{ color: t.variance < 0 ? DANGER : t.variance > 0 ? '#1E6B36' : INK }}>{t.variance < 0 ? `${usd0(-t.variance)} over budget` : t.variance > 0 ? `${usd0(t.variance)} under budget` : 'on budget'}</b></span>
+        <span><span style={{ color: MUTED }}>Variance </span><b style={{ color: t.variance < 0 ? DANGER : t.variance > 0 ? '#3F6B39' : INK }}>{t.variance < 0 ? `${usd0(-t.variance)} over budget` : t.variance > 0 ? `${usd0(t.variance)} under budget` : 'on budget'}</b></span>
         <span><span style={{ color: MUTED }}>Labor </span><b>{t.laborHours || 0} h</b>{v.laborBurdenPct ? <span style={{ color: MUTED, fontSize: 11.5 }}> · burden {v.laborBurdenPct}%</span> : null}</span>
       </div>
       <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid ' + LINE }}>
@@ -180,18 +180,18 @@ function ByCode({ v, projectId, onChanged }: { v: CostsView; projectId: number; 
             </div>
             {v.rows.map((r) => (
               <div key={r.key}>
-                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
                   <span><b>{r.code}</b> {r.division}</span>
-                  <span style={{ textAlign: 'right' }} title={r.budgetChanges ? `${usd(r.budgetOriginal)} + ${usd(r.budgetChanges)} change orders` : ''}>{usd0(r.budget)}{r.budgetChanges ? <span style={{ color: '#1E6B36', fontSize: 10.5 }}> +CO</span> : null}</span>
+                  <span style={{ textAlign: 'right' }} title={r.budgetChanges ? `${usd(r.budgetOriginal)} + ${usd(r.budgetChanges)} change orders` : ''}>{usd0(r.budget)}{r.budgetChanges ? <span style={{ color: '#3F6B39', fontSize: 10.5 }}> +CO</span> : null}</span>
                   <span style={{ textAlign: 'right' }}>{r.committed ? usd0(r.committed) : '—'}</span>
                   <span style={{ textAlign: 'right' }} title={`Bills ${usd(r.bills)} · labor ${usd(r.labor)} (${r.laborHours} h) · reimbursables ${usd(r.reimbursable)}`}>{usd0(r.actual)}</span>
                   <span style={{ textAlign: 'right', color: MUTED }}>{r.open ? usd0(r.open) : '—'}</span>
                   <span onClick={v.rights.manageCosts ? () => setEdit({ key: r.key, csiCodeId: r.csiCodeId, eac: String(r.eac), note: '' }) : undefined} style={{ textAlign: 'right', fontWeight: 700, cursor: v.rights.manageCosts ? 'pointer' : 'default', color: r.eacOverridden ? ACCENT : INK }} title={v.rights.manageCosts ? 'Set a forecast' : ''}>
                     {usd0(r.eac)}{r.eacOverridden ? ' ✎' : ''}
                   </span>
-                  <span style={{ textAlign: 'right', color: r.variance < 0 ? DANGER : r.variance > 0 ? '#1E6B36' : MUTED, fontWeight: r.variance < 0 ? 700 : 400 }}>{r.variance ? usd0(r.variance) : '—'}</span>
+                  <span style={{ textAlign: 'right', color: r.variance < 0 ? DANGER : r.variance > 0 ? '#3F6B39' : MUTED, fontWeight: r.variance < 0 ? 700 : 400 }}>{r.variance ? usd0(r.variance) : '—'}</span>
                   <span style={{ display: 'flex', gap: 6, alignItems: 'center', paddingLeft: 14 }}>
-                    <span style={{ flex: 1, height: 6, borderRadius: 99, background: '#EFEDE8', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, r.spentPct)}%`, background: r.spentPct > 100 ? DANGER : '#2F7D4A' }} /></span>
+                    <span style={{ flex: 1, height: 6, borderRadius: 99, background: '#EEEBE4', overflow: 'hidden' }}><span style={{ display: 'block', height: '100%', width: `${Math.min(100, r.spentPct)}%`, background: r.spentPct > 100 ? DANGER : '#4C7A3F' }} /></span>
                     <span style={{ fontSize: 11, color: MUTED, width: 38, textAlign: 'right' }}>{r.budget ? `${Math.round(r.spentPct)}%` : ''}</span>
                   </span>
                 </div>
@@ -208,7 +208,7 @@ function ByCode({ v, projectId, onChanged }: { v: CostsView; projectId: number; 
             ))}
             {!v.rows.length && <div style={{ padding: 20, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>Nothing yet — add the budget, then subcontracts, POs and costs. Labor comes in from approved timesheets and daily logs.</div>}
             {v.rows.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', borderTop: '1px solid ' + LINE, background: '#F4F1E8', fontSize: 12.5, fontWeight: 700 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', borderTop: '1px solid ' + LINE, background: '#F3F0E8', fontSize: 12.5, fontWeight: 700 }}>
                 <span>Total</span><span style={{ textAlign: 'right' }}>{usd0(v.totals.budget)}</span><span style={{ textAlign: 'right' }}>{usd0(v.totals.committed)}</span><span style={{ textAlign: 'right' }}>{usd0(v.totals.actual)}</span>
                 <span style={{ textAlign: 'right' }}>{usd0(v.totals.open)}</span><span style={{ textAlign: 'right' }}>{usd0(v.totals.eac)}</span><span style={{ textAlign: 'right', color: v.totals.variance < 0 ? DANGER : undefined }}>{usd0(v.totals.variance)}</span><span />
               </div>
@@ -251,7 +251,7 @@ function Budget({ v, projectId, pick, onChanged }: { v: CostsView; projectId: nu
             const e = edits[b.id];
             const name = (id?: string | null) => { const c = pick.codes.find((x) => x.id === id); return c ? `${c.code} ${c.division}` : 'No cost code'; };
             return (
-              <div key={b.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+              <div key={b.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
                 {e ? <>
                   {row(e, (p) => setEdits({ ...edits, [b.id]: { ...e, ...p } }))}
                   <span style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}><span onClick={() => save({ ...e, id: b.id, version: b.version })} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>Save</span><span onClick={() => setEdits((x) => { const n = { ...x }; delete n[b.id]; return n; })} style={{ color: MUTED, cursor: 'pointer' }}>Cancel</span></span>
@@ -297,7 +297,7 @@ function Commitments({ v, projectId, pick, onChanged }: { v: CostsView; projectI
           <div style={{ minWidth: 960 }}>
             <div style={headRow(cols)}><span>No.</span><span>Type</span><span>Subcontractor / vendor</span><span>Title</span><span style={{ textAlign: 'right' }}>Committed</span><span style={{ textAlign: 'right' }}>Billed to us</span><span style={{ textAlign: 'right' }}>Not yet billed</span><span>Status</span></div>
             {v.commitments.map((c) => (
-              <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer', opacity: c.status === 'void' ? 0.5 : 1 }}>
+              <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, cursor: 'pointer', opacity: c.status === 'void' ? 0.5 : 1 }}>
                 <b style={{ color: ACCENT }}>{c.number}</b><span style={{ color: MUTED }}>{label(COMMITMENT_TYPES, c.type)}</span><span>{c.vendorName}</span><span>{c.title}</span>
                 <b style={{ textAlign: 'right' }}>{usd0(c.total)}</b><span style={{ textAlign: 'right' }}>{usd0(c.billed)}</span><span style={{ textAlign: 'right', color: MUTED }}>{c.status === 'approved' ? usd0(c.remaining) : '—'}</span>
                 <span><CostBadge s={c.status} /></span>
@@ -363,7 +363,7 @@ function CommitmentDrawer({ c, v, projectId, pick, onClose, onChanged }: {
         <div style={{ ...card, overflow: 'hidden' }}>
           <div style={headRow(cols)}><span>Line</span><span>Cost code</span><span>For</span><span style={{ textAlign: 'right' }}>Amount</span><span /></div>
           {lines.map((l, i) => (
-            <div key={l.id || i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '6px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+            <div key={l.id || i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '6px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)' }}>
               <input disabled={!editable} value={l.description} onChange={(e) => patch(i, { description: e.target.value })} style={{ ...input, padding: '5px 7px', fontSize: 12.5 }} />
               <CodeSelect disabled={!editable} codes={pick.codes} value={l.csiCodeId} onChange={(x) => patch(i, { csiCodeId: x })} />
               <ItemSelect disabled={!editable} items={pick.items} value={l.item} onChange={(x) => patch(i, { item: x })} />
@@ -392,7 +392,7 @@ function CommitmentDrawer({ c, v, projectId, pick, onClose, onChanged }: {
         {c && billedHere.length > 0 && <div>
           <Label text="Their bills against it" />
           <div style={{ ...card, overflow: 'hidden' }}>
-            {billedHere.map((e) => <div key={e.id} style={{ display: 'flex', gap: 10, padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+            {billedHere.map((e) => <div key={e.id} style={{ display: 'flex', gap: 10, padding: '7px 12px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
               <span style={{ width: 100, color: MUTED }}>{fmtDate(e.date)}</span><span style={{ flex: 1 }}>{e.reference ? `${e.reference} · ` : ''}{e.description}</span><CostBadge s={e.status} /><b>{usd(e.amount)}</b></div>)}
           </div>
         </div>}
@@ -437,7 +437,7 @@ function Costs({ v, projectId, pick, onChanged }: { v: CostsView; projectId: num
           <div style={{ minWidth: 920 }}>
             <div style={headRow(cols)}><span>Date</span><span>Type</span><span>Vendor</span><span>Description</span><span>Cost code</span><span style={{ textAlign: 'right' }}>Amount</span><span>Status</span></div>
             {shown.map((e) => (
-              <div key={e.id} onClick={() => setOpen(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer', opacity: e.status === 'void' ? 0.5 : 1 }}>
+              <div key={e.id} onClick={() => setOpen(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5, cursor: 'pointer', opacity: e.status === 'void' ? 0.5 : 1 }}>
                 <span>{fmtDate(e.date)}</span><span style={{ color: MUTED }}>{label(COST_TYPES, e.type)}</span><span>{e.vendorName || '—'}</span>
                 <span>{e.reference ? <b>{e.reference} · </b> : null}{e.description}{e.commitmentId ? <span style={{ color: MUTED }}> · {v.commitments.find((c) => c.id === e.commitmentId)?.number}</span> : null}{e.source === 'portal' && <span title="Sent by the subcontractor through their portal" style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 999, background: '#D8E2F0', color: '#3C5C8A', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>From portal</span>}</span>
                 <span style={{ color: MUTED }}>{codeName(e.csiCodeId)}</span><b style={{ textAlign: 'right' }}>{usd(e.amount)}</b><span><CostBadge s={e.status} /></span>
@@ -540,7 +540,7 @@ function Labor({ v }: { v: CostsView }) {
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={headRow(pcols)}><span>Person</span><span style={{ textAlign: 'right' }}>Hours</span><span style={{ textAlign: 'right' }}>Overtime</span><span style={{ textAlign: 'right' }}>Base rate</span><span style={{ textAlign: 'right' }}>Wages</span><span style={{ textAlign: 'right' }}>Cost</span></div>
         {l.people.map((p) => (
-          <div key={p.employeeId} style={{ display: 'grid', gridTemplateColumns: pcols, gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+          <div key={p.employeeId} style={{ display: 'grid', gridTemplateColumns: pcols, gap: 10, padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', fontSize: 12.5 }}>
             <span>{p.name}</span><span style={{ textAlign: 'right' }}>{p.hours}</span><span style={{ textAlign: 'right', color: MUTED }}>{p.otHours || '—'}</span>
             <span style={{ textAlign: 'right' }}>{usd(p.rate)}/h</span><span style={{ textAlign: 'right' }}>{usd(p.wage)}</span><b style={{ textAlign: 'right' }}>{usd(p.cost)}</b>
           </div>
@@ -553,7 +553,7 @@ function Labor({ v }: { v: CostsView }) {
           {l.weeks.map((w) => {
             const max = Math.max(...l.weeks.map((x) => x.cost)) || 1;
             return <div key={w.week} title={`Week of ${fmtDate(w.week)}: ${w.hours} h · ${usd(w.cost)}`} style={{ flex: 1, minWidth: 14, maxWidth: 48, display: 'grid', gap: 4, justifyItems: 'center' }}>
-              <div style={{ width: '100%', height: Math.max(3, (w.cost / max) * 80), background: '#2F7D4A', borderRadius: 4 }} />
+              <div style={{ width: '100%', height: Math.max(3, (w.cost / max) * 80), background: '#4C7A3F', borderRadius: 4 }} />
               <span style={{ fontSize: 9.5, color: MUTED }}>{w.week.slice(5)}</span>
             </div>;
           })}
@@ -572,7 +572,7 @@ export function ProfitabilityPanel({ projectId }: { projectId: number }) {
   useEffect(() => { api.finance.costs(projectId).then((r: any) => setV(r)).catch((e: any) => failed(toast, e)); }, [projectId]);
   if (!v) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>;
   const p = v.profitability;
-  const pctTone = (n: number) => (n < 0 ? DANGER : n < 10 ? '#8A6D12' : '#1E6B36');
+  const pctTone = (n: number) => (n < 0 ? DANGER : n < 10 ? '#7A5A0C' : '#3F6B39');
   if (!p.projectedCost && !p.costToDate) {
     return <div style={{ ...card, padding: 20, fontSize: 13, color: MUTED, lineHeight: 1.6 }}>No cost budget or costs yet, so there's no margin to forecast. Add the budget under Job cost; labor appears as timesheets and daily logs are approved.</div>;
   }
@@ -603,7 +603,7 @@ export function ProfitabilityPanel({ projectId }: { projectId: number }) {
           <Stat l="% complete by cost" v={`${p.costCompletePct}%`} sub="Cost to date ÷ forecast cost" />
           <Stat l="Revenue to date (by cost)" v={usd0(p.earnedRevenue)} sub="Contract × % complete" />
           <Stat l="Billed to client" v={usd0(p.billed)} />
-          <Stat l={p.overUnderBilling >= 0 ? 'Over-billed' : 'Under-billed'} v={usd0(Math.abs(p.overUnderBilling))} sub={p.overUnderBilling >= 0 ? 'Billed ahead of cost progress (a liability)' : 'Work done, not yet billed (an asset)'} tone={p.overUnderBilling >= 0 ? '#8A6D12' : ACCENT} />
+          <Stat l={p.overUnderBilling >= 0 ? 'Over-billed' : 'Under-billed'} v={usd0(Math.abs(p.overUnderBilling))} sub={p.overUnderBilling >= 0 ? 'Billed ahead of cost progress (a liability)' : 'Work done, not yet billed (an asset)'} tone={p.overUnderBilling >= 0 ? '#7A5A0C' : ACCENT} />
         </div>
       </div>
       {(p.reimbursablesBilled || p.reimbursableCost) ? <div>

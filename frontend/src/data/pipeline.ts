@@ -64,38 +64,38 @@ export interface Stage {
 }
 
 export const STAGES: Stage[] = [
-  { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2F6F68', colorBg: '#D6E8E5' },
-  { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2C7A7B', colorBg: '#D3E9E7' },
-  { key: 'initial_questions', name: 'Initial Questions', idx: 2, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2B7A5E', colorBg: '#D2E9DF' },
-  { key: 'virtual_ff', name: 'Virtual F2F meeting', idx: 3, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#2F7D4A', colorBg: '#D2EAD3' },
-  { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isDecision: true, color: '#4B7B22', colorBg: '#DEEBCC' },
-  { key: 'site_visit', name: 'Schedule Site Visit', idx: 5, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#6E7A18', colorBg: '#E6E9C6' },
-  { key: 'zoning', name: 'Project Programming', idx: 6, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#93520F', colorBg: '#F6E0C4' },
-  { key: 'proposal', name: 'Proposal Sent', idx: 7, owner: 'PC', ownerColor: '#2F7D4A', ownerBg: '#D2EAD3', color: '#A34718', colorBg: '#F7DCCC' },
-  { key: 'client_approval', name: 'Client Review', idx: 8, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', color: '#1C5230', colorBg: '#CFE6D6' },
+  { key: 'new_lead', name: 'New Lead', idx: 0, owner: 'PC', ownerColor: '#4C7A3F', ownerBg: '#E3ECD9', color: '#2F6F68', colorBg: '#D6E8E5' },
+  { key: 'contact_attempted', name: 'Contact Attempted', idx: 1, owner: 'PC', ownerColor: '#4C7A3F', ownerBg: '#E3ECD9', color: '#2C7A7B', colorBg: '#D3E9E7' },
+  { key: 'initial_questions', name: 'Initial Questions', idx: 2, owner: 'PC', ownerColor: '#4C7A3F', ownerBg: '#E3ECD9', color: '#2B7A5E', colorBg: '#D2E9DF' },
+  { key: 'virtual_ff', name: 'Virtual F2F meeting', idx: 3, owner: 'PC', ownerColor: '#4C7A3F', ownerBg: '#E3ECD9', color: '#4C7A3F', colorBg: '#E3ECD9' },
+  { key: 'project_fit', name: 'Project Fit Review', idx: 4, owner: 'PM', ownerColor: '#232321', ownerBg: '#FAE7A5', isDecision: true, color: '#4B7B22', colorBg: '#DEEBCC' },
+  { key: 'site_visit', name: 'Schedule Site Visit', idx: 5, owner: 'PC', ownerColor: '#4C7A3F', ownerBg: '#E3ECD9', color: '#6E7A18', colorBg: '#E6E9C6' },
+  { key: 'zoning', name: 'Project Programming', idx: 6, owner: 'PM', ownerColor: '#232321', ownerBg: '#FAE7A5', color: '#93520F', colorBg: '#F6E0C4' },
+  { key: 'proposal', name: 'Proposal Sent', idx: 7, owner: 'PC', ownerColor: '#4C7A3F', ownerBg: '#E3ECD9', color: '#A34718', colorBg: '#F7DCCC' },
+  { key: 'client_approval', name: 'Client Review', idx: 8, owner: 'PM', ownerColor: '#232321', ownerBg: '#FAE7A5', color: '#34552E', colorBg: '#CFE6D6' },
   // Parked leads. Each hold sets a follow-up date so the lead resurfaces
   // instead of going quiet -- see HOLD_MONTHS.
-  { key: 'hold_1m', name: 'Hold - 1 Month', idx: 10, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 1, color: '#B07A10', colorBg: '#FBECC4' },
-  { key: 'hold_3m', name: 'Hold - 3 Months', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 3, color: '#A96A12', colorBg: '#F9E4C0' },
-  { key: 'hold_6m', name: 'Hold - 6 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 6, color: '#A25A14', colorBg: '#F7DCBC' },
-  { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE9AE', isHold: true, holdMonths: 12, color: '#9B4A16', colorBg: '#F5D4B8' },
+  { key: 'hold_1m', name: 'Hold - 1 Month', idx: 10, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE7A8', isHold: true, holdMonths: 1, color: '#B07A10', colorBg: '#FBECC4' },
+  { key: 'hold_3m', name: 'Hold - 3 Months', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE7A8', isHold: true, holdMonths: 3, color: '#A96A12', colorBg: '#F9E4C0' },
+  { key: 'hold_6m', name: 'Hold - 6 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE7A8', isHold: true, holdMonths: 6, color: '#A25A14', colorBg: '#F7DCBC' },
+  { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: '#FBE7A8', isHold: true, holdMonths: 12, color: '#9B4A16', colorBg: '#F5D4B8' },
   { key: 'cold', name: 'Cold Lead', idx: 14, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true, color: '#4A6C7A', colorBg: '#DCE7EC' },
   { key: 'rejected', name: 'Cancelled / Rejected', idx: 15, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
   // Referred to an external partner, but not a dead lead -- kept off the
   // active funnel like a hold, without a due date attached, until someone
   // closes it out. See REJECTION_STYLE for the matching card badge.
-  { key: 'referred_monitoring', name: 'Referred — Monitoring', idx: 16, owner: 'PM', ownerColor: '#173326', ownerBg: '#DCE7DE', isClosed: true, color: '#3C5C8A', colorBg: '#D8E2F0' },
+  { key: 'referred_monitoring', name: 'Referred — Monitoring', idx: 16, owner: 'PM', ownerColor: '#232321', ownerBg: '#FAE7A5', isClosed: true, color: '#3C5C8A', colorBg: '#D8E2F0' },
 ];
 
 export const STAGE_KEYS = ['new_lead', 'contact_attempted', 'initial_questions', 'virtual_ff', 'project_fit', 'site_visit', 'zoning', 'proposal', 'client_approval'];
 
 export const STATUS_STYLES: Record<string, { label: string; bg: string; color: string; dot: string }> = {
   overdue: { label: 'Overdue', bg: '#F2DFD4', color: '#8E2E0A', dot: '#B8410F' },
-  awaiting_pm: { label: 'Awaiting PM', bg: '#DCE7DE', color: '#173326', dot: '#245C3A' },
-  awaiting_client: { label: 'Awaiting Client', bg: '#FBE9AE', color: '#93520F', dot: '#E39A22' },
-  in_progress: { label: 'In Progress', bg: '#D6E8E5', color: '#2F6F68', dot: '#7E9B93' },
+  awaiting_pm: { label: 'Awaiting PM', bg: '#FAE7A5', color: '#232321', dot: '#3A5F33' },
+  awaiting_client: { label: 'Awaiting Client', bg: '#FBE7A8', color: '#93520F', dot: '#E39A22' },
+  in_progress: { label: 'In Progress', bg: '#D6E8E5', color: '#2F6F68', dot: '#8B877F' },
   /** Client just e-signed -- flagged for a person to confirm and convert. */
-  accepted: { label: 'Accepted ✓', bg: '#D2EAD3', color: '#1C5230', dot: '#2F7D4A' },
+  accepted: { label: 'Accepted ✓', bg: '#E3ECD9', color: '#34552E', dot: '#4C7A3F' },
 };
 
 export const DEALS: Deal[] = [

@@ -4,8 +4,8 @@ import { deliveryCode } from '../data/pipeline';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13,
-  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 13,
+  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
 };
 
 /** Where a converted lead can land. Mirrors ProjectEntity.stage. */
@@ -51,15 +51,15 @@ export function ConvertLeadDialog({ deal, contractType, onCancel, onConverted }:
   return (
     <div
       onClick={onCancel}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(11,26,18,0.4)', display: 'grid', placeItems: 'center', zIndex: 400, padding: 20 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.4)', display: 'grid', placeItems: 'center', zIndex: 400, padding: 20 }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 460, maxWidth: '100%', background: 'white', borderRadius: 14, boxShadow: '0 24px 60px rgba(11,26,18,0.28)', overflow: 'hidden' }}
+        style={{ width: 460, maxWidth: '100%', background: '#FDFCF9', borderRadius: 20, boxShadow: '0 24px 60px rgba(29, 29, 27,0.28)', overflow: 'hidden' }}
       >
-        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0B1A12' }}>Convert to Project</div>
-          <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 4, lineHeight: 1.55 }}>
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1D1D1B' }}>Convert to Project</div>
+          <div style={{ fontSize: 12, color: '#8B877F', marginTop: 4, lineHeight: 1.55 }}>
             The intake details, scope, location and source all transfer. The card leaves the pipeline board —
             its audit trail stays with the lead and remains reachable from the project.
             {code === 'BO' && ' This is a Build Only lead, so it starts in Construction.'}
@@ -74,27 +74,27 @@ export function ConvertLeadDialog({ deal, contractType, onCancel, onConverted }:
           )}
 
           <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#43514D' }}>Project name</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#4A4741' }}>Project name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} style={{ ...inputStyle, marginTop: 4 }} />
           </div>
 
           <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#43514D' }}>Contract amount</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#4A4741' }}>Contract amount</label>
             <input value={contractAmt} onChange={(e) => setContractAmt(e.target.value)} placeholder="$0" style={{ ...inputStyle, marginTop: 4 }} />
           </div>
 
           <div>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#43514D' }}>Starts in</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#4A4741' }}>Starts in</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
               {PROJECT_STAGES.map((s) => (
                 <label
                   key={s.key}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid ' + (stage === s.key ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: stage === s.key ? '#F4F9F4' : 'white' }}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid ' + (stage === s.key ? '#4C7A3F' : 'rgba(29, 29, 27,0.1)'), background: stage === s.key ? '#F7F4EE' : 'white' }}
                 >
                   <input type="radio" checked={stage === s.key} onChange={() => setStage(s.key)} style={{ marginTop: 2 }} />
                   <span>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', display: 'block' }}>{s.label}</span>
-                    <span style={{ fontSize: 10.5, color: '#7E9B93' }}>{s.hint}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B', display: 'block' }}>{s.label}</span>
+                    <span style={{ fontSize: 10.5, color: '#8B877F' }}>{s.hint}</span>
                   </span>
                 </label>
               ))}
@@ -102,11 +102,11 @@ export function ConvertLeadDialog({ deal, contractType, onCancel, onConverted }:
           </div>
         </div>
 
-        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', gap: 8, justifyContent: 'flex-end', background: '#FBF8F2' }}>
-          <div onClick={onCancel} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', gap: 8, justifyContent: 'flex-end', background: '#FAF8F3' }}>
+          <div onClick={onCancel} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: '#8B877F' }}>Cancel</div>
           <div
             onClick={saving ? undefined : convert}
-            style={{ padding: '9px 20px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}
+            style={{ padding: '9px 20px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}
           >
             {saving ? 'Converting…' : 'Convert to Project'}
           </div>

@@ -19,12 +19,12 @@ import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 
 // Settings sections and their sub-links. Extend this as more settings are added.
@@ -68,11 +68,11 @@ export function Settings() {
     <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>
       {SECTIONS.map((sec) => (
         <div key={sec.group} style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', padding: '0 12px 8px' }}>{sec.group}</div>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F', padding: '0 12px 8px' }}>{sec.group}</div>
           {sec.items.map((it) => {
             const on = active === it.key;
             return (
-              <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? '#0B1A12' : '#43514D', background: on ? '#E7F0E8' : 'transparent', borderLeft: '3px solid ' + (on ? '#2F7D4A' : 'transparent'), marginBottom: 2, lineHeight: 1.3 }}>{it.label}</div>
+              <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? '#1D1D1B' : '#4A4741', background: on ? '#F0EDE6' : 'transparent', borderLeft: '3px solid ' + (on ? '#4C7A3F' : 'transparent'), marginBottom: 2, lineHeight: 1.3 }}>{it.label}</div>
             );
           })}
         </div>
@@ -82,8 +82,8 @@ export function Settings() {
 
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12', marginBottom: 4 }}>Settings</div>
-      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 20 }}>Manage templates and configuration for the workspace.</div>
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#1D1D1B', marginBottom: 4 }}>Settings</div>
+      <div style={{ fontSize: 13, color: '#65615A', marginBottom: 20 }}>Manage templates and configuration for the workspace.</div>
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
         {nav}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
@@ -151,38 +151,38 @@ export function ScoringTemplateEditor() {
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Lead Qualification Scoring Template</div>
-          <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>Lead Qualification Scoring Template</div>
+          <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 620 }}>
             Client Qualification Checklist &amp; Point System. Used on the <strong>Project Fit Review</strong> stage to score each lead. Edit criteria, options and points below.
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>Total Possible</div>
-            <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 24, color: '#173326', lineHeight: 1 }}>{total}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F' }}>Total Possible</div>
+            <div style={{ fontFamily: BG, fontWeight: 800, fontSize: 24, color: '#232321', lineHeight: 1 }}>{total}</div>
           </div>
-          <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white', whiteSpace: 'nowrap' }}>{saving ? 'Saving…' : 'Save Template'}</div>
+          <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white', whiteSpace: 'nowrap' }}>{saving ? 'Saving…' : 'Save Template'}</div>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading template…</div>
+        <div style={{ fontSize: 13, color: '#8B877F' }}>Loading template…</div>
       ) : (
         <>
           {criteria.map((c, ci) => (
-            <div key={c.key} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 16, marginBottom: 14 }}>
+            <div key={c.key} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.07)', borderRadius: 20, padding: 16, marginBottom: 14 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#173326', color: 'white', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{ci + 1}</div>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: '#232321', color: 'white', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>{ci + 1}</div>
                 <div style={{ flex: '2 1 200px', minWidth: 0 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', marginBottom: 3 }}>Qualifying Criteria</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', marginBottom: 3 }}>Qualifying Criteria</div>
                   <input value={c.name} onChange={(e) => updateCrit(ci, { name: e.target.value })} style={inputStyle} />
                 </div>
                 <div style={{ flex: '2 1 200px', minWidth: 0 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', marginBottom: 3 }}>Sub Criteria</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', marginBottom: 3 }}>Sub Criteria</div>
                   <input value={c.subCriteria} onChange={(e) => updateCrit(ci, { subCriteria: e.target.value })} style={inputStyle} />
                 </div>
                 <div style={{ flex: '0 0 120px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', marginBottom: 3 }}>Max Points</div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', marginBottom: 3 }}>Max Points</div>
                   <input type="number" value={c.maxPoints} onChange={(e) => updateCrit(ci, { maxPoints: Number(e.target.value) })} style={inputStyle} />
                 </div>
                 <div onClick={() => deleteCriterion(ci)} style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#8E2E0A', border: '1px solid rgba(142,46,10,0.25)' }}>Delete</div>
@@ -193,15 +193,15 @@ export function ScoringTemplateEditor() {
                   <div key={oi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input value={o.label} onChange={(e) => updateOption(ci, oi, { label: e.target.value })} placeholder="Option label" style={{ ...inputStyle, flex: 1 }} />
                     <input type="number" value={o.points} onChange={(e) => updateOption(ci, oi, { points: Number(e.target.value) })} style={{ ...inputStyle, width: 90, flexShrink: 0 }} />
-                    <div onClick={() => deleteOption(ci, oi)} title="Remove option" style={{ width: 30, height: 30, flexShrink: 0, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8E2E0A', border: '1px solid rgba(20,8,31,0.1)' }}>✕</div>
+                    <div onClick={() => deleteOption(ci, oi)} title="Remove option" style={{ width: 30, height: 30, flexShrink: 0, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8E2E0A', border: '1px solid rgba(29, 29, 27,0.1)' }}>✕</div>
                   </div>
                 ))}
               </div>
-              <div onClick={() => addOption(ci)} style={{ marginTop: 10, display: 'inline-block', padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#173326', border: '1px solid rgba(20,8,31,0.14)' }}>+ Add option</div>
+              <div onClick={() => addOption(ci)} style={{ marginTop: 10, display: 'inline-block', padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#232321', border: '1px solid rgba(29, 29, 27,0.14)' }}>+ Add option</div>
             </div>
           ))}
 
-          <div onClick={addCriterion} style={{ display: 'inline-block', padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#D2EAD3', color: '#173326' }}>+ Add criterion</div>
+          <div onClick={addCriterion} style={{ display: 'inline-block', padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#E3ECD9', color: '#232321' }}>+ Add criterion</div>
         </>
       )}
     </div>
@@ -273,8 +273,8 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>{filterKind === 'agreement' ? 'Agreement Templates' : filterKind === 'introduction' ? 'Introduction Letter' : 'Email & Document Templates'}</div>
-          <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620 }}>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>{filterKind === 'agreement' ? 'Agreement Templates' : filterKind === 'introduction' ? 'Introduction Letter' : 'Email & Document Templates'}</div>
+          <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 620 }}>
             {filterKind === 'agreement'
               ? <>Reusable agreements between us and a client -- draft one here, then use <strong>Send to client</strong> on any card to fill it in and email it. Use <code>{'{{clientName}}'}</code>, <code>{'{{clientEmail}}'}</code>, <code>{'{{date}}'}</code> — they fill in when you send.</>
               : filterKind === 'introduction'
@@ -283,51 +283,51 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
           </div>
         </div>
         {canManage && !(filterKind === 'introduction' && visible.length > 0) && (
-          <div onClick={openNew} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>+ New Template</div>
+          <div onClick={openNew} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white', whiteSpace: 'nowrap' }}>+ New Template</div>
         )}
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading templates…</div>
+        <div style={{ fontSize: 13, color: '#8B877F' }}>Loading templates…</div>
       ) : draft ? (
-        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 18 }}>
+        <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.07)', borderRadius: 20, padding: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
-            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#0B1A12' }}>{isNew ? 'New template' : 'Edit template'}</div>
-            <div onClick={closeEditor} style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>← Back to list</div>
+            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#1D1D1B' }}>{isNew ? 'New template' : 'Edit template'}</div>
+            <div onClick={closeEditor} style={{ fontSize: 12.5, fontWeight: 600, cursor: 'pointer', color: '#8B877F' }}>← Back to list</div>
           </div>
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Template name</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Template name</div>
               <input value={draft.name} disabled={!canManage} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kind</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Kind</div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {(['email', 'sms', 'document', 'proposal', 'agreement', 'introduction'] as const).map((k) => (
                   <span key={k} onClick={() => canManage && setDraft({ ...draft, kind: k })} style={{
                     padding: '6px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: canManage ? 'pointer' : 'default',
                     textTransform: 'uppercase', letterSpacing: '0.05em',
-                    background: (draft.kind || 'email') === k ? '#173326' : 'white',
-                    color: (draft.kind || 'email') === k ? 'white' : '#7E9B93',
-                    border: '1px solid ' + ((draft.kind || 'email') === k ? '#173326' : 'rgba(20,8,31,0.12)'),
+                    background: (draft.kind || 'email') === k ? '#232321' : 'white',
+                    color: (draft.kind || 'email') === k ? 'white' : '#8B877F',
+                    border: '1px solid ' + ((draft.kind || 'email') === k ? '#232321' : 'rgba(29, 29, 27,0.12)'),
                   }}>{k}</span>
                 ))}
               </div>
             </div>
             {draft.kind !== 'sms' && (
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
                 <input value={draft.subject || ''} disabled={!canManage} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} style={inputStyle} />
               </div>
             )}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Body</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Body</div>
                 {draft.kind === 'sms' && (() => {
                   const m = smsSegments(draft.body || '');
                   return (
                     <span title="Merge fields expand when sent, so a real message may run longer than this."
-                      style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: m.segments > 1 ? '#93520F' : '#7E9B93' }}>
+                      style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, color: m.segments > 1 ? '#93520F' : '#8B877F' }}>
                       {m.length} chars · {m.segments} segment{m.segments === 1 ? '' : 's'}{m.unicode ? ' · unicode' : ''}
                     </span>
                   );
@@ -339,7 +339,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                 <textarea value={draft.body} disabled={!canManage} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={draft.kind === 'sms' ? 5 : 20} style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap' }} />
               )}
               {draft.kind === 'sms' && (
-                <div style={{ fontSize: 10.5, color: '#9AA39D', marginTop: 4, lineHeight: 1.45 }}>
+                <div style={{ fontSize: 10.5, color: '#A29E96', marginTop: 4, lineHeight: 1.45 }}>
                   One segment is 160 characters, or 70 if any character is outside the GSM set. Longer messages are sent as several segments and billed as several.
                 </div>
               )}
@@ -347,27 +347,27 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
           </div>
           {canManage && (
             <div style={{ display: 'flex', gap: 9, marginTop: 16 }}>
-              <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>{saving ? 'Saving…' : (isNew ? 'Create template' : 'Save changes')}</div>
+              <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>{saving ? 'Saving…' : (isNew ? 'Create template' : 'Save changes')}</div>
               {!isNew && <div onClick={del} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete</div>}
             </div>
           )}
         </div>
       ) : visible.length === 0 ? (
-        <div style={{ fontSize: 13, color: '#9AA39D', fontStyle: 'italic', padding: '20px 0' }}>No templates yet. Click “+ New Template” to create one.</div>
+        <div style={{ fontSize: 13, color: '#A29E96', fontStyle: 'italic', padding: '20px 0' }}>No templates yet. Click “+ New Template” to create one.</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
           {visible.map((t) => (
-            <div key={t.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 16 }}>
+            <div key={t.id} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.07)', borderRadius: 20, padding: 16 }}>
               <div onClick={() => openTemplate(t)} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1A12', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                  {!filterKind && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#E7F0E8', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1D1D1B', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                  {!filterKind && <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#F0EDE6', color: '#2F6F68', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t.kind || 'email'}</span>}
                 </div>
-                {t.subject && <div style={{ fontSize: 11.5, color: '#43514D', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
-                <div style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body, isRichKind(t.kind))}</div>
+                {t.subject && <div style={{ fontSize: 11.5, color: '#4A4741', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject}</div>}
+                <div style={{ fontSize: 11.5, color: '#8B877F', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{firstLine(t.body, isRichKind(t.kind))}</div>
               </div>
               {sendable && (
-                <div onClick={() => setSendingTemplate(t)} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(20,8,31,0.06)', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>
+                <div onClick={() => setSendingTemplate(t)} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(29, 29, 27,0.06)', fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>
                   ✉ Send to client
                 </div>
               )}
@@ -416,32 +416,32 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, padding: 22, width: isRich ? 640 : 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, color: '#0B1A12', marginBottom: 2 }}>Send "{template.name}"</div>
-        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 16 }}>Emailed as a letterhead PDF from the connected Google Workspace account.</div>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#FDFCF9', borderRadius: 16, padding: 22, width: isRich ? 640 : 460, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(29, 29, 27,0.25)' }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, color: '#1D1D1B', marginBottom: 2 }}>Send "{template.name}"</div>
+        <div style={{ fontSize: 12, color: '#8B877F', marginBottom: 16 }}>Emailed as a letterhead PDF from the connected Google Workspace account.</div>
 
         <div style={{ display: 'grid', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>To</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>To</div>
             <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@example.com" style={inputStyle} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Client name</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Client name</div>
               <input value={clientName} onChange={(e) => setClientName(e.target.value)} onBlur={fill} placeholder="Fills {{clientName}}" style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>CC</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>CC</div>
               <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Optional" style={inputStyle} />
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Subject</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Subject</div>
             <input value={subject} onChange={(e) => setSubject(e.target.value)} style={inputStyle} />
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Body</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Body</div>
             {isRich ? (
               <RichTextEditor value={body} onChange={setBody} minHeight={320} />
             ) : (
@@ -451,8 +451,8 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
         </div>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
-          <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-          <div onClick={sending ? undefined : send} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? '#9AB0A4' : '#173326', color: 'white' }}>
+          <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9' }}>Cancel</div>
+          <div onClick={sending ? undefined : send} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? '#ABA79E' : '#232321', color: 'white' }}>
             {sending ? 'Sending…' : 'Send'}
           </div>
         </div>

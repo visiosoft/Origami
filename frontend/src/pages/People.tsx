@@ -13,7 +13,7 @@ import {
   KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, initials, type Person, type Comply,
 } from '../data/people';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const KINDS = ['All', 'Staff', 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'];
 
 interface NewPerson {
@@ -46,10 +46,10 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
 const BLANK_PAYLOAD = personPayload(BLANK, normalizeProfile({}));
 
 function ComplyBadge({ comply, small }: { comply: Comply | null; small?: boolean }) {
-  if (!comply) return <span style={{ fontSize: small ? 9.5 : 10.5, color: '#7E9B93' }}>n/a</span>;
+  if (!comply) return <span style={{ fontSize: small ? 9.5 : 10.5, color: '#8B877F' }}>n/a</span>;
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: small ? '2px 7px' : '4px 9px', borderRadius: 999, background: comply.ok ? '#D2EAD3' : '#F2DFD4', color: comply.ok ? '#1C5230' : '#8E2E0A', fontSize: small ? 9.5 : 10.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
-      <span style={{ width: 6, height: 6, borderRadius: 999, background: comply.ok ? '#2F7D4A' : '#B8410F' }} />
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: small ? '2px 7px' : '4px 9px', borderRadius: 999, background: comply.ok ? '#E3ECD9' : '#F2DFD4', color: comply.ok ? '#34552E' : '#8E2E0A', fontSize: small ? 9.5 : 10.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+      <span style={{ width: 6, height: 6, borderRadius: 999, background: comply.ok ? '#4C7A3F' : '#B8410F' }} />
       {comply.date}
     </div>
   );
@@ -59,9 +59,9 @@ function ProjChips({ p, max }: { p: Person; max: number }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
       {p.projects.slice(0, max).map((pr) => (
-        <span key={pr} style={{ fontSize: 10, fontWeight: 600, color: '#43514D', background: '#EEF3EE', border: '1px solid rgba(23,51,38,0.08)', padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>{pr}</span>
+        <span key={pr} style={{ fontSize: 10, fontWeight: 600, color: '#4A4741', background: '#F2EFE8', border: '1px solid rgba(35, 35, 33,0.08)', padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap' }}>{pr}</span>
       ))}
-      {p.projects.length > max && <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93' }}>+{p.projects.length - max}</span>}
+      {p.projects.length > max && <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F' }}>+{p.projects.length - max}</span>}
     </div>
   );
 }
@@ -100,8 +100,8 @@ export function People() {
   if (pf !== 'All projects') shown = shown.filter((p) => p.projects.includes(pf));
 
   const stats = [
-    { label: 'People & Companies', value: String(all.length), sub: projectNames.length + ' projects covered', color: '#173326' },
-    { label: 'Internal Staff', value: String(all.filter((p) => p.kind === 'Staff').length), sub: 'Full access tier', color: '#2F7D4A' },
+    { label: 'People & Companies', value: String(all.length), sub: projectNames.length + ' projects covered', color: '#232321' },
+    { label: 'Internal Staff', value: String(all.filter((p) => p.kind === 'Staff').length), sub: 'Full access tier', color: '#4C7A3F' },
     { label: 'Consultants & Subs', value: String(all.filter((p) => p.kind === 'Consultant' || p.kind === 'Sub').length), sub: 'Scoped to their projects', color: '#6B2FA0' },
     { label: 'Compliance Alerts', value: String(all.filter((p) => p.comply && !p.comply.ok).length), sub: 'Insurance expiring soon', color: '#B8410F' },
   ];
@@ -110,7 +110,7 @@ export function People() {
   const [profile, setProfile] = useState<PersonProfile>(() => normalizeProfile({}));
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
-    <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? '#173326' : 'white', color: active ? 'white' : '#7E9B93', border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.1)') }}>{label}</div>
+    <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? '#232321' : 'white', color: active ? 'white' : '#8B877F', border: '1px solid ' + (active ? '#232321' : 'rgba(29, 29, 27,0.1)') }}>{label}</div>
   );
 
   // The person form saves itself: added to the directory once it has a name,
@@ -176,19 +176,19 @@ export function People() {
       {shown.map((p) => {
         const ks = KIND_STYLE[p.kind];
         return (
-          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', padding: 16, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 11 }}>
+          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)', padding: 16, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 11 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11 }}>
               <div style={{ width: 38, height: 38, borderRadius: 999, background: ks.c, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(p.name)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1A12', lineHeight: 1.3 }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 2 }}>{p.role}</div>
-                <div style={{ fontSize: 10.5, color: '#7E9B93' }}>{p.company}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#1D1D1B', lineHeight: 1.3 }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: '#8B877F', marginTop: 2 }}>{p.role}</div>
+                <div style={{ fontSize: 10.5, color: '#8B877F' }}>{p.company}</div>
               </div>
               <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, flexShrink: 0 }}>{p.kind}</span>
             </div>
             <ProjChips p={p} max={3} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTop: '1px solid rgba(20,8,31,0.05)' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#43514D' }}>{p.openTasks} open tasks</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTop: '1px solid rgba(29, 29, 27,0.05)' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#4A4741' }}>{p.openTasks} open tasks</span>
               <ComplyBadge comply={p.comply} small />
             </div>
           </div>
@@ -199,27 +199,27 @@ export function People() {
 
   const cols = '1.5fr 92px 1.3fr 1.4fr 132px 84px';
   const tableView = (
-    <div style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(20,8,31,0.06)', fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 720 }}>
+    <div style={{ background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)', overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 720 }}>
         <span>Person / Company</span><span>Kind</span><span>Projects</span><span>Contact</span><span>Compliance</span><span>Tier</span>
       </div>
       {shown.map((p) => {
         const ks = KIND_STYLE[p.kind];
         const ts = TIER_STYLE[p.tier];
         return (
-          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', minWidth: 720 }}>
+          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid rgba(29, 29, 27,0.04)', cursor: 'pointer', minWidth: 720 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 999, background: ks.c, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(p.name)}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                <div style={{ fontSize: 10.5, color: '#7E9B93', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role} · {p.company}</div>
+                <div style={{ fontSize: 10.5, color: '#8B877F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role} · {p.company}</div>
               </div>
             </div>
             <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{p.kind}</span>
             <ProjChips p={p} max={2} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12' }}><PhoneLink phone={p.phone} /></div>
-              <div style={{ fontSize: 10.5, color: '#173326', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><EmailLink email={p.email} /></div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: '#1D1D1B' }}><PhoneLink phone={p.phone} /></div>
+              <div style={{ fontSize: 10.5, color: '#232321', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><EmailLink email={p.email} /></div>
             </div>
             <ComplyBadge comply={p.comply} small />
             <span style={{ fontSize: 9.5, fontWeight: 700, background: ts.bg, color: ts.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{p.tier}</span>
@@ -243,8 +243,8 @@ export function People() {
     pn.forEach((pr) => groups.push({ key: pr, sub: 'Everyone with access to this project', members: shown.filter((p) => p.projects.includes(pr)) }));
   }
   const iconBtn = (title: string, path: string) => (
-    <div key={title} title={title} style={{ width: 26, height: 26, borderRadius: 7, background: '#EEF3EE', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
-      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
+    <div key={title} title={title} style={{ width: 26, height: 26, borderRadius: 7, background: '#F2EFE8', display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0 }}>
+      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>
     </div>
   );
   const PH = 'M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z';
@@ -257,21 +257,21 @@ export function People() {
         {groups.map((g) => {
           const cm = COMPANY_META[g.key] || null;
           return (
-            <div key={g.key} style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden' }}>
-              <div style={{ padding: '15px 18px', borderBottom: '1px solid rgba(20,8,31,0.05)', background: '#FBF8F2' }}>
+            <div key={g.key} style={{ background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)', overflow: 'hidden' }}>
+              <div style={{ padding: '15px 18px', borderBottom: '1px solid rgba(29, 29, 27,0.05)', background: '#FAF8F3' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>{g.key}</div>
-                    <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 2 }}>{g.sub}</div>
+                    <div style={{ fontSize: 11, color: '#8B877F', marginTop: 2 }}>{g.sub}</div>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: '#EDE3D0', padding: '3px 9px', borderRadius: 999, flexShrink: 0 }}>{g.members.length}{g.members.length === 1 ? ' contact' : ' contacts'}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', background: '#ECE6DA', padding: '3px 9px', borderRadius: 999, flexShrink: 0 }}>{g.members.length}{g.members.length === 1 ? ' contact' : ' contacts'}</span>
                 </div>
                 {contactGroup === 'company' && cm && cm.line && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 11 }}>
                     {([['Main line', cm.line], ['Billing', cm.billing], ['Address', cm.address]] as [string, string][]).map((r) => (
                       <div key={r[0]} style={{ gridColumn: r[0] === 'Address' ? '1 / -1' : 'auto' }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{r[0]}</div>
-                        <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12', marginTop: 1 }}>{r[1]}</div>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{r[0]}</div>
+                        <div style={{ fontSize: 11.5, fontWeight: 600, color: '#1D1D1B', marginTop: 1 }}>{r[1]}</div>
                       </div>
                     ))}
                   </div>
@@ -283,11 +283,11 @@ export function People() {
                     <div style={{ width: 30, height: 30, borderRadius: 999, background: KIND_C[p.kind], display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(p.contact || p.name)}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.contact || p.name}</div>
-                      <div style={{ fontSize: 10.5, color: '#7E9B93', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role}{contactGroup === 'project' ? ' · ' + p.company : ''}</div>
+                      <div style={{ fontSize: 10.5, color: '#8B877F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role}{contactGroup === 'project' ? ' · ' + p.company : ''}</div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#0B1A12' }}><PhoneLink phone={p.phone} /></div>
-                      <div style={{ fontSize: 10, color: '#7E9B93' }}><EmailLink email={p.email} /></div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: '#1D1D1B' }}><PhoneLink phone={p.phone} /></div>
+                      <div style={{ fontSize: 10, color: '#8B877F' }}><EmailLink email={p.email} /></div>
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>{iconBtn('Call', PH)}{iconBtn('Email', EM)}{iconBtn('Copy details', CP)}</div>
                   </div>
@@ -297,7 +297,7 @@ export function People() {
           );
         })}
       </div>
-      <div style={{ padding: '13px 16px', background: '#EEF3EE', border: '1px dashed rgba(23,51,38,0.2)', borderRadius: 12, fontSize: 12, color: '#173326', lineHeight: 1.55 }}>One address book, two ways to read it: by company for procurement and accounts, by project for day-to-day coordination. Every contact here is the same record as the People directory — edit it once.</div>
+      <div style={{ padding: '13px 16px', background: '#F2EFE8', border: '1px dashed rgba(35, 35, 33,0.2)', borderRadius: 18, fontSize: 12, color: '#232321', lineHeight: 1.55 }}>One address book, two ways to read it: by company for procurement and accounts, by project for day-to-day coordination. Every contact here is the same record as the People directory — edit it once.</div>
     </div>
   );
 
@@ -307,14 +307,14 @@ export function People() {
   const valid = np.name.trim().length > 1;
   const lbl = (t: string, hint?: string): ReactNode => (
     <div style={{ marginBottom: 5 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t}</span>
+      <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t}</span>
       {hint && <span style={{ fontSize: 10, color: '#A8B5AF', marginLeft: 6 }}>{hint}</span>}
     </div>
   );
   const field = (label: string, key: keyof NewPerson, placeholder: string, hint?: string, span?: string) => (
     <div key={key} style={{ gridColumn: span || 'auto' }}>
       {lbl(label, hint)}
-      <input value={np[key] as string} placeholder={placeholder} onChange={(e) => setNp({ ...np, [key]: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' }} />
+      <input value={np[key] as string} placeholder={placeholder} onChange={(e) => setNp({ ...np, [key]: e.target.value })} style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 13, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' }} />
     </div>
   );
 
@@ -323,8 +323,8 @@ export function People() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {stats.map((st) => (
-          <div key={st.label} style={{ background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)', padding: '15px 16px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{st.label}</div>
+          <div key={st.label} style={{ background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)', padding: '15px 16px' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{st.label}</div>
             <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7 }}>{st.value}</div>
             <div style={{ fontSize: 10.5, color: st.color, fontWeight: 600, marginTop: 4 }}>{st.sub}</div>
           </div>
@@ -333,29 +333,29 @@ export function People() {
 
       {/* View toggle + kind filter + project popover */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+        <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999 }}>
           {([['cards', 'Cards'], ['table', 'Table'], ['company', 'Address book']] as [typeof view, string][]).map((v) => (
-            <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'white' : 'transparent', color: view === v[0] ? '#0B1A12' : '#7E9B93', boxShadow: view === v[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v[1]}</div>
+            <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'white' : 'transparent', color: view === v[0] ? '#1D1D1B' : '#8B877F', boxShadow: view === v[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v[1]}</div>
           ))}
         </div>
         {view === 'company' && (
-          <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+          <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999 }}>
             {([['company', 'Group by company'], ['project', 'Group by project']] as [typeof contactGroup, string][]).map((m) => (
-              <div key={m[0]} onClick={() => setContactGroup(m[0])} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: contactGroup === m[0] ? 'white' : 'transparent', color: contactGroup === m[0] ? '#0B1A12' : '#7E9B93', boxShadow: contactGroup === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
+              <div key={m[0]} onClick={() => setContactGroup(m[0])} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: contactGroup === m[0] ? 'white' : 'transparent', color: contactGroup === m[0] ? '#1D1D1B' : '#8B877F', boxShadow: contactGroup === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
             ))}
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', width: '100%' }}>
           {KINDS.map((k) => chip(k, kf === k, () => setKf(k)))}
           <div style={{ marginLeft: 'auto', position: 'relative' }}>
-            <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: pf === 'All projects' ? '#7E9B93' : 'white', background: pf === 'All projects' ? 'white' : '#173326', border: '1px solid rgba(20,8,31,0.12)' }}>
+            <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: pf === 'All projects' ? '#8B877F' : 'white', background: pf === 'All projects' ? 'white' : '#232321', border: '1px solid rgba(29, 29, 27,0.12)' }}>
               <span>{pf}</span>
-              <svg width={10} height={6} viewBox="0 0 10 6" fill="none" style={{ transform: projOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M1 1l4 4 4-4" stroke={pf === 'All projects' ? '#7E9B93' : 'white'} strokeWidth={1.6} strokeLinecap="round" /></svg>
+              <svg width={10} height={6} viewBox="0 0 10 6" fill="none" style={{ transform: projOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M1 1l4 4 4-4" stroke={pf === 'All projects' ? '#8B877F' : 'white'} strokeWidth={1.6} strokeLinecap="round" /></svg>
             </div>
             {projOpen && (
-              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 60, minWidth: 190, background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.08)', boxShadow: '0 12px 30px rgba(11,26,18,0.16)', padding: 5, maxHeight: 260, overflowY: 'auto' }}>
+              <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 60, minWidth: 190, background: '#FDFCF9', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.08)', boxShadow: '0 12px 30px rgba(29, 29, 27,0.16)', padding: 5, maxHeight: 260, overflowY: 'auto' }}>
                 {['All projects', ...projectNames].map((pr) => (
-                  <div key={pr} onClick={() => { setPf(pr); setProjOpen(false); }} style={{ padding: '8px 11px', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: pf === pr ? 700 : 500, color: pf === pr ? '#173326' : '#43514D', background: pf === pr ? '#DCE7DE' : 'transparent' }}>{pr}</div>
+                  <div key={pr} onClick={() => { setPf(pr); setProjOpen(false); }} style={{ padding: '8px 11px', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: pf === pr ? 700 : 500, color: pf === pr ? '#232321' : '#4A4741', background: pf === pr ? '#FAE7A5' : 'transparent' }}>{pr}</div>
                 ))}
               </div>
             )}
@@ -365,11 +365,11 @@ export function People() {
 
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ fontSize: 11.5, color: '#7E9B93' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
-        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'white' }}>Import from spreadsheet</div>}
+        <div style={{ fontSize: 11.5, color: '#8B877F' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
+        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#FDFCF9' }}>Import from spreadsheet</div>}
         {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
         {canManage && (
-          <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(23,51,38,0.22)' }}>
+          <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(35, 35, 33,0.22)' }}>
             <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> New person or company
           </div>
         )}
@@ -379,55 +379,55 @@ export function People() {
 
       {/* Person drawer */}
       {sel && (
-        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 90, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 430, maxWidth: '92vw', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(11,26,18,0.22)' }}>
-            <div style={{ padding: '22px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 13 }}>
+        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 90, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 430, maxWidth: '92vw', height: '100%', background: '#FDFCF9', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(29, 29, 27,0.22)' }}>
+            <div style={{ padding: '22px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'flex-start', gap: 13 }}>
               <div style={{ width: 48, height: 48, borderRadius: 999, background: KIND_STYLE[sel.kind].c, display: 'grid', placeItems: 'center', fontSize: 15, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(sel.name)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>{sel.name}</div>
-                <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 2 }}>{sel.role}</div>
-                <div style={{ fontSize: 12, color: '#43514D', fontWeight: 600, marginTop: 1 }}>{sel.company}</div>
-                {sel.contact && <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 2 }}>Primary contact: {sel.contact}</div>}
+                <div style={{ fontSize: 12, color: '#8B877F', marginTop: 2 }}>{sel.role}</div>
+                <div style={{ fontSize: 12, color: '#4A4741', fontWeight: 600, marginTop: 1 }}>{sel.company}</div>
+                {sel.contact && <div style={{ fontSize: 11, color: '#8B877F', marginTop: 2 }}>Primary contact: {sel.contact}</div>}
               </div>
-              <div onClick={() => setSelectedId(null)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14, color: '#7E9B93', flexShrink: 0 }}>×</div>
+              <div onClick={() => setSelectedId(null)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14, color: '#8B877F', flexShrink: 0 }}>×</div>
             </div>
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
               {([['Kind', sel.kind], ['Access tier', sel.tier], ['Phone', sel.phone], ['Email', sel.email], ['Open tasks', String(sel.openTasks)], ['With us since', sel.since]] as [string, string][]).map((r) => (
-                <div key={r[0]} style={{ padding: '11px 13px', background: '#FBF8F2', borderRadius: 10 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{r[0]}</div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', wordBreak: 'break-word' }}>{r[0] === 'Phone' ? <PhoneLink phone={r[1]} /> : r[0] === 'Email' ? <EmailLink email={r[1]} /> : r[1]}</div>
+                <div key={r[0]} style={{ padding: '11px 13px', background: '#FAF8F3', borderRadius: 10 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>{r[0]}</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B', wordBreak: 'break-word' }}>{r[0] === 'Phone' ? <PhoneLink phone={r[1]} /> : r[0] === 'Email' ? <EmailLink email={r[1]} /> : r[1]}</div>
                 </div>
               ))}
             </div>
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Projects ({sel.projects.length})</div>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Projects ({sel.projects.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {sel.projects.map((pr) => (
-                  <div key={pr} onClick={() => { setSelectedId(null); navigate('/projects'); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', background: '#FBF8F2', borderRadius: 9, cursor: 'pointer' }}>
-                    <div style={{ width: 7, height: 7, borderRadius: 999, background: '#173326' }} />
+                  <div key={pr} onClick={() => { setSelectedId(null); navigate('/projects'); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', background: '#FAF8F3', borderRadius: 9, cursor: 'pointer' }}>
+                    <div style={{ width: 7, height: 7, borderRadius: 999, background: '#232321' }} />
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{pr}</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#173326' }}>Open →</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#232321' }}>Open →</span>
                   </div>
                 ))}
               </div>
             </div>
             {sel.comply && (
-              <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Compliance</div>
-                <div style={{ padding: '13px 15px', borderRadius: 11, background: sel.comply.ok ? '#EEF3EE' : '#F2DFD4' }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, color: sel.comply.ok ? '#1C5230' : '#8E2E0A' }}>{sel.comply.label} · {sel.comply.date}</div>
-                  <div style={{ fontSize: 11.5, color: sel.comply.ok ? '#43514D' : '#8E2E0A', marginTop: 4 }}>{sel.comply.extra}</div>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Compliance</div>
+                <div style={{ padding: '13px 15px', borderRadius: 11, background: sel.comply.ok ? '#F2EFE8' : '#F2DFD4' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: sel.comply.ok ? '#34552E' : '#8E2E0A' }}>{sel.comply.label} · {sel.comply.date}</div>
+                  <div style={{ fontSize: 11.5, color: sel.comply.ok ? '#4A4741' : '#8E2E0A', marginTop: 4 }}>{sel.comply.extra}</div>
                 </div>
               </div>
             )}
             {sel.contractorId && !sel.employeeId && (
-              <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+              <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                 <SubContractorSummary contractorId={sel.contractorId} onOpen={() => { setSelectedId(null); navigate(`/manpower_con?contractor=${encodeURIComponent(sel.contractorId!)}`); }} />
               </div>
             )}
-            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
               {sel.kind === 'Staff' || sel.employeeId ? (
-                <div style={{ fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>Their login is managed on their employee record — <span onClick={() => { setSelectedId(null); navigate(sel.employeeId ? `/manpower_con?employee=${encodeURIComponent(sel.employeeId)}` : '/manpower_con'); }} style={{ color: '#173326', fontWeight: 700, cursor: 'pointer' }}>open it</span>.</div>
+                <div style={{ fontSize: 12, color: '#8B877F', lineHeight: 1.5 }}>Their login is managed on their employee record — <span onClick={() => { setSelectedId(null); navigate(sel.employeeId ? `/manpower_con?employee=${encodeURIComponent(sel.employeeId)}` : '/manpower_con'); }} style={{ color: '#232321', fontWeight: 700, cursor: 'pointer' }}>open it</span>.</div>
               ) : (
                 <LoginCard
                   subject={{ id: sel.id, name: sel.kind === 'Sub' && sel.contact ? `${sel.contact} (${sel.name})` : sel.name, email: sel.email, userId: sel.userId }}
@@ -439,32 +439,32 @@ export function People() {
               )}
             </div>
             <div style={{ padding: '18px 24px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <div onClick={() => { setSelectedId(null); navigate('/tasks'); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>View their tasks</div>
+              <div onClick={() => { setSelectedId(null); navigate('/tasks'); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>View their tasks</div>
               {sel.employeeId ? (
                 // Staff and workers are one record with their employee file -- edited there, in full.
-                <div onClick={() => { setSelectedId(null); navigate(`/manpower_con?employee=${encodeURIComponent(sel.employeeId!)}`); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#173326', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'white' }}>Open full record</div>
+                <div onClick={() => { setSelectedId(null); navigate(`/manpower_con?employee=${encodeURIComponent(sel.employeeId!)}`); }} style={{ padding: '9px 15px', borderRadius: 999, background: '#232321', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'white' }}>Open full record</div>
               ) : (
                 <>
-                  {canManage && <div onClick={() => openEdit(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#2F7D4A' }}>Edit record</div>}
+                  {canManage && <div onClick={() => openEdit(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.1)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#4C7A3F' }}>Edit record</div>}
                   {canManage && <div onClick={() => del(sel)} style={{ padding: '9px 15px', borderRadius: 999, border: '1px solid rgba(142,46,10,0.25)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#8E2E0A' }}>Delete</div>}
                 </>
               )}
             </div>
-            <div style={{ padding: '0 24px 24px', fontSize: 10.5, color: '#7E9B93', lineHeight: 1.55 }}>Access tier controls what this person sees. Consultants and subs only see the projects listed above; clients see their own project only.</div>
+            <div style={{ padding: '0 24px 24px', fontSize: 10.5, color: '#8B877F', lineHeight: 1.55 }}>Access tier controls what this person sees. Consultants and subs only see the projects listed above; clients see their own project only.</div>
           </div>
         </div>
       )}
 
       {/* New person panel */}
       {showNew && (
-        <div onClick={closePersonForm} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 120, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100vw', height: '100vh', background: 'white', boxShadow: '-18px 0 48px rgba(20,8,31,0.22)', display: 'flex', flexDirection: 'column', animation: 'slideInRight 0.2s ease' }}>
-            <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+        <div onClick={closePersonForm} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 120, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '100vw', height: '100vh', background: '#FDFCF9', boxShadow: '-18px 0 48px rgba(29, 29, 27,0.22)', display: 'flex', flexDirection: 'column', animation: 'slideInRight 0.2s ease' }}>
+            <div style={{ padding: '22px 26px 18px', borderBottom: '1px solid rgba(29, 29, 27,0.07)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
               <div>
                 <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{editingId != null ? 'Edit person or company' : 'Add to People'}</div>
-                <div style={{ fontSize: 12.5, color: '#7E9B93', marginTop: 3 }}>One record serves the directory, the address book and access control.</div>
+                <div style={{ fontSize: 12.5, color: '#8B877F', marginTop: 3 }}>One record serves the directory, the address book and access control.</div>
               </div>
-              <div onClick={closePersonForm} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', fontSize: 15, flexShrink: 0 }}>×</div>
+              <div onClick={closePersonForm} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', fontSize: 15, flexShrink: 0 }}>×</div>
             </div>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -472,17 +472,17 @@ export function People() {
                 {lbl('Kind', 'sets the default access tier')}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {['Staff', 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'].map((o) => (
-                    <div key={o} onClick={() => setNp({ ...np, kind: o as Person['kind'], tier: tierFor[o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.kind === o ? '#173326' : 'white', color: np.kind === o ? 'white' : '#7E9B93', border: '1px solid ' + (np.kind === o ? '#173326' : 'rgba(20,8,31,0.12)') }}>{o}</div>
+                    <div key={o} onClick={() => setNp({ ...np, kind: o as Person['kind'], tier: tierFor[o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.kind === o ? '#232321' : 'white', color: np.kind === o ? 'white' : '#8B877F', border: '1px solid ' + (np.kind === o ? '#232321' : 'rgba(29, 29, 27,0.12)') }}>{o}</div>
                   ))}
                 </div>
               </div>
               {np.kind === 'Staff' && editingId == null && (
                 // Staff are employees too: one record, added with the full employee form.
-                <div style={{ gridColumn: '1 / -1', padding: '14px 16px', borderRadius: 12, background: '#EEF3EE', border: '1px solid #B9CDBD', display: 'grid', gap: 10 }}>
-                  <div style={{ fontSize: 13, color: '#173326', lineHeight: 1.55 }}>
+                <div style={{ gridColumn: '1 / -1', padding: '14px 16px', borderRadius: 18, background: '#F2EFE8', border: '1px solid #EED27A', display: 'grid', gap: 10 }}>
+                  <div style={{ fontSize: 13, color: '#232321', lineHeight: 1.55 }}>
                     <b>Staff are employees too.</b> Add them once with the full employee record — they appear here in People and in Manpower, and you can give them a login from the same record.
                   </div>
-                  <div onClick={() => { setShowNew(false); navigate('/manpower_con?add=employee'); }} style={{ justifySelf: 'start', padding: '9px 16px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Add as an employee →</div>
+                  <div onClick={() => { setShowNew(false); navigate('/manpower_con?add=employee'); }} style={{ justifySelf: 'start', padding: '9px 16px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Add as an employee →</div>
                 </div>
               )}
               {field(isCompany ? 'Company or firm name' : 'Full name', 'name', isCompany ? 'e.g. Kestrel Electric Co.' : 'e.g. Dana Whitfield', 'required', '1 / -1')}
@@ -496,7 +496,7 @@ export function People() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {projectNames.map((o) => {
                     const active = np.projects.includes(o);
-                    return <div key={o} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? '#173326' : 'white', color: active ? 'white' : '#7E9B93', border: '1px solid ' + (active ? '#173326' : 'rgba(20,8,31,0.12)') }}>{o}</div>;
+                    return <div key={o} onClick={() => setNp({ ...np, projects: active ? np.projects.filter((x) => x !== o) : [...np.projects, o] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: active ? '#232321' : 'white', color: active ? 'white' : '#8B877F', border: '1px solid ' + (active ? '#232321' : 'rgba(29, 29, 27,0.12)') }}>{o}</div>;
                   })}
                 </div>
               </div>
@@ -504,7 +504,7 @@ export function People() {
                 {lbl('Access tier', 'what they can see in the platform')}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {['Internal', 'Client', 'Consultant'].map((o) => (
-                    <div key={o} onClick={() => setNp({ ...np, tier: o as Person['tier'] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.tier === o ? '#173326' : 'white', color: np.tier === o ? 'white' : '#7E9B93', border: '1px solid ' + (np.tier === o ? '#173326' : 'rgba(20,8,31,0.12)') }}>{o}</div>
+                    <div key={o} onClick={() => setNp({ ...np, tier: o as Person['tier'] })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.tier === o ? '#232321' : 'white', color: np.tier === o ? 'white' : '#8B877F', border: '1px solid ' + (np.tier === o ? '#232321' : 'rgba(29, 29, 27,0.12)') }}>{o}</div>
                   ))}
                 </div>
               </div>
@@ -514,15 +514,15 @@ export function People() {
 
             {/* The full record: identity, addresses, licences and insurance. */}
             <div style={{ padding: '0 26px 18px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', margin: '4px 0 10px' }}>Full record</div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', margin: '4px 0 10px' }}>Full record</div>
               <PersonProfileEditor profile={profile} onChange={setProfile} />
             </div>
             <div style={{ padding: '0 26px 18px' }}>
-              <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 11, color: '#43514D', lineHeight: 1.55 }}>{np.tier === 'Internal' ? 'Internal tier sees every project, every task and all financials.' : np.tier === 'Client' ? 'Client tier sees only the projects selected above — no internal tasks, costs or margins.' : 'Consultant tier sees only the projects selected above, and only the tasks and files shared with them.'}</div>
+              <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, fontSize: 11, color: '#4A4741', lineHeight: 1.55 }}>{np.tier === 'Internal' ? 'Internal tier sees every project, every task and all financials.' : np.tier === 'Client' ? 'Client tier sees only the projects selected above — no internal tasks, costs or margins.' : 'Consultant tier sees only the projects selected above, and only the tasks and files shared with them.'}</div>
             </div>
             </div>
-            <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, background: 'white' }}>
-              <span style={{ marginRight: 'auto', fontSize: 11, fontWeight: 600, color: !valid ? '#8E2E0A' : missingFields(profile).length ? '#93520F' : '#2F7D4A' }}>
+            <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(29, 29, 27,0.07)', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, background: '#FDFCF9' }}>
+              <span style={{ marginRight: 'auto', fontSize: 11, fontWeight: 600, color: !valid ? '#8E2E0A' : missingFields(profile).length ? '#93520F' : '#4C7A3F' }}>
                 {!valid
                   ? 'A name is required to save'
                   : missingFields(profile).length
@@ -530,7 +530,7 @@ export function People() {
                     : 'Record complete'}
               </span>
               <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={np.kind === 'Staff' && personIdRef.current == null ? 'Staff are added as employees (button above)' : personNameOk ? undefined : 'Add a name to save'} /></div>
-              <div onClick={closePersonForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>{personAuto.dirty && !personNameOk && editingId == null ? 'Discard' : 'Done'}</div>
+              <div onClick={closePersonForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#4A4741' }}>{personAuto.dirty && !personNameOk && editingId == null ? 'Discard' : 'Done'}</div>
 
             </div>
           </div>

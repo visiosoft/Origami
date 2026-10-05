@@ -1,35 +1,42 @@
 :root {
-  /* Colors */
-  --ink: #0B1A12;
-  --forest: #173326;
-  --sidebar: #0F2417;
-  --sidebar-deep: #0F2417;
-  --canvas: #FDF8EC;
-  --panel: #FBF8F2;
-  --surface: #FFFFFF;
-  --body: #43514D;
-  --muted: #7E9B93;
-  --mint: #DCE7DE;
-  --mist: #EEF3EE;
-  --track: #EDF2ED;
-  --sand: #EDE3D0;
-  --success: #2F7D4A;
-  --success-deep: #1C5230;
+  /* Colors — warm cream canvas, cream cards, near-black ink, one yellow */
+  --ink: #1D1D1B;
+  --forest: #232321;
+  --sidebar: #232321;
+  --sidebar-deep: #232321;
+  --canvas: #F3EFE6;
+  --panel: #FAF8F3;
+  --surface: #FDFCF9;
+  --body: #4A4741;
+  --muted: #8B877F;
+  --mint: #FAE7A5;
+  --mist: #F2EFE8;
+  --track: #ECE8DF;
+  --sand: #ECE6DA;
+  --success: #4C7A3F;
+  --success-deep: #34552E;
   --alert: #8E2E0A;
   --alert-alt: #B8410F;
   --amber: #D2822E;
   --amber-deep: #93520F;
-  --amber-light: #FBE9AE;
-  --gold: #D9B94F;
+  --amber-light: #FBE7A8;
+  --gold: #F5C443;
+  --yellow: #F5C443;
+  --yellow-soft: #FAE7A5;
+  --yellow-ink: #5A430A;
   --teal: #2F6F68;
   --teal-light: #D6E8E5;
-  --border: rgba(20, 8, 31, 0.06);
-  --border-strong: rgba(20, 8, 31, 0.12);
-  --shadow-pop: 0 12px 30px rgba(11, 26, 18, 0.16);
+  --border: rgba(29, 29, 27, 0.06);
+  --border-strong: rgba(29, 29, 27, 0.12);
+  --shadow-card: 0 1px 2px rgba(29, 29, 27, 0.03), 0 12px 32px -18px rgba(29, 29, 27, 0.14);
+  --shadow-pop: 0 18px 40px -12px rgba(29, 29, 27, 0.22);
+  --radius-card: 28px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* Type */
-  --font-display: 'Bricolage Grotesque', serif;
-  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -45,6 +52,30 @@ html, body, #root {
   line-height: 1.65;
   color: var(--ink);
   background: var(--canvas);
+  /* Only light/medium display weights are loaded; never fake a bold. */
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* The soft yellow light in the top-right corner of every screen. */
+body {
+  background:
+    radial-gradient(1100px 620px at 100% -10%, rgba(248, 222, 150, 0.55), transparent 62%),
+    radial-gradient(800px 500px at -10% 110%, rgba(250, 240, 214, 0.6), transparent 60%),
+    var(--canvas);
+  background-attachment: fixed;
+}
+#root { background: transparent; }
+
+::selection { background: var(--yellow); color: var(--ink); }
+
+input, textarea, select { font: inherit; }
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(245, 196, 67, 0.45);
+  border-color: rgba(29, 29, 27, 0.25) !important;
 }
 
 a {
@@ -57,10 +88,49 @@ button {
   cursor: pointer;
   border: none;
   background: none;
+  transition: transform 0.18s var(--ease-out), background-color 0.2s ease, color 0.2s ease,
+    box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+button:not(:disabled):active { transform: scale(0.96); }
+button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(245, 196, 67, 0.55); }
+
+/* Numbers line up and read like the dashboard figures. */
+.num, [data-num] { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-weight: 400; letter-spacing: -0.03em; }
+
+/* ---- Motion ---- */
+/* Each page's blocks rise in one after another. */
+.content-inner > *, .content-inner > * > * {
+  animation: riseIn 0.6s var(--ease-out) both;
+}
+.content-inner > * > *:nth-child(2) { animation-delay: 0.05s; }
+.content-inner > * > *:nth-child(3) { animation-delay: 0.1s; }
+.content-inner > * > *:nth-child(4) { animation-delay: 0.15s; }
+.content-inner > * > *:nth-child(5) { animation-delay: 0.2s; }
+.content-inner > * > *:nth-child(6) { animation-delay: 0.25s; }
+.content-inner > * > *:nth-child(n+7) { animation-delay: 0.3s; }
+
+/* Progress fills grow from the left when they appear. */
+[data-fill], .bar-fill, .budget-bar-fill, .workload-bar-fill { transform-origin: left center; animation: growX 0.9s var(--ease-out) both; }
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes growX {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0s !important; transition-duration: 0.01ms !important; }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

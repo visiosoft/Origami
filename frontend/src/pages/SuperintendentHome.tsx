@@ -25,10 +25,10 @@ interface Log { id: string; projectId: number; date: string; status: string; sup
 interface Sheet { id: string; weekStart: string; status: string; totalHours: number }
 
 const btnDark: React.CSSProperties = { padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, background: ACCENT, color: 'white', cursor: 'pointer', whiteSpace: 'nowrap' };
-const btnLight: React.CSSProperties = { ...btnDark, background: 'white', color: ACCENT, border: '1px solid rgba(23,51,38,0.25)' };
+const btnLight: React.CSSProperties = { ...btnDark, background: '#FDFCF9', color: ACCENT, border: '1px solid rgba(35, 35, 33,0.25)' };
 const LOG_TONE: Record<string, [string, string, string]> = {
-  draft: ['Draft', '#EFEDE8', '#5C6B65'], submitted: ['Submitted', '#FBF0CC', '#8A6D12'],
-  approved: ['Approved', '#D2EAD3', '#1E6B36'], rejected: ['Sent back', '#F2DFD4', '#8E2E0A'],
+  draft: ['Draft', '#EEEBE4', '#65615A'], submitted: ['Submitted', '#FCEFC4', '#7A5A0C'],
+  approved: ['Approved', '#E3ECD9', '#3F6B39'], rejected: ['Sent back', '#F2DFD4', '#8E2E0A'],
 };
 const addDays = (iso: string, n: number) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const isOverdue = (due?: string) => !!due && /^\d{4}-\d{2}-\d{2}$/.test(due) && due < todayISO();
@@ -105,7 +105,7 @@ function Section({ title, count, action, children }: { title: string; count?: nu
 }
 
 function TaskList({ rows, empty, limit }: { rows: Row[]; empty: string; limit?: number }) {
-  if (!rows.length) return <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>{empty}</div>;
+  if (!rows.length) return <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>{empty}</div>;
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       {rows.slice(0, limit ?? rows.length).map((t) => {
@@ -113,7 +113,7 @@ function TaskList({ rows, empty, limit }: { rows: Row[]; empty: string; limit?: 
         const tone = t.status ? logStatusTone(t.status) : null;
         const late = isOverdue(t.dueDate) && !isLogClosed(t.status || '') && t.status !== 'Done';
         return (
-          <div key={t.key} onClick={t.open} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, cursor: 'pointer', flexWrap: 'wrap', borderLeft: late ? '3px solid #C2410C' : '3px solid transparent' }}>
+          <div key={t.key} onClick={t.open} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FAF8F3', borderRadius: 10, cursor: 'pointer', flexWrap: 'wrap', borderLeft: late ? '3px solid #C2410C' : '3px solid transparent' }}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.title}</div>
               <div style={{ fontSize: 11, color: MUTED }}>{t.context}{t.who ? ` · for ${t.who}` : ''}</div>
@@ -167,7 +167,7 @@ export function SuperintendentDashboard() {
 
   return (
     <div style={{ display: 'grid', gap: 16, animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ ...card, padding: '20px 22px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', background: 'linear-gradient(120deg, #E8F0EA, #FBF8F2)' }}>
+      <div style={{ ...card, padding: '20px 22px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', background: 'linear-gradient(120deg, #E8F0EA, #FAF8F3)' }}>
         <div style={{ flex: '1 1 280px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
           <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: INK, marginTop: 4, textWrap: 'balance' as any }}>{hello}{first ? `, ${first}` : ''}.</div>
@@ -194,14 +194,14 @@ export function SuperintendentDashboard() {
         <MyWorkforceRequests projectNames={w.projects} />
 
         <Section title="My daily logs" count={logs.length} action={<span onClick={() => openLog()} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>Daily log →</span>}>
-          {!logs.length ? <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>Logs you fill in on site show up here.</div> : (
+          {!logs.length ? <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>Logs you fill in on site show up here.</div> : (
             <div style={{ display: 'grid' }}>
               {logs.slice(0, 10).map((l) => {
                 const [label, bg, fg] = LOG_TONE[l.status] || LOG_TONE.draft;
                 return (
                   <div key={l.id} onClick={() => openLog(l)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 2px', borderTop: '1px solid ' + LINE, cursor: 'pointer', fontSize: 12.5, flexWrap: 'wrap' }}>
                     <span style={{ width: 92, fontWeight: 700, color: INK, fontVariantNumeric: 'tabular-nums' }}>{fmtDate(l.date)}</span>
-                    <span style={{ flex: '1 1 140px', color: '#43514D', minWidth: 0 }}>{w.projects[l.projectId] || 'Project'}{l.status === 'rejected' && l.rejectionNote ? <span style={{ color: '#8E2E0A' }}> — {l.rejectionNote}</span> : null}</span>
+                    <span style={{ flex: '1 1 140px', color: '#4A4741', minWidth: 0 }}>{w.projects[l.projectId] || 'Project'}{l.status === 'rejected' && l.rejectionNote ? <span style={{ color: '#8E2E0A' }}> — {l.rejectionNote}</span> : null}</span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: bg, color: fg }}>{label}</span>
                   </div>
                 );
@@ -213,7 +213,7 @@ export function SuperintendentDashboard() {
         <Section title="My timesheets" action={<span onClick={() => navigate('/my-timesheet')} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>My Timesheet →</span>}>
           {employeeId === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Your login isn’t linked to an employee record yet — ask HR to link it.</div> : (
             <>
-              <div onClick={() => navigate('/my-timesheet')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, cursor: 'pointer' }}>
+              <div onClick={() => navigate('/my-timesheet')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, cursor: 'pointer' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.07em' }}>This week</div>
                   <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: INK }}>{thisWeek ? `${thisWeek.totalHours} h` : 'Not started'}</div>

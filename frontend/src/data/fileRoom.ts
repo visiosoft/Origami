@@ -42,13 +42,13 @@ export interface FileRoomData {
 export const EXT_STYLE: Record<string, { bg: string; c: string }> = {
   PDF: { bg: '#F2DFD4', c: '#8E2E0A' },
   DWG: { bg: '#D6E8E5', c: '#2F6F68' },
-  XLSX: { bg: '#D2EAD3', c: '#1C5230' },
-  XLS: { bg: '#D2EAD3', c: '#1C5230' },
-  JPG: { bg: '#FBE9AE', c: '#93520F' },
-  JPEG: { bg: '#FBE9AE', c: '#93520F' },
-  PNG: { bg: '#FBE9AE', c: '#93520F' },
+  XLSX: { bg: '#E3ECD9', c: '#34552E' },
+  XLS: { bg: '#E3ECD9', c: '#34552E' },
+  JPG: { bg: '#FBE7A8', c: '#93520F' },
+  JPEG: { bg: '#FBE7A8', c: '#93520F' },
+  PNG: { bg: '#FBE7A8', c: '#93520F' },
 };
-export const extStyle = (ext?: string) => EXT_STYLE[(ext || '').toUpperCase()] ?? { bg: '#EFEDE8', c: '#43514D' };
+export const extStyle = (ext?: string) => EXT_STYLE[(ext || '').toUpperCase()] ?? { bg: '#EEEBE4', c: '#4A4741' };
 
 export const isImage = (f: FileRoomFile) =>
   !!f.mimeType?.startsWith('image/') || ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP'].includes((f.ext || '').toUpperCase());

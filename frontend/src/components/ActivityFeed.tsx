@@ -74,12 +74,12 @@ export function ActivityFeed({
 
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93', marginBottom: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F', marginBottom: 10 }}>
         Activity
       </div>
 
       {entries.length === 0 && (
-        <div style={{ fontSize: 12, color: '#9AA39D', marginBottom: 12 }}>Nothing has happened on this task yet.</div>
+        <div style={{ fontSize: 12, color: '#A29E96', marginBottom: 12 }}>Nothing has happened on this task yet.</div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
@@ -93,10 +93,10 @@ export function ActivityFeed({
                 <Avatar user={userFor(author, authorId)} name={author} size={26} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12' }}>{author}</span>
-                    <span style={{ fontSize: 10.5, color: '#9AA39D' }}>{relativeTime(entry.at)}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B' }}>{author}</span>
+                    <span style={{ fontSize: 10.5, color: '#A29E96' }}>{relativeTime(entry.at)}</span>
                   </div>
-                  <div style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55, whiteSpace: 'pre-wrap', marginTop: 2 }}>{body}</div>
+                  <div style={{ fontSize: 12.5, color: '#4A4741', lineHeight: 1.55, whiteSpace: 'pre-wrap', marginTop: 2 }}>{body}</div>
                 </div>
               </div>
             );
@@ -104,9 +104,9 @@ export function ActivityFeed({
           const e = entry.event;
           return (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: 999, background: '#C9D4CC', flexShrink: 0 }} />
-              <span style={{ fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5 }}>
-                <strong style={{ color: '#43514D', fontWeight: 600 }}>{e.by}</strong> {describe(e)} · {relativeTime(e.at)}
+              <span style={{ width: 5, height: 5, borderRadius: 999, background: '#D4D0C7', flexShrink: 0 }} />
+              <span style={{ fontSize: 11.5, color: '#8B877F', lineHeight: 1.5 }}>
+                <strong style={{ color: '#4A4741', fontWeight: 600 }}>{e.by}</strong> {describe(e)} · {relativeTime(e.at)}
               </span>
             </div>
           );
@@ -124,8 +124,8 @@ export function ActivityFeed({
             rows={2}
             style={{
               flex: 1, boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9,
-              border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontFamily: 'inherit',
-              fontSize: 12.5, color: '#0B1A12', outline: 'none', resize: 'vertical', lineHeight: 1.5,
+              border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontFamily: 'inherit',
+              fontSize: 12.5, color: '#1D1D1B', outline: 'none', resize: 'vertical', lineHeight: 1.5,
             }}
           />
           <div
@@ -133,7 +133,7 @@ export function ActivityFeed({
             style={{
               padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700,
               cursor: busy || !text.trim() ? 'default' : 'pointer',
-              background: busy || !text.trim() ? '#C9D4CC' : '#173326', color: 'white', whiteSpace: 'nowrap',
+              background: busy || !text.trim() ? '#D4D0C7' : '#232321', color: 'white', whiteSpace: 'nowrap',
             }}
           >
             {busy ? '…' : 'Send'}

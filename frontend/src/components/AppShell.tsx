@@ -130,7 +130,7 @@ export function AppShell() {
           <div className="topbar-left">
             {slug !== 'dashboard' && (
               <div className="topbar-back" onClick={() => navigate(-1)} title="Back">
-                <Icon name="back" size={18} stroke="#43514D" strokeWidth={2} />
+                <Icon name="back" size={18} stroke="#4A4741" strokeWidth={2} />
               </div>
             )}
             <h1 className="page-title">{pageTitle}</h1>
@@ -157,7 +157,7 @@ export function AppShell() {
           <AutosaveIndicator />
 
           <div className="search-box">
-            <Icon name="search" size={16} stroke="#7E9B93" strokeWidth={2} />
+            <Icon name="search" size={16} stroke="#8B877F" strokeWidth={2} />
             <span className="search-placeholder">Search...</span>
             <span className="search-kbd">⌘K</span>
           </div>

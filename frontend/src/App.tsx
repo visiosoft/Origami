@@ -40,10 +40,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
   if (!authReady) {
     return (
-      <div style={{ padding: 40, fontSize: 13, color: '#7E9B93', lineHeight: 1.6 }}>
+      <div style={{ padding: 40, fontSize: 13, color: '#8B877F', lineHeight: 1.6 }}>
         {reconnecting ? (
           <>
-            <div style={{ fontWeight: 700, color: '#173326', fontSize: 14 }}>Reconnecting…</div>
+            <div style={{ fontWeight: 700, color: '#232321', fontSize: 14 }}>Reconnecting…</div>
             The server is restarting (usually an update being installed). You're still signed in — this page will continue by itself in a moment.
           </>
         ) : 'Loading…'}

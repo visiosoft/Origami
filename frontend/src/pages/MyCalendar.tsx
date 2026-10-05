@@ -6,7 +6,7 @@ import { isMine } from '../components/TaskScope';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import type { Task } from '../data/tasks';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 interface CalEvent {
   id: string; summary: string; start: string; end: string; allDay: boolean; htmlLink?: string;
@@ -24,7 +24,7 @@ const GUTTER_W = 52;
 // A small rotating palette so a busy day reads apart at a glance, the way
 // Google's own calendar colors do -- kept inside the app's own palette
 // rather than borrowing Google's blue.
-const PALETTE = ['#2F7D4A', '#2C7A7B', '#93520F', '#6E3FA0', '#A34718', '#3C5C8A', '#8E2E0A'];
+const PALETTE = ['#4C7A3F', '#2C7A7B', '#93520F', '#6E3FA0', '#A34718', '#3C5C8A', '#8E2E0A'];
 const colorFor = (id: string) => PALETTE[Math.abs([...id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) % PALETTE.length];
 
 const startOfWeek = (d: Date) => {
@@ -177,19 +177,19 @@ export function MyCalendar() {
     ? weekStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : `${weekStart.toLocaleDateString(undefined, { month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
 
-  if (connected === null) return <div style={{ padding: 28, fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (connected === null) return <div style={{ padding: 28, fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
   if (!connected) {
     return (
       <div style={{ animation: 'fadeIn 0.3s ease' }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12', marginBottom: 4 }}>My Calendar</div>
-        <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 20 }}>Your own Google Calendar, read-only.</div>
-        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 24, maxWidth: 480 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12', marginBottom: 6 }}>Not connected yet</div>
-          <div style={{ fontSize: 12.5, color: '#7E9B93', marginBottom: 16, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#1D1D1B', marginBottom: 4 }}>My Calendar</div>
+        <div style={{ fontSize: 13, color: '#65615A', marginBottom: 20 }}>Your own Google Calendar, read-only.</div>
+        <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 24, maxWidth: 480 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 6 }}>Not connected yet</div>
+          <div style={{ fontSize: 12.5, color: '#8B877F', marginBottom: 16, lineHeight: 1.6 }}>
             Connect your Google Calendar to see your own schedule here — separate from the office's shared calendar connection.
           </div>
-          <div onClick={() => navigate('/settings?tab=my-calendar')} style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>
+          <div onClick={() => navigate('/settings?tab=my-calendar')} style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>
             Go to Settings → My Calendar
           </div>
         </div>
@@ -201,36 +201,36 @@ export function MyCalendar() {
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap', flexShrink: 0 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, color: '#0B1A12' }}>My Calendar</div>
-        <div onClick={() => setWeekStart(startOfWeek(new Date()))} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}>Today</div>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 20, color: '#1D1D1B' }}>My Calendar</div>
+        <div onClick={() => setWeekStart(startOfWeek(new Date()))} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', background: '#FDFCF9' }}>Today</div>
         <div style={{ display: 'flex', gap: 2 }}>
-          <div onClick={() => setWeekStart((d) => addDays(d, -7))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#43514D' }}>
+          <div onClick={() => setWeekStart((d) => addDays(d, -7))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#4A4741' }}>
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
           </div>
-          <div onClick={() => setWeekStart((d) => addDays(d, 7))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#43514D' }}>
+          <div onClick={() => setWeekStart((d) => addDays(d, 7))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#4A4741' }}>
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
           </div>
         </div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#0B1A12' }}>{monthLabel}</div>
-        {loading && <span style={{ fontSize: 11.5, color: '#9AA39D' }}>Loading…</span>}
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#1D1D1B' }}>{monthLabel}</div>
+        {loading && <span style={{ fontSize: 11.5, color: '#A29E96' }}>Loading…</span>}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minHeight: 0, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Day header row */}
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(20,8,31,0.08)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(29, 29, 27,0.08)', flexShrink: 0 }}>
           <div style={{ width: GUTTER_W, flexShrink: 0 }} />
           {days.map((d) => {
             const key = dayKey(d);
             const isToday = key === today;
             return (
               <div key={key} style={{ flex: 1, minWidth: 0, textAlign: 'center', padding: '8px 4px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? '#2F7D4A' : '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? '#4C7A3F' : '#A29E96', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   {d.toLocaleDateString(undefined, { weekday: 'short' })}
                 </div>
                 <div style={{
                   display: 'inline-grid', placeItems: 'center', width: 30, height: 30, borderRadius: 999, marginTop: 3,
                   fontFamily: BG, fontSize: 15, fontWeight: 700,
-                  background: isToday ? '#173326' : 'transparent', color: isToday ? 'white' : '#0B1A12',
+                  background: isToday ? '#232321' : 'transparent', color: isToday ? 'white' : '#1D1D1B',
                 }}>{d.getDate()}</div>
               </div>
             );
@@ -239,7 +239,7 @@ export function MyCalendar() {
 
         {/* All-day strip */}
         {hasAllDay && (
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(20,8,31,0.08)', flexShrink: 0, minHeight: 28 }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(29, 29, 27,0.08)', flexShrink: 0, minHeight: 28 }}>
             <div style={{ width: GUTTER_W, flexShrink: 0 }} />
             {days.map((d) => {
               const key = dayKey(d);
@@ -265,7 +265,7 @@ export function MyCalendar() {
               {Array.from({ length: 24 }, (_, h) => (
                 <div key={h} style={{ height: HOUR_H, position: 'relative' }}>
                   {h > 0 && (
-                    <span style={{ position: 'absolute', top: -6, right: 8, fontSize: 10, color: '#9AA39D', background: 'white' }}>
+                    <span style={{ position: 'absolute', top: -6, right: 8, fontSize: 10, color: '#A29E96', background: '#FDFCF9' }}>
                       {h % 12 === 0 ? 12 : h % 12}{h < 12 ? 'AM' : 'PM'}
                     </span>
                   )}
@@ -289,10 +289,10 @@ export function MyCalendar() {
                     const time = `${pad(Math.floor(snapped / 60))}:${pad(snapped % 60)}`;
                     setQuickCreate({ dateKey: key, time, x: ev.clientX, y: ev.clientY });
                   }}
-                  style={{ flex: 1, minWidth: 0, position: 'relative', borderLeft: '1px solid rgba(20,8,31,0.06)', background: isToday ? '#FBFCFA' : 'transparent', cursor: 'pointer' }}
+                  style={{ flex: 1, minWidth: 0, position: 'relative', borderLeft: '1px solid rgba(29, 29, 27,0.06)', background: isToday ? '#FBFCFA' : 'transparent', cursor: 'pointer' }}
                 >
                   {Array.from({ length: 24 }, (_, h) => (
-                    <div key={h} style={{ height: HOUR_H, borderTop: h ? '1px solid rgba(20,8,31,0.05)' : 'none' }} />
+                    <div key={h} style={{ height: HOUR_H, borderTop: h ? '1px solid rgba(29, 29, 27,0.05)' : 'none' }} />
                   ))}
                   {isToday && (
                     <div style={{ position: 'absolute', left: 0, right: 0, top: nowTop, height: 0, borderTop: '2px solid #C0392B', zIndex: 3 }}>
@@ -316,8 +316,8 @@ export function MyCalendar() {
                       }}
                       style={{
                         position: 'absolute', top: e.top, left: `calc(${(e.col / e.cols) * 100}% + 1px)`, width: `calc(${100 / e.cols}% - 3px)`,
-                        height: e.height, background: e.isTask ? '#173326' : colorFor(e.id), color: 'white', borderRadius: 6, padding: '3px 6px',
-                        fontSize: 10.5, lineHeight: 1.3, overflow: 'hidden', textDecoration: 'none', boxShadow: '0 1px 3px rgba(20,8,31,0.15)', zIndex: 2,
+                        height: e.height, background: e.isTask ? '#232321' : colorFor(e.id), color: 'white', borderRadius: 6, padding: '3px 6px',
+                        fontSize: 10.5, lineHeight: 1.3, overflow: 'hidden', textDecoration: 'none', boxShadow: '0 1px 3px rgba(29, 29, 27,0.15)', zIndex: 2,
                         border: e.isTask ? '1px dashed rgba(255,255,255,0.5)' : 'none', cursor: 'pointer',
                       }}
                     >
@@ -338,16 +338,16 @@ export function MyCalendar() {
             onClick={(ev) => ev.stopPropagation()}
             style={{
               position: 'fixed', left: Math.min(quickCreate.x, window.innerWidth - 200), top: Math.min(quickCreate.y, window.innerHeight - 120),
-              background: 'white', borderRadius: 10, boxShadow: '0 8px 28px rgba(20,8,31,0.22)', border: '1px solid rgba(20,8,31,0.08)',
+              background: '#FDFCF9', borderRadius: 10, boxShadow: '0 8px 28px rgba(29, 29, 27,0.22)', border: '1px solid rgba(29, 29, 27,0.08)',
               padding: 8, width: 188, display: 'flex', flexDirection: 'column', gap: 2,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#7E9B93', padding: '2px 8px 6px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#8B877F', padding: '2px 8px 6px' }}>
               {new Date(`${quickCreate.dateKey}T${quickCreate.time}:00`).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
             </div>
             <div
               onClick={() => { setTaskDrawerSlot({ dateKey: quickCreate.dateKey, time: quickCreate.time }); setQuickCreate(null); }}
-              style={{ padding: '8px 10px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#0B1A12' }}
+              style={{ padding: '8px 10px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#1D1D1B' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F1EC')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
@@ -355,7 +355,7 @@ export function MyCalendar() {
             </div>
             <div
               onClick={() => { setMeetSlot({ dateKey: quickCreate.dateKey, time: quickCreate.time }); setQuickCreate(null); }}
-              style={{ padding: '8px 10px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#0B1A12' }}
+              style={{ padding: '8px 10px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#1D1D1B' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F1EC')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
@@ -400,8 +400,8 @@ export function MyCalendar() {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const fieldRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 14, padding: '10px 0' };
-const iconWrap: React.CSSProperties = { width: 20, flexShrink: 0, display: 'flex', justifyContent: 'center', color: '#7E9B93' };
-const plainInput: React.CSSProperties = { flex: 1, minWidth: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, color: '#0B1A12', background: 'transparent' };
+const iconWrap: React.CSSProperties = { width: 20, flexShrink: 0, display: 'flex', justifyContent: 'center', color: '#8B877F' };
+const plainInput: React.CSSProperties = { flex: 1, minWidth: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, color: '#1D1D1B', background: 'transparent' };
 
 /**
  * Quick-create modal for the calendar's own "Google Meet" option, styled
@@ -471,10 +471,10 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 14, padding: '18px 22px 20px', width: 420, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(20,8,31,0.25)' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 300, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#FDFCF9', borderRadius: 20, padding: '18px 22px 20px', width: 420, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(29, 29, 27,0.25)' }}>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -6 }}>
-          <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>
+          <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F' }}>
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
           </div>
         </div>
@@ -483,7 +483,7 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add title"
           autoFocus
-          style={{ boxSizing: 'border-box', width: '100%', border: 'none', borderBottom: '1px solid rgba(20,8,31,0.14)', outline: 'none', fontFamily: BG, fontSize: 19, fontWeight: 600, color: '#0B1A12', padding: '4px 0 10px' }}
+          style={{ boxSizing: 'border-box', width: '100%', border: 'none', borderBottom: '1px solid rgba(29, 29, 27,0.14)', outline: 'none', fontFamily: BG, fontSize: 19, fontWeight: 600, color: '#1D1D1B', padding: '4px 0 10px' }}
         />
 
         {/* Date + time */}
@@ -493,7 +493,7 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
           </div>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...plainInput, flex: 'none', width: 132 }} />
           <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ ...plainInput, flex: 'none', width: 90 }} />
-          <span style={{ color: '#9AA39D', fontSize: 13 }}>–</span>
+          <span style={{ color: '#A29E96', fontSize: 13 }}>–</span>
           <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} style={{ ...plainInput, flex: 'none', width: 96, cursor: 'pointer' }}>
             <option value={15}>15 min</option>
             <option value={30}>30 min</option>
@@ -513,36 +513,36 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
             {guests.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                 {guests.map((g) => (
-                  <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EFEDE8', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 12 }}>
+                  <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EEEBE4', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 12 }}>
                     {g}
-                    <span onClick={() => removeGuest(g)} style={{ cursor: 'pointer', color: '#7E9B93', fontSize: 14, lineHeight: 1 }}>×</span>
+                    <span onClick={() => removeGuest(g)} style={{ cursor: 'pointer', color: '#8B877F', fontSize: 14, lineHeight: 1 }}>×</span>
                   </span>
                 ))}
               </div>
             )}
 
             {/* From the team -- pick internal people by name, no email to type. */}
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>From your team</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>From your team</div>
             <select
               value=""
               onChange={(e) => { if (e.target.value) addGuestEmail(e.target.value); }}
-              style={{ boxSizing: 'border-box', width: '100%', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', background: 'white', color: teamMatches.length ? '#0B1A12' : '#9AA39D', marginBottom: 10 }}
+              style={{ boxSizing: 'border-box', width: '100%', padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none', background: '#FDFCF9', color: teamMatches.length ? '#1D1D1B' : '#A29E96', marginBottom: 10 }}
             >
               <option value="">{teamMatches.length ? 'Select a teammate…' : 'Everyone on the team is already added'}</option>
               {teamMatches.map((u) => <option key={u.id} value={u.email}>{u.name} — {u.email}</option>)}
             </select>
 
             {/* Anyone outside the team -- client, consultant, sub. */}
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>External guest</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>External guest</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={guestInput}
                 onChange={(e) => setGuestInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addGuest(); } }}
                 placeholder="name@company.com"
-                style={{ boxSizing: 'border-box', flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none' }}
+                style={{ boxSizing: 'border-box', flex: 1, minWidth: 0, padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontFamily: 'inherit', fontSize: 13, outline: 'none' }}
               />
-              <div onClick={addGuest} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', background: 'white', color: '#173326', flexShrink: 0 }}>Add</div>
+              <div onClick={addGuest} style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', color: '#232321', flexShrink: 0 }}>Add</div>
             </div>
           </div>
         </div>
@@ -552,7 +552,7 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
           <div style={iconWrap}>
             <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={2} y={6} width={14} height={12} rx={2} /><polygon points="23 7 16 12 23 17 23 7" /></svg>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13.5, color: '#0B1A12' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13.5, color: '#1D1D1B' }}>
             <input type="checkbox" checked={addMeet} onChange={(e) => setAddMeet(e.target.checked)} />
             Add Google Meet video conferencing
           </label>
@@ -575,14 +575,14 @@ function CreateMeetModal({ dateKey, time, onClose, onCreated, toast }: {
         </div>
 
         {guests.length > 0 && (
-          <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 4, paddingLeft: 34 }}>
+          <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 4, paddingLeft: 34 }}>
             Guests are emailed an invite as soon as this is saved.
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
-          <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', background: 'white' }}>Cancel</div>
-          <div onClick={saving ? undefined : create} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+          <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9' }}>Cancel</div>
+          <div onClick={saving ? undefined : create} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
             {saving ? 'Saving…' : 'Save'}
           </div>
         </div>

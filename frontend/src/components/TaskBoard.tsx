@@ -20,11 +20,11 @@ import { LabelPicker, LabelChip } from './LabelPicker';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from './TaskScope';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 
 function StatusPill({ s }: { s?: TaskStatus }) {
@@ -199,7 +199,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     api.projectTasks.reorder(sectionId, ids).catch(() => toast('⚠ Failed to reorder'));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93', padding: 20 }}>Loading tasks…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#8B877F', padding: 20 }}>Loading tasks…</div>;
 
   // ---- task card ----
   // Card JSX is inlined (not a nested component) so a re-render during drag
@@ -225,12 +225,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           setDragOver(t.sectionId);
         }}
         onClick={() => setSelectedId(t.id)}
-        style={{ background: 'white', borderRadius: 10, border: '1px solid rgba(20,8,31,0.06)', padding: 11, cursor: canManage ? 'grab' : 'pointer', opacity: dragId === t.id ? 0.4 : 1, boxShadow: '0 1px 2px rgba(20,8,31,0.04)' }}
+        style={{ background: '#FDFCF9', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.06)', padding: 11, cursor: canManage ? 'grab' : 'pointer', opacity: dragId === t.id ? 0.4 : 1, boxShadow: '0 1px 2px rgba(29, 29, 27,0.04)' }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1B', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
             {(t.labels?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 {t.labels!.map((l) => <LabelChip key={l} label={l} />)}
@@ -239,11 +239,11 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 7 }}>
               <StatusPill s={t.status} />
               <PriorityPill p={t.priority} />
-              {t.dueDate && <span style={{ fontSize: 10, color: '#7E9B93' }}>📅 {t.dueDate}</span>}
-              {subs.length > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>☑ {doneSubs}/{subs.length}</span>}
-              {check.total > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>✓ {check.done}/{check.total}</span>}
-              {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>💬 {t.comments!.length}</span>}
-              {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#7E9B93' }}>📎 {t.attachments!.length}</span>}
+              {t.dueDate && <span style={{ fontSize: 10, color: '#8B877F' }}>📅 {t.dueDate}</span>}
+              {subs.length > 0 && <span style={{ fontSize: 10, color: '#8B877F' }}>☑ {doneSubs}/{subs.length}</span>}
+              {check.total > 0 && <span style={{ fontSize: 10, color: '#8B877F' }}>✓ {check.done}/{check.total}</span>}
+              {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#8B877F' }}>💬 {t.comments!.length}</span>}
+              {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: '#8B877F' }}>📎 {t.attachments!.length}</span>}
               {t.assignee && (
                 <span style={{ marginLeft: 'auto' }}>
                   <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} />
@@ -276,10 +276,10 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               }
               setDragOver(null); setDragId(null); setDropIndex(null);
             }}
-            style={{ width: 270, flexShrink: 0, background: isOver ? '#EEF3EE' : '#FBF8F2', borderRadius: 12, border: isOver ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.05)', display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
+            style={{ width: 270, flexShrink: 0, background: isOver ? '#F2EFE8' : '#FAF8F3', borderRadius: 18, border: isOver ? '2px dashed #8B877F' : '1px solid rgba(29, 29, 27,0.05)', display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px' }}>
-              <input value={sec.name} disabled={!canManage} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: '#0B1A12', outline: 'none', fontFamily: 'inherit' }} />
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', background: '#EDE3D0', padding: '1px 7px', borderRadius: 999 }}>{secTasks.length}</span>
+              <input value={sec.name} disabled={!canManage} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', outline: 'none', fontFamily: 'inherit' }} />
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', background: '#ECE6DA', padding: '1px 7px', borderRadius: 999 }}>{secTasks.length}</span>
               {canManage && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
             </div>
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
@@ -288,18 +288,18 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <textarea autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)} placeholder="Task title…" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(sec.id, addDraft); setAddDraft(''); } }} />
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
-                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Add</div>
+                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#8B877F' }}>Cancel</div>
                   </div>
                 </div>
               ) : canManage && (
-                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#7E9B93', cursor: 'pointer' }}>+ Add task</div>
+                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: '#8B877F', cursor: 'pointer' }}>+ Add task</div>
               )}
             </div>
           </div>
         );
       })}
-      {canManage && <div onClick={addSection} style={{ width: 190, flexShrink: 0, padding: '11px 14px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#173326', border: '1px dashed rgba(23,51,38,0.3)', background: 'white' }}>+ Add section</div>}
+      {canManage && <div onClick={addSection} style={{ width: 190, flexShrink: 0, padding: '11px 14px', borderRadius: 18, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: '#232321', border: '1px dashed rgba(35, 35, 33,0.3)', background: '#FDFCF9' }}>+ Add section</div>}
     </div>
   );
 
@@ -319,20 +319,20 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           style={{
             display: 'flex', alignItems: 'center', gap: 9,
             padding: depth ? '8px 14px 8px 46px' : '10px 14px',
-            borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer',
+            borderTop: '1px solid rgba(29, 29, 27,0.04)', cursor: 'pointer',
             background: depth ? '#FCFBF9' : 'white',
           }}
         >
           <span
             onClick={(e) => { e.stopPropagation(); if (kids.length) setOpenTasks((prev) => ({ ...prev, [t.id]: !isOpen })); }}
-            style={{ width: 12, flexShrink: 0, fontSize: 9, color: '#9AA39D', cursor: kids.length ? 'pointer' : 'default', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
+            style={{ width: 12, flexShrink: 0, fontSize: 9, color: '#A29E96', cursor: kids.length ? 'pointer' : 'default', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
           >
             {kids.length ? '\u25B6' : ''}
           </span>
 
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} />
 
-          <span style={{ flex: 1, minWidth: 0, fontSize: depth ? 12.5 : 13, fontWeight: depth ? 500 : 600, color: '#0B1A12', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ flex: 1, minWidth: 0, fontSize: depth ? 12.5 : 13, fontWeight: depth ? 500 : 600, color: '#1D1D1B', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {t.title}
           </span>
 
@@ -340,14 +340,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             <span
               onClick={(e) => { e.stopPropagation(); setOpenTasks((prev) => ({ ...prev, [t.id]: !isOpen })); }}
               title={doneKids + ' of ' + kids.length + ' subtasks done'}
-              style={{ padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 700, background: '#EFEDE8', color: '#5c5666', flexShrink: 0 }}
+              style={{ padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 700, background: '#EEEBE4', color: '#5c5666', flexShrink: 0 }}
             >
               {doneKids}/{kids.length}
             </span>
           )}
 
           <PriorityPill p={t.priority} />
-          <span style={{ width: 76, flexShrink: 0, fontSize: 10.5, color: '#7E9B93', textAlign: 'right' }}>{t.dueDate || ''}</span>
+          <span style={{ width: 76, flexShrink: 0, fontSize: 10.5, color: '#8B877F', textAlign: 'right' }}>{t.dueDate || ''}</span>
           <span style={{ width: 26, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
             {t.assignee ? <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} /> : null}
           </span>
@@ -357,7 +357,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           <>
             {kids.map((k) => listRow(k, 1))}
             {canManage && (addingSubIn === t.id ? (
-              <div style={{ padding: '8px 14px 10px 46px', borderTop: '1px solid rgba(20,8,31,0.04)', background: '#FCFBF9' }}>
+              <div style={{ padding: '8px 14px 10px 46px', borderTop: '1px solid rgba(29, 29, 27,0.04)', background: '#FCFBF9' }}>
                 <input
                   autoFocus
                   value={subDraft}
@@ -370,14 +370,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                   }}
                 />
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                  <div onClick={() => { addTask(t.sectionId, subDraft, t.id); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
-                  <div onClick={() => { setAddingSubIn(null); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+                  <div onClick={() => { addTask(t.sectionId, subDraft, t.id); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Add</div>
+                  <div onClick={() => { setAddingSubIn(null); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: '#8B877F' }}>Cancel</div>
                 </div>
               </div>
             ) : (
               <div
                 onClick={() => { setAddingSubIn(t.id); setSubDraft(''); }}
-                style={{ padding: '7px 14px 7px 46px', borderTop: '1px solid rgba(20,8,31,0.04)', background: '#FCFBF9', fontSize: 11.5, color: '#9AA39D', cursor: 'pointer' }}
+                style={{ padding: '7px 14px 7px 46px', borderTop: '1px solid rgba(29, 29, 27,0.04)', background: '#FCFBF9', fontSize: 11.5, color: '#A29E96', cursor: 'pointer' }}
               >
                 + Add subtask
               </div>
@@ -390,7 +390,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
   const listView = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#9AA39D' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#A29E96' }}>
         <span style={{ width: 12, flexShrink: 0 }} />
         <span style={{ width: 13, flexShrink: 0 }} />
         <span style={{ flex: 1 }}>Name</span>
@@ -402,14 +402,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
         const secTasks = topLevelBySection(visibleTasks, sec.id);
         return (
           <div key={sec.id}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', marginBottom: 8 }}>
-              {sec.name} <span style={{ color: '#7E9B93' }}>{'\u00B7'} {secTasks.length}</span>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321', marginBottom: 8 }}>
+              {sec.name} <span style={{ color: '#8B877F' }}>{'\u00B7'} {secTasks.length}</span>
             </div>
-            <div style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)', overflow: 'hidden' }}>
-              {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No tasks</div>}
+            <div style={{ background: '#FDFCF9', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.06)', overflow: 'hidden' }}>
+              {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No tasks</div>}
               {secTasks.map((t) => listRow(t, 0))}
               {canManage && (addingIn === sec.id ? (
-                <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)' }}>
+                <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,0.04)' }}>
                   <input
                     autoFocus
                     value={addDraft}
@@ -422,12 +422,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                     }}
                   />
                   <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
-                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: '#7E9B93' }}>Cancel</div>
+                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Add</div>
+                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: '#8B877F' }}>Cancel</div>
                   </div>
                 </div>
               ) : (
-                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', fontSize: 12, color: '#9AA39D', cursor: 'pointer' }}>
+                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(29, 29, 27,0.04)', fontSize: 12, color: '#A29E96', cursor: 'pointer' }}>
                   + Add task
                 </div>
               ))}
@@ -482,29 +482,29 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     return (
       <div>
         {undatedCount > 0 && (
-          <div style={{ fontSize: 11.5, color: '#7E9B93', marginBottom: 8 }}>
+          <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 8 }}>
             {undatedCount} task{undatedCount === 1 ? '' : 's'} {undatedCount === 1 ? "isn't" : "aren't"} shown on the chart — set a Start or Due date in the task drawer to place {undatedCount === 1 ? 'it' : 'them'}.
           </div>
         )}
-      <div style={{ display: 'flex', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 12, background: 'white', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 18, background: '#FDFCF9', overflow: 'hidden' }}>
         {/* Fixed left column: task names stay in view regardless of how far
             the date grid on the right is scrolled -- matches Asana/Monday's
             timeline layout, where the label never lives inside the bar. */}
-        <div style={{ width: sidebarWidth, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,0.08)' }}>
-          <div style={{ height: dateHeaderHeight, borderBottom: '1px solid rgba(20,8,31,0.08)' }} />
+        <div style={{ width: sidebarWidth, flexShrink: 0, borderRight: '1px solid rgba(29, 29, 27,0.08)' }}>
+          <div style={{ height: dateHeaderHeight, borderBottom: '1px solid rgba(29, 29, 27,0.08)' }} />
           {rangesBySection.map(({ sec, rows }) => (
             <div key={sec.id}>
-              <div style={{ height: sectionHeaderHeight, padding: '0 10px', display: 'flex', alignItems: 'center', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#173326', background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,0.05)' }}>
-                {sec.name} <span style={{ color: '#7E9B93', marginLeft: 4 }}>{'·'} {rows.length}</span>
+              <div style={{ height: sectionHeaderHeight, padding: '0 10px', display: 'flex', alignItems: 'center', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#232321', background: '#FAF8F3', borderBottom: '1px solid rgba(29, 29, 27,0.05)' }}>
+                {sec.name} <span style={{ color: '#8B877F', marginLeft: 4 }}>{'·'} {rows.length}</span>
               </div>
               {rows.length === 0 ? (
-                <div style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11, color: '#9AA39D', fontStyle: 'italic', borderBottom: '1px solid rgba(20,8,31,0.04)' }}>No tasks</div>
+                <div style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11, color: '#A29E96', fontStyle: 'italic', borderBottom: '1px solid rgba(29, 29, 27,0.04)' }}>No tasks</div>
               ) : rows.map(({ t }) => (
                 <div
                   key={t.id}
                   onClick={() => setSelectedId(t.id)}
                   title={t.title}
-                  style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11.5, color: '#0B1A12', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11.5, color: '#1D1D1B', borderBottom: '1px solid rgba(29, 29, 27,0.04)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 >
                   {t.title}
                 </div>
@@ -516,9 +516,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
         {/* Scrollable date grid + bars. */}
         <div style={{ overflowX: 'auto', flex: 1 }}>
           <div style={{ position: 'relative', width: Math.max(totalDays * dayWidth, 600) }}>
-            <div style={{ display: 'flex', height: dateHeaderHeight, borderBottom: '1px solid rgba(20,8,31,0.08)', position: 'sticky', top: 0, background: 'white', zIndex: 2 }}>
+            <div style={{ display: 'flex', height: dateHeaderHeight, borderBottom: '1px solid rgba(29, 29, 27,0.08)', position: 'sticky', top: 0, background: '#FDFCF9', zIndex: 2 }}>
               {weeks.map((w) => (
-                <div key={w.toISOString()} style={{ width: dayWidth * 7, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,0.06)', padding: '6px 8px', fontSize: 10, fontWeight: 700, color: '#7E9B93' }}>
+                <div key={w.toISOString()} style={{ width: dayWidth * 7, flexShrink: 0, borderRight: '1px solid rgba(29, 29, 27,0.06)', padding: '6px 8px', fontSize: 10, fontWeight: 700, color: '#8B877F' }}>
                   {w.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </div>
               ))}
@@ -526,21 +526,21 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             <div style={{ position: 'absolute', top: 0, bottom: 0, left: todayX, width: 2, background: '#D2822E', zIndex: 1 }} title="Today" />
             {rangesBySection.map(({ sec, rows }) => (
               <div key={sec.id}>
-                <div style={{ height: sectionHeaderHeight, background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,0.05)' }} />
+                <div style={{ height: sectionHeaderHeight, background: '#FAF8F3', borderBottom: '1px solid rgba(29, 29, 27,0.05)' }} />
                 {rows.length === 0 ? (
-                  <div style={{ height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }} />
+                  <div style={{ height: rowHeight, borderBottom: '1px solid rgba(29, 29, 27,0.04)' }} />
                 ) : rows.map(({ t, start, end }) => {
                   if (!start || !end) {
                     // No Start Date or Due Date -- nothing to plot. Leaving
                     // the row blank (rather than piling it onto "today")
                     // keeps the chart meaningful for tasks that do have dates.
-                    return <div key={t.id} style={{ height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }} />;
+                    return <div key={t.id} style={{ height: rowHeight, borderBottom: '1px solid rgba(29, 29, 27,0.04)' }} />;
                   }
                   const left = xFor(start);
                   const width = Math.max(xFor(end) - left + dayWidth, dayWidth);
                   const st = STATUS_STYLE[t.status || 'Not started'];
                   return (
-                    <div key={t.id} style={{ position: 'relative', height: rowHeight, borderBottom: '1px solid rgba(20,8,31,0.04)' }}>
+                    <div key={t.id} style={{ position: 'relative', height: rowHeight, borderBottom: '1px solid rgba(29, 29, 27,0.04)' }}>
                       <div
                         onClick={() => setSelectedId(t.id)}
                         title={t.title}
@@ -574,9 +574,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     const maxStatus = Math.max(1, ...byStatus.map((s) => s.count));
 
     const tile = (label: string, value: number, color?: string) => (
-      <div key={label} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: '16px 18px' }}>
-        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
-        <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: color || '#0B1A12' }}>{value}</div>
+      <div key={label} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: '16px 18px' }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>{label}</div>
+        <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: color || '#1D1D1B' }}>{value}</div>
       </div>
     );
 
@@ -584,39 +584,39 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
           {tile('Total tasks', total)}
-          {tile('Completed', completed, '#1E6B36')}
-          {tile('Incomplete', incomplete, '#5C6B65')}
-          {tile('Overdue', overdue, overdue ? '#8E2E0A' : '#0B1A12')}
+          {tile('Completed', completed, '#3F6B39')}
+          {tile('Incomplete', incomplete, '#65615A')}
+          {tile('Overdue', overdue, overdue ? '#8E2E0A' : '#1D1D1B')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-          <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', marginBottom: 14 }}>Incomplete tasks by section</div>
+          <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 18 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 14 }}>Incomplete tasks by section</div>
             {bySection.length === 0 ? (
-              <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No sections yet.</div>
+              <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No sections yet.</div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 120 }}>
                 {bySection.map((s) => (
                   <div key={s.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#173326' }}>{s.count}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#232321' }}>{s.count}</div>
                     <div style={{ width: '100%', height: Math.max((s.count / maxSection) * 90, 2), background: '#8AAE95', borderRadius: '4px 4px 0 0', transition: 'height 0.4s ease' }} />
-                    <div style={{ fontSize: 9.5, color: '#7E9B93', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{s.name}</div>
+                    <div style={{ fontSize: 9.5, color: '#8B877F', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{s.name}</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', marginBottom: 14 }}>Tasks by status</div>
+          <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 18 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 14 }}>Tasks by status</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {byStatus.map((s) => {
                 const st = STATUS_STYLE[s.status];
                 return (
                   <div key={s.status} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 90, fontSize: 11, color: '#43514D', flexShrink: 0 }}>{s.status}</div>
+                    <div style={{ width: 90, fontSize: 11, color: '#4A4741', flexShrink: 0 }}>{s.status}</div>
                     <div style={{ flex: 1, height: 10, background: '#F4F2ED', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ width: `${(s.count / maxStatus) * 100}%`, height: '100%', background: st.c, borderRadius: 999, transition: 'width 0.4s ease' }} />
                     </div>
-                    <div style={{ width: 22, textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#0B1A12' }}>{s.count}</div>
+                    <div style={{ width: 22, textAlign: 'right', fontSize: 11, fontWeight: 700, color: '#1D1D1B' }}>{s.count}</div>
                   </div>
                 );
               })}
@@ -630,9 +630,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+        <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999 }}>
           {(['board', 'list', 'timeline', 'dashboard'] as const).map((v) => (
-            <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
+            <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'white' : 'transparent', color: view === v ? '#1D1D1B' : '#8B877F', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
           ))}
         </div>
         <TaskScopeToggle
@@ -648,12 +648,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           <div
             onClick={() => setShowPhaseTasks((v) => !v)}
             title="Tasks from the project's delivery programme, which has its own Phase Board"
-            style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: showPhaseTasks ? '#173326' : '#EFEDE8', color: showPhaseTasks ? 'white' : '#43514D' }}
+            style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: showPhaseTasks ? '#232321' : '#EEEBE4', color: showPhaseTasks ? 'white' : '#4A4741' }}
           >
             {showPhaseTasks ? 'Hide' : 'Show'} phase tasks ({phaseTaskCount})
           </div>
         )}
-        <span style={{ fontSize: 11.5, color: '#7E9B93' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
+        <span style={{ fontSize: 11.5, color: '#8B877F' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
       </div>
 
       {view === 'board' ? boardView : view === 'list' ? listView : view === 'timeline' ? timelineView : dashboardView}
@@ -666,20 +666,20 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
         <DraftScope key={selected.id} record={selected} fields={BOARD_FIELDS} enabled={canManage} label="task"
           save={(changes) => api.projectTasks.update(selected.id, changes) as Promise<ProjectTask>} onSaved={replaceTask}>
         {({ draft: d, set, auto }) => (
-        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(11,26,18,0.22)' }}>
+        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: '#FDFCF9', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(29, 29, 27,0.22)' }}>
             {canManage && (
-              <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+              <div style={{ position: 'sticky', top: 0, zIndex: 2, background: '#FDFCF9', padding: '10px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                 <SaveBar auto={auto} />
               </div>
             )}
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <input type="checkbox" checked={!!d.completed} disabled={!canManage} onChange={() => set({ completed: !d.completed })} style={{ marginTop: 5 }} />
-              <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#0B1A12', background: 'transparent' }} />
-              <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
+              <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#1D1D1B', background: 'transparent' }} />
+              <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', flexShrink: 0 }}>×</div>
             </div>
 
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Assignee">
                 <AssigneePicker
                   valueId={d.assigneeId}
@@ -704,7 +704,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               <Field label="Section"><select disabled={!canManage} value={d.sectionId} onChange={(e) => set({ sectionId: e.target.value })} style={{ ...inputStyle, width: '100%' }}>{sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             </div>
 
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
               <FieldLabel>Description</FieldLabel>
               <textarea disabled={!canManage} value={d.description || ''} onChange={(e) => set({ description: e.target.value })}
                 onPaste={(e) => {
@@ -718,13 +718,13 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </div>
 
             {/* Subtasks */}
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
               <FieldLabel>Subtasks</FieldLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {subtasksOf(tasks, selected.id).map((s) => (
-                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FBF8F2', borderRadius: 8 }}>
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FAF8F3', borderRadius: 8 }}>
                     <input type="checkbox" checked={s.completed} disabled={!canManage} onChange={() => toggleSub(s)} />
-                    <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
+                    <span style={{ flex: 1, fontSize: 12.5, color: '#1D1D1B', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
                     {canManage && <span onClick={() => deleteTask(s.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                   </div>
                 ))}
@@ -732,13 +732,13 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               {canManage && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                   <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} placeholder="Add a subtask…" style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(); }} />
-                  <div onClick={addSubtask} style={{ padding: '8px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Add</div>
+                  <div onClick={addSubtask} style={{ padding: '8px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Add</div>
                 </div>
               )}
             </div>
 
             {/* Checklist */}
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
               <Checklist
                 items={d.checklist ?? []}
                 canManage={canManage}
@@ -747,7 +747,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </div>
 
             {/* Labels */}
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
               <LabelPicker
                 labels={d.labels ?? []}
                 canManage={canManage}
@@ -757,7 +757,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </div>
 
             {/* Attachments — paste a screenshot, drop files, or add a link */}
-            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+            <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
               <Attachments
                 scope="project-tasks"
                 taskId={selected.id}
@@ -796,7 +796,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>{children}</div>;
+  return <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>{children}</div>;
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><FieldLabel>{label}</FieldLabel>{children}</div>;

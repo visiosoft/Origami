@@ -45,14 +45,14 @@ export type { ModuleRef };
 export const TIERS: Tier[] = ['internal', 'client', 'consultant'];
 
 export const TIER_STYLE: Record<Tier, { label: string; bg: string; color: string }> = {
-  internal: { label: 'Internal', bg: '#DCE7DE', color: '#173326' },
+  internal: { label: 'Internal', bg: '#FAE7A5', color: '#232321' },
   client: { label: 'Client', bg: '#EAE0F3', color: '#5B2E86' },
   consultant: { label: 'Consultant', bg: '#FBE9CE', color: '#8A5A12' },
 };
 
 export const STATUS_STYLE: Record<UserStatus, { label: string; bg: string; color: string }> = {
-  active: { label: 'Active', bg: '#D2EAD3', color: '#1E6B36' },
-  pending: { label: 'Pending', bg: '#FBE9AE', color: '#8A6D12' },
+  active: { label: 'Active', bg: '#E3ECD9', color: '#3F6B39' },
+  pending: { label: 'Pending', bg: '#FBE7A8', color: '#7A5A0C' },
   suspended: { label: 'Suspended', bg: '#F2DFD4', color: '#8E2E0A' },
 };
 

@@ -9,10 +9,10 @@ export const DEFAULT_LOG_STATUSES: LogStatus[] = [
 ];
 
 const TONES: Record<string, { bg: string; c: string }> = {
-  Closed: { bg: '#D2EAD3', c: '#1C5230' },
+  Closed: { bg: '#E3ECD9', c: '#34552E' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  'On hold': { bg: '#FBE9AE', c: '#93520F' },
+  'On hold': { bg: '#FBE7A8', c: '#93520F' },
 };
 
 // One copy for the whole app, loaded once and shared by every screen.
@@ -51,5 +51,5 @@ export function logStatusTone(name?: string | null): { bg: string; c: string } {
   if (name && TONES[name]) return TONES[name];
   const custom = current.find((s) => s.name === name)?.color;
   if (custom) return { bg: custom + '22', c: custom };
-  return isLogClosed(name) ? TONES.Closed : { bg: '#EFEDE8', c: '#5C6B65' };
+  return isLogClosed(name) ? TONES.Closed : { bg: '#EEEBE4', c: '#65615A' };
 }

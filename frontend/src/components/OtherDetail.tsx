@@ -2,8 +2,8 @@ import { isOtherValue } from '../data/leads';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
+  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
 };
 
 interface Props {

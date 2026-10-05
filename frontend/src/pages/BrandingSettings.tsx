@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 18, marginBottom: 16,
+  background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 18, marginBottom: 16,
 };
 
 /** Every branding value, all stored as plain settings. */
@@ -26,7 +26,7 @@ type Brand = Record<
 export interface TeamMember { name: string; title: string; photoDataUrl: string; }
 
 const EMPTY: Brand = {
-  'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#173326',
+  'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#232321',
   'brand.address': '', 'brand.phone': '', 'brand.email': '', 'brand.website': '', 'brand.footerNote': '',
   'brand.signatureName': '', 'brand.signatureTitle': '', 'brand.signatureDataUrl': '',
   'brand.footerLogoDataUrl': '', 'brand.aboutUsText': '', 'brand.team': '[]', 'brand.coverPhotoDataUrl': '',
@@ -95,21 +95,21 @@ export function BrandingSettings() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
-  const accent = form['brand.accentColor'] || '#173326';
+  const accent = form['brand.accentColor'] || '#232321';
 
   const imageField = (label: string, key: keyof Brand, hint: string, height: number) => (
     <div>
-      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>{label}</label>
+      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>{label}</label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-        <div style={{ width: 130, height, borderRadius: 8, border: '1px dashed rgba(20,8,31,0.14)', background: '#FBF8F2', display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ width: 130, height, borderRadius: 8, border: '1px dashed rgba(29, 29, 27,0.14)', background: '#FAF8F3', display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
           {form[key]
             ? <img src={form[key]} alt={label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-            : <span style={{ fontSize: 10, color: '#9AA39D' }}>None</span>}
+            : <span style={{ fontSize: 10, color: '#A29E96' }}>None</span>}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <label style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326', display: 'inline-block' }}>
+          <label style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321', display: 'inline-block' }}>
             <input type="file" accept="image/*" style={{ display: 'none' }}
                    onChange={(e) => { readImage(e.target.files?.[0], key); e.currentTarget.value = ''; }} />
             {form[key] ? 'Replace' : 'Upload'}
@@ -119,23 +119,23 @@ export function BrandingSettings() {
           )}
         </div>
       </div>
-      <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 6, lineHeight: 1.45 }}>{hint}</div>
+      <div style={{ fontSize: 11, color: '#8B877F', marginTop: 6, lineHeight: 1.45 }}>{hint}</div>
     </div>
   );
 
   const field = (label: string, key: keyof Brand, placeholder = '', hint = '') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>{label}</label>
+      <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>{label}</label>
       <input style={inputStyle} value={form[key]} onChange={(e) => set(key, e.target.value)} placeholder={placeholder} />
-      {hint && <span style={{ fontSize: 11, color: '#7E9B93' }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 11, color: '#8B877F' }}>{hint}</span>}
     </div>
   );
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Branding</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>Branding</div>
+        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           The letterhead, footer and signature applied to documents the platform generates — starting with the
           Introduction Letter PDF. Images are stored inline so a document never depends on an external file.
         </div>
@@ -154,10 +154,10 @@ export function BrandingSettings() {
           {field('Company name', 'brand.companyName', 'Origami Design + Build')}
           {field('Tagline', 'brand.tagline', 'Design + Build', 'Sits under the company name')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Accent colour</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>Accent colour</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input type="color" value={accent} onChange={(e) => set('brand.accentColor', e.target.value)}
-                     style={{ width: 44, height: 36, padding: 2, borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', background: 'white' }} />
+                     style={{ width: 44, height: 36, padding: 2, borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', background: '#FDFCF9' }} />
               <input style={inputStyle} value={accent} onChange={(e) => set('brand.accentColor', e.target.value)} />
             </div>
           </div>
@@ -187,11 +187,11 @@ export function BrandingSettings() {
 
       <div style={card}>
         <SectionTitle>About Us &amp; Team</SectionTitle>
-        <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 12, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: '#8B877F', marginBottom: 12, lineHeight: 1.5 }}>
           Inserted as its own page in the Project Program and, when a cover page is used, the Introduction Letter.
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Company description</label>
+          <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>Company description</label>
           <textarea
             value={form['brand.aboutUsText']}
             onChange={(e) => set('brand.aboutUsText', e.target.value)}
@@ -205,14 +205,14 @@ export function BrandingSettings() {
           {imageField('Cover photo', 'brand.coverPhotoDataUrl', 'The photo band on a document’s cover page. Max 400 KB.', 54)}
         </div>
 
-        <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Team</label>
+        <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4A4741' }}>Team</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
           {team.map((m, i) => (
-            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#FBF8F2', borderRadius: 10, padding: 10 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px dashed rgba(20,8,31,0.14)', background: 'white', display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                {m.photoDataUrl ? <img src={m.photoDataUrl} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 9, color: '#9AA39D' }}>None</span>}
+            <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: '#FAF8F3', borderRadius: 10, padding: 10 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 8, border: '1px dashed rgba(29, 29, 27,0.14)', background: '#FDFCF9', display: 'grid', placeItems: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                {m.photoDataUrl ? <img src={m.photoDataUrl} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 9, color: '#A29E96' }}>None</span>}
               </div>
-              <label style={{ padding: '6px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326', flexShrink: 0 }}>
+              <label style={{ padding: '6px 11px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321', flexShrink: 0 }}>
                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { readMemberPhoto(e.target.files?.[0], i); e.currentTarget.value = ''; }} />
                 Photo
               </label>
@@ -222,29 +222,29 @@ export function BrandingSettings() {
             </div>
           ))}
         </div>
-        <div onClick={addMember} style={{ display: 'inline-block', marginTop: 10, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#EEF3EE', color: '#173326' }}>+ Add team member</div>
+        <div onClick={addMember} style={{ display: 'inline-block', marginTop: 10, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#F2EFE8', color: '#232321' }}>+ Add team member</div>
       </div>
 
       {/* What the letterhead will look like on a document. */}
       <div style={card}>
         <SectionTitle>Preview</SectionTitle>
-        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflow: 'hidden', background: 'white' }}>
+        <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, overflow: 'hidden', background: '#FDFCF9' }}>
           <div style={{ padding: '18px 22px', borderBottom: `3px solid ${accent}`, display: 'flex', alignItems: 'center', gap: 14 }}>
             {form['brand.logoDataUrl'] && <img src={form['brand.logoDataUrl']} alt="" style={{ maxHeight: 42, maxWidth: 150, objectFit: 'contain' }} />}
             <div>
-              <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, color: '#0B1A12' }}>{form['brand.companyName'] || 'Company name'}</div>
-              {form['brand.tagline'] && <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>{form['brand.tagline']}</div>}
+              <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, color: '#1D1D1B' }}>{form['brand.companyName'] || 'Company name'}</div>
+              {form['brand.tagline'] && <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 2 }}>{form['brand.tagline']}</div>}
             </div>
           </div>
-          <div style={{ padding: '20px 22px', fontSize: 12.5, color: '#43514D', lineHeight: 1.7 }}>
+          <div style={{ padding: '20px 22px', fontSize: 12.5, color: '#4A4741', lineHeight: 1.7 }}>
             <p style={{ margin: 0 }}>The body of the letter appears here.</p>
             <div style={{ marginTop: 22 }}>
               {form['brand.signatureDataUrl'] && <img src={form['brand.signatureDataUrl']} alt="" style={{ maxHeight: 42, marginBottom: 4, display: 'block' }} />}
-              <div style={{ fontWeight: 700, color: '#0B1A12' }}>{form['brand.signatureName'] || 'Signature name'}</div>
-              <div style={{ fontSize: 11.5, color: '#7E9B93' }}>{form['brand.signatureTitle'] || 'Title'}</div>
+              <div style={{ fontWeight: 700, color: '#1D1D1B' }}>{form['brand.signatureName'] || 'Signature name'}</div>
+              <div style={{ fontSize: 11.5, color: '#8B877F' }}>{form['brand.signatureTitle'] || 'Title'}</div>
             </div>
           </div>
-          <div style={{ padding: '11px 22px', borderTop: '1px solid rgba(20,8,31,0.08)', background: '#FBF8F2', fontSize: 10.5, color: '#7E9B93', lineHeight: 1.6 }}>
+          <div style={{ padding: '11px 22px', borderTop: '1px solid rgba(29, 29, 27,0.08)', background: '#FAF8F3', fontSize: 10.5, color: '#8B877F', lineHeight: 1.6 }}>
             {[form['brand.address'], form['brand.phone'], form['brand.email'], form['brand.website']].filter(Boolean).join('  ·  ') || 'Address · Phone · Email · Website'}
             {form['brand.footerNote'] && <div>{form['brand.footerNote']}</div>}
           </div>
@@ -252,7 +252,7 @@ export function BrandingSettings() {
       </div>
 
       <div onClick={saving ? undefined : save}
-           style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+           style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
         {saving ? 'Saving…' : 'Save branding'}
       </div>
     </div>
@@ -260,5 +260,5 @@ export function BrandingSettings() {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', marginBottom: 14 }}>{children}</div>;
+  return <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#8B877F', marginBottom: 14 }}>{children}</div>;
 }

@@ -22,12 +22,12 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
-const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
+const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 13, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
-const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
+const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#232321' };
 
 interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string }
 interface SavedView { name: string; filters: ProjectFilters }
@@ -131,7 +131,7 @@ export function Projects() {
   };
 
   const sel = selectedId ? projects.find((p) => p.id === selectedId) || null : null;
-  const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#173326' : '#173326';
+  const stColor = sel ? STAGE_CONFIG.find((s) => s.name === sel.stage)?.color || '#232321' : '#232321';
   // The Phase Board reads the project's own phases and tasks, so it shows what
   // the programme template actually put there.
   const [boardPhases, setBoardPhases] = useState<BoardPhase[]>([]);
@@ -461,7 +461,7 @@ export function Projects() {
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(p.id)); e.dataTransfer.effectAllowed = 'move'; setDragId(p.id); }}
       onDragEnd={() => { setDragId(null); setDragOver(null); }}
       onClick={() => openProject(p.id)}
-      style={{ background: 'white', borderRadius: 12, border: '1px solid ' + (isOnHold(p) ? 'rgba(147,82,15,0.35)' : 'rgba(20,8,31,0.06)'), overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.id ? 0.4 : 1 }}
+      style={{ background: '#FDFCF9', borderRadius: 18, border: '1px solid ' + (isOnHold(p) ? 'rgba(147,82,15,0.35)' : 'rgba(29, 29, 27,0.06)'), overflow: 'hidden', cursor: canManage ? 'grab' : 'pointer', opacity: dragId === p.id ? 0.4 : 1 }}
     >
       <div style={{ height: 80, background: `linear-gradient(135deg, ${p.imgColor}, ${p.imgColor}cc)`, position: 'relative', filter: isOnHold(p) ? 'saturate(0.35)' : undefined }}>
         {isOnHold(p) && <span style={{ position: 'absolute', top: 8, left: 8 }}><HoldBadge project={p} /></span>}
@@ -472,26 +472,26 @@ export function Projects() {
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4, lineHeight: 1.3 }}>{p.name}</div>
         {/* Plain text on the board card -- the whole card opens the project; the map link is in the project panel. */}
         {p.location && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#7E9B93', marginBottom: 8, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#8B877F', marginBottom: 8, minWidth: 0 }}>
             <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx={12} cy={10} r={3} /></svg>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.location}</span>
           </div>
         )}
-        <div style={{ fontSize: 10, color: '#7E9B93', marginBottom: 10, lineHeight: 1.4 }}>{p.typeOfWork}</div>
+        <div style={{ fontSize: 10, color: '#8B877F', marginBottom: 10, lineHeight: 1.4 }}>{p.typeOfWork}</div>
         <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{p.contractAmt}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-          <div><div style={{ fontSize: 9, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Est. Start</div><div style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{p.estStart}</div></div>
-          <div><div style={{ fontSize: 9, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Duration</div><div style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{p.duration}</div></div>
+          <div><div style={{ fontSize: 9, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Est. Start</div><div style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{p.estStart}</div></div>
+          <div><div style={{ fontSize: 9, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Duration</div><div style={{ fontSize: 12, fontWeight: 600, marginTop: 1 }}>{p.duration}</div></div>
         </div>
-        {p.scope && <div style={{ fontSize: 11, color: '#43514D', lineHeight: 1.4, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8, marginBottom: 10 }}>{p.scope}</div>}
+        {p.scope && <div style={{ fontSize: 11, color: '#4A4741', lineHeight: 1.4, padding: '8px 10px', background: '#FAF8F3', borderRadius: 8, marginBottom: 10 }}>{p.scope}</div>}
         {p.progress > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <div style={{ flex: 1, height: 5, background: '#EDE3D0', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: p.progress + '%', height: '100%', background: stCol, borderRadius: 999 }} /></div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#7E9B93' }}>{p.progress}%</span>
+            <div style={{ flex: 1, height: 5, background: '#ECE6DA', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: p.progress + '%', height: '100%', background: stCol, borderRadius: 999 }} /></div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#8B877F' }}>{p.progress}%</span>
           </div>
         )}
         {p.referral && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#7E9B93', paddingTop: 8, borderTop: '1px solid rgba(20,8,31,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#8B877F', paddingTop: 8, borderTop: '1px solid rgba(29, 29, 27,0.04)' }}>
             <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx={9} cy={7} r={4} /></svg>
             Ref: <strong>{p.referral}</strong>
           </div>
@@ -516,39 +516,39 @@ export function Projects() {
           value={filters.q}
           onChange={(e) => setFilter('q', e.target.value)}
           placeholder="Search name or location…"
-          style={{ ...inputStyle, width: 200, background: 'white' }}
+          style={{ ...inputStyle, width: 200, background: '#FDFCF9' }}
         />
-        <select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)} style={{ ...inputStyle, width: 130, background: 'white' }}>
+        <select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)} style={{ ...inputStyle, width: 130, background: '#FDFCF9' }}>
           <option value="">Any priority</option>
           {distinctValues('priority').map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
-        <select value={filters.contractType} onChange={(e) => setFilter('contractType', e.target.value)} style={{ ...inputStyle, width: 160, background: 'white' }}>
+        <select value={filters.contractType} onChange={(e) => setFilter('contractType', e.target.value)} style={{ ...inputStyle, width: 160, background: '#FDFCF9' }}>
           <option value="">Any contract type</option>
           {distinctValues('contractType').map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
-        <select value={filters.typeOfWork} onChange={(e) => setFilter('typeOfWork', e.target.value)} style={{ ...inputStyle, width: 160, background: 'white' }}>
+        <select value={filters.typeOfWork} onChange={(e) => setFilter('typeOfWork', e.target.value)} style={{ ...inputStyle, width: 160, background: '#FDFCF9' }}>
           <option value="">Any project type</option>
           {distinctValues('typeOfWork').map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
-        <select value={filters.contactedBy} onChange={(e) => setFilter('contactedBy', e.target.value)} style={{ ...inputStyle, width: 160, background: 'white' }}>
+        <select value={filters.contactedBy} onChange={(e) => setFilter('contactedBy', e.target.value)} style={{ ...inputStyle, width: 160, background: '#FDFCF9' }}>
           <option value="">Anyone responsible</option>
           {distinctValues('contactedBy').map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
-        <select value={filters.hold || ''} onChange={(e) => setFilter('hold', e.target.value)} style={{ ...inputStyle, width: 150, background: 'white' }}>
+        <select value={filters.hold || ''} onChange={(e) => setFilter('hold', e.target.value)} style={{ ...inputStyle, width: 150, background: '#FDFCF9' }}>
           <option value="">Active and on hold</option>
           <option value="active">Active only</option>
           <option value="hold">On hold ({projects.filter(isOnHold).length})</option>
         </select>
         {filtersActive && <div onClick={clearFilters} style={{ fontSize: 12, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear</div>}
         <div style={{ flex: 1 }} />
-        {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#173326', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)', whiteSpace: 'nowrap' }}>+ New Project</div>}
+        {canManage && <div onClick={openNew} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 600, background: '#232321', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)', whiteSpace: 'nowrap' }}>+ New Project</div>}
       </div>
 
       {/* Saved views */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         <div
           onClick={clearFilters}
-          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: !activeView && !filtersActive ? '#173326' : 'white', color: !activeView && !filtersActive ? 'white' : '#7E9B93', border: '1px solid ' + (!activeView && !filtersActive ? '#173326' : 'rgba(20,8,31,0.08)'), cursor: 'pointer' }}
+          style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: !activeView && !filtersActive ? '#232321' : 'white', color: !activeView && !filtersActive ? 'white' : '#8B877F', border: '1px solid ' + (!activeView && !filtersActive ? '#232321' : 'rgba(29, 29, 27,0.08)'), cursor: 'pointer' }}
         >All</div>
         {savedViews.map((v) => (
           <div
@@ -556,14 +556,14 @@ export function Projects() {
             onClick={() => applyView(v)}
             title="Click to apply. Right-click to delete."
             onContextMenu={(e) => { e.preventDefault(); deleteView(v.name); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: activeView === v.name ? '#173326' : 'white', color: activeView === v.name ? 'white' : '#7E9B93', border: '1px solid ' + (activeView === v.name ? '#173326' : 'rgba(20,8,31,0.08)'), cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', background: activeView === v.name ? '#232321' : 'white', color: activeView === v.name ? 'white' : '#8B877F', border: '1px solid ' + (activeView === v.name ? '#232321' : 'rgba(29, 29, 27,0.08)'), cursor: 'pointer' }}
           >
             {v.name}
             <span onClick={(e) => { e.stopPropagation(); deleteView(v.name); }} style={{ opacity: 0.6 }}>×</span>
           </div>
         ))}
         {filtersActive && (
-          <div onClick={saveCurrentView} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', border: '1px dashed rgba(20,8,31,0.2)', color: '#173326', cursor: 'pointer' }}>
+          <div onClick={saveCurrentView} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', border: '1px dashed rgba(29, 29, 27,0.2)', color: '#232321', cursor: 'pointer' }}>
             + Save this view
           </div>
         )}
@@ -579,13 +579,13 @@ export function Projects() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
                 <div style={{ width: 13, height: 13, borderRadius: 999, background: st.color, boxShadow: '0 0 0 3px ' + st.color + '2E' }} />
                 <span style={{ fontFamily: BG, fontWeight: 700, fontSize: 15 }}>{st.name}</span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#7E9B93', background: '#EDE3D0', padding: '2px 10px', borderRadius: 999 }}>{stageProjects.length}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: '#8B877F', background: '#ECE6DA', padding: '2px 10px', borderRadius: 999 }}>{stageProjects.length}</span>
               </div>
               <div
                 onDragOver={(e) => { if (canManage) { e.preventDefault(); if (dragOver !== st.name) setDragOver(st.name); } }}
                 onDragLeave={() => { if (dragOver === st.name) setDragOver(null); }}
                 onDrop={(e) => { e.preventDefault(); const id = Number(e.dataTransfer.getData('text/plain')); if (id) moveProject(id, st.name); setDragOver(null); setDragId(null); }}
-                style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 8, background: dragOver === st.name ? '#EEF3EE' : '#FBF8F2', borderRadius: 14, minHeight: 200, border: dragOver === st.name ? '2px dashed #7E9B93' : '1px solid rgba(20,8,31,0.04)', transition: 'background 0.15s, border 0.15s' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 8, background: dragOver === st.name ? '#F2EFE8' : '#FAF8F3', borderRadius: 20, minHeight: 200, border: dragOver === st.name ? '2px dashed #8B877F' : '1px solid rgba(29, 29, 27,0.04)', transition: 'background 0.15s, border 0.15s' }}
               >
                 {stageProjects.map((p) => card(p, st.color))}
               </div>
@@ -596,8 +596,8 @@ export function Projects() {
 
       {/* Project detail drawer */}
       {sel && (
-        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+        <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#FDFCF9', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${sel.imgColor}cc)`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -635,48 +635,48 @@ export function Projects() {
             />
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(20,8,31,0.06)', padding: '0 20px', flexShrink: 0 }}>
-              <div onClick={() => setTab('overview')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'overview' ? '#173326' : 'transparent'), color: tab === 'overview' ? '#0B1A12' : '#7E9B93' }}>Overview</div>
-              <div onClick={() => openWork(workView)} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#173326' : 'transparent'), color: tab === 'tasks' ? '#0B1A12' : '#7E9B93' }}>
+            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(29, 29, 27,0.06)', padding: '0 20px', flexShrink: 0 }}>
+              <div onClick={() => setTab('overview')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'overview' ? '#232321' : 'transparent'), color: tab === 'overview' ? '#1D1D1B' : '#8B877F' }}>Overview</div>
+              <div onClick={() => openWork(workView)} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? '#232321' : 'transparent'), color: tab === 'tasks' ? '#1D1D1B' : '#8B877F' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
                   {rfiView ? 'Tasks & RFIs' : 'Tasks'}
                 </span>
               </div>
-              <div onClick={() => setTab('phases')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'phases' ? '#173326' : 'transparent'), color: tab === 'phases' ? '#0B1A12' : '#7E9B93' }}>
+              <div onClick={() => setTab('phases')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'phases' ? '#232321' : 'transparent'), color: tab === 'phases' ? '#1D1D1B' : '#8B877F' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={7} height={7} /><rect x={14} y={3} width={7} height={7} /><rect x={3} y={14} width={7} height={7} /><rect x={14} y={14} width={7} height={7} /></svg>
                   Phase Board
                 </span>
               </div>
-              {!sel.programOff && <div onClick={() => setTab('program')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'program' ? '#173326' : 'transparent'), color: tab === 'program' ? '#0B1A12' : '#7E9B93' }}>
+              {!sel.programOff && <div onClick={() => setTab('program')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'program' ? '#232321' : 'transparent'), color: tab === 'program' ? '#1D1D1B' : '#8B877F' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
                   Project Program
                 </span>
               </div>}
-              <div onClick={() => setTab('subs')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'subs' ? '#173326' : 'transparent'), color: tab === 'subs' ? '#0B1A12' : '#7E9B93' }}>
+              <div onClick={() => setTab('subs')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'subs' ? '#232321' : 'transparent'), color: tab === 'subs' ? '#1D1D1B' : '#8B877F' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M2 18h20" /><path d="M4 18v-3a8 8 0 0 1 16 0v3" /><path d="M10 7V4h4v3" /></svg>
                   Subcontractors
                 </span>
               </div>
               {finView && (
-                <div onClick={() => { setFinStart('sov'); setTab('financial'); }} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'financial' ? '#173326' : 'transparent'), color: tab === 'financial' ? '#0B1A12' : '#7E9B93' }}>
+                <div onClick={() => { setFinStart('sov'); setTab('financial'); }} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'financial' ? '#232321' : 'transparent'), color: tab === 'financial' ? '#1D1D1B' : '#8B877F' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={12} y1={1} x2={12} y2={23} /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
                     Financial
                   </span>
                 </div>
               )}
-              <div onClick={() => setTab('files')} title="Every file on this project -- its lead's, the client's, its tasks', RFIs' and the Plan & File Room" style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'files' ? '#173326' : 'transparent'), color: tab === 'files' ? '#0B1A12' : '#7E9B93' }}>
+              <div onClick={() => setTab('files')} title="Every file on this project -- its lead's, the client's, its tasks', RFIs' and the Plan & File Room" style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'files' ? '#232321' : 'transparent'), color: tab === 'files' ? '#1D1D1B' : '#8B877F' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
                   Files
                 </span>
               </div>
               {canManage && (
-                <div onClick={() => setTab('guests')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'guests' ? '#173326' : 'transparent'), color: tab === 'guests' ? '#0B1A12' : '#7E9B93' }}>
+                <div onClick={() => setTab('guests')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'guests' ? '#232321' : 'transparent'), color: tab === 'guests' ? '#1D1D1B' : '#8B877F' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx={12} cy={7} r={4} /></svg>
                     Guest Access
@@ -688,37 +688,37 @@ export function Projects() {
             {tab === 'overview' ? (
               <div>
                 <WorkGlance projectId={sel.id} showRfis={rfiView} onTasks={() => openWork('tasks')} onRfis={() => openWork('rfis')} />
-                <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 14 }}>Project Details</div>
+                <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 14 }}>Project Details</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {fields.map((r) => (
-                      <div key={r[0]} style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{r[1]}</div>
+                      <div key={r[0]} style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10 }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1B' }}>{r[1]}</div>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Scope of Work</div>
-                  <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 13, lineHeight: 1.6, color: '#43514D' }}>{sel.scope}</div>
+                <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 8 }}>Scope of Work</div>
+                  <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, fontSize: 13, lineHeight: 1.6, color: '#4A4741' }}>{sel.scope}</div>
                 </div>
                 {sel.progress > 0 && (
-                  <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>Progress</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F' }}>Progress</span>
                       <span style={{ fontFamily: BG, fontWeight: 700, fontSize: 18 }}>{sel.progress}%</span>
                     </div>
-                    <div style={{ height: 8, background: '#EDE3D0', borderRadius: 999, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, background: stColor, width: sel.progress + '%' }} /></div>
+                    <div style={{ height: 8, background: '#ECE6DA', borderRadius: 999, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, background: stColor, width: sel.progress + '%' }} /></div>
                   </div>
                 )}
                 {finView && <MoneyGlance projectId={sel.id} onOpen={() => setTab('financial')} />}
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#173326', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
-                  <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}>Open Phase Board</div>
-                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'white' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>
-                  {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(20,8,31,0.2)', color: '#7E9B93', background: 'white' }}>Project Program off · Turn on</div>}
-                  {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'white', marginLeft: 'auto' }}>Delete</div>}
+                  {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: '#232321', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
+                  <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', background: '#FDFCF9' }}>Open Phase Board</div>
+                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.1)', background: '#FDFCF9' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>
+                  {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(29, 29, 27,0.2)', color: '#8B877F', background: '#FDFCF9' }}>Project Program off · Turn on</div>}
+                  {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: '#FDFCF9', marginLeft: 'auto' }}>Delete</div>}
                 </div>
               </div>
             ) : tab === 'program' ? (
@@ -726,7 +726,7 @@ export function Projects() {
                 {canManage && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                     <span onClick={() => { if (window.confirm(`Turn off the Project Program for ${sel.name}? The tab is hidden; anything already filled in is kept and comes back if you turn it on again (Overview).`)) setProgramOff(true); }}
-                      style={{ fontSize: 12, color: '#7E9B93', cursor: 'pointer' }}>Not needed on this project? Turn off</span>
+                      style={{ fontSize: 12, color: '#8B877F', cursor: 'pointer' }}>Not needed on this project? Turn off</span>
                   </div>
                 )}
                 <ProjectProgram
@@ -751,8 +751,8 @@ export function Projects() {
             ) : tab === 'files' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: 12.5, color: '#7E9B93', flex: 1, minWidth: 240 }}>Everything on this project in one list, numbered in the order it was added — including what came in while it was a lead.</div>
-                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>Open the Plan &amp; File Room</div>
+                  <div style={{ fontSize: 12.5, color: '#8B877F', flex: 1, minWidth: 240 }}>Everything on this project in one list, numbered in the order it was added — including what came in while it was a lead.</div>
+                  <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>Open the Plan &amp; File Room</div>
                 </div>
                 <AllFiles projectId={sel.id} />
               </div>
@@ -761,7 +761,7 @@ export function Projects() {
                 <ProjectSubcontractors projectId={sel.id} onAddSubcontract={finView ? () => { setFinStart('subcontracts'); setTab('financial'); } : undefined} />
               </div>
             ) : tab === 'financial' ? (
-              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', background: '#FBF8F2' }}>
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', background: '#FAF8F3' }}>
                 <ProjectFinancials key={`${sel.id}-${finStart}`} projectId={sel.id} initialView={finStart} />
               </div>
             ) : tab === 'guests' ? (
@@ -771,7 +771,7 @@ export function Projects() {
             ) : (
               <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11.5, color: '#7E9B93' }}>
+                  <span style={{ fontSize: 11.5, color: '#8B877F' }}>
                     {workflow.length
                       ? `${workflow.length} phases · ${workflow.reduce((a, w) => a + w.count, 0)} tasks${
                           workflow.reduce((a, w) => a + w.weeks, 0)
@@ -780,16 +780,16 @@ export function Projects() {
                       : 'This project has no programme yet.'}
                   </span>
                   {hiddenPhaseCount > 0 && (
-                    <span onClick={() => setShowHiddenPhases(!showHiddenPhases)} style={{ fontSize: 11.5, color: '#173326', fontWeight: 700, cursor: 'pointer' }}>
+                    <span onClick={() => setShowHiddenPhases(!showHiddenPhases)} style={{ fontSize: 11.5, color: '#232321', fontWeight: 700, cursor: 'pointer' }}>
                       {showHiddenPhases ? `Hide the ${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''}` : `${hiddenPhaseCount} hidden phase${hiddenPhaseCount > 1 ? 's' : ''} · Show`}
                     </span>
                   )}
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: '#EFEDE8', borderRadius: 999 }}>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 3, padding: 3, background: '#EEEBE4', borderRadius: 999 }}>
                     {(['board', 'list'] as const).map((v) => (
                       <div
                         key={v}
                         onClick={() => setPhaseView(v)}
-                        style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: phaseView === v ? 'white' : 'transparent', color: phaseView === v ? '#0B1A12' : '#7E9B93', boxShadow: phaseView === v ? '0 1px 3px rgba(20,8,31,0.1)' : 'none' }}
+                        style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: phaseView === v ? 'white' : 'transparent', color: phaseView === v ? '#1D1D1B' : '#8B877F', boxShadow: phaseView === v ? '0 1px 3px rgba(29, 29, 27,0.1)' : 'none' }}
                       >
                         {v}
                       </div>
@@ -798,7 +798,7 @@ export function Projects() {
                   <div
                     onClick={applying || !sel ? undefined : () => applyProgramme(sel.id)}
                     title="Add any phases and tasks the template has that this project is missing. Nothing is removed."
-                    style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applying ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+                    style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: applying ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', background: '#FDFCF9' }}
                   >
                     {applying ? 'Applying…' : 'Apply programme template'}
                   </div>
@@ -811,7 +811,7 @@ export function Projects() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 22, height: 22, borderRadius: 999, background: step.statusBg, border: '2px solid ' + step.statusC, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                           {step.isComplete && <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={step.statusC} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
-                          {step.isLocked && <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#9AA39D" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={11} width={18} height={11} rx={2} ry={2} /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
+                          {step.isLocked && <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#A29E96" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={11} width={18} height={11} rx={2} ry={2} /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
                         </div>
                         <span style={{ fontSize: 10, fontWeight: 600, color: step.statusC, whiteSpace: 'nowrap' }}>{step.name}</span>
                       </div>
@@ -823,30 +823,30 @@ export function Projects() {
                 {/* Phase columns */}
                 <div style={{ display: 'flex', gap: 12, minWidth: 'max-content' }}>
                   {workflow.map((phase) => (
-                    <div key={phase.id} style={{ width: 220, flexShrink: 0, background: '#FBF8F2', borderRadius: 12, border: '1px solid rgba(20,8,31,0.04)', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 340px)', opacity: phase.headerOpacity }}>
-                      <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                    <div key={phase.id} style={{ width: 220, flexShrink: 0, background: '#FAF8F3', borderRadius: 18, border: '1px solid rgba(29, 29, 27,0.04)', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 340px)', opacity: phase.headerOpacity }}>
+                      <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                           <div style={{ width: 8, height: 8, borderRadius: 3, background: phase.color, flexShrink: 0 }} />
-                          <div style={{ fontSize: 11, fontWeight: 700, color: '#0B1A12', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phase.name}</div>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#1D1D1B', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phase.name}</div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', background: 'rgba(29, 29, 27,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
                           {canManage && (() => {
                             const hidden = !!boardPhases.find((p) => p.id === phase.id)?.hiddenAt;
                             return (
                               <span onClick={() => { if (hidden || window.confirm(`Hide "${phase.name}" on this project's board? Its tasks are kept, and "Show" brings it back.`)) setPhaseHidden(phase.id, !hidden); }}
                                 title={hidden ? 'Show this phase on the board again' : "Hide this phase -- this project doesn't use it"}
-                                style={{ cursor: 'pointer', color: hidden ? '#173326' : '#9AA39D', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center' }}>
+                                style={{ cursor: 'pointer', color: hidden ? '#232321' : '#A29E96', fontSize: 10, fontWeight: 700, display: 'grid', placeItems: 'center' }}>
                                 {hidden ? 'Unhide' : <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1={1} y1={1} x2={23} y2={23} /></svg>}
                               </span>
                             );
                           })()}
                         </div>
-                        <div style={{ fontSize: 9.5, color: '#9AA39D', marginBottom: 6 }}>
+                        <div style={{ fontSize: 9.5, color: '#A29E96', marginBottom: 6 }}>
                           {phase.weeks
                             ? `${phase.weeks} wks · week ${phase.weekFrom}–${phase.weekTo}`
                             : 'No estimate'}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={{ flex: 1, height: 4, background: 'rgba(20,8,31,0.06)', borderRadius: 999, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, background: phase.color, width: phase.progress + '%', transition: 'width 0.3s' }} /></div>
+                          <div style={{ flex: 1, height: 4, background: 'rgba(29, 29, 27,0.06)', borderRadius: 999, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 999, background: phase.color, width: phase.progress + '%', transition: 'width 0.3s' }} /></div>
                           <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
                         </div>
                       </div>
@@ -856,21 +856,21 @@ export function Projects() {
                             const done = pt.status === 'Done';
                             if (phase.isComplete && done) {
                               return (
-                                <div key={pt.title} onClick={() => openPhaseTask(pt, phase)} style={{ background: '#EDF4EC', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
+                                <div key={pt.title} onClick={() => openPhaseTask(pt, phase)} style={{ background: '#F2EFE8', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(5,150,105,0.08)', cursor: 'pointer' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#43514D' }}>{pt.title}</span>
+                                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#34552E" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                    <span style={{ fontSize: 11, fontWeight: 500, color: '#4A4741' }}>{pt.title}</span>
                                   </div>
                                 </div>
                               );
                             }
                             return (
-                              <div key={pt.title} onClick={() => openPhaseTask(pt, phase)} style={{ background: 'white', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(20,8,31,0.05)', boxShadow: '0 1px 3px rgba(20,8,31,0.04)', cursor: 'pointer' }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#0B1A12', lineHeight: 1.4, marginBottom: 6 }}>{pt.title}</div>
+                              <div key={pt.title} onClick={() => openPhaseTask(pt, phase)} style={{ background: '#FDFCF9', borderRadius: 8, padding: '9px 10px', border: '1px solid rgba(29, 29, 27,0.05)', boxShadow: '0 1px 3px rgba(29, 29, 27,0.04)', cursor: 'pointer' }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#1D1D1B', lineHeight: 1.4, marginBottom: 6 }}>{pt.title}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
-                                  <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
+                                  <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 8, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EEEBE4', color: TEAM_COLORS[pt.team] || '#8B877F' }}>{pt.team}</span>
                                   {pt.auto && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 999, background: '#FBE9AE', border: '1px solid rgba(245,158,11,0.2)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 999, background: '#FBE7A8', border: '1px solid rgba(245,158,11,0.2)' }}>
                                       <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#D2822E" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
                                       <span style={{ fontSize: 7, fontWeight: 700, color: '#93520F' }}>AUTO</span>
                                     </div>
@@ -879,17 +879,17 @@ export function Projects() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                                   <span style={{ padding: '2px 7px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: sc.bg, color: sc.c }}>{pt.status}</span>
                                   {pt.start && (
-                                    <span style={{ fontSize: 9, color: '#7E9B93', display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <span style={{ fontSize: 9, color: '#8B877F', display: 'flex', alignItems: 'center', gap: 2 }}>
                                       <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={4} width={18} height={18} rx={2} ry={2} /><line x1={16} y1={2} x2={16} y2={6} /><line x1={8} y1={2} x2={8} y2={6} /><line x1={3} y1={10} x2={21} y2={10} /></svg>
                                       {pt.start} – {pt.end}
                                     </span>
                                   )}
-                                  <span style={{ fontSize: 9, color: '#7E9B93', marginLeft: 'auto', fontWeight: 600 }}>{pt.dur}</span>
+                                  <span style={{ fontSize: 9, color: '#8B877F', marginLeft: 'auto', fontWeight: 600 }}>{pt.dur}</span>
                                 </div>
                                 {pt.assignee && (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 5 }}>
-                                    <div style={{ width: 16, height: 16, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 7, fontWeight: 700, color: 'white' }}>{initials(pt.assignee)}</div>
-                                    <span style={{ fontSize: 9, color: '#7E9B93' }}>{pt.assignee}</span>
+                                    <div style={{ width: 16, height: 16, borderRadius: 999, background: '#232321', display: 'grid', placeItems: 'center', fontSize: 7, fontWeight: 700, color: 'white' }}>{initials(pt.assignee)}</div>
+                                    <span style={{ fontSize: 9, color: '#8B877F' }}>{pt.assignee}</span>
                                   </div>
                                 )}
                               </div>
@@ -906,56 +906,56 @@ export function Projects() {
                       const shut = shutPhases.includes(phase.id);
                       const GRID = 'minmax(240px, 1fr) 150px 112px 150px 132px';
                       return (
-                        <div key={phase.id} style={{ marginBottom: 14, border: '1px solid rgba(20,8,31,0.07)', borderRadius: 11, overflow: 'hidden', background: 'white' }}>
+                        <div key={phase.id} style={{ marginBottom: 14, border: '1px solid rgba(29, 29, 27,0.07)', borderRadius: 11, overflow: 'hidden', background: '#FDFCF9' }}>
                           <div
                             onClick={() => setShutPhases((prev) => (shut ? prev.filter((x) => x !== phase.id) : [...prev, phase.id]))}
-                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F7F9F7', borderLeft: `3px solid ${phase.color}`, cursor: 'pointer' }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F8F6F1', borderLeft: `3px solid ${phase.color}`, cursor: 'pointer' }}
                           >
-                            <span style={{ fontSize: 9, color: '#9AA39D', transform: shut ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s' }}>&#9654;</span>
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12' }}>{phase.name}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', background: 'rgba(20,8,31,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
+                            <span style={{ fontSize: 9, color: '#A29E96', transform: shut ? 'none' : 'rotate(90deg)', transition: 'transform 0.15s' }}>&#9654;</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B' }}>{phase.name}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', background: 'rgba(29, 29, 27,0.06)', padding: '2px 7px', borderRadius: 999 }}>{phase.count}</span>
                             <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: phase.statusBg, color: phase.statusC }}>{phase.statusLabel}</span>
-                            <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#9AA39D' }}>
+                            <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#A29E96' }}>
                               {phase.weeks ? `${phase.weeks} wks · week ${phase.weekFrom}–${phase.weekTo}` : 'No estimate'}
                             </span>
-                            <span style={{ fontSize: 10.5, color: '#7E9B93', fontWeight: 600 }}>{phase.doneCount}/{phase.count} done</span>
+                            <span style={{ fontSize: 10.5, color: '#8B877F', fontWeight: 600 }}>{phase.doneCount}/{phase.count} done</span>
                           </div>
                           {!shut && (
                             <div style={{ opacity: phase.isLocked ? 0.7 : 1 }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, padding: '7px 12px 7px 26px', borderBottom: '1px solid rgba(20,8,31,0.06)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, padding: '7px 12px 7px 26px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#A29E96' }}>
                                 <span>Name</span><span>Role</span><span>Status</span><span>Assignee</span><span>Dates</span>
                               </div>
                               {phase.tasks.length === 0 && (
-                                <div style={{ padding: '12px 26px', fontSize: 11.5, color: '#9AA39D' }}>No tasks in this phase yet.</div>
+                                <div style={{ padding: '12px 26px', fontSize: 11.5, color: '#A29E96' }}>No tasks in this phase yet.</div>
                               )}
                               {phase.tasks.map((pt) => {
-                                const sc = WF_ST_COLORS[pt.status] || { bg: '#EFEDE8', c: '#7E9B93' };
+                                const sc = WF_ST_COLORS[pt.status] || { bg: '#EEEBE4', c: '#8B877F' };
                                 const done = pt.status === 'Done';
                                 return (
                                   <div
                                     key={pt.title}
                                     onClick={() => openPhaseTask(pt, phase)}
-                                    style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '9px 12px 9px 26px', borderBottom: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer', background: done ? '#FBFDFA' : 'white' }}
+                                    style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '9px 12px 9px 26px', borderBottom: '1px solid rgba(29, 29, 27,0.04)', cursor: 'pointer', background: done ? '#FBFDFA' : 'white' }}
                                   >
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 500, color: done ? '#43514D' : '#0B1A12' }}>
-                                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={done ? '#1C5230' : '#C9CDC9'} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx={12} cy={12} r={10} /><polyline points="9 12 11.5 14.5 16 10" /></svg>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 500, color: done ? '#4A4741' : '#1D1D1B' }}>
+                                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={done ? '#34552E' : '#CFCBC3'} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx={12} cy={12} r={10} /><polyline points="9 12 11.5 14.5 16 10" /></svg>
                                       {pt.title}
                                     </span>
                                     <span>
                                       {pt.team && (
-                                        <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
+                                        <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EEEBE4', color: TEAM_COLORS[pt.team] || '#8B877F' }}>{pt.team}</span>
                                       )}
                                     </span>
                                     <span><span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 9.5, fontWeight: 600, background: sc.bg, color: sc.c }}>{pt.status}</span></span>
-                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#7E9B93' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#8B877F' }}>
                                       {pt.assignee ? (
                                         <>
-                                          <span style={{ width: 18, height: 18, borderRadius: 999, background: '#0F2417', display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(pt.assignee)}</span>
+                                          <span style={{ width: 18, height: 18, borderRadius: 999, background: '#232321', display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(pt.assignee)}</span>
                                           {pt.assignee}
                                         </>
-                                      ) : <span style={{ color: '#C9CDC9' }}>Unassigned</span>}
+                                      ) : <span style={{ color: '#CFCBC3' }}>Unassigned</span>}
                                     </span>
-                                    <span style={{ fontSize: 10.5, color: pt.start ? '#7E9B93' : '#C9CDC9' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'No dates'}</span>
+                                    <span style={{ fontSize: 10.5, color: pt.start ? '#8B877F' : '#CFCBC3' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'No dates'}</span>
                                   </div>
                                 );
                               })}
@@ -980,15 +980,15 @@ export function Projects() {
         const live: any = (boardTasks as any[]).find((t) => t.id && t.id === pt.id) || null;
         const fieldBox = (label: string, body: React.ReactNode) => (
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
             {body}
           </div>
         );
-        const sc = WF_ST_COLORS[pt.status] || { bg: '#EFEDE8', c: '#7E9B93' };
+        const sc = WF_ST_COLORS[pt.status] || { bg: '#EEEBE4', c: '#8B877F' };
         const row = (label: string, value: React.ReactNode) => (
-          <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{value}</div>
+          <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1B' }}>{value}</div>
           </div>
         );
         // The intake task surfaces the full initial-question detail captured in
@@ -1015,37 +1015,37 @@ export function Projects() {
           <DraftScope key={live?.id || 'demo'} record={live} fields={PT_FIELDS} enabled={canManage} label="task"
             save={(changes) => api.projectTasks.update(live.id, changes)} onSaved={putTask}>
           {({ draft: d, set, auto, applied }) => (
-          <div onClick={() => setSelPt(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(440px, 96vw)', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)', animation: 'scaleIn 0.2s ease' }}>
+          <div onClick={() => setSelPt(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(440px, 96vw)', height: '100%', background: '#FDFCF9', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(29, 29, 27,0.2)', animation: 'scaleIn 0.2s ease' }}>
               {live && canManage && (
-                <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                <div style={{ position: 'sticky', top: 0, zIndex: 2, background: '#FDFCF9', padding: '10px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                   <SaveBar auto={auto} />
                 </div>
               )}
-              <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                 <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
-                  <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#0B1A12', lineHeight: 1.3 }}>{pt.title}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
+                  <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: '#1D1D1B', lineHeight: 1.3 }}>{pt.title}</div>
                 </div>
-                <div onClick={() => setSelPt(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
+                <div onClick={() => setSelPt(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', flexShrink: 0 }}>×</div>
               </div>
 
-              <div style={{ padding: '16px 22px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+              <div style={{ padding: '16px 22px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                 <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.c }}>{pt.status}</span>
-                <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EFEDE8', color: TEAM_COLORS[pt.team] || '#7E9B93' }}>{pt.team}</span>
-                {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE9AE', color: '#93520F' }}>⚡ AUTO</span>}
+                <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: TEAM_BGS[pt.team] || '#EEEBE4', color: TEAM_COLORS[pt.team] || '#8B877F' }}>{pt.team}</span>
+                {pt.auto && <span style={{ padding: '4px 11px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: '#FBE7A8', color: '#93520F' }}>⚡ AUTO</span>}
               </div>
 
               {isProgramDraft && (
-                <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-                  <div style={{ fontSize: 12, color: '#43514D', lineHeight: 1.55, marginBottom: 10 }}>
+                <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
+                  <div style={{ fontSize: 12, color: '#4A4741', lineHeight: 1.55, marginBottom: 10 }}>
                     This step produces the Project Program — the title page, parcel and zoning research,
                     goals, budgets, schedule and AEC team, as nine steps.
                   </div>
                   <div
                     onClick={() => { setSelPt(null); setTab('program'); }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}
                   >
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                     Open Project Program
@@ -1053,7 +1053,7 @@ export function Projects() {
                 </div>
               )}
               {!isIntroLetter && live && (
-                <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                   {fieldBox('Assignee', (
                     <AssigneePicker
                       valueId={d.assigneeId}
@@ -1099,7 +1099,7 @@ export function Projects() {
                     </select>
                   ))}
                   {fieldBox('Dates', (
-                    <div style={{ fontSize: 12, color: pt.start ? '#43514D' : '#9AA39D', padding: '9px 0' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'Not scheduled'}</div>
+                    <div style={{ fontSize: 12, color: pt.start ? '#4A4741' : '#A29E96', padding: '9px 0' }}>{pt.start ? `${pt.start} – ${pt.end}` : 'Not scheduled'}</div>
                   ))}
                 </div>
               )}
@@ -1120,11 +1120,11 @@ export function Projects() {
 
               {Array.isArray(pt.deps) && pt.deps.length > 0 && (
                 <div style={{ padding: '0 22px 20px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Depends on</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Depends on</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     {pt.deps.map((d: string) => (
-                      <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px', background: '#FBF8F2', borderRadius: 8, fontSize: 12, color: '#43514D' }}>
-                        <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#7E9B93" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
+                      <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 10px', background: '#FAF8F3', borderRadius: 8, fontSize: 12, color: '#4A4741' }}>
+                        <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#8B877F" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18" /></svg>
                         {d}
                       </div>
                     ))}
@@ -1134,29 +1134,29 @@ export function Projects() {
 
               {/* Intake questionnaire captured in Leads (shown on the Project Info task) */}
               {isIntake && (
-                <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+                <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(29, 29, 27,0.06)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px' }}>
-                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
-                    <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }}>Initial Question Intake</div>
+                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
+                    <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#1D1D1B' }}>Initial Question Intake</div>
                   </div>
                   {!sel?.leadId ? (
-                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>
+                    <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, fontSize: 12, color: '#8B877F', lineHeight: 1.5 }}>
                       No lead linked to this project — pick the lead whose initial questions were captured for it.{leadPicker}
                     </div>
                   ) : !lead ? (
-                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93' }}>Linked lead not found.</div>
+                    <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, fontSize: 12, color: '#8B877F' }}>Linked lead not found.</div>
                   ) : intakeSections.length === 0 ? (
-                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93' }}>No intake details captured yet for <b style={{ color: '#173326' }}>{lead.leadName}</b>.</div>
+                    <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, fontSize: 12, color: '#8B877F' }}>No intake details captured yet for <b style={{ color: '#232321' }}>{lead.leadName}</b>.</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                       {intakeSections.map((s) => (
                         <div key={s.title}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#173326', marginBottom: 8 }}>{s.title}</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#232321', marginBottom: 8 }}>{s.title}</div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {s.rows.map(([label, value]) => (
-                              <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 12px', background: '#FBF8F2', borderRadius: 8 }}>
-                                <div style={{ fontSize: 11, fontWeight: 600, color: '#7E9B93', flex: '0 0 40%' }}>{label}</div>
-                                <div style={{ fontSize: 11.5, fontWeight: 500, color: '#0B1A12', flex: 1, minWidth: 0, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{value}</div>
+                              <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 12px', background: '#FAF8F3', borderRadius: 8 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#8B877F', flex: '0 0 40%' }}>{label}</div>
+                                <div style={{ fontSize: 11.5, fontWeight: 500, color: '#1D1D1B', flex: 1, minWidth: 0, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>{value}</div>
                               </div>
                             ))}
                           </div>
@@ -1169,60 +1169,60 @@ export function Projects() {
 
               {/* Introduction Letter — email compose (select template, pre-fill client, send) */}
               {isIntroLetter && (
-                <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(20,8,31,0.06)' }}>
+                <div style={{ padding: '4px 22px 24px', borderTop: '1px solid rgba(29, 29, 27,0.06)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '16px 0 12px' }}>
-                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#173326" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={2} y={4} width={20} height={16} rx={2} /><path d="m22 7-10 5L2 7" /></svg>
-                    <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }}>Send Introduction Letter</div>
+                    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="#232321" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={2} y={4} width={20} height={16} rx={2} /><path d="m22 7-10 5L2 7" /></svg>
+                    <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#1D1D1B' }}>Send Introduction Letter</div>
                   </div>
 
                   {sel?.introLetterSentAt && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#EDF4EC', border: '1px solid rgba(5,150,105,0.15)', borderRadius: 10, marginBottom: 12 }}>
-                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#1C5230" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#1C5230' }}>Sent on {new Date(sel.introLetterSentAt).toLocaleString()} — step complete</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F2EFE8', border: '1px solid rgba(5,150,105,0.15)', borderRadius: 10, marginBottom: 12 }}>
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#34552E" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#34552E' }}>Sent on {new Date(sel.introLetterSentAt).toLocaleString()} — step complete</span>
                     </div>
                   )}
 
                   {templates.length === 0 ? (
-                    <div style={{ padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, fontSize: 12, color: '#7E9B93', lineHeight: 1.5 }}>
-                      No email templates yet. Create one in <b style={{ color: '#173326' }}>Settings → Email &amp; Document Templates</b>.
+                    <div style={{ padding: '12px 14px', background: '#FAF8F3', borderRadius: 10, fontSize: 12, color: '#8B877F', lineHeight: 1.5 }}>
+                      No email templates yet. Create one in <b style={{ color: '#232321' }}>Settings → Email &amp; Document Templates</b>.
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {!sel?.leadId && (
-                        <div style={{ padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, fontSize: 11.5, color: '#7E9B93', lineHeight: 1.5 }}>
+                        <div style={{ padding: '10px 12px', background: '#FAF8F3', borderRadius: 10, fontSize: 11.5, color: '#8B877F', lineHeight: 1.5 }}>
                           No lead linked — client fields aren't pre-filled. Link the lead to pull them in, or fill the fields below manually.{leadPicker}
                         </div>
                       )}
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Template</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Template</div>
                         <select value={tplId} onChange={(e) => applyTemplate(e.target.value)} style={{ ...inputStyle, width: '100%' }}>
                           {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                         </select>
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>To</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>To</div>
                         <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="client@email.com" style={{ ...inputStyle, width: '100%' }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Subject</div>
                         <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Letter (goes into the attached PDF, not the email body)</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Letter (goes into the attached PDF, not the email body)</div>
                         <RichTextEditor value={emailBody} onChange={setEmailBody} minHeight={280} />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <div onClick={savingDraft ? undefined : saveIntroDraft} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: savingDraft ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>{savingDraft ? 'Saving…' : 'Save draft'}</div>
-                        <div onClick={previewingLetter ? undefined : previewIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: previewingLetter ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
+                        <div onClick={savingDraft ? undefined : saveIntroDraft} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: savingDraft ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321' }}>{savingDraft ? 'Saving…' : 'Save draft'}</div>
+                        <div onClick={previewingLetter ? undefined : previewIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: previewingLetter ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321' }}>
                           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                           {previewingLetter ? 'Rendering…' : 'Preview PDF'}
                         </div>
-                        <div onClick={sendingLetter ? undefined : sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sendingLetter ? 'default' : 'pointer', background: sendingLetter ? '#9AB0A4' : '#173326', color: 'white' }}>
+                        <div onClick={sendingLetter ? undefined : sendIntroLetter} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sendingLetter ? 'default' : 'pointer', background: sendingLetter ? '#ABA79E' : '#232321', color: 'white' }}>
                           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                           {sendingLetter ? 'Sending…' : sel?.introLetterSentAt ? 'Re-send' : 'Send'}
                         </div>
                       </div>
-                      <div style={{ fontSize: 10.5, color: '#9AA39D', lineHeight: 1.5 }}>Edit and save the letter above, then preview it as a PDF before sending. “Send” emails a short note with the letter attached as a branded PDF (cover page + About Us) and marks this step complete. Header, footer, team and cover photo come from Settings → Branding &amp; Letterhead.</div>
+                      <div style={{ fontSize: 10.5, color: '#A29E96', lineHeight: 1.5 }}>Edit and save the letter above, then preview it as a PDF before sending. “Send” emails a short note with the letter attached as a branded PDF (cover page + About Us) and marks this step complete. Header, footer, team and cover photo come from Settings → Branding &amp; Letterhead.</div>
                     </div>
                   )}
                 </div>
@@ -1230,7 +1230,7 @@ export function Projects() {
 
               {live && (
                 <>
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                     {fieldBox('Description', (
                       <textarea
                         disabled={!canManage}
@@ -1251,35 +1251,35 @@ export function Projects() {
                     ))}
                   </div>
 
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                     {fieldBox('Subtasks', (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {subtasksOf(boardTasks as any, live.id).map((st: any) => (
-                          <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FBF8F2', borderRadius: 8 }}>
+                          <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: '#FAF8F3', borderRadius: 8 }}>
                             <input type="checkbox" checked={!!st.completed} disabled={!canManage} onChange={() => saveTask(st.id, { completed: !st.completed, status: st.completed ? 'Not started' : 'Done' })} />
-                            <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
+                            <span style={{ flex: 1, fontSize: 12.5, color: '#1D1D1B', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
                             {canManage && <span onClick={() => deleteTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                           </div>
                         ))}
                         {canManage && (
                           <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                             <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(live); }} placeholder="Add a subtask…" style={{ ...inputStyle, flex: 1 }} />
-                            <div onClick={() => addSubtask(live)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
+                            <div onClick={() => addSubtask(live)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
                           </div>
                         )}
                       </div>
                     ))}
                   </div>
 
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                     <Checklist items={d.checklist ?? []} canManage={canManage} onChange={(checklist: ChecklistItem[]) => set({ checklist })} />
                   </div>
 
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                     <LabelPicker labels={d.labels ?? []} canManage={canManage} suggestions={allLabels} onChange={(labels: string[]) => set({ labels })} />
                   </div>
 
-                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+                  <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)' }}>
                     <Attachments
                       scope="project-tasks"
                       taskId={live.id}
@@ -1311,11 +1311,11 @@ export function Projects() {
 
       {/* New / Edit Project form */}
       {showForm && (
-        <div onClick={closeProjectForm} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: 16, boxShadow: '0 24px 60px rgba(20,8,31,0.24)', animation: 'scaleIn 0.18s ease' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div onClick={closeProjectForm} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: '#FDFCF9', borderRadius: 16, boxShadow: '0 24px 60px rgba(29, 29, 27,0.24)', animation: 'scaleIn 0.18s ease' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(29, 29, 27,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700 }}>{editingId != null ? 'Edit project' : 'New project'}</div>
-              <div onClick={closeProjectForm} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>×</div>
+              <div onClick={closeProjectForm} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F' }}>×</div>
             </div>
             <div style={{ padding: '18px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -1337,9 +1337,9 @@ export function Projects() {
                 ['Contract Approved', 'contractApproved', 'checkbox', '1 / -1'],
               ].map(([label, key, kind, span]) => (
                 <div key={key as string} style={{ gridColumn: (span as string) || 'auto' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{label}</div>
                   {kind === 'checkbox' ? (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#0B1A12', cursor: 'pointer', padding: '9px 0' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1D1D1B', cursor: 'pointer', padding: '9px 0' }}>
                       <input type="checkbox" checked={!!(np as any)[key as string]} onChange={(e) => setNp({ ...np, [key as string]: e.target.checked })} />
                       Client has signed — lock the AEC Team roster in the Project Program
                     </label>
@@ -1365,9 +1365,9 @@ export function Projects() {
                 </div>
               ))}
             </div>
-            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(20,8,31,0.07)', display: 'flex', gap: 9, alignItems: 'center' }}>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(29, 29, 27,0.07)', display: 'flex', gap: 9, alignItems: 'center' }}>
               <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={projAuto} blocked={projNameOk ? undefined : 'Add a project name (2+ letters) to save'} /></div>
-              <div onClick={closeProjectForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>{projAuto.dirty && !projNameOk && editingId == null ? 'Discard' : 'Done'}</div>
+              <div onClick={closeProjectForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#4A4741' }}>{projAuto.dirty && !projNameOk && editingId == null ? 'Discard' : 'Done'}</div>
             </div>
           </div>
         </div>

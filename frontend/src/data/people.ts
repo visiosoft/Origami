@@ -25,22 +25,22 @@ export interface Person {
 }
 
 export const KIND_STYLE: Record<string, { bg: string; c: string }> = {
-  Staff: { bg: '#DCE7DE', c: '#173326' },
+  Staff: { bg: '#FAE7A5', c: '#232321' },
   Client: { bg: '#D6E8E5', c: '#2F6F68' },
   Consultant: { bg: '#E8DDF2', c: '#6B2FA0' },
-  Sub: { bg: '#FBE9AE', c: '#93520F' },
+  Sub: { bg: '#FBE7A8', c: '#93520F' },
   Authority: { bg: '#DCE6F2', c: '#0E5A8A' },
   Vendor: { bg: '#F2DFD4', c: '#A75A3A' },
 };
 
 export const TIER_STYLE: Record<string, { bg: string; c: string }> = {
-  Internal: { bg: '#173326', c: 'white' },
+  Internal: { bg: '#232321', c: 'white' },
   Client: { bg: '#D6E8E5', c: '#2F6F68' },
-  Consultant: { bg: '#EFEDE8', c: '#43514D' },
+  Consultant: { bg: '#EEEBE4', c: '#4A4741' },
 };
 
 export const KIND_C: Record<string, string> = {
-  Staff: '#173326', Client: '#2F6F68', Consultant: '#6B2FA0', Sub: '#93520F', Authority: '#0E5A8A', Vendor: '#A75A3A',
+  Staff: '#232321', Client: '#2F6F68', Consultant: '#6B2FA0', Sub: '#93520F', Authority: '#0E5A8A', Vendor: '#A75A3A',
 };
 
 export const COMPANY_META: Record<string, { line: string; address: string; trade: string; billing: string }> = {

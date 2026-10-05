@@ -47,16 +47,16 @@ export function RoleAssignments({ deal, users, draft, onChange, onSaved }: Props
 
   return (
     <div style={{ padding: '14px 20px' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#173326', marginBottom: 4 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#232321', marginBottom: 4 }}>
         Internal Team
       </div>
-      <div style={{ fontSize: 11.5, color: '#7E9B93', marginBottom: 14, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 14, lineHeight: 1.5 }}>
         Who from Origami is on this pursuit. {assignedCount} of {INTERNAL_ROLES.length} assigned — every change is recorded in the Audit Trail.
       </div>
 
       {internal.length === 0 && (
-        <div style={{ padding: '11px 13px', borderRadius: 9, background: '#FBF8F2', fontSize: 12, color: '#7E9B93', lineHeight: 1.5, marginBottom: 14 }}>
-          No internal users yet. Add them under <b style={{ color: '#173326' }}>People</b> and they will appear here.
+        <div style={{ padding: '11px 13px', borderRadius: 9, background: '#FAF8F3', fontSize: 12, color: '#8B877F', lineHeight: 1.5, marginBottom: 14 }}>
+          No internal users yet. Add them under <b style={{ color: '#232321' }}>People</b> and they will appear here.
         </div>
       )}
 
@@ -69,11 +69,11 @@ export function RoleAssignments({ deal, users, draft, onChange, onSaved }: Props
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {INTERNAL_ROLES.map((role) => (
           <div key={role.key}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#43514D' }}>{role.label}</label>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#4A4741' }}>{role.label}</label>
             <select
               value={roles[role.key] || ''}
               onChange={(e) => set(role.key, e.target.value)}
-              style={{ width: '100%', boxSizing: 'border-box', marginTop: 4, padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' }}
+              style={{ width: '100%', boxSizing: 'border-box', marginTop: 4, padding: '9px 11px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none' }}
             >
               <option value="">Unassigned</option>
               {/* A person who left still shows on the pursuit that named them. */}
@@ -82,14 +82,14 @@ export function RoleAssignments({ deal, users, draft, onChange, onSaved }: Props
               )}
               {internal.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
-            <div style={{ fontSize: 10.5, color: '#9AA39D', marginTop: 3 }}>{role.hint}</div>
+            <div style={{ fontSize: 10.5, color: '#A29E96', marginTop: 3 }}>{role.hint}</div>
           </div>
         ))}
       </div>
 
       <div
         onClick={saving ? undefined : save}
-        style={{ marginTop: 18, padding: '10px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, textAlign: 'center', cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}
+        style={{ marginTop: 18, padding: '10px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, textAlign: 'center', cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}
       >
         {saving ? 'Saving…' : 'Save role assignments'}
       </div>

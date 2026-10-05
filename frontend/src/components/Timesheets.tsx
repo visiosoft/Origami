@@ -31,9 +31,9 @@ export const INTERNAL_CATEGORIES: [string, string][] = [
   ['meetings', 'Meetings'], ['travel', 'Travel'], ['other', 'Other internal'],
 ];
 const KIND_STYLE: Record<Kind, { label: string; bg: string; c: string }> = {
-  project: { label: 'Project', bg: '#DCE7DE', c: ACCENT },
+  project: { label: 'Project', bg: '#FAE7A5', c: ACCENT },
   internal: { label: 'Internal', bg: '#D8E2F0', c: '#3C5C8A' },
-  leave: { label: 'Leave', bg: '#FBE9AE', c: '#8A6D12' },
+  leave: { label: 'Leave', bg: '#FBE7A8', c: '#7A5A0C' },
 };
 const STATUS: Record<string, { label: string; tone: 'grey' | 'amber' | 'green' | 'red' }> = {
   draft: { label: 'Draft', tone: 'grey' }, submitted: { label: 'Awaiting approval', tone: 'amber' },
@@ -201,12 +201,12 @@ export function TimesheetEditor({ employeeId, weekStart, onWeek, projects, csiCo
         <div style={{ ...card, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, color: MUTED }}>{sheet.decisionNote}</div>
       )}
       {sheet?.status === 'submitted' && (
-        <div style={{ ...card, padding: '10px 14px', marginBottom: 12, background: '#FBF3D6', borderColor: '#F0E0A6', fontSize: 12.5, color: '#8A6D12' }}>
+        <div style={{ ...card, padding: '10px 14px', marginBottom: 12, background: '#FBF3D6', borderColor: '#F0E0A6', fontSize: 12.5, color: '#7A5A0C' }}>
           Submitted {sheet.submittedAt ? fmtDate(sheet.submittedAt) : ''} by {sheet.submittedByName} — waiting for HR or {data.employee.name.split(' ')[0]}'s manager to review.
         </div>
       )}
       {sheet?.status === 'approved' && (
-        <div style={{ ...card, padding: '10px 14px', marginBottom: 12, background: '#EEF6EF', borderColor: '#CFE3D2', fontSize: 12.5, color: '#1E6B36' }}>
+        <div style={{ ...card, padding: '10px 14px', marginBottom: 12, background: '#EEF6EF', borderColor: '#D8E5CC', fontSize: 12.5, color: '#3F6B39' }}>
           Approved by <b>{sheet.decidedByName}</b>{sheet.decidedAt ? ` on ${fmtDate(sheet.decidedAt)}` : ''}{sheet.decisionNote ? ` — ${sheet.decisionNote}` : ''}. These hours go to payroll{data.employee.payType === 'monthly' ? ' (salaried: pay is the salary, hours record where the time went)' : ''}.
         </div>
       )}
@@ -299,7 +299,7 @@ export function TimesheetEditor({ employeeId, weekStart, onWeek, projects, csiCo
               {dates.map((d) => {
                 const t = dayTotal(d);
                 const over = dayTotal(d, ['project', 'internal']) > data.standardDayHours;
-                return <span key={d} title={over ? 'Over a standard day — overtime' : ''} style={{ textAlign: 'center', fontSize: 13, color: t > 24 ? DANGER : over ? '#8A6D12' : INK }}>{t || '—'}{over ? <div style={{ fontSize: 9.5 }}>OT</div> : null}</span>;
+                return <span key={d} title={over ? 'Over a standard day — overtime' : ''} style={{ textAlign: 'center', fontSize: 13, color: t > 24 ? DANGER : over ? '#7A5A0C' : INK }}>{t || '—'}{over ? <div style={{ fontSize: 9.5 }}>OT</div> : null}</span>;
               })}
               <span style={{ textAlign: 'right', fontSize: 13 }}>{r2(workTotal + leaveTotal)}</span><span />
             </div>
@@ -527,7 +527,7 @@ export function RecentTimesheets({ employeeId, onPick, refreshKey }: { employeeI
     <div style={{ ...card, overflow: 'hidden' }}>
       <div style={{ padding: '12px 14px 6px', fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK }}>Recent weeks</div>
       {rows.slice(0, 12).map((s) => (
-        <div key={s.id} onClick={() => onPick(s.weekStart)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', fontSize: 12.5 }}>
+        <div key={s.id} onClick={() => onPick(s.weekStart)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(29, 29, 27,.05)', cursor: 'pointer', fontSize: 12.5 }}>
           <span style={{ flex: 1 }}>{fmtDate(s.weekStart)} – {fmtDate(addDays(s.weekStart, 6))}</span>
           <b>{s.totalHours} h</b>
           <StatusBadge status={s.status} />

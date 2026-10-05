@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-05',
+    date: '2026-10-05',
+    title: 'A warmer, calmer look',
+    items: [
+      { area: 'Everywhere', kind: 'improved', text: 'New look across the app: a warm cream background with a soft yellow glow, rounded cream cards, black pill buttons and one yellow highlight colour. The menu is now a floating card, and the page you are on is shown as a black pill.' },
+      { area: 'Everywhere', kind: 'improved', text: 'New lettering: big, light numbers and headings, and a cleaner font for everything else. Pages ease in as they open, buttons give a little when pressed, and dashboard figures count up when they appear.', where: 'Dashboard → Portfolio signals' },
+    ],
+  },
+  {
     id: '2026-09-28',
     date: '2026-09-28',
     title: 'A home screen made for the superintendent',

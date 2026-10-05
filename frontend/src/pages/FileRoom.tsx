@@ -8,20 +8,20 @@ import {
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const EMPTY: FileRoomData = { projects: [], categories: [], files: [], folders: [] };
 
 const card: React.CSSProperties = {
-  background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)',
+  background: '#FDFCF9', borderRadius: 20, border: '1px solid rgba(29, 29, 27,0.06)',
 };
 
 const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box', padding: '7px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontFamily: 'inherit',
-  fontSize: 12.5, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 12.5, color: '#1D1D1B', outline: 'none',
 };
 
-const FolderIcon = ({ size = 15, c = '#7E9B93' }: { size?: number; c?: string }) => (
+const FolderIcon = ({ size = 15, c = '#8B877F' }: { size?: number; c?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
   </svg>
@@ -195,7 +195,7 @@ export function FileRoom() {
   const act = (p: Promise<unknown>, ok: string) =>
     p.then(() => { toast(ok); load(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
 
-  if (loading) return <div style={{ padding: 24, fontSize: 13, color: '#7E9B93' }}>Loading File Room…</div>;
+  if (loading) return <div style={{ padding: 24, fontSize: 13, color: '#8B877F' }}>Loading File Room…</div>;
 
   // ---- tree ---------------------------------------------------------------
 
@@ -207,26 +207,26 @@ export function FileRoom() {
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 8, cursor: 'pointer',
-        marginLeft: opts.indent ?? 0, background: active ? '#DCE7DE' : 'transparent',
-        color: active ? '#173326' : '#43514D', fontWeight: active ? 700 : 500, fontSize: 12,
+        marginLeft: opts.indent ?? 0, background: active ? '#FAE7A5' : 'transparent',
+        color: active ? '#232321' : '#4A4741', fontWeight: active ? 700 : 500, fontSize: 12,
       }}
     >
       {opts.chevron !== undefined && opts.chevron !== null && (
         <span
           onClick={(e) => { e.stopPropagation(); opts.onChevron?.(); }}
-          style={{ fontSize: 8, color: '#9AA39D', transition: 'transform 0.15s', transform: opts.chevron === 'open' ? 'rotate(180deg)' : 'none' }}
+          style={{ fontSize: 8, color: '#A29E96', transition: 'transform 0.15s', transform: opts.chevron === 'open' ? 'rotate(180deg)' : 'none' }}
         >▼</span>
       )}
-      <FolderIcon c={active ? '#173326' : '#7E9B93'} />
+      <FolderIcon c={active ? '#232321' : '#8B877F'} />
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-      {count !== null && <span style={{ fontSize: 10.5, color: '#7E9B93', fontWeight: 600 }}>{count}</span>}
+      {count !== null && <span style={{ fontSize: 10.5, color: '#8B877F', fontWeight: 600 }}>{count}</span>}
     </div>
   );
 
   const tree = (
     <div style={{ ...card, width: isNarrow ? '100%' : 250, flexShrink: 0, padding: 10, maxHeight: isNarrow ? 260 : 'calc(100vh - 210px)', overflowY: 'auto' }}>
       {treeRow('All Files', data.files.length, atRoot, () => setPath(['all']))}
-      <div style={{ height: 1, background: 'rgba(20,8,31,0.06)', margin: '8px 2px' }} />
+      <div style={{ height: 1, background: 'rgba(29, 29, 27,0.06)', margin: '8px 2px' }} />
       {data.projects.map((p) => {
         const open = !!openProjects[p.id];
         const isActive = projectId === p.id && folder.length === 0;
@@ -256,11 +256,11 @@ export function FileRoom() {
                       placeholder="Folder name" style={{ ...inputStyle, flex: 1, padding: '5px 8px', fontSize: 11.5 }}
                     />
                     <div onClick={() => createFolder(p.id, [], newFolderName)}
-                         style={{ padding: '5px 10px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add</div>
+                         style={{ padding: '5px 10px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add</div>
                   </div>
                 ) : (
                   <div onClick={() => { setNewFolderTreeFor(p.id); setNewFolderName(''); }}
-                       style={{ marginLeft: 26, padding: '5px 9px', fontSize: 11, fontWeight: 600, color: '#7E9B93', cursor: 'pointer' }}>+ New folder</div>
+                       style={{ marginLeft: 26, padding: '5px 9px', fontSize: 11, fontWeight: 600, color: '#8B877F', cursor: 'pointer' }}>+ New folder</div>
                 ))}
               </>
             )}
@@ -284,12 +284,12 @@ export function FileRoom() {
         const last = i === shown.length - 1;
         return (
           <span key={`${s.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {i > 0 && <span style={{ color: '#C9D4CC', fontSize: 12 }}>›</span>}
+            {i > 0 && <span style={{ color: '#D4D0C7', fontSize: 12 }}>›</span>}
             <span
               onClick={() => { if (last || s.depth === -2) return; s.depth === -1 ? setPath(['all']) : jumpTo(s.depth); }}
               style={last
-                ? { fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }
-                : { fontSize: 12.5, fontWeight: 600, color: '#7E9B93', cursor: s.depth === -2 ? 'default' : 'pointer' }}
+                ? { fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#1D1D1B' }
+                : { fontSize: 12.5, fontWeight: 600, color: '#8B877F', cursor: s.depth === -2 ? 'default' : 'pointer' }}
             >{s.label}</span>
           </span>
         );
@@ -303,7 +303,7 @@ export function FileRoom() {
     if (!f.groupId) return null;
     const latest = f.isLatest !== false;
     return (
-      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: latest ? '#D2EAD3' : '#EFEDE8', color: latest ? '#1C5230' : '#7E9B93' }}>
+      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: latest ? '#E3ECD9' : '#EEEBE4', color: latest ? '#34552E' : '#8B877F' }}>
         {latest ? 'Latest' : 'Older version'}
       </span>
     );
@@ -314,11 +314,11 @@ export function FileRoom() {
       {visibleFolders.map((f) => (
         <div key={f.key} onClick={() => (atRoot ? setPath([f.key]) : openFolder(f.name))}
              style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer' }}>
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: '#EFEDE8', display: 'grid', placeItems: 'center', marginBottom: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: '#EEEBE4', display: 'grid', placeItems: 'center', marginBottom: 10 }}>
             <FolderIcon size={19} />
           </div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-          <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 3 }}>{f.count} {f.count === 1 ? 'file' : 'files'}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+          <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 3 }}>{f.count} {f.count === 1 ? 'file' : 'files'}</div>
         </div>
       ))}
       {visibleFiles.map((f) => {
@@ -329,15 +329,15 @@ export function FileRoom() {
             <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
               {(f.ext || '?').slice(0, 4)}
             </div>
-            <div title={f.name} style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-            <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 3 }}>{prettySize(f.size)} · {shortDate(f.updatedAt)}</div>
+            <div title={f.name} style={{ fontSize: 12.5, fontWeight: 700, color: '#1D1D1B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+            <div style={{ fontSize: 10.5, color: '#8B877F', marginTop: 3 }}>{prettySize(f.size)} · {shortDate(f.updatedAt)}</div>
             {atRoot && <div style={{ fontSize: 10, color: '#2F6F68', marginTop: 3 }}>{data.projects.find((p) => p.id === Number(f.projectId))?.name}</div>}
             <div style={{ marginTop: 7 }}>{badge(f)}</div>
           </div>
         );
       })}
       {!visibleFolders.length && !visibleFiles.length && (
-        <div style={{ gridColumn: '1 / -1', padding: '28px 0', textAlign: 'center', fontSize: 12.5, color: '#9AA39D' }}>
+        <div style={{ gridColumn: '1 / -1', padding: '28px 0', textAlign: 'center', fontSize: 12.5, color: '#A29E96' }}>
           {search ? 'Nothing matches that search.' : 'This folder is empty.'}
         </div>
       )}
@@ -347,34 +347,34 @@ export function FileRoom() {
   const listView = (
     <div style={{ ...card, overflow: 'hidden' }}>
       <div onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid rgba(20,8,31,0.06)', cursor: 'pointer' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>Name</span>
-        <span style={{ fontSize: 9, color: '#9AA39D' }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', cursor: 'pointer' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F' }}>Name</span>
+        <span style={{ fontSize: 9, color: '#A29E96' }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
       </div>
       {visibleFolders.map((f, i) => (
         <div key={f.key} onClick={() => (atRoot ? setPath([f.key]) : openFolder(f.name))}
-             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i ? '1px solid rgba(20,8,31,0.04)' : 'none', cursor: 'pointer' }}>
+             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i ? '1px solid rgba(29, 29, 27,0.04)' : 'none', cursor: 'pointer' }}>
           <FolderIcon />
-          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: '#0B1A12' }}>{f.name}</span>
-          <span style={{ fontSize: 11, color: '#7E9B93' }}>{f.count}</span>
+          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: '#1D1D1B' }}>{f.name}</span>
+          <span style={{ fontSize: 11, color: '#8B877F' }}>{f.count}</span>
         </div>
       ))}
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer' }}>
+               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(29, 29, 27,0.04)', cursor: 'pointer' }}>
             <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#1D1D1B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
             {badge(f)}
             {atRoot && <span style={{ fontSize: 10.5, color: '#2F6F68' }}>{data.projects.find((p) => p.id === Number(f.projectId))?.name}</span>}
-            <span style={{ width: 64, textAlign: 'right', fontSize: 10.5, color: '#7E9B93' }}>{prettySize(f.size)}</span>
-            <span style={{ width: 56, textAlign: 'right', fontSize: 10.5, color: '#7E9B93' }}>{shortDate(f.updatedAt)}</span>
+            <span style={{ width: 64, textAlign: 'right', fontSize: 10.5, color: '#8B877F' }}>{prettySize(f.size)}</span>
+            <span style={{ width: 56, textAlign: 'right', fontSize: 10.5, color: '#8B877F' }}>{shortDate(f.updatedAt)}</span>
           </div>
         );
       })}
       {!visibleFolders.length && !visibleFiles.length && (
-        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12.5, color: '#9AA39D' }}>
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12.5, color: '#A29E96' }}>
           {search ? 'Nothing matches that search.' : 'This folder is empty.'}
         </div>
       )}
@@ -382,16 +382,16 @@ export function FileRoom() {
   );
 
   const pill = (label: string, on: boolean, onClick: () => void) => (
-    <div onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: on ? '#173326' : 'white', color: on ? 'white' : '#43514D', border: '1px solid ' + (on ? '#173326' : 'rgba(20,8,31,0.12)') }}>{label}</div>
+    <div onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: on ? '#232321' : 'white', color: on ? 'white' : '#4A4741', border: '1px solid ' + (on ? '#232321' : 'rgba(29, 29, 27,0.12)') }}>{label}</div>
   );
 
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: '#0F2417', color: '#D2822E', display: 'grid', placeItems: 'center', fontSize: 14 }}>◈</div>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: '#232321', color: '#D2822E', display: 'grid', placeItems: 'center', fontSize: 14 }}>◈</div>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em', color: '#0B1A12' }}>File Room</div>
-          <div style={{ fontSize: 12, color: '#7E9B93' }}>Origami Design + Build</div>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em', color: '#1D1D1B' }}>File Room</div>
+          <div style={{ fontSize: 12, color: '#8B877F' }}>Origami Design + Build</div>
         </div>
       </div>
 
@@ -400,9 +400,9 @@ export function FileRoom() {
           ['Added This Week', String(stats.recent), 'last 7 days'],
           ['Storage Used', stats.storage, 'in Google Drive']].map(([label, value, sub]) => (
           <div key={label} style={{ ...card, padding: '15px 16px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>{label}</div>
-            <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7, color: '#0B1A12' }}>{value}</div>
-            <div style={{ fontSize: 10.5, color: '#7E9B93', fontWeight: 600, marginTop: 4 }}>{sub}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#8B877F' }}>{label}</div>
+            <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7, color: '#1D1D1B' }}>{value}</div>
+            <div style={{ fontSize: 10.5, color: '#8B877F', fontWeight: 600, marginTop: 4 }}>{sub}</div>
           </div>
         ))}
       </div>
@@ -415,11 +415,11 @@ export function FileRoom() {
             {breadcrumb}
             <div style={{ flex: 1 }} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search files…"
-                   style={{ ...inputStyle, background: '#FBF8F2', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, minWidth: 200 }} />
-            <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+                   style={{ ...inputStyle, background: '#FAF8F3', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, minWidth: 200 }} />
+            <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999 }}>
               {(['grid', 'list'] as const).map((v) => (
                 <div key={v} onClick={() => setView(v)}
-                     style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
+                     style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'white' : 'transparent', color: view === v ? '#1D1D1B' : '#8B877F', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
               ))}
             </div>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
@@ -427,13 +427,13 @@ export function FileRoom() {
             {!atRoot && (
               <div onClick={() => projectId && sync(projectId)}
                    title="Pull in anything added to this project's Drive folder"
-                   style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: 'white', color: '#43514D', border: '1px solid rgba(20,8,31,0.12)' }}>
+                   style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: '#FDFCF9', color: '#4A4741', border: '1px solid rgba(29, 29, 27,0.12)' }}>
                 {syncing ? 'Syncing…' : '⟳ Sync Drive'}
               </div>
             )}
             {canManage && (
               <div onClick={() => setUploadOpen((v) => !v)}
-                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>+ Upload Files</div>
+                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white' }}>+ Upload Files</div>
             )}
           </div>
 
@@ -446,7 +446,7 @@ export function FileRoom() {
                      }}
                      placeholder="Folder name" style={{ ...inputStyle, width: 220 }} />
               <div onClick={() => createFolder(projectId as number, folder, newFolderName)}
-                   style={{ padding: '7px 14px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Create</div>
+                   style={{ padding: '7px 14px', borderRadius: 999, background: '#232321', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Create</div>
             </div>
           )}
 
@@ -455,22 +455,22 @@ export function FileRoom() {
               onClick={() => fileInput.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); sendFiles(Array.from(e.dataTransfer.files)); }}
-              style={{ border: '2px dashed rgba(20,8,31,0.12)', borderRadius: 13, background: 'white', padding: '26px 16px', textAlign: 'center', cursor: 'pointer', marginBottom: 12 }}
+              style={{ border: '2px dashed rgba(29, 29, 27,0.12)', borderRadius: 13, background: '#FDFCF9', padding: '26px 16px', textAlign: 'center', cursor: 'pointer', marginBottom: 12 }}
             >
               <input ref={fileInput} type="file" multiple style={{ display: 'none' }}
                      onChange={(e) => { sendFiles(Array.from(e.target.files ?? [])); e.currentTarget.value = ''; }} />
               <div style={{ fontSize: 20, marginBottom: 6 }}>⬆</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0B1A12' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1D1D1B' }}>
                 {uploading.length ? `Uploading ${uploading.length}…` : 'Drop files here or click to attach'}
               </div>
-              <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: '#8B877F', marginTop: 4 }}>
                 {atRoot ? 'Open a project first — files belong to one' : ['All Files', project?.name, ...folder].filter(Boolean).join(' › ')}
               </div>
             </div>
           )}
 
           {!storageReady && canManage && (
-            <div style={{ fontSize: 11.5, color: '#8A6D12', background: '#FBE9AE', borderRadius: 8, padding: '8px 11px', marginBottom: 12 }}>
+            <div style={{ fontSize: 11.5, color: '#7A5A0C', background: '#FBE7A8', borderRadius: 8, padding: '8px 11px', marginBottom: 12 }}>
               No Google account connected — uploads are unavailable until one is linked under Settings → Integrations.
             </div>
           )}
@@ -481,24 +481,24 @@ export function FileRoom() {
 
       {selected && (
         <div onClick={() => setSelectedFileId(null)}
-             style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 140, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+             style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.45)', zIndex: 140, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
           <div onClick={(e) => e.stopPropagation()}
-               style={{ width: 400, maxWidth: '92vw', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(11,26,18,0.22)' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+               style={{ width: 400, maxWidth: '92vw', height: '100%', background: '#FDFCF9', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(29, 29, 27,0.22)' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.06)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: extStyle(selected.ext).bg, color: extStyle(selected.ext).c, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{(selected.ext || '?').slice(0, 4)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: '#0B1A12', wordBreak: 'break-word' }}>{selected.name}</div>
-                <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>{(selected.folderPath ?? []).join(' › ') || 'Project root'}</div>
+                <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: '#1D1D1B', wordBreak: 'break-word' }}>{selected.name}</div>
+                <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 2 }}>{(selected.folderPath ?? []).join(' › ') || 'Project root'}</div>
                 <div style={{ marginTop: 6 }}>{badge(selected)}</div>
               </div>
               <div onClick={() => setSelectedFileId(null)}
-                   style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
+                   style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F', flexShrink: 0 }}>×</div>
             </div>
 
             {isImage(selected) && (
               <div style={{ padding: '16px 22px 0' }}>
                 <img src={api.fileRoom.contentUrl(selected.id)} alt={selected.name}
-                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(20,8,31,0.08)' }} />
+                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.08)' }} />
               </div>
             )}
 
@@ -510,31 +510,31 @@ export function FileRoom() {
                  ['Type', selected.ext || '—'],
                  ['Version', selected.groupId ? `${versions.length} revision${versions.length === 1 ? '' : 's'}` : 'Single']] as [string, string][])
                 .map(([k, v]) => (
-                  <div key={k} style={{ background: '#FBF8F2', borderRadius: 10, padding: '11px 13px' }}>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>{k}</div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', marginTop: 3, wordBreak: 'break-word' }}>{v}</div>
+                  <div key={k} style={{ background: '#FAF8F3', borderRadius: 10, padding: '11px 13px' }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F' }}>{k}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B', marginTop: 3, wordBreak: 'break-word' }}>{v}</div>
                   </div>
                 ))}
             </div>
 
             {versions.length > 1 && (
               <div style={{ padding: '0 22px 16px' }}>
-                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Version history</div>
+                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 8 }}>Version history</div>
                 {versions.map((v, i) => (
                   <div key={v.id} onClick={() => { setSelectedFileId(v.id); setRenaming(v.name); setNotes(v.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: v.id === selected.id ? '#EEF3EE' : 'transparent' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: 999, background: v.isLatest !== false ? '#2F7D4A' : '#C9D4CC', flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 11.5, color: '#43514D' }}>
+                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: v.id === selected.id ? '#F2EFE8' : 'transparent' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 999, background: v.isLatest !== false ? '#4C7A3F' : '#D4D0C7', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 11.5, color: '#4A4741' }}>
                       v{versions.length - i} · {shortDate(v.updatedAt)} · {v.uploadedBy || '—'}
                     </span>
-                    {v.isLatest !== false && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#D2EAD3', color: '#1C5230' }}>Current</span>}
+                    {v.isLatest !== false && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#E3ECD9', color: '#34552E' }}>Current</span>}
                   </div>
                 ))}
               </div>
             )}
 
             <div style={{ padding: '0 22px 16px' }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 7 }}>Notes</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8B877F', marginBottom: 7 }}>Notes</div>
               <textarea
                 value={notes}
                 disabled={!canManage}
@@ -542,13 +542,13 @@ export function FileRoom() {
                 onBlur={() => { if (notes !== (selected.notes ?? '')) act(api.fileRoom.setNotes(selected.id, notes), 'Notes saved'); }}
                 rows={4}
                 placeholder="What this document is, what changed, anything worth knowing…"
-                style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.6, background: '#FBF8F2' }}
+                style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.6, background: '#FAF8F3' }}
               />
             </div>
 
             <div style={{ padding: '0 22px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={api.fileRoom.contentUrl(selected.id, { download: true })}
-                 style={{ padding: '10px 0', borderRadius: 10, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
+                 style={{ padding: '10px 0', borderRadius: 10, background: '#232321', color: 'white', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
 
               <div
                 onClick={async () => {
@@ -559,23 +559,23 @@ export function FileRoom() {
                     catch { toast('Share link ready'); }
                   } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not create a link')); }
                 }}
-                style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
+                style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
               >Copy share link</div>
 
               {shareUrl && (
-                <div style={{ background: '#FBF8F2', borderRadius: 8, padding: '8px 10px' }}>
-                  <div style={{ fontSize: 10, color: '#8A6D12', fontWeight: 700, marginBottom: 4 }}>Anyone with this link can view the file</div>
+                <div style={{ background: '#FAF8F3', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, color: '#7A5A0C', fontWeight: 700, marginBottom: 4 }}>Anyone with this link can view the file</div>
                   <div style={{ fontSize: 10.5, color: '#2F6F68', wordBreak: 'break-all' }}>{shareUrl}</div>
                 </div>
               )}
 
               <div onClick={() => setEmailOpen((v) => !v)}
-                   style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>
+                   style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>
                 {emailOpen ? 'Cancel email' : 'Email this file'}
               </div>
 
               {emailOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#FBF8F2', borderRadius: 10, padding: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#FAF8F3', borderRadius: 10, padding: 10 }}>
                   <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="Recipient email" style={inputStyle} />
                   <textarea value={emailNote} onChange={(e) => setEmailNote(e.target.value)} rows={3} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
                   <div
@@ -587,9 +587,9 @@ export function FileRoom() {
                         setEmailOpen(false); setEmailTo(''); setEmailNote('');
                       } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not send')); }
                     }}
-                    style={{ padding: '8px 0', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
+                    style={{ padding: '8px 0', borderRadius: 999, background: '#232321', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
                   >Send</div>
-                  <div style={{ fontSize: 10, color: '#7E9B93', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 10, color: '#8B877F', lineHeight: 1.5 }}>
                     Sent from the connected Google account as a view link, not an attachment — so size is never a problem.
                   </div>
                 </div>
@@ -599,13 +599,13 @@ export function FileRoom() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input value={renaming} onChange={(e) => setRenaming(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
                   <div onClick={() => renaming.trim() && renaming !== selected.name && act(api.fileRoom.rename(selected.id, renaming), 'Renamed')}
-                       style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Rename</div>
+                       style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Rename</div>
                 </div>
               )}
 
               {canManage && selected.groupId && selected.isLatest === false && (
                 <div onClick={() => act(api.fileRoom.markLatest(selected.id), 'Marked as the latest version')}
-                     style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>Mark as latest version</div>
+                     style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>Mark as latest version</div>
               )}
 
               {canManage && (

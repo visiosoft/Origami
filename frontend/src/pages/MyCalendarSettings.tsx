@@ -3,9 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 18, marginBottom: 16,
+  background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: 18, marginBottom: 16,
 };
 
 /**
@@ -56,13 +56,13 @@ export function MyCalendarSettings() {
       .finally(() => setDisconnecting(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>My Calendar</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>My Calendar</div>
+        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
           Connect your own Google Calendar so your real schedule shows up where you book meetings — read-only, and
           separate from the workspace connection everything else in Origami uses. Nothing here can send mail or
           touch files as you.
@@ -79,14 +79,14 @@ export function MyCalendarSettings() {
         {status?.connected ? (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: '#2F7D4A', flexShrink: 0 }} />
-              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Connected as {status.email}</span>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: '#4C7A3F', flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B' }}>Connected as {status.email}</span>
             </div>
             {status.connectedAt && (
-              <div style={{ fontSize: 11.5, color: '#7E9B93', marginBottom: 14 }}>Since {new Date(status.connectedAt).toLocaleDateString()}</div>
+              <div style={{ fontSize: 11.5, color: '#8B877F', marginBottom: 14 }}>Since {new Date(status.connectedAt).toLocaleDateString()}</div>
             )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <a href={api.google.myCalendar.connectUrl()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: '#EEF3EE', color: '#173326', textDecoration: 'none' }}>Reconnect</a>
+              <a href={api.google.myCalendar.connectUrl()} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: '#F2EFE8', color: '#232321', textDecoration: 'none' }}>Reconnect</a>
               <div onClick={disconnecting ? undefined : disconnect} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: disconnecting ? 'default' : 'pointer', border: '1px solid rgba(142,46,10,0.2)', color: '#8E2E0A' }}>
                 {disconnecting ? 'Disconnecting…' : 'Disconnect'}
               </div>
@@ -94,9 +94,9 @@ export function MyCalendarSettings() {
           </>
         ) : (
           <>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12', marginBottom: 4 }}>Not connected</div>
-            <div style={{ fontSize: 12, color: '#7E9B93', marginBottom: 14 }}>Connect your calendar to see your own schedule while booking a meeting.</div>
-            <a href={api.google.myCalendar.connectUrl()} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, background: '#173326', color: 'white', textDecoration: 'none' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1D1D1B', marginBottom: 4 }}>Not connected</div>
+            <div style={{ fontSize: 12, color: '#8B877F', marginBottom: 14 }}>Connect your calendar to see your own schedule while booking a meeting.</div>
+            <a href={api.google.myCalendar.connectUrl()} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, padding: '11px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, background: '#232321', color: 'white', textDecoration: 'none' }}>
               Connect my calendar
             </a>
           </>

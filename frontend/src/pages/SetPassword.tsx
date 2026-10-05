@@ -53,7 +53,7 @@ export function SetPassword() {
           <span style={{ width: 6, height: 6, borderRadius: 999, background: '#8E2E0A', flexShrink: 0, marginTop: 6 }} />
           <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8E2E0A', lineHeight: 1.55 }}>{loadError}</span>
         </div>
-        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: '#173326', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Go to log in</div>
+        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: '#232321', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Go to log in</div>
       </AuthLayout>
     );
   }
@@ -61,12 +61,12 @@ export function SetPassword() {
   if (done) {
     return (
       <AuthLayout showBrand={width > 760} title="You're all set" subtitle="Your password is saved and your account is active.">
-        <div style={{ fontSize: 13, lineHeight: 1.7, color: '#43514D' }}>
+        <div style={{ fontSize: 13, lineHeight: 1.7, color: '#4A4741' }}>
           Sign in with <strong>{invite?.email}</strong> and your new password — or use <strong>Continue with Google</strong> if that
           address is a Google account.
         </div>
-        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: '#173326', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Log in</div>
-        <a href={api.auth.googleLoginUrl()} style={{ padding: '13px 0', borderRadius: 10, background: '#fff', border: '1px solid rgba(20,8,31,0.12)', color: '#0B1A12', textAlign: 'center', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, textDecoration: 'none' }}>
+        <div onClick={() => navigate('/login')} style={{ padding: '14px 0', borderRadius: 10, background: '#232321', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Log in</div>
+        <a href={api.auth.googleLoginUrl()} style={{ padding: '13px 0', borderRadius: 10, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.12)', color: '#1D1D1B', textAlign: 'center', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, textDecoration: 'none' }}>
           <GoogleMark /><span>Continue with Google</span>
         </a>
       </AuthLayout>
@@ -96,10 +96,10 @@ export function SetPassword() {
           const ok = r.test(password);
           return (
             <div key={r.text} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 14, height: 14, borderRadius: 999, display: 'grid', placeItems: 'center', background: ok ? '#1E6B36' : '#E3E9E4', flexShrink: 0 }}>
+              <span style={{ width: 14, height: 14, borderRadius: 999, display: 'grid', placeItems: 'center', background: ok ? '#3F6B39' : '#E3E9E4', flexShrink: 0 }}>
                 <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" style={{ opacity: ok ? 1 : 0.35 }}><path d="M20 6L9 17l-5-5" /></svg>
               </span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: ok ? '#1E6B36' : '#7E9B93' }}>{r.text}</span>
+              <span style={{ fontSize: 12, fontWeight: 500, color: ok ? '#3F6B39' : '#8B877F' }}>{r.text}</span>
             </div>
           );
         })}
@@ -112,7 +112,7 @@ export function SetPassword() {
         </div>
       )}
 
-      <div onClick={busy || !invite ? undefined : submit} style={{ padding: '14px 0', borderRadius: 10, background: busy || !invite ? '#9AB0A4' : '#173326', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: busy || !invite ? 'default' : 'pointer' }}>
+      <div onClick={busy || !invite ? undefined : submit} style={{ padding: '14px 0', borderRadius: 10, background: busy || !invite ? '#ABA79E' : '#232321', color: '#fff', textAlign: 'center', fontSize: 13.5, fontWeight: 700, cursor: busy || !invite ? 'default' : 'pointer' }}>
         {busy ? 'Saving…' : invite?.isReset ? 'Save new password' : 'Create password & activate'}
       </div>
     </AuthLayout>

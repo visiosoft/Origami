@@ -8,11 +8,11 @@ import {
 } from '../data/projectProgram';
 import { PERSONALITY_TEMPLATE, templateKeyForPersonality, mergeTokens } from '../data/clientPersonality';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 const input: React.CSSProperties = {
   boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.13)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.13)', background: '#FDFCF9', fontFamily: 'inherit',
+  fontSize: 13, color: '#1D1D1B', outline: 'none',
 };
 
 /**
@@ -310,12 +310,12 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   const totals = stepTotals(step, values);
   const hasTotals = !!step.totalOf;
 
-  if (loading) return <div style={{ padding: 28, fontSize: 12.5, color: '#7E9B93' }}>Loading the program…</div>;
+  if (loading) return <div style={{ padding: 28, fontSize: 12.5, color: '#8B877F' }}>Loading the program…</div>;
 
   const label = (text: string, hint?: string) => (
     <div style={{ marginBottom: 5 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{text}</div>
-      {hint && <div style={{ fontSize: 10.5, color: '#9AA39D', marginTop: 2 }}>{hint}</div>}
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{text}</div>
+      {hint && <div style={{ fontSize: 10.5, color: '#A29E96', marginTop: 2 }}>{hint}</div>}
     </div>
   );
 
@@ -345,8 +345,8 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
     <div key={section.key} style={{ marginBottom: 22 }}>
       {section.title && (
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }}>{section.title}</div>
-          {section.note && <div style={{ fontSize: 11, color: '#9AA39D', marginTop: 3, lineHeight: 1.5 }}>{section.note}</div>}
+          <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#1D1D1B' }}>{section.title}</div>
+          {section.note && <div style={{ fontSize: 11, color: '#A29E96', marginTop: 3, lineHeight: 1.5 }}>{section.note}</div>}
         </div>
       )}
 
@@ -362,9 +362,9 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       )}
 
       {section.kind === 'table' && (
-        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflowX: 'auto' }}>
+        <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, overflowX: 'auto' }}>
           <div style={{ minWidth: 540 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, padding: '8px 12px', background: '#F7F9F7', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, padding: '8px 12px', background: '#F8F6F1', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#A29E96' }}>
               <span>Description</span><span>Range low</span><span>Range high</span><span>Notes</span>
             </div>
             {(section.rows || []).map((row) => {
@@ -374,8 +374,8 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
               // being silently carried into the new fields as if re-entered.
               const legacy = String(cell.budget ?? '').trim();
               return (
-                <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
-                  <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
+                <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 110px 110px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(29, 29, 27,0.05)' }}>
+                  <span style={{ fontSize: 12.5, color: '#1D1D1B' }}>{row.label}</span>
                   <input disabled={!stepCanManage} value={cell.rangeLow ?? ''} onChange={(e) => putCell(row.key, 'rangeLow', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
                   <input disabled={!stepCanManage} value={cell.rangeHigh ?? ''} onChange={(e) => putCell(row.key, 'rangeHigh', e.target.value)} placeholder={legacy || '0'} style={{ ...input, padding: '6px 8px' }} />
                   <input disabled={!stepCanManage} value={cell.notes ?? ''} onChange={(e) => putCell(row.key, 'notes', e.target.value)} style={{ ...input, padding: '6px 8px' }} />
@@ -387,16 +387,16 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       )}
 
       {section.kind === 'weeks' && (
-        <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, overflowX: 'auto' }}>
+        <div style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 10, overflowX: 'auto' }}>
           <div style={{ minWidth: 460 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, padding: '6px 12px', background: '#F7F9F7', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9AA39D' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, padding: '6px 12px', background: '#F8F6F1', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#A29E96' }}>
               <span>Stage</span><span>Weeks</span><span>or a range, e.g. "3–6 months"</span>
             </div>
             {(section.rows || []).map((row) => {
               const cell = weeksValue(values[row.key]);
               return (
-                <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.05)' }}>
-                  <span style={{ fontSize: 12.5, color: '#0B1A12' }}>{row.label}</span>
+                <div key={row.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 90px minmax(140px, 1fr)', gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(29, 29, 27,0.05)' }}>
+                  <span style={{ fontSize: 12.5, color: '#1D1D1B' }}>{row.label}</span>
                   <input disabled={!canManage} type="number" min={0} value={cell.weeks ?? ''} onChange={(e) => put(row.key, { ...cell, weeks: e.target.value })} placeholder="0" style={{ ...input, padding: '6px 8px' }} />
                   <input disabled={!canManage} value={cell.rangeText ?? ''} onChange={(e) => put(row.key, { ...cell, rangeText: e.target.value })} placeholder="e.g. 3–6 months" style={{ ...input, padding: '6px 8px' }} />
                 </div>
@@ -421,7 +421,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
     <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
       {/* Step rail */}
       <div style={{ width: 214, flexShrink: 0, maxWidth: '100%' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
           {answered} of {questions} answered
         </div>
         {PROGRAM_STEPS.map((s, i) => {
@@ -434,17 +434,17 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
               onClick={() => setStepIdx(i)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 9, padding: '9px 10px', borderRadius: 9, cursor: 'pointer',
-                background: on ? '#173326' : 'transparent', marginBottom: 2,
+                background: on ? '#232321' : 'transparent', marginBottom: 2,
               }}
             >
               <span style={{
                 width: 20, height: 20, borderRadius: 999, flexShrink: 0, display: 'grid', placeItems: 'center',
                 fontSize: 9.5, fontWeight: 700,
-                background: complete ? '#D2EAD3' : on ? 'rgba(255,255,255,0.16)' : '#EFEDE8',
-                color: complete ? '#1C5230' : on ? 'white' : '#7E9B93',
+                background: complete ? '#E3ECD9' : on ? 'rgba(255,255,255,0.16)' : '#EEEBE4',
+                color: complete ? '#34552E' : on ? 'white' : '#8B877F',
               }}>{complete ? '✓' : i + 1}</span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: on ? 700 : 600, color: on ? 'white' : '#43514D', lineHeight: 1.3 }}>{s.name}</span>
-              <span style={{ fontSize: 9.5, fontWeight: 700, color: on ? 'rgba(255,255,255,0.6)' : '#9AA39D' }}>{p.done}/{p.total}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: on ? 700 : 600, color: on ? 'white' : '#4A4741', lineHeight: 1.3 }}>{s.name}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: on ? 'rgba(255,255,255,0.6)' : '#A29E96' }}>{p.done}/{p.total}</span>
             </div>
           );
         })}
@@ -454,11 +454,11 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       <div style={{ flex: 1, minWidth: 260 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               Step {stepIdx + 1} of {PROGRAM_STEPS.length}{projectName ? ` · ${projectName}` : ''}
             </div>
-            <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: '#0B1A12', marginTop: 3 }}>{step.name}</div>
-            {step.blurb && <div style={{ fontSize: 12, color: '#7E9B93', marginTop: 4, lineHeight: 1.55, maxWidth: 620 }}>{step.blurb}</div>}
+            <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: '#1D1D1B', marginTop: 3 }}>{step.name}</div>
+            {step.blurb && <div style={{ fontSize: 12, color: '#8B877F', marginTop: 4, lineHeight: 1.55, maxWidth: 620 }}>{step.blurb}</div>}
             {aecFinalized && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 8, padding: '8px 12px', borderRadius: 9, background: '#FBF3E4', color: '#8A6A0E', fontSize: 11.5, fontWeight: 600, maxWidth: 620 }}>
                 <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><rect x={5} y={11} width={14} height={9} rx={2} /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
@@ -469,7 +469,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           <div
             onClick={rendering ? undefined : openPdf}
             title="The whole program on the company letterhead, one section per page."
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: rendering ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: rendering ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', background: '#FDFCF9' }}
           >
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1={12} y1={15} x2={12} y2={3} /></svg>
             {rendering ? 'Rendering…' : 'Download PDF'}
@@ -477,7 +477,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           <div
             onClick={openVersions}
             title="Every past save of this document."
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', background: 'white' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', background: '#FDFCF9' }}
           >
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><circle cx={12} cy={12} r={9} /><polyline points="12 7 12 12 16 14" /></svg>
             Version history
@@ -485,7 +485,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           {canManage && (
             <div
               onClick={saving ? undefined : save}
-              style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: dirty ? '#173326' : 'white', color: dirty ? 'white' : '#7E9B93', border: '1px solid ' + (dirty ? '#173326' : 'rgba(20,8,31,0.12)') }}
+              style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: dirty ? '#232321' : 'white', color: dirty ? 'white' : '#8B877F', border: '1px solid ' + (dirty ? '#232321' : 'rgba(29, 29, 27,0.12)') }}
             >
               {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
             </div>
@@ -493,19 +493,19 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
         </div>
 
         {(linkedTasks || []).filter((lt) => lt.stepKey === step.key).map((lt) => (
-          <div key={lt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: lt.done ? '#EDF4EC' : '#FBF8F2', border: '1px solid ' + (lt.done ? 'rgba(28,82,48,0.16)' : 'rgba(20,8,31,0.07)'), marginBottom: 16 }}>
+          <div key={lt.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, background: lt.done ? '#F2EFE8' : '#FAF8F3', border: '1px solid ' + (lt.done ? 'rgba(52, 85, 46,0.16)' : 'rgba(29, 29, 27,0.07)'), marginBottom: 16 }}>
             <input
               type="checkbox"
               checked={lt.done}
               disabled={!canManage || !onToggleTask}
               onChange={(e) => onToggleTask?.(lt.id, e.target.checked)}
-              style={{ accentColor: '#173326' }}
+              style={{ accentColor: '#232321' }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Project Programming</div>
-              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', marginTop: 1 }}>{lt.title}</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Project Programming</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B', marginTop: 1 }}>{lt.title}</div>
             </div>
-            <span style={{ fontSize: 10.5, color: '#7E9B93' }}>
+            <span style={{ fontSize: 10.5, color: '#8B877F' }}>
               {lt.done ? 'Done on the Phase Board' : 'Ticking this closes the card on the Phase Board'}
             </span>
           </div>
@@ -525,7 +525,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
         })()}
 
         {hasTotals && (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '14px 16px', background: '#F7F9F7', borderRadius: 11, marginBottom: 18 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', padding: '14px 16px', background: '#F8F6F1', borderRadius: 11, marginBottom: 18 }}>
             {step.key === 'budget' ? (() => {
               const range = stepRangeTotals(step, values);
               const legacy = contingencyLegacyValue(values);
@@ -537,12 +537,12 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
               return (
                 <>
                   <div style={{ flex: 1, minWidth: 130 }}>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Design and Approvals + Construction</div>
-                    <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{rangeText(range.low, range.high)}</div>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Design and Approvals + Construction</div>
+                    <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#1D1D1B' }}>{rangeText(range.low, range.high)}</div>
                   </div>
                   <div style={{ flex: 1, minWidth: 130 }}>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>With contingency</div>
-                    <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#173326' }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.07em' }}>With contingency</div>
+                    <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#232321' }}>
                       {rangeText(range.low + titleLow + contingencyLow, range.high + titleHigh + contingencyHigh)}
                     </div>
                   </div>
@@ -551,12 +551,12 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
             })() : (
               <>
                 <div style={{ flex: 1, minWidth: 130 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Budget subtotal</div>
-                  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{money(totals.budget)}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Budget subtotal</div>
+                  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#1D1D1B' }}>{money(totals.budget)}</div>
                 </div>
                 <div style={{ flex: 1, minWidth: 130 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Actual to date</div>
-                  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#0B1A12' }}>{money(totals.actual)}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Actual to date</div>
+                  <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: '#1D1D1B' }}>{money(totals.actual)}</div>
                 </div>
               </>
             )}
@@ -564,9 +564,9 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
         )}
 
         {stepIdx === PROGRAM_STEPS.length - 1 && canManage && (
-          <div style={{ border: '1px solid rgba(20,8,31,0.09)', borderRadius: 12, padding: '16px 18px', marginBottom: 18, background: '#FBFDFA' }}>
-            <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: '#0B1A12' }}>Send to the client</div>
-            <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 3, marginBottom: 12, lineHeight: 1.55 }}>
+          <div style={{ border: '1px solid rgba(29, 29, 27,0.09)', borderRadius: 18, padding: '16px 18px', marginBottom: 18, background: '#FBFDFA' }}>
+            <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: '#1D1D1B' }}>Send to the client</div>
+            <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 3, marginBottom: 12, lineHeight: 1.55 }}>
               Emails the program from the connected Google Workspace account, with the letterhead PDF attached.
               {meta.sentAt ? ` Last sent ${new Date(meta.sentAt).toLocaleString()}${meta.sentTo ? ` to ${meta.sentTo}` : ''}.` : ''}
             </div>
@@ -608,22 +608,22 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 {label('Attachments')}
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12.5, color: '#0B1A12', marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12.5, color: '#1D1D1B', marginBottom: 8 }}>
                   <input type="checkbox" checked={includeProgram} onChange={(e) => setIncludeProgram(e.target.checked)} />
                   Attach the Project Program PDF
                 </label>
                 {extraFiles.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                     {extraFiles.map((f, i) => (
-                      <span key={f.name + i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EFEDE8', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 11.5 }}>
+                      <span key={f.name + i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#EEEBE4', borderRadius: 999, padding: '4px 6px 4px 10px', fontSize: 11.5 }}>
                         {f.name}
-                        <span onClick={() => removeFile(i)} style={{ cursor: 'pointer', color: '#7E9B93', fontSize: 14, lineHeight: 1 }}>×</span>
+                        <span onClick={() => removeFile(i)} style={{ cursor: 'pointer', color: '#8B877F', fontSize: 14, lineHeight: 1 }}>×</span>
                       </span>
                     ))}
                   </div>
                 )}
                 <input ref={fileInputRef} type="file" multiple accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={(e) => addFiles(e.target.files)} />
-                <div onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326', background: 'white' }}>
+                <div onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321', background: '#FDFCF9' }}>
                   + Attach PDF{extraFiles.length ? 's' : ''}
                 </div>
               </div>
@@ -631,12 +631,12 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <div
                 onClick={sending ? undefined : sendToClient}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? '#9AB0A4' : '#173326', color: 'white' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? '#ABA79E' : '#232321', color: 'white' }}
               >
                 <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><line x1={22} y1={2} x2={11} y2={13} /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                 {sending ? 'Sending…' : meta.sentAt ? 'Re-send' : 'Send'}
               </div>
-              <div onClick={rendering ? undefined : openPdf} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
+              <div onClick={rendering ? undefined : openPdf} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321' }}>
                 {rendering ? 'Rendering…' : 'Preview the PDF first'}
               </div>
               {dirty && <span style={{ fontSize: 11, color: '#8E2E0A', fontWeight: 600 }}>Unsaved edits are included in the PDF but not yet stored — Save first.</span>}
@@ -644,46 +644,46 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTop: '1px solid rgba(20,8,31,0.07)', paddingTop: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTop: '1px solid rgba(29, 29, 27,0.07)', paddingTop: 14 }}>
           <div
             onClick={stepIdx === 0 ? undefined : () => setStepIdx(stepIdx - 1)}
-            style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: stepIdx === 0 ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: stepIdx === 0 ? '#C9CDC9' : '#173326', background: 'white' }}
+            style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: stepIdx === 0 ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: stepIdx === 0 ? '#CFCBC3' : '#232321', background: '#FDFCF9' }}
           >Back</div>
           <div
             onClick={stepIdx === PROGRAM_STEPS.length - 1 ? undefined : () => setStepIdx(stepIdx + 1)}
-            style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: stepIdx === PROGRAM_STEPS.length - 1 ? 'default' : 'pointer', background: stepIdx === PROGRAM_STEPS.length - 1 ? '#EFEDE8' : '#173326', color: stepIdx === PROGRAM_STEPS.length - 1 ? '#9AA39D' : 'white' }}
+            style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: stepIdx === PROGRAM_STEPS.length - 1 ? 'default' : 'pointer', background: stepIdx === PROGRAM_STEPS.length - 1 ? '#EEEBE4' : '#232321', color: stepIdx === PROGRAM_STEPS.length - 1 ? '#A29E96' : 'white' }}
           >Next</div>
-          <div style={{ marginLeft: 'auto', fontSize: 10.5, color: '#9AA39D' }}>
+          <div style={{ marginLeft: 'auto', fontSize: 10.5, color: '#A29E96' }}>
             {meta.updatedAt ? `Last saved ${new Date(meta.updatedAt).toLocaleString()}${meta.updatedBy ? ` by ${meta.updatedBy}` : ''}` : 'Not saved yet'}
           </div>
         </div>
       </div>
 
       {showVersions && (
-        <div onClick={() => setShowVersions(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 200, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 480, maxWidth: '92vw', maxHeight: '80vh', overflowY: 'auto', background: 'white', borderRadius: 16, boxShadow: '0 24px 60px rgba(20,8,31,0.24)' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div onClick={() => setShowVersions(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(29, 29, 27,0.5)', zIndex: 200, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 480, maxWidth: '92vw', maxHeight: '80vh', overflowY: 'auto', background: '#FDFCF9', borderRadius: 16, boxShadow: '0 24px 60px rgba(29, 29, 27,0.24)' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(29, 29, 27,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700 }}>Version history</div>
-                <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>Every save of this Project Program, newest first.</div>
+                <div style={{ fontSize: 11.5, color: '#8B877F', marginTop: 2 }}>Every save of this Project Program, newest first.</div>
               </div>
-              <div onClick={() => setShowVersions(false)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93' }}>×</div>
+              <div onClick={() => setShowVersions(false)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#8B877F' }}>×</div>
             </div>
             <div style={{ padding: '10px 14px' }}>
               {loadingVersions ? (
-                <div style={{ fontSize: 12.5, color: '#9AA39D', padding: '14px 8px' }}>Loading…</div>
+                <div style={{ fontSize: 12.5, color: '#A29E96', padding: '14px 8px' }}>Loading…</div>
               ) : versions.length === 0 ? (
-                <div style={{ fontSize: 12.5, color: '#9AA39D', padding: '14px 8px' }}>No saves recorded yet — this becomes populated the next time it's saved.</div>
+                <div style={{ fontSize: 12.5, color: '#A29E96', padding: '14px 8px' }}>No saves recorded yet — this becomes populated the next time it's saved.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {versions.map((v, i) => (
-                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: i === 0 ? '#EDF4EC' : '#FBF8F2' }}>
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, background: i === 0 ? '#F2EFE8' : '#FAF8F3' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12' }}>{new Date(v.savedAt).toLocaleString()}</div>
-                        <div style={{ fontSize: 11, color: '#7E9B93' }}>{v.savedBy || 'System'}{i === 0 ? ' · current' : ''}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1D1D1B' }}>{new Date(v.savedAt).toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: '#8B877F' }}>{v.savedBy || 'System'}{i === 0 ? ' · current' : ''}</div>
                       </div>
                       {i !== 0 && canManage && (
-                        <div onClick={restoringId ? undefined : () => restoreVersion(v.id)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: restoringId ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326' }}>
+                        <div onClick={restoringId ? undefined : () => restoreVersion(v.id)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: restoringId ? 'default' : 'pointer', border: '1px solid rgba(29, 29, 27,0.14)', color: '#232321' }}>
                           {restoringId === v.id ? 'Restoring…' : 'Restore'}
                         </div>
                       )}
@@ -714,8 +714,8 @@ function ListRows({ items, canManage, placeholder, onChange }: {
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {items.map((it, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#FBF8F2', borderRadius: 8 }}>
-            <span style={{ color: '#9AA39D', fontSize: 11 }}>{i + 1}</span>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#FAF8F3', borderRadius: 8 }}>
+            <span style={{ color: '#A29E96', fontSize: 11 }}>{i + 1}</span>
             <input
               disabled={!canManage}
               value={it}
@@ -725,12 +725,12 @@ function ListRows({ items, canManage, placeholder, onChange }: {
             {canManage && <span onClick={() => onChange(items.filter((_, j) => j !== i))} style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 13 }}>×</span>}
           </div>
         ))}
-        {!items.length && <div style={{ fontSize: 11.5, color: '#9AA39D', padding: '4px 0' }}>Nothing added yet.</div>}
+        {!items.length && <div style={{ fontSize: 11.5, color: '#A29E96', padding: '4px 0' }}>Nothing added yet.</div>}
       </div>
       {canManage && (
         <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
           <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }} placeholder={placeholder} style={{ ...input, flex: 1 }} />
-          <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
+          <div onClick={add} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: '#232321', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
         </div>
       )}
     </div>

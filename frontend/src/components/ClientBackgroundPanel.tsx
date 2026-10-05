@@ -65,13 +65,13 @@ export function ClientBackgroundPanel({ leadId, clientName, value, version, onSa
   };
   const removeNote = (id: string) => setDraft((d) => ({ ...d, notes: (d.notes || []).filter((n) => n.id !== id) }));
   const notes = [...(draft.notes || [])].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
-  const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 12.5, fontFamily: 'inherit', color: '#0B1A12', outline: 'none', resize: 'vertical' };
+  const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.12)', background: '#FAF8F3', fontSize: 12.5, fontFamily: 'inherit', color: '#1D1D1B', outline: 'none', resize: 'vertical' };
 
   return (
     <div style={{ padding: '16px 20px 24px', display: 'grid', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 220px', fontSize: 11.5, color: '#5C6B65', lineHeight: 1.55 }}>
-          Who <b style={{ color: '#0B1A12' }}>{clientName}</b> is, beyond this project — what anyone taking over the relationship should know. Kept separate from the project notes.
+        <div style={{ flex: '1 1 220px', fontSize: 11.5, color: '#65615A', lineHeight: 1.55 }}>
+          Who <b style={{ color: '#1D1D1B' }}>{clientName}</b> is, beyond this project — what anyone taking over the relationship should know. Kept separate from the project notes.
         </div>
         {canEdit && <SaveBar auto={auto} />}
       </div>
@@ -79,32 +79,32 @@ export function ClientBackgroundPanel({ leadId, clientName, value, version, onSa
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10 }}>
         {FACTS.map((f) => (
           <label key={f.key} style={{ display: 'grid', gap: 4 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{f.label}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{f.label}</span>
             <textarea disabled={!canEdit} value={draft.facts?.[f.key] || ''} onChange={(e) => setFact(f.key, e.target.value)} placeholder={f.ph} rows={2} style={input} />
           </label>
         ))}
       </div>
 
       <div style={{ display: 'grid', gap: 8 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Background notes · newest first</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Background notes · newest first</div>
         {canEdit && (
           <div style={{ display: 'grid', gap: 6 }}>
             <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') addNote(); }}
-              placeholder="Something you learned about them — a story they told, what matters to them…" rows={3} style={{ ...input, background: 'white' }} />
+              placeholder="Something you learned about them — a story they told, what matters to them…" rows={3} style={{ ...input, background: '#FDFCF9' }} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <div onClick={addNote} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteText.trim() ? 'pointer' : 'not-allowed', background: noteText.trim() ? '#173326' : '#D6DED8', color: noteText.trim() ? 'white' : '#9AA39D' }}>Add note</div>
-              <span style={{ fontSize: 10.5, color: '#9AA39D' }}>Ctrl + Enter to add</span>
+              <div onClick={addNote} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: noteText.trim() ? 'pointer' : 'not-allowed', background: noteText.trim() ? '#232321' : '#DFDBD2', color: noteText.trim() ? 'white' : '#A29E96' }}>Add note</div>
+              <span style={{ fontSize: 10.5, color: '#A29E96' }}>Ctrl + Enter to add</span>
             </div>
           </div>
         )}
-        {!notes.length && <div style={{ fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No background notes yet.</div>}
+        {!notes.length && <div style={{ fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No background notes yet.</div>}
         {notes.map((n) => (
-          <div key={n.id} style={{ background: '#FBF8F2', borderRadius: 10, padding: '10px 12px' }}>
+          <div key={n.id} style={{ background: '#FAF8F3', borderRadius: 10, padding: '10px 12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 10.5, color: '#7E9B93' }}>{new Date(n.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{n.by ? ` · ${n.by}` : ''}</span>
+              <span style={{ fontSize: 10.5, color: '#8B877F' }}>{new Date(n.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}{n.by ? ` · ${n.by}` : ''}</span>
               {canEdit && <span onClick={() => removeNote(n.id)} style={{ marginLeft: 'auto', fontSize: 11, color: '#8E2E0A', cursor: 'pointer', fontWeight: 600 }}>Delete</span>}
             </div>
-            <ClampText text={n.text} lines={2} style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.55 }} />
+            <ClampText text={n.text} lines={2} style={{ fontSize: 12.5, color: '#4A4741', lineHeight: 1.55 }} />
           </div>
         ))}
       </div>

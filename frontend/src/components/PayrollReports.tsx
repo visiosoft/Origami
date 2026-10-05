@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 
-const INK = '#0B1A12';
-const MUTED = '#7E9B93';
-const BG = "'Bricolage Grotesque', serif";
-const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit', background: 'white', color: INK };
+const INK = '#1D1D1B';
+const MUTED = '#8B877F';
+const BG = "'Outfit', system-ui, sans-serif";
+const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(29, 29, 27,0.14)', fontSize: 13, fontFamily: 'inherit', background: '#FDFCF9', color: INK };
 
 interface Row {
   key: string; label: string; sub?: string; payslips: number;
@@ -74,14 +74,14 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
-  const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'right', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(20,8,31,0.1)', whiteSpace: 'nowrap', background: 'white', position: 'sticky', top: 0 };
-  const td: React.CSSProperties = { padding: '8px 10px', textAlign: 'right', fontSize: 12.5, color: '#43514D', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(20,8,31,0.05)' };
+  const th: React.CSSProperties = { padding: '8px 10px', textAlign: 'right', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(29, 29, 27,0.1)', whiteSpace: 'nowrap', background: '#FDFCF9', position: 'sticky', top: 0 };
+  const td: React.CSSProperties = { padding: '8px 10px', textAlign: 'right', fontSize: 12.5, color: '#4A4741', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(29, 29, 27,0.05)' };
   const group = (label: string, span: number, color: string) => span > 0 && <th colSpan={span} style={{ ...th, textAlign: 'center', color, borderBottom: '2px solid ' + color }}>{label}</th>;
   const body = (x: Row, bold = false) => {
-    const st = bold ? { ...td, fontWeight: 700, color: INK, background: '#FBF8F2' } : td;
+    const st = bold ? { ...td, fontWeight: 700, color: INK, background: '#FAF8F3' } : td;
     return (
       <tr key={x.key}>
-        <td style={{ ...st, textAlign: 'left', position: 'sticky', left: 0, background: bold ? '#FBF8F2' : 'white' }}>
+        <td style={{ ...st, textAlign: 'left', position: 'sticky', left: 0, background: bold ? '#FAF8F3' : 'white' }}>
           <div style={{ fontWeight: 600, color: INK }}>{x.label}</div>{x.sub && <div style={{ fontSize: 11, color: MUTED }}>{x.sub}</div>}
         </td>
         <td style={st}>{x.payslips}</td>
@@ -91,7 +91,7 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
         <td style={{ ...st, fontWeight: 700, color: '#8E2E0A' }}>{fmt(x.taxTotal)}</td>
         {cols.deductions.map((c) => <td key={'d' + c} style={st}>{fmt(x.deductions[c])}</td>)}
         <td style={{ ...st, fontWeight: 700, color: '#93520F' }}>{fmt(x.deductionTotal)}</td>
-        <td style={{ ...st, fontWeight: 700, color: '#1E6B36' }}>{fmt(x.net)}</td>
+        <td style={{ ...st, fontWeight: 700, color: '#3F6B39' }}>{fmt(x.net)}</td>
         <td style={st}>{fmt(x.paid)}</td>
         <td style={{ ...st, color: x.unpaid ? '#8E2E0A' : st.color }}>{fmt(x.unpaid)}</td>
       </tr>
@@ -113,14 +113,14 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
           <option value="">All employees</option>
           {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#43514D' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#4A4741' }}>
           <input type="checkbox" checked={drafts} onChange={(e) => setDrafts(e.target.checked)} /> Include draft runs
         </label>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           {([['employee', 'By employee'], ['run', 'By pay run']] as const).map(([k, l]) => (
-            <span key={k} onClick={() => setView(k)} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === k ? '#173326' : 'white', color: view === k ? 'white' : '#43514D', border: '1px solid ' + (view === k ? '#173326' : 'rgba(20,8,31,0.12)') }}>{l}</span>
+            <span key={k} onClick={() => setView(k)} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === k ? '#232321' : 'white', color: view === k ? 'white' : '#4A4741', border: '1px solid ' + (view === k ? '#232321' : 'rgba(29, 29, 27,0.12)') }}>{l}</span>
           ))}
-          <span onClick={exportCsv} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: r?.totals.payslips ? 'pointer' : 'default', border: '1px solid rgba(20,8,31,0.12)', color: '#173326', opacity: r?.totals.payslips ? 1 : 0.5 }}>Export CSV</span>
+          <span onClick={exportCsv} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: r?.totals.payslips ? 'pointer' : 'default', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321', opacity: r?.totals.payslips ? 1 : 0.5 }}>Export CSV</span>
         </div>
       </div>
 
@@ -129,8 +129,8 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
       {r && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-            {([['Gross pay', r.totals.gross, INK], ['Taxes withheld', r.totals.taxTotal, '#8E2E0A'], ['Other deductions', r.totals.deductionTotal, '#93520F'], ['Net pay', r.totals.net, '#1E6B36'], ['Not yet paid', r.totals.unpaid, r.totals.unpaid ? '#8E2E0A' : INK]] as [string, number, string][]).map(([l, v, c]) => (
-              <div key={l} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: '10px 14px' }}>
+            {([['Gross pay', r.totals.gross, INK], ['Taxes withheld', r.totals.taxTotal, '#8E2E0A'], ['Other deductions', r.totals.deductionTotal, '#93520F'], ['Net pay', r.totals.net, '#3F6B39'], ['Not yet paid', r.totals.unpaid, r.totals.unpaid ? '#8E2E0A' : INK]] as [string, number, string][]).map(([l, v, c]) => (
+              <div key={l} style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18, padding: '10px 14px' }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{l}</div>
                 <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: c, marginTop: 2 }}>{money.format(v || 0)}</div>
               </div>
@@ -140,9 +140,9 @@ export function PayrollReports({ employees, currency = 'USD' }: { employees: { i
             {r.runs.length} pay run{r.runs.length === 1 ? '' : 's'} ending {r.from} – {r.to}{r.includeDrafts ? ' (drafts included — not final)' : ''} · {r.totals.payslips} payslip{r.totals.payslips === 1 ? '' : 's'}
           </div>
           {!rows.length ? (
-            <div style={{ padding: '26px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: '#FBF8F2', borderRadius: 12 }}>No finalized payroll in this period{drafts ? '' : ' — tick “Include draft runs” to preview drafts'}.</div>
+            <div style={{ padding: '26px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: '#FAF8F3', borderRadius: 18 }}>No finalized payroll in this period{drafts ? '' : ' — tick “Include draft runs” to preview drafts'}.</div>
           ) : (
-            <div style={{ overflow: 'auto', maxHeight: '65vh', background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12 }}>
+            <div style={{ overflow: 'auto', maxHeight: '65vh', background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 18 }}>
               <table style={{ borderCollapse: 'separate', borderSpacing: 0, minWidth: '100%' }}>
                 <thead>
                   <tr>

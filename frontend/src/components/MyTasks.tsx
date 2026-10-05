@@ -6,7 +6,7 @@ import { useApp } from '../AppContext';
 import { PRIORITY_STYLE, type ProjectTask, type Priority } from '../data/projectTasks';
 import type { Task } from '../data/tasks';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 interface Row {
   key: string;
@@ -66,24 +66,24 @@ export function MyTasks() {
   }, [boardTasks, logTasks, projects, currentUser]);
 
   return (
-    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, padding: 18, marginBottom: 14 }}>
+    <div style={{ background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.06)', borderRadius: 20, padding: 18, marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#0B1A12' }}>My Tasks <span style={{ fontSize: 13, color: '#7E9B93', fontWeight: 600 }}>({mine.length})</span></div>
-        <span onClick={() => navigate('/tasks')} style={{ fontSize: 12, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>All tasks →</span>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 16, color: '#1D1D1B' }}>My Tasks <span style={{ fontSize: 13, color: '#8B877F', fontWeight: 600 }}>({mine.length})</span></div>
+        <span onClick={() => navigate('/tasks')} style={{ fontSize: 12, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>All tasks →</span>
       </div>
       {mine.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>No tasks assigned to you.</div>
+        <div style={{ fontSize: 12.5, color: '#A29E96', fontStyle: 'italic' }}>No tasks assigned to you.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {mine.slice(0, 8).map((t) => {
             const ps = t.priority ? PRIORITY_STYLE[t.priority] : null;
             return (
-              <div key={t.key} onClick={() => navigate(t.where === 'board' ? '/projects' : '/tasks')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, cursor: 'pointer', flexWrap: 'wrap' }}>
+              <div key={t.key} onClick={() => navigate(t.where === 'board' ? '/projects' : '/tasks')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FAF8F3', borderRadius: 10, cursor: 'pointer', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0B1A12' }}>{t.title}</div>
-                  <div style={{ fontSize: 11, color: '#7E9B93' }}>{t.context}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1D1D1B' }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: '#8B877F' }}>{t.context}</div>
                 </div>
-                {t.dueDate && <span style={{ fontSize: 11, color: '#7E9B93' }}>📅 {t.dueDate}</span>}
+                {t.dueDate && <span style={{ fontSize: 11, color: '#8B877F' }}>📅 {t.dueDate}</span>}
                 {ps && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: ps.bg, color: ps.c }}>{t.priority}</span>}
               </div>
             );

@@ -3,7 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel } from '../data/projectTypes';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = "'Outfit', system-ui, sans-serif";
 
 export interface TemplateTask { id: string; title: string; team: string; labels: string[]; days?: number; dependsOn?: string[] }
 export interface TemplatePhase { key: string; name: string; color: string; gated?: boolean; dependsOn?: string[]; weeks?: number; tasks: TemplateTask[] }
@@ -17,22 +17,22 @@ const AUTOMATION = 'Automation';
 const LABELS = ['Deliverable', 'Approval', 'Auto', 'Milestone'];
 
 /** Same palette the phase columns use. */
-const COLORS = ['#0E5A8A', '#0F7C7C', '#6B2FA0', '#C77A0A', '#A81E4D', '#145C33', '#8E2E0A', '#2F6FB0'];
+const COLORS = ['#0E5A8A', '#0F7C7C', '#6B2FA0', '#C77A0A', '#A81E4D', '#355C2F', '#8E2E0A', '#2F6FB0'];
 
 const TEAM_TONE: Record<string, { bg: string; c: string }> = {
   Admin: { bg: '#F2DFD4', c: '#8E2E0A' },
   'Project Manager': { bg: '#F7DCE4', c: '#A81E4D' },
   Architect: { bg: '#FBE0CC', c: '#93520F' },
   Drafting: { bg: '#E7E0F5', c: '#6B2FA0' },
-  Estimator: { bg: '#D2EAD3', c: '#1C5230' },
+  Estimator: { bg: '#E3ECD9', c: '#34552E' },
   Accounting: { bg: '#E8DDF2', c: '#6B2FA0' },
   Client: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: 7,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 12.5,
-  fontFamily: 'inherit', color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(29, 29, 27,0.12)', background: '#FDFCF9', fontSize: 12.5,
+  fontFamily: 'inherit', color: '#1D1D1B', outline: 'none',
 };
 
 const slug = (name: string) =>
@@ -201,15 +201,15 @@ export function ProgrammeTemplate() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: '#8B877F' }}>Loading…</div>;
 
   const totalTasks = phases.reduce((sum, p) => sum + p.tasks.length, 0);
 
   return (
     <div>
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Programme Templates</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 660, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#1D1D1B' }}>Programme Templates</div>
+        <div style={{ fontSize: 12.5, color: '#65615A', marginTop: 4, maxWidth: 660, lineHeight: 1.6 }}>
           The phases and tasks a project starts from — a kitchen remodel and a ground-up build don't need the same shape.
           Every project picks one when it's created. "{activeName}" has {phases.length} phases, {totalTasks} tasks.
           Editing here changes what a project built from it gets next; a project already running keeps what it has,
@@ -217,62 +217,62 @@ export function ProgrammeTemplate() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999, marginBottom: 12, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 3, background: '#EEEBE4', padding: 3, borderRadius: 999, marginBottom: 12, width: 'fit-content' }}>
         {(['design', 'construction'] as const).map((c) => (
           <div
             key={c}
             onClick={() => switchCategory(c)}
-            style={{ padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: categoryTab === c ? 'white' : 'transparent', color: categoryTab === c ? '#0B1A12' : '#7E9B93', boxShadow: categoryTab === c ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
+            style={{ padding: '6px 16px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: categoryTab === c ? 'white' : 'transparent', color: categoryTab === c ? '#1D1D1B' : '#8B877F', boxShadow: categoryTab === c ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}
           >{c === 'design' ? 'Design' : 'Construction'}</div>
         ))}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
         {visibleLibrary.length === 0 && (
-          <div style={{ fontSize: 12, color: '#9AA39D', padding: '7px 4px' }}>No {categoryTab === 'design' ? 'Design' : 'Construction'} templates yet.</div>
+          <div style={{ fontSize: 12, color: '#A29E96', padding: '7px 4px' }}>No {categoryTab === 'design' ? 'Design' : 'Construction'} templates yet.</div>
         )}
         {visibleLibrary.map((t) => (
           <div
             key={t.key}
             onClick={() => switchTo(t.key)}
-            style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: t.key === activeKey ? '#173326' : 'white', color: t.key === activeKey ? 'white' : '#7E9B93', border: '1px solid ' + (t.key === activeKey ? '#173326' : 'rgba(20,8,31,0.08)') }}
+            style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: t.key === activeKey ? '#232321' : 'white', color: t.key === activeKey ? 'white' : '#8B877F', border: '1px solid ' + (t.key === activeKey ? '#232321' : 'rgba(29, 29, 27,0.08)') }}
           >{t.name}</div>
         ))}
-        <div onClick={() => newTemplate(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px dashed rgba(20,8,31,0.2)', color: '#173326', whiteSpace: 'nowrap' }}>+ New template</div>
+        <div onClick={() => newTemplate(false)} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px dashed rgba(29, 29, 27,0.2)', color: '#232321', whiteSpace: 'nowrap' }}>+ New template</div>
         <div style={{ flex: 1 }} />
-        {activeKey && <div onClick={() => newTemplate(true)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Duplicate</div>}
-        {activeKey && <div onClick={renameTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', whiteSpace: 'nowrap' }}>Rename</div>}
+        {activeKey && <div onClick={() => newTemplate(true)} style={{ fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer', whiteSpace: 'nowrap' }}>Duplicate</div>}
+        {activeKey && <div onClick={renameTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer', whiteSpace: 'nowrap' }}>Rename</div>}
         {activeKey && <div onClick={deleteTemplate} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer', whiteSpace: 'nowrap' }}>Delete</div>}
       </div>
 
       {activeKey && (
       <>
       <div style={{ position: 'relative', marginBottom: 18, maxWidth: 420 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Potential Project Type</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Potential Project Type</div>
         <div
           onClick={() => setTypesOpen((v) => !v)}
           style={{ ...input, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', minHeight: 34 }}
         >
-          <span style={{ color: projectTypes.length ? '#0B1A12' : '#9AA39D' }}>
+          <span style={{ color: projectTypes.length ? '#1D1D1B' : '#A29E96' }}>
             {projectTypes.length ? `${projectTypes.length} type${projectTypes.length === 1 ? '' : 's'} selected` : 'Not tied to a project type yet'}
           </span>
-          <span style={{ fontSize: 9, color: '#9AA39D', transform: typesOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+          <span style={{ fontSize: 9, color: '#A29E96', transform: typesOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
         </div>
         {typesOpen && (
           <>
             <div onClick={() => setTypesOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9 }} />
-            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'white', border: '1px solid rgba(20,8,31,0.12)', borderRadius: 10, boxShadow: '0 12px 30px rgba(20,8,31,0.14)', maxHeight: 340, overflowY: 'auto', zIndex: 10, padding: 10 }}>
-              <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 8, lineHeight: 1.5 }}>
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#FDFCF9', border: '1px solid rgba(29, 29, 27,0.12)', borderRadius: 10, boxShadow: '0 12px 30px rgba(29, 29, 27,0.14)', maxHeight: 340, overflowY: 'auto', zIndex: 10, padding: 10 }}>
+              <div style={{ fontSize: 10.5, color: '#A29E96', marginBottom: 8, lineHeight: 1.5 }}>
                 Which project types "{activeName}" is built for — a kitchen remodel skips steps a ground-up build needs. Duplicate this template and pick a different set to make a type-specific variant.
               </div>
               {PROJECT_TYPE_GROUPS.map((g) => (
                 <div key={g} style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#9AA39D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{g}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#A29E96', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{g}</div>
                   {PROJECT_TYPES.filter((t) => t.group === g).map((t) => {
                     const label = projectTypeLabel(t);
                     const on = projectTypes.includes(label);
                     return (
-                      <label key={t.code} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px', fontSize: 12, color: '#0B1A12', cursor: 'pointer' }}>
+                      <label key={t.code} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px', fontSize: 12, color: '#1D1D1B', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={on}
@@ -297,25 +297,25 @@ export function ProgrammeTemplate() {
         {phases.map((phase, i) => {
           const open = openPhase === phase.key;
           return (
-            <div key={phase.key} style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 11, background: 'white', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', borderTop: `3px solid ${phase.color}`, background: open ? '#F7F9F7' : 'white' }}>
-                <span onClick={() => setOpenPhase(open ? null : phase.key)} style={{ fontSize: 9, color: '#9AA39D', cursor: 'pointer', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
+            <div key={phase.key} style={{ border: '1px solid rgba(29, 29, 27,0.08)', borderRadius: 11, background: '#FDFCF9', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px', borderTop: `3px solid ${phase.color}`, background: open ? '#F8F6F1' : 'white' }}>
+                <span onClick={() => setOpenPhase(open ? null : phase.key)} style={{ fontSize: 9, color: '#A29E96', cursor: 'pointer', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>▶</span>
                 <input
                   value={phase.name}
                   onChange={(e) => patchPhase(phase.key, { name: e.target.value })}
                   onClick={(e) => e.stopPropagation()}
                   title="Click to rename this phase"
                   style={{ ...input, flex: 1, fontWeight: 700, border: '1px solid transparent', background: 'transparent', cursor: 'text' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.border = '1px solid rgba(20,8,31,0.14)'; e.currentTarget.style.background = 'white'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.border = '1px solid rgba(29, 29, 27,0.14)'; e.currentTarget.style.background = 'white'; }}
                   onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; } }}
-                  onFocus={(e) => { e.currentTarget.style.border = '1px solid #173326'; e.currentTarget.style.background = 'white'; }}
+                  onFocus={(e) => { e.currentTarget.style.border = '1px solid #232321'; e.currentTarget.style.background = 'white'; }}
                   onBlur={(e) => { e.currentTarget.style.border = '1px solid transparent'; e.currentTarget.style.background = 'transparent'; }}
                 />
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#7E9B93', flexShrink: 0 }}>{phase.tasks.length} tasks</span>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8B877F', flexShrink: 0 }}>{phase.tasks.length} tasks</span>
                 <select value={phase.color} onChange={(e) => patchPhase(phase.key, { color: e.target.value })} style={{ ...input, width: 74, flexShrink: 0 }}>
                   {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
-                <label title="How long this phase is expected to take. It sets the projected week range on every project's Phase Board." style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, color: '#7E9B93', flexShrink: 0 }}>
+                <label title="How long this phase is expected to take. It sets the projected week range on every project's Phase Board." style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, color: '#8B877F', flexShrink: 0 }}>
                   <input
                     type="number"
                     min={0}
@@ -330,19 +330,19 @@ export function ProgrammeTemplate() {
                   title={i === 0
                     ? 'The first phase has nothing before it, so it can never be locked.'
                     : `Keep ${phase.name} locked on the Phase Board until the last task of the phase before it is done. Its tasks stay visible either way.`}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, flexShrink: 0, color: i === 0 ? '#C9CDC9' : '#7E9B93', cursor: i === 0 ? 'default' : 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, flexShrink: 0, color: i === 0 ? '#CFCBC3' : '#8B877F', cursor: i === 0 ? 'default' : 'pointer' }}
                 >
                   <input
                     type="checkbox"
                     disabled={i === 0}
                     checked={!!phase.gated && i > 0}
                     onChange={(e) => patchPhase(phase.key, { gated: e.target.checked })}
-                    style={{ accentColor: '#173326', cursor: i === 0 ? 'default' : 'pointer' }}
+                    style={{ accentColor: '#232321', cursor: i === 0 ? 'default' : 'pointer' }}
                   />
                   Locks
                 </label>
-                <span onClick={() => movePhase(i, -1)} title="Move up" style={{ cursor: 'pointer', color: i ? '#7E9B93' : '#DDD', fontSize: 13, flexShrink: 0 }}>↑</span>
-                <span onClick={() => movePhase(i, 1)} title="Move down" style={{ cursor: 'pointer', color: i < phases.length - 1 ? '#7E9B93' : '#DDD', fontSize: 13, flexShrink: 0 }}>↓</span>
+                <span onClick={() => movePhase(i, -1)} title="Move up" style={{ cursor: 'pointer', color: i ? '#8B877F' : '#DDD', fontSize: 13, flexShrink: 0 }}>↑</span>
+                <span onClick={() => movePhase(i, 1)} title="Move down" style={{ cursor: 'pointer', color: i < phases.length - 1 ? '#8B877F' : '#DDD', fontSize: 13, flexShrink: 0 }}>↓</span>
                 <span
                   onClick={() => { if (confirm(`Remove the ${phase.name} phase from the template?`)) edit(phases.filter((p) => p.key !== phase.key)); }}
                   style={{ cursor: 'pointer', color: '#8E2E0A', fontSize: 11, fontWeight: 700, flexShrink: 0 }}
@@ -352,9 +352,9 @@ export function ProgrammeTemplate() {
               {open && (
                 <div style={{ padding: '6px 12px 12px' }}>
                   {phases.length > 1 && (
-                    <div style={{ marginBottom: 12, padding: '9px 11px', background: '#FBF8F2', borderRadius: 9 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Depends on</div>
-                      <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 7, lineHeight: 1.5 }}>
+                    <div style={{ marginBottom: 12, padding: '9px 11px', background: '#FAF8F3', borderRadius: 9 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Depends on</div>
+                      <div style={{ fontSize: 10.5, color: '#A29E96', marginBottom: 7, lineHeight: 1.5 }}>
                         Waits for these phases' last task before it can start — pick more than one for phases that run in parallel off the same predecessor.
                         {!phase.dependsOn?.length && <> Nothing picked, so it falls back to the "Locks" checkbox above (the phase right before it).</>}
                       </div>
@@ -365,7 +365,7 @@ export function ProgrammeTemplate() {
                             <span
                               key={p.key}
                               onClick={() => patchPhase(phase.key, { dependsOn: on ? (phase.dependsOn || []).filter((k) => k !== p.key) : [...(phase.dependsOn || []), p.key] })}
-                              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#43514D', fontWeight: on ? 700 : 400 }}
+                              style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.1)'), background: on ? '#E3ECD9' : 'white', color: on ? '#232321' : '#4A4741', fontWeight: on ? 700 : 400 }}
                             >{p.name}</span>
                           );
                         })}
@@ -373,15 +373,15 @@ export function ProgrammeTemplate() {
                     </div>
                   )}
                   {phase.tasks.length === 0 && (
-                    <div style={{ padding: '12px 4px', fontSize: 12, color: '#9AA39D', fontStyle: 'italic' }}>No tasks in this phase yet.</div>
+                    <div style={{ padding: '12px 4px', fontSize: 12, color: '#A29E96', fontStyle: 'italic' }}>No tasks in this phase yet.</div>
                   )}
                   {phase.tasks.map((task, ti) => {
                     const depsOpen = openTaskDeps === task.id;
                     const depCount = task.dependsOn?.length || 0;
                     return (
                     <div key={task.id}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 0', borderTop: ti ? '1px solid rgba(20,8,31,0.04)' : 'none' }}>
-                        <span style={{ width: 20, fontSize: 10.5, color: '#9AA39D', flexShrink: 0 }}>{ti + 1}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 0', borderTop: ti ? '1px solid rgba(29, 29, 27,0.04)' : 'none' }}>
+                        <span style={{ width: 20, fontSize: 10.5, color: '#A29E96', flexShrink: 0 }}>{ti + 1}</span>
                         <input value={task.title} onChange={(e) => patchTask(phase.key, task.id, { title: e.target.value })} placeholder="Task title" style={{ ...input, flex: 1 }} />
                         <select value={task.team} onChange={(e) => patchTask(phase.key, task.id, { team: e.target.value })} style={{ ...input, width: 132, flexShrink: 0, ...(TEAM_TONE[task.team] ? { background: TEAM_TONE[task.team].bg, color: TEAM_TONE[task.team].c, fontWeight: 600 } : {}) }}>
                           <option value="">No team</option>
@@ -409,10 +409,10 @@ export function ProgrammeTemplate() {
                         <span
                           onClick={() => setOpenTaskDeps(depsOpen ? null : task.id)}
                           title="Depends on other tasks in this phase"
-                          style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, color: depCount ? '#173326' : '#9AA39D', flexShrink: 0, whiteSpace: 'nowrap' }}
+                          style={{ cursor: 'pointer', fontSize: 11, fontWeight: 700, color: depCount ? '#232321' : '#A29E96', flexShrink: 0, whiteSpace: 'nowrap' }}
                         >⛓{depCount ? ` ${depCount}` : ''}</span>
-                        <span onClick={() => moveTask(phase.key, ti, -1)} style={{ cursor: 'pointer', color: ti ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↑</span>
-                        <span onClick={() => moveTask(phase.key, ti, 1)} style={{ cursor: 'pointer', color: ti < phase.tasks.length - 1 ? '#7E9B93' : '#DDD', fontSize: 12, flexShrink: 0 }}>↓</span>
+                        <span onClick={() => moveTask(phase.key, ti, -1)} style={{ cursor: 'pointer', color: ti ? '#8B877F' : '#DDD', fontSize: 12, flexShrink: 0 }}>↑</span>
+                        <span onClick={() => moveTask(phase.key, ti, 1)} style={{ cursor: 'pointer', color: ti < phase.tasks.length - 1 ? '#8B877F' : '#DDD', fontSize: 12, flexShrink: 0 }}>↓</span>
                         <span
                           onClick={() => patchPhase(phase.key, {
                             tasks: phase.tasks
@@ -423,11 +423,11 @@ export function ProgrammeTemplate() {
                         >×</span>
                       </div>
                       {depsOpen && (
-                        <div style={{ margin: '0 0 8px 27px', padding: '8px 10px', background: '#FBF8F2', borderRadius: 8 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
+                        <div style={{ margin: '0 0 8px 27px', padding: '8px 10px', background: '#FAF8F3', borderRadius: 8 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#8B877F', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
                             Depends on (this phase)
                           </div>
-                          <div style={{ fontSize: 10.5, color: '#9AA39D', marginBottom: 7, lineHeight: 1.5 }}>
+                          <div style={{ fontSize: 10.5, color: '#A29E96', marginBottom: 7, lineHeight: 1.5 }}>
                             Can't start until these tasks are done.
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
@@ -437,12 +437,12 @@ export function ProgrammeTemplate() {
                                 <span
                                   key={t.id}
                                   onClick={() => patchTask(phase.key, task.id, { dependsOn: on ? (task.dependsOn || []).filter((x) => x !== t.id) : [...(task.dependsOn || []), t.id] })}
-                                  style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#2F7D4A' : 'rgba(20,8,31,0.1)'), background: on ? '#D2EAD3' : 'white', color: on ? '#173326' : '#43514D', fontWeight: on ? 700 : 400 }}
+                                  style={{ padding: '4px 9px', borderRadius: 6, fontSize: 11, cursor: 'pointer', userSelect: 'none', border: '1px solid ' + (on ? '#4C7A3F' : 'rgba(29, 29, 27,0.1)'), background: on ? '#E3ECD9' : 'white', color: on ? '#232321' : '#4A4741', fontWeight: on ? 700 : 400 }}
                                 >{t.title}</span>
                               );
                             })}
                             {phase.tasks.filter((t) => t.id !== task.id && t.title.trim()).length === 0 && (
-                              <span style={{ fontSize: 11, color: '#9AA39D' }}>Add another task first.</span>
+                              <span style={{ fontSize: 11, color: '#A29E96' }}>Add another task first.</span>
                             )}
                           </div>
                         </div>
@@ -450,7 +450,7 @@ export function ProgrammeTemplate() {
                     </div>
                     );
                   })}
-                  <div onClick={() => addTask(phase.key)} style={{ marginTop: 8, fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>+ Add task</div>
+                  <div onClick={() => addTask(phase.key)} style={{ marginTop: 8, fontSize: 11.5, fontWeight: 700, color: '#232321', cursor: 'pointer' }}>+ Add task</div>
                 </div>
               )}
             </div>
@@ -459,8 +459,8 @@ export function ProgrammeTemplate() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div onClick={addPhase} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.12)', color: '#173326' }}>+ Add phase</div>
-        <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+        <div onClick={addPhase} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(29, 29, 27,0.12)', color: '#232321' }}>+ Add phase</div>
+        <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#ABA79E' : '#232321', color: 'white' }}>
           {saving ? 'Saving…' : 'Save template'}
         </div>
         {dirty && <span style={{ fontSize: 11.5, fontWeight: 600, color: '#93520F' }}>Unsaved changes</span>}
