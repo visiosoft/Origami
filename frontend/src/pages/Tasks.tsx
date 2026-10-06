@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { assignedByText } from '../data/projectTasks';
 import { logStatusTone } from '../data/logStatuses';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
@@ -197,7 +198,10 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
               <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', gap: 10, minWidth: 760 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{t.id}</span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
-                <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
+                <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
+                  {assignedByText(t) && <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{assignedByText(t)}</span>}
+                </span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.c, textAlign: 'center' }}>{t.status}</span>
                 {t.assignedTo ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { assignedByText } from '../data/projectTasks';
 import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
@@ -115,6 +116,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 disabled={!canManage}
                 onChange={(u) => set({ assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
               />
+              {assignedByText(task) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{assignedByText(task)}</div>}
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10, gridColumn: '1 / -1' }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Collaborative</div>
@@ -151,7 +153,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 style={{ ...inputStyle, padding: '7px 9px' }}
               />
             </div>
-            {([['Date Closed', t.dateClosed || '—'], ['Days Open', t.daysOpen > 0 ? t.daysOpen + ' days' : '—'], ['Originator', t.originator || '—']] as [string, string][]).map((r) => (
+            {([['Date Closed', t.dateClosed || '—'], ['Days Open', t.daysOpen > 0 ? t.daysOpen + ' days' : '—'], ['Originator', t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || '—']] as [string, string][]).map((r) => (
               <div key={r[0]} style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{r[1]}</div>

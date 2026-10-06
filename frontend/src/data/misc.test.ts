@@ -58,3 +58,23 @@ describe('request log task subject', () => {
     expect(logTaskDetails({ subject: 'Call city', description: '' })).toBe('');
   });
 });
+
+import { assignedByOf, assignedByText } from './projectTasks';
+
+describe('who assigned a task', () => {
+  const created = { id: 'e1', type: 'created' as const, by: 'Sara R.', at: '2026-10-01T10:00:00Z', text: 'created this task' };
+  it('is whoever created it already assigned', () => {
+    const t = { assignedTo: 'Noor K.', activity: [created] };
+    expect(assignedByOf(t)).toEqual({ by: 'Sara R.', at: '2026-10-01T10:00:00Z' });
+    expect(assignedByText(t)).toBe('Assigned by Sara R. · Oct 1');
+  });
+  it('is the latest reassignment when there was one', () => {
+    const t = { assignee: 'Noor K.', activity: [created, { id: 'e2', type: 'assign' as const, by: 'Edward M.', at: '2026-10-04T09:00:00Z', field: 'assignee', from: 'Alejandra P.', to: 'Noor K.' }] };
+    expect(assignedByText(t)).toBe('Assigned by Edward M. · Oct 4');
+  });
+  it('says self-assigned, and nothing when nobody is assigned', () => {
+    expect(assignedByText({ assignedTo: 'Sara R.', activity: [created] })).toBe('Self-assigned · Oct 1');
+    expect(assignedByOf({ assignedTo: '', activity: [created] })).toBeNull();
+    expect(assignedByOf({ assignedTo: 'Noor K.' })).toBeNull();
+  });
+});

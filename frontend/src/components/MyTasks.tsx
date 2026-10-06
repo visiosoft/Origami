@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { assignedByText } from '../data/projectTasks';
 import { clip, logTaskTitle } from '../data/tasks';
 import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
@@ -48,7 +49,7 @@ export function MyTasks() {
         .map((t) => ({
           key: 'b' + t.id,
           title: following(t) && !isMine(t.assigneeId, t.assignee) ? `${t.title} · collaborating` : t.title,
-          context: t.projectId == null ? 'General Tasks' : (projects[t.projectId] || `Project ${t.projectId}`),
+          context: [t.projectId == null ? 'General Tasks' : (projects[t.projectId] || `Project ${t.projectId}`), assignedByText(t)].filter(Boolean).join(' · '),
           dueDate: t.dueDate,
           priority: t.priority,
           where: 'board' as const,
@@ -58,7 +59,7 @@ export function MyTasks() {
         .map((t) => ({
           key: 'l' + t.id,
           title: clip(logTaskTitle(t), 80),
-          context: t.project || 'General task',
+          context: [t.project || 'General task', assignedByText(t)].filter(Boolean).join(' · '),
           dueDate: t.dueDate,
           where: 'log' as const,
         })),

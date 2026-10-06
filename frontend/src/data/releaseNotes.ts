@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06f',
+    date: '2026-10-06',
+    title: 'See who assigned you a task',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Every task now shows who assigned it and when (“Assigned by Sara R. · Oct 6”, or “Self-assigned”) under its subject in the Request Log, under the assignee when a task is open, on the Task Board, and in My tasks. It comes from the task’s history, so tasks assigned before today show it too. A new request’s Originator is filled in with whoever created it.', where: 'Tasks → Request Log / Task Board · Dashboard → My tasks' },
+    ],
+  },
+  {
     id: '2026-10-06e',
     date: '2026-10-06',
     title: 'Tasks have a Subject and a Description',

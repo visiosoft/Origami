@@ -117,6 +117,7 @@ let TasksService = class TasksService {
             daysOpen: 0,
             ...dto,
             id,
+            originator: String(dto.originator || '').trim() || actor.name || '',
             assignedTo: assignee.name,
             assignedToId: assignee.id ?? undefined,
             attachments: [],

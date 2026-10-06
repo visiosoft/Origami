@@ -120,6 +120,8 @@ export class TasksService implements OnApplicationBootstrap {
       daysOpen: 0,
       ...dto,
       id,
+      // Who raised it: whoever created it, unless the form named someone else.
+      originator: String(dto.originator || '').trim() || actor.name || '',
       assignedTo: assignee.name,
       assignedToId: assignee.id ?? undefined,
       attachments: [],

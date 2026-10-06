@@ -138,3 +138,29 @@ export const labelStyle = (label: string) => {
   for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
   return LABEL_COLORS[hash % LABEL_COLORS.length];
 };
+
+/**
+ * Who put a task on its current assignee, and when: the latest assignment in
+ * its history, else whoever created it already assigned. Null when nobody is
+ * assigned or the history doesn't say. Works for board and request-log tasks.
+ */
+export function assignedByOf(t: { activity?: ActivityEvent[]; assignee?: string; assignedTo?: string }): { by: string; at: string } | null {
+  const who = String(t.assignee ?? t.assignedTo ?? '').trim();
+  if (!who) return null;
+  const events = Array.isArray(t.activity) ? t.activity : [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.type === 'assign' && String(e.to || '').trim()) return { by: e.by, at: e.at };
+  }
+  const created = events.find((e) => e.type === 'created');
+  return created ? { by: created.by, at: created.at } : null;
+}
+
+/** "Assigned by Sara R. · Oct 6", or "Self-assigned · Oct 6". */
+export function assignedByText(t: { activity?: ActivityEvent[]; assignee?: string; assignedTo?: string }): string {
+  const a = assignedByOf(t);
+  if (!a) return '';
+  const who = String(t.assignee ?? t.assignedTo ?? '').trim();
+  const when = a.at ? new Date(a.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  return `${a.by && a.by === who ? 'Self-assigned' : 'Assigned by ' + (a.by || 'someone')}${when ? ' · ' + when : ''}`;
+}
