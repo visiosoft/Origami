@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06k',
+    date: '2026-10-06',
+    title: 'Task Board in the New look',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'In the New look the Task Board has light rounded cards: priority on top (High in yellow, Urgent in black), a round tick to mark a task done, the title, labels, then a footer with the due date (“Today” in yellow, “2d overdue” in black), subtask, checklist, comment and file counts, and who it’s assigned to. Columns get large headings with a count; dragging, reordering, renaming and adding tasks and sections work as before.', where: 'Tasks → Task Board' },
+    ],
+  },
+  {
     id: '2026-10-06j',
     date: '2026-10-06',
     title: 'Your meetings on the Dashboard week',

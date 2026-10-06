@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTheme } from '../theme';
+import './TaskBoard.css';
 import { createdByText } from '../data/projectTasks';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
@@ -59,6 +61,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard'>('board');
+  const [theme] = useTheme();
+  const isNew = theme === 'coterie';
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
   // Which parents are expanded, plus the inline subtask composer.
@@ -206,10 +210,75 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   // Card JSX is inlined (not a nested component) so a re-render during drag
   // reconciles the same DOM node instead of remounting it — which would cancel
   // the native HTML5 drag. Keep this inline.
+  const todayIso = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  const dueText = (d: string) => {
+    const days = Math.round((new Date(d + 'T12:00:00').getTime() - new Date(todayIso + 'T12:00:00').getTime()) / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    if (days < 0) return `${-days}d overdue`;
+    return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
   const renderCard = (t: ProjectTask, index = 0) => {
     const subs = subtasksOf(tasks, t.id);
     const doneSubs = subs.filter((s) => s.completed).length;
     const check = checklistProgress(t.checklist);
+    if (isNew) {
+      const overdue = !t.completed && !!t.dueDate && t.dueDate < todayIso;
+      const counts: [string, string, string][] = [
+        ...(subs.length ? [['sub', `${doneSubs}/${subs.length}`, 'Subtasks'] as [string, string, string]] : []),
+        ...(check.total ? [['check', `${check.done}/${check.total}`, 'Checklist'] as [string, string, string]] : []),
+        ...(t.comments?.length ? [['comment', String(t.comments.length), 'Comments'] as [string, string, string]] : []),
+        ...(t.attachments?.length ? [['clip', String(t.attachments.length), 'Attachments'] as [string, string, string]] : []),
+      ];
+      const ICON: Record<string, string> = {
+        sub: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
+        check: 'M20 6 9 17l-5-5',
+        comment: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+        clip: 'm21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48',
+      };
+      return (
+        <div
+          key={t.id}
+          className={'tb-card' + (t.completed ? ' is-done' : '') + (dragId === t.id ? ' is-dragging' : '') + (canManage ? ' is-draggable' : '')}
+          style={{ animationDelay: Math.min(index, 10) * 0.035 + 's' }}
+          draggable={canManage}
+          onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); e.dataTransfer.effectAllowed = 'move'; setDragId(t.id); }}
+          onDragEnd={() => { setDragId(null); setDragOver(null); setDropIndex(null); }}
+          onDragOver={(e) => {
+            if (!canManage || !dragId || dragId === t.id) return;
+            e.preventDefault();
+            const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setDropIndex(index + (e.clientY > box.top + box.height / 2 ? 1 : 0));
+            setDragOver(t.sectionId);
+          }}
+          onClick={() => setSelectedId(t.id)}
+        >
+          {(t.priority || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
+            <div className="tb-tags">
+              {t.priority && <span className={'tb-prio is-' + t.priority.toLowerCase()}>{t.priority}</span>}
+              {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status">{t.status}</span>}
+            </div>
+          )}
+          <div className="tb-head">
+            <button type="button" className={'tb-check' + (t.completed ? ' is-on' : '')} disabled={!canManage} aria-label={t.completed ? 'Mark not done' : 'Mark done'}
+              onClick={(e) => { e.stopPropagation(); updateTask(t.id, { completed: !t.completed }); }} />
+            <div className="tb-title">{t.title}</div>
+          </div>
+          {(t.labels?.length || 0) > 0 && <div className="tb-labels">{t.labels!.map((l) => <LabelChip key={l} label={l} />)}</div>}
+          {(t.dueDate || counts.length > 0 || t.assignee) && (
+            <div className="tb-foot">
+              {t.dueDate && <span className={'tb-due' + (overdue ? ' is-late' : t.dueDate === todayIso && !t.completed ? ' is-today' : '')}>{t.completed ? new Date(t.dueDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : dueText(t.dueDate)}</span>}
+              {counts.map(([k, v, title]) => (
+                <span key={k} className="tb-count" title={title}>
+                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[k]} /></svg>{v}
+                </span>
+              ))}
+              {t.assignee && <span className="tb-who"><Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={26} title={t.assignee} /></span>}
+            </div>
+          )}
+        </div>
+      );
+    }
     return (
       <div
         key={t.id}
@@ -258,7 +327,48 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   };
 
   // ---- board view ----
-  const boardView = (
+  const boardViewNew = (
+    <div className="tb-board">
+      {sections.map((sec, si) => {
+        const secTasks = topLevelBySection(visibleTasks, sec.id);
+        return (
+          <div key={sec.id} className={'tb-col' + (dragOver === sec.id ? ' is-over' : '')}
+            onDragOver={(e) => { if (canManage) { e.preventDefault(); if (dragOver !== sec.id) setDragOver(sec.id); } }}
+            onDragLeave={() => { if (dragOver === sec.id) setDragOver(null); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const id = e.dataTransfer.getData('text/plain');
+              if (id) { if (dropIndex != null) reorderIn(sec.id, id, dropIndex); else moveTask(id, sec.id); }
+              setDragOver(null); setDragId(null); setDropIndex(null);
+            }}>
+            <div className="tb-col-head">
+              <span className={'tb-col-dot is-' + (si % 4)} />
+              <input value={sec.name} disabled={!canManage} onChange={(e) => renameSection(sec.id, e.target.value)} aria-label="Section name" />
+              <span className="tb-col-count">{secTasks.length}</span>
+              {canManage && <button type="button" className="tb-col-x" onClick={() => deleteSection(sec.id)} title="Delete section" aria-label="Delete section">×</button>}
+            </div>
+            <div className="tb-col-body">
+              {secTasks.map((t, i) => renderCard(t, i))}
+              {addingIn === sec.id ? (
+                <div className="tb-adding">
+                  <textarea autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)} placeholder="Task title…" rows={2}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(sec.id, addDraft); setAddDraft(''); } }} />
+                  <div className="tb-adding-row">
+                    <button type="button" className="tb-btn is-dark" onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }}>Add task</button>
+                    <button type="button" className="tb-btn" onClick={() => { setAddingIn(null); setAddDraft(''); }}>Cancel</button>
+                  </div>
+                </div>
+              ) : canManage && (
+                <button type="button" className="tb-add" onClick={() => { setAddingIn(sec.id); setAddDraft(''); }}>+ Add task</button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {canManage && <button type="button" className="tb-add-section" onClick={addSection}>+ Add section</button>}
+    </div>
+  );
+  const boardView = isNew ? boardViewNew : (
     <div style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8 }}>
       {sections.map((sec) => {
         const secTasks = topLevelBySection(visibleTasks, sec.id);
