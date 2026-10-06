@@ -8,7 +8,7 @@ import { buildIndex, searchIndex, type SearchItem, type SearchKind } from './glo
 
 /** Fire to open the search from anywhere. */
 export const OPEN_SEARCH_EVENT = 'origami:open-search';
-export const openGlobalSearch = () => window.dispatchEvent(new Event(OPEN_SEARCH_EVENT));
+export const openGlobalSearch = (query = '') => window.dispatchEvent(new CustomEvent(OPEN_SEARCH_EVENT, { detail: { query } }));
 import './GlobalSearch.css';
 
 export interface SearchPage { label: string; route: string; icon: string }
@@ -64,7 +64,7 @@ export function GlobalSearch({ pages }: { pages: SearchPage[] }) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open ? hide() : show(); }
     };
     // Other buttons (the sidebar search box, Help) open it with this event.
-    const onOpen = () => { if (!open) show(); };
+    const onOpen = (e: Event) => { if (!open) show(); const q = (e as CustomEvent).detail?.query; if (q) window.setTimeout(() => setQuery(q), 0); };
     window.addEventListener('keydown', onKey);
     window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener(OPEN_SEARCH_EVENT, onOpen); };

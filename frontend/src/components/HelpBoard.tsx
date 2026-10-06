@@ -185,7 +185,7 @@ export function HelpBoard() {
                 {row(I_TICKET, 'Submit a ticket', 'Bugs, questions or requests — replied to by email', 'Write', () => setView('ticket'))}
                 {row(I_BOOK, 'Finance guide', 'Step by step, on a real project', 'Open', () => navigate('/help/finance'))}
                 {row(I_SPARK, 'What’s new', RELEASES[0] ? `Latest: ${RELEASES[0].title}` : 'Release notes', 'See', () => setView('new'), unseen ? <em className="hb-new">New</em> : null)}
-                {row(I_SEARCH, 'Search Origami', 'Projects, people, leads and tasks', 'Search', openGlobalSearch)}
+                {row(I_SEARCH, 'Search Origami', 'Projects, people, leads and tasks', 'Search', () => openGlobalSearch())}
               </div>
             </section>
 

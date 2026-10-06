@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06o',
+    date: '2026-10-06',
+    title: 'Search the menu',
+    items: [
+      { area: 'Navigation', kind: 'new', text: 'There’s a search box at the top of the side menu. Type a few letters to narrow the menu to matching pages (“fin” shows the finance pages); press Enter to open the first one. The last line searches projects, people, leads and tasks for the same words, and Ctrl K still opens the full search from anywhere.', where: 'Side menu' },
+    ],
+  },
+  {
     id: '2026-10-06n',
     date: '2026-10-06',
     title: 'Help & Support, answers first',
