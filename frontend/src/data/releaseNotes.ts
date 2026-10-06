@@ -21,6 +21,7 @@ export const RELEASES: Release[] = [
     title: 'Daily log: the whole crew, and a menu fix',
     items: [
       { area: 'Daily Log (field)', kind: 'improved', text: 'The superintendent’s daily log lists every worker assigned to the project in Manpower → Deployment — including people whose deployment starts later (marked “Deployment starts Oct 8”) and, on past days, people whose deployment has since ended. “+ Add worker” puts anyone else on the log (marked “Not deployed here”), so a whole day’s crew can always be submitted.', where: 'Daily Log (field)' },
+      { area: 'Manpower', kind: 'fixed', text: 'The menus under People, Operations, Payroll, Employee Services and Setup open on top of the page again instead of behind the cards below them.', where: 'Manpower & Resources' },
       { area: 'Access', kind: 'fixed', text: 'Refreshing while an update was being installed could briefly show every page in the menu to someone whose role doesn’t include them (for example a superintendent). The menu now always follows your own role.', where: 'Side menu' },
     ],
   },

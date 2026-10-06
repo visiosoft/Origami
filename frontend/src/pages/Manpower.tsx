@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PayrollReports } from '../components/PayrollReports';
 import { PicklistsSetup } from '../components/PicklistsSetup';
 import { useSearchParams } from 'react-router-dom';
@@ -61,14 +62,25 @@ function GroupMenu({ label, tabs, current, onPick }: {
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  // The menu is drawn at the top of the page (a portal) under the button, so cards
+  // further down the page can never paint over it.
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const active = tabs.find(([k]) => k === current);
   useEffect(() => {
     if (!open) return;
-    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const place = () => { const r = ref.current?.getBoundingClientRect(); if (r) setAt({ top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 226) }); };
+    place();
+    const away = (e: MouseEvent) => { const t = e.target as Node; if (!ref.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', away);
     document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc);
+      window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true);
+    };
   }, [open]);
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -86,8 +98,8 @@ function GroupMenu({ label, tabs, current, onPick }: {
           : <span style={{ fontWeight: 600 }}>{label}</span>}
         <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.8, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }}>▼</span>
       </div>
-      {open && (
-        <div style={{ position: 'absolute', top: 44, left: 0, zIndex: 50, minWidth: 210, background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)', boxShadow: '0 12px 32px rgba(var(--rgb-shade), .14)', padding: 6 }}>
+      {open && at && createPortal(
+        <div ref={menuRef} style={{ position: 'fixed', top: at.top, left: at.left, zIndex: 1000, minWidth: 210, background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)', boxShadow: '0 12px 32px rgba(var(--rgb-shade), .14)', padding: 6 }}>
           {tabs.map(([key, name]) => (
             <div
               key={key}
@@ -103,7 +115,8 @@ function GroupMenu({ label, tabs, current, onPick }: {
               {key === current && <span style={{ fontSize: 12 }}>✓</span>}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
