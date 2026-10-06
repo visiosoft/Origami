@@ -287,6 +287,21 @@ export class AuthService {
     return { name: claims.name, id: claims.sub };
   }
 
+  /**
+   * A fresh session for someone already signed in, so people working all day
+   * aren't signed out mid-edit when the 12h token runs out. The account is read
+   * again: a suspended or deleted user can't renew. Guest links never renew --
+   * they last as long as their grant.
+   */
+  async refresh(bearer: string | undefined) {
+    const claims = await this.verify(bearer);
+    if (!claims) throw new UnauthorizedException('Not signed in.');
+    if (claims.sub.startsWith('GUEST-')) throw new UnauthorizedException('Guest links do not renew.');
+    const user = await this.users.findOneBy({ id: claims.sub });
+    if (!user) throw new UnauthorizedException('Not signed in.');
+    return this.issueSession(user);
+  }
+
   async me(bearer: string | undefined) {
     const claims = await this.verify(bearer);
     if (!claims) throw new UnauthorizedException('Not signed in.');

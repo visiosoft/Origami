@@ -16,7 +16,27 @@ export function saveLeadWithAudit(
   auditText: string,
   dealId?: string,
 ): Promise<unknown> {
-  const p = api.leads.update(leadId, patch);
+  const p = api.leads.update(leadId, patch).then((saved: any) => { noteLeadStamp(leadId, saved?.updatedAt); return saved; });
   if (dealId) p.then(() => api.pipeline.addEvent(dealId, auditText).catch(() => {}));
   return p;
+}
+
+/**
+ * The newest version stamp (updatedAt) the server has given each lead, from any
+ * save on any screen. A save sends it as expectedUpdatedAt; keeping it in one
+ * place means a quick save elsewhere (a meeting, a site visit, a fit score,
+ * contacts) can't make the next form save look stale and get rejected -- which
+ * is how lead edits were being lost.
+ */
+const stamps = new Map<string, string>();
+export function noteLeadStamp(leadId: string, at?: string | null) {
+  if (!at) return;
+  const cur = stamps.get(leadId);
+  if (!cur || at > cur) stamps.set(leadId, at);
+}
+/** The newest stamp known for a lead: what's been noted, or the one a screen loaded (whichever is later). */
+export function leadStamp(leadId: string, loaded?: string | null): string | undefined {
+  const cur = stamps.get(leadId);
+  if (cur && loaded) return cur > loaded ? cur : loaded;
+  return cur || loaded || undefined;
 }

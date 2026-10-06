@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { releaseSeen } from '../data/releaseNotes';
 import { WhatsNew } from '../components/WhatsNew';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../api';
+import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { useTheme } from '../theme';
 import { HelpBoard } from '../components/HelpBoard';
@@ -82,7 +82,7 @@ function SubmitTicket({ canManage, currentUserName, currentUserEmail, toast }: {
   };
   const setStatus = (t: Ticket, status: TicketStatus) => {
     setTickets((prev) => prev.map((x) => (x.id === t.id ? { ...x, status } : x)));
-    api.tickets.update(t.id, { status }).catch(() => { });
+    persist(() => api.tickets.update(t.id, { status })).catch((e: Error) => toast('⚠ Status not saved — ' + (e.message || 'try again')));
   };
 
   return (
@@ -140,7 +140,7 @@ function Faqs({ canManage, toast }: { canManage: boolean; toast: (m: string) => 
     const op = editing.id ? api.faqs.update(editing.id, editing) : api.faqs.create(editing);
     op.then(() => { toast('FAQ saved'); setEditing(null); reload(); }).catch(() => toast('⚠ Failed to save'));
   };
-  const delFaq = (f: Faq) => { if (!confirm('Delete this FAQ?')) return; setFaqs((p) => p.filter((x) => x.id !== f.id)); api.faqs.remove(f.id).catch(() => { }); };
+  const delFaq = (f: Faq) => { if (!confirm('Delete this FAQ?')) return; setFaqs((p) => p.filter((x) => x.id !== f.id)); persist(() => api.faqs.remove(f.id)).catch((e: Error) => { toast('⚠ Not deleted — ' + (e.message || 'try again')); reload(); }); };
 
   return (
     <div style={{ maxWidth: 760 }}>

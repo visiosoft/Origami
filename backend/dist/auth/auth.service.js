@@ -225,6 +225,17 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Sign in to upload files.');
         return { name: claims.name, id: claims.sub };
     }
+    async refresh(bearer) {
+        const claims = await this.verify(bearer);
+        if (!claims)
+            throw new common_1.UnauthorizedException('Not signed in.');
+        if (claims.sub.startsWith('GUEST-'))
+            throw new common_1.UnauthorizedException('Guest links do not renew.');
+        const user = await this.users.findOneBy({ id: claims.sub });
+        if (!user)
+            throw new common_1.UnauthorizedException('Not signed in.');
+        return this.issueSession(user);
+    }
     async me(bearer) {
         const claims = await this.verify(bearer);
         if (!claims)

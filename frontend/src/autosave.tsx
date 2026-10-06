@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SESSION_RESTORED_EVENT } from './api';
 
 /**
  * Save and autosave, the same way on every editor.
@@ -135,7 +136,9 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
         if (ep !== epoch.current) return false;
         // Unreachable or restarting (a deploy): not the person's fault -- keep trying by itself.
         const serverDown = !e?.status || e.status >= 500;
-        setError(serverDown ? 'the server is restarting, retrying…' : e?.message || 'Could not save');
+        // Signed out mid-edit: the changes stay here and go as soon as they sign back in.
+        const signedOut = e?.status === 401;
+        setError(serverDown ? 'the server is restarting, retrying…' : signedOut ? 'you were signed out; it saves as soon as you sign back in' : e?.message || 'Could not save');
         setState('error');
         if (serverDown && (latest.current.enabled ?? true)) {
           if (timer.current) window.clearTimeout(timer.current);
@@ -208,6 +211,13 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
   }, [pending, run]);
 
   useEffect(() => { committed.current = o; });
+
+  // Back in after the session ran out: send whatever couldn't be saved.
+  useEffect(() => {
+    const onRestored = () => { if (pending() && (latest.current.enabled ?? true)) void run(); };
+    window.addEventListener(SESSION_RESTORED_EVENT, onRestored);
+    return () => window.removeEventListener(SESSION_RESTORED_EVENT, onRestored);
+  }, [pending, run]);
 
   const dirty = state === 'dirty' || state === 'error' || !!pending();
   const saveNow = useCallback(() => run(), [run]);

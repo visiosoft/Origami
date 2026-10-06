@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowWidth } from '../useWindowWidth';
-import { api } from '../api';
+import { api, session } from '../api';
 import { useApp } from '../AppContext';
 import { AuthLayout, authInput, label as fieldLabel } from './AuthLayout';
 
@@ -26,6 +26,13 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     const match = /token=([^&]+)/.exec(hash);
     if (!match) return;
     window.history.replaceState(null, '', window.location.pathname);
+    // Opened from "You were signed out" to sign back in with Google: hand the new
+    // session to the page that's waiting (it listens for it) and close this pop-up.
+    if (window.name === 'origami-reauth' && window.opener) {
+      session.set(decodeURIComponent(match[1]));
+      window.close();
+      return;
+    }
     signIn(decodeURIComponent(match[1]));
     navigate('/dashboard', { replace: true });
   }, [signIn, navigate]);

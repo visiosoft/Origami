@@ -5,7 +5,7 @@ import { createdByText } from '../data/projectTasks';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
-import { api } from '../api';
+import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
@@ -147,7 +147,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   };
   const renameSection = (id: string, name: string) => {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
-    api.projectSections.update(id, { name }).catch(() => { });
+    persist(() => api.projectSections.update(id, { name })).catch((e: Error) => toast('⚠ Section name not saved — ' + (e.message || 'try again')));
   };
   const deleteSection = (id: string) => {
     if (sections.length <= 1) { toast('Keep at least one section'); return; }
@@ -157,7 +157,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     // move tasks to the first remaining section, then delete the section
     tasks.filter((t) => t.sectionId === id).forEach((t) => updateTask(t.id, { sectionId: target }));
     setSections(rest);
-    api.projectSections.remove(id).catch(() => { });
+    persist(() => api.projectSections.remove(id)).catch((e: Error) => toast('⚠ Section not deleted — ' + (e.message || 'try again')));
   };
 
   // ---- subtasks / attachments / comments (on selected task) ----

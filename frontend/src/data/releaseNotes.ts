@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-07a',
+    date: '2026-10-07',
+    title: 'No more lost changes',
+    items: [
+      { area: 'Saving', kind: 'fixed', text: 'You no longer get signed out in the middle of work: while you’re using Origami your session renews itself. If a session does end (a tab left for a long time), a “You were signed out” box appears over the page — sign in there (password or Google) and you stay exactly where you were; anything not saved yet is sent the moment you’re back.', where: 'Everywhere' },
+      { area: 'CRM', kind: 'fixed', text: 'Editing a lead right after scheduling a meeting or site visit, saving zoning or a fit score could be refused as “updated by someone else” and the edit lost. Every save now knows the lead’s latest version, so this no longer happens.', where: 'CRM & Leads' },
+      { area: 'Saving', kind: 'fixed', text: 'Moving a lead to another stage, deleting a lead, renaming or deleting a Task Board section, and a few other quick saves used to fail silently (the board looked right until a refresh). They now keep retrying while the server restarts, wait for you to sign back in if needed, and tell you plainly if something still couldn’t be saved.', where: 'CRM, Tasks, Help' },
+      { area: 'People', kind: 'fixed', text: 'Edits to a subcontractor in People (its type, name, phone or email) were being put back to the Manpower contractor’s values after every update was installed. They now stay as you left them.', where: 'People' },
+    ],
+  },
+  {
     id: '2026-10-06r',
     date: '2026-10-06',
     title: 'Four new pages, and the menu reorganised',

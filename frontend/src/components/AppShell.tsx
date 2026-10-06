@@ -10,6 +10,7 @@ import { useApp, type ViewMode } from '../AppContext';
 import { NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
+import { SessionExpired } from './SessionExpired';
 import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
@@ -89,6 +90,7 @@ export function AppShell() {
 
   return (
     <AutosaveProvider>
+    <SessionExpired />
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">

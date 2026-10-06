@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../api';
+import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 
 const BG = 'var(--font-display)';
@@ -60,7 +60,7 @@ export function ConsultantMatrix() {
   const remove = (c: Consultant) => {
     if (!confirm(`Remove ${c.firm} from ${c.type}?`)) return;
     setRows((prev) => prev.filter((x) => x.id !== c.id));
-    api.consultants.remove(c.id).catch(() => { });
+    persist(() => api.consultants.remove(c.id)).catch((e: Error) => toast('⚠ Not removed — ' + (e.message || 'try again')));
   };
 
   return (

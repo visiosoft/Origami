@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ClampText } from './ClampText';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { noteLeadStamp } from '../data/leadAudit';
 import { SaveBar, useAutosave } from '../autosave';
 
 export interface ClientBackground {
@@ -46,6 +47,7 @@ export function ClientBackgroundPanel({ leadId, clientName, value, version, onSa
 
   const persist = async (bg: ClientBackground) => {
     const res: any = await api.leads.update(leadId, { clientBackground: bg, expectedUpdatedAt: version() });
+    noteLeadStamp(leadId, res?.updatedAt);
     onSaved(bg, res?.updatedAt);
     return bg;
   };

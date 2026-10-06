@@ -23,8 +23,8 @@ import { US_COUNTIES, US_CITIES } from '../data/usGeo';
 import { type ScoringCriterion, scoreFor, totalPossible } from '../data/scoring';
 import { useWindowWidth } from '../useWindowWidth';
 import { useApp } from '../AppContext';
-import { api } from '../api';
-import { saveLeadWithAudit } from '../data/leadAudit';
+import { api, persist } from '../api';
+import { leadStamp, noteLeadStamp, saveLeadWithAudit } from '../data/leadAudit';
 import { ProjectProgram } from './ProjectProgram';
 import { buildPrefill } from '../data/projectProgram';
 import { ProposalPanel } from '../components/ProposalPanel';
@@ -656,12 +656,16 @@ export function Pipeline() {
 
   const deleteLead = (id: string) => {
     if (!confirm('Delete this lead permanently?')) return;
+    const gone = deals.find((d) => d.id === id);
     setDeals((prev) => prev.filter((d) => d.id !== id));
     setSelectedId(null);
     toast('Lead deleted');
     // Board items are pipeline deals, so delete against the pipeline store
     // (the leads store is a separate, DB-only collection keyed by LD- ids).
-    api.pipeline.remove(id).catch(() => { });
+    persist(() => api.pipeline.remove(id)).catch((e: Error) => {
+      if (gone) setDeals((prev) => (prev.some((d) => d.id === id) ? prev : [gone, ...prev]));
+      toast('⚠ Not deleted — ' + (e.message || 'please try again'));
+    });
   };
 
   // ---- The lead form saves itself: the first save (once it has a name)
@@ -704,16 +708,18 @@ export function Pipeline() {
       // landed, so a card never exists without its lead.
       const deal = newDealFor(draft);
       const saved: any = await api.leads.create({ ...resolved, id: deal.id });
+      noteLeadStamp(deal.id, saved?.updatedAt);
       leadIdRef.current = deal.id;
       setEditingId(deal.id);
       setDeals((prev) => [deal, ...prev]);
       setLeadDetails((prev) => ({ ...prev, [deal.id]: { ...resolved, updatedAt: saved?.updatedAt } }));
       setLeadBaseline((prev) => ({ ...prev, [deal.id]: { ...resolved } }));
       toast(`${deal.name} added to the pipeline`);
-      void api.pipeline.create(deal).catch(() => undefined);
+      void persist(() => api.pipeline.create(deal)).catch((e: Error) => toast('⚠ The lead was saved but its board card was not — ' + (e.message || 'refresh and check')));
       return { ...draft, updatedAt: saved?.updatedAt };
     }
-    const saved: any = await api.leads.update(existing, { ...patch, expectedUpdatedAt: leadDetailsRef.current[existing]?.updatedAt ?? draft.updatedAt });
+    const saved: any = await api.leads.update(existing, { ...patch, expectedUpdatedAt: leadStamp(existing, leadDetailsRef.current[existing]?.updatedAt ?? draft.updatedAt) });
+    noteLeadStamp(existing, saved?.updatedAt);
     setLeadDetails((prev) => ({ ...prev, [existing]: { ...resolved, updatedAt: saved?.updatedAt } }));
     setDeals((prev) => prev.map((d) => (d.id === existing ? { ...d, name: draft.leadName.trim(), client: (draft.businessName || '').trim() || draft.leadName.trim(), phone: draft.phone.trim(), email: draft.email.trim(), source: draft.leadSource || d.source, notes: draft.projectVision.trim() } : d)));
     return { ...draft, updatedAt: saved?.updatedAt };
@@ -779,7 +785,9 @@ export function Pipeline() {
       setDeals((prev) => prev.map((d) => d.id === id
         ? { ...d, holdUntil, ...clearRejection, timeline: [...(d.timeline || []), { date: when, at: new Date().toISOString(), action, role: who, type: 'auto' as const }] }
         : d));
-      api.pipeline.updateStage(id, o.stage).catch(() => { });
+      persist(() => api.pipeline.updateStage(id, o.stage!)).catch((e: Error) => {
+        toast(`⚠ The move to ${stageName} was not saved — ${e.message || 'please try again'}`);
+      });
     }
   };
 
@@ -859,6 +867,19 @@ export function Pipeline() {
   };
 
   /** The popup-link fallback -- used only when the real Calendar API call fails or isn't connected. */
+  /**
+   * A quick save from the board (a meeting, site visit, zoning, fit score): saved with
+   * its audit line, the open lead form picks up the new values and version, and a
+   * failure is shown instead of silently dropped.
+   */
+  const auditSave = (deal: Deal, patch: Record<string, unknown>, text: string, ok?: string) =>
+    saveLeadWithAudit(deal.id, patch, text, deal.id)
+      .then((saved: any) => {
+        setLeadDetails((p) => (p[deal.id] ? { ...p, [deal.id]: { ...p[deal.id], ...patch, updatedAt: leadStamp(deal.id, saved?.updatedAt) } as NewLead } : p));
+        if (ok) toast(ok);
+      })
+      .catch((e: Error) => toast('⚠ Not saved — ' + (e?.message || 'please try again')));
+
   const openMeetPopup = (deal: Deal, start: Date, video: boolean) => {
     const end = new Date(start.getTime() + 30 * 60000);
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
@@ -901,13 +922,13 @@ export function Pipeline() {
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
       setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}${res?.meetLink ? ' — Meet link attached' : ''}`, stageName, date: fmtWhen() }] }));
       setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda, meetingEventId: res?.id } as NewLead }));
-      saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }, `${label} scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
+      auditSave(deal, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda, meetingEventId: res?.id }, `${label} scheduled for ${start.toLocaleString()}`);
       toast(existingEventId ? 'Calendar event updated' : `${label} created on your calendar`);
     } catch {
       openMeetPopup(deal, start, video);
       setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
       setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} scheduled for ${start.toLocaleString()}`, stageName, date: fmtWhen() }] }));
-      saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} scheduled for ${start.toLocaleString()} — via Google Calendar popup`, deal.id).catch(() => { });
+      auditSave(deal, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} scheduled for ${start.toLocaleString()} — via Google Calendar popup`);
       toast('⚠ Could not create it directly — opened Google Calendar to finish it there');
     } finally {
       setCreatingMeet(false);
@@ -929,7 +950,7 @@ export function Pipeline() {
     window.open(url, '_blank', 'noopener');
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: fmtWhen() }] }));
-    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit scheduled for ${start.toLocaleString()}`, deal.id).catch(() => { });
+    auditSave(deal, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit scheduled for ${start.toLocaleString()}`);
     toast('Site visit invite opened & saved');
   };
 
@@ -940,14 +961,14 @@ export function Pipeline() {
     setMeetByDeal((p) => ({ ...p, [deal.id]: { when: meetWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `${label} saved for ${new Date(meetWhen).toLocaleString()}`, stageName, date: fmtWhen() }] }));
     setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), meetingType, meetingAgenda } as NewLead }));
-    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} saved for ${new Date(meetWhen).toLocaleString()}`, deal.id).catch(() => { });
+    auditSave(deal, { leadName: deal.name, phone: deal.phone || '', virtualMeetingAt: meetWhen, meetingType, meetingAgenda }, `${label} saved for ${new Date(meetWhen).toLocaleString()}`);
     toast('Meeting time saved');
   };
   const saveVisit = (deal: Deal, stageName: string) => {
     if (!visitWhen) return;
     setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
     setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, stageName, date: fmtWhen() }] }));
-    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit saved for ${new Date(visitWhen).toLocaleString()}`, deal.id).catch(() => { });
+    auditSave(deal, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit saved for ${new Date(visitWhen).toLocaleString()}`);
     toast('Site visit time saved');
   };
 
@@ -956,7 +977,7 @@ export function Pipeline() {
   const saveZoningImages = (deal: Deal, imgs: { name: string; dataUrl: string }[]) => {
     const json = JSON.stringify(imgs);
     setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || BLANK_LEAD), zoningImages: json } }));
-    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningImages: json }, `Zoning images updated (${imgs.length} on file)`, deal.id).catch(() => { });
+    auditSave(deal, { leadName: deal.name, phone: deal.phone || '', zoningImages: json }, `Zoning images updated (${imgs.length} on file)`);
   };
   const addZoningFiles = (deal: Deal, files: FileList | null) => {
     if (!files || !files.length) return;
@@ -980,9 +1001,7 @@ export function Pipeline() {
   };
   const saveZoningAnalysis = (deal: Deal) => {
     const json = (leadDetails[deal.id]?.zoningAnalysis) || '{}';
-    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', zoningAnalysis: json }, 'Zoning code analysis saved', deal.id)
-      .then(() => toast('Zoning analysis saved'))
-      .catch(() => toast('⚠ Failed to save'));
+    void auditSave(deal, { leadName: deal.name, phone: deal.phone || '', zoningAnalysis: json }, 'Zoning code analysis saved', 'Zoning analysis saved');
   };
 
   const setFit = (dealId: string, key: string, label: string) =>
@@ -990,7 +1009,7 @@ export function Pipeline() {
   const saveFit = (deal: Deal) => {
     const selections = fitByDeal[deal.id] || {};
     const score = scoreFor(scoringTemplate, selections);
-    saveLeadWithAudit(deal.id, { leadName: deal.name, phone: deal.phone || '', fitScore: score, fitSelections: selections }, `Fit score recorded: ${score} / ${totalPossible(scoringTemplate)}`, deal.id).catch(() => { });
+    auditSave(deal, { leadName: deal.name, phone: deal.phone || '', fitScore: score, fitSelections: selections }, `Fit score recorded: ${score} / ${totalPossible(scoringTemplate)}`);
     toast(`Fit score saved: ${score} / ${totalPossible(scoringTemplate)}`);
   };
 
@@ -1033,7 +1052,8 @@ export function Pipeline() {
     save: async (changes, { draft }) => {
       const id = iqId!;
       const { patch } = leadPatch(changes, draft);
-      const saved: any = await api.leads.update(id, { ...patch, expectedUpdatedAt: leadDetailsRef.current[id]?.updatedAt });
+      const saved: any = await api.leads.update(id, { ...patch, expectedUpdatedAt: leadStamp(id, leadDetailsRef.current[id]?.updatedAt) });
+      noteLeadStamp(id, saved?.updatedAt);
       return { ...draft, updatedAt: saved?.updatedAt };
     },
     onSaved: (row, sent) => { if (iqId) setLeadDetails((p) => ({ ...p, [iqId]: mergeSaved(p[iqId] || row, row, sent) })); },
@@ -1333,7 +1353,7 @@ export function Pipeline() {
               leadId={selected.id}
               clientName={(leadDetails[selected.id]?.firstName || '').trim() ? `${leadDetails[selected.id]?.firstName} ${leadDetails[selected.id]?.lastName || ''}`.trim() : selected.client || selected.name}
               value={(leadDetails[selected.id] as any)?.clientBackground as ClientBackground | undefined}
-              version={() => leadDetailsRef.current[selected.id]?.updatedAt}
+              version={() => leadStamp(selected.id, leadDetailsRef.current[selected.id]?.updatedAt)}
               onSaved={(bg, updatedAt) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), clientBackground: bg, ...(updatedAt ? { updatedAt } : {}) } as NewLead }))}
             />
           ) : detailTab === 'notes' ? (

@@ -28,7 +28,51 @@ export interface LetterInput {
 const TOKEN_KEY = 'origami.session';
 
 /** The signed-in user's session token, shared by every API call. */
+/** Fired when a request finds the session has ended mid-work; the app then asks the person to sign in again. */
+export const SESSION_EXPIRED_EVENT = 'origami:session-expired';
+/** Fired once they're signed back in, so unsaved work can be sent. */
+export const SESSION_RESTORED_EVENT = 'origami:session-restored';
+
+/** Seconds-since-epoch expiry inside a session token, or null if it can't be read. */
+export const tokenExpiry = (token: string | null): number | null => {
+  try {
+    const body = token?.split('.')[1];
+    if (!body) return null;
+    const json = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp : null;
+  } catch { return null; }
+};
+
+/** A 401 from anything but the sign-in endpoints means the session ran out while someone was working. */
+const noteSignedOut = (status: number, path: string, hadToken: boolean) => {
+  if (status === 401 && hadToken && !/^\/auth\/(login|me|refresh|logout)/.test(path)) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+};
+
+/**
+ * Runs a save that isn't on an autosaving form (a stage move, a delete, a
+ * section rename). If the server is restarting -- a deploy -- it keeps trying for
+ * a while; if the session ran out, it waits for the person to sign back in and
+ * then sends. Anything else is handed back, so the screen can say it wasn't saved
+ * instead of quietly dropping it.
+ */
+export function persist<T>(fn: () => Promise<T>, tries = 8): Promise<T> {
+  return fn().catch((e: any) => {
+    const down = !e?.status || e.status >= 500;
+    if (down && tries > 1) {
+      return new Promise<T>((resolve, reject) => { window.setTimeout(() => { persist(fn, tries - 1).then(resolve, reject); }, 5000); });
+    }
+    if (e?.status === 401) {
+      return new Promise<T>((resolve, reject) => {
+        const again = () => { window.removeEventListener(SESSION_RESTORED_EVENT, again); fn().then(resolve, reject); };
+        window.addEventListener(SESSION_RESTORED_EVENT, again);
+      });
+    }
+    throw e;
+  });
+}
+
 export const session = {
+  key: TOKEN_KEY,
   get: (): string | null => {
     try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
   },
@@ -55,6 +99,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     // the UI can show the real reason instead of a bare status code.
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    noteSignedOut(res.status, path, !!token);
     // The status rides along, so callers can tell "signed out" (401) from "server busy" (502/503).
     throw Object.assign(new Error(msg || `API error: ${res.status}`), { status: res.status });
   }
@@ -76,6 +121,7 @@ async function requestForm<T>(path: string, form: FormData): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    noteSignedOut(res.status, path, !!token);
     throw Object.assign(new Error(msg || `Upload failed: ${res.status}`), { status: res.status });
   }
   return res.json();
@@ -109,6 +155,8 @@ export const api = {
     login: (email: string, password: string) =>
       request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me: () => request('/auth/me'),
+    /** A fresh session token while the current one is still valid. */
+    refresh: () => request<{ token: string; expiresIn: number; user: unknown }>('/auth/refresh', { method: 'POST' }),
     setNotificationPrefs: (notifyOnAssignment: boolean) =>
       request('/auth/me/notifications', { method: 'PUT', body: JSON.stringify({ notifyOnAssignment }) }),
     /** Any subset of the newer per-channel/trigger notification preferences. */

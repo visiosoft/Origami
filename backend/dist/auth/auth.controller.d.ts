@@ -28,6 +28,11 @@ export declare class AuthController {
         ok: true;
         reason?: undefined;
     }>;
+    refresh(authorization: string | undefined, res: Response): Promise<{
+        token: string;
+        expiresIn: number;
+        user: any;
+    }>;
     me(authorization?: string): Promise<any>;
     setNotificationPrefs(dto: NotificationPrefsDto, authorization?: string): Promise<any>;
 }
