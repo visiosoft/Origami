@@ -1,4 +1,5 @@
-import { tint } from '../theme';
+import { tint, useTheme } from '../theme';
+import { ProjectCard } from '../components/ProjectCard';
 import { useEffect, useRef, useState } from 'react';
 import { AllFiles } from '../components/AllFiles';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
@@ -67,6 +68,8 @@ export function Projects() {
   const [np, setNp] = useState<Partial<Project>>(BLANK);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [theme] = useTheme();
+  const isNew = theme === 'coterie';
   const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -571,6 +574,43 @@ export function Projects() {
       </div>
 
       {/* Pipeline columns */}
+      {isNew ? (
+        <div className="pc-board">
+          {STAGE_CONFIG.map((st, si) => {
+            const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
+            return (
+              <div key={st.name} className="pc-col">
+                <div className="pc-col-head">
+                  <span className={'pc-col-dot is-' + si} />
+                  <h3>{st.label}</h3>
+                  <span className="pc-col-count">{stageProjects.length}</span>
+                </div>
+                <div
+                  className={'pc-col-body' + (dragOver === st.name ? ' is-over' : '')}
+                  onDragOver={(e) => { if (canManage) { e.preventDefault(); if (dragOver !== st.name) setDragOver(st.name); } }}
+                  onDragLeave={() => { if (dragOver === st.name) setDragOver(null); }}
+                  onDrop={(e) => { e.preventDefault(); const id = Number(e.dataTransfer.getData('text/plain')); if (id) moveProject(id, st.name); setDragOver(null); setDragId(null); }}
+                >
+                  {stageProjects.length === 0 && <div className="pc-col-empty">{canManage ? 'Drop a project here' : 'No projects'}</div>}
+                  {stageProjects.map((p, i) => (
+                    <ProjectCard
+                      key={p.id}
+                      p={p}
+                      index={i}
+                      hold={isOnHold(p) ? <HoldBadge project={p} /> : undefined}
+                      draggable={canManage}
+                      dragging={dragId === p.id}
+                      onOpen={() => openProject(p.id)}
+                      onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(p.id)); e.dataTransfer.effectAllowed = 'move'; setDragId(p.id); }}
+                      onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
       <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 16, alignItems: 'flex-start' }}>
         {STAGE_CONFIG.map((st) => {
           const stageProjects = projects.filter((p) => p.stage === st.name && matchesFilters(p));
@@ -594,6 +634,7 @@ export function Projects() {
           );
         })}
       </div>
+      )}
 
       {/* Project detail drawer */}
       {sel && (

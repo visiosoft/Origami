@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06h',
+    date: '2026-10-06',
+    title: 'Projects board in the New look',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'In the New look the Projects board has light rounded cards instead of the dark banners: the project name in large type with its address underneath, the contract type and kind of work as small tags, the contract amount written in dollars (e.g. “2,413,262” shows as $2,413,262), a yellow progress bar, start and duration, and who it’s with. High-priority projects get a yellow tag. Drag and drop between CRM, Design, Construction and Closed works as before.', where: 'Projects' },
+    ],
+  },
+  {
     id: '2026-10-06g',
     date: '2026-10-06',
     title: 'Dashboard shows your real numbers',
