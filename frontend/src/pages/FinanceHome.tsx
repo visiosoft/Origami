@@ -8,6 +8,8 @@ import { ChangeOrderDrawer, ChangeOrderList } from '../components/finance/Change
 import { ReimbursableDrawer, ReimbursableList } from '../components/finance/Reimbursables';
 import { usd, usd0, type Rights } from '../components/finance/financeUi';
 import { FinanceReports } from '../components/finance/Reports';
+import { ReimbursementBoard } from '../components/finance/ReimbursementBoard';
+import { useTheme } from '../theme';
 
 const PAPER = 'var(--panel)';
 type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
@@ -29,6 +31,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
   const navigate = useNavigate();
   const [rights, setRights] = useState<Rights | null>(null);
   const [tab, setTab] = useState<Tab>(initial);
+  const [theme] = useTheme();
   const [project, setProject] = useState<{ id: number; name: string } | null>(null);
   useEffect(() => { api.finance.access().then((r: any) => setRights(r)).catch(() => setRights(null)); }, []);
   useEffect(() => { setTab(initial); }, [initial]);
@@ -60,7 +63,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
           {tab === 'portfolio' && <Portfolio onProject={setProject} />}
           {tab === 'reports' && <FinanceReports rights={rights} onProject={setProject} />}
           {tab === 'changes' && <ChangeOrderList rights={rights} />}
-          {tab === 'reimbursables' && <ReimbursableList rights={rights} />}
+          {tab === 'reimbursables' && (theme === 'coterie' ? <ReimbursementBoard rights={rights} /> : <ReimbursableList rights={rights} />)}
           {tab === 'audit' && <Audit />}
         </>
       )}
