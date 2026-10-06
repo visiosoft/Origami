@@ -7,7 +7,7 @@ import { Notifications } from './Notifications';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalSearch } from './GlobalSearch';
 import { useApp, type ViewMode } from '../AppContext';
-import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
+import { NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
 import './AppShell.css';
@@ -36,14 +36,15 @@ export function AppShell() {
     if (loadingAccess) return;
     // The daily log decides for itself (superintendents only), so it isn't a role permission either.
     if (slug === 'dashboard' || slug === 'help' || slug === 'login' || slug === 'daily-log' || PERSONAL_ROUTES.has(slug)) return;
-    if (!can(slug, 'view')) navigate('/dashboard', { replace: true });
+    // A second menu entry for a module (e.g. Schedule under Construction) checks that module's permission.
+    if (!can(PERM_BY_ROUTE[slug] || slug, 'view')) navigate('/dashboard', { replace: true });
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
   // The phone daily log is only for superintendents (whoever runs a site).
   const runsSite = !!authUser?.isSuperintendent;
   const visibleGroups = NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(permOf(it), 'view'))) }))
     .filter((g) => g.items.length > 0);
 
   const searchPages = useMemo(() => visibleGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, route: it.route, icon: it.icon }))),
@@ -89,7 +90,7 @@ export function AppShell() {
         <nav className="nav om-nav-scroll">
           {visibleGroups.map((group) => (
             <div key={group.key} className="nav-group">
-              <div className="nav-group-header" onClick={() => toggleGroup(group.key)}>
+              <div className="nav-group-header" onClick={() => toggleGroup(group.key)} title={group.hint}>
                 <span className="nav-group-label">{group.label}</span>
                 <span
                   className="nav-group-chevron"
@@ -104,6 +105,7 @@ export function AppShell() {
                     <NavLink
                       key={item.route}
                       to={`/${item.route}`}
+                      title={item.desc}
                       className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${READY_FOR_TESTING.has(item.route) ? 'ready' : ''}`}
                     >
                       <Icon name={item.icon} size={16} style={{ flexShrink: 0, opacity: 0.8 }} />

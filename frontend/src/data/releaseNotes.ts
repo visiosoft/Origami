@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06c',
+    date: '2026-10-06',
+    title: 'A new menu',
+    items: [
+      { area: 'Everywhere', kind: 'improved', text: 'The menu is reorganised into Main, My Stuff, Special Actions, CRM, Design, Preconstruction, Construction, Financial & Resource, Insight & Documents and Admin. Hover over an item to see what it is for.' },
+      { area: 'Everywhere', kind: 'new', text: 'New entries: All Files (every project’s Drive files in one place, limited access), Special Actions → Task (opens the Request Log), and Schedule under Construction as well as Preconstruction. Modules still to be built (Meetings, Observations & FYI, Holding & Refer Out, Feedback, Warranty, GC and Subcontractor Prequalifying & RFP, Safety, Equipment, Deliveries, Daily Reports, Affiliates) show what they will do.' },
+      { area: 'Admin', kind: 'improved', text: 'The new modules appear in User Access & Roles. Except where a menu entry reuses an existing page (Task, the second Schedule), roles see them only once an administrator ticks them.', where: 'Admin → User Access & Roles' },
+    ],
+  },
+  {
     id: '2026-10-06b',
     date: '2026-10-06',
     title: 'New-look Dashboard, People and Reimbursement',

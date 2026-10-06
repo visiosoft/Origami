@@ -88,6 +88,7 @@ export default function App() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />
         <Route path="/tasks" element={<TasksRouter />} />
+        <Route path="/requests" element={<TasksRouter initialMode="log" />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Admin />} />
         <Route path="/design" element={<Design />} />
@@ -96,6 +97,8 @@ export default function App() {
         <Route path="/pm/:projectId" element={<DesignProject />} />
         <Route path="/library" element={<Library />} />
         <Route path="/planroom" element={<FileRoom />} />
+        {/* All Files: the same Drive-backed file browser, opened on every project; its own (limited) permission. */}
+        <Route path="/allfiles" element={<FileRoom />} />
         <Route path="/my-program" element={<MyProjectProgram />} />
         <Route path="/prequal" element={<ConsultantMatrix />} />
         <Route path="/manpower_con" element={<Manpower />} />
@@ -112,7 +115,7 @@ export default function App() {
 }
 
 /** A site superintendent's Tasks page is just their own work and requests. */
-function TasksRouter() {
+function TasksRouter({ initialMode }: { initialMode?: 'board' | 'log' }) {
   const { currentUser } = useApp();
-  return isSiteSuper(currentUser?.roleKey) ? <SuperintendentTasks /> : <Tasks />;
+  return isSiteSuper(currentUser?.roleKey) ? <SuperintendentTasks /> : <Tasks key={initialMode || 'board'} initialMode={initialMode} />;
 }

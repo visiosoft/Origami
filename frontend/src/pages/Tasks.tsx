@@ -16,7 +16,8 @@ const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 const PROJECT_KEY = 'origami.tasksProjectId';
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 
-export function Tasks() {
+/** initialMode 'log' opens on the Request Log (Special Actions → Task). */
+export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log' } = {}) {
   const { can, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
   const [query, setQuery] = useState('');
@@ -27,7 +28,7 @@ export function Tasks() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const swallow = useRef(false);
-  const [mode, setMode] = useState<'board' | 'log'>('board');
+  const [mode, setMode] = useState<'board' | 'log'>(initialMode);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   // 'general' is a real, standing selection (the General Tasks board -- work
   // not tied to any client project), not an absence-of-choice placeholder.

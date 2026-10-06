@@ -8,6 +8,10 @@ export interface NavItem {
   icon: string;
   badge?: string;
   note?: string;
+  /** What the module is for, shown when hovering the menu item. */
+  desc?: string;
+  /** Permission key when it differs from the route: a second menu entry for a module that already has one. */
+  perm?: string;
   /** About the signed-in person themselves (their own timesheet): shown to every internal user, not a role permission. */
   personal?: boolean;
   /** Only for site superintendents -- not a role permission either. */
@@ -17,77 +21,79 @@ export interface NavItem {
 export interface NavGroup {
   key: string;
   label: string;
+  /** What the section as a whole covers, shown when hovering its heading. */
+  hint?: string;
   items: NavItem[];
 }
+
+/** The permission key a menu item is checked against. */
+export const permOf = (it: Pick<NavItem, 'route' | 'perm'>) => it.perm || it.route;
 
 export const NAV_GROUPS: NavGroup[] = [
   { key: 'main', label: 'Main', items: [
     { label: 'Dashboard', route: 'dashboard', icon: 'dash' },
-    { label: 'My Calendar', route: 'my-calendar', icon: 'cal' },
-    { label: 'My Timesheet', route: 'my-timesheet', icon: 'clip', personal: true },
+    { label: 'Projects', route: 'projects', icon: 'folder', desc: 'All project cards: CRM, design, construction and closed' },
+    { label: 'People', route: 'people', icon: 'people', desc: 'Internal team, clients, consultants, subs, authorities and vendors' },
+    { label: 'All Files', route: 'allfiles', icon: 'files', desc: 'Every file in the business Google Drive. Limited access' },
+  ] },
+  { key: 'mine', label: 'My Stuff', items: [
+    { label: 'Calendar', route: 'my-calendar', icon: 'cal' },
+    { label: 'Timesheets', route: 'my-timesheet', icon: 'clip', personal: true },
+    { label: 'Tasks', route: 'tasks', icon: 'check' },
     { label: 'Daily Log (field)', route: 'daily-log', icon: 'clip', superintendent: true },
   ] },
-  {
-    key: 'crm',
-    label: 'Projects & CRM',
-    items: [
-      { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', badge: '9' },
-      { label: 'Projects', route: 'projects', icon: 'folder' },
-      { label: 'People', route: 'people', icon: 'people' },
-      { label: 'Tasks', route: 'tasks', icon: 'check', badge: '32' },
-    ],
-  },
-  {
-    key: 'precon',
-    label: 'Design & Preconstruction',
-    items: [
-      { label: 'Design', route: 'design', icon: 'pen', note: 'Board' },
-      { label: 'Selections & Specifications', route: 'selections', icon: 'list' },
-      { label: 'Estimating', route: 'estimating', icon: 'calc' },
-      { label: 'Plan & File Room', route: 'planroom', icon: 'files' },
-      { label: 'Manpower & Resources', route: 'manpower_pre', icon: 'crew' },
-      { label: 'Consultant & Sub Prequalifying', route: 'prequal', icon: 'shieldc' },
-    ],
-  },
-  {
-    key: 'construction',
-    label: 'Construction',
+  { key: 'actions', label: 'Special Actions', hint: 'Meetings, and the actions they generate', items: [
+    { label: 'Meetings', route: 'meetings', icon: 'cal', desc: 'Manage, track and create meetings; generate the actions below from them' },
+    { label: 'Observations & FYI', route: 'observations', icon: 'q', desc: 'Manage, track and create observations and FYIs' },
+    { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },
+    { label: 'Task', route: 'requests', perm: 'tasks', icon: 'check', desc: 'Manage, track and create tasks raised in meetings (Request Log)' },
+    { label: 'Change Orders', route: 'changeorders', icon: 'swap', desc: 'Manage, track and create change orders' },
+  ] },
+  { key: 'crm', label: 'CRM', items: [
+    { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', desc: 'Lead and referral intake to initial contract' },
+    { label: 'Holding & Refer Out', route: 'crm_holding', icon: 'swap', desc: 'Leads that are not active, and leads referred out' },
+    { label: 'Feedback', route: 'feedback', icon: 'q', desc: 'Client feedback, from lead intake to initial contract' },
+    { label: 'Warranty', route: 'warranty', icon: 'shielda', desc: 'Construction, equipment and material warranties, and warranty work' },
+  ] },
+  { key: 'design', label: 'Design', items: [
+    { label: 'Consultant Prequalifying & RFP', route: 'prequal', icon: 'shieldc' },
+    { label: 'Design', route: 'design', icon: 'pen', note: 'Board' },
+  ] },
+  { key: 'precon', label: 'Preconstruction', items: [
+    { label: 'Estimating', route: 'estimating', icon: 'calc', desc: 'Estimating tools for design and/or build work that needs estimating' },
+    { label: 'Selections & Specifications', route: 'selections', icon: 'list', desc: 'Our library, and one place to make selections, manage and track orders' },
+    { label: 'Schedule', route: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
+    { label: 'Plan & File Room', route: 'planroom', icon: 'files', desc: 'File management, the latest files, and sending and managing RFPs' },
+    { label: 'GC Prequalify & RFP', route: 'gc_prequal', icon: 'shieldc' },
+    { label: 'Subcontractor Prequalifying & RFP', route: 'sub_prequal', icon: 'shieldc' },
+  ] },
+  { key: 'construction', label: 'Construction',
+    hint: 'RFPs for multiple build projects, equipment, build timesheets, labor and resource projection, equipment and delivery management, daily reports',
     items: [
       { label: 'Project Management', route: 'pm', icon: 'clip', note: 'Board' },
-      { label: 'Quality & Safety', route: 'quality', icon: 'shielda' },
-      { label: 'Schedule', route: 'schedule', icon: 'cal' },
-      { label: 'RFIs', route: 'rfis', icon: 'q' },
-      { label: 'Change Orders', route: 'changeorders', icon: 'swap' },
-      { label: 'Reimbursement', route: 'reimbursement', icon: 'receipt' },
-      { label: 'Manpower & Resources', route: 'manpower_con', icon: 'crew' },
-    ],
-  },
-  {
-    key: 'financial',
-    label: 'Financial',
-    items: [
-      { label: 'Business', route: 'fin_business', icon: 'bank' },
-      { label: 'Project', route: 'fin_project', icon: 'dollar' },
-      { label: 'Resources', route: 'fin_resources', icon: 'db' },
-    ],
-  },
-  {
-    key: 'insight',
-    label: 'Insight & Documents',
-    items: [
-      { label: 'Reports & Analytics', route: 'reports', icon: 'chart' },
-      { label: 'Document & Template Library', route: 'library', icon: 'book' },
-    ],
-  },
-  {
-    key: 'admin',
-    label: 'Admin',
-    items: [
-      { label: 'Settings', route: 'settings', icon: 'key' },
-      { label: 'User Access & Roles', route: 'users', icon: 'key' },
-      { label: 'Help & Support', route: 'help', icon: 'life' },
-    ],
-  },
+      { label: 'QA/QC', route: 'quality', icon: 'shielda', desc: 'Inspections and checklists for quality assurance and control' },
+      { label: 'Safety', route: 'safety', icon: 'shielda', desc: 'Safety inspections and checklists, toolbox meetings, incident reports' },
+      { label: 'Schedule', route: 'schedule_con', perm: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
+      { label: 'Equipment Management', route: 'equipment', icon: 'key' },
+      { label: 'Delivery Management', route: 'deliveries', icon: 'receipt' },
+      { label: 'Daily Reports', route: 'daily_reports', icon: 'clip' },
+    ] },
+  { key: 'financial', label: 'Financial & Resource', items: [
+    { label: 'Business', route: 'fin_business', icon: 'bank', desc: 'Rolls up all projects, design and build' },
+    { label: 'Project', route: 'fin_project', icon: 'dollar', desc: 'Project finance: client, internal staff, subcontractors, consultants, vendors' },
+    { label: 'Reimbursements', route: 'reimbursement', icon: 'receipt' },
+    { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', desc: 'Plan and run the week(s) for subs, labor and admin; timesheets' },
+    { label: 'Affiliates', route: 'affiliates', icon: 'people', desc: 'Affiliates and their rates, contracted projects, and amounts due, paid and overdue' },
+  ] },
+  { key: 'insight', label: 'Insight & Documents', items: [
+    { label: 'Reports & Analytics', route: 'reports', icon: 'chart' },
+    { label: 'Document & Template Library', route: 'library', icon: 'book' },
+  ] },
+  { key: 'admin', label: 'Admin', items: [
+    { label: 'User Access & Roles', route: 'users', icon: 'key', desc: 'Users, roles, and notification type and frequency preferences' },
+    { label: 'Settings', route: 'settings', icon: 'key' },
+    { label: 'Help & Support', route: 'help', icon: 'life' },
+  ] },
 ];
 
 export interface ModuleRef {
@@ -97,9 +103,13 @@ export interface ModuleRef {
 }
 
 // Flat, ordered list of every module (used by the role permission matrix).
+// A second entry for a module (perm set) shares that module's permission, so it is not listed again.
 export const MODULES: ModuleRef[] = NAV_GROUPS.flatMap((g) =>
-  g.items.filter((it) => !it.personal && !it.superintendent).map((it) => ({ key: it.route, label: it.label, group: g.label })),
+  g.items.filter((it) => !it.personal && !it.superintendent && !it.perm).map((it) => ({ key: it.route, label: it.label, group: g.label })),
 );
+
+/** Route -> permission key, for the route guard. */
+export const PERM_BY_ROUTE: Record<string, string> = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((it) => [it.route, permOf(it)])));
 
 /** Routes every internal user may open regardless of role. */
 export const PERSONAL_ROUTES = new Set(NAV_GROUPS.flatMap((g) => g.items.filter((it) => it.personal).map((it) => it.route)));

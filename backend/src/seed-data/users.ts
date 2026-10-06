@@ -35,6 +35,9 @@ export const MODULE_KEYS = [
   'fin_business', 'fin_project', 'fin_resources',
   'reports', 'library',
   'settings', 'users', 'help',
+  // Menu restructure (Oct 2026): new modules. Existing roles get them by being granted in User Access & Roles.
+  'allfiles', 'meetings', 'observations', 'crm_holding', 'feedback', 'warranty',
+  'gc_prequal', 'sub_prequal', 'safety', 'equipment', 'deliveries', 'daily_reports', 'affiliates',
 ];
 
 const allPerms = (): RolePermissions =>

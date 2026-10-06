@@ -9,6 +9,8 @@ exports.MODULE_KEYS = [
     'fin_business', 'fin_project', 'fin_resources',
     'reports', 'library',
     'settings', 'users', 'help',
+    'allfiles', 'meetings', 'observations', 'crm_holding', 'feedback', 'warranty',
+    'gc_prequal', 'sub_prequal', 'safety', 'equipment', 'deliveries', 'daily_reports', 'affiliates',
 ];
 const allPerms = () => Object.fromEntries(exports.MODULE_KEYS.map((k) => [k, { view: true, manage: true }]));
 const perms = (view, manage = []) => Object.fromEntries(exports.MODULE_KEYS.map((k) => [k, { view: view.includes(k) || manage.includes(k), manage: manage.includes(k) }]));

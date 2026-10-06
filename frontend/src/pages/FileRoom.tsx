@@ -34,7 +34,8 @@ const FolderIcon = ({ size = 15, c = 'var(--muted)' }: { size?: number; c?: stri
  */
 export function FileRoom() {
   const { can, toast } = useApp();
-  const canManage = can('planroom', 'manage');
+  // Opened as All Files, that module's own permission counts too.
+  const canManage = can('planroom', 'manage') || (window.location.pathname === '/allfiles' && can('allfiles', 'manage'));
   const isNarrow = useWindowWidth() < 900;
 
   const [data, setData] = useState<FileRoomData>(EMPTY);
