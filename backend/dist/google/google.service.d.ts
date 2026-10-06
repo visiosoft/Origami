@@ -26,7 +26,7 @@ export declare class GoogleService {
     private accessToken;
     private folderIds;
     constructor(settings: SettingsService);
-    credentials(): Promise<{
+    credentials(purpose?: 'public' | 'workspace'): Promise<{
         clientId: string;
         clientSecret: string;
         redirectUri: string;
@@ -34,7 +34,7 @@ export declare class GoogleService {
     isConfigured(): Promise<boolean>;
     redirectUri(): Promise<string>;
     consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string>;
-    exchangeCode(code: string): Promise<{
+    exchangeCode(code: string, mode?: 'connect' | 'login' | 'my-calendar'): Promise<{
         access_token: string;
         refresh_token?: string;
         expires_in: number;

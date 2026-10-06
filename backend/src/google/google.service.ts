@@ -78,7 +78,20 @@ export class GoogleService {
 
   // ---------------------------------------------------------------- config
 
-  async credentials(): Promise<{ clientId: string; clientSecret: string; redirectUri: string }> {
+  /**
+   * The OAuth client to use. The company connection (Gmail, Drive, shared
+   * calendars) can have its own client -- one in an "Internal" Google Cloud
+   * project, which Google doesn't put through app verification or a security
+   * assessment because only the company's own Workspace accounts can use it.
+   * Sign-in and My Calendar always use the main (public) client. With no
+   * separate client set, everything uses the main one, as before.
+   */
+  async credentials(purpose: 'public' | 'workspace' = 'public'): Promise<{ clientId: string; clientSecret: string; redirectUri: string }> {
+    if (purpose === 'workspace') {
+      const wid = (await this.settings.get('google.workspaceClientId')) || '';
+      const wsecret = (await this.settings.get('google.workspaceClientSecret')) || '';
+      if (wid && wsecret) return { clientId: wid, clientSecret: wsecret, redirectUri: await this.redirectUri() };
+    }
     const clientId = (await this.settings.get('google.clientId')) || '';
     const clientSecret = (await this.settings.get('google.clientSecret')) || '';
     if (!clientId || !clientSecret) {
@@ -106,7 +119,7 @@ export class GoogleService {
 
   /** Where the browser should be sent to start a consent flow. */
   async consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string> {
-    const { clientId, redirectUri } = await this.credentials();
+    const { clientId, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
     const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : LOGIN_SCOPES;
     const params = new URLSearchParams({
       client_id: clientId,
@@ -130,8 +143,8 @@ export class GoogleService {
 
   // ----------------------------------------------------------------- OAuth
 
-  async exchangeCode(code: string): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
-    const { clientId, clientSecret, redirectUri } = await this.credentials();
+  async exchangeCode(code: string, mode: 'connect' | 'login' | 'my-calendar' = 'login'): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
+    const { clientId, clientSecret, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -202,7 +215,7 @@ export class GoogleService {
         'No Google account is connected. Connect one under Settings -> Integrations -> Google Workspace.',
       );
     }
-    const { clientId, clientSecret } = await this.credentials();
+    const { clientId, clientSecret } = await this.credentials('workspace');
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

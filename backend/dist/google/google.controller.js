@@ -103,7 +103,7 @@ let GoogleController = class GoogleController {
         if (!code)
             return fail('Google did not return an authorization code.');
         try {
-            const tokens = await this.google.exchangeCode(code);
+            const tokens = await this.google.exchangeCode(code, mode);
             const profile = await this.google.profile(tokens.access_token);
             if (mode === 'connect') {
                 await this.google.saveConnection(tokens.refresh_token, profile);

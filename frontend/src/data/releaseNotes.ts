@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-07d',
+    date: '2026-10-07',
+    title: 'A separate Google client for the company connection',
+    items: [
+      { area: 'Settings', kind: 'new', text: 'Google Workspace settings can now take a second, optional OAuth client for the company connection (Gmail sending and Drive). Created in an Internal Google Cloud project, it needs no Google verification or yearly security assessment, so the main client only has to cover sign-in and Calendar. Leave it blank to keep using one client.', where: 'Settings → Integrations → Google Workspace' },
+    ],
+  },
+  {
     id: '2026-10-07c',
     date: '2026-10-07',
     title: 'Meetings',

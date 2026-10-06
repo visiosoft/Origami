@@ -126,7 +126,7 @@ export class GoogleController {
     if (!code) return fail('Google did not return an authorization code.');
 
     try {
-      const tokens = await this.google.exchangeCode(code);
+      const tokens = await this.google.exchangeCode(code, mode as 'connect' | 'login' | 'my-calendar');
       const profile = await this.google.profile(tokens.access_token);
 
       if (mode === 'connect') {

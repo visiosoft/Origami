@@ -45,7 +45,13 @@ let GoogleService = class GoogleService {
         this.accessToken = null;
         this.folderIds = new Map();
     }
-    async credentials() {
+    async credentials(purpose = 'public') {
+        if (purpose === 'workspace') {
+            const wid = (await this.settings.get('google.workspaceClientId')) || '';
+            const wsecret = (await this.settings.get('google.workspaceClientSecret')) || '';
+            if (wid && wsecret)
+                return { clientId: wid, clientSecret: wsecret, redirectUri: await this.redirectUri() };
+        }
         const clientId = (await this.settings.get('google.clientId')) || '';
         const clientSecret = (await this.settings.get('google.clientSecret')) || '';
         if (!clientId || !clientSecret) {
@@ -64,7 +70,7 @@ let GoogleService = class GoogleService {
         return `${base}/api/google/callback`;
     }
     async consentUrl(mode, state) {
-        const { clientId, redirectUri } = await this.credentials();
+        const { clientId, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
         const scopes = mode === 'connect' ? exports.WORKSPACE_SCOPES : mode === 'my-calendar' ? exports.MY_CALENDAR_SCOPES : exports.LOGIN_SCOPES;
         const params = new URLSearchParams({
             client_id: clientId,
@@ -86,8 +92,8 @@ let GoogleService = class GoogleService {
             params.set('hd', hd);
         return `${AUTH_URL}?${params.toString()}`;
     }
-    async exchangeCode(code) {
-        const { clientId, clientSecret, redirectUri } = await this.credentials();
+    async exchangeCode(code, mode = 'login') {
+        const { clientId, clientSecret, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
         const res = await fetch(TOKEN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -155,7 +161,7 @@ let GoogleService = class GoogleService {
         if (!refreshToken) {
             throw new common_1.BadRequestException('No Google account is connected. Connect one under Settings -> Integrations -> Google Workspace.');
         }
-        const { clientId, clientSecret } = await this.credentials();
+        const { clientId, clientSecret } = await this.credentials('workspace');
         const res = await fetch(TOKEN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

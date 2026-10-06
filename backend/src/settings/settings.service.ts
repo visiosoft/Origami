@@ -5,12 +5,14 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
   'google.clientId',
   'google.clientSecret',
+  'google.workspaceClientId',
+  'google.workspaceClientSecret',
   'app.baseUrl',
   // A banner every signed-in page shows while it's on ("Updates 3-4 pm -- please save your work").
   'app.notice',

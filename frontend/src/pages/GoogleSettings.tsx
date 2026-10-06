@@ -18,6 +18,8 @@ const card: React.CSSProperties = {
 type Form = {
   'google.clientId': string;
   'google.clientSecret': string;
+  'google.workspaceClientId': string;
+  'google.workspaceClientSecret': string;
   'app.baseUrl': string;
   'google.senderEmail': string;
   'google.hostedDomain': string;
@@ -29,6 +31,7 @@ type Form = {
 
 const EMPTY: Form = {
   'google.clientId': '', 'google.clientSecret': '', 'app.baseUrl': '',
+  'google.workspaceClientId': '', 'google.workspaceClientSecret': '',
   'google.senderEmail': '', 'google.hostedDomain': '',
   'google.attachmentsFolder': '', 'reminders.enabled': '', 'reminders.hour': '7',
   'reminders.timezone': 'America/Los_Angeles',
@@ -151,6 +154,24 @@ export function GoogleSettings() {
           <div style={{ fontSize: 11.5, color: 'var(--c-5c6b65)', marginTop: 6, lineHeight: 1.55 }}>
             Add this exact URI to your OAuth client in the Google Cloud console, and enable the <strong>Gmail API</strong> and{' '}
             <strong>Google Drive API</strong> for the project.
+          </div>
+        </div>
+
+        <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Company connection client (optional)</div>
+          <div style={{ fontSize: 11.5, color: 'var(--c-5c6b65)', marginTop: 4, marginBottom: 12, maxWidth: 640, lineHeight: 1.55 }}>
+            Use a second OAuth client, from a Google Cloud project set to <strong>Internal</strong> under your Workspace, for the
+            company connection below (Gmail sending and full Drive). Internal apps need no Google verification or security
+            assessment, so the client above then only needs sign-in and Calendar. Use the same redirect URI. Leave blank to use
+            the client above for everything. After changing it, reconnect the account.
+          </div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
+            <Field label="Company client ID" hint="From the Internal project's Credentials page">
+              <input style={inputStyle} value={form['google.workspaceClientId']} onChange={(e) => set('google.workspaceClientId', e.target.value)} placeholder="1234567890-xyz.apps.googleusercontent.com" />
+            </Field>
+            <Field label="Company client secret" hint="Stored encrypted at rest; shown masked once saved">
+              <input style={inputStyle} type="password" value={form['google.workspaceClientSecret']} onChange={(e) => set('google.workspaceClientSecret', e.target.value)} placeholder="GOCSPX-…" />
+            </Field>
           </div>
         </div>
 
