@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06m',
+    date: '2026-10-06',
+    title: 'Settings, reorganised',
+    items: [
+      { area: 'Settings', kind: 'improved', text: 'In the New look Settings has three tabs. My account: your profile, a button to email yourself a password link, sign out, your notification choices and your Google Calendar, side by side. Workspace: branding, cost codes, CRM response times, calendars, Request Log statuses, the system notice and daily log backup. Integrations: Google Workspace and SMS.', where: 'Admin → Settings' },
+      { area: 'Settings', kind: 'fixed', text: 'Settings no longer opens on a blank page — it starts on your notifications.', where: 'Admin → Settings' },
+      { area: 'Settings', kind: 'fixed', text: 'Branding’s accent colour shows a real colour (#232321) again instead of the text “var(--forest)”.', where: 'Settings → Branding & letterhead' },
+    ],
+  },
+  {
     id: '2026-10-06l',
     date: '2026-10-06',
     title: 'User Access & Roles on one page',

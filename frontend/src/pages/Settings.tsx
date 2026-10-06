@@ -18,6 +18,8 @@ import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
+import { useTheme } from '../theme';
+import { SettingsBoard, type SettingsSection, type SettingsTab } from '../components/SettingsBoard';
 
 const BG = 'var(--font-display)';
 
@@ -60,9 +62,30 @@ export function Settings() {
   const [params] = useSearchParams();
   // OAuth callbacks (Google Workspace, My Calendar) land back here with ?tab=<key>.
   const tabParam = params.get('tab');
+  // (It used to open on a "lead-scoring" section that no longer exists, so the page started blank.)
   const [active, setActive] = useState(
-    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' ? tabParam : 'lead-scoring',
+    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' ? tabParam : 'notifications',
   );
+  const [theme] = useTheme();
+  if (theme === 'coterie') {
+    const canCodes = can('settings', 'manage') || can('manpower_con', 'manage');
+    const sections: SettingsSection[] = [
+      { key: 'notifications', tab: 'account', label: 'Notifications', hint: 'What we email or text you', render: () => <NotificationSettings /> },
+      { key: 'my-calendar', tab: 'account', label: 'My Calendar', hint: 'Your Google Calendar', render: () => <MyCalendarSettings /> },
+      { key: 'branding', tab: 'workspace', label: 'Branding & letterhead', hint: 'Logo, colours and letterhead', render: () => <BrandingSettings /> },
+      { key: 'cost-codes', tab: 'workspace', label: 'Cost codes (CSI)', hint: 'Codes used on budgets and costs', render: () => <CostCodesSettings canManage={canCodes} /> },
+      { key: 'sla', tab: 'workspace', label: 'CRM response times', hint: 'How fast each lead stage should move', render: () => <PipelineSlaSettings /> },
+      { key: 'scheduling', tab: 'workspace', label: 'Calendars', hint: 'Whose calendars booking checks', render: () => <SchedulingSettings /> },
+      { key: 'request-log-statuses', tab: 'workspace', label: 'Request Log statuses', hint: 'The statuses a request can have', render: () => <RequestLogStatusSettings /> },
+      { key: 'notice', tab: 'workspace', label: 'System notice', hint: 'A banner shown to everyone', render: () => <SystemNoticeSettings /> },
+      { key: 'daily-log-backup', tab: 'workspace', label: 'Daily log backup', hint: 'Copies of daily logs to Drive', render: () => <DailyLogBackupSettings /> },
+      { key: 'google', tab: 'integrations', label: 'Google Workspace', hint: 'Email, Drive and sign-in', render: () => <GoogleSettings /> },
+      { key: 'sms', tab: 'integrations', label: 'SMS', hint: 'Text messages through Twilio', render: () => <SmsSettings /> },
+    ];
+    const fromUrl = sections.find((x) => x.key === tabParam);
+    const tab: SettingsTab = fromUrl?.tab || 'account';
+    return <SettingsBoard sections={sections} initialTab={tab} initialSection={fromUrl && fromUrl.tab !== 'account' ? fromUrl.key : undefined} />;
+  }
 
   const nav = (
     <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>

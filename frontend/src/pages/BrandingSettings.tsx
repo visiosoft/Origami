@@ -26,7 +26,7 @@ type Brand = Record<
 export interface TeamMember { name: string; title: string; photoDataUrl: string; }
 
 const EMPTY: Brand = {
-  'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': 'var(--forest)',
+  'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#232321',
   'brand.address': '', 'brand.phone': '', 'brand.email': '', 'brand.website': '', 'brand.footerNote': '',
   'brand.signatureName': '', 'brand.signatureTitle': '', 'brand.signatureDataUrl': '',
   'brand.footerLogoDataUrl': '', 'brand.aboutUsText': '', 'brand.team': '[]', 'brand.coverPhotoDataUrl': '',
@@ -97,7 +97,7 @@ export function BrandingSettings() {
 
   if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 
-  const accent = form['brand.accentColor'] || 'var(--forest)';
+  const accent = form['brand.accentColor'] || '#232321';
 
   const imageField = (label: string, key: keyof Brand, hint: string, height: number) => (
     <div>
