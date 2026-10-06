@@ -9,6 +9,12 @@ on:
       - 'main'
   workflow_dispatch:
 
+# One deploy at a time: a second push waits for the running deploy instead of
+# colliding with it (Azure answers an overlapping deploy with 409 Conflict).
+concurrency:
+  group: azure-deploy-dev
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
