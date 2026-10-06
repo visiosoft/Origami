@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { assignedByText } from '../data/projectTasks';
+import { createdByText } from '../data/projectTasks';
 import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
@@ -116,7 +116,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 disabled={!canManage}
                 onChange={(u) => set({ assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
               />
-              {assignedByText(task) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{assignedByText(task)}</div>}
+              {createdByText(task) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{createdByText(task)}</div>}
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10, gridColumn: '1 / -1' }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Collaborative</div>

@@ -59,22 +59,20 @@ describe('request log task subject', () => {
   });
 });
 
-import { assignedByOf, assignedByText } from './projectTasks';
+import { assignedByOf, createdByText } from './projectTasks';
 
-describe('who assigned a task', () => {
+describe('who created a task', () => {
   const created = { id: 'e1', type: 'created' as const, by: 'Sara R.', at: '2026-10-01T10:00:00Z', text: 'created this task' };
-  it('is whoever created it already assigned', () => {
-    const t = { assignedTo: 'Noor K.', activity: [created] };
-    expect(assignedByOf(t)).toEqual({ by: 'Sara R.', at: '2026-10-01T10:00:00Z' });
-    expect(assignedByText(t)).toBe('Assigned by Sara R. · Oct 1');
+  it('names the creator and the day', () => {
+    expect(createdByText({ assignedTo: 'Noor K.', activity: [created] })).toBe('Created by Sara R. · Oct 1');
+    expect(createdByText({ assignedTo: '', activity: [created] })).toBe('Created by Sara R. · Oct 1');
   });
-  it('is the latest reassignment when there was one', () => {
+  it('adds who reassigned it, when that was someone else', () => {
     const t = { assignee: 'Noor K.', activity: [created, { id: 'e2', type: 'assign' as const, by: 'Edward M.', at: '2026-10-04T09:00:00Z', field: 'assignee', from: 'Alejandra P.', to: 'Noor K.' }] };
-    expect(assignedByText(t)).toBe('Assigned by Edward M. · Oct 4');
+    expect(createdByText(t)).toBe('Created by Sara R. · Oct 1 · reassigned by Edward M.');
+    expect(assignedByOf(t)).toEqual({ by: 'Edward M.', at: '2026-10-04T09:00:00Z' });
   });
-  it('says self-assigned, and nothing when nobody is assigned', () => {
-    expect(assignedByText({ assignedTo: 'Sara R.', activity: [created] })).toBe('Self-assigned · Oct 1');
-    expect(assignedByOf({ assignedTo: '', activity: [created] })).toBeNull();
-    expect(assignedByOf({ assignedTo: 'Noor K.' })).toBeNull();
+  it('says nothing when the history is missing', () => {
+    expect(createdByText({ assignedTo: 'Noor K.' })).toBe('');
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { assignedByText } from '../data/projectTasks';
+import { createdByText } from '../data/projectTasks';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
@@ -688,7 +688,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                   disabled={!canManage}
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
-                {assignedByText(selected) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{assignedByText(selected)}</div>}
+                {createdByText(selected) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{createdByText(selected)}</div>}
               </Field>
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Collaborative">

@@ -156,11 +156,21 @@ export function assignedByOf(t: { activity?: ActivityEvent[]; assignee?: string;
   return created ? { by: created.by, at: created.at } : null;
 }
 
-/** "Assigned by Sara R. · Oct 6", or "Self-assigned · Oct 6". */
-export function assignedByText(t: { activity?: ActivityEvent[]; assignee?: string; assignedTo?: string }): string {
+/** Who created a task, and when (from its history); null when the history doesn't say. */
+export function createdByOf(t: { activity?: ActivityEvent[] }): { by: string; at: string } | null {
+  const created = (Array.isArray(t.activity) ? t.activity : []).find((e) => e.type === 'created');
+  return created ? { by: created.by, at: created.at } : null;
+}
+
+/**
+ * "Created by Sara R. · Oct 1", plus "· reassigned by Edward M." when someone
+ * other than the creator later handed it to its current assignee.
+ */
+export function createdByText(t: { activity?: ActivityEvent[]; assignee?: string; assignedTo?: string }): string {
+  const c = createdByOf(t);
+  if (!c) return '';
+  const when = c.at ? new Date(c.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
   const a = assignedByOf(t);
-  if (!a) return '';
-  const who = String(t.assignee ?? t.assignedTo ?? '').trim();
-  const when = a.at ? new Date(a.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-  return `${a.by && a.by === who ? 'Self-assigned' : 'Assigned by ' + (a.by || 'someone')}${when ? ' · ' + when : ''}`;
+  const re = a && a.at !== c.at && a.by && a.by !== c.by ? ` · reassigned by ${a.by}` : '';
+  return `Created by ${c.by || 'someone'}${when ? ' · ' + when : ''}${re}`;
 }

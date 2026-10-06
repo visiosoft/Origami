@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { assignedByText } from '../data/projectTasks';
+import { createdByText } from '../data/projectTasks';
 import { logStatusTone } from '../data/logStatuses';
 import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
@@ -200,7 +200,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
                 <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
-                  {assignedByText(t) && <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{assignedByText(t)}</span>}
+                  {createdByText(t) && <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{createdByText(t)}</span>}
                 </span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.c, textAlign: 'center' }}>{t.status}</span>
                 {t.assignedTo ? (

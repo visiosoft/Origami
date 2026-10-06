@@ -18,9 +18,9 @@ export const RELEASES: Release[] = [
   {
     id: '2026-10-06f',
     date: '2026-10-06',
-    title: 'See who assigned you a task',
+    title: 'See who created a task',
     items: [
-      { area: 'Tasks', kind: 'new', text: 'Every task now shows who assigned it and when (“Assigned by Sara R. · Oct 6”, or “Self-assigned”) under its subject in the Request Log, under the assignee when a task is open, on the Task Board, and in My tasks. It comes from the task’s history, so tasks assigned before today show it too. A new request’s Originator is filled in with whoever created it.', where: 'Tasks → Request Log / Task Board · Dashboard → My tasks' },
+      { area: 'Tasks', kind: 'new', text: 'Every task now shows who created it and when (“Created by Sara R. · Oct 1”, plus “reassigned by …” when someone else handed it on) under its subject in the Request Log, under the assignee when a task is open, on the Task Board, and in My tasks. It comes from the task’s history, so tasks assigned before today show it too. A new request’s Originator is filled in with whoever created it.', where: 'Tasks → Request Log / Task Board · Dashboard → My tasks' },
     ],
   },
   {
