@@ -59,6 +59,7 @@ let WeeklyTimesheetsController = class WeeklyTimesheetsController {
     async list(from, to, status, employeeId, a) {
         return this.service.list({ from, to, status, employeeId }, await this.access.actor(a));
     }
+    async pendingNotices(a) { return this.service.pendingNotices(await this.access.actor(a)); }
     async submit(id, a) { return this.service.submit(id, await this.access.actor(a)); }
     async approve(id, dto, a) { return this.service.approve(id, dto.note, await this.access.actor(a)); }
     async reject(id, dto, a) { return this.service.reject(id, dto.note, await this.access.actor(a)); }
@@ -101,6 +102,13 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], WeeklyTimesheetsController.prototype, "list", null);
+__decorate([
+    (0, common_1.Get)('pending-notices'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], WeeklyTimesheetsController.prototype, "pendingNotices", null);
 __decorate([
     (0, common_1.Post)(':id/submit'),
     __param(0, (0, common_1.Param)('id')),

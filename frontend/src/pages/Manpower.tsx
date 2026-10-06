@@ -162,6 +162,11 @@ export function Manpower() {
   const [openContractorId] = useState<string | null>(params.get('contractor'));
   useEffect(() => { if (openContractorId) setTab('contractors'); }, [openContractorId]);
   useEffect(() => { if (params.get('employee') || params.get('add') || params.get('contractor') || params.get('tab')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A link with ?tab= while the page is already open (e.g. from the notifications bell) switches tabs too.
+  const tabParam = params.get('tab');
+  useEffect(() => {
+    if (tabParam && TAB_GROUPS.some((g) => g.tabs.some(([k]) => k === tabParam))) { setTab(tabParam as TabKey); setParams({}, { replace: true }); }
+  }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const [payrollSettings, setPayrollSettings] = useState<PayrollSettings>(DEFAULT_SETTINGS);
 
   const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});

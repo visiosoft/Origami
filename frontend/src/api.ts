@@ -855,6 +855,8 @@ export const api = {
     save: (d: unknown) => request('/timesheets/week', { method: 'PUT', body: JSON.stringify(d) }),
     list: (o?: { from?: string; to?: string; status?: string; employeeId?: string }) => request(`/timesheets/list${qs(o)}`),
     submit: (id: string) => request(`/timesheets/${id}/submit`, { method: 'POST' }),
+    /** Submitted timesheets waiting for a decision that the caller should hear about (the bell). */
+    pendingNotices: () => request<{ id: string; employeeId: string; employeeName: string; weekStart: string; totalHours: number; submittedAt?: string }[]>('/timesheets/pending-notices'),
     approve: (id: string, note?: string) => request(`/timesheets/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
     reject: (id: string, note?: string) => request(`/timesheets/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
     reopen: (id: string, note?: string) => request(`/timesheets/${id}/reopen`, { method: 'POST', body: JSON.stringify({ note }) }),

@@ -159,6 +159,35 @@ export class WeeklyTimesheetsService {
     return rows.map((s) => ({ ...s, lines: lines.filter((l) => l.timesheetId === s.id).sort((a, b) => a.order - b.order) }));
   }
 
+  /**
+   * Submitted timesheets still waiting for a decision -- the bell's "timesheet
+   * submitted" notices. Administrators, HR (anyone who can manage Manpower, or an
+   * HR role) and project coordinators hear about every one; anyone else only about
+   * the people they supervise. Nobody is told about their own timesheet.
+   */
+  async pendingNotices(actor: Actor) {
+    const sheets = await this.sheets.find({ where: { status: 'submitted' } });
+    if (!sheets.length) return [];
+    const role = actor.roleKey || '';
+    const everyone = role === 'admin' || role === 'project_coordinator' || /(^|_)(hr|human_resources)(_|$)/.test(role)
+      || (await this.access.can(actor, HR_MODULE));
+    const emps = await this.employees.find({ where: { id: In([...new Set(sheets.map((s) => s.employeeId))]) } });
+    const byId = new Map(emps.map((e) => [e.id, e]));
+    const mine = actor.id ? await this.employees.findOneBy({ userId: actor.id }) : null;
+    return sheets
+      .filter((s) => {
+        const e = byId.get(s.employeeId);
+        if (!e) return false;
+        if (actor.id && (e.userId === actor.id || s.submittedById === actor.id)) return false;
+        return everyone || (!!mine && e.supervisorId === mine.id);
+      })
+      .sort((a, b) => String(b.submittedAt || b.updatedAt || '').localeCompare(String(a.submittedAt || a.updatedAt || '')))
+      .map((s) => ({
+        id: s.id, employeeId: s.employeeId, employeeName: byId.get(s.employeeId)?.name || s.submittedByName || 'Someone',
+        weekStart: s.weekStart, totalHours: s.totalHours, submittedAt: s.submittedAt || s.updatedAt || s.createdAt,
+      }));
+  }
+
   // ------------------------------------------------------------------ entering
 
   async save(dto: { employeeId: string; weekStart: string; lines: LineDto[]; notes?: string }, actor: Actor) {

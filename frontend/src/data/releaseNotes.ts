@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06q',
+    date: '2026-10-06',
+    title: 'Hear when a timesheet is submitted',
+    items: [
+      { area: 'Timesheets', kind: 'new', text: 'When someone submits their weekly timesheet, administrators, HR and project coordinators — and the person’s supervisor — see it in the bell: “George Finau submitted a timesheet · Week of Oct 5 · 21 h”. Click it to open Manpower → Timesheets. It stays there until the week is approved or sent back, and a re-submitted week shows as new again.', where: 'Bell (top right)' },
+    ],
+  },
+  {
     id: '2026-10-06p',
     date: '2026-10-06',
     title: 'Daily log: the whole crew, and a menu fix',

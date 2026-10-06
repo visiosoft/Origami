@@ -26,7 +26,7 @@ const readSeen = (): string[] => {
 };
 
 /**
- * The topbar bell: work that has been assigned to you.
+ * The topbar bell: work assigned to you, and timesheets submitted for you to review.
  *
  * Anything assigned since you last opened the panel counts as new and lights
  * the dot; opening the panel marks everything currently listed as seen.
@@ -38,12 +38,15 @@ export function Notifications() {
   const [boardTasks, setBoardTasks] = useState<ProjectTask[]>([]);
   const [logTasks, setLogTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Record<number, string>>({});
+  const [sheets, setSheets] = useState<{ id: string; employeeName: string; weekStart: string; totalHours: number; submittedAt?: string }[]>([]);
   const [seen, setSeen] = useState<string[]>(readSeen);
   const box = useRef<HTMLDivElement | null>(null);
 
   const load = () => {
     api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoardTasks(r); }).catch(() => { });
     api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r); }).catch(() => { });
+    // Submitted timesheets for whoever reviews them (admins, HR, project coordinators, supervisors).
+    api.timesheets.pendingNotices().then((r) => setSheets(Array.isArray(r) ? r : [])).catch(() => setSheets([]));
     api.projects.list().then((r: any) => {
       if (Array.isArray(r)) setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name])));
     }).catch(() => { });
@@ -84,9 +87,17 @@ export function Notifications() {
           at: t.updatedAt,
           to: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
         })),
+      ...sheets.map((t) => ({
+        // Keyed by submission time too, so a re-submitted week counts as new.
+        id: 'ts' + t.id + (t.submittedAt || ''),
+        title: `${t.employeeName} submitted a timesheet`,
+        context: `Week of ${new Date(t.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${Math.round(t.totalHours * 10) / 10} h · waiting for approval`,
+        at: t.submittedAt,
+        to: '/manpower_con?tab=timesheets',
+      })),
     ];
     return out.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 12);
-  }, [boardTasks, logTasks, projects, currentUser]);
+  }, [boardTasks, logTasks, projects, sheets, currentUser]);
 
   const unseen = rows.filter((r) => !seen.includes(r.id));
 
@@ -103,7 +114,7 @@ export function Notifications() {
 
   return (
     <div ref={box} style={{ position: 'relative' }}>
-      <div className="topbar-bell" title="Assigned to you" onClick={toggle} style={{ cursor: 'pointer' }}>
+      <div className="topbar-bell" title="Notifications" onClick={toggle} style={{ cursor: 'pointer' }}>
         <Icon name="bell" size={18} stroke="var(--body)" strokeWidth={2} />
         {unseen.length > 0 && <span className="topbar-bell-dot" />}
       </div>
@@ -115,14 +126,14 @@ export function Notifications() {
           boxShadow: '0 18px 44px rgba(var(--rgb-ink), 0.16)', overflow: 'hidden',
         }}>
           <div style={{ padding: '11px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>Assigned to you</span>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>Notifications</span>
             <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{rows.length}</span>
           </div>
 
           <div style={{ maxHeight: 340, overflowY: 'auto' }}>
             {rows.length === 0 && (
               <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12, color: 'var(--c-9aa39d)' }}>
-                Nothing is assigned to you right now.
+                Nothing new — no tasks assigned to you and no timesheets waiting.
               </div>
             )}
             {rows.map((r, i) => (
