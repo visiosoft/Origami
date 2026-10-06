@@ -5,6 +5,10 @@ import { useApp } from '../AppContext';
 import { Icon } from '../icons';
 import { taskHeadline } from '../data/tasks';
 import { buildIndex, searchIndex, type SearchItem, type SearchKind } from './globalSearchIndex';
+
+/** Fire to open the search from anywhere. */
+export const OPEN_SEARCH_EVENT = 'origami:open-search';
+export const openGlobalSearch = () => window.dispatchEvent(new Event(OPEN_SEARCH_EVENT));
 import './GlobalSearch.css';
 
 export interface SearchPage { label: string; route: string; icon: string }
@@ -59,8 +63,11 @@ export function GlobalSearch({ pages }: { pages: SearchPage[] }) {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); open ? hide() : show(); }
     };
+    // Other buttons (the sidebar search box, Help) open it with this event.
+    const onOpen = () => { if (!open) show(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener(OPEN_SEARCH_EVENT, onOpen);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener(OPEN_SEARCH_EVENT, onOpen); };
   }, [open, show, hide]);
 
   useEffect(() => { if (open) window.setTimeout(() => inputRef.current?.focus(), 10); }, [open]);

@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06n',
+    date: '2026-10-06',
+    title: 'Help & Support, answers first',
+    items: [
+      { area: 'Help', kind: 'improved', text: 'In the New look Help & Support opens on your common questions — filter them by category, search them, and click one to read the answer. Beside them: submit a ticket, the Finance guide, what’s new, search, the guides, and keyboard shortcuts. People who manage Help also see the ticket queue there and can change a ticket’s status or add and edit questions.', where: 'Admin → Help & Support' },
+    ],
+  },
+  {
     id: '2026-10-06m',
     date: '2026-10-06',
     title: 'Settings, reorganised',

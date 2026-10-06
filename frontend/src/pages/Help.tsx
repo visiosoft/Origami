@@ -4,6 +4,8 @@ import { WhatsNew } from '../components/WhatsNew';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { useTheme } from '../theme';
+import { HelpBoard } from '../components/HelpBoard';
 import {
   TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES, TICKET_STATUS_STYLE,
   type Ticket, type Faq, type TicketPriority, type TicketStatus,
@@ -26,6 +28,8 @@ export function Help() {
   const canManage = can('help', 'manage');
   // Release notes open first while there's something you haven't seen.
   const [tab, setTab] = useState<'new' | 'center' | 'ticket' | 'faq'>(() => (releaseSeen() ? 'center' : 'new'));
+  const [theme] = useTheme();
+  if (theme === 'coterie') return <HelpBoard />;
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
