@@ -27,8 +27,12 @@ async function bootstrap() {
     swagger_1.SwaggerModule.setup('api/docs', app, swagger_1.SwaggerModule.createDocument(app, config));
     const clientDir = (0, path_1.join)(__dirname, '..', 'client');
     if ((0, fs_1.existsSync)(clientDir)) {
-        app.useStaticAssets(clientDir);
+        app.useStaticAssets(clientDir, { index: false });
         const expressApp = app.getHttpAdapter().getInstance();
+        const page = (file) => (_req, res) => res.sendFile((0, path_1.join)(clientDir, file));
+        expressApp.get(['/', '/home'], page('home.html'));
+        expressApp.get('/privacy', page('privacy.html'));
+        expressApp.get('/terms', page('terms.html'));
         expressApp.get(/^\/(?!api).*/, (_req, res) => {
             res.sendFile((0, path_1.join)(clientDir, 'index.html'));
         });

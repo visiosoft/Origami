@@ -44,8 +44,15 @@ async function bootstrap() {
   // client-side routes (/dashboard, /login, …) work on hard refresh.
   const clientDir = join(__dirname, '..', 'client');
   if (existsSync(clientDir)) {
-    app.useStaticAssets(clientDir);
+    // index: false -- "/" is the public home page below, not the app shell.
+    app.useStaticAssets(clientDir, { index: false });
     const expressApp = app.getHttpAdapter().getInstance();
+    // The public pages are complete HTML documents, readable without JavaScript --
+    // Google's app verification (and anyone not signed in) reads them as served.
+    const page = (file: string) => (_req: Request, res: Response) => res.sendFile(join(clientDir, file));
+    expressApp.get(['/', '/home'], page('home.html'));
+    expressApp.get('/privacy', page('privacy.html'));
+    expressApp.get('/terms', page('terms.html'));
     expressApp.get(/^\/(?!api).*/, (_req: Request, res: Response) => {
       res.sendFile(join(clientDir, 'index.html'));
     });

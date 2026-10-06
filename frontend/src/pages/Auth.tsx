@@ -150,6 +150,11 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
       <div style={{ fontSize: 11.5, lineHeight: 1.6, color: 'var(--muted)', textAlign: 'center' }}>
         Google sign-in works for accounts an administrator has already added.
       </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>
+        <a href="/home.html" style={{ color: 'inherit' }}>About Origami</a>{' · '}
+        <a href="/privacy.html" style={{ color: 'inherit' }}>Privacy policy</a>{' · '}
+        <a href="/terms.html" style={{ color: 'inherit' }}>Terms</a>
+      </div>
     </AuthLayout>
   );
 }

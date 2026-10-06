@@ -11,6 +11,7 @@ import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { SuperintendentTasks, isSiteSuper } from './pages/SuperintendentHome';
 import { ModuleSpec } from './pages/ModuleSpec';
+import { PublicPage } from './pages/PublicPage';
 import { HoldingReferOut } from './pages/HoldingReferOut';
 import { Observations } from './pages/Observations';
 import { DailyReports } from './pages/DailyReports';
@@ -26,8 +27,6 @@ import { Admin } from './pages/Admin';
 import { Help } from './pages/Help';
 import { Auth } from './pages/Auth';
 import { SetPassword } from './pages/SetPassword';
-import { Privacy } from './pages/Privacy';
-import { Home } from './pages/Home';
 import { Design } from './pages/Design';
 import { DesignProject } from './pages/DesignProject';
 import { Library } from './pages/Library';
@@ -75,8 +74,9 @@ export default function App() {
       <Route path="/signup" element={<Auth mode="signup" />} />
       <Route path="/set-password" element={<SetPassword />} />
       {/* Public on purpose — Google must be able to read these without signing in. */}
-      <Route path="/home" element={<Home />} />
-      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/home" element={<PublicPage file="home" />} />
+      <Route path="/privacy" element={<PublicPage file="privacy" />} />
+      <Route path="/terms" element={<PublicPage file="terms" />} />
       {/* Public on purpose — a prospect signs a proposal from an emailed link, no account. */}
       <Route path="/sign-proposal" element={<SignProposal />} />
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
