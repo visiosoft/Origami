@@ -1,4 +1,6 @@
 import { CountUp } from '../components/CountUp';
+import { DashboardOverview } from '../components/DashboardOverview';
+import { useTheme } from '../theme';
 import { tint } from '../theme';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { isLogClosed } from '../data/logStatuses';
@@ -61,7 +63,9 @@ function Swatch({ c, label }: { c: string; label: string }) {
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { viewMode } = useApp();
+  const { viewMode, currentUser } = useApp();
+  const [theme] = useTheme();
+  const isNew = theme === 'coterie';
   const vm = viewMode;
   const isClient = vm === 'client';
   const isCons = vm === 'consultant';
@@ -272,12 +276,63 @@ export function Dashboard() {
     </Card>
   );
 
+  // ── New-look overview inputs ──
+  const openBoard = attentionBoardTasks.filter((t) => !t.completed && t.status !== 'Done');
+  const openLog = attentionLogTasks.filter((t) => !isLogClosed(t.status));
+  const openCount = openBoard.length + openLog.length;
+  const overdueCount = openBoard.filter((t) => t.dueDate && t.dueDate < todayStr).length + openLog.filter((t) => t.dueDate && t.dueDate < todayStr).length;
+  const dueTodayCount = openBoard.filter((t) => t.dueDate === todayStr).length + openLog.filter((t) => t.dueDate === todayStr).length;
+  const doneCount = attentionBoardTasks.length - openBoard.length + attentionLogTasks.length - openLog.length;
+  const contractOf = (f: (typeof fin)[number]) => f.base + f.co + f.reimb;
+  const usedOf = (f: (typeof fin)[number]) => f.baseUsed + f.coUsed + f.reimbUsed;
+  const weightedTime = rollContract ? shown.reduce((t, f) => t + f.timePct * contractOf(f), 0) / rollContract : 0;
+  const budgetPct = rollContract ? (rollUsed / rollContract) * 100 : 0;
+  const featuredRow = [...shown].sort((a, b) => (usedOf(b) / contractOf(b) * 100 - b.timePct) - (usedOf(a) / contractOf(a) * 100 - a.timePct))[0];
+  const kpiVal = (k: string) => kpiDefs.find((x) => x.k === k)?.value || '0';
+  const projectCount = Object.keys(attentionProjects).length;
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const wsIso = weekStart.toISOString().slice(0, 10);
+  const weEnd = new Date(weekStart); weEnd.setDate(weekStart.getDate() + 6);
+  const weIso = weEnd.toISOString().slice(0, 10);
+  const inWeek = (d?: string) => !!d && d >= wsIso && d <= weIso;
+  const overview = {
+    name: (currentUser?.name || 'there').split(/\s+/)[0],
+    pills: [
+      { label: 'Budget used', pct: budgetPct, style: 'dark' as const },
+      { label: 'Time used', pct: weightedTime, style: 'yellow' as const },
+      { label: isClient ? 'Paid' : 'Collected', pct: totInv ? (totCol / totInv) * 100 : 0, style: 'hatch' as const },
+      { label: 'Overdue', pct: openCount ? (overdueCount / openCount) * 100 : 0, style: 'outline' as const },
+    ],
+    numbers: [
+      { label: isClient ? 'Projects' : 'Projects', value: projectCount ? String(projectCount) : kpiVal('projects'), icon: 'projects' as const },
+      { label: 'Open tasks', value: attentionBoardTasks.length || attentionLogTasks.length ? String(openCount) : kpiVal('tasks'), icon: 'tasks' as const },
+      { label: isClient ? 'Milestone' : isCons ? 'Bids' : 'Leads', value: kpiVal('leads'), icon: 'leads' as const },
+    ],
+    featured: featuredRow ? { name: featuredRow.name, phase: featuredRow.phase, amount: money(contractOf(featuredRow)), usedPct: (usedOf(featuredRow) / contractOf(featuredRow)) * 100, timePct: featuredRow.timePct } : null,
+    collections: revenueData.map((r) => ({ month: r.month, value: r.collected })),
+    ring: { pct: budgetPct, label: 'of budget used', sub: `${money(rollUsed)} of ${money(rollContract)} · ${Math.round(weightedTime)}% of time gone` },
+    attention: attentionItems,
+    attentionSplit: [
+      { label: 'Overdue', n: overdueCount, of: openCount },
+      { label: 'Today', n: dueTodayCount, of: openCount },
+      { label: 'Done', n: doneCount, of: attentionBoardTasks.length + attentionLogTasks.length },
+    ],
+    funnel: funnelData,
+    team: TEAM,
+    week: [
+      ...attentionBoardTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'b' + t.id, title: t.title, date: t.dueDate!, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || ''), done: !!t.completed || t.status === 'Done' })),
+      ...attentionLogTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'l' + t.id, title: (t.description || '').split('\n')[0], date: t.dueDate, project: t.project || 'Request log', done: isLogClosed(t.status) })),
+    ],
+    go: (to: string) => navigate(to),
+  };
+
   const im = invoiceMonth;
   const drawerItems: EnrichedInvoice[] = im ? (im === 'all' ? invLedger.filter((x) => x.unpaid > 0) : invLedger.filter((x) => x.month === im && x.unpaid > 0)) : [];
   const drawerTot = drawerItems.reduce((t, x) => t + x.unpaid, 0);
 
   return (
     <div className="dashboard-page" style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
+      {isNew ? <DashboardOverview {...overview} /> : <>
       <section className="dashboard-intro">
         <div>
           <div className="dashboard-eyebrow">{isClient ? 'Project pulse' : isCons ? 'Your work queue' : 'Morning check'}</div>
@@ -329,6 +384,8 @@ export function Dashboard() {
           </div>
         ))}
       </div>
+
+      </>}
 
       <div style={{ height: 5 }} />
       {bandLabel('Money · Schedule — high level')}

@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06b',
+    date: '2026-10-06',
+    title: 'New-look Dashboard, People and Reimbursement',
+    items: [
+      { area: 'Dashboard', kind: 'improved', text: 'In the New look the dashboard opens with a greeting, headline bars (budget used, time used, collected, overdue) and big numbers, then cards: a project that needs a look, monthly collections, a budget ring, what is closest to slipping, the lead funnel and team workload, and this week’s due dates.', where: 'Dashboard (New look)' },
+      { area: 'People', kind: 'improved', text: 'People is now a clean list in the New look: search, filter chips with counts, tick boxes (ticked rows can be exported to a spreadsheet) and a Compliance chip when insurance or a licence needs attention.', where: 'People (New look)' },
+      { area: 'Finance', kind: 'improved', text: 'Reimbursement is a month board in the New look: projects on the left, the month’s spend with a calendar in the middle, and the chosen expense with its receipts and Approve button on the right.', where: 'Reimbursement → Reimbursables (New look)' },
+    ],
+  },
+  {
     id: '2026-10-06',
     date: '2026-10-06',
     title: 'Search everything from the top bar',
