@@ -531,6 +531,8 @@ export const api = {
   projectPhases: {
     list: (projectId: number) => request(`/project-phases?projectId=${projectId}`),
     board: (projectId: number) => request(`/project-phases/board?projectId=${projectId}`),
+    /** Every project's phases with dates worked out from their tasks, for the Schedule. */
+    schedule: () => request<any[]>('/project-phases/schedule'),
     /** Every project's phase progress in one call, for the Design board. */
     overview: () => request('/project-phases/overview'),
     /** Bring one project up to the current programme template. */

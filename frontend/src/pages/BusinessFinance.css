@@ -1,0 +1,47 @@
+/* Financial -> Business. Works in both looks. */
+.bf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px; align-items: stretch; }
+.bf-lines { padding-bottom: 14px; }
+.bf-line { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 10px 12px; border: 0; border-radius: 14px; background: transparent; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.bf-line:hover, .bf-line.is-on { background: rgba(245, 196, 67, 0.12); }
+.bf-line-top { display: flex; align-items: baseline; gap: 8px; }
+.bf-line-top b { font-size: 14px; font-weight: 600; }
+.bf-line-top small { font-size: 12px; color: var(--muted); }
+.bf-line-top span { margin-left: auto; font-family: var(--font-display); font-size: 18px; font-variant-numeric: tabular-nums; }
+.bf-bar { position: relative; display: block; height: 12px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(-55deg, transparent 0 5px, rgba(29, 29, 27, 0.09) 5px 6px); border: 1px solid var(--border); }
+.bf-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.bf-bar i.is-billed { background: var(--yellow); }
+.bf-bar i.is-paid { background: var(--ink); }
+.bf-line-sub { font-size: 12px; color: var(--muted); }
+.bf-legend { display: flex; gap: 14px; padding: 8px 12px 0; font-size: 12px; color: var(--muted); }
+.bf-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bf-legend i { width: 10px; height: 10px; border-radius: 3px; border: 1px solid var(--border-strong); }
+.bf-legend i.is-billed { background: var(--yellow); border-color: var(--yellow); }
+.bf-legend i.is-paid { background: var(--ink); border-color: var(--ink); }
+
+.bf-months { display: flex; flex-direction: column; }
+.bf-chart { flex: 1; min-height: 210px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; align-items: end; padding: 10px 12px 6px; }
+.bf-col { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
+.bf-col-val { font-size: 10.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.bf-col-bar { width: 100%; max-width: 30px; border-radius: 999px 999px 6px 6px; background: var(--ink); transition: height 0.8s var(--ease-out, ease); }
+.bf-col.is-now .bf-col-bar { background: var(--yellow); }
+.bf-col.is-now .bf-col-val { color: var(--ink); }
+.bf-col-m { font-size: 11.5px; color: var(--muted); }
+
+.bf-table-card { padding-bottom: 6px; }
+.bf-scroll { overflow-x: auto; }
+.bf-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.bf-table th { padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; user-select: none; white-space: nowrap; }
+.bf-table th.is-sorted { color: var(--ink); }
+.bf-table td { padding: 12px; border-top: 1px solid var(--border); vertical-align: top; }
+.bf-table tbody tr { cursor: pointer; transition: background-color 0.2s; }
+.bf-table tbody tr:hover td { background: rgba(245, 196, 67, 0.1); }
+.bf-table td b { display: block; font-weight: 600; }
+.bf-table td small { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); }
+.bf-table .is-num { text-align: right; white-space: nowrap; }
+.bf-table td.is-num .ak-pill { display: table; margin: 4px 0 0 auto; }
+.bf-table td.is-neg { color: #9A4318; }
+.bf-table tfoot td { border-top: 2px solid var(--border-strong); font-weight: 600; }
+.bf-mini { display: inline-block; width: 48px; height: 6px; margin-right: 8px; vertical-align: middle; border-radius: 999px; background: rgba(29, 29, 27, 0.08); overflow: hidden; }
+.bf-mini i { display: block; height: 100%; background: var(--yellow); }
+
+@media (max-width: 980px) { .bf-grid { grid-template-columns: 1fr; } }

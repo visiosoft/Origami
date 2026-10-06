@@ -47,6 +47,13 @@ export class PhasesController {
     return this.service.applyTemplate(Number(projectId));
   }
 
+  /** Every project's phases with their dates, for the Schedule. */
+  @Tiers('internal')
+  @Get('schedule')
+  schedule() {
+    return this.service.schedule();
+  }
+
   @Tiers('internal')
   @Get('overview')
   overview() {

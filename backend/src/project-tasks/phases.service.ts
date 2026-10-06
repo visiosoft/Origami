@@ -423,6 +423,42 @@ export class PhasesService implements OnApplicationBootstrap {
   }
 
   /**
+   * Every project on one timeline. A phase's dates come from its tasks -- the
+   * earliest start to the latest end or due date -- and any dated board task widens
+   * the project's span too. Projects with nothing dated yet come back without
+   * dates; the screen then uses their estimated start and duration.
+   */
+  async schedule() {
+    const [rows, tasks] = await Promise.all([this.overview(), this.tasks.find()]);
+    const day = (v?: string | null) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
+    const plus = (iso: string, n: number) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    const phaseSpan = new Map<string, { start: string; end: string }>();
+    const projectSpan = new Map<number, { start: string; end: string }>();
+    const widen = <K,>(m: Map<K, { start: string; end: string }>, k: K, a: string, b: string) => {
+      const cur = m.get(k);
+      m.set(k, cur ? { start: a < cur.start ? a : cur.start, end: b > cur.end ? b : cur.end } : { start: a, end: b });
+    };
+    for (const t of tasks) {
+      if (t.parentId) continue;
+      const start = day(t.startDate) || day(t.dueDate) || day(t.endDate);
+      if (!start) continue;
+      let end = day(t.endDate) || day(t.dueDate) || (t.durationDays ? plus(start, Math.max(0, t.durationDays - 1)) : start);
+      if (end < start) end = start;
+      if (t.phaseId) widen(phaseSpan, t.phaseId, start, end);
+      if (t.projectId != null) widen(projectSpan, Number(t.projectId), start, end);
+    }
+    return rows.map((r) => {
+      const span = projectSpan.get(r.projectId);
+      return {
+        projectId: r.projectId, name: r.name, stage: r.stage, contractType: r.contractType, estStart: r.estStart, duration: r.duration,
+        holdSince: r.holdSince, holdUntil: r.holdUntil, progress: r.progress, currentPhaseKey: r.currentPhaseKey,
+        start: span?.start || null, end: span?.end || null,
+        phases: r.phases.map((ph) => ({ id: ph.id, key: ph.key, name: ph.name, color: ph.color, progress: ph.progress, complete: ph.complete, total: ph.total, start: phaseSpan.get(ph.id)?.start || null, end: phaseSpan.get(ph.id)?.end || null })),
+      };
+    });
+  }
+
+  /**
    * A project's phases, creating the standard six the first time it's opened.
    * Mirrors SectionsService.forProject, which lazily creates board sections.
    */

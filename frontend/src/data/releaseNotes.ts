@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-07b',
+    date: '2026-10-07',
+    title: 'Business finances and the Schedule',
+    items: [
+      { area: 'Financial', kind: 'new', text: 'Business: every project’s finances added up — contract value, work done, billed, collected, still owed (and overdue), retention and, for roles that may see it, forecast margin. Split into Design + Build, Build only and Design only, with client payments collected per month and a sortable table of projects; click one to open its finances.', where: 'Financial → Business' },
+      { area: 'Construction', kind: 'new', text: 'Schedule: every project on one timeline, its bar made of its phases dated from the phase tasks, with today marked. Projects with nothing dated yet use the estimated start and duration from the project card (shown hatched). Click a project to see each phase’s dates and progress; switch between 6 months, 12 months and 2 years.', where: 'Construction → Schedule' },
+    ],
+  },
+  {
     id: '2026-10-07a',
     date: '2026-10-07',
     title: 'No more lost changes',

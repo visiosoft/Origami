@@ -22,6 +22,31 @@ export declare class PhasesController {
         tasksEnriched: number;
         phasesNotInTemplate: string[];
     }>;
+    schedule(): Promise<{
+        projectId: number;
+        name: string;
+        stage: string;
+        contractType: string;
+        estStart: string;
+        duration: string;
+        holdSince: string;
+        holdUntil: string;
+        progress: number;
+        currentPhaseKey: string;
+        start: string | null;
+        end: string | null;
+        phases: {
+            id: string;
+            key: string;
+            name: string;
+            color: string;
+            progress: number;
+            complete: boolean;
+            total: number;
+            start: string | null;
+            end: string | null;
+        }[];
+    }[]>;
     overview(): Promise<{
         projectId: number;
         name: string;

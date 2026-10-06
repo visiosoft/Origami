@@ -337,6 +337,40 @@ let PhasesService = class PhasesService {
             };
         });
     }
+    async schedule() {
+        const [rows, tasks] = await Promise.all([this.overview(), this.tasks.find()]);
+        const day = (v) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
+        const plus = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+        const phaseSpan = new Map();
+        const projectSpan = new Map();
+        const widen = (m, k, a, b) => {
+            const cur = m.get(k);
+            m.set(k, cur ? { start: a < cur.start ? a : cur.start, end: b > cur.end ? b : cur.end } : { start: a, end: b });
+        };
+        for (const t of tasks) {
+            if (t.parentId)
+                continue;
+            const start = day(t.startDate) || day(t.dueDate) || day(t.endDate);
+            if (!start)
+                continue;
+            let end = day(t.endDate) || day(t.dueDate) || (t.durationDays ? plus(start, Math.max(0, t.durationDays - 1)) : start);
+            if (end < start)
+                end = start;
+            if (t.phaseId)
+                widen(phaseSpan, t.phaseId, start, end);
+            if (t.projectId != null)
+                widen(projectSpan, Number(t.projectId), start, end);
+        }
+        return rows.map((r) => {
+            const span = projectSpan.get(r.projectId);
+            return {
+                projectId: r.projectId, name: r.name, stage: r.stage, contractType: r.contractType, estStart: r.estStart, duration: r.duration,
+                holdSince: r.holdSince, holdUntil: r.holdUntil, progress: r.progress, currentPhaseKey: r.currentPhaseKey,
+                start: span?.start || null, end: span?.end || null,
+                phases: r.phases.map((ph) => ({ id: ph.id, key: ph.key, name: ph.name, color: ph.color, progress: ph.progress, complete: ph.complete, total: ph.total, start: phaseSpan.get(ph.id)?.start || null, end: phaseSpan.get(ph.id)?.end || null })),
+            };
+        });
+    }
     async forProject(projectId) {
         if (!Number.isFinite(projectId))
             return [];

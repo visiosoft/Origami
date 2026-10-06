@@ -15,6 +15,8 @@ import { HoldingReferOut } from './pages/HoldingReferOut';
 import { Observations } from './pages/Observations';
 import { DailyReports } from './pages/DailyReports';
 import { SpecialActions } from './pages/SpecialActions';
+import { BusinessFinance } from './pages/BusinessFinance';
+import { Schedule } from './pages/Schedule';
 import { FinanceHome } from './pages/FinanceHome';
 import { FinanceGuide } from './pages/FinanceGuide';
 import { Manpower } from './pages/Manpower';
@@ -112,6 +114,8 @@ export default function App() {
         <Route path="/changeorders" element={<FinanceHome initial="changes" />} />
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />
         <Route path="/rfis" element={<RfisPage />} />
+        <Route path="/fin_business" element={<BusinessFinance />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/crm_holding" element={<HoldingReferOut />} />
         <Route path="/observations" element={<Observations />} />
         <Route path="/daily_reports" element={<DailyReports />} />
