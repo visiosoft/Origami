@@ -18,7 +18,10 @@ export interface OverviewProps {
   funnel: { label: string; n: string; v: number }[];
   team: { name: string; role: string; tasks: number; done: number; av: string }[];
   teamLabel?: string;
-  week: { id: string; title: string; date: string; project: string; done: boolean }[];
+  /** This week: the user's Google Calendar meetings and their tasks due. */
+  week: { id: string; kind: 'meeting' | 'task'; title: string; date: string; project: string; done: boolean; time?: string; sort?: string; link?: string; to?: string }[];
+  /** null while unknown; false shows a prompt to connect Google Calendar. */
+  calendarConnected?: boolean | null;
   go: (to: string) => void;
 }
 
@@ -206,20 +209,26 @@ export function DashboardOverview(p: OverviewProps) {
           <div className="do-week-head">
             <h3>This week</h3>
             <span className="do-week-range">{range}</span>
+            {p.calendarConnected === false && <button type="button" className="do-week-connect" onClick={() => p.go('/my-calendar')}>Connect Google Calendar</button>}
             <Arrow label="Open My Calendar" onClick={() => p.go('/my-calendar')} />
           </div>
           <div className="do-week-grid">
             {days.map((d) => {
               const di = iso(d);
-              const items = p.week.filter((w) => w.date === di);
+              const items = p.week.filter((w) => w.date === di).sort((a, b) => ((a.sort || '') < (b.sort || '') ? -1 : (a.sort || '') > (b.sort || '') ? 1 : 0));
               return (
                 <div key={di} className={'do-day' + (di === todayIso ? ' is-today' : '')}>
                   <div className="do-day-head"><span>{d.toLocaleDateString('en-US', { weekday: 'short' })}</span><b>{d.getDate()}</b></div>
                   <div className="do-day-items">
-                    {items.slice(0, 3).map((w) => (
-                      <button type="button" key={w.id} className={'do-event' + (w.done ? ' is-done' : di < todayIso ? ' is-late' : '')} title={`${w.title} · ${w.project}`} onClick={() => p.go('/tasks')}>{w.title}</button>
+                    {items.slice(0, 4).map((w) => w.kind === 'meeting' ? (
+                      <button type="button" key={w.id} className={'do-event is-meeting' + (di < todayIso ? ' is-past' : '')} title={`${w.time} · ${w.title}`}
+                        onClick={() => (w.link ? window.open(w.link, '_blank', 'noopener') : p.go('/my-calendar'))}>
+                        <span className="do-event-time">{w.time}</span><span className="do-event-title">{w.title}</span>
+                      </button>
+                    ) : (
+                      <button type="button" key={w.id} className={'do-event' + (w.done ? ' is-done' : di < todayIso ? ' is-late' : '')} title={`${w.title} · ${w.project}`} onClick={() => p.go(w.to || '/tasks')}>{w.title}</button>
                     ))}
-                    {items.length > 3 && <span className="do-more">+{items.length - 3} more</span>}
+                    {items.length > 4 && <button type="button" className="do-more" onClick={() => p.go('/my-calendar')}>+{items.length - 4} more</button>}
                   </div>
                 </div>
               );

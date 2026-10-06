@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06j',
+    date: '2026-10-06',
+    title: 'Your meetings on the Dashboard week',
+    items: [
+      { area: 'Dashboard', kind: 'new', text: 'The “This week” card on the Dashboard now shows your Google Calendar meetings for Monday to Sunday next to your tasks due, each with its time, earliest first. Click a meeting to open it in Google Calendar. If your calendar isn’t connected yet, the card offers a Connect Google Calendar button.', where: 'Dashboard → This week (New look)' },
+    ],
+  },
+  {
     id: '2026-10-06i',
     date: '2026-10-06',
     title: 'Reimbursements page rebuilt around your expenses',

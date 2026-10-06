@@ -87,7 +87,9 @@ export function Dashboard() {
   const [attentionBoardTasks, setAttentionBoardTasks] = useState<ProjectTask[]>([]);
   const [attentionLogTasks, setAttentionLogTasks] = useState<LogTask[]>([]);
   const [attentionProjects, setAttentionProjects] = useState<Record<number, string>>({});
-  const [todayMeetings, setTodayMeetings] = useState<{ id: string; summary: string; start: string; allDay: boolean }[]>([]);
+  type CalEvent = { id: string; summary: string; start: string; end?: string; allDay: boolean; htmlLink?: string };
+  const [weekMeetings, setWeekMeetings] = useState<CalEvent[]>([]);
+  const [calConnected, setCalConnected] = useState<boolean | null>(null);
   // New-look overview: real figures. null = not loaded / no access (finance is role-gated).
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [portfolio, setPortfolio] = useState<any[] | null>(null);
@@ -117,14 +119,16 @@ export function Dashboard() {
       r.forEach((p: any) => { m[p.id] = p.name; });
       setAttentionProjects(m);
     }).catch(() => { });
+    // This week's events (Monday to Sunday) from the user's own Google Calendar.
     api.google.myCalendar.status().then((res: any) => {
+      setCalConnected(!!res?.connected);
       if (!res?.connected) return;
-      const start = new Date(); start.setHours(0, 0, 0, 0);
-      const end = new Date(); end.setHours(23, 59, 59, 999);
+      const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+      const end = new Date(start); end.setDate(start.getDate() + 6); end.setHours(23, 59, 59, 999);
       api.google.myCalendar.events(start.toISOString(), end.toISOString())
-        .then((evs: any) => { if (Array.isArray(evs)) setTodayMeetings(evs); })
+        .then((evs: any) => { if (Array.isArray(evs)) setWeekMeetings(evs); })
         .catch(() => { });
-    }).catch(() => { });
+    }).catch(() => setCalConnected(false));
   }, [isClient]);
 
   useEffect(() => {
@@ -245,6 +249,13 @@ export function Dashboard() {
   // today's scheduled Google Meetings (My Calendar), not the demo fixture
   // this used to read from.
   const todayStr = new Date().toISOString().slice(0, 10);
+  const localDay = (e: CalEvent) => {
+    if (e.allDay) return e.start.slice(0, 10);
+    const d = new Date(e.start);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const localToday = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
+  const todayMeetings = weekMeetings.filter((m) => localDay(m) === localToday);
   const daysAgoLabel = (due: string) => {
     const days = Math.round((Date.now() - new Date(due + 'T00:00:00').getTime()) / 86400000);
     return days <= 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
@@ -378,7 +389,15 @@ export function Dashboard() {
     funnel: funnelReal.filter((f) => f.count > 0).map((f) => ({ label: f.label, n: String(f.count), v: (f.count / funnelMax) * 100 })),
     team: teamReal,
     teamLabel: 'Open tasks by person',
-    week: myTasks.filter((t) => t.due && t.due >= wsIso && t.due <= weIso).map((t) => ({ id: t.key, title: t.title, date: t.due!, project: t.project, done: !t.open })),
+    week: [
+      ...weekMeetings.map((m) => ({
+        id: 'm' + m.id, kind: 'meeting' as const, title: m.summary || 'Busy', date: localDay(m), done: false,
+        time: m.allDay ? 'All day' : new Date(m.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '').toLowerCase(),
+        sort: m.allDay ? '' : m.start, project: 'Google Calendar', link: m.htmlLink,
+      })),
+      ...myTasks.filter((t) => t.due && t.due >= wsIso && t.due <= weIso).map((t) => ({ id: t.key, kind: 'task' as const, title: t.title, date: t.due!, project: t.project, done: !t.open, sort: '~', to: t.to })),
+    ],
+    calendarConnected: calConnected,
     go: (to: string) => navigate(to),
   };
 

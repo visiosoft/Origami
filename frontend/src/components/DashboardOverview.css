@@ -138,6 +138,12 @@
 .do-event { text-align: left; font-size: 11.5px; font-weight: 500; padding: 6px 8px; border-radius: 10px; background: var(--yellow-soft); color: #4A3708; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .do-event.is-late { background: var(--ink); color: #FDFCF9; }
 .do-event.is-done { background: var(--mist); color: var(--muted); text-decoration: line-through; }
+.do-event.is-meeting { display: flex; flex-direction: column; gap: 1px; padding: 5px 7px; background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-left: 3px solid var(--yellow); line-height: 1.25; }
+.do-event.is-meeting.is-past { opacity: 0.55; }
+.do-event-time { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.do-event-time, .do-event-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.do-week-connect { margin-right: auto; margin-left: -4px; height: 34px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--yellow); color: #4A3708; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.do-more { border: 0; background: none; padding: 2px; font: inherit; text-align: left; cursor: pointer; }
 .do-more { font-size: 11px; color: var(--muted); padding-left: 4px; }
 
 @media (max-width: 1280px) {
