@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PeopleImport } from '../components/PeopleImport';
+import { PeopleTable } from '../components/PeopleTable';
+import { getTheme, useTheme } from '../theme';
+import { toCsv } from '../data/csv';
 import { SubContractorSummary } from '../components/Contractors';
 import { LoginCard } from '../components/StaffAccessCards';
 import { EmailLink, PhoneLink } from '../components/ContactLinks';
@@ -74,7 +77,13 @@ export function People() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [kf, setKf] = useState('All');
   const [pf, setPf] = useState('All projects');
-  const [view, setView] = useState<'cards' | 'table' | 'company'>('cards');
+  const [theme] = useTheme();
+  const isNew = theme === 'coterie';
+  // The New look opens on the list; Classic keeps its cards.
+  const [view, setView] = useState<'cards' | 'table' | 'company'>(() => (getTheme() === 'coterie' ? 'table' : 'cards'));
+  const [q, setQ] = useState('');
+  const [onlyAlerts, setOnlyAlerts] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
   const [contactGroup, setContactGroup] = useState<'company' | 'project'>('company');
   const [projOpen, setProjOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -106,6 +115,20 @@ export function People() {
 
   let shown = kf === 'All' ? all : all.filter((p) => p.kind === kf);
   if (pf !== 'All projects') shown = shown.filter((p) => p.projects.includes(pf));
+  if (onlyAlerts) shown = shown.filter((p) => p.comply && !p.comply.ok);
+  const qn = q.trim().toLowerCase();
+  if (qn) shown = shown.filter((p) => [p.name, p.role, p.company, p.email, p.contact, ...p.projects].some((v) => (v || '').toLowerCase().includes(qn)));
+  const alertCount = all.filter((p) => p.comply && !p.comply.ok).length;
+  const kindCount = (k: string) => (k === 'All' ? all.length : all.filter((p) => p.kind === k).length);
+  const pickedShown = shown.filter((p) => picked.has(p.id));
+  const togglePick = (id: number) => setPicked((s0) => { const n = new Set(s0); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const exportPicked = () => {
+    const rows = [['Name', 'Type', 'Role', 'Company', 'Phone', 'Email', 'Projects', 'Since'],
+      ...pickedShown.map((p) => [p.name, p.kind, p.role, p.company, p.phone, p.email, p.projects.join('; '), p.since])];
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = `people-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const stats = [
     { label: 'People & Companies', value: String(all.length), sub: projectNames.length + ' projects covered', color: 'var(--forest)' },
@@ -326,8 +349,70 @@ export function People() {
     </div>
   );
 
+  const newTop = (
+    <>
+      <div className="pp-head">
+        <h2 className="pp-title">People</h2>
+        <label className="pp-search">
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={2} strokeLinecap="round" style={{ stroke: 'var(--muted)', flexShrink: 0 }}><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name or role" aria-label="Search people" />
+        </label>
+        <div className="pp-views" style={{ display: 'flex', gap: 3, background: 'var(--surface)', border: '1px solid var(--border)', padding: 3, borderRadius: 999 }}>
+          {([['table', 'List'], ['cards', 'Cards'], ['company', 'Address book']] as [typeof view, string][]).map((v) => (
+            <div key={v[0]} onClick={() => setView(v[0])} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', background: view === v[0] ? 'var(--seg-on)' : 'transparent', color: view === v[0] ? 'var(--ink)' : 'var(--body)' }}>{v[1]}</div>
+          ))}
+        </div>
+        {canManage && <button type="button" className="pp-btn is-ghost" onClick={() => setImporting(true)}>Import</button>}
+        {canManage && (
+          <button type="button" className="pp-btn is-dark" onClick={openNew}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" strokeWidth={2.2} strokeLinecap="round" style={{ stroke: 'currentColor' }}><path d="M12 5v14M5 12h14" /></svg>
+            Add member
+          </button>
+        )}
+      </div>
+      <div className="pp-filters">
+        {KINDS.filter((k) => k === 'All' || kindCount(k) > 0).map((k) => (
+          <button type="button" key={k} className={'pp-chip' + (kf === k ? ' is-on' : '')} onClick={() => setKf(k)}>{k} <small>{kindCount(k)}</small></button>
+        ))}
+        {alertCount > 0 && (
+          <button type="button" className={'pp-chip is-alert' + (onlyAlerts ? ' is-on' : '')} onClick={() => setOnlyAlerts((v) => !v)}>Compliance <small>{alertCount}</small></button>
+        )}
+        <span className="pp-spacer" />
+        <div style={{ position: 'relative' }}>
+          <button type="button" className={'pp-chip' + (pf !== 'All projects' ? ' is-on' : '')} onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }}>
+            {pf}
+            <svg width={10} height={6} viewBox="0 0 10 6" fill="none" style={{ stroke: 'currentColor', transform: projOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}><path d="M1 1l4 4 4-4" strokeWidth={1.6} strokeLinecap="round" /></svg>
+          </button>
+          {projOpen && (
+            <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 60, minWidth: 200, background: 'var(--surface)', borderRadius: 18, border: '1px solid var(--border)', boxShadow: 'var(--shadow-pop)', padding: 6, maxHeight: 280, overflowY: 'auto' }}>
+              {['All projects', ...projectNames].map((pr) => (
+                <div key={pr} onClick={() => { setPf(pr); setProjOpen(false); }} style={{ padding: '9px 12px', borderRadius: 12, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: pf === pr ? 600 : 400, color: 'var(--ink)', background: pf === pr ? 'var(--yellow-soft)' : 'transparent' }}>{pr}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {view === 'company' && (
+        <div style={{ display: 'flex', gap: 3, alignSelf: 'flex-start', background: 'var(--surface)', border: '1px solid var(--border)', padding: 3, borderRadius: 999 }}>
+          {([['company', 'Group by company'], ['project', 'Group by project']] as [typeof contactGroup, string][]).map((m) => (
+            <div key={m[0]} onClick={() => setContactGroup(m[0])} style={{ padding: '7px 14px', borderRadius: 999, fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', background: contactGroup === m[0] ? 'var(--seg-on)' : 'transparent', color: contactGroup === m[0] ? 'var(--ink)' : 'var(--body)' }}>{m[1]}</div>
+          ))}
+        </div>
+      )}
+      {(pickedShown.length > 0 || qn || onlyAlerts || pf !== 'All projects') && (
+        <div className="pp-select-bar">
+          {pickedShown.length > 0
+            ? <><span>{pickedShown.length} selected</span><span className="pp-link" onClick={exportPicked}>Export to spreadsheet</span><span className="pp-link" onClick={() => setPicked(new Set())}>Clear</span></>
+            : <span>Showing {shown.length} of {all.length}</span>}
+        </div>
+      )}
+      {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
+    </>
+  );
+
   return (
-    <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: isNew ? 16 : 12 }}>
+      {isNew ? newTop : <>
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {stats.map((st) => (
@@ -383,7 +468,14 @@ export function People() {
         )}
       </div>
 
-      {view === 'company' ? addressBook : view === 'table' ? tableView : cardsView}
+      </>}
+
+      {view === 'company' ? addressBook
+        : view === 'table' ? (isNew
+          ? <PeopleTable people={shown} picked={picked} onPick={togglePick} onOpen={(id) => setSelectedId(id)}
+              onPickAll={(on) => setPicked(on ? new Set(shown.map((p) => p.id)) : new Set())} />
+          : tableView)
+        : cardsView}
 
       {/* Person drawer */}
       {sel && (
