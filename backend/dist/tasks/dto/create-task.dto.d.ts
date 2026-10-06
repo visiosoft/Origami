@@ -8,7 +8,8 @@ export declare class CreateTaskDto {
     status?: string;
     originator?: string;
     topicType?: string;
-    description: string;
+    subject?: string;
+    description?: string;
     dueDate?: string;
     dueTime?: string;
     linkedFile?: string;

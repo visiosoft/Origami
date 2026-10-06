@@ -4,7 +4,7 @@ import { api } from '../api';
 import { DraftScope, SaveBar } from '../autosave';
 import { NewTaskDrawer } from './NewTaskDrawer';
 import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
-import { taskHeadline, type Task } from '../data/tasks';
+import { logTaskDetails, logTaskTitle, type Task } from '../data/tasks';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -146,9 +146,9 @@ export function DealTasksPanel({
                   <div key={t.id} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 10, opacity: isLogClosed(t.status) ? 0.6 : 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', flexWrap: 'wrap' }}>
                       <div onClick={() => setOpenId(t.id)} style={{ flex: '1 1 200px', minWidth: 0, cursor: 'pointer' }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', textDecoration: isLogClosed(t.status) ? 'line-through' : 'none' }}>{taskHeadline(t.description).title || t.id}</div>
-                        {taskHeadline(t.description).details && (
-                          <div style={{ fontSize: 11.5, color: 'var(--c-5c6b65)', lineHeight: 1.45, whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{taskHeadline(t.description).details}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', textDecoration: isLogClosed(t.status) ? 'line-through' : 'none' }}>{logTaskTitle(t)}</div>
+                        {logTaskDetails(t) && (
+                          <div style={{ fontSize: 11.5, color: 'var(--c-5c6b65)', lineHeight: 1.45, whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{logTaskDetails(t)}</div>
                         )}
                         <div style={{ fontSize: 11, color: 'var(--muted)' }}>{t.assignedTo || 'Unassigned'}{t.dueDate ? ` · Due ${t.dueDate}` : ''}</div>
                       </div>

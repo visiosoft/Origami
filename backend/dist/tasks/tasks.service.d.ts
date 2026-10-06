@@ -35,3 +35,4 @@ export declare class TasksService implements OnApplicationBootstrap {
     attachment(id: string, attId: string): Promise<TaskAttachment>;
     addComment(id: string, text: string, actor: UploadActor): Promise<TaskEntity>;
 }
+export declare function taskTitle(t: Pick<TaskEntity, 'id' | 'subject' | 'description'>): string;

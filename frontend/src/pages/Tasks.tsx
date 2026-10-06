@@ -8,7 +8,7 @@ import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, 
 import { TaskBoard } from '../components/TaskBoard';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
-import { TT_COLORS, taskHeadline, type Task, type TaskTab } from '../data/tasks';
+import { TT_COLORS, logTaskTitle, type Task, type TaskTab } from '../data/tasks';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
@@ -117,7 +117,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
   TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(logTasks.filter((x) => (x as any).tab === t))).length; });
   const inTab = byProject(logTasks.filter((x) => (x as any).tab === tab));
-  const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: t.description }, query));
+  const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: [t.subject, t.description].filter(Boolean).join(' ') }, query));
   const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
 
   const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
@@ -183,7 +183,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       {/* Table */}
       <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '12px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', gap: 10, fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 760 }}>
-          <span>Task #</span><span>Type</span><span>Description</span><span>Status</span><span>Assigned To</span><span>Date</span><span>Due</span>
+          <span>Task #</span><span>Type</span><span>Subject</span><span>Status</span><span>Assigned To</span><span>Date</span><span>Due</span>
         </div>
         {tasks.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No tasks in this category.</div>
@@ -192,7 +192,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
             const sc = logStatusTone(t.status);
             const tc = TT_COLORS[t.topicType];
             const assignedUser = users.find((u) => (t.assignedToId && u.id === t.assignedToId) || u.name === t.assignedTo);
-            const desc = taskHeadline(t.description).title;
+            const desc = logTaskTitle(t);
             return (
               <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', gap: 10, minWidth: 760 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{t.id}</span>

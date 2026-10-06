@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
@@ -106,6 +106,7 @@ export class TasksService implements OnApplicationBootstrap {
         .reduce((max, t) => Math.max(max, parseInt(String(t.id).split('-')[1], 10) || 0), 0) + 1;
     const id = dto.id || `${dateStr}-${String(seq).padStart(2, '0')}`;
 
+    if (!String(dto.subject || '').trim() && !String(dto.description || '').trim()) throw new BadRequestException('Give the task a subject.');
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
 
     const task = this.repo.create({
@@ -133,7 +134,7 @@ export class TasksService implements OnApplicationBootstrap {
     const saved = await this.repo.save(task);
     if (assignee.id) {
       this.notifications.taskAssigned({
-        surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+        surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
         projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
         status: saved.status, assigneeId: assignee.id, actor,
       });
@@ -145,7 +146,7 @@ export class TasksService implements OnApplicationBootstrap {
 
   /** The task card an email carries. */
   private notice(t: TaskEntity, actor: UploadActor) {
-    return { surface: 'log' as const, taskId: t.id, title: t.description || t.id, projectName: t.project, dueDate: t.dueDate, priority: t.topicType, status: t.status, actor };
+    return { surface: 'log' as const, taskId: t.id, title: taskTitle(t), description: t.subject ? t.description || undefined : undefined, projectName: t.project, dueDate: t.dueDate, priority: t.topicType, status: t.status, actor };
   }
 
   /**
@@ -202,7 +203,7 @@ export class TasksService implements OnApplicationBootstrap {
     const saved = await this.repo.save(task);
     if (reassignedTo) {
       this.notifications.taskAssigned({
-        surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+        surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
         projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
         status: saved.status, assigneeId: reassignedTo, actor,
       });
@@ -283,4 +284,9 @@ export class TasksService implements OnApplicationBootstrap {
     if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
     return this.hydrate(saved);
   }
+}
+
+/** A request-log task's name: its subject, or (older tasks) the first line of its description. */
+export function taskTitle(t: Pick<TaskEntity, 'id' | 'subject' | 'description'>): string {
+  return (t.subject || '').trim() || (t.description || '').split(/\r?\n/)[0].trim().slice(0, 120) || t.id;
 }

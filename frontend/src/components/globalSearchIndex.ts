@@ -76,9 +76,9 @@ export function buildIndex(src: IndexSources): SearchItem[] {
   }
   for (const t of src.logTasks || []) {
     if (!t?.id) continue;
-    const title = (src.headline ? src.headline(t.description || '') : String(t.description || '').split('\n')[0]) || 'Untitled request';
+    const title = String(t.subject || '').trim() || (src.headline ? src.headline(t.description || '') : String(t.description || '').split('\n')[0]) || 'Untitled request';
     add({ kind: 'task', id: 'l:' + t.id, title, sub: join('Request log', t.project, t.assignedTo), badge: t.status,
-      to: `/tasks?task=${encodeURIComponent(t.id)}&type=log` }, t.description, t.originator);
+      to: `/tasks?task=${encodeURIComponent(t.id)}&type=log` }, t.subject, t.description, t.originator);
   }
   return out;
 }

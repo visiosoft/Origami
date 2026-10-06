@@ -1,4 +1,5 @@
 import { CountUp } from '../components/CountUp';
+import { clip, logTaskTitle } from '../data/tasks';
 import { DashboardOverview } from '../components/DashboardOverview';
 import { useTheme } from '../theme';
 import { tint } from '../theme';
@@ -243,7 +244,7 @@ export function Dashboard() {
       .map((t) => ({ task: t.title, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || `Project ${t.projectId}`), due: daysAgoLabel(t.dueDate!), past: t.dueDate! < todayStr })),
     ...attentionLogTasks
       .filter((t) => !isLogClosed(t.status) && t.dueDate && t.dueDate <= todayStr)
-      .map((t) => ({ task: t.description?.length > 60 ? t.description.slice(0, 60) + '…' : (t.description || t.id), project: t.project || 'General task', due: daysAgoLabel(t.dueDate), past: t.dueDate < todayStr })),
+      .map((t) => ({ task: clip(logTaskTitle(t), 60), project: t.project || 'General task', due: daysAgoLabel(t.dueDate), past: t.dueDate < todayStr })),
     ...todayMeetings
       .filter((m) => !m.allDay)
       .map((m) => ({ task: `Meeting: ${m.summary}`, project: 'Google Calendar', due: new Date(m.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), past: new Date(m.start).getTime() < Date.now() })),
@@ -321,7 +322,7 @@ export function Dashboard() {
     team: TEAM,
     week: [
       ...attentionBoardTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'b' + t.id, title: t.title, date: t.dueDate!, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || ''), done: !!t.completed || t.status === 'Done' })),
-      ...attentionLogTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'l' + t.id, title: (t.description || '').split('\n')[0], date: t.dueDate, project: t.project || 'Request log', done: isLogClosed(t.status) })),
+      ...attentionLogTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'l' + t.id, title: logTaskTitle(t), date: t.dueDate, project: t.project || 'Request log', done: isLogClosed(t.status) })),
     ],
     go: (to: string) => navigate(to),
   };

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { clip, logTaskTitle } from '../data/tasks';
 import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -78,7 +79,7 @@ export function Notifications() {
         .filter((t) => !isLogClosed(t.status) && isMine(t, currentUser))
         .map((t) => ({
           id: 'l' + t.id,
-          title: t.description?.length > 70 ? t.description.slice(0, 70) + '…' : t.description || t.id,
+          title: clip(logTaskTitle(t), 70),
           context: t.project || 'Request Log',
           at: t.updatedAt,
           to: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,

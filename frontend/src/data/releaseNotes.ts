@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06e',
+    date: '2026-10-06',
+    title: 'Tasks have a Subject and a Description',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'A new task now has a Subject (its name) and a separate Description. Before, the description’s first line doubled as the task’s name, so the name appeared twice. The subject can be edited at the top of an open task; older tasks keep showing their first line until a subject is typed.', where: 'Tasks → Request Log → + New Task' },
+    ],
+  },
+  {
     id: '2026-10-06d',
     date: '2026-10-06',
     title: 'Projects by CRM, Design, Construction, Closed; people by level',

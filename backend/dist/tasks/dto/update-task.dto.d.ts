@@ -7,6 +7,7 @@ export declare class UpdateTaskDto {
     status?: string;
     originator?: string;
     topicType?: string;
+    subject?: string;
     description?: string;
     dueDate?: string;
     dueTime?: string;

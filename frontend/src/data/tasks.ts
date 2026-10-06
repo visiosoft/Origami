@@ -14,6 +14,8 @@ export interface Task {
   status: string;
   originator: string;
   topicType: 'Task' | 'FYI' | 'RFI';
+  /** The task's name. Older tasks have none: their first description line serves as the name. */
+  subject?: string;
   description: string;
   dueDate: string;
   /** HH:mm, set when created from a specific slot on My Calendar. */
@@ -145,3 +147,16 @@ export const NEW_TASK_FIELDS = [
   { label: 'Description', value: 'Describe the task...', valColor: 'var(--muted)', span: '1 / -1', required: true },
   { label: 'Link to File', value: 'Attach or paste link', valColor: 'var(--muted)', span: '1 / -1', required: false },
 ];
+
+/** A Request Log task's name: its subject, or (older tasks) the first line of its description. */
+export function logTaskTitle(t: { subject?: string; description?: string; id?: string }): string {
+  return (t.subject || '').trim() || taskHeadline(t.description).title || t.id || '';
+}
+
+/** The text under the name: the whole description when there is a subject, else what follows the first line. */
+export function logTaskDetails(t: { subject?: string; description?: string }): string {
+  return (t.subject || '').trim() ? (t.description || '').trim() : taskHeadline(t.description).details;
+}
+
+/** Trim a name for tight spaces. */
+export const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + '…' : s);

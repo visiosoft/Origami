@@ -39,3 +39,22 @@ describe('isLogClosed', () => {
     expect(isLogClosed(null)).toBe(false);
   });
 });
+
+import { logTaskDetails, logTaskTitle } from './tasks';
+
+describe('request log task subject', () => {
+  it('uses the subject as the name and the whole description as the details', () => {
+    const t = { id: 'T1', subject: 'Order windows', description: 'From Milgard\nby Friday' };
+    expect(logTaskTitle(t)).toBe('Order windows');
+    expect(logTaskDetails(t)).toBe('From Milgard\nby Friday');
+  });
+  it('falls back to the first description line for older tasks without a subject', () => {
+    const t = { id: 'T2', description: 'Order windows\nFrom Milgard' };
+    expect(logTaskTitle(t)).toBe('Order windows');
+    expect(logTaskDetails(t)).toBe('From Milgard');
+  });
+  it('has a name even with nothing written', () => {
+    expect(logTaskTitle({ id: 'T3', subject: '  ', description: '' })).toBe('T3');
+    expect(logTaskDetails({ subject: 'Call city', description: '' })).toBe('');
+  });
+});

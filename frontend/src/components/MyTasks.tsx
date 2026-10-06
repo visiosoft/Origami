@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { clip, logTaskTitle } from '../data/tasks';
 import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -56,7 +57,7 @@ export function MyTasks() {
         .filter((t) => !isLogClosed(t.status) && (isMine(t.assignedToId, t.assignedTo) || following(t)))
         .map((t) => ({
           key: 'l' + t.id,
-          title: t.description?.length > 80 ? t.description.slice(0, 80) + '…' : t.description || t.id,
+          title: clip(logTaskTitle(t), 80),
           context: t.project || 'General task',
           dueDate: t.dueDate,
           where: 'log' as const,

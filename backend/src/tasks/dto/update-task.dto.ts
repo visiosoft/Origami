@@ -16,6 +16,7 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() status?: string;
   @IsString() @IsOptional() originator?: string;
   @IsString() @IsOptional() topicType?: string;
+  @IsString() @IsOptional() subject?: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;

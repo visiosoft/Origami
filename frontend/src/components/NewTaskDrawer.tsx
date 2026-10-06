@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { taskHeadline } from '../data/tasks';
 import { useLogStatuses } from '../data/logStatuses';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -13,12 +14,12 @@ const inputStyle: React.CSSProperties = {
 
 interface NewTask {
   tab: TaskTab; meetingType: string; meetingDate: string; assignedTo: string; originator: string;
-  topicType: string; status: string; dueDate: string; dueTime: string; project: string; description: string;
+  topicType: string; status: string; dueDate: string; dueTime: string; project: string; subject: string; description: string;
   linkedFile: string; labels: string[];
 }
 const blank = (project: string, labels: string[], dueDate = '', dueTime = '', assignedTo = ''): NewTask => ({
   tab: 'internal', meetingType: 'Internal', meetingDate: '', assignedTo, originator: '',
-  topicType: 'Task', status: 'Open', dueDate, dueTime, project, description: '', linkedFile: '', labels,
+  topicType: 'Task', status: 'Open', dueDate, dueTime, project, subject: '', description: '', linkedFile: '', labels,
 });
 
 /**
@@ -31,7 +32,7 @@ export function NewTaskDrawer({
 }: {
   onClose: () => void;
   /** `task` is the saved task, so the host can open it for files, labels and a checklist. */
-  onCreated: (created?: { dueDate: string; dueTime: string; description: string; task?: any }) => void;
+  onCreated: (created?: { dueDate: string; dueTime: string; subject: string; description: string; task?: any }) => void;
   /** Opened from a specific lead/project: the Project field is fixed and hidden. */
   fixedProject?: { id: string; name: string };
   /** Opened from a lead: shows a Section field tagging which pipeline stage this task belongs to. */
@@ -51,7 +52,9 @@ export function NewTaskDrawer({
     defaultDueDate || '',
     defaultDueTime || '',
     defaultAssignedTo || '',
-  ), description: defaultDescription || '' }));
+  ),
+  // Text handed in (e.g. a lead note turned into a task): its first line becomes the subject, the rest the description.
+  subject: taskHeadline(defaultDescription).title, description: taskHeadline(defaultDescription).details }));
   const [section, setSection] = useState(defaultSection || sections?.[0] || '');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [creating, setCreating] = useState(false);
@@ -66,7 +69,7 @@ export function NewTaskDrawer({
   }, []);
 
   const create = () => {
-    if (nt.description.trim().length < 3) { toast('Add a task description'); return; }
+    if (nt.subject.trim().length < 2) { toast('Give the task a subject'); return; }
     setCreating(true);
     const payload = {
       ...nt,
@@ -74,7 +77,7 @@ export function NewTaskDrawer({
       labels: sections ? [`section:${section}`] : nt.labels,
     };
     api.tasks.create(payload)
-      .then((task: any) => { toast('Task created'); onCreated({ dueDate: nt.dueDate, dueTime: nt.dueTime, description: nt.description, task }); onClose(); })
+      .then((task: any) => { toast('Task created'); onCreated({ dueDate: nt.dueDate, dueTime: nt.dueTime, subject: nt.subject, description: nt.description, task }); onClose(); })
       .catch((err: any) => toast(`⚠ ${err?.message || 'Failed to create task'}`))
       .finally(() => setCreating(false));
   };
@@ -105,7 +108,8 @@ export function NewTaskDrawer({
           {!fixedProject && (
             <Fld label="Meeting Type"><select value={nt.meetingType} onChange={(e) => setNt({ ...nt, meetingType: e.target.value })} style={inputStyle}>{['Internal', 'Owner', 'Subcontractor'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
           )}
-          <Fld label="Description *" span><textarea value={nt.description} onChange={(e) => setNt({ ...nt, description: e.target.value })} rows={4} placeholder="Describe the task…" style={{ ...inputStyle, resize: 'vertical' }} /></Fld>
+          <Fld label="Subject *" span><input value={nt.subject} onChange={(e) => setNt({ ...nt, subject: e.target.value })} placeholder="What needs doing, in a few words" maxLength={200} style={inputStyle} autoFocus /></Fld>
+          <Fld label="Description" span><textarea value={nt.description} onChange={(e) => setNt({ ...nt, description: e.target.value })} rows={4} placeholder="Details, context, anything that helps…" style={{ ...inputStyle, resize: 'vertical' }} /></Fld>
           <Fld label="Link to File" span><input value={nt.linkedFile} onChange={(e) => setNt({ ...nt, linkedFile: e.target.value })} placeholder="Attach or paste link" style={inputStyle} /></Fld>
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'flex', gap: 12, justifyContent: 'flex-end', flexShrink: 0 }}>

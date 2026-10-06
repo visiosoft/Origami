@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { isLogClosed, logStatusTone } from '../data/logStatuses';
-import { taskHeadline, type Task } from '../data/tasks';
+import { logTaskTitle, type Task } from '../data/tasks';
 import { PRIORITY_STYLE, type ProjectTask } from '../data/projectTasks';
 import { isMine, raisedBy } from '../components/TaskScope';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
@@ -66,7 +66,7 @@ function useTaskRows(w: ReturnType<typeof useSiteWork>) {
     priority: t.priority, open: () => setOpenBoard(t.id),
   });
   const logRow = (t: Task): Row => ({
-    key: 'l' + t.id, title: taskHeadline(t.description).title || t.id, context: `${t.id} · ${t.project || 'General'}`, dueDate: t.dueDate, status: t.status,
+    key: 'l' + t.id, title: logTaskTitle(t), context: `${t.id} · ${t.project || 'General'}`, dueDate: t.dueDate, status: t.status,
     who: isMine(t, currentUser) ? undefined : t.assignedTo, open: () => setOpenLog(t.id),
   });
   const logTask = openLog ? w.log.find((t) => t.id === openLog) : null;

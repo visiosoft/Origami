@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TasksService = void 0;
+exports.taskTitle = taskTitle;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -102,6 +103,8 @@ let TasksService = class TasksService {
             .filter((t) => String(t.id).startsWith(dateStr + '-'))
             .reduce((max, t) => Math.max(max, parseInt(String(t.id).split('-')[1], 10) || 0), 0) + 1;
         const id = dto.id || `${dateStr}-${String(seq).padStart(2, '0')}`;
+        if (!String(dto.subject || '').trim() && !String(dto.description || '').trim())
+            throw new common_1.BadRequestException('Give the task a subject.');
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assignedToId, name: dto.assignedTo });
         const task = this.repo.create({
             tab: 'internal',
@@ -127,7 +130,7 @@ let TasksService = class TasksService {
         const saved = await this.repo.save(task);
         if (assignee.id) {
             this.notifications.taskAssigned({
-                surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+                surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
                 projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
                 status: saved.status, assigneeId: assignee.id, actor,
             });
@@ -138,7 +141,7 @@ let TasksService = class TasksService {
         return this.hydrate(saved);
     }
     notice(t, actor) {
-        return { surface: 'log', taskId: t.id, title: t.description || t.id, projectName: t.project, dueDate: t.dueDate, priority: t.topicType, status: t.status, actor };
+        return { surface: 'log', taskId: t.id, title: taskTitle(t), description: t.subject ? t.description || undefined : undefined, projectName: t.project, dueDate: t.dueDate, priority: t.topicType, status: t.status, actor };
     }
     async update(id, dto, actor) {
         const task = await this.load(id);
@@ -185,7 +188,7 @@ let TasksService = class TasksService {
         const saved = await this.repo.save(task);
         if (reassignedTo) {
             this.notifications.taskAssigned({
-                surface: 'log', taskId: saved.id, title: saved.description || saved.id,
+                surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
                 projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
                 status: saved.status, assigneeId: reassignedTo, actor,
             });
@@ -271,4 +274,7 @@ exports.TasksService = TasksService = __decorate([
         notifications_service_1.NotificationsService,
         settings_service_1.SettingsService])
 ], TasksService);
+function taskTitle(t) {
+    return (t.subject || '').trim() || (t.description || '').split(/\r?\n/)[0].trim().slice(0, 120) || t.id;
+}
 //# sourceMappingURL=tasks.service.js.map

@@ -7,6 +7,7 @@ import { GoogleService } from '../google/google.service';
 import { reminderEmail, overdueEmail, progressEmail, overstretchEmail, type ReminderBuckets, type ReminderTask } from './reminder.templates';
 import { loadEmailBrand } from '../email/shell';
 import { LOG_STATUSES_KEY, isClosedStatus, parseLogStatuses } from '../tasks/log-statuses';
+import { taskTitle } from '../tasks/tasks.service';
 
 const DAY = 86400000;
 const HOUR = 3600000;
@@ -167,7 +168,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
       const mine = this.isMine(t.assignedToId, t.assignedTo, user);
       if (!mine && !following(t.collaborators)) continue;
       out.push({
-        id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
+        id: t.id, title: taskTitle(t).slice(0, 90), dueDate: t.dueDate,
         project: t.project || '', where: 'log', following: !mine,
         url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
       });

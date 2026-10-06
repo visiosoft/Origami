@@ -11,7 +11,9 @@ export class CreateTaskDto {
   @IsString() @IsOptional() status?: string;
   @IsString() @IsOptional() originator?: string;
   @IsString() @IsOptional() topicType?: string;
-  @IsString() description: string;
+  /** The task's name, kept apart from the description. */
+  @IsString() @IsOptional() subject?: string;
+  @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;
   @IsString() @IsOptional() linkedFile?: string;

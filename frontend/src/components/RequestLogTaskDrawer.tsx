@@ -12,12 +12,12 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
-import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task } from '../data/tasks';
+import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, logTaskDetails, logTaskTitle, taskHeadline, type Task } from '../data/tasks';
 
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'description', 'resolution', 'checklist', 'labels'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'subject', 'description', 'resolution', 'checklist', 'labels'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -94,8 +94,10 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(TT_COLORS, t.topicType).bg, color: tone(TT_COLORS, t.topicType).c }}>{t.topicType}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(MT_COLORS, t.meetingType).bg, color: tone(MT_COLORS, t.meetingType).c }}>{t.meetingType}</span>
             </div>
-            {/* The first line is the title; the full text is edited under Description. */}
-            <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4 }}>{taskHeadline(t.description).title || 'Untitled task'}</div>
+            {/* The subject is the task's name; older tasks without one show their first description line until one is typed. */}
+            <input value={t.subject || ''} disabled={!canManage} onChange={(e) => set({ subject: e.target.value })} placeholder={taskHeadline(t.description).title || 'Subject'} aria-label="Subject"
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
           </div>
           <div onClick={() => onClose()} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)', marginLeft: 16, flexShrink: 0 }}>
             <svg width={15} height={15} viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--muted)' }} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
@@ -254,7 +256,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
 
         {canDelete && (
           <div style={{ padding: '0 28px 26px' }}>
-            {!isLogClosed(t.status) && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: taskHeadline(t.description).title, description: t.description }} />}
+            {!isLogClosed(t.status) && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: logTaskTitle(t), description: logTaskDetails(t) || t.description }} />}
             <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
           </div>
         )}

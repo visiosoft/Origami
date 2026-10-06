@@ -112,6 +112,8 @@ export class TaskEntity {
   @Column() status!: string;
   @Column({ nullable: true }) originator!: string;
   @Column() topicType!: string;
+  /** The task's name. Older tasks have none: their first description line serves as the name. */
+  @Column({ nullable: true }) subject!: string;
   @Column(TEXT) description!: string;
   @Column({ nullable: true }) dueDate!: string;
   // HH:mm, set when a task is created from a specific slot on My Calendar --

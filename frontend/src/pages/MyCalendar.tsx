@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { logTaskTitle } from '../data/tasks';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -115,7 +116,7 @@ export function MyCalendar() {
         const mine = rows
           .filter((t) => isMine(t, currentUser) && ISO_DATE.test(t.dueDate) && ISO_TIME.test(t.dueTime || ''))
           .map((t) => ({
-            id: `task-${t.id}`, summary: t.description || 'Task', isTask: true, allDay: false,
+            id: `task-${t.id}`, summary: logTaskTitle(t) || 'Task', isTask: true, allDay: false,
             start: `${t.dueDate}T${t.dueTime}:00`,
             end: `${t.dueDate}T${t.dueTime}:00`,
           }));
@@ -373,7 +374,7 @@ export function MyCalendar() {
             // refetch + the "am I the assignee" match to land.
             if (created?.dueDate && created?.dueTime) {
               setMyTasks((prev) => [...prev, {
-                id: `task-pending-${Date.now()}`, summary: created.description || 'Task', isTask: true, allDay: false,
+                id: `task-pending-${Date.now()}`, summary: created.subject || created.description || 'Task', isTask: true, allDay: false,
                 start: `${created.dueDate}T${created.dueTime}:00`, end: `${created.dueDate}T${created.dueTime}:00`,
               }]);
             }

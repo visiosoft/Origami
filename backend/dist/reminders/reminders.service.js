@@ -26,6 +26,7 @@ const google_service_1 = require("../google/google.service");
 const reminder_templates_1 = require("./reminder.templates");
 const shell_1 = require("../email/shell");
 const log_statuses_1 = require("../tasks/log-statuses");
+const tasks_service_1 = require("../tasks/tasks.service");
 const DAY = 86400000;
 const HOUR = 3600000;
 exports.DEFAULT_REMINDER_TIMEZONE = 'America/Los_Angeles';
@@ -152,7 +153,7 @@ let RemindersService = class RemindersService {
             if (!mine && !following(t.collaborators))
                 continue;
             out.push({
-                id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
+                id: t.id, title: (0, tasks_service_1.taskTitle)(t).slice(0, 90), dueDate: t.dueDate,
                 project: t.project || '', where: 'log', following: !mine,
                 url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
             });
