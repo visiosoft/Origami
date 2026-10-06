@@ -49,12 +49,17 @@ export const PROJECTS: Project[] = [
   { id: 7, priority: 'Low', name: 'Design & Permit Sequence DETAILED DATES', location: 'Program-wide', typeOfWork: 'Design · Permitting Program', contractType: 'Consulting', contractAmt: '$68,000', estStart: 'Ongoing', duration: 'Rolling', scope: 'Master permit and design milestone tracking across all active jobs', stage: 'Design', progress: 40, referral: '', contactedBy: 'Edward', imgColor: '#2C5F58', img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=200&fit=crop' },
 ];
 
+// `name` is the stored stage; `label` is what people see. Kickoff holds leads and
+// won-but-not-started work, so it reads as CRM; Closeout reads as Closed.
 export const STAGE_CONFIG = [
-  { name: 'Kickoff', color: 'var(--muted)' },
-  { name: 'Design', color: 'var(--c-245c3a)' },
-  { name: 'Construction', color: 'var(--forest)' },
-  { name: 'Closeout', color: 'var(--sidebar)' },
+  { name: 'Kickoff', label: 'CRM', color: 'var(--muted)' },
+  { name: 'Design', label: 'Design', color: 'var(--c-245c3a)' },
+  { name: 'Construction', label: 'Construction', color: 'var(--forest)' },
+  { name: 'Closeout', label: 'Closed', color: 'var(--sidebar)' },
 ] as const;
+
+/** The name shown for a stored project stage. */
+export const stageLabel = (stage?: string) => STAGE_CONFIG.find((s) => s.name === stage)?.label || stage || '';
 
 export const PR_COLORS: Record<string, { bg: string; c: string }> = {
   High: { bg: '#F2DFD4', c: '#8E2E0A' },

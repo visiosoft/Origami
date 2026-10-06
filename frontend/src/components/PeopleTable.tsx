@@ -1,4 +1,4 @@
-import type { Person } from '../data/people';
+import { internalLevelOf, type Person } from '../data/people';
 import './PeopleTable.css';
 
 /** Soft avatar colours, picked from the name so a person keeps theirs. */
@@ -7,6 +7,9 @@ const toneFor = (name: string) => AVATAR_TONES[[...name].reduce((h, c) => (h * 3
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
 /** How each kind reads in the Type column. */
+const LEVEL_PILL: Record<string, string> = {
+  Executive: 'pt-pill is-exec', Staff: 'pt-pill is-staff', Super: 'pt-pill is-warm', Foreman: 'pt-pill is-warm', Labor: 'pt-pill is-soft',
+};
 const TYPE_PILL: Record<Person['kind'], string> = {
   Staff: 'pt-pill is-staff', Client: 'pt-pill is-client', Consultant: 'pt-pill is-soft', Sub: 'pt-pill is-warm',
   Authority: 'pt-pill is-soft', Vendor: 'pt-pill is-soft',
@@ -67,7 +70,9 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
             </span>
             <span className="pt-cell pt-hide-sm">{p.since || '—'}</span>
             <span className="pt-type">
-              <span className={TYPE_PILL[p.kind] || 'pt-pill is-soft'}><i />{p.kind}</span>
+              {(() => { const lv = internalLevelOf(p); return lv
+                ? <span className={LEVEL_PILL[lv]}><i />{lv}</span>
+                : <span className={TYPE_PILL[p.kind] || 'pt-pill is-soft'}><i />{p.kind === 'Sub' ? 'Sub' : p.kind}</span>; })()}
               {alert && <span className="pt-pill is-alert" title={p.comply?.label || 'Insurance or licence needs attention'}>!</span>}
             </span>
           </div>

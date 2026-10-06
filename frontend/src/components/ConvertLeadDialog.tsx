@@ -10,7 +10,7 @@ const inputStyle: React.CSSProperties = {
 
 /** Where a converted lead can land. Mirrors ProjectEntity.stage. */
 const PROJECT_STAGES = [
-  { key: 'Kickoff', label: 'Kickoff', hint: 'Won, but not started — sits at the top of the project list.' },
+  { key: 'Kickoff', label: 'CRM (won, not started)', hint: 'Won, but not started — stays in the CRM column of the project list.' },
   { key: 'Design', label: 'Design & Preconstruction', hint: 'Straight into design and preconstruction.' },
   { key: 'Construction', label: 'Construction', hint: 'Already building.' },
 ];

@@ -1,4 +1,5 @@
-﻿import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { stageLabel } from '../data/projects';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { AllFiles } from '../components/AllFiles';
 import { ClientWelcomeCard, LeadFilesTab, LeadStageFiles, useLeadFiles } from '../components/LeadFiles';
 import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
@@ -2197,7 +2198,7 @@ export function Pipeline() {
             setDeals((prev) => prev.filter((d) => d.id !== converting.id));
             setConverting(null);
             setSelectedId(null);
-            toast(`${project.name} created in ${project.stage}`);
+            toast(`${project.name} created in ${stageLabel(project.stage)}`);
           }}
         />
       )}

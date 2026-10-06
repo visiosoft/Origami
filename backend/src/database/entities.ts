@@ -63,6 +63,8 @@ export class PersonEntity {
   @Column() company!: string;
   @Column({ type: 'nvarchar', length: 255, nullable: true }) contact!: string | null;
   @Column() kind!: string;
+  /** For internal people (kind Staff): Executive | Staff | Super | Foreman | Labor. Empty = worked out from their role. */
+  @Column({ nullable: true }) internalLevel!: string;
   @Column() tier!: string;
   @Column() phone!: string;
   @Column() email!: string;

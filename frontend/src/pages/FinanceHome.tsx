@@ -1,3 +1,4 @@
+import { stageLabel } from '../data/projects';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -163,7 +164,7 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {(rows || []).map((r) => (
               <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
-                <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{r.stage}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
+                <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{stageLabel(r.stage)}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
                 {r.hasClientContract ? <>
                   {num(r.revisedContract)}{num(r.contractWorkInvoiced)}{num(r.paid)}
                   <span style={{ textAlign: 'right', color: r.overdueCount ? DANGER : undefined }}>{usd0(r.arOutstanding)}{r.overdueCount ? <div style={{ fontSize: 11 }}>{usd0(r.overdue)} overdue</div> : null}</span>

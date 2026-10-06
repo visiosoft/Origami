@@ -20,6 +20,7 @@ export class CreatePersonDto {
   @IsString() @IsOptional() company?: string;
   @IsString() @IsOptional() contact?: string;
   @IsString() @IsOptional() kind?: string;   // Staff | Client | Consultant | Sub | Authority | Vendor
+  @IsString() @IsOptional() internalLevel?: string;   // Staff only: Executive | Staff | Super | Foreman | Labor
   @IsString() @IsOptional() tier?: string;   // Internal | Client | Consultant
   @IsString() @IsOptional() phone?: string;
   @IsString() @IsOptional() email?: string;

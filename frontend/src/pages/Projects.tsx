@@ -21,7 +21,7 @@ import { RichTextEditor } from '../components/RichTextEditor';
 import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { STAGE_CONFIG, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
+import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 
 const BG = 'var(--font-display)';
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
@@ -579,7 +579,7 @@ export function Projects() {
               <div style={{ height: 4, borderRadius: 999, background: st.color, margin: '0 4px 8px' }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '0 4px' }}>
                 <div style={{ width: 13, height: 13, borderRadius: 999, background: st.color, boxShadow: '0 0 0 3px ' + tint(st.color, '2E') }} />
-                <span style={{ fontFamily: BG, fontWeight: 700, fontSize: 15 }}>{st.name}</span>
+                <span style={{ fontFamily: BG, fontWeight: 700, fontSize: 15 }}>{st.label}</span>
                 <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--muted)', background: 'var(--sand)', padding: '2px 10px', borderRadius: 999 }}>{stageProjects.length}</span>
               </div>
               <div
@@ -602,7 +602,7 @@ export function Projects() {
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${tint(sel.imgColor, 'cc')})`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(0,0,0,0.45)', color: 'white' }}>{sel.stage}</span>
+                <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(0,0,0,0.45)', color: 'white' }}>{stageLabel(sel.stage)}</span>
                 <span style={{ padding: '3px 11px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, background: 'rgba(255,255,255,0.92)', color: PR_COLORS[sel.priority].c }}>{sel.priority}</span>
                 <HoldBadge project={sel} size="md" />
                 {canManage && !isOnHold(sel) && holdFormFor !== sel.id && (
@@ -1347,7 +1347,7 @@ export function Projects() {
                   ) : kind === 'select-priority' ? (
                     <select value={(np as any)[key as string] || 'Medium'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{PRIORITIES.map((o) => <option key={o}>{o}</option>)}</select>
                   ) : kind === 'select-stage' ? (
-                    <select value={(np as any)[key as string] || 'Kickoff'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{STAGES.map((o) => <option key={o}>{o}</option>)}</select>
+                    <select value={(np as any)[key as string] || 'Kickoff'} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>{STAGES.map((o) => <option key={o} value={o}>{stageLabel(o)}</option>)}</select>
                   ) : kind === 'select-lead' ? (
                     <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>
                       <option value="">— None —</option>

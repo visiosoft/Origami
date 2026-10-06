@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { MyTasks } from '../components/MyTasks';
-import { PR_COLORS, type Project } from '../data/projects';
+import { PR_COLORS, stageLabel, type Project } from '../data/projects';
 import type { Person } from '../data/people';
 import './Dashboard.css';
 
@@ -94,7 +94,7 @@ export function ClientDashboard() {
             <div key={p.id} onClick={() => navigate(`/my-program?projectId=${p.id}`)} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', padding: 16, cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{p.name}</div>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: c.bg, color: c.c, flexShrink: 0 }}>{p.stage}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: c.bg, color: c.c, flexShrink: 0 }}>{stageLabel(p.stage)}</span>
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>{p.location} · {p.typeOfWork}</div>
               <div style={{ height: 6, borderRadius: 3, background: '#EDEAE3', overflow: 'hidden' }}>

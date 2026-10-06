@@ -13,17 +13,25 @@ import { api } from '../api';
 import { PersonProfileEditor } from '../components/PersonProfileEditor';
 import { normalizeProfile, personDisplayName, missingFields, type PersonProfile } from '../data/personProfile';
 import {
-  KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, initials, type Person, type Comply,
+  KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, INTERNAL_LEVELS, initials, internalLevelOf, levelFromRole, type Person, type Comply,
 } from '../data/people';
 
 const BG = 'var(--font-display)';
-const KINDS = ['All', 'Staff', 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'];
+// Internal people are split by level (Executive … Labor); everyone else by kind.
+const KINDS = ['All', ...INTERNAL_LEVELS, 'Client', 'Consultant', 'Sub', 'Authority', 'Vendor'];
+const isLevel = (k: string) => (INTERNAL_LEVELS as readonly string[]).includes(k);
+const matchKind = (p: Person, k: string) => k === 'All' || (isLevel(k) ? internalLevelOf(p) === k : p.kind === k);
+const kindLabel = (k: string) => (k === 'Sub' ? 'Subs' : k);
+/** What the type badge says: the level for internal people, the kind for everyone else. */
+const typeOf = (p: Person) => internalLevelOf(p) || p.kind;
 
 interface NewPerson {
   name: string; kind: Person['kind']; role: string; company: string; contact: string;
   phone: string; email: string; tier: Person['tier']; projects: string[]; complyDate: string; complyRef: string;
+  /** Internal people: their level; '' = worked out from the role. */
+  internalLevel: string;
 }
-const BLANK: NewPerson = { name: '', kind: 'Consultant', role: '', company: '', contact: '', phone: '', email: '', tier: 'Consultant', projects: [], complyDate: '', complyRef: '' };
+const BLANK: NewPerson = { name: '', kind: 'Consultant', role: '', company: '', contact: '', phone: '', email: '', tier: 'Consultant', projects: [], complyDate: '', complyRef: '', internalLevel: '' };
 
 /** What the directory stores for a person, composed from the form and the profile editor. */
 function personPayload(np: NewPerson, profile: PersonProfile): Record<string, any> {
@@ -34,6 +42,7 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
     company: np.company.trim() || np.name.trim(),
     contact: np.contact.trim() || undefined,
     kind: np.kind,
+    internalLevel: np.kind === 'Staff' ? np.internalLevel : '',
     tier: np.tier,
     phone: np.phone.trim() || '—',
     email: np.email.trim() || '—',
@@ -113,13 +122,13 @@ export function People() {
   const projectNames: string[] = [];
   all.forEach((p) => p.projects.forEach((pr) => { if (!projectNames.includes(pr)) projectNames.push(pr); }));
 
-  let shown = kf === 'All' ? all : all.filter((p) => p.kind === kf);
+  let shown = all.filter((p) => matchKind(p, kf));
   if (pf !== 'All projects') shown = shown.filter((p) => p.projects.includes(pf));
   if (onlyAlerts) shown = shown.filter((p) => p.comply && !p.comply.ok);
   const qn = q.trim().toLowerCase();
   if (qn) shown = shown.filter((p) => [p.name, p.role, p.company, p.email, p.contact, ...p.projects].some((v) => (v || '').toLowerCase().includes(qn)));
   const alertCount = all.filter((p) => p.comply && !p.comply.ok).length;
-  const kindCount = (k: string) => (k === 'All' ? all.length : all.filter((p) => p.kind === k).length);
+  const kindCount = (k: string) => all.filter((p) => matchKind(p, k)).length;
   const pickedShown = shown.filter((p) => picked.has(p.id));
   const togglePick = (id: number) => setPicked((s0) => { const n = new Set(s0); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const exportPicked = () => {
@@ -186,7 +195,7 @@ export function People() {
     startPersonForm({
       name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '',
       phone: p.phone === '—' ? '' : p.phone, email: p.email === '—' ? '' : p.email, tier: p.tier,
-      projects: [...p.projects], complyDate: p.comply?.date || '', complyRef: p.comply?.extra || '',
+      projects: [...p.projects], complyDate: p.comply?.date || '', complyRef: p.comply?.extra || '', internalLevel: p.internalLevel || '',
     }, normalizeProfile(p as any), p.id);
   };
   const closePersonForm = () => {
@@ -215,7 +224,7 @@ export function People() {
                 <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{p.role}</div>
                 <div style={{ fontSize: 10.5, color: 'var(--muted)' }}>{p.company}</div>
               </div>
-              <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, flexShrink: 0 }}>{p.kind}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, flexShrink: 0 }}>{typeOf(p)}</span>
             </div>
             <ProjChips p={p} max={3} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTop: '1px solid rgba(var(--rgb-shade), 0.05)' }}>
@@ -246,7 +255,7 @@ export function People() {
                 <div style={{ fontSize: 10.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role} · {p.company}</div>
               </div>
             </div>
-            <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{p.kind}</span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{typeOf(p)}</span>
             <ProjChips p={p} max={2} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}><PhoneLink phone={p.phone} /></div>
@@ -372,7 +381,7 @@ export function People() {
       </div>
       <div className="pp-filters">
         {KINDS.filter((k) => k === 'All' || kindCount(k) > 0).map((k) => (
-          <button type="button" key={k} className={'pp-chip' + (kf === k ? ' is-on' : '')} onClick={() => setKf(k)}>{k} <small>{kindCount(k)}</small></button>
+          <button type="button" key={k} className={'pp-chip' + (kf === k ? ' is-on' : '')} onClick={() => setKf(k)}>{kindLabel(k)} <small>{kindCount(k)}</small></button>
         ))}
         {alertCount > 0 && (
           <button type="button" className={'pp-chip is-alert' + (onlyAlerts ? ' is-on' : '')} onClick={() => setOnlyAlerts((v) => !v)}>Compliance <small>{alertCount}</small></button>
@@ -439,7 +448,7 @@ export function People() {
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', width: '100%' }}>
-          {KINDS.map((k) => chip(k, kf === k, () => setKf(k)))}
+          {KINDS.filter((k) => !isLevel(k) || kindCount(k) > 0).map((k) => chip(kindLabel(k), kf === k, () => setKf(k)))}
           <div style={{ marginLeft: 'auto', position: 'relative' }}>
             <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'var(--surface)' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
               <span>{pf}</span>
@@ -576,6 +585,16 @@ export function People() {
                   ))}
                 </div>
               </div>
+              {np.kind === 'Staff' && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  {lbl('Internal level', np.internalLevel ? 'set by hand' : 'from their role: ' + levelFromRole(np.role))}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {(['', ...INTERNAL_LEVELS] as string[]).map((o) => (
+                      <div key={o || 'auto'} onClick={() => setNp({ ...np, internalLevel: o })} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: np.internalLevel === o ? 'var(--forest)' : 'var(--surface)', color: np.internalLevel === o ? 'white' : 'var(--muted)', border: '1px solid ' + (np.internalLevel === o ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{o || 'From role'}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {np.kind === 'Staff' && editingId == null && (
                 // Staff are employees too: one record, added with the full employee form.
                 <div style={{ gridColumn: '1 / -1', padding: '14px 16px', borderRadius: 'var(--r-12)', background: 'var(--mist)', border: '1px solid var(--c-b9cdbd)', display: 'grid', gap: 10 }}>

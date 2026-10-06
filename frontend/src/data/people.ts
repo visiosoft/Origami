@@ -14,6 +14,8 @@ export interface Person {
   company: string;
   contact?: string;
   kind: 'Staff' | 'Client' | 'Consultant' | 'Sub' | 'Authority' | 'Vendor';
+  /** Internal people only; empty means it is worked out from the role (see internalLevelOf). */
+  internalLevel?: string;
   tier: 'Internal' | 'Client' | 'Consultant';
   phone: string;
   email: string;
@@ -79,3 +81,24 @@ export const PEOPLE: Person[] = [
 ];
 
 export const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+/** The levels inside the internal team, top to bottom. */
+export const INTERNAL_LEVELS = ['Executive', 'Staff', 'Super', 'Foreman', 'Labor'] as const;
+export type InternalLevel = typeof INTERNAL_LEVELS[number];
+
+/** The level a role title suggests, for internal people nobody has set one for. */
+export function levelFromRole(role?: string): InternalLevel {
+  const r = (role || '').toLowerCase();
+  if (/\b(principal|owner|founder|president|ceo|coo|cfo|chief|director|partner|executive|vp|vice president)\b/.test(r)) return 'Executive';
+  if (/\bsuperintendent|\bsuper\b/.test(r)) return 'Super';
+  if (/\bforem[ae]n\b/.test(r)) return 'Foreman';
+  if (/\b(labou?r|labou?rer|laborers|worker|helper|apprentice|carpenter|electrician|plumber|painter|mason|operator)\b/.test(r)) return 'Labor';
+  return 'Staff';
+}
+
+/** An internal person's level: the one set on their record, else what their role suggests. Null for everyone else. */
+export function internalLevelOf(p: Pick<Person, 'kind' | 'role' | 'internalLevel'>): InternalLevel | null {
+  if (p.kind !== 'Staff') return null;
+  const set = (INTERNAL_LEVELS as readonly string[]).includes(p.internalLevel || '') ? p.internalLevel as InternalLevel : null;
+  return set || levelFromRole(p.role);
+}

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06d',
+    date: '2026-10-06',
+    title: 'Projects by CRM, Design, Construction, Closed; people by level',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'The project board’s columns now read CRM, Design, Construction and Closed. CRM holds leads and won work that hasn’t started; Closed is what used to be Closeout.', where: 'Projects' },
+      { area: 'People', kind: 'new', text: 'The internal team is split by level: Executive, Staff, Super, Foreman and Labor, each with its own filter. A level is suggested from the person’s role title (Principal → Executive, Superintendent → Super, Foreman, Laborer → Labor) and can be set by hand on their record.', where: 'People → filter chips · person form → Internal level' },
+    ],
+  },
+  {
     id: '2026-10-06c',
     date: '2026-10-06',
     title: 'A new menu',

@@ -46,6 +46,7 @@ export declare class PersonEntity {
     company: string;
     contact: string | null;
     kind: string;
+    internalLevel: string;
     tier: string;
     phone: string;
     email: string;

@@ -16,6 +16,7 @@ export declare class CreatePersonDto {
     company?: string;
     contact?: string;
     kind?: string;
+    internalLevel?: string;
     tier?: string;
     phone?: string;
     email?: string;
