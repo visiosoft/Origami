@@ -62,7 +62,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoadingAccess(false));
   }, []);
 
-  useEffect(() => { refreshAccess(); }, [refreshAccess]);
 
   // Restore the session on load: the stored token is only trusted after the
   // server confirms it still resolves to a real user. Only a real "not signed
@@ -87,6 +86,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { stopped = true; window.clearTimeout(timer); };
   }, []);
 
+  // Load the user and role lists once we know who's signed in -- again after a
+  // reconnect, so a first load during a server restart doesn't leave them empty.
+  const authId = authUser?.id;
+  useEffect(() => { if (authId) refreshAccess(); }, [authId, refreshAccess]);
+
   const signIn = useCallback((token: string, user?: User) => {
     session.set(token);
     setAuthReady(true);
@@ -98,8 +102,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     api.auth.me()
       .then((u) => { setAuthUser(u as User); setCurrentUserIdState((u as User).id); })
       .catch(() => { /* keep the optimistic user */ });
-    refreshAccess();
-  }, [refreshAccess]);
+  }, []);
 
   const signOut = useCallback(() => {
     // Clear the cookie too, or the browser would still be signed in for the
@@ -125,12 +128,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const can = useCallback(
     (moduleKey: string, action: Action = 'view'): boolean => {
-      // Before we know who's signed in, don't hide anything (avoids a nav flash).
-      if (loadingAccess || !authUser) return true;
-      if (!currentRole) return authUser.roleKey === 'admin';
+      // Nothing is allowed until we know who's signed in. Your own role (from
+      // who-am-I) decides even while the full role list is still loading -- this
+      // used to allow everything while loading, so a refresh during a server
+      // restart showed a superintendent every page in the menu.
+      if (!authUser) return false;
+      if (authUser.roleKey === 'admin') return true;
+      if (!currentRole) return false;
       return canFor(currentRole, moduleKey, action);
     },
-    [loadingAccess, authUser, currentRole],
+    [authUser, currentRole],
   );
 
   return (

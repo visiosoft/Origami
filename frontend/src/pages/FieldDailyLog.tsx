@@ -12,7 +12,7 @@ interface Day { notes: string; entries: Entry[] }
 interface Log { id: string | null; status: string; rejectionNote?: string; submittedAt?: string; approvedByName?: string }
 interface Emp { id: string; name: string; workerId?: string; tradeId?: string; trade?: string; designation?: string; employmentStatus?: string; status?: string }
 interface Code { id: string; code: string; division: string; active: boolean }
-interface Assign { employeeId: string; projectId: number; startDate: string; endDate?: string }
+interface Assign { employeeId: string; projectId: number; startDate: string; endDate?: string; status?: string }
 
 const INK = 'var(--ink)';
 const MUTED = 'var(--muted)';
@@ -92,8 +92,12 @@ export function FieldDailyLog() {
     }).catch(() => { });
     api.employees.list().then((r: any) => setEmployees((Array.isArray(r) ? r : []).filter((e: Emp) => !LEFT.includes(e.employmentStatus || '') && e.status !== 'inactive'))).catch(() => { });
     api.csiCodes.list().then((r: any) => setCodes((Array.isArray(r) ? r : []).filter((c: Code) => c.active))).catch(() => { });
-    api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => { });
   }, []);
+  // Everyone ever deployed to this project (ended ones too, for past days); who counts for the day is worked out below.
+  useEffect(() => {
+    if (!projectId) { setAssignments([]); return; }
+    api.assignments.list({ projectId: Number(projectId) }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => setAssignments([]));
+  }, [projectId]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -126,9 +130,25 @@ export function FieldDailyLog() {
     },
   });
 
-  // ---- rows: only the employees deployed to this project (Manpower -> Deployment),
-  // those on the log first. Anyone already on the log stays visible so they can be taken off.
-  const onSite = useMemo(() => new Set(assignments.filter((a) => a.projectId === projectId && a.startDate <= date && (!a.endDate || a.endDate >= date)).map((a) => a.employeeId)), [assignments, projectId, date]);
+  // ---- rows: every worker assigned to this project (Manpower -> Deployment), those on the
+  // log first. A deployment counts if it covers the day; one that hasn't started yet still
+  // lists the worker (marked with its start), so the superintendent can log the whole crew.
+  // Anyone already on the log stays visible so they can be taken off, and anyone else can be added.
+  const onSite = useMemo(() => {
+    const d10 = (v?: string) => (v || '').slice(0, 10);
+    const m = new Map<string, string>(); // employeeId -> note ('' when deployed on the day)
+    for (const a of assignments) {
+      if (a.projectId !== projectId) continue;
+      const start = d10(a.startDate), end = d10(a.endDate);
+      if (end && end < date) continue;                 // finished before this day
+      if (a.status === 'ended' && !end) continue;     // ended, no date to go by
+      if (!start || start <= date) m.set(a.employeeId, '');
+      else if (a.status !== 'ended' && !m.has(a.employeeId)) m.set(a.employeeId, 'starts ' + new Date(start + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    }
+    return m;
+  }, [assignments, projectId, date]);
+  const [adding, setAdding] = useState(false);
+  const [pickQ, setPickQ] = useState('');
   const entryOf = (id: string) => draft.entries.find((e) => e.employeeId === id);
   const inLog = new Set(draft.entries.map((e) => e.employeeId));
   const q = query.trim().toLowerCase();
@@ -211,8 +231,9 @@ export function FieldDailyLog() {
             <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp?.name || 'Unknown worker'}</div>
             <div style={{ fontSize: 11, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {[emp?.workerId, emp?.trade || emp?.designation].filter(Boolean).join(' · ')}
-              {!onSite.has(id) && <span style={{ marginLeft: 6, fontWeight: 700, color: 'var(--c-8a6d12)' }}>not deployed here</span>}
             </div>
+            {!onSite.has(id) && <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--c-8a6d12)' }}>Not deployed here</div>}
+            {!!onSite.get(id) && <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED }}>Deployment {onSite.get(id)}</div>}
           </div>
         </div>
         {/* hours */}
@@ -274,14 +295,38 @@ export function FieldDailyLog() {
             <span style={{ padding: '6px 12px', borderRadius: 999, background: st[0], color: st[1], fontSize: 12.5, fontWeight: 700 }}>{st[2]}</span>
             <span style={{ fontSize: 12.5, color: MUTED, fontVariantNumeric: 'tabular-nums' }}><b style={{ color: INK }}>{draft.entries.length}</b> on the log · <b style={{ color: INK }}>{totalHours}</b> h{noCode ? <span style={{ color: 'var(--c-8a6d12)' }}> · {noCode} need a cost code</span> : null}</span>
             <div style={{ flex: 1 }} />
-            <span style={{ fontSize: 12.5, color: MUTED }}><b style={{ color: INK }}>{onSite.size}</b> deployed to this project</span>
+            <span style={{ fontSize: 12.5, color: MUTED }}><b style={{ color: INK }}>{onSite.size}</b> assigned to this project</span>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
           </div>
           {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 13, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 'var(--r-12)', padding: 12 }}>Sent back: {log.rejectionNote}</div>}
 
           {editable && (
-            <Card style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)' }}>
+            <Card style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)', position: 'relative', zIndex: 6 }}>
               {crewMissing > 0 && <button type="button" onClick={addCrew} style={pill(true)}>+ Put the crew on the log ({crewMissing}) · 8 h</button>}
+              <div style={{ position: 'relative' }}>
+                <button type="button" onClick={() => { setAdding((a) => !a); setPickQ(''); }} style={pill(adding)}>+ Add worker</button>
+                {adding && (() => {
+                  const pq = pickQ.trim().toLowerCase();
+                  const others = employees.filter((e) => !inLog.has(e.id) && (!pq || [e.name, e.workerId, e.trade, e.designation].filter(Boolean).join(' ').toLowerCase().includes(pq)))
+                    .sort((a, b) => Number(onSite.has(b.id)) - Number(onSite.has(a.id)) || a.name.localeCompare(b.name)).slice(0, 8);
+                  return (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20, width: 300, background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', boxShadow: '0 12px 32px rgba(var(--rgb-ink), .14)', padding: 8 }}>
+                      <input autoFocus value={pickQ} onChange={(e) => setPickQ(e.target.value)} placeholder="Name, worker ID or trade…" style={{ ...cellInput, height: 34 }}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setAdding(false); if (e.key === 'Enter' && others[0]) { patch(others[0].id, {}); setAdding(false); } }} />
+                      <div style={{ display: 'grid', marginTop: 6, maxHeight: 280, overflowY: 'auto' }}>
+                        {others.map((e) => (
+                          <button key={e.id} type="button" onClick={() => { patch(e.id, {}); setAdding(false); }}
+                            style={{ display: 'grid', textAlign: 'left', padding: '7px 8px', border: 0, borderRadius: 8, background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: INK }}>{e.name}</span>
+                            <span style={{ fontSize: 11, color: MUTED }}>{[e.workerId, e.trade || e.designation, onSite.has(e.id) ? 'assigned here' : 'not deployed here'].filter(Boolean).join(' · ')}</span>
+                          </button>
+                        ))}
+                        {!others.length && <span style={{ fontSize: 12.5, color: MUTED, padding: 8 }}>No one else matches.</span>}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
               {draft.entries.length > 1 && (
                 <>
                   <span style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 4 }}>Fill down</span>
@@ -308,7 +353,7 @@ export function FieldDailyLog() {
               {orphans.map((e, k) => row(undefined, e.employeeId, rows.length + k))}
               {!rows.length && !orphans.length && (
                 <div style={{ padding: 22, fontSize: 13, color: MUTED, textAlign: 'center', borderTop: '1px solid ' + LINE }}>
-                  {q ? 'No one matches that search.' : 'Nobody is deployed to this project on this day. The office assigns the crew in Manpower → Deployment.'}
+                  {q ? 'No one matches that search.' : <>Nobody is assigned to this project for this day yet. Use <b style={{ color: INK }}>+ Add worker</b> to log anyone who worked here — the office assigns the regular crew in Manpower → Deployment.</>}
                 </div>
               )}
             </div>

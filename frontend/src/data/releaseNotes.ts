@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06p',
+    date: '2026-10-06',
+    title: 'Daily log: the whole crew, and a menu fix',
+    items: [
+      { area: 'Daily Log (field)', kind: 'improved', text: 'The superintendent’s daily log lists every worker assigned to the project in Manpower → Deployment — including people whose deployment starts later (marked “Deployment starts Oct 8”) and, on past days, people whose deployment has since ended. “+ Add worker” puts anyone else on the log (marked “Not deployed here”), so a whole day’s crew can always be submitted.', where: 'Daily Log (field)' },
+      { area: 'Access', kind: 'fixed', text: 'Refreshing while an update was being installed could briefly show every page in the menu to someone whose role doesn’t include them (for example a superintendent). The menu now always follows your own role.', where: 'Side menu' },
+    ],
+  },
+  {
     id: '2026-10-06o',
     date: '2026-10-06',
     title: 'Search the menu',
