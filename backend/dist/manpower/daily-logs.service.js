@@ -44,7 +44,18 @@ let DailyLogsService = class DailyLogsService {
             where.status = opts.status;
         if (opts.projectId != null)
             where.projectId = opts.projectId;
-        return this.logs.find({ where, order: { date: 'DESC' } });
+        const logs = await this.logs.find({ where, order: { date: 'DESC' } });
+        if (!logs.length)
+            return logs;
+        const entries = await this.entries.find({ where: { dailyLogId: (0, typeorm_2.In)(logs.map((l) => l.id)) } });
+        const sum = new Map();
+        for (const e of entries) {
+            const v = sum.get(e.dailyLogId) || { crew: 0, hours: 0 };
+            v.crew += 1;
+            v.hours += Number(e.hours) || 0;
+            sum.set(e.dailyLogId, v);
+        }
+        return logs.map((l) => ({ ...l, crewCount: sum.get(l.id)?.crew || 0, totalHours: Math.round((sum.get(l.id)?.hours || 0) * 100) / 100 }));
     }
     async getForDay(projectId, date) {
         const log = await this.logs.findOneBy({ projectId, date });

@@ -39,10 +39,10 @@ async function loadTargets(projectId: number): Promise<Targets> {
  * Change orders -- one project's (inside its Financial tab) or every project's
  * (the Change Orders log).
  */
-export function ChangeOrderList({ projectId, overview, rights, onChanged }: { projectId?: number; overview?: Overview; rights: Rights; onChanged?: () => void }) {
+export function ChangeOrderList({ projectId, overview, rights, onChanged, openId }: { projectId?: number; overview?: Overview; rights: Rights; onChanged?: () => void; openId?: string | null }) {
   const { toast } = useApp();
   const [rows, setRows] = useState<ChangeOrder[] | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(openId || null);
   const [adding, setAdding] = useState(false);
   const [status, setStatus] = useState('all');
   const [q, setQ] = useState('');

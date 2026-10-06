@@ -13,7 +13,7 @@ export interface Task {
   /** One of the Request Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
   status: string;
   originator: string;
-  topicType: 'Task' | 'FYI' | 'RFI';
+  topicType: 'Task' | 'FYI' | 'Observation' | 'RFI';
   /** The task's name. Older tasks have none: their first description line serves as the name. */
   subject?: string;
   description: string;
@@ -107,6 +107,7 @@ export const ST_COLORS: Record<string, { bg: string; c: string }> = {
 export const TT_COLORS: Record<string, { bg: string; c: string }> = {
   Task: { bg: 'var(--mint)', c: 'var(--forest)' },
   FYI: { bg: 'var(--amber-light)', c: '#93520F' },
+  Observation: { bg: '#EAE0F3', c: '#5B2E86' },
   RFI: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 export const MT_COLORS: Record<string, { bg: string; c: string }> = {

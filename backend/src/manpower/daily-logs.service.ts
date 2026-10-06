@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { DailyLogEntity, LaborLogEntryEntity } from '../database/entities';
 
 export interface ManpowerActor { name: string; id?: string }
@@ -30,7 +30,17 @@ export class DailyLogsService {
     const where: any = {};
     if (opts.status) where.status = opts.status;
     if (opts.projectId != null) where.projectId = opts.projectId;
-    return this.logs.find({ where, order: { date: 'DESC' } });
+    const logs = await this.logs.find({ where, order: { date: 'DESC' } });
+    if (!logs.length) return logs;
+    // Crew size and hours for each day, so lists (Daily Reports) needn't open every log.
+    const entries = await this.entries.find({ where: { dailyLogId: In(logs.map((l) => l.id)) } });
+    const sum = new Map<string, { crew: number; hours: number }>();
+    for (const e of entries) {
+      const v = sum.get(e.dailyLogId) || { crew: 0, hours: 0 };
+      v.crew += 1; v.hours += Number(e.hours) || 0;
+      sum.set(e.dailyLogId, v);
+    }
+    return logs.map((l) => ({ ...l, crewCount: sum.get(l.id)?.crew || 0, totalHours: Math.round((sum.get(l.id)?.hours || 0) * 100) / 100 }));
   }
 
   /** The day's log for a project, scaffolding an empty draft if none exists yet -- not saved until entries are written. */

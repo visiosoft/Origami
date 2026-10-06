@@ -11,6 +11,10 @@ import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { SuperintendentTasks, isSiteSuper } from './pages/SuperintendentHome';
 import { ModuleSpec } from './pages/ModuleSpec';
+import { HoldingReferOut } from './pages/HoldingReferOut';
+import { Observations } from './pages/Observations';
+import { DailyReports } from './pages/DailyReports';
+import { SpecialActions } from './pages/SpecialActions';
 import { FinanceHome } from './pages/FinanceHome';
 import { FinanceGuide } from './pages/FinanceGuide';
 import { Manpower } from './pages/Manpower';
@@ -108,6 +112,11 @@ export default function App() {
         <Route path="/changeorders" element={<FinanceHome initial="changes" />} />
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />
         <Route path="/rfis" element={<RfisPage />} />
+        <Route path="/crm_holding" element={<HoldingReferOut />} />
+        <Route path="/observations" element={<Observations />} />
+        <Route path="/daily_reports" element={<DailyReports />} />
+        <Route path="/actions_design" element={<SpecialActions key="design" phase="design" />} />
+        <Route path="/actions_con" element={<SpecialActions key="construction" phase="construction" />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

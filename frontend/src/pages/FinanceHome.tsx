@@ -1,6 +1,6 @@
 import { stageLabel } from '../data/projects';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, card, fmtDate, headRow, input } from '../components/manpowerUi';
@@ -33,6 +33,8 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
   const [rights, setRights] = useState<Rights | null>(null);
   const [tab, setTab] = useState<Tab>(initial);
   const [theme] = useTheme();
+  // ?co=<id> opens that change order (links from Special Actions).
+  const [params] = useSearchParams();
   const [project, setProject] = useState<{ id: number; name: string } | null>(null);
   useEffect(() => { api.finance.access().then((r: any) => setRights(r)).catch(() => setRights(null)); }, []);
   useEffect(() => { setTab(initial); }, [initial]);
@@ -63,7 +65,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
           {tab === 'approvals' && <Approvals rights={rights} onProject={setProject} />}
           {tab === 'portfolio' && <Portfolio onProject={setProject} />}
           {tab === 'reports' && <FinanceReports rights={rights} onProject={setProject} />}
-          {tab === 'changes' && <ChangeOrderList rights={rights} />}
+          {tab === 'changes' && <ChangeOrderList rights={rights} openId={params.get('co')} />}
           {tab === 'reimbursables' && (theme === 'coterie' ? <ReimbursementBoard rights={rights} /> : <ReimbursableList rights={rights} />)}
           {tab === 'audit' && <Audit />}
         </>

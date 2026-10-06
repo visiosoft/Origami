@@ -28,8 +28,10 @@ const blank = (project: string, labels: string[], dueDate = '', dueTime = '', as
  * so adding a task looks and works the same regardless of where it started.
  */
 export function NewTaskDrawer({
-  onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo, defaultDueDate, defaultDueTime, defaultDescription,
+  onClose, onCreated, fixedProject, sections, defaultSection, defaultAssignedTo, defaultDueDate, defaultDueTime, defaultDescription, defaultTopic,
 }: {
+  /** Preselects the topic type, e.g. 'Observation' from the Observations page. */
+  defaultTopic?: string;
   onClose: () => void;
   /** `task` is the saved task, so the host can open it for files, labels and a checklist. */
   onCreated: (created?: { dueDate: string; dueTime: string; subject: string; description: string; task?: any }) => void;
@@ -54,7 +56,8 @@ export function NewTaskDrawer({
     defaultAssignedTo || '',
   ),
   // Text handed in (e.g. a lead note turned into a task): its first line becomes the subject, the rest the description.
-  subject: taskHeadline(defaultDescription).title, description: taskHeadline(defaultDescription).details }));
+  subject: taskHeadline(defaultDescription).title, description: taskHeadline(defaultDescription).details,
+  ...(defaultTopic ? { topicType: defaultTopic } : {}) }));
   const [section, setSection] = useState(defaultSection || sections?.[0] || '');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [creating, setCreating] = useState(false);
@@ -103,7 +106,7 @@ export function NewTaskDrawer({
           ) : (
             <Fld label="Project"><select value={nt.project} onChange={(e) => setNt({ ...nt, project: e.target.value })} style={inputStyle}><option value="">General task — no project</option>{projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Fld>
           )}
-          <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
+          <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'Observation', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
           <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{statuses.map((s) => s.name).map((o) => <option key={o}>{o}</option>)}</select></Fld>
           {!fixedProject && (
             <Fld label="Meeting Type"><select value={nt.meetingType} onChange={(e) => setNt({ ...nt, meetingType: e.target.value })} style={inputStyle}>{['Internal', 'Owner', 'Subcontractor'].map((o) => <option key={o}>{o}</option>)}</select></Fld>

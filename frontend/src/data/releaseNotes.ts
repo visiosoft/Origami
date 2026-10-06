@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06r',
+    date: '2026-10-06',
+    title: 'Four new pages, and the menu reorganised',
+    items: [
+      { area: 'CRM', kind: 'new', text: 'Holding & Refer Out: every lead on hold with the date to pick it back up (overdue ones flagged), leads referred out and to whom, and cold or cancelled leads. Click one to open it on the CRM board.', where: 'CRM → Holding & Refer Out' },
+      { area: 'Special Actions', kind: 'new', text: 'Observations & FYI: the observations and FYIs raised from site or meetings, open ones first, with + Observation and + FYI to add one. They are Request Log entries, so a new topic type “Observation” sits beside Task, FYI and RFI.', where: 'Special Actions → Observations & FYI' },
+      { area: 'Construction', kind: 'new', text: 'Daily Reports: every site’s daily log — date, superintendent, crew, hours, notes and approval status. Click a day to see each worker’s hours, cost code and work done.', where: 'Construction → Daily Reports' },
+      { area: 'Special Actions', kind: 'new', text: 'Special Actions for Design & Preconstruction and for Construction: that phase’s RFIs, tasks, observations and FYIs, and change orders in one list, open and overdue first. Each row opens the RFI, task or change order itself.', where: 'Design & Preconstruction / Construction → Special Actions' },
+      { area: 'Menu', kind: 'improved', text: 'The menu follows the new outline: Design & Preconstruction is one section (with its own Manpower and Special Actions), Construction holds Project Management, Quality & Safety, Schedule, Manpower & Resource Management, Daily Reports and Special Actions, and Financial has Business, Project, Reimbursements, Resources and Affiliates. Consultant and subcontractor prequalifying share one entry.', where: 'Side menu' },
+    ],
+  },
+  {
     id: '2026-10-06q',
     date: '2026-10-06',
     title: 'Hear when a timesheet is submitted',
