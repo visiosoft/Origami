@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06i',
+    date: '2026-10-06',
+    title: 'Reimbursements page rebuilt around your expenses',
+    items: [
+      { area: 'Reimbursement', kind: 'improved', text: 'In the New look the Reimbursement page now follows how expenses actually move: four totals at the top (waiting for approval, approved and ready to bill, billed to clients, spent this month vs last), a status filter with counts, project filter and search, then every expense grouped by month with its amount, markup, receipt and status. Approve straight from the list; click an expense to open, edit or reject it. Spend by project and by category sits on the right, and expenses missing a receipt are called out.', where: 'Financial → Reimbursements' },
+    ],
+  },
+  {
     id: '2026-10-06h',
     date: '2026-10-06',
     title: 'Projects board in the New look',
