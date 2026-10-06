@@ -63,3 +63,18 @@ export function can(role: Role | undefined, moduleKey: string, action: Action = 
   const p = role.permissions?.[moduleKey];
   return !!p && !!p[action];
 }
+
+/** Granular finance permissions; stored in the role's permission map like modules (manage = allowed). */
+export const FIN_ACTIONS: [string, string, string][] = [
+  ['finx_prepare_invoice', 'Prepare invoices', 'draft, edit and send for approval'],
+  ['finx_issue_invoice', 'Issue invoices', 'issue, void, credit notes and write-offs'],
+  ['finx_record_payment', 'Record payments', 'record and void client payments'],
+  ['finx_approve_progress', 'Approve progress', 'approve reported progress for billing'],
+  ['finx_approve_co', 'Approve change orders', 'internal approval and client sign-off'],
+  ['finx_approve_reimb', 'Approve reimbursables', 'approve or reject expenses'],
+  ['finx_release_retention', 'Release retention', 'approve retention releases'],
+  ['finx_manage_costs', 'Record job costs', 'cost budget, subcontracts / POs and bills'],
+  ['finx_approve_costs', 'Approve job costs', 'approve, close and pay subcontracts, POs and bills'],
+  ['finx_view_profitability', 'See profitability', 'job cost, margins, WIP and cost reports'],
+];
+

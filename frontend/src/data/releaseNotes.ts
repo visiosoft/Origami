@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06l',
+    date: '2026-10-06',
+    title: 'User Access & Roles on one page',
+    items: [
+      { area: 'Admin', kind: 'improved', text: 'In the New look, people and roles are side by side. People: filter by Internal / Client / Consultant, search, change someone’s role from the list, see when they were last active or that their invite is pending, and re-send the invite, edit or remove them with the icons. Roles: one column per role with a switch for every module (off → view → manage), a quick “all of this group” count per section, and the finance actions underneath. Changes collect until you press Save changes. Click a role’s name to rename or delete it; + Role adds one.', where: 'Admin → User Access & Roles' },
+    ],
+  },
+  {
     id: '2026-10-06k',
     date: '2026-10-06',
     title: 'Task Board in the New look',

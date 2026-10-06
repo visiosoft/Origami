@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
+import { useTheme } from '../theme';
+import { AccessBoard } from '../components/AccessBoard';
 import {
-  MODULES, TIERS, TIER_STYLE, STATUS_STYLE,
+  MODULES, TIERS, TIER_STYLE, STATUS_STYLE, FIN_ACTIONS,
   type Role, type User, type Tier, type UserStatus,
 } from '../data/users';
 
@@ -23,6 +25,7 @@ export function Admin() {
   const { can } = useApp();
   const [active, setActive] = useState('users');
   const readOnly = !can('users', 'manage');
+  const [theme] = useTheme();
 
   const nav = (
     <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>
@@ -39,6 +42,8 @@ export function Admin() {
       ))}
     </div>
   );
+
+  if (theme === 'coterie') return <AccessBoard readOnly={readOnly} />;
 
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
@@ -335,19 +340,6 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
   );
 }
 
-/** Granular finance permissions; stored in the role's permission map like modules (manage = allowed). */
-const FIN_ACTIONS: [string, string, string][] = [
-  ['finx_prepare_invoice', 'Prepare invoices', 'draft, edit and send for approval'],
-  ['finx_issue_invoice', 'Issue invoices', 'issue, void, credit notes and write-offs'],
-  ['finx_record_payment', 'Record payments', 'record and void client payments'],
-  ['finx_approve_progress', 'Approve progress', 'approve reported progress for billing'],
-  ['finx_approve_co', 'Approve change orders', 'internal approval and client sign-off'],
-  ['finx_approve_reimb', 'Approve reimbursables', 'approve or reject expenses'],
-  ['finx_release_retention', 'Release retention', 'approve retention releases'],
-  ['finx_manage_costs', 'Record job costs', 'cost budget, subcontracts / POs and bills'],
-  ['finx_approve_costs', 'Approve job costs', 'approve, close and pay subcontracts, POs and bills'],
-  ['finx_view_profitability', 'See profitability', 'job cost, margins, WIP and cost reports'],
-];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
