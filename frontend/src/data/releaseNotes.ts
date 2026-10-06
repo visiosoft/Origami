@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-07c',
+    date: '2026-10-07',
+    title: 'Meetings',
+    items: [
+      { area: 'Special Actions', kind: 'new', text: 'Meetings: schedule a meeting (type, project, date, time, where), add who’s attending from the team or by name, and keep its agenda and minutes — all saved as you type. Mark it held or cancelled, or add it to your Google Calendar (attendees get the invite).', where: 'Special Actions → Meetings' },
+      { area: 'Special Actions', kind: 'new', text: 'Raise what came out of a meeting right from it: a task, FYI or observation goes to the Request Log linked to the meeting (the person it’s assigned to is emailed), and an RFI is drafted in the RFI log. Past meetings that were only recorded in the Request Log (by meeting type and date) are listed too, with their entries.', where: 'Special Actions → Meetings' },
+      { area: 'Special Actions', kind: 'improved', text: 'The Design & Preconstruction and Construction Special Actions pages now include that phase’s meetings.', where: 'Design & Preconstruction / Construction → Special Actions' },
+    ],
+  },
+  {
     id: '2026-10-07b',
     date: '2026-10-07',
     title: 'Business finances and the Schedule',

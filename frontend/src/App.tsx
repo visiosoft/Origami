@@ -17,6 +17,7 @@ import { DailyReports } from './pages/DailyReports';
 import { SpecialActions } from './pages/SpecialActions';
 import { BusinessFinance } from './pages/BusinessFinance';
 import { Schedule } from './pages/Schedule';
+import { Meetings } from './pages/Meetings';
 import { FinanceHome } from './pages/FinanceHome';
 import { FinanceGuide } from './pages/FinanceGuide';
 import { Manpower } from './pages/Manpower';
@@ -116,6 +117,7 @@ export default function App() {
         <Route path="/rfis" element={<RfisPage />} />
         <Route path="/fin_business" element={<BusinessFinance />} />
         <Route path="/schedule" element={<Schedule />} />
+        <Route path="/meetings" element={<Meetings />} />
         <Route path="/crm_holding" element={<HoldingReferOut />} />
         <Route path="/observations" element={<Observations />} />
         <Route path="/daily_reports" element={<DailyReports />} />

@@ -11,6 +11,8 @@ export class CreateTaskDto {
   @IsString() @IsOptional() status?: string;
   @IsString() @IsOptional() originator?: string;
   @IsString() @IsOptional() topicType?: string;
+  /** The meeting it was raised in. */
+  @IsString() @IsOptional() meetingId?: string;
   /** The task's name, kept apart from the description. */
   @IsString() @IsOptional() subject?: string;
   @IsString() @IsOptional() description?: string;

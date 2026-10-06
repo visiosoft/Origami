@@ -8,6 +8,7 @@ export declare class CreateTaskDto {
     status?: string;
     originator?: string;
     topicType?: string;
+    meetingId?: string;
     subject?: string;
     description?: string;
     dueDate?: string;

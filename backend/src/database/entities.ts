@@ -134,6 +134,35 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   @Column({ nullable: true }) updatedAt!: string;
+  /** The meeting this was raised in (MeetingEntity.id), when it came from one. */
+  @Column({ nullable: true }) meetingId!: string;
+}
+
+/**
+ * A meeting -- internal, client, consultant, subcontractor or on site -- and what
+ * came out of it. Tasks, FYIs and observations raised in it are Request Log
+ * entries carrying its id (TaskEntity.meetingId); RFIs raised from it are listed
+ * in rfiIds.
+ */
+@Entity('meetings')
+export class MeetingEntity {
+  @PrimaryColumn() id!: string;
+  @Column() title!: string;
+  @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  /** The project's name, as the Request Log stores it on each entry. */
+  @Column({ nullable: true }) project!: string;
+  @Column() date!: string; // yyyy-mm-dd
+  @Column({ nullable: true }) time!: string; // HH:mm
+  @Column({ nullable: true }) location!: string;
+  @Column({ type: 'simple-json', nullable: true }) attendees!: { id?: string; name: string; email?: string }[] | null;
+  @Column({ ...TEXT, nullable: true }) agenda!: string;
+  @Column({ ...TEXT, nullable: true }) minutes!: string;
+  @Column({ default: 'scheduled' }) status!: string; // scheduled | held | cancelled
+  @Column({ type: 'simple-json', nullable: true }) rfiIds!: string[] | null;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
 }
 
 @Entity('deals')

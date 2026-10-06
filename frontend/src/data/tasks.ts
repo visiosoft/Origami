@@ -14,6 +14,8 @@ export interface Task {
   status: string;
   originator: string;
   topicType: 'Task' | 'FYI' | 'Observation' | 'RFI';
+  /** The meeting it was raised in, when it came from one. */
+  meetingId?: string;
   /** The task's name. Older tasks have none: their first description line serves as the name. */
   subject?: string;
   description: string;

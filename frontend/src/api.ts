@@ -260,6 +260,15 @@ export const api = {
     importConvert: (file: File) => { const f = new FormData(); f.append('file', file, file.name); return requestForm('/people/import/convert', f); },
     importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update }) }),
   },
+  meetings: {
+    list: () => request<import('./data/meetings').Meeting[]>('/meetings'),
+    create: (d: unknown) => request<import('./data/meetings').Meeting>('/meetings', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** Raise a task, FYI or observation from the meeting: a Request Log entry linked to it. */
+    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string }) =>
+      request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
+  },
   tasks: {
     /** The Request Log's statuses (Settings -> Request Log statuses). */
     statuses: () => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses'),

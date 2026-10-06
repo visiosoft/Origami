@@ -7,16 +7,16 @@ import { raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
 
 export type Phase = 'design' | 'construction';
-type Kind = 'all' | 'rfi' | 'task' | 'obs' | 'co';
+type Kind = 'all' | 'meeting' | 'rfi' | 'task' | 'obs' | 'co';
 interface Item { key: string; kind: Exclude<Kind, 'all'>; projectId?: number; project: string; date?: string; title: string; sub: string; status: string; open: boolean; overdue: boolean; to: string }
 
 /** Which project stages belong to each phase. CRM (Kickoff) projects are in design and preconstruction. */
 const PHASE_STAGES: Record<Phase, string[]> = { design: ['Kickoff', 'Design'], construction: ['Construction'] };
 const PHASE_TEXT: Record<Phase, string> = {
-  design: 'RFIs, tasks, observations and FYIs, and change orders on projects in CRM and design.',
-  construction: 'RFIs, tasks, observations and FYIs, and change orders on projects under construction.',
+  design: 'Meetings, RFIs, tasks, observations and FYIs, and change orders on projects in CRM and design.',
+  construction: 'Meetings, RFIs, tasks, observations and FYIs, and change orders on projects under construction.',
 };
-const KIND_LABEL: Record<Item['kind'], string> = { rfi: 'RFI', task: 'Task', obs: 'Observation / FYI', co: 'Change order' };
+const KIND_LABEL: Record<Item['kind'], string> = { meeting: 'Meeting', rfi: 'RFI', task: 'Task', obs: 'Observation / FYI', co: 'Change order' };
 const RFI_LABEL: Record<string, string> = { draft: 'Draft', open: 'Open', answered: 'Answered', closed: 'Closed', void: 'Void' };
 const CO_LABEL: Record<string, string> = { draft: 'Pending', internal_review: 'Internal review', submitted: 'With client', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' };
 const norm = (s?: string) => (s || '').trim().toLowerCase();
@@ -32,6 +32,7 @@ export function SpecialActions({ phase }: { phase: Phase }) {
   const [rfis, setRfis] = useState<any[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [cos, setCos] = useState<any[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(0);
   const [kind, setKind] = useState<Kind>('all');
   const [openOnly, setOpenOnly] = useState(true);
@@ -46,6 +47,7 @@ export function SpecialActions({ phase }: { phase: Phase }) {
     api.rfis.list().then((r) => setRfis(Array.isArray(r) ? r : [])).catch(() => setRfis([])).finally(done);
     api.tasks.list().then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([])).finally(done);
     api.finance.allChangeOrders().then((r: any) => setCos(Array.isArray(r) ? r : [])).catch(() => setCos([])).finally(done);
+    api.meetings.list().then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([])).finally(done);
   }, [phase]);
 
   const today = akToday();
@@ -55,6 +57,17 @@ export function SpecialActions({ phase }: { phase: Phase }) {
     const byName = new Map(projects.map((p) => [norm(p.name), p]));
     const nameOf = (id: number) => projects.find((p) => p.id === id)?.name || `Project ${id}`;
     const out: Item[] = [];
+    for (const m of meetings) {
+      const p = (m.projectId != null && projects.find((x) => x.id === Number(m.projectId))) || byName.get(norm(m.project));
+      if (!p) continue;
+      const open = m.status === 'scheduled' && m.date >= today;
+      out.push({
+        key: 'm' + m.id, kind: 'meeting', projectId: p.id, project: p.name, date: m.date, title: m.title,
+        sub: [p.name, m.type, m.time, m.attendees?.length ? `${m.attendees.length} attending` : ''].filter(Boolean).join(' · '),
+        status: m.status === 'scheduled' ? (m.date >= today ? 'Scheduled' : 'Not marked held') : m.status === 'held' ? 'Held' : 'Cancelled',
+        open, overdue: false, to: `/meetings?open=${encodeURIComponent(m.id)}`,
+      });
+    }
     for (const r of rfis) {
       if (!ids.has(Number(r.projectId))) continue;
       const open = !['closed', 'void'].includes(r.status);
@@ -88,18 +101,19 @@ export function SpecialActions({ phase }: { phase: Phase }) {
       });
     }
     return out.sort((a, b) => Number(b.open) - Number(a.open) || Number(b.overdue) - Number(a.overdue) || String(b.date || '').localeCompare(String(a.date || '')));
-  }, [projects, rfis, tasks, cos, today]);
+  }, [projects, rfis, tasks, cos, meetings, today]);
 
   const scope = items.filter((i) => !project || i.projectId === project);
   const count = (k: Item['kind']) => scope.filter((i) => i.kind === k && i.open).length;
   const needle = q.trim().toLowerCase();
   const shown = scope.filter((i) => (kind === 'all' || i.kind === kind) && (!openOnly || i.open) && (!needle || `${i.title} ${i.sub}`.toLowerCase().includes(needle)));
   const overdue = scope.filter((i) => i.overdue).length;
-  const loading = !projects || loaded < 3;
+  const loading = !projects || loaded < 4;
 
   return (
     <AkPage lead={<>{PHASE_TEXT[phase]} Open items first; click one to open it. {projects && <b style={{ color: 'var(--body)' }}>{projects.length} {projects.length === 1 ? 'project' : 'projects'} in this phase.</b>}</>}>
       <AkStats items={[
+        { key: 'mtg', label: 'Meetings coming up', value: loading ? '—' : count('meeting'), onClick: () => setKind('meeting'), on: kind === 'meeting' },
         { key: 'rfi', label: 'Open RFIs', value: loading ? '—' : count('rfi'), onClick: () => setKind('rfi'), on: kind === 'rfi' },
         { key: 'task', label: 'Open tasks', value: loading ? '—' : count('task'), onClick: () => setKind('task'), on: kind === 'task' },
         { key: 'obs', label: 'Open observations & FYIs', value: loading ? '—' : count('obs'), onClick: () => setKind('obs'), on: kind === 'obs' },
@@ -108,7 +122,7 @@ export function SpecialActions({ phase }: { phase: Phase }) {
       ]} />
 
       <div className="ak-tools">
-        <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All'], ['rfi', 'RFIs'], ['task', 'Tasks'], ['obs', 'Observations & FYI'], ['co', 'Change orders']]} />
+        <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All'], ['meeting', 'Meetings'], ['rfi', 'RFIs'], ['task', 'Tasks'], ['obs', 'Observations & FYI'], ['co', 'Change orders']]} />
         <AkSeg value={openOnly ? 'open' : 'all'} onChange={(v) => setOpenOnly(v === 'open')} options={[['open', 'Open'], ['all', 'Everything']]} />
         <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value ? Number(e.target.value) : '')}>
           <option value="">All {phase === 'design' ? 'design & precon' : 'construction'} projects</option>

@@ -99,6 +99,29 @@ export declare class TaskEntity {
     checklist: ChecklistItem[];
     labels: string[];
     updatedAt: string;
+    meetingId: string;
+}
+export declare class MeetingEntity {
+    id: string;
+    title: string;
+    type: string;
+    projectId: number | null;
+    project: string;
+    date: string;
+    time: string;
+    location: string;
+    attendees: {
+        id?: string;
+        name: string;
+        email?: string;
+    }[] | null;
+    agenda: string;
+    minutes: string;
+    status: string;
+    rfiIds: string[] | null;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
 }
 export declare class DealEntity {
     id: string;
