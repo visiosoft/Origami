@@ -52,6 +52,7 @@ let FinanceController = class FinanceController {
     async rights(a) { return this.fin.rights(await this.actor(a)); }
     async brand(a) { return this.fin.brand(await this.actor(a)); }
     async portfolio(a) { return this.hub.portfolio(await this.actor(a)); }
+    async collections(months, a) { return this.hub.collections(await this.actor(a), Number(months) || 6); }
     async pending(a) { return this.hub.pending(await this.actor(a)); }
     async audit(q, a) { return this.hub.audit(await this.actor(a), q || {}); }
     async allCos(a) { return this.cos.all(await this.actor(a)); }
@@ -149,6 +150,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "portfolio", null);
+__decorate([
+    (0, common_1.Get)('collections'),
+    __param(0, (0, common_1.Query)('months')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "collections", null);
 __decorate([
     (0, common_1.Get)('approvals'),
     __param(0, (0, common_1.Headers)('authorization')),

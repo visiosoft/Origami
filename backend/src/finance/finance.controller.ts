@@ -51,6 +51,7 @@ export class FinanceController {
 
   // --- across projects
   @Get('portfolio') async portfolio(@Headers('authorization') a?: string) { return this.hub.portfolio(await this.actor(a)); }
+  @Get('collections') async collections(@Query('months') months?: string, @Headers('authorization') a?: string) { return this.hub.collections(await this.actor(a), Number(months) || 6); }
   @Get('approvals') async pending(@Headers('authorization') a?: string) { return this.hub.pending(await this.actor(a)); }
   @Get('audit') async audit(@Query() q: any, @Headers('authorization') a?: string) { return this.hub.audit(await this.actor(a), q || {}); }
   @Get('change-orders') async allCos(@Headers('authorization') a?: string) { return this.cos.all(await this.actor(a)); }

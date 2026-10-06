@@ -580,6 +580,8 @@ export const api = {
     removeAttachment: (id: string, attId: string) => request(`/finance-invoices/${id}/attachments/${attId}`, { method: 'DELETE' }),
     // --- phase 2
     portfolio: () => request('/finance/portfolio'),
+    /** Money received per month across projects, oldest first. */
+    collections: (months = 6) => request<{ month: string; amount: number }[]>(`/finance/collections?months=${months}`),
     approvals: () => request('/finance/approvals'),
     audit: (q: Record<string, string> = {}) => request(`/finance/audit?${new URLSearchParams(q).toString()}`),
     requestApproval: (id: string, d: unknown) => request(`/finance/invoices/${id}/request-approval`, { method: 'POST', body: JSON.stringify(d) }),

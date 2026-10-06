@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
   ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
-  ProjectInvoiceLineEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
+  ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
 } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
 import { computeSov, invoiceTotals, toDollars } from './finance.calc';
@@ -42,6 +42,7 @@ export class FinanceHubService {
     @InjectRepository(ProjectInvoiceLineEntity) private readonly lines: Repository<ProjectInvoiceLineEntity>,
     private readonly costs?: CostsService,
     @InjectRepository(CostEntryEntity) private readonly costEntries?: Repository<CostEntryEntity>,
+    @InjectRepository(ProjectPaymentEntity) private readonly payments?: Repository<ProjectPaymentEntity>,
   ) {}
 
   private async names() {
@@ -155,6 +156,31 @@ export class FinanceHubService {
       rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? toDollars(pay) : {}) });
     }
     return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Money received per calendar month, across every project, for the last
+   * `months` months including this one (oldest first; empty months are 0).
+   * Voided payments don't count; foreign-currency payments are converted.
+   */
+  async collections(actor: Actor, months = 6) {
+    await this.fin.need(actor, 'view');
+    const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+    const now = new Date();
+    const keys: string[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      keys.push(d.toISOString().slice(0, 7));
+    }
+    const totals = new Map(keys.map((k) => [k, 0]));
+    const rows = this.payments ? await this.payments.find() : [];
+    for (const p of rows) {
+      if (p.voidedAt || !p.date) continue;
+      const k = String(p.date).slice(0, 7);
+      if (!totals.has(k)) continue;
+      totals.set(k, (totals.get(k) || 0) + toCents(Number(p.amount) * (Number(p.fxRate) || 1)));
+    }
+    return keys.map((month) => ({ month, amount: fromCents(totals.get(month) || 0) }));
   }
 
   /** The finance audit trail across projects (or one), newest first. */

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-06g',
+    date: '2026-10-06',
+    title: 'Dashboard shows your real numbers',
+    items: [
+      { area: 'Dashboard', kind: 'improved', text: 'In the New look every card on the Dashboard now comes from Origami: active projects, your open tasks, live leads, work done / invoiced / collected across contracts, client payments collected per month, and the share of contracts invoiced. The dark project card highlights the project with the most overdue invoices (or overdue tasks). The sample charts that used to sit below are hidden in the New look.', where: 'Dashboard (New look)' },
+      { area: 'Dashboard', kind: 'improved', text: '“Needs attention” now lists your latest open tasks from both the Task Board and the Request Log, with overdue ones flagged. Click one to open it.', where: 'Dashboard → Needs attention' },
+    ],
+  },
+  {
     id: '2026-10-06f',
     date: '2026-10-06',
     title: 'See who created a task',

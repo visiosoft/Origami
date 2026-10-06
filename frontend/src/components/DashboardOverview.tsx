@@ -6,13 +6,18 @@ export interface OverviewProps {
   name: string;
   pills: { label: string; pct: number; style: 'dark' | 'yellow' | 'hatch' | 'outline' }[];
   numbers: { label: string; value: string; icon: 'team' | 'tasks' | 'projects' | 'leads' }[];
-  featured: { name: string; phase: string; amount: string; usedPct: number; timePct: number } | null;
-  collections: { month: string; value: number }[];
-  ring: { pct: number; label: string; sub: string };
-  attention: { task: string; project: string; due: string; past: boolean }[];
+  /** The project most worth a look; tag says why. */
+  featured: { name: string; tag: string; sub: string; amount: string; to: string } | null;
+  /** Money received per month (oldest first); null when the person can't see finance. */
+  collections: { month: string; value: number }[] | null;
+  ring: { title: string; pct: number; label: string; sub: string; to: string } | null;
+  attentionTitle: string;
+  attentionCount: number;
+  attention: { task: string; project: string; due: string; past: boolean; to: string }[];
   attentionSplit: { label: string; n: number; of: number }[];
   funnel: { label: string; n: string; v: number }[];
   team: { name: string; role: string; tasks: number; done: number; av: string }[];
+  teamLabel?: string;
   week: { id: string; title: string; date: string; project: string; done: boolean }[];
   go: (to: string) => void;
 }
@@ -38,9 +43,11 @@ const Arrow = ({ onClick, label }: { onClick: () => void; label: string }) => (
  */
 export function DashboardOverview(p: OverviewProps) {
   const [openFold, setOpenFold] = useState<'funnel' | 'team' | null>('funnel');
-  const maxCol = Math.max(1, ...p.collections.map((c) => c.value));
-  const avgCol = p.collections.length ? p.collections.reduce((a, c) => a + c.value, 0) / p.collections.length : 0;
-  const last = p.collections[p.collections.length - 1];
+  const cols = p.collections || [];
+  const maxCol = Math.max(1, ...cols.map((c) => c.value));
+  const avgCol = cols.length ? cols.reduce((a, c) => a + c.value, 0) / cols.length : 0;
+  const last = cols[cols.length - 1];
+  const monthName = (m: string) => new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short' });
 
   // This week, Monday first.
   const now = new Date();
@@ -51,7 +58,7 @@ export function DashboardOverview(p: OverviewProps) {
   const range = `${days[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${days[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
   const R = 74, C = 2 * Math.PI * R;
-  const ringPct = Math.max(0, Math.min(100, p.ring.pct));
+  const ringPct = Math.max(0, Math.min(100, p.ring?.pct || 0));
 
   return (
     <div className="do">
@@ -82,43 +89,46 @@ export function DashboardOverview(p: OverviewProps) {
 
       <div className="do-grid">
         {/* Featured project */}
-        <button type="button" className="do-card do-feature" onClick={() => p.go('/projects')}>
+        <button type="button" className="do-card do-feature" onClick={() => p.go(p.featured?.to || '/projects')}>
           {p.featured ? (
             <>
-              <span className="do-feature-mark">{p.featured.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2)}</span>
+              <span className="do-feature-mark">{p.featured.name.split(/\s+/).filter((w) => /^[A-Za-z0-9]/.test(w)).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}</span>
               <span className="do-feature-meta">
-                <span className="do-feature-tag">Needs a look · {p.featured.phase}</span>
+                <span className="do-feature-tag">{p.featured.tag}</span>
                 <span className="do-feature-name">{p.featured.name}</span>
-                <span className="do-feature-sub">{Math.round(p.featured.usedPct)}% of budget used · {p.featured.timePct}% of time</span>
+                <span className="do-feature-sub">{p.featured.sub}</span>
               </span>
-              <span className="do-feature-amount">{p.featured.amount}</span>
+              {p.featured.amount && <span className="do-feature-amount">{p.featured.amount}</span>}
             </>
-          ) : <span className="do-feature-name">No active projects</span>}
+          ) : <span className="do-feature-meta"><span className="do-feature-tag">Projects</span><span className="do-feature-name">No active projects yet</span></span>}
         </button>
 
         {/* Collections */}
         <div className="do-card">
           <div className="do-card-head"><h3>Collections</h3><Arrow label="Open Project Finance" onClick={() => p.go('/fin_project')} /></div>
+          {p.collections === null ? <div className="do-foot" style={{ marginTop: 14 }}>Your role doesn't include project finance.</div> : <>
           <div className="do-stat"><span className="do-stat-num">{money0(avgCol)}</span><span className="do-stat-sub">Avg. collected<br />per month</span></div>
           <div className="do-bars">
-            {p.collections.map((c, i) => {
-              const isLast = i === p.collections.length - 1;
+            {cols.map((c, i) => {
+              const isLast = i === cols.length - 1;
               return (
                 <div key={c.month} className={'do-bar' + (isLast ? ' is-last' : '')}>
                   {isLast && <span className="do-bar-tip">{money0(c.value)}</span>}
                   <span className="do-bar-rail"><span className="do-bar-fill" style={{ height: `${Math.max(6, (c.value / maxCol) * 100)}%`, animationDelay: i * 0.06 + 's' }} /></span>
                   <span className="do-bar-dot" />
-                  <span className="do-bar-label">{c.month.slice(0, 1)}</span>
+                  <span className="do-bar-label">{monthName(c.month).slice(0, 1)}</span>
                 </div>
               );
             })}
           </div>
-          {last && <div className="do-foot">{last.month}: {money0(last.value)} collected</div>}
+          {last && <div className="do-foot">{monthName(last.month)}: {money0(last.value)} collected</div>}
+          </>}
         </div>
 
         {/* Budget ring */}
         <div className="do-card">
-          <div className="do-card-head"><h3>Budget</h3><Arrow label="See budget by project" onClick={() => document.querySelector('.dashboard-evidence-grid')?.scrollIntoView({ behavior: 'smooth' })} /></div>
+          <div className="do-card-head"><h3>{p.ring?.title || 'Billing'}</h3><Arrow label="Open Project Finance" onClick={() => p.go(p.ring?.to || '/fin_project')} /></div>
+          {!p.ring ? <div className="do-foot" style={{ marginTop: 14 }}>Your role doesn't include project finance.</div> : <>
           <div className="do-ring">
             <svg viewBox="0 0 200 200" width="100%" height="100%" aria-hidden="true">
               {Array.from({ length: 60 }, (_, i) => {
@@ -135,11 +145,12 @@ export function DashboardOverview(p: OverviewProps) {
             </div>
           </div>
           <div className="do-foot">{p.ring.sub}</div>
+          </>}
         </div>
 
         {/* Needs attention */}
         <div className="do-card do-attn-wrap">
-          <div className="do-card-head"><h3>Needs attention</h3><span className="do-big-num">{p.attention.length}</span></div>
+          <div className="do-card-head"><h3>Needs attention</h3><span className="do-big-num">{p.attentionCount}</span></div>
           <div className="do-split">
             {p.attentionSplit.map((s) => (
               <div key={s.label} className="do-split-col">
@@ -149,10 +160,10 @@ export function DashboardOverview(p: OverviewProps) {
             ))}
           </div>
           <div className="do-attn">
-            <div className="do-attn-head"><span>Closest to slipping</span><b>{p.attention.filter((a) => a.past).length}/{p.attention.length}</b></div>
-            {p.attention.length === 0 && <div className="do-attn-empty">Nothing overdue. Nice.</div>}
+            <div className="do-attn-head"><span>{p.attentionTitle}</span><b>{p.attention.filter((a) => a.past).length}/{p.attention.length}</b></div>
+            {p.attention.length === 0 && <div className="do-attn-empty">Nothing on your plate. Nice.</div>}
             {p.attention.map((a, i) => (
-              <button type="button" key={a.task + i} className="do-attn-item" onClick={() => p.go('/tasks')}>
+              <button type="button" key={a.task + i} className="do-attn-item" onClick={() => p.go(a.to)}>
                 <span className="do-attn-icon">{a.past ? '!' : '•'}</span>
                 <span className="do-attn-text"><span className="do-attn-title">{a.task}</span><span className="do-attn-sub">{a.project} · {a.due}</span></span>
                 <span className={'do-attn-check' + (a.past ? ' is-late' : '')} />
@@ -163,7 +174,7 @@ export function DashboardOverview(p: OverviewProps) {
 
         {/* Funnel / workload */}
         <div className="do-card do-fold">
-          {([['funnel', 'Lead funnel'], ['team', 'Team workload']] as const).map(([k, title]) => (
+          {([['funnel', 'Lead funnel'], ['team', p.teamLabel || 'Team workload']] as const).map(([k, title]) => (
             <div key={k} className="do-fold-item">
               <button type="button" className="do-fold-head" onClick={() => setOpenFold(openFold === k ? null : k)} aria-expanded={openFold === k}>
                 <span>{title}</span>

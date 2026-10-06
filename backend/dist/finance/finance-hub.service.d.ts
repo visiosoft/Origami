@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
+import { ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
 import { CostsService } from './costs.service';
@@ -32,10 +32,15 @@ export declare class FinanceHubService {
     private readonly lines;
     private readonly costs?;
     private readonly costEntries?;
-    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined, costEntries?: Repository<CostEntryEntity> | undefined);
+    private readonly payments?;
+    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined, costEntries?: Repository<CostEntryEntity> | undefined, payments?: Repository<ProjectPaymentEntity> | undefined);
     private names;
     pending(actor: Actor): Promise<Pending[]>;
     portfolio(actor: Actor): Promise<any[]>;
+    collections(actor: Actor, months?: number): Promise<{
+        month: string;
+        amount: number;
+    }[]>;
     audit(actor: Actor, q: {
         projectId?: string;
         entityType?: string;

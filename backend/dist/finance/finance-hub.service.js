@@ -23,7 +23,7 @@ const invoices_service_1 = require("./invoices.service");
 const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
 let FinanceHubService = class FinanceHubService {
-    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries) {
+    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries, payments) {
         this.fin = fin;
         this.projects = projects;
         this.pfin = pfin;
@@ -40,6 +40,7 @@ let FinanceHubService = class FinanceHubService {
         this.lines = lines;
         this.costs = costs;
         this.costEntries = costEntries;
+        this.payments = payments;
     }
     async names() {
         return new Map((await this.projects.find()).map((p) => [p.id, p.name]));
@@ -148,6 +149,27 @@ let FinanceHubService = class FinanceHubService {
         }
         return rows.sort((a, b) => a.name.localeCompare(b.name));
     }
+    async collections(actor, months = 6) {
+        await this.fin.need(actor, 'view');
+        const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+        const now = new Date();
+        const keys = [];
+        for (let i = n - 1; i >= 0; i--) {
+            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+            keys.push(d.toISOString().slice(0, 7));
+        }
+        const totals = new Map(keys.map((k) => [k, 0]));
+        const rows = this.payments ? await this.payments.find() : [];
+        for (const p of rows) {
+            if (p.voidedAt || !p.date)
+                continue;
+            const k = String(p.date).slice(0, 7);
+            if (!totals.has(k))
+                continue;
+            totals.set(k, (totals.get(k) || 0) + (0, money_1.toCents)(Number(p.amount) * (Number(p.fxRate) || 1)));
+        }
+        return keys.map((month) => ({ month, amount: (0, money_1.fromCents)(totals.get(month) || 0) }));
+    }
     async audit(actor, q) {
         await this.fin.need(actor, 'view');
         const where = {};
@@ -179,6 +201,7 @@ exports.FinanceHubService = FinanceHubService = __decorate([
     __param(12, (0, typeorm_1.InjectRepository)(entities_1.FinanceActivityEntity)),
     __param(13, (0, typeorm_1.InjectRepository)(entities_1.ProjectInvoiceLineEntity)),
     __param(15, (0, typeorm_1.InjectRepository)(entities_1.CostEntryEntity)),
+    __param(16, (0, typeorm_1.InjectRepository)(entities_1.ProjectPaymentEntity)),
     __metadata("design:paramtypes", [financials_service_1.FinancialsService,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -194,6 +217,7 @@ exports.FinanceHubService = FinanceHubService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         costs_service_1.CostsService,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], FinanceHubService);
 //# sourceMappingURL=finance-hub.service.js.map

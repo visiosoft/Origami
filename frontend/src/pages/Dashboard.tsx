@@ -15,6 +15,8 @@ import {
   FINANCE, INVOICES, REVENUE_BASE, FUNNEL, TEAM, DEADLINES, ACTIVITY, HELP_CONTENT,
   enrichInvoices, money, type EnrichedInvoice,
 } from '../data/dashboard';
+import { STAGES } from '../data/pipeline';
+import { stageLabel } from '../data/projects';
 import './Dashboard.css';
 
 const BG = 'var(--font-display)';
@@ -86,6 +88,11 @@ export function Dashboard() {
   const [attentionLogTasks, setAttentionLogTasks] = useState<LogTask[]>([]);
   const [attentionProjects, setAttentionProjects] = useState<Record<number, string>>({});
   const [todayMeetings, setTodayMeetings] = useState<{ id: string; summary: string; start: string; allDay: boolean }[]>([]);
+  // New-look overview: real figures. null = not loaded / no access (finance is role-gated).
+  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [portfolio, setPortfolio] = useState<any[] | null>(null);
+  const [collections, setCollections] = useState<{ month: string; amount: number }[] | null>(null);
+  const [liveDeals, setLiveDeals] = useState<any[]>([]);
 
   const narrow = winW < 620;
   const swallowDoc = useRef(false);
@@ -100,8 +107,12 @@ export function Dashboard() {
     if (isClient) return;
     api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionBoardTasks(r); }).catch(() => { });
     api.tasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionLogTasks(r); }).catch(() => { });
+    api.finance.portfolio().then((r: any) => setPortfolio(Array.isArray(r) ? r : null)).catch(() => setPortfolio(null));
+    api.finance.collections(6).then((r: any) => setCollections(Array.isArray(r) ? r : null)).catch(() => setCollections(null));
+    api.pipeline.list().then((r: any) => setLiveDeals(Array.isArray(r) ? r : [])).catch(() => { });
     api.projects.list().then((r: any) => {
       if (!Array.isArray(r)) return;
+      setAllProjects(r);
       const m: Record<number, string> = {};
       r.forEach((p: any) => { m[p.id] = p.name; });
       setAttentionProjects(m);
@@ -277,53 +288,97 @@ export function Dashboard() {
     </Card>
   );
 
-  // ── New-look overview inputs ──
-  const openBoard = attentionBoardTasks.filter((t) => !t.completed && t.status !== 'Done');
-  const openLog = attentionLogTasks.filter((t) => !isLogClosed(t.status));
-  const openCount = openBoard.length + openLog.length;
-  const overdueCount = openBoard.filter((t) => t.dueDate && t.dueDate < todayStr).length + openLog.filter((t) => t.dueDate && t.dueDate < todayStr).length;
-  const dueTodayCount = openBoard.filter((t) => t.dueDate === todayStr).length + openLog.filter((t) => t.dueDate === todayStr).length;
-  const doneCount = attentionBoardTasks.length - openBoard.length + attentionLogTasks.length - openLog.length;
-  const contractOf = (f: (typeof fin)[number]) => f.base + f.co + f.reimb;
-  const usedOf = (f: (typeof fin)[number]) => f.baseUsed + f.coUsed + f.reimbUsed;
-  const weightedTime = rollContract ? shown.reduce((t, f) => t + f.timePct * contractOf(f), 0) / rollContract : 0;
-  const budgetPct = rollContract ? (rollUsed / rollContract) * 100 : 0;
-  const featuredRow = [...shown].sort((a, b) => (usedOf(b) / contractOf(b) * 100 - b.timePct) - (usedOf(a) / contractOf(a) * 100 - a.timePct))[0];
-  const kpiVal = (k: string) => kpiDefs.find((x) => x.k === k)?.value || '0';
-  const projectCount = Object.keys(attentionProjects).length;
+  // ── New-look overview: every figure from the live system ──
+  const me = { id: currentUser?.id || '', name: (currentUser?.name || '').trim() };
+  const mineBoard = (t: ProjectTask) => !!me.id && (t.assigneeId === me.id || (!!me.name && t.assignee === me.name));
+  const mineLog = (t: LogTask) => !!me.id && (t.assignedToId === me.id || (!!me.name && t.assignedTo === me.name));
+  const boardOpen = (t: ProjectTask) => !t.completed && t.status !== 'Done';
+  const projName = (id: number | null) => (id == null ? 'General Tasks' : attentionProjects[id] || `Project ${id}`);
+  const lastTouched = (t: { activity?: { at: string }[]; updatedAt?: string }) => t.updatedAt || (t.activity && t.activity.length ? t.activity[t.activity.length - 1].at : '') || '';
+  type MyTask = { key: string; title: string; project: string; due?: string; open: boolean; touched: string; to: string };
+  const myTasks: MyTask[] = [
+    ...attentionBoardTasks.filter(mineBoard).map((t) => ({ key: 'b' + t.id, title: t.title, project: projName(t.projectId), due: t.dueDate, open: boardOpen(t), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId ?? 'null'}` })),
+    ...attentionLogTasks.filter(mineLog).map((t) => ({ key: 'l' + t.id, title: logTaskTitle(t), project: t.project || 'Request Log', due: t.dueDate, open: !isLogClosed(t.status), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&type=log` })),
+  ];
+  const myOpen = myTasks.filter((t) => t.open);
+  const myOverdue = myOpen.filter((t) => t.due && t.due < todayStr);
+  const myToday = myOpen.filter((t) => t.due === todayStr);
+  const dueLabel = (d?: string) => {
+    if (!d) return 'No due date';
+    const days = Math.round((new Date(d + 'T12:00:00').getTime() - new Date(todayStr + 'T12:00:00').getTime()) / 86400000);
+    return days < -1 ? `${-days} days overdue` : days === -1 ? '1 day overdue' : days === 0 ? 'Due today' : days === 1 ? 'Due tomorrow' : `Due ${new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  };
+  // Your latest open tasks (most recently created or touched first), overdue ones flagged.
+  const myLatest = [...myOpen].sort((a, b) => b.touched.localeCompare(a.touched)).slice(0, 5)
+    .map((t) => ({ task: t.title, project: t.project, due: dueLabel(t.due), past: !!t.due && t.due < todayStr, to: t.to }));
+
+  const sumP = (k: string) => (portfolio || []).reduce((a, r) => a + (Number(r[k]) || 0), 0);
+  const contract = sumP('revisedContract'), earned = sumP('ev'), invoiced = sumP('invoiceTotals'), workInvoiced = sumP('contractWorkInvoiced'), paid = sumP('paid'), outstanding = sumP('arOutstanding');
+  const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
+  const hasFinance = !!portfolio && portfolio.some((r) => r.hasClientContract);
+  const activeProjects = allProjects.filter((p) => p.stage === 'Design' || p.stage === 'Construction');
+  const dealStage = (key: string) => STAGES.find((st) => st.key === key);
+  const liveLeads = liveDeals.filter((d) => { const st = dealStage(d.stage); return !d.archived && !(st?.isClosed) && !(st?.isHold); });
+  const funnelReal = STAGES.filter((st) => !st.isHold && !st.isClosed).map((st) => ({ label: st.name, count: liveLeads.filter((d) => d.stage === st.key).length }));
+  const funnelMax = Math.max(1, ...funnelReal.map((f) => f.count));
+  // Who has what open, across both task lists.
+  const load = new Map<string, { open: number; done: number }>();
+  const tally = (who: string | undefined, open: boolean) => { const k = (who || '').trim(); if (!k) return; const v = load.get(k) || { open: 0, done: 0 }; if (open) v.open++; else v.done++; load.set(k, v); };
+  attentionBoardTasks.forEach((t) => tally(t.assignee, boardOpen(t)));
+  attentionLogTasks.forEach((t) => tally(t.assignedTo, !isLogClosed(t.status)));
+  const teamReal = [...load.entries()].sort((a, b) => b[1].open - a[1].open).slice(0, 7)
+    .map(([name, v]) => ({ name, role: `${v.open} open`, tasks: v.open + v.done, done: v.done, av: name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() }));
+  // The project most worth a look: most overdue invoices, else most overdue tasks, else the latest active one.
+  const overdueTasksBy = new Map<number, number>();
+  attentionBoardTasks.forEach((t) => { if (t.projectId != null && boardOpen(t) && t.dueDate && t.dueDate < todayStr) overdueTasksBy.set(t.projectId, (overdueTasksBy.get(t.projectId) || 0) + 1); });
+  const byOverdueMoney = [...(portfolio || [])].filter((r) => Number(r.overdue) > 0).sort((a, b) => Number(b.overdue) - Number(a.overdue))[0];
+  const byOverdueTasks = [...overdueTasksBy.entries()].sort((a, b) => b[1] - a[1])[0];
+  const featuredProject = byOverdueMoney ? allProjects.find((p) => p.id === byOverdueMoney.projectId)
+    : byOverdueTasks ? allProjects.find((p) => p.id === byOverdueTasks[0]) : activeProjects[activeProjects.length - 1];
+  const featuredFin = featuredProject && (portfolio || []).find((r) => r.projectId === featuredProject.id);
+  const featured = featuredProject ? {
+    name: featuredProject.name.replace(/\s*\(.*\)\s*$/, '') || featuredProject.name,
+    tag: byOverdueMoney ? `Overdue invoices · ${money(Number(byOverdueMoney.overdue))}` : byOverdueTasks ? `${byOverdueTasks[1]} overdue task${byOverdueTasks[1] === 1 ? '' : 's'}` : 'Latest active project',
+    sub: [stageLabel(featuredProject.stage), (featuredProject.name.match(/\(([^)]*)\)\s*$/) || [])[1], featuredFin?.revisedContract ? `${Math.round(pct(Number(featuredFin.invoiceTotals) || 0, Number(featuredFin.revisedContract)))}% invoiced` : ''].filter(Boolean).join(' · '),
+    amount: featuredFin?.revisedContract ? money(Number(featuredFin.revisedContract)) : (featuredProject.contractAmt || ''),
+    to: `/projects?open=${featuredProject.id}`,
+  } : null;
   const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
   const wsIso = weekStart.toISOString().slice(0, 10);
   const weEnd = new Date(weekStart); weEnd.setDate(weekStart.getDate() + 6);
   const weIso = weEnd.toISOString().slice(0, 10);
-  const inWeek = (d?: string) => !!d && d >= wsIso && d <= weIso;
   const overview = {
     name: (currentUser?.name || 'there').split(/\s+/)[0],
-    pills: [
-      { label: 'Budget used', pct: budgetPct, style: 'dark' as const },
-      { label: 'Time used', pct: weightedTime, style: 'yellow' as const },
-      { label: isClient ? 'Paid' : 'Collected', pct: totInv ? (totCol / totInv) * 100 : 0, style: 'hatch' as const },
-      { label: 'Overdue', pct: openCount ? (overdueCount / openCount) * 100 : 0, style: 'outline' as const },
+    pills: hasFinance ? [
+      { label: 'Work done', pct: pct(earned, contract), style: 'dark' as const },
+      { label: 'Invoiced', pct: pct(workInvoiced, contract), style: 'yellow' as const },
+      { label: 'Collected', pct: pct(paid, invoiced), style: 'hatch' as const },
+      { label: 'My overdue', pct: pct(myOverdue.length, myOpen.length), style: 'outline' as const },
+    ] : [
+      { label: 'My tasks done', pct: pct(myTasks.length - myOpen.length, myTasks.length), style: 'dark' as const },
+      { label: 'Due today', pct: pct(myToday.length, myOpen.length), style: 'yellow' as const },
+      { label: 'My overdue', pct: pct(myOverdue.length, myOpen.length), style: 'outline' as const },
     ],
     numbers: [
-      { label: isClient ? 'Projects' : 'Projects', value: projectCount ? String(projectCount) : kpiVal('projects'), icon: 'projects' as const },
-      { label: 'Open tasks', value: attentionBoardTasks.length || attentionLogTasks.length ? String(openCount) : kpiVal('tasks'), icon: 'tasks' as const },
-      { label: isClient ? 'Milestone' : isCons ? 'Bids' : 'Leads', value: kpiVal('leads'), icon: 'leads' as const },
+      { label: 'Active projects', value: String(activeProjects.length), icon: 'projects' as const },
+      { label: 'My open tasks', value: String(myOpen.length), icon: 'tasks' as const },
+      { label: 'Live leads', value: String(liveLeads.length), icon: 'leads' as const },
     ],
-    featured: featuredRow ? { name: featuredRow.name, phase: featuredRow.phase, amount: money(contractOf(featuredRow)), usedPct: (usedOf(featuredRow) / contractOf(featuredRow)) * 100, timePct: featuredRow.timePct } : null,
-    collections: revenueData.map((r) => ({ month: r.month, value: r.collected })),
-    ring: { pct: budgetPct, label: 'of budget used', sub: `${money(rollUsed)} of ${money(rollContract)} · ${Math.round(weightedTime)}% of time gone` },
-    attention: attentionItems,
+    featured,
+    collections: collections ? collections.map((c) => ({ month: c.month, value: c.amount })) : null,
+    ring: hasFinance ? { title: 'Billing', pct: pct(invoiced, contract), label: 'of contracts invoiced', sub: `${money(invoiced)} of ${money(contract)} · ${money(outstanding)} outstanding`, to: '/fin_project' } : null,
+    attentionTitle: 'My latest tasks',
+    attentionCount: myOpen.length,
+    attention: myLatest,
     attentionSplit: [
-      { label: 'Overdue', n: overdueCount, of: openCount },
-      { label: 'Today', n: dueTodayCount, of: openCount },
-      { label: 'Done', n: doneCount, of: attentionBoardTasks.length + attentionLogTasks.length },
+      { label: 'Overdue', n: myOverdue.length, of: myOpen.length },
+      { label: 'Today', n: myToday.length, of: myOpen.length },
+      { label: 'Done', n: myTasks.length - myOpen.length, of: myTasks.length },
     ],
-    funnel: funnelData,
-    team: TEAM,
-    week: [
-      ...attentionBoardTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'b' + t.id, title: t.title, date: t.dueDate!, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || ''), done: !!t.completed || t.status === 'Done' })),
-      ...attentionLogTasks.filter((t) => inWeek(t.dueDate)).map((t) => ({ id: 'l' + t.id, title: logTaskTitle(t), date: t.dueDate, project: t.project || 'Request log', done: isLogClosed(t.status) })),
-    ],
+    funnel: funnelReal.filter((f) => f.count > 0).map((f) => ({ label: f.label, n: String(f.count), v: (f.count / funnelMax) * 100 })),
+    team: teamReal,
+    teamLabel: 'Open tasks by person',
+    week: myTasks.filter((t) => t.due && t.due >= wsIso && t.due <= weIso).map((t) => ({ id: t.key, title: t.title, date: t.due!, project: t.project, done: !t.open })),
     go: (to: string) => navigate(to),
   };
 
@@ -388,6 +443,8 @@ export function Dashboard() {
 
       </>}
 
+      {/* The sections below still run on sample figures; the New look shows only the live overview. */}
+      {!isNew && <>
       <div style={{ height: 5 }} />
       {bandLabel('Money · Schedule — high level')}
 
@@ -662,6 +719,7 @@ export function Dashboard() {
           ))}
         </div>
       </Card>
+      </>}
 
       {/* Click popover */}
       {tip && (

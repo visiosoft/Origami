@@ -39,6 +39,10 @@ export declare class FinanceController {
         footerNote: string;
     }>;
     portfolio(a?: string): Promise<any[]>;
+    collections(months?: string, a?: string): Promise<{
+        month: string;
+        amount: number;
+    }[]>;
     pending(a?: string): Promise<import("./finance-hub.service").Pending[]>;
     audit(q: any, a?: string): Promise<{
         projectName: string;
