@@ -29,7 +29,7 @@ export function MyTimesheet() {
       {me === null && (
         <div style={{ ...card, padding: '18px 20px', maxWidth: 640, fontSize: 13, color: INK, lineHeight: 1.7 }}>
           <b>Your login isn't linked to an employee record yet.</b><br />
-          Ask HR to add you in Manpower &amp; Resources › Employees with the same email you sign in with — it links automatically the next time you open this page.
+          Ask HR or an admin to check your entry in People: it should be type <b>Staff</b> and use the same email you sign in with. Once it is, it links automatically the next time you open this page.
         </div>
       )}
       {me && (

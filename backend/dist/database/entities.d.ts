@@ -18,6 +18,7 @@ export declare class ProjectEntity {
     img: string;
     designPhase: string;
     leadId: string;
+    fileRoomSyncedAt: string;
     introLetterSentAt: string;
     introLetterSubject: string;
     introLetterHtml: string;

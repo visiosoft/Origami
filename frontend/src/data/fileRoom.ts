@@ -29,6 +29,8 @@ export interface FileRoomFolder {
 export interface FileRoomProject {
   id: number;
   name: string;
+  /** ISO time the project's Drive folder was last synced. */
+  syncedAt?: string | null;
 }
 
 export interface FileRoomData {

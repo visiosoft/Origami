@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-08a',
+    date: '2026-10-08',
+    title: 'From the Oct 6 sync: quick fixes',
+    items: [
+      { area: 'Sign in', kind: 'improved', text: 'Password fields have a Show / Hide button, so you can check what you typed — handy on a phone.', where: 'Sign in, Set password, Signed-out pop-up' },
+      { area: 'Timesheets', kind: 'fixed', text: 'Changing someone in People to Staff now links them to an employee record straight away, so their timesheet shows up in My Stuff without waiting for a restart.', where: 'People → edit → Type: Staff' },
+      { area: 'Files', kind: 'new', text: 'Each project’s File Room shows when its Drive folder was last synced, next to the Sync Drive button.', where: 'All Files → a project' },
+      { area: 'Users & Roles', kind: 'improved', text: 'User groups are now Internal, Third-party (consultants, subcontractors, authorities) and Client.', where: 'Admin → Users & Roles' },
+    ],
+  },
+  {
     id: '2026-10-07d',
     date: '2026-10-07',
     title: 'A separate Google client for the company connection',

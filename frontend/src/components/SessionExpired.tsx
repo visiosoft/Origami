@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PasswordInput } from './PasswordInput';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 
@@ -41,7 +42,7 @@ export function SessionExpired() {
           Your session ended. Sign in again to keep going — <b>this page stays open and nothing you typed is lost</b>; anything not saved yet is sent as soon as you’re back.
         </div>
         <input style={input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" autoComplete="username" />
-        <input style={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" autoFocus
+        <PasswordInput style={input} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" autoFocus
           onKeyDown={(e) => { if (e.key === 'Enter') submit(); }} />
         {error && <div style={{ fontSize: 13, color: '#9A4318' }}>{error}</div>}
         <button type="button" style={btn(true)} disabled={busy} onClick={submit}>{busy ? 'Signing in…' : 'Sign in and continue'}</button>

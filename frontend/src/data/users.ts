@@ -47,7 +47,7 @@ export const TIERS: Tier[] = ['internal', 'client', 'consultant'];
 export const TIER_STYLE: Record<Tier, { label: string; bg: string; color: string }> = {
   internal: { label: 'Internal', bg: 'var(--mint)', color: 'var(--forest)' },
   client: { label: 'Client', bg: '#EAE0F3', color: '#5B2E86' },
-  consultant: { label: 'Consultant', bg: '#FBE9CE', color: '#8A5A12' },
+  consultant: { label: 'Third-party', bg: '#FBE9CE', color: '#8A5A12' },
 };
 
 export const STATUS_STYLE: Record<UserStatus, { label: string; bg: string; color: string }> = {

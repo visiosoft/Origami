@@ -25,6 +25,7 @@ export class ProjectEntity {
   // task progress, so a team can park a project where they say it is.
   @Column({ nullable: true }) designPhase!: string;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
+  @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
   // The composed Introduction Letter, saved as a draft before it's sent --
   // separate from the plain-text template default, so an edit survives a

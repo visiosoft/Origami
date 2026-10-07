@@ -9,6 +9,17 @@ import {
 } from '../data/fileRoom';
 
 const BG = 'var(--font-display)';
+/** "Last synced 12 min ago" for the project's Drive folder. */
+function syncedLabel(iso?: string | null) {
+  if (!iso) return 'Not synced with Drive yet';
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'Last synced just now';
+  if (mins < 60) return `Last synced ${mins} min ago`;
+  const d = new Date(iso);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return `Last synced ${sameDay ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', '}${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 const EMPTY: FileRoomData = { projects: [], categories: [], files: [], folders: [] };
 
 const card: React.CSSProperties = {
@@ -431,6 +442,11 @@ export function FileRoom() {
                    style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: 'var(--surface)', color: 'var(--body)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
                 {syncing ? 'Syncing…' : '⟳ Sync Drive'}
               </div>
+            )}
+            {!atRoot && (
+              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                {syncedLabel(data.projects.find((p) => p.id === projectId)?.syncedAt)}
+              </span>
             )}
             {canManage && (
               <div onClick={() => setUploadOpen((v) => !v)}

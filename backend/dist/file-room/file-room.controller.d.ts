@@ -13,6 +13,7 @@ export declare class FileRoomController {
         projects: {
             id: number;
             name: string;
+            syncedAt: string | null;
         }[];
         categories: string[];
         files: import("../database/entities").FileRoomFileEntity[];
@@ -41,6 +42,7 @@ export declare class FileRoomController {
         updated: number;
         removed: number;
         folders: number;
+        syncedAt: string;
     }>;
     markLatest(id: string): Promise<import("../database/entities").FileRoomFileEntity>;
     remove(id: string): Promise<{

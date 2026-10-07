@@ -17,6 +17,7 @@ export declare class FileRoomService {
         projects: {
             id: number;
             name: string;
+            syncedAt: string | null;
         }[];
         categories: string[];
         files: FileRoomFileEntity[];
@@ -66,6 +67,7 @@ export declare class FileRoomService {
         updated: number;
         removed: number;
         folders: number;
+        syncedAt: string;
     }>;
     createFolder(projectId: number, path: string[], name: string): Promise<FileRoomFolderEntity>;
     removeFolder(id: string): Promise<{

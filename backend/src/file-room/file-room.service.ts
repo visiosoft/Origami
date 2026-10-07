@@ -72,7 +72,7 @@ export class FileRoomService {
       ? rawFiles.filter((f) => Number(f.projectId) === projectId)
       : rawFiles;
     return {
-      projects: projects.map((p) => ({ id: p.id, name: p.name })),
+      projects: projects.map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null })),
       categories: DEFAULT_CATEGORIES,
       files: scoped.map((f) => this.hydrate(f)),
       folders: (projectId ? rawFolders.filter((f) => Number(f.projectId) === projectId) : rawFolders)
@@ -328,8 +328,10 @@ export class FileRoomService {
       removed++;
     }
 
+    const syncedAt = new Date().toISOString();
+    await this.projects.update({ id: projectId }, { fileRoomSyncedAt: syncedAt });
     this.log.log(`Drive sync for project ${projectId}: +${added} ~${updated} -${removed}, ${folders} folders`);
-    return { added, updated, removed, folders };
+    return { added, updated, removed, folders, syncedAt };
   }
 
   // ---------------------------------------------------------------- folders

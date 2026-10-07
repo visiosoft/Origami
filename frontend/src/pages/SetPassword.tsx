@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { PasswordInput } from '../components/PasswordInput';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useWindowWidth } from '../useWindowWidth';
@@ -83,11 +84,11 @@ export function SetPassword() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={fieldLabel}>New password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a password" style={authInput} disabled={!invite} />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a password" style={authInput} disabled={!invite} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={fieldLabel}>Confirm password</label>
-          <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="Type it again" style={authInput} disabled={!invite} />
+          <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit()} placeholder="Type it again" style={authInput} disabled={!invite} />
         </div>
       </div>
 

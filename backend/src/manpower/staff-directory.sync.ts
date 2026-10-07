@@ -107,6 +107,15 @@ export class StaffDirectorySync implements OnApplicationBootstrap {
 
   /** People edited a linked entry: carry the shared fields to the employee. */
   async personChanged(p: PersonEntity, dto: Record<string, any>) {
+    // Turned into Staff: link (or create) the employee now, not at the next restart, so timesheets work straight away.
+    if (!p.employeeId && p.kind === 'Staff') {
+      const email = blank(p.email) ? '' : p.email.trim().toLowerCase();
+      const taken = new Set((await this.people.find()).map((x) => x.employeeId).filter(Boolean));
+      const match = email ? (await this.employees.find()).filter((e) => !taken.has(e.id) && (e.email || '').trim().toLowerCase() === email) : [];
+      if (match.length === 1) { p.employeeId = match[0].id; await this.people.save(p); }
+      else await this.employeeForPerson(p);
+      return;
+    }
     if (!p.employeeId) return;
     const patch: Partial<EmployeeEntity> = {};
     if ('name' in dto && dto.name?.trim()) patch.name = dto.name.trim();

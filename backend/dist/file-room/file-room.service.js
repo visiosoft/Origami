@@ -67,7 +67,7 @@ let FileRoomService = class FileRoomService {
             ? rawFiles.filter((f) => Number(f.projectId) === projectId)
             : rawFiles;
         return {
-            projects: projects.map((p) => ({ id: p.id, name: p.name })),
+            projects: projects.map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null })),
             categories: exports.DEFAULT_CATEGORIES,
             files: scoped.map((f) => this.hydrate(f)),
             folders: (projectId ? rawFolders.filter((f) => Number(f.projectId) === projectId) : rawFolders)
@@ -276,8 +276,10 @@ let FileRoomService = class FileRoomService {
             await this.files.remove(file);
             removed++;
         }
+        const syncedAt = new Date().toISOString();
+        await this.projects.update({ id: projectId }, { fileRoomSyncedAt: syncedAt });
         this.log.log(`Drive sync for project ${projectId}: +${added} ~${updated} -${removed}, ${folders} folders`);
-        return { added, updated, removed, folders };
+        return { added, updated, removed, folders, syncedAt };
     }
     async createFolder(projectId, path, name) {
         const clean = (name || '').trim();

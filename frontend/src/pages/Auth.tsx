@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { PasswordInput } from '../components/PasswordInput';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowWidth } from '../useWindowWidth';
 import { api, session } from '../api';
@@ -100,8 +101,8 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={fieldLabel}>Password</label>
-          <input
-            type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+          <PasswordInput
+            value={password} onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
             placeholder="Enter your password" style={authInput}
           />
