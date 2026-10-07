@@ -79,6 +79,23 @@ export declare class FileRoomService {
         to: string;
         url: string;
     }>;
+    shareMany(ids: string[]): Promise<{
+        id: string;
+        name: string;
+        url: string;
+    }[]>;
+    emailMany(ids: string[], to: string, note: string, actor: UploadActor): Promise<{
+        sent: boolean;
+        to: string;
+        url: string;
+    } | {
+        sent: boolean;
+        to: string;
+        count: number;
+    }>;
+    moveMany(ids: string[], folderPath: string[]): Promise<{
+        moved: number;
+    }>;
     sync(projectId: number): Promise<{
         added: number;
         updated: number;

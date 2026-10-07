@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EmailFileDto = exports.MoveFileDto = exports.UpdateFileDto = exports.CreateFolderDto = void 0;
+exports.MoveFilesDto = exports.EmailFilesDto = exports.FileIdsDto = exports.EmailFileDto = exports.MoveFileDto = exports.UpdateFileDto = exports.CreateFolderDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateFolderDto {
 }
@@ -60,4 +60,34 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], EmailFileDto.prototype, "note", void 0);
+class FileIdsDto {
+}
+exports.FileIdsDto = FileIdsDto;
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMinSize)(1),
+    (0, class_validator_1.ArrayMaxSize)(25),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], FileIdsDto.prototype, "ids", void 0);
+class EmailFilesDto extends FileIdsDto {
+}
+exports.EmailFilesDto = EmailFilesDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], EmailFilesDto.prototype, "to", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], EmailFilesDto.prototype, "note", void 0);
+class MoveFilesDto extends FileIdsDto {
+}
+exports.MoveFilesDto = MoveFilesDto;
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], MoveFilesDto.prototype, "folderPath", void 0);
 //# sourceMappingURL=file-room.dto.js.map

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -77,6 +78,13 @@ export function FileRoom() {
   const [emailTo, setEmailTo] = useState('');
   const [emailNote, setEmailNote] = useState('');
   const [emailOpen, setEmailOpen] = useState(false);
+  // Several files picked at once (inside one project): share, email or move them together.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulk, setBulk] = useState<'' | 'email' | 'move'>('');
+  const [bulkTo, setBulkTo] = useState('');
+  const [bulkNote, setBulkNote] = useState('');
+  const [bulkLinks, setBulkLinks] = useState<{ id: string; name: string; url: string }[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -208,6 +216,40 @@ export function FileRoom() {
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not create folder')); }
     setNewFolderName(''); setNewFolderOpen(false); setNewFolderTreeFor(null);
   };
+
+  // A different folder or project starts a fresh selection.
+  const here = path.join('>');
+  useEffect(() => { setPicked(new Set()); setBulk(''); setBulkLinks([]); }, [here]);
+  const canPick = canManage && !atRoot;
+  const togglePick = (id: string) => setPicked((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const pickBox = (id: string) => canPick ? (
+    <input type="checkbox" checked={picked.has(id)} aria-label="Select file"
+      onClick={(e) => e.stopPropagation()} onChange={() => togglePick(id)}
+      style={{ width: 17, height: 17, margin: 0, flexShrink: 0, cursor: 'pointer', accentColor: 'var(--ink)' }} />
+  ) : null;
+  const pickedIds = [...picked];
+  const bulkRun = async (fn: () => Promise<void>) => {
+    setBulkBusy(true);
+    try { await fn(); } catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed')); } finally { setBulkBusy(false); }
+  };
+  const bulkShare = () => bulkRun(async () => {
+    const links = await api.fileRoom.shareMany(pickedIds);
+    setBulkLinks(links);
+    const text = links.map((l) => `${l.name} — ${l.url}`).join('\n');
+    try { await navigator.clipboard.writeText(text); toast(`${links.length} share link${links.length === 1 ? '' : 's'} copied`); }
+    catch { toast('Share links ready'); }
+  });
+  const bulkEmail = () => bulkRun(async () => {
+    if (!bulkTo.trim()) { toast('⚠ Add a recipient'); return; }
+    await api.fileRoom.emailMany(pickedIds, bulkTo, bulkNote);
+    toast(`Sent ${pickedIds.length} file${pickedIds.length === 1 ? '' : 's'} to ${bulkTo.trim()}`);
+    setBulk(''); setBulkTo(''); setBulkNote('');
+  });
+  const bulkMove = (to: string[]) => bulkRun(async () => {
+    const r = await api.fileRoom.moveMany(pickedIds, to);
+    toast(r.moved ? `Moved ${r.moved} file${r.moved === 1 ? '' : 's'} to ${to.length ? to.join(' › ') : 'the project root'}` : 'They’re already there');
+    setPicked(new Set()); setBulk(''); load();
+  });
 
   const act = (p: Promise<unknown>, ok: string) =>
     p.then(() => { toast(ok); load(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
@@ -342,7 +384,8 @@ export function FileRoom() {
         const st = extStyle(f.ext);
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-               style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer' }}>
+               style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer', position: 'relative', outline: picked.has(f.id) ? '2px solid var(--ink)' : 'none', outlineOffset: -2 }}>
+            {canPick && <span style={{ position: 'absolute', top: 12, right: 12 }}>{pickBox(f.id)}</span>}
             <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
               {(f.ext || '?').slice(0, 4)}
             </div>
@@ -380,7 +423,8 @@ export function FileRoom() {
         const st = extStyle(f.ext);
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer' }}>
+               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', background: picked.has(f.id) ? 'rgba(245, 196, 67, 0.12)' : 'transparent' }}>
+            {pickBox(f.id)}
             <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
             {badge(f)}
@@ -508,6 +552,48 @@ export function FileRoom() {
           {view === 'grid' ? gridView : listView}
         </div>
       </div>
+
+      {canPick && picked.size > 0 && createPortal(
+        <div style={{ position: 'fixed', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 135, width: 'min(720px, calc(100vw - 32px))', boxSizing: 'border-box',
+          background: 'var(--surface)', color: 'var(--ink)', borderRadius: 18, boxShadow: '0 18px 50px rgba(var(--rgb-ink), 0.28)', border: '1px solid rgba(var(--rgb-shade), 0.1)', padding: 12, display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 13, marginRight: 4 }}>{picked.size} selected</b>
+            {picked.size < visibleFiles.length && <span onClick={() => setPicked(new Set(visibleFiles.map((f) => f.id)))} style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline' }}>Select all {visibleFiles.length}</span>}
+            <span style={{ flex: 1 }} />
+            {pill(bulkBusy ? 'Working…' : 'Copy share links', false, bulkBusy ? () => {} : bulkShare)}
+            {pill('Email', bulk === 'email', () => setBulk((b) => (b === 'email' ? '' : 'email')))}
+            {pill('Move to…', bulk === 'move', () => setBulk((b) => (b === 'move' ? '' : 'move')))}
+            {pill('Clear', false, () => { setPicked(new Set()); setBulk(''); setBulkLinks([]); })}
+          </div>
+          {picked.size > 25 && <div style={{ fontSize: 12, color: '#9A4318' }}>Up to 25 files at a time — untick {picked.size - 25}.</div>}
+          {bulk === 'email' && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <input value={bulkTo} onChange={(e) => setBulkTo(e.target.value)} placeholder="Recipient email" style={inputStyle} />
+              <textarea value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} rows={2} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 11, color: 'var(--muted)' }}>One email with a view link for each file — anyone with a link can view that file.</span>
+                {pill(bulkBusy ? 'Sending…' : `Send ${picked.size} file${picked.size === 1 ? '' : 's'}`, true, bulkBusy ? () => {} : bulkEmail)}
+              </div>
+            </div>
+          )}
+          {bulk === 'move' && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+              {[[], ...data.folders.filter((f) => Number(f.projectId) === projectId).map((f) => f.path || []).sort((a, b) => a.join('/').localeCompare(b.join('/')))].map((to) => (
+                <span key={to.join('/') || '__root'} onClick={bulkBusy ? undefined : () => bulkMove(to)}
+                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: to.join('>') === folder.join('>') ? 'var(--panel)' : 'var(--surface)' }}>
+                  {to.length ? to.join(' › ') : 'Project root'}
+                </span>
+              ))}
+            </div>
+          )}
+          {bulkLinks.length > 0 && (
+            <div style={{ fontSize: 11.5, color: 'var(--body)', background: 'var(--panel)', borderRadius: 10, padding: '8px 10px', maxHeight: 120, overflowY: 'auto', display: 'grid', gap: 3 }}>
+              {bulkLinks.map((l) => <div key={l.id} style={{ wordBreak: 'break-all' }}><b>{l.name}</b> — <a href={l.url} target="_blank" rel="noreferrer">{l.url}</a></div>)}
+            </div>
+          )}
+        </div>,
+        document.body,
+      )}
 
       {selected && (
         <div onClick={() => setSelectedFileId(null)}

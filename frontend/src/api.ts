@@ -526,6 +526,9 @@ export const api = {
     createFolder: (projectId: number, path: string[], name: string) =>
       request('/file-room/folders', { method: 'POST', body: JSON.stringify({ projectId, path, name }) }),
     removeFolder: (id: string) => request(`/file-room/folders/${id}`, { method: 'DELETE' }),
+    shareMany: (ids: string[]) => request<{ id: string; name: string; url: string }[]>('/file-room/files/share', { method: 'POST', body: JSON.stringify({ ids }) }),
+    emailMany: (ids: string[], to: string, note: string) => request<{ sent: boolean; to: string; count: number }>('/file-room/files/email', { method: 'POST', body: JSON.stringify({ ids, to, note }) }),
+    moveMany: (ids: string[], folderPath: string[]) => request<{ moved: number }>('/file-room/files/move', { method: 'PUT', body: JSON.stringify({ ids, folderPath }) }),
     move: (id: string, folderPath: string[]) => request(`/file-room/files/${id}/move`, { method: 'PUT', body: JSON.stringify({ folderPath }) }),
     applyTemplate: (projectId: number) => request<{ created: number; template: number }>(`/file-room/template?projectId=${projectId}`, { method: 'POST' }),
     /** A file the browser can show: Office and Google documents arrive as PDF. */

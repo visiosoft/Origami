@@ -7,6 +7,8 @@ import { subId } from '../database/task.types';
 import type { UploadActor } from '../google/attachments.service';
 import { SettingsService } from '../settings/settings.service';
 
+const uniqueIds = (ids: unknown) => Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean)));
+
 export const FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
 
 /** "Drawings/Architectural" per line -> [['Drawings', 'Architectural'], ...]; blanks and duplicates dropped. */
@@ -333,6 +335,46 @@ export class FileRoomService {
       <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
     await this.google.sendMail({ to: to.trim(), subject: `${file.name} — shared from Origami`, html });
     return { sent: true, to: to.trim(), url };
+  }
+
+  /** View links for several files at once. */
+  async shareMany(ids: string[]) {
+    const out: { id: string; name: string; url: string }[] = [];
+    for (const id of uniqueIds(ids)) out.push({ id, ...(await this.shareLink(id)) });
+    return out;
+  }
+
+  /** Several files in one email, each as a view link. */
+  async emailMany(ids: string[], to: string, note: string, actor: UploadActor) {
+    if (!to?.trim()) throw new BadRequestException('A recipient is required.');
+    const links = await this.shareMany(ids);
+    if (!links.length) throw new BadRequestException('Pick at least one file.');
+    if (links.length === 1) return this.email(links[0].id, to, note, actor);
+    const files = await Promise.all(links.map((l) => this.load(l.id)));
+    const projects = Array.from(new Set(await Promise.all(files.map((f) => this.projectName(Number(f.projectId))))));
+    const html = `
+      <p>${actor.name} shared ${links.length} files with you from the Origami File Room${projects.length === 1 ? ` (${escapeText(projects[0])})` : ''}.</p>
+      ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
+      <ul>${links.map((l) => `<li style="margin-bottom:6px;"><a href="${l.url}">${escapeText(l.name)}</a></li>`).join('')}</ul>
+      <p style="color:#7E9B93;font-size:12px;">Anyone with these links can view the files.</p>`;
+    await this.google.sendMail({ to: to.trim(), subject: `${links.length} files — shared from Origami`, html });
+    return { sent: true, to: to.trim(), count: links.length };
+  }
+
+  /** Move several files (each with its versions) into one folder. */
+  async moveMany(ids: string[], folderPath: string[]) {
+    const target = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean).join('>');
+    let moved = 0;
+    const done = new Set<string>();
+    for (const id of uniqueIds(ids)) {
+      if (done.has(id)) continue;
+      const file = await this.load(id);
+      if ((file.folderPath ?? []).join('>') === target) continue;
+      await this.move(id, folderPath);
+      moved++;
+      if (file.groupId) (await this.files.find()).filter((f) => f.groupId === file.groupId).forEach((f) => done.add(f.id));
+    }
+    return { moved };
   }
 
   // ----------------------------------------------------------------- sync

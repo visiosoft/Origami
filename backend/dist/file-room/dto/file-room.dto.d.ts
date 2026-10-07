@@ -14,3 +14,13 @@ export declare class EmailFileDto {
     to: string;
     note?: string;
 }
+export declare class FileIdsDto {
+    ids: string[];
+}
+export declare class EmailFilesDto extends FileIdsDto {
+    to: string;
+    note?: string;
+}
+export declare class MoveFilesDto extends FileIdsDto {
+    folderPath: string[];
+}

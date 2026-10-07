@@ -9,7 +9,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-room.service';
-import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, EmailFilesDto, MoveFilesDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 
@@ -53,6 +53,27 @@ export class FileRoomController {
       files,
       await this.auth.requireActor(auth),
     );
+  }
+
+  /** View links for several files. */
+  @Tiers('internal')
+  @Post('files/share')
+  shareMany(@Body() dto: FileIdsDto) {
+    return this.service.shareMany(dto.ids);
+  }
+
+  /** Several files in one email. */
+  @Tiers('internal')
+  @Post('files/email')
+  async emailMany(@Body() dto: EmailFilesDto, @Headers('authorization') auth?: string) {
+    return this.service.emailMany(dto.ids, dto.to, dto.note || '', await this.auth.actor(auth));
+  }
+
+  /** Move several files into one folder. */
+  @Tiers('internal')
+  @Put('files/move')
+  moveMany(@Body() dto: MoveFilesDto) {
+    return this.service.moveMany(dto.ids, dto.folderPath);
   }
 
   /**

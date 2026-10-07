@@ -51,6 +51,15 @@ let FileRoomController = class FileRoomController {
         }
         return this.service.upload(Number(projectId), Array.isArray(folderPath) ? folderPath : [], files, await this.auth.requireActor(auth));
     }
+    shareMany(dto) {
+        return this.service.shareMany(dto.ids);
+    }
+    async emailMany(dto, auth) {
+        return this.service.emailMany(dto.ids, dto.to, dto.note || '', await this.auth.actor(auth));
+    }
+    moveMany(dto) {
+        return this.service.moveMany(dto.ids, dto.folderPath);
+    }
     async content(id, thumb, download, res, claims) {
         const { file, body, mimeType } = await this.service.content(id, thumb === '1');
         if (!(await this.access.canSee(claims, file.projectId))) {
@@ -136,6 +145,31 @@ __decorate([
     __metadata("design:paramtypes", [Array, String, String, String]),
     __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "upload", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Post)('files/share'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [file_room_dto_1.FileIdsDto]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "shareMany", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Post)('files/email'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [file_room_dto_1.EmailFilesDto, String]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "emailMany", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Put)('files/move'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [file_room_dto_1.MoveFilesDto]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "moveMany", null);
 __decorate([
     (0, common_1.Get)('files/:id/content'),
     __param(0, (0, common_1.Param)('id')),

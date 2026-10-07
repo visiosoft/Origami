@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-08d',
+    date: '2026-10-08',
+    title: 'Share, email or move several files at once',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Tick several files in a project’s File Room (up to 25) and then copy all their share links, email them together in one message, or move them all into a folder or subfolder — in Google Drive too.', where: 'All Files → a project → tick files' },
+    ],
+  },
+  {
     id: '2026-10-08c',
     date: '2026-10-08',
     title: 'Files, lead details on projects, invoice approval',

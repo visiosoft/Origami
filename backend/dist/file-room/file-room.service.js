@@ -21,6 +21,7 @@ const entities_1 = require("../database/entities");
 const google_service_1 = require("../google/google.service");
 const task_types_1 = require("../database/task.types");
 const settings_service_1 = require("../settings/settings.service");
+const uniqueIds = (ids) => Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean)));
 exports.FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
 function parseFolderTemplate(text) {
     const seen = new Set();
@@ -284,6 +285,47 @@ let FileRoomService = class FileRoomService {
       <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
         await this.google.sendMail({ to: to.trim(), subject: `${file.name} — shared from Origami`, html });
         return { sent: true, to: to.trim(), url };
+    }
+    async shareMany(ids) {
+        const out = [];
+        for (const id of uniqueIds(ids))
+            out.push({ id, ...(await this.shareLink(id)) });
+        return out;
+    }
+    async emailMany(ids, to, note, actor) {
+        if (!to?.trim())
+            throw new common_1.BadRequestException('A recipient is required.');
+        const links = await this.shareMany(ids);
+        if (!links.length)
+            throw new common_1.BadRequestException('Pick at least one file.');
+        if (links.length === 1)
+            return this.email(links[0].id, to, note, actor);
+        const files = await Promise.all(links.map((l) => this.load(l.id)));
+        const projects = Array.from(new Set(await Promise.all(files.map((f) => this.projectName(Number(f.projectId))))));
+        const html = `
+      <p>${actor.name} shared ${links.length} files with you from the Origami File Room${projects.length === 1 ? ` (${escapeText(projects[0])})` : ''}.</p>
+      ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
+      <ul>${links.map((l) => `<li style="margin-bottom:6px;"><a href="${l.url}">${escapeText(l.name)}</a></li>`).join('')}</ul>
+      <p style="color:#7E9B93;font-size:12px;">Anyone with these links can view the files.</p>`;
+        await this.google.sendMail({ to: to.trim(), subject: `${links.length} files — shared from Origami`, html });
+        return { sent: true, to: to.trim(), count: links.length };
+    }
+    async moveMany(ids, folderPath) {
+        const target = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean).join('>');
+        let moved = 0;
+        const done = new Set();
+        for (const id of uniqueIds(ids)) {
+            if (done.has(id))
+                continue;
+            const file = await this.load(id);
+            if ((file.folderPath ?? []).join('>') === target)
+                continue;
+            await this.move(id, folderPath);
+            moved++;
+            if (file.groupId)
+                (await this.files.find()).filter((f) => f.groupId === file.groupId).forEach((f) => done.add(f.id));
+        }
+        return { moved };
     }
     async sync(projectId) {
         if (!(await this.google.isConnected())) {

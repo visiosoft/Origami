@@ -2,7 +2,7 @@ import { ProjectAccessService } from '../auth/project-access.service';
 import type { SessionClaims } from '../auth/crypto.util';
 import type { Response } from 'express';
 import { FileRoomService } from './file-room.service';
-import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, EmailFilesDto, MoveFilesDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 export declare class FileRoomController {
     private readonly service;
@@ -26,6 +26,23 @@ export declare class FileRoomController {
         }[];
     }>;
     upload(files: any[], projectId: string, path: string, auth?: string): Promise<import("../database/entities").FileRoomFileEntity[]>;
+    shareMany(dto: FileIdsDto): Promise<{
+        id: string;
+        name: string;
+        url: string;
+    }[]>;
+    emailMany(dto: EmailFilesDto, auth?: string): Promise<{
+        sent: boolean;
+        to: string;
+        url: string;
+    } | {
+        sent: boolean;
+        to: string;
+        count: number;
+    }>;
+    moveMany(dto: MoveFilesDto): Promise<{
+        moved: number;
+    }>;
     content(id: string, thumb: string, download: string, res: Response, claims: SessionClaims | null): Promise<void>;
     preview(id: string, res: Response, claims: SessionClaims | null): Promise<void>;
     template(projectId: string): Promise<{
