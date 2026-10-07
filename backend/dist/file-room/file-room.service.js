@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileRoomService = exports.MAX_FILES_PER_UPLOAD = exports.MAX_FILE_BYTES = exports.DEFAULT_CATEGORIES = exports.FOLDER_TEMPLATE_KEY = void 0;
+exports.recipients = recipients;
 exports.parseFolderTemplate = parseFolderTemplate;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
@@ -21,6 +22,17 @@ const entities_1 = require("../database/entities");
 const google_service_1 = require("../google/google.service");
 const task_types_1 = require("../database/task.types");
 const settings_service_1 = require("../settings/settings.service");
+function recipients(to) {
+    const list = String(to || '').split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+    if (!list.length)
+        throw new common_1.BadRequestException('A recipient is required.');
+    const bad = list.filter((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+    if (bad.length)
+        throw new common_1.BadRequestException(`Not an email address: ${bad.join(', ')}`);
+    if (list.length > 20)
+        throw new common_1.BadRequestException('At most 20 recipients at a time.');
+    return Array.from(new Set(list.map((e) => e.toLowerCase()))).join(', ');
+}
 const uniqueIds = (ids) => Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean)));
 exports.FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
 function parseFolderTemplate(text) {
@@ -59,12 +71,13 @@ const extOf = (name) => {
     return dot > -1 ? name.slice(dot + 1).toUpperCase() : '';
 };
 let FileRoomService = class FileRoomService {
-    constructor(files, folders, projects, google, settings) {
+    constructor(files, folders, projects, google, settings, shares) {
         this.files = files;
         this.folders = folders;
         this.projects = projects;
         this.google = google;
         this.settings = settings;
+        this.shares = shares;
         this.log = new common_1.Logger('FileRoomService');
     }
     async folderTemplate() {
@@ -273,8 +286,7 @@ let FileRoomService = class FileRoomService {
     }
     async email(id, to, note, actor) {
         const file = await this.load(id);
-        if (!to?.trim())
-            throw new common_1.BadRequestException('A recipient is required.');
+        to = recipients(to);
         const { url } = await this.shareLink(id);
         const project = await this.projectName(Number(file.projectId));
         const html = `
@@ -283,8 +295,9 @@ let FileRoomService = class FileRoomService {
       ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
       <p><a href="${url}">Open ${file.name}</a></p>
       <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
-        await this.google.sendMail({ to: to.trim(), subject: `${file.name} — shared from Origami`, html });
-        return { sent: true, to: to.trim(), url };
+        await this.google.sendMail({ to, subject: `${file.name} — shared from Origami`, html });
+        await this.logShare([file], to, note, actor);
+        return { sent: true, to, url };
     }
     async shareMany(ids) {
         const out = [];
@@ -293,8 +306,7 @@ let FileRoomService = class FileRoomService {
         return out;
     }
     async emailMany(ids, to, note, actor) {
-        if (!to?.trim())
-            throw new common_1.BadRequestException('A recipient is required.');
+        to = recipients(to);
         const links = await this.shareMany(ids);
         if (!links.length)
             throw new common_1.BadRequestException('Pick at least one file.');
@@ -307,8 +319,24 @@ let FileRoomService = class FileRoomService {
       ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
       <ul>${links.map((l) => `<li style="margin-bottom:6px;"><a href="${l.url}">${escapeText(l.name)}</a></li>`).join('')}</ul>
       <p style="color:#7E9B93;font-size:12px;">Anyone with these links can view the files.</p>`;
-        await this.google.sendMail({ to: to.trim(), subject: `${links.length} files — shared from Origami`, html });
-        return { sent: true, to: to.trim(), count: links.length };
+        await this.google.sendMail({ to, subject: `${links.length} files — shared from Origami`, html });
+        await this.logShare(files, to, note, actor);
+        return { sent: true, to, count: links.length };
+    }
+    async logShare(files, to, note, actor) {
+        const projectIds = Array.from(new Set(files.map((f) => Number(f.projectId))));
+        await this.shares.save(this.shares.create({
+            id: (0, task_types_1.subId)('frs'),
+            projectId: projectIds.length === 1 ? projectIds[0] : null,
+            files: files.map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath ?? [] })),
+            to, note: note?.trim() || null, sentById: actor.id, sentByName: actor.name || 'Someone', sentAt: new Date().toISOString(),
+        })).catch((e) => this.log.warn(`Could not record the share: ${e?.message}`));
+    }
+    async shareHistory(opts) {
+        const rows = (await this.shares.find())
+            .filter((s) => (opts.projectId ? Number(s.projectId) === opts.projectId : true))
+            .filter((s) => (opts.fileId ? (s.files || []).some((f) => f.id === opts.fileId) : true));
+        return rows.sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt))).slice(0, 500);
     }
     async moveMany(ids, folderPath) {
         const target = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean).join('>');
@@ -429,10 +457,12 @@ exports.FileRoomService = FileRoomService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.FileRoomFileEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.FileRoomFolderEntity)),
     __param(2, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.FileRoomShareEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         google_service_1.GoogleService,
-        settings_service_1.SettingsService])
+        settings_service_1.SettingsService,
+        typeorm_2.Repository])
 ], FileRoomService);
 //# sourceMappingURL=file-room.service.js.map

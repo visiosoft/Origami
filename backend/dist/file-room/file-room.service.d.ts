@@ -1,8 +1,9 @@
 import { Repository } from 'typeorm';
-import { FileRoomFileEntity, FileRoomFolderEntity, ProjectEntity } from '../database/entities';
+import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, ProjectEntity } from '../database/entities';
 import { GoogleService } from '../google/google.service';
 import type { UploadActor } from '../google/attachments.service';
 import { SettingsService } from '../settings/settings.service';
+export declare function recipients(to: string): string;
 export declare const FOLDER_TEMPLATE_KEY = "fileRoom.folderTemplate";
 export declare function parseFolderTemplate(text: string): string[][];
 export declare const DEFAULT_CATEGORIES: string[];
@@ -14,8 +15,9 @@ export declare class FileRoomService {
     private readonly projects;
     private readonly google;
     private readonly settings;
+    private readonly shares;
     private readonly log;
-    constructor(files: Repository<FileRoomFileEntity>, folders: Repository<FileRoomFolderEntity>, projects: Repository<ProjectEntity>, google: GoogleService, settings: SettingsService);
+    constructor(files: Repository<FileRoomFileEntity>, folders: Repository<FileRoomFolderEntity>, projects: Repository<ProjectEntity>, google: GoogleService, settings: SettingsService, shares: Repository<FileRoomShareEntity>);
     folderTemplate(): Promise<string[][]>;
     applyTemplate(projectId: number): Promise<{
         created: number;
@@ -93,6 +95,11 @@ export declare class FileRoomService {
         to: string;
         count: number;
     }>;
+    private logShare;
+    shareHistory(opts: {
+        projectId?: number;
+        fileId?: string;
+    }): Promise<FileRoomShareEntity[]>;
     moveMany(ids: string[], folderPath: string[]): Promise<{
         moved: number;
     }>;

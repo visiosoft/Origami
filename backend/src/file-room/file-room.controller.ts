@@ -55,6 +55,13 @@ export class FileRoomController {
     );
   }
 
+  /** Files emailed from the File Room: for a project (?projectId=) or one file (?fileId=). */
+  @Tiers('internal')
+  @Get('shares')
+  shareHistory(@Query('projectId') projectId?: string, @Query('fileId') fileId?: string) {
+    return this.service.shareHistory({ projectId: projectId ? Number(projectId) : undefined, fileId: fileId || undefined });
+  }
+
   /** View links for several files. */
   @Tiers('internal')
   @Post('files/share')

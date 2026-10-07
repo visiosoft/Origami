@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import { RecipientPicker } from '../components/RecipientPicker';
+import { ShareHistory } from '../components/ShareHistory';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
@@ -85,6 +87,8 @@ export function FileRoom() {
   const [bulkNote, setBulkNote] = useState('');
   const [bulkLinks, setBulkLinks] = useState<{ id: string; name: string; url: string }[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [sharesTick, setSharesTick] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -243,6 +247,7 @@ export function FileRoom() {
     if (!bulkTo.trim()) { toast('⚠ Add a recipient'); return; }
     await api.fileRoom.emailMany(pickedIds, bulkTo, bulkNote);
     toast(`Sent ${pickedIds.length} file${pickedIds.length === 1 ? '' : 's'} to ${bulkTo.trim()}`);
+    setSharesTick((n) => n + 1);
     setBulk(''); setBulkTo(''); setBulkNote('');
   });
   const bulkMove = (to: string[]) => bulkRun(async () => {
@@ -485,6 +490,7 @@ export function FileRoom() {
             </div>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
             {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
+            {canManage && !atRoot && pill('Sent history', historyOpen, () => setHistoryOpen((v) => !v))}
             {canManage && !atRoot && pill('Standard folders', false, async () => {
               if (!projectId) return;
               try {
@@ -553,6 +559,23 @@ export function FileRoom() {
         </div>
       </div>
 
+      {historyOpen && projectId && createPortal(
+        <div onClick={() => setHistoryOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 140, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100vw', height: '100%', boxSizing: 'border-box', background: 'var(--surface)', overflowY: 'auto', padding: '18px 22px', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>Sent history</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Every file emailed from {project?.name || 'this project'}’s File Room — who sent what, to whom and when.</div>
+              </div>
+              <div onClick={() => setHistoryOpen(false)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
+            </div>
+            <ShareHistory projectId={projectId} refreshKey={sharesTick}
+              onOpenFile={(id) => { const f = data.files.find((x) => x.id === id); if (!f) { toast('That file is no longer in the File Room'); return; } setHistoryOpen(false); setPath([String(f.projectId), ...(f.folderPath || [])]); setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }} />
+          </div>
+        </div>,
+        document.body,
+      )}
+
       {canPick && picked.size > 0 && createPortal(
         <div style={{ position: 'fixed', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 135, width: 'min(720px, calc(100vw - 32px))', boxSizing: 'border-box',
           background: 'var(--surface)', color: 'var(--ink)', borderRadius: 18, boxShadow: '0 18px 50px rgba(var(--rgb-ink), 0.28)', border: '1px solid rgba(var(--rgb-shade), 0.1)', padding: 12, display: 'grid', gap: 10 }}>
@@ -568,7 +591,7 @@ export function FileRoom() {
           {picked.size > 25 && <div style={{ fontSize: 12, color: '#9A4318' }}>Up to 25 files at a time — untick {picked.size - 25}.</div>}
           {bulk === 'email' && (
             <div style={{ display: 'grid', gap: 6 }}>
-              <input value={bulkTo} onChange={(e) => setBulkTo(e.target.value)} placeholder="Recipient email" style={inputStyle} />
+              <RecipientPicker value={bulkTo} onChange={setBulkTo} style={inputStyle} dropUp />
               <textarea value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} rows={2} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ flex: 1, fontSize: 11, color: 'var(--muted)' }}>One email with a view link for each file — anyone with a link can view that file.</span>
@@ -657,6 +680,13 @@ export function FileRoom() {
               </div>
             )}
 
+            {canManage && (
+              <div style={{ padding: '0 22px 16px' }}>
+                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 7 }}>Email history</div>
+                <ShareHistory fileId={selected.id} refreshKey={sharesTick} empty="This file hasn’t been emailed to anyone yet." />
+              </div>
+            )}
+
             <div style={{ padding: '0 22px 16px' }}>
               <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 7 }}>Notes</div>
               <textarea
@@ -713,7 +743,7 @@ export function FileRoom() {
 
               {emailOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: 'var(--panel)', borderRadius: 10, padding: 10 }}>
-                  <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="Recipient email" style={inputStyle} />
+                  <RecipientPicker value={emailTo} onChange={setEmailTo} style={inputStyle} />
                   <textarea value={emailNote} onChange={(e) => setEmailNote(e.target.value)} rows={3} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
                   <div
                     onClick={async () => {
@@ -721,7 +751,7 @@ export function FileRoom() {
                       try {
                         const r = await api.fileRoom.email(selected.id, emailTo, emailNote);
                         toast(`Sent to ${r.to}`);
-                        setEmailOpen(false); setEmailTo(''); setEmailNote('');
+                        setEmailOpen(false); setEmailTo(''); setEmailNote(''); setSharesTick((n) => n + 1);
                       } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not send')); }
                     }}
                     style={{ padding: '8px 0', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}

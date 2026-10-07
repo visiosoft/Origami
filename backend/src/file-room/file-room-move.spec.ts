@@ -1,4 +1,4 @@
-import { FileRoomService, parseFolderTemplate } from './file-room.service';
+import { FileRoomService, parseFolderTemplate, recipients } from './file-room.service';
 
 function table(rows: any[] = []) {
   const match = (r: any, w: any) => Object.entries(w || {}).every(([k, v]) => r[k] === v);
@@ -36,8 +36,9 @@ describe('File Room: folders and moving files', () => {
       sendMail: jest.fn(async () => undefined),
     };
     const settings = { get: jest.fn(async () => template) };
-    const svc = new FileRoomService(files as any, folders as any, projects as any, google as any, settings as any);
-    return { svc, files, folders, google };
+    const shares = table();
+    const svc = new FileRoomService(files as any, folders as any, projects as any, google as any, settings as any, shares as any);
+    return { svc, files, folders, google, shares };
   }
 
   it('moves a file and its revisions, in Drive too, and records the folder', async () => {
@@ -72,5 +73,22 @@ describe('File Room: folders and moving files', () => {
     expect(mail.subject).toBe('2 files — shared from Origami');
     expect(mail.html).toContain('https://drive.test/d1');
     expect(mail.html).toContain('https://drive.test/d3');
+  });
+
+  it('records every file email, and lists the history newest first, per project or per file', async () => {
+    const { svc, shares } = setup();
+    await svc.emailMany(['f1', 'f3'], 'Client@X.com; pm@y.com', 'For Thursday', { id: 'U-1', name: 'Astrid' } as any);
+    await svc.email('f4', 'owner@z.com', '', { id: 'U-1', name: 'Astrid' } as any);
+    expect(shares.rows).toHaveLength(2);
+    expect(shares.rows[0]).toMatchObject({ projectId: 7, to: 'client@x.com, pm@y.com', note: 'For Thursday', sentByName: 'Astrid' });
+    expect(shares.rows[0].files.map((f: any) => f.name)).toEqual(['Plan.pdf', 'Survey.dwg']);
+    expect((await svc.shareHistory({ fileId: 'f3' })).map((s: any) => s.to)).toEqual(['client@x.com, pm@y.com']);
+    expect(await svc.shareHistory({ projectId: 7 })).toHaveLength(2);
+  });
+
+  it('checks every recipient address', () => {
+    expect(recipients(' a@x.com, b@y.co ;a@x.com ')).toBe('a@x.com, b@y.co');
+    expect(() => recipients('a@x.com, nope')).toThrow('Not an email address: nope');
+    expect(() => recipients('  ')).toThrow('A recipient is required.');
   });
 });

@@ -754,6 +754,19 @@ export class FileRoomFolderEntity {
   @Column({ nullable: true }) createdAt!: string;
 }
 
+/** A record of File Room files emailed to someone: who sent what, to whom, when. */
+@Entity('file_room_shares')
+export class FileRoomShareEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ type: 'simple-json' }) files!: { id: string; name: string; folderPath?: string[] }[];
+  @Column({ type: 'nvarchar', length: 1000 }) to!: string;   // comma-separated recipients
+  @Column({ ...TEXT, nullable: true }) note!: string;
+  @Column({ nullable: true }) sentById!: string;
+  @Column() sentByName!: string;
+  @Column() sentAt!: string;
+}
+
 // ---------------------------------------------------------------- Manpower
 
 /** A field worker or staff member tracked for labor logging -- not necessarily an app login. */

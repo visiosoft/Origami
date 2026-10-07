@@ -517,6 +517,20 @@ export declare class FileRoomFolderEntity {
     name: string;
     createdAt: string;
 }
+export declare class FileRoomShareEntity {
+    id: string;
+    projectId: number | null;
+    files: {
+        id: string;
+        name: string;
+        folderPath?: string[];
+    }[];
+    to: string;
+    note: string;
+    sentById: string;
+    sentByName: string;
+    sentAt: string;
+}
 export declare class EmployeeEntity {
     id: string;
     name: string;

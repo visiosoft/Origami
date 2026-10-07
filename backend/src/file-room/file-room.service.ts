@@ -1,11 +1,21 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { FileRoomFileEntity, FileRoomFolderEntity, ProjectEntity } from '../database/entities';
+import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, ProjectEntity } from '../database/entities';
 import { GoogleService } from '../google/google.service';
 import { subId } from '../database/task.types';
 import type { UploadActor } from '../google/attachments.service';
 import { SettingsService } from '../settings/settings.service';
+
+/** "a@x.com; b@y.com" -> "a@x.com, b@y.com"; every address checked. */
+export function recipients(to: string): string {
+  const list = String(to || '').split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+  if (!list.length) throw new BadRequestException('A recipient is required.');
+  const bad = list.filter((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+  if (bad.length) throw new BadRequestException(`Not an email address: ${bad.join(', ')}`);
+  if (list.length > 20) throw new BadRequestException('At most 20 recipients at a time.');
+  return Array.from(new Set(list.map((e) => e.toLowerCase()))).join(', ');
+}
 
 const uniqueIds = (ids: unknown) => Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean)));
 
@@ -70,6 +80,7 @@ export class FileRoomService {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
+    @InjectRepository(FileRoomShareEntity) private readonly shares: Repository<FileRoomShareEntity>,
   ) {}
 
   /** The standard folders every project gets: one path per line, '/' for subfolders. */
@@ -324,7 +335,7 @@ export class FileRoomService {
   /** Email the file as a link rather than an attachment, so size never bites. */
   async email(id: string, to: string, note: string, actor: UploadActor) {
     const file = await this.load(id);
-    if (!to?.trim()) throw new BadRequestException('A recipient is required.');
+    to = recipients(to);
     const { url } = await this.shareLink(id);
     const project = await this.projectName(Number(file.projectId));
     const html = `
@@ -333,8 +344,9 @@ export class FileRoomService {
       ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
       <p><a href="${url}">Open ${file.name}</a></p>
       <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
-    await this.google.sendMail({ to: to.trim(), subject: `${file.name} — shared from Origami`, html });
-    return { sent: true, to: to.trim(), url };
+    await this.google.sendMail({ to, subject: `${file.name} — shared from Origami`, html });
+    await this.logShare([file], to, note, actor);
+    return { sent: true, to, url };
   }
 
   /** View links for several files at once. */
@@ -346,7 +358,7 @@ export class FileRoomService {
 
   /** Several files in one email, each as a view link. */
   async emailMany(ids: string[], to: string, note: string, actor: UploadActor) {
-    if (!to?.trim()) throw new BadRequestException('A recipient is required.');
+    to = recipients(to);
     const links = await this.shareMany(ids);
     if (!links.length) throw new BadRequestException('Pick at least one file.');
     if (links.length === 1) return this.email(links[0].id, to, note, actor);
@@ -357,8 +369,27 @@ export class FileRoomService {
       ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
       <ul>${links.map((l) => `<li style="margin-bottom:6px;"><a href="${l.url}">${escapeText(l.name)}</a></li>`).join('')}</ul>
       <p style="color:#7E9B93;font-size:12px;">Anyone with these links can view the files.</p>`;
-    await this.google.sendMail({ to: to.trim(), subject: `${links.length} files — shared from Origami`, html });
-    return { sent: true, to: to.trim(), count: links.length };
+    await this.google.sendMail({ to, subject: `${links.length} files — shared from Origami`, html });
+    await this.logShare(files, to, note, actor);
+    return { sent: true, to, count: links.length };
+  }
+
+  private async logShare(files: FileRoomFileEntity[], to: string, note: string, actor: UploadActor) {
+    const projectIds = Array.from(new Set(files.map((f) => Number(f.projectId))));
+    await this.shares.save(this.shares.create({
+      id: subId('frs'),
+      projectId: projectIds.length === 1 ? projectIds[0] : null,
+      files: files.map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath ?? [] })),
+      to, note: note?.trim() || null, sentById: actor.id, sentByName: actor.name || 'Someone', sentAt: new Date().toISOString(),
+    } as Partial<FileRoomShareEntity>)).catch((e) => this.log.warn(`Could not record the share: ${e?.message}`));
+  }
+
+  /** Files emailed from the File Room, newest first -- for a project, or for one file. */
+  async shareHistory(opts: { projectId?: number; fileId?: string }) {
+    const rows = (await this.shares.find())
+      .filter((s) => (opts.projectId ? Number(s.projectId) === opts.projectId : true))
+      .filter((s) => (opts.fileId ? (s.files || []).some((f) => f.id === opts.fileId) : true));
+    return rows.sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt))).slice(0, 500);
   }
 
   /** Move several files (each with its versions) into one folder. */

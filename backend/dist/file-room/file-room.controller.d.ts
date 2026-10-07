@@ -26,6 +26,7 @@ export declare class FileRoomController {
         }[];
     }>;
     upload(files: any[], projectId: string, path: string, auth?: string): Promise<import("../database/entities").FileRoomFileEntity[]>;
+    shareHistory(projectId?: string, fileId?: string): Promise<import("../database/entities").FileRoomShareEntity[]>;
     shareMany(dto: FileIdsDto): Promise<{
         id: string;
         name: string;

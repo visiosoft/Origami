@@ -51,6 +51,9 @@ let FileRoomController = class FileRoomController {
         }
         return this.service.upload(Number(projectId), Array.isArray(folderPath) ? folderPath : [], files, await this.auth.requireActor(auth));
     }
+    shareHistory(projectId, fileId) {
+        return this.service.shareHistory({ projectId: projectId ? Number(projectId) : undefined, fileId: fileId || undefined });
+    }
     shareMany(dto) {
         return this.service.shareMany(dto.ids);
     }
@@ -145,6 +148,15 @@ __decorate([
     __metadata("design:paramtypes", [Array, String, String, String]),
     __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "upload", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Get)('shares'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Query)('fileId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "shareHistory", null);
 __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Post)('files/share'),

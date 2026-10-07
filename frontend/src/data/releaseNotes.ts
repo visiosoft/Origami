@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-08e',
+    date: '2026-10-08',
+    title: 'Email files to anyone, with a sent history',
+    items: [
+      { area: 'Files', kind: 'improved', text: 'When emailing files, type any email address or start typing a name to pick someone from People or the team. Several recipients can get the same email.', where: 'All Files → tick files → Email (or a file → Email this file)' },
+      { area: 'Files', kind: 'new', text: 'Every file emailed from the File Room is recorded: who sent which files, to whom, when, and the note. See it for the whole project under Sent history, or for one file in its panel.', where: 'All Files → a project → Sent history; a file → Email history' },
+    ],
+  },
+  {
     id: '2026-10-08d',
     date: '2026-10-08',
     title: 'Share, email or move several files at once',

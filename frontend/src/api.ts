@@ -1,5 +1,8 @@
 const API_BASE = '/api';
 
+/** One email of File Room files: what went to whom, when, from whom. */
+export type FileShare = { id: string; projectId: number | null; files: { id: string; name: string; folderPath?: string[] }[]; to: string; note?: string | null; sentByName: string; sentAt: string };
+
 /** A letter rendered on the company letterhead — previewed and sent as a PDF. */
 export interface LetterInput {
   to?: string;
@@ -526,6 +529,9 @@ export const api = {
     createFolder: (projectId: number, path: string[], name: string) =>
       request('/file-room/folders', { method: 'POST', body: JSON.stringify({ projectId, path, name }) }),
     removeFolder: (id: string) => request(`/file-room/folders/${id}`, { method: 'DELETE' }),
+    /** Files emailed from the File Room -- for a project or one file. */
+    shares: (q: { projectId?: number; fileId?: string }) =>
+      request<FileShare[]>(`/file-room/shares?${new URLSearchParams(Object.entries(q).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)]))}`),
     shareMany: (ids: string[]) => request<{ id: string; name: string; url: string }[]>('/file-room/files/share', { method: 'POST', body: JSON.stringify({ ids }) }),
     emailMany: (ids: string[], to: string, note: string) => request<{ sent: boolean; to: string; count: number }>('/file-room/files/email', { method: 'POST', body: JSON.stringify({ ids, to, note }) }),
     moveMany: (ids: string[], folderPath: string[]) => request<{ moved: number }>('/file-room/files/move', { method: 'PUT', body: JSON.stringify({ ids, folderPath }) }),
