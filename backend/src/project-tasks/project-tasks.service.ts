@@ -1,4 +1,4 @@
-import { Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectTaskEntity, UserEntity } from '../database/entities';
@@ -154,7 +154,20 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
   }
 
+  /** A subtask must say who does it and by when -- that's what makes it trackable. */
+  private assertSubtaskFields(t: { assignee?: string | null; assigneeId?: string | null; dueDate?: string | null }) {
+    const missing = [!(t.assigneeId || (t.assignee || '').trim()) && 'an assignee', !(t.dueDate || '').trim() && 'a due date'].filter(Boolean);
+    if (missing.length) throw new BadRequestException(`A subtask needs ${missing.join(' and ')}.`);
+  }
+
+  /** A parent can't be finished while any of its subtasks is still open. */
+  private async assertSubtasksDone(parentId: string) {
+    const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && s.status !== 'Done');
+    if (open.length) throw new BadRequestException(`Finish its ${open.length} open subtask${open.length === 1 ? '' : 's'} first.`);
+  }
+
   async create(dto: any, actor: UploadActor = { name: 'Unknown' }) {
+    if (dto.parentId) this.assertSubtaskFields(dto);
     const id = dto.id || 'T-' + String(Date.now());
     if (dto.status) {
       dto = { ...dto, status: normalizeTaskStatus(dto.status) };
@@ -209,6 +222,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
     await this.syncHoldSection(task, patch);
     this.syncStatus(task, patch);
+    // Older subtasks may lack these; only stop someone clearing one that is set.
+    if (task.parentId) {
+      if ('dueDate' in patch && task.dueDate && !(patch.dueDate || '').trim()) throw new BadRequestException('A subtask needs a due date.');
+      if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim())) throw new BadRequestException('A subtask needs an assignee.');
+    }
+    if (patch.status === 'Done' && task.status !== 'Done' && !task.parentId) await this.assertSubtasksDone(id);
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.
     let joined: { id: string; name: string }[] = [];

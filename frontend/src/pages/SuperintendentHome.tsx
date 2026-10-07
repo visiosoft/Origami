@@ -49,7 +49,7 @@ function useSiteWork() {
     api.projects.list().then((r: any) => { if (Array.isArray(r)) setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name]))); }).catch(() => { });
   }, [reload]);
   const me = currentUser;
-  const myBoard = board.filter((t) => !t.parentId && isMine(t as any, me, true));
+  const myBoard = board.filter((t) => isMine(t as any, me, true));
   const myLog = log.filter((t) => isMine(t, me, true));
   const raised = log.filter((t) => raisedBy(t, me?.id) && !isMine(t, me));
   return { board, setBoard, log, setLog, projects, loaded, reload, myBoard, myLog, raised };

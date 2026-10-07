@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-08b',
+    date: '2026-10-08',
+    title: 'Parent and child tasks',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Every subtask now has its own assignee and due date — both are needed to add one. The person it’s assigned to is emailed, it shows in their own task lists and reminders, and it’s flagged when it runs late.', where: 'Tasks → open a task → Subtasks' },
+      { area: 'Tasks', kind: 'new', text: 'A parent task can’t be marked done until all its subtasks are done.', where: 'Tasks, Phase boards' },
+      { area: 'Tasks', kind: 'new', text: 'Cards show a link badge: P with how many subtasks are done on a parent, C on a subtask (click it to open the parent).', where: 'Task board, list and phase views' },
+    ],
+  },
+  {
     id: '2026-10-08a',
     date: '2026-10-08',
     title: 'From the Oct 6 sync: quick fixes',

@@ -1,4 +1,5 @@
 import { tint, useTheme } from '../theme';
+import { SubtaskForm, type NewSubtask } from '../components/SubtaskForm';
 import { ProjectCard } from '../components/ProjectCard';
 import { useEffect, useRef, useState } from 'react';
 import { AllFiles } from '../components/AllFiles';
@@ -183,7 +184,6 @@ export function Projects() {
       })
       .catch(() => { /* keep the fallback */ });
   }, []);
-  const [subDraft, setSubDraft] = useState('');
   // Which wizard step a phase card opens, so the Phase Board and the Project
   // Program land on the same piece of work rather than sitting side by side.
   const [programStep, setProgramStep] = useState<string | null>(null);
@@ -194,15 +194,13 @@ export function Projects() {
     try { putTask(await api.projectTasks.update(id, patch)); }
     catch (e: any) { toast('⚠ ' + (e.message || 'Could not save')); }
   };
-  const addSubtask = async (parent: any) => {
-    const title = subDraft.trim();
-    if (!title || !sel) return;
-    setSubDraft('');
+  const addSubtask = async (parent: any, sub: NewSubtask) => {
+    if (!sel) return;
     try {
       // loadBoard reads through the phaseId-filtered phase board endpoint --
       // a subtask created without phaseId would save fine, then vanish on
       // the next reload.
-      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, phaseId: parent.phaseId, title, parentId: parent.id });
+      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, phaseId: parent.phaseId, ...sub, parentId: parent.id });
       loadBoard(sel.id);
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
@@ -1304,10 +1302,7 @@ export function Projects() {
                           </div>
                         ))}
                         {canManage && (
-                          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                            <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(live); }} placeholder="Add a subtask…" style={{ ...inputStyle, flex: 1 }} />
-                            <div onClick={() => addSubtask(live)} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
-                          </div>
+                          <div style={{ marginTop: 4 }}><SubtaskForm onAdd={(sub) => addSubtask(live, sub)} /></div>
                         )}
                       </div>
                     ))}

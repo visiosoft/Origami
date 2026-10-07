@@ -45,7 +45,7 @@ export function MyTasks() {
 
     const rows: Row[] = [
       ...boardTasks
-        .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && (isMine(t.assigneeId, t.assignee) || following(t)))
+        .filter((t) => !t.completed && t.status !== 'Done' && (isMine(t.assigneeId, t.assignee) || following(t)))
         .map((t) => ({
           key: 'b' + t.id,
           title: following(t) && !isMine(t.assigneeId, t.assignee) ? `${t.title} · collaborating` : t.title,

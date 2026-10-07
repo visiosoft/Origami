@@ -142,7 +142,19 @@ let ProjectTasksService = class ProjectTasksService {
                 patch.status = 'In progress';
         }
     }
+    assertSubtaskFields(t) {
+        const missing = [!(t.assigneeId || (t.assignee || '').trim()) && 'an assignee', !(t.dueDate || '').trim() && 'a due date'].filter(Boolean);
+        if (missing.length)
+            throw new common_1.BadRequestException(`A subtask needs ${missing.join(' and ')}.`);
+    }
+    async assertSubtasksDone(parentId) {
+        const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && s.status !== 'Done');
+        if (open.length)
+            throw new common_1.BadRequestException(`Finish its ${open.length} open subtask${open.length === 1 ? '' : 's'} first.`);
+    }
     async create(dto, actor = { name: 'Unknown' }) {
+        if (dto.parentId)
+            this.assertSubtaskFields(dto);
         const id = dto.id || 'T-' + String(Date.now());
         if (dto.status) {
             dto = { ...dto, status: (0, task_types_1.normalizeTaskStatus)(dto.status) };
@@ -200,6 +212,14 @@ let ProjectTasksService = class ProjectTasksService {
             patch.status = (0, task_types_1.normalizeTaskStatus)(patch.status);
         await this.syncHoldSection(task, patch);
         this.syncStatus(task, patch);
+        if (task.parentId) {
+            if ('dueDate' in patch && task.dueDate && !(patch.dueDate || '').trim())
+                throw new common_1.BadRequestException('A subtask needs a due date.');
+            if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim()))
+                throw new common_1.BadRequestException('A subtask needs an assignee.');
+        }
+        if (patch.status === 'Done' && task.status !== 'Done' && !task.parentId)
+            await this.assertSubtasksDone(id);
         let joined = [];
         const collabEvents = [];
         if ('collaborators' in patch) {

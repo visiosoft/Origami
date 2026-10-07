@@ -7,6 +7,7 @@ import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { subtasksOf, type ProjectTask } from '../data/projectTasks';
+import { TaskLinkBadge } from '../components/TaskLinkBadge';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
 
@@ -726,7 +727,7 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
                           >▶</span>
                         )}
                         <span style={{ fontSize: indent ? 12 : 13, fontWeight: indent ? 500 : 600, color: indent ? '#4A4357' : INK, textDecoration: isDone(t) ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                        {!indent && subs.length > 0 && <span style={{ fontSize: 10.5, color: '#9c96a4', flex: '0 0 auto' }}>{subs.filter((s) => isDone(s)).length}/{subs.length}</span>}
+                        {!indent && subs.length > 0 && <TaskLinkBadge kind="P" text={`${subs.filter((s) => isDone(s)).length}/${subs.length}`} title="Parent task: subtasks done" />}
                       </span>
                       {visibleCols.map((c) => {
                         if (c.key === 'owner') return (

@@ -59,7 +59,7 @@ export function ConsultantDashboard() {
     const isMine = (assigneeId?: string, assignee?: string) =>
       assigneeId ? assigneeId === id : !!name && !!assignee && assignee.trim().toLowerCase() === name.trim().toLowerCase();
     return boardTasks
-      .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && t.projectId != null && projectsById[t.projectId] && isMine(t.assigneeId, t.assignee))
+      .filter((t) => !t.completed && t.status !== 'Done' && t.projectId != null && projectsById[t.projectId] && isMine(t.assigneeId, t.assignee))
       .sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   }, [boardTasks, projectsById, currentUser]);
 

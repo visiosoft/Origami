@@ -134,7 +134,7 @@ let RemindersService = class RemindersService {
         const following = (list) => Array.isArray(list) && list.some((c) => c?.id === user.id);
         const out = [];
         for (const t of data.boardTasks) {
-            if (t.completed || t.status === 'Done' || t.parentId || !t.dueDate)
+            if (t.completed || t.status === 'Done' || !t.dueDate)
                 continue;
             const mine = this.isMine(t.assigneeId, t.assignee, user);
             if (!mine && !following(t.collaborators))

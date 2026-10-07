@@ -10,6 +10,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
+import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -52,7 +53,6 @@ export function PhaseTaskPanel({
   const canManage = can('projects', 'manage') || isMine(task, currentUser, true);
   const [storageReady, setStorageReady] = useState(false);
   const [teams, setTeams] = useState<string[]>(['Automation']);
-  const [subDraft, setSubDraft] = useState('');
   const [draft, setDraft] = useState<any>(task);
 
   // Another task opened in the panel starts fresh; replies for this one merge in.
@@ -79,16 +79,13 @@ export function PhaseTaskPanel({
   const applied = (next: any) => { setDraft((cur: any) => keepEdits(cur, next, FIELDS)); onSaved(next); };
   const set = (patch: any) => setDraft((prev: any) => ({ ...prev, ...patch }));
 
-  const addSubtask = async () => {
-    const title = subDraft.trim();
-    if (!title) return;
-    setSubDraft('');
+  const addSubtask = async (sub: NewSubtask) => {
     try {
       // The Phase Board's own fetch (PhasesService.board) only returns tasks
       // that have a phaseId -- a subtask created without one would save fine
       // but then vanish from every reload, making "Add" look broken even
       // though it worked.
-      await api.projectTasks.create({ projectId: draft.projectId, sectionId: draft.sectionId, phaseId: draft.phaseId, title, parentId: draft.id });
+      await api.projectTasks.create({ projectId: draft.projectId, sectionId: draft.sectionId, phaseId: draft.phaseId, ...sub, parentId: draft.id });
       onReload?.();
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
@@ -208,10 +205,7 @@ export function PhaseTaskPanel({
               </div>
             ))}
             {canManage && (
-              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(); }} placeholder="Add a subtask…" style={{ ...input, flex: 1 }} />
-                <div onClick={addSubtask} style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white', whiteSpace: 'nowrap' }}>Add</div>
-              </div>
+              <div style={{ marginTop: 4 }}><SubtaskForm onAdd={addSubtask} /></div>
             )}
           </div>
         </div>

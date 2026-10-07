@@ -16,6 +16,8 @@ import {
 } from '../data/projectTasks';
 import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
+import { SubtaskForm, type NewSubtask } from './SubtaskForm';
+import { TaskLinkBadge } from './TaskLinkBadge';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
@@ -71,7 +73,6 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const [addDraft, setAddDraft] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [subDraft, setSubDraft] = useState('');
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   // Uploads need a connected Google account; links work regardless.
   const [storageReady, setStorageReady] = useState(false);
@@ -111,13 +112,21 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   // ---- task mutations (optimistic + persist) ----
   const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const updateTask = (id: string, patch: Partial<ProjectTask>) => {
+    const before = tasks.find((x) => x.id === id);
+    const finishing = patch.completed === true || patch.status === 'Done';
+    const openSubs = finishing && before && !before.parentId ? subtasksOf(tasks, id).filter((s) => !s.completed).length : 0;
+    if (openSubs) { toast(`Finish its ${openSubs} open subtask${openSubs === 1 ? '' : 's'} first`); return; }
     patchLocal(id, patch);
     // The server may move a task with it: an "On hold" column and the On hold status go together.
     api.projectTasks.update(id, patch)
       .then((res: any) => { if (res?.id && (res.status !== patch.status || res.sectionId !== patch.sectionId)) patchLocal(id, { status: res.status, sectionId: res.sectionId, completed: res.completed }); })
-      .catch(() => toast('⚠ Failed to save'));
+      .catch((e: Error) => {
+        // Refused (e.g. a parent with open subtasks): put the card back as it was.
+        if (before) patchLocal(id, Object.fromEntries(Object.keys(patch).map((k) => [k, (before as any)[k]])) as Partial<ProjectTask>);
+        toast('⚠ ' + (e.message || 'Failed to save'));
+      });
   };
-  const addTask = (sectionId: string, title: string, parentId: string | null = null) => {
+  const addTask = (sectionId: string, title: string, parentId: string | null = null, extra: Partial<NewSubtask> = {}) => {
     const t = title.trim(); if (!t) return;
     const order = tasks.filter((x) => x.sectionId === sectionId && !x.parentId).length;
     // Adding while filtered to "My tasks" assigns it to you — otherwise the new
@@ -125,9 +134,10 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     const mine = scope === 'mine' && currentUser
       ? { assigneeId: currentUser.id, assignee: currentUser.name }
       : {};
-    api.projectTasks.create({ projectId, sectionId, title: t, order, parentId, ...mine }).then((res: any) => {
+    const parent = parentId ? tasks.find((x) => x.id === parentId) : null;
+    return api.projectTasks.create({ projectId, sectionId, phaseId: parent?.phaseId, title: t, order, parentId, ...mine, ...extra }).then((res: any) => {
       if (res) setTasks((prev) => [...prev, res as ProjectTask]);
-    }).catch(() => toast('⚠ Failed to add task'));
+    }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add task')));
   };
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id && t.parentId !== id));
@@ -162,7 +172,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
   // ---- subtasks / attachments / comments (on selected task) ----
   const toggleSub = (sub: ProjectTask) => updateTask(sub.id, { completed: !sub.completed });
-  const addSubtask = () => { if (!selected) return; addTask(selected.sectionId, subDraft, selected.id); setSubDraft(''); };
+  const addSubtask = (s: NewSubtask) => (selected ? addTask(selected.sectionId, s.title, selected.id, s) : undefined);
   // Comments and attachments are written server-side so the author, timestamp
   // and history entry are recorded consistently; the response is the fresh task.
   const replaceTask = (res: any) => { if (res?.id) setTasks((prev) => prev.map((t) => (t.id === res.id ? (res as ProjectTask) : t))); };
@@ -218,14 +228,23 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     if (days < 0) return `${-days}d overdue`;
     return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
+  /** P / C marker for a task, if it has subtasks or is one. */
+  const linkBadge = (t: ProjectTask) => {
+    if (t.parentId) {
+      const parent = tasks.find((x) => x.id === t.parentId);
+      return <TaskLinkBadge kind="C" title={parent ? `Subtask of “${parent.title}”` : 'Subtask'} onClick={parent ? () => setSelectedId(parent.id) : undefined} />;
+    }
+    const subs = subtasksOf(tasks, t.id);
+    if (!subs.length) return null;
+    const done = subs.filter((s) => s.completed).length;
+    return <TaskLinkBadge kind="P" text={`${done}/${subs.length}`} title={`Parent task: ${done} of ${subs.length} subtasks done`} />;
+  };
   const renderCard = (t: ProjectTask, index = 0) => {
     const subs = subtasksOf(tasks, t.id);
-    const doneSubs = subs.filter((s) => s.completed).length;
     const check = checklistProgress(t.checklist);
     if (isNew) {
       const overdue = !t.completed && !!t.dueDate && t.dueDate < todayIso;
       const counts: [string, string, string][] = [
-        ...(subs.length ? [['sub', `${doneSubs}/${subs.length}`, 'Subtasks'] as [string, string, string]] : []),
         ...(check.total ? [['check', `${check.done}/${check.total}`, 'Checklist'] as [string, string, string]] : []),
         ...(t.comments?.length ? [['comment', String(t.comments.length), 'Comments'] as [string, string, string]] : []),
         ...(t.attachments?.length ? [['clip', String(t.attachments.length), 'Attachments'] as [string, string, string]] : []),
@@ -253,8 +272,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           }}
           onClick={() => setSelectedId(t.id)}
         >
-          {(t.priority || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
+          {(t.priority || t.parentId || subs.length > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
             <div className="tb-tags">
+              {linkBadge(t)}
               {t.priority && <span className={'tb-prio is-' + t.priority.toLowerCase()}>{t.priority}</span>}
               {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status">{t.status}</span>}
             </div>
@@ -310,7 +330,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               <StatusPill s={t.status} />
               <PriorityPill p={t.priority} />
               {t.dueDate && <span style={{ fontSize: 10, color: 'var(--muted)' }}>📅 {t.dueDate}</span>}
-              {subs.length > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>☑ {doneSubs}/{subs.length}</span>}
+              {linkBadge(t)}
               {check.total > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>✓ {check.done}/{check.total}</span>}
               {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>💬 {t.comments!.length}</span>}
               {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>📎 {t.attachments!.length}</span>}
@@ -443,18 +463,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} />
 
+          {depth === 0 && t.parentId ? linkBadge(t) : null}
           <span style={{ flex: 1, minWidth: 0, fontSize: depth ? 12.5 : 13, fontWeight: depth ? 500 : 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {t.title}
           </span>
 
           {kids.length > 0 && (
-            <span
-              onClick={(e) => { e.stopPropagation(); setOpenTasks((prev) => ({ ...prev, [t.id]: !isOpen })); }}
-              title={doneKids + ' of ' + kids.length + ' subtasks done'}
-              style={{ padding: '1px 7px', borderRadius: 999, fontSize: 10, fontWeight: 700, background: 'var(--c-efede8)', color: '#5c5666', flexShrink: 0 }}
-            >
-              {doneKids}/{kids.length}
-            </span>
+            <TaskLinkBadge kind="P" text={`${doneKids}/${kids.length}`} title={doneKids + ' of ' + kids.length + ' subtasks done'}
+              onClick={() => setOpenTasks((prev) => ({ ...prev, [t.id]: !isOpen }))} />
           )}
 
           <PriorityPill p={t.priority} />
@@ -469,25 +485,11 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             {kids.map((k) => listRow(k, 1))}
             {canManage && (addingSubIn === t.id ? (
               <div style={{ padding: '8px 14px 10px 46px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', background: '#FCFBF9' }}>
-                <input
-                  autoFocus
-                  value={subDraft}
-                  onChange={(e) => setSubDraft(e.target.value)}
-                  placeholder="Subtask title"
-                  style={{ ...inputStyle, fontSize: 12.5 }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { addTask(t.sectionId, subDraft, t.id); setSubDraft(''); }
-                    if (e.key === 'Escape') { setAddingSubIn(null); setSubDraft(''); }
-                  }}
-                />
-                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                  <div onClick={() => { addTask(t.sectionId, subDraft, t.id); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Add</div>
-                  <div onClick={() => { setAddingSubIn(null); setSubDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
-                </div>
+                <SubtaskForm compact autoFocus onAdd={(sub) => addTask(t.sectionId, sub.title, t.id, sub)} onCancel={() => setAddingSubIn(null)} />
               </div>
             ) : (
               <div
-                onClick={() => { setAddingSubIn(t.id); setSubDraft(''); }}
+                onClick={() => setAddingSubIn(t.id)}
                 style={{ padding: '7px 14px 7px 46px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', background: '#FCFBF9', fontSize: 11.5, color: 'var(--c-9aa39d)', cursor: 'pointer' }}
               >
                 + Add subtask
@@ -776,7 +778,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       {selected && (
         <DraftScope key={selected.id} record={selected} fields={BOARD_FIELDS} enabled={canManage} label="task"
           save={(changes) => api.projectTasks.update(selected.id, changes) as Promise<ProjectTask>} onSaved={replaceTask}>
-        {({ draft: d, set, auto }) => (
+        {({ draft: d, set: setDraft, auto }) => {
+        // A parent stays open while any subtask is open -- say so instead of saving a refusal.
+        const set = (patch: Partial<ProjectTask>) => {
+          const open = (patch.completed === true || patch.status === 'Done') ? subtasksOf(tasks, selected.id).filter((s) => !s.completed).length : 0;
+          if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
+          setDraft(patch);
+        };
+        return (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
             {canManage && (
@@ -836,16 +845,15 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                 {subtasksOf(tasks, selected.id).map((s) => (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--panel)', borderRadius: 8 }}>
                     <input type="checkbox" checked={s.completed} disabled={!canManage} onChange={() => toggleSub(s)} />
-                    <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
+                    {s.dueDate && <span style={{ fontSize: 11, color: !s.completed && s.dueDate < todayIso ? '#9A4318' : 'var(--muted)', flexShrink: 0 }}>{dueText(s.dueDate)}</span>}
+                    {s.assignee && <Avatar user={users.find((u) => u.id === s.assigneeId)} name={s.assignee} size={20} title={s.assignee} />}
                     {canManage && <span onClick={() => deleteTask(s.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                   </div>
                 ))}
               </div>
               {canManage && (
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <input value={subDraft} onChange={(e) => setSubDraft(e.target.value)} placeholder="Add a subtask…" style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => { if (e.key === 'Enter') addSubtask(); }} />
-                  <div onClick={addSubtask} style={{ padding: '8px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Add</div>
-                </div>
+                <div style={{ marginTop: 8 }}><SubtaskForm onAdd={addSubtask} /></div>
               )}
             </div>
 
@@ -900,7 +908,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             )}
           </div>
         </div>
-        )}
+        );
+        }}
         </DraftScope>
       )}
     </div>

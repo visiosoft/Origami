@@ -70,7 +70,7 @@ export function Notifications() {
     if (!currentUser) return [];
     const out: Row[] = [
       ...boardTasks
-        .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && isMine(t, currentUser))
+        .filter((t) => !t.completed && t.status !== 'Done' && isMine(t, currentUser))
         .map((t) => ({
           id: 'b' + t.id,
           title: t.title,

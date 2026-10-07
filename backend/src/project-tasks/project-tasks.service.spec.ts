@@ -45,6 +45,26 @@ describe('ProjectTasksService', () => {
         });
     });
 
+    describe('parent and child tasks', () => {
+        it('refuses a subtask without an assignee or due date', async () => {
+            await expect(service.create({ title: 'Inspection', parentId: 'T-1', sectionId: 'S' })).rejects.toThrow('A subtask needs an assignee and a due date.');
+            await expect(service.create({ title: 'Inspection', parentId: 'T-1', sectionId: 'S', assignee: 'Astrid', dueDate: '2026-10-20' })).resolves.toBeTruthy();
+        });
+
+        it("won't finish a parent while a subtask is open, but will once they're done", async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-1', status: 'In progress', completed: false } as any);
+            repo.find.mockResolvedValue([{ id: 'T-2', parentId: 'T-1', completed: false, status: 'Not started' }] as any);
+            await expect(service.update('T-1', { completed: true })).rejects.toThrow('Finish its 1 open subtask first.');
+            repo.find.mockResolvedValue([{ id: 'T-2', parentId: 'T-1', completed: true, status: 'Done' }] as any);
+            await expect(service.update('T-1', { completed: true })).resolves.toMatchObject({ status: 'Done' });
+        });
+
+        it("won't let a subtask's due date be cleared", async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-2', parentId: 'T-1', dueDate: '2026-10-20', assignee: 'Astrid' } as any);
+            await expect(service.update('T-2', { dueDate: '' })).rejects.toThrow('A subtask needs a due date.');
+        });
+    });
+
     describe('findAll', () => {
         const rows = () => ([
             { id: 'T-1', projectId: 7, title: 'Project task' },
