@@ -99,6 +99,11 @@ export declare class GoogleService {
     csvToXlsx(csv: string, name?: string): Promise<Buffer>;
     private setPageOrientation;
     private setRunningHeadFoot;
+    updateDriveFile(id: string, opts: {
+        name?: string;
+        folderId?: string;
+    }): Promise<void>;
+    previewPdf(id: string, mimeType: string, name?: string): Promise<Buffer | null>;
     trashDriveFile(id: string): Promise<void>;
     testDrive(): Promise<{
         ok: true;

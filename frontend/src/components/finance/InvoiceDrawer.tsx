@@ -142,6 +142,8 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
     catch (e) { onFail(e); return null; }
     finally { setBusy(false); }
   };
+  // May sign off drafts sent for approval (falls back to issuing rights until a role has it set).
+  const approver = r.approveInvoice ?? r.issueInvoice;
   const issue = async () => {
     const current = dirty ? await save() : inv;
     if (!current) return;
@@ -157,6 +159,12 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
     if (!current) return;
     try { onSaved(await api.finance.requestApproval(inv.id, { version: current.version, comment }) as Invoice); setStep(null); toast('Sent for approval'); }
     catch (e) { onFail(e); }
+  };
+  const approve = async () => {
+    setBusy(true);
+    try { onSaved(await api.finance.approveInvoice(inv.id, { version: inv.version }) as Invoice); toast('Approved — it can be issued now'); }
+    catch (e) { onFail(e); }
+    finally { setBusy(false); }
   };
   const returnIt = async (comment: string) => {
     try { onSaved(await api.finance.returnDraft(inv.id, { version: inv.version, comment }) as Invoice); setStep(null); toast('Returned to the preparer'); }
@@ -201,7 +209,10 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
       )}
       {inv.approvalRequestedAt && (
         <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: '#FBF3DC' }}>
-          Sent for approval by <b>{inv.approvalRequestedBy}</b> on {fmtDate(inv.approvalRequestedAt)}.{r.issueInvoice ? ' Issue it, or return it with what needs changing.' : ' Waiting for someone who can issue invoices.'}
+          Sent for approval by <b>{inv.approvalRequestedBy}</b> on {fmtDate(inv.approvalRequestedAt)}.
+          {inv.approvedAt
+            ? <> Approved by <b>{inv.approvedBy}</b> on {fmtDate(inv.approvedAt)}.{r.issueInvoice ? ' Ready to issue.' : ' Waiting for someone who can issue invoices.'}</>
+            : approver ? ' Approve it, or return it with what needs changing.' : ' Waiting for someone who can approve invoices.'}
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
@@ -315,9 +326,11 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
         {canEdit && <div onClick={remove} style={{ ...btn(), color: DANGER, marginRight: 'auto' }}>Delete draft</div>}
         <div onClick={() => printInvoice({ ...inv, ...h, retentionPct: invRet, taxPct: invTax } as any, overview, true)} style={btn()}>Preview</div>
         {canEdit && <div onClick={busy ? undefined : save} style={btn(false, busy || !dirty)}>Save draft</div>}
-        {r.issueInvoice && inv.approvalRequestedAt && <div onClick={() => setStep('return')} style={btn()}>Return</div>}
+        {approver && inv.approvalRequestedAt && <div onClick={() => setStep('return')} style={btn()}>Return</div>}
+        {approver && inv.approvalRequestedAt && !inv.approvedAt && !r.issueInvoice && <div onClick={busy ? undefined : approve} style={btn(true, busy)}>Approve</div>}
+        {approver && inv.approvalRequestedAt && !inv.approvedAt && r.issueInvoice && <div onClick={busy ? undefined : approve} style={btn(false, busy)}>Approve only</div>}
         {r.issueInvoice
-          ? <div onClick={busy ? undefined : issue} style={btn(true, busy)}>Issue {docName(inv).toLowerCase()}</div>
+          ? (!inv.approvalRequestedAt || inv.approvedAt || approver) && <div onClick={busy ? undefined : issue} style={btn(true, busy)}>{inv.approvalRequestedAt && !inv.approvedAt ? 'Approve & issue' : `Issue ${docName(inv).toLowerCase()}`}</div>
           : canEdit && !inv.approvalRequestedAt && <div onClick={() => setStep('request')} style={btn(true)}>Send for approval</div>}
       </div>
       <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.6 }}>

@@ -18,6 +18,7 @@ export declare class ProjectEntity {
     img: string;
     designPhase: string;
     leadId: string;
+    siteAccess: string;
     fileRoomSyncedAt: string;
     introLetterSentAt: string;
     introLetterSubject: string;
@@ -1139,6 +1140,8 @@ export declare class ProjectInvoiceEntity extends FinanceStamped {
     creditReason: string;
     approvalRequestedAt: string;
     approvalRequestedBy: string;
+    approvedAt: string;
+    approvedBy: string;
 }
 export declare class ProjectInvoiceLineEntity {
     id: string;

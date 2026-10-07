@@ -18,6 +18,19 @@ const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const GMAIL_SEND_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
+const GOOGLE_EQUIVALENT = {
+    'application/msword': 'application/vnd.google-apps.document',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.google-apps.document',
+    'application/rtf': 'application/vnd.google-apps.document',
+    'application/vnd.oasis.opendocument.text': 'application/vnd.google-apps.document',
+    'application/vnd.ms-excel': 'application/vnd.google-apps.spreadsheet',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'application/vnd.google-apps.spreadsheet',
+    'application/vnd.oasis.opendocument.spreadsheet': 'application/vnd.google-apps.spreadsheet',
+    'text/csv': 'application/vnd.google-apps.spreadsheet',
+    'application/vnd.ms-powerpoint': 'application/vnd.google-apps.presentation',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'application/vnd.google-apps.presentation',
+    'application/vnd.oasis.opendocument.presentation': 'application/vnd.google-apps.presentation',
+};
 const DOCS_URL = 'https://docs.googleapis.com/v1/documents';
 const DRIVE_FILE_FIELDS = 'id,name,mimeType,size,webViewLink,iconLink,thumbnailLink,createdTime';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -543,6 +556,61 @@ let GoogleService = class GoogleService {
             write(footerId, running.footer, 'CENTER');
         if (fill.length)
             await call(fill);
+    }
+    async updateDriveFile(id, opts) {
+        const token = await this.workspaceToken();
+        const params = new URLSearchParams({ supportsAllDrives: 'true', fields: 'id' });
+        if (opts.folderId) {
+            const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=parents&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+            const body = await meta.json().catch(() => ({}));
+            const parents = Array.isArray(body?.parents) ? body.parents : [];
+            if (!parents.includes(opts.folderId)) {
+                params.set('addParents', opts.folderId);
+                if (parents.length)
+                    params.set('removeParents', parents.join(','));
+            }
+        }
+        const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?${params}`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(opts.name ? { name: opts.name } : {}),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            this.log.error(`Drive update failed for ${id}: ${JSON.stringify(err).slice(0, 200)}`);
+            throw new common_1.BadRequestException(err?.error?.message || 'Google Drive refused the change.');
+        }
+    }
+    async previewPdf(id, mimeType, name = 'preview') {
+        const target = GOOGLE_EQUIVALENT[mimeType] || (mimeType.startsWith('application/vnd.google-apps.') ? '' : undefined);
+        if (target === undefined)
+            return null;
+        const token = await this.workspaceToken();
+        let exportId = id;
+        let temp = '';
+        if (target) {
+            const copy = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}/copy?supportsAllDrives=true&fields=id`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: `${name} (preview)`, mimeType: target }),
+            });
+            const made = await copy.json().catch(() => ({}));
+            if (!copy.ok || !made?.id) {
+                this.log.warn(`Preview copy failed for ${id}: ${made?.error?.message || copy.status}`);
+                return null;
+            }
+            exportId = temp = made.id;
+        }
+        try {
+            const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(exportId)}/export?mimeType=application%2Fpdf`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok)
+                return null;
+            return Buffer.from(await res.arrayBuffer());
+        }
+        finally {
+            if (temp)
+                await this.trashDriveFile(temp).catch(() => undefined);
+        }
     }
     async trashDriveFile(id) {
         const token = await this.workspaceToken();

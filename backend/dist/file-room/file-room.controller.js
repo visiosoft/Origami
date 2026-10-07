@@ -64,6 +64,32 @@ let FileRoomController = class FileRoomController {
         res.setHeader('Cache-Control', 'private, max-age=300');
         stream_1.Readable.fromWeb(body).pipe(res);
     }
+    async preview(id, res, claims) {
+        const { file, body, mimeType, pdf } = await this.service.preview(id);
+        if (!(await this.access.canSee(claims, file.projectId))) {
+            await body?.cancel?.().catch?.(() => { });
+            res.status(403).json({ message: 'You don’t have access to this file.' });
+            return;
+        }
+        if (!body && !pdf) {
+            res.status(415).json({ message: 'This kind of file can’t be previewed — download it instead.' });
+            return;
+        }
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}${pdf ? '.pdf' : ''}"`);
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        if (pdf) {
+            res.end(pdf);
+            return;
+        }
+        stream_1.Readable.fromWeb(body).pipe(res);
+    }
+    template(projectId) {
+        return this.service.applyTemplate(Number(projectId));
+    }
+    move(id, dto) {
+        return this.service.move(id, dto.folderPath);
+    }
     update(id, dto) {
         return this.service.update(id, dto);
     }
@@ -121,6 +147,32 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "content", null);
+__decorate([
+    (0, common_1.Get)('files/:id/preview'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "preview", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Post)('template'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "template", null);
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Put)('files/:id/move'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, file_room_dto_1.MoveFileDto]),
+    __metadata("design:returntype", void 0)
+], FileRoomController.prototype, "move", null);
 __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Put)('files/:id'),

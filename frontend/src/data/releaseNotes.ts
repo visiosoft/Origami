@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-08c',
+    date: '2026-10-08',
+    title: 'Files, lead details on projects, invoice approval',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Word, Excel, PowerPoint, PDF and Google documents now open as a preview in the file panel (with Open full screen) instead of downloading. Download is still there.', where: 'All Files → click a file' },
+      { area: 'Files', kind: 'new', text: 'Move a file to another folder of its project with “Move to”. It moves in Google Drive too, along with its older versions. Renaming also renames it in Drive, so a sync no longer brings the old name back.', where: 'All Files → click a file' },
+      { area: 'Files', kind: 'new', text: 'Standard project folders: list them once in settings and every new project’s File Room gets them in Drive the first time it’s synced. Existing projects get them with the Standard folders button.', where: 'Settings → Integrations → Google Workspace; All Files → a project' },
+      { area: 'Projects', kind: 'new', text: 'A project’s Overview shows what the CRM knows about the client: contacts, lead source, site address, budget, timing, meetings and notes, with a link back to the lead.', where: 'Projects → open a project → Overview' },
+      { area: 'Projects', kind: 'new', text: 'Site access: keep the lockbox / gate code and how to get on site on the project. Superintendents see it on their home page.', where: 'Projects → Overview; Superintendent home' },
+      { area: 'Finance', kind: 'new', text: 'Approving an invoice is now its own permission. A draft sent for approval has to be approved (or returned) by someone with “Approve invoices” before it can be issued; editing it afterwards needs a fresh approval. Roles that can issue invoices can approve too until you set it.', where: 'Admin → Users & Roles → Financial actions; invoice drafts' },
+    ],
+  },
+  {
     id: '2026-10-08b',
     date: '2026-10-08',
     title: 'Parent and child tasks',

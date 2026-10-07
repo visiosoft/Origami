@@ -612,6 +612,7 @@ export declare class FinanceController {
     issue(id: string, dto: any, a?: string): Promise<any>;
     void(id: string, dto: any, a?: string): Promise<any>;
     requestApproval(id: string, dto: any, a?: string): Promise<any>;
+    approveInvoice(id: string, dto: any, a?: string): Promise<any>;
     returnDraft(id: string, dto: any, a?: string): Promise<any>;
     credit(id: string, dto: any, a?: string): Promise<any>;
     pay(id: string, dto: any, a?: string): Promise<any>;

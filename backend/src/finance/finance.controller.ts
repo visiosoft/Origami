@@ -119,6 +119,7 @@ export class FinanceController {
   @Post('invoices/:id/issue') async issue(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.issue(id, dto, await this.actor(a)); }
   @Post('invoices/:id/void') async void(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.void(id, dto, await this.actor(a)); }
   @Post('invoices/:id/request-approval') async requestApproval(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.requestApproval(id, dto, await this.actor(a)); }
+  @Post('invoices/:id/approve') async approveInvoice(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.approve(id, dto, await this.actor(a)); }
   @Post('invoices/:id/return') async returnDraft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.returnDraft(id, dto, await this.actor(a)); }
   @Post('invoices/:id/credit') async credit(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createCredit(id, dto, await this.actor(a)); }
   @Post('invoices/:id/payments') async pay(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.recordPayment(id, dto, await this.actor(a)); }

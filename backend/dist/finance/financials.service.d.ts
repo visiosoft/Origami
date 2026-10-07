@@ -10,6 +10,7 @@ export declare const REIMB_MODULE = "reimbursement";
 export declare const FIN_ACTIONS: {
     readonly prepareInvoice: "finx_prepare_invoice";
     readonly issueInvoice: "finx_issue_invoice";
+    readonly approveInvoice: "finx_approve_invoice";
     readonly recordPayment: "finx_record_payment";
     readonly approveProgress: "finx_approve_progress";
     readonly approveChangeOrders: "finx_approve_co";

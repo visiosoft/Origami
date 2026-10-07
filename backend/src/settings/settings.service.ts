@@ -23,6 +23,8 @@ export const PUBLIC_KEYS = [
   'google.allowSignup',
   'google.hostedDomain',
   'google.attachmentsFolder',
+  // Standard folders laid out for every project's File Room (one path per line).
+  'fileRoom.folderTemplate',
   'reminders.enabled',
   'reminders.hour',
   'reminders.timezone',

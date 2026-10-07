@@ -35,7 +35,7 @@ export interface Settings {
 }
 export interface Rights {
   view: boolean; manage: boolean; reportProgress: boolean; approveProgress: boolean;
-  prepareInvoice: boolean; issueInvoice: boolean; recordPayment: boolean; approveChangeOrders: boolean; approveReimbursables: boolean; releaseRetention: boolean;
+  prepareInvoice: boolean; issueInvoice: boolean; approveInvoice?: boolean; recordPayment: boolean; approveChangeOrders: boolean; approveReimbursables: boolean; releaseRetention: boolean;
   viewChangeOrders: boolean; editChangeOrders: boolean; viewReimbursables: boolean; submitReimbursables: boolean;
   manageCosts: boolean; approveCosts: boolean; viewProfitability: boolean;
 }
@@ -64,7 +64,7 @@ export interface Invoice {
   paymentStatus: 'draft' | 'void' | 'paid' | 'overdue' | 'partially_paid' | 'unpaid' | 'credit' | 'credit_balance'; overdue: boolean;
   creditForInvoiceId?: string; creditType?: 'credit' | 'write_off'; creditReason?: string; creditFor?: { id: string; issuedNumber: string } | null;
   credits?: { id: string; issuedNumber?: string; status: string; creditType?: string; total: number; invoiceDate: string }[];
-  approvalRequestedAt?: string; approvalRequestedBy?: string; approvals?: Approval[];
+  approvalRequestedAt?: string; approvalRequestedBy?: string; approvedAt?: string | null; approvedBy?: string | null; approvals?: Approval[];
   issuedAt?: string; issuedByName?: string; voidedAt?: string; voidedByName?: string; voidReason?: string; version: number;
   lines?: InvoiceLine[]; payments?: Payment[]; createdBy?: string;
 }

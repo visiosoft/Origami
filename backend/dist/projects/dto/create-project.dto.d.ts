@@ -17,6 +17,7 @@ export declare class CreateProjectDto {
     img?: string;
     designPhase?: string;
     leadId?: string;
+    siteAccess?: string;
     introLetterSentAt?: string;
     introLetterSubject?: string;
     introLetterHtml?: string;

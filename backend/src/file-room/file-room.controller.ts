@@ -9,7 +9,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-room.service';
-import { CreateFolderDto, UpdateFileDto, EmailFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 
@@ -78,6 +78,39 @@ export class FileRoomController {
     res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(file.name)}"`);
     res.setHeader('Cache-Control', 'private, max-age=300');
     Readable.fromWeb(body).pipe(res);
+  }
+
+  /**
+   * Show a file in the browser: images and PDFs as they are, Office and Google
+   * documents as a PDF. 415 when there's nothing to show (download it instead).
+   */
+  @Get('files/:id/preview')
+  async preview(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
+    const { file, body, mimeType, pdf } = await this.service.preview(id);
+    if (!(await this.access.canSee(claims, (file as any).projectId))) {
+      await (body as any)?.cancel?.().catch?.(() => {});
+      res.status(403).json({ message: 'You don’t have access to this file.' });
+      return;
+    }
+    if (!body && !pdf) { res.status(415).json({ message: 'This kind of file can’t be previewed — download it instead.' }); return; }
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}${pdf ? '.pdf' : ''}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    if (pdf) { res.end(pdf); return; }
+    Readable.fromWeb(body).pipe(res);
+  }
+
+  /** Lay out the standard project folders (Settings -> File Room) for one project. */
+  @Tiers('internal')
+  @Post('template')
+  template(@Query('projectId') projectId: string) {
+    return this.service.applyTemplate(Number(projectId));
+  }
+
+  @Tiers('internal')
+  @Put('files/:id/move')
+  move(@Param('id') id: string, @Body() dto: MoveFileDto) {
+    return this.service.move(id, dto.folderPath);
   }
 
   @Tiers('internal')

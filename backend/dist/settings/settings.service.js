@@ -32,6 +32,7 @@ exports.PUBLIC_KEYS = [
     'google.allowSignup',
     'google.hostedDomain',
     'google.attachmentsFolder',
+    'fileRoom.folderTemplate',
     'reminders.enabled',
     'reminders.hour',
     'reminders.timezone',

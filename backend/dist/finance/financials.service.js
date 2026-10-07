@@ -35,6 +35,7 @@ exports.REIMB_MODULE = 'reimbursement';
 exports.FIN_ACTIONS = {
     prepareInvoice: 'finx_prepare_invoice',
     issueInvoice: 'finx_issue_invoice',
+    approveInvoice: 'finx_approve_invoice',
     recordPayment: 'finx_record_payment',
     approveProgress: 'finx_approve_progress',
     approveChangeOrders: 'finx_approve_co',
@@ -73,6 +74,7 @@ const DENIED = {
     view: "Your role doesn't include project financials.",
     prepareInvoice: "Your role doesn't allow preparing invoices.",
     issueInvoice: "Your role doesn't allow issuing, voiding or crediting invoices.",
+    approveInvoice: "Your role doesn't allow approving invoices.",
     recordPayment: "Your role doesn't allow recording payments.",
     approveProgress: "Your role doesn't allow approving progress.",
     approveChangeOrders: "Your role doesn't allow approving change orders.",
@@ -115,6 +117,8 @@ let FinancialsService = class FinancialsService {
         const out = { view, manage, reportProgress: manage || has(exports.PM_MODULE, 'manage') };
         for (const [name, key] of Object.entries(exports.FIN_ACTIONS))
             out[name] = action(key);
+        if (perms !== 'all' && !perms?.[exports.FIN_ACTIONS.approveInvoice])
+            out.approveInvoice = out.issueInvoice;
         out.viewChangeOrders = view || has(exports.CO_MODULE, 'view');
         out.editChangeOrders = manage || has(exports.CO_MODULE, 'manage');
         out.viewReimbursables = view || has(exports.REIMB_MODULE, 'view');

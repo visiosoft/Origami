@@ -7,6 +7,9 @@ export declare class UpdateFileDto {
     name?: string;
     notes?: string;
 }
+export declare class MoveFileDto {
+    folderPath: string[];
+}
 export declare class EmailFileDto {
     to: string;
     note?: string;

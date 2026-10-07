@@ -24,6 +24,7 @@ type Form = {
   'google.senderEmail': string;
   'google.hostedDomain': string;
   'google.attachmentsFolder': string;
+  'fileRoom.folderTemplate': string;
   'reminders.enabled': string;
   'reminders.hour': string;
   'reminders.timezone': string;
@@ -33,7 +34,7 @@ const EMPTY: Form = {
   'google.clientId': '', 'google.clientSecret': '', 'app.baseUrl': '',
   'google.workspaceClientId': '', 'google.workspaceClientSecret': '',
   'google.senderEmail': '', 'google.hostedDomain': '',
-  'google.attachmentsFolder': '', 'reminders.enabled': '', 'reminders.hour': '7',
+  'google.attachmentsFolder': '', 'fileRoom.folderTemplate': '', 'reminders.enabled': '', 'reminders.hour': '7',
   'reminders.timezone': 'America/Los_Angeles',
 };
 
@@ -176,6 +177,22 @@ export function GoogleSettings() {
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
+        </div>
+      </div>
+
+      {/* ---------------------------------------------------- standard folders */}
+      <div style={card}>
+        <SectionTitle>Standard project folders</SectionTitle>
+        <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', marginBottom: 10, maxWidth: 640, lineHeight: 1.55 }}>
+          The folders every project’s File Room starts with, created in its Google Drive folder the first time the project is
+          synced. One folder per line; use <b>/</b> for a folder inside another (e.g. <i>02 Drawings/Architectural</i>). For an
+          existing project, open it in All Files and click <b>Standard folders</b>.
+        </div>
+        <textarea value={form['fileRoom.folderTemplate']} onChange={(e) => set('fileRoom.folderTemplate', e.target.value)} rows={8}
+          placeholder={'01 Contracts & Permits\n02 Drawings/Architectural\n02 Drawings/Structural\n03 Photos\n04 Correspondence'}
+          style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6, fontFamily: 'inherit' }} />
+        <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
           <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save settings'}</div>
         </div>
       </div>

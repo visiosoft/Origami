@@ -27,6 +27,7 @@ export const REIMB_MODULE = 'reimbursement';
 export const FIN_ACTIONS = {
   prepareInvoice: 'finx_prepare_invoice',
   issueInvoice: 'finx_issue_invoice',
+  approveInvoice: 'finx_approve_invoice',
   recordPayment: 'finx_record_payment',
   approveProgress: 'finx_approve_progress',
   approveChangeOrders: 'finx_approve_co',
@@ -72,6 +73,7 @@ const DENIED: Partial<Record<keyof FinRights, string>> = {
   view: "Your role doesn't include project financials.",
   prepareInvoice: "Your role doesn't allow preparing invoices.",
   issueInvoice: "Your role doesn't allow issuing, voiding or crediting invoices.",
+  approveInvoice: "Your role doesn't allow approving invoices.",
   recordPayment: "Your role doesn't allow recording payments.",
   approveProgress: "Your role doesn't allow approving progress.",
   approveChangeOrders: "Your role doesn't allow approving change orders.",
@@ -119,6 +121,8 @@ export class FinancialsService {
     const action = (key: string) => (perms === 'all' ? true : perms && perms[key] ? !!perms[key].manage : manage);
     const out = { view, manage, reportProgress: manage || has(PM_MODULE, 'manage') } as FinRights;
     for (const [name, key] of Object.entries(FIN_ACTIONS)) (out as any)[name] = action(key);
+    // Approving drafts is newer than issuing them: until a role has it set, whoever may issue may approve.
+    if (perms !== 'all' && !perms?.[FIN_ACTIONS.approveInvoice]) (out as any).approveInvoice = out.issueInvoice;
     out.viewChangeOrders = view || has(CO_MODULE, 'view');
     out.editChangeOrders = manage || has(CO_MODULE, 'manage');
     out.viewReimbursables = view || has(REIMB_MODULE, 'view');

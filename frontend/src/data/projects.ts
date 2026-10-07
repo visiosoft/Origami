@@ -20,6 +20,8 @@ export interface Project {
   imgColor: string;
   img: string;
   leadId?: string; // originating lead (intake questionnaire) shown on the Project Info task
+  /** Gate / lockbox codes and how to get on site. */
+  siteAccess?: string;
   introLetterSentAt?: string; // ISO timestamp when the Introduction Letter was sent (marks that step complete)
   /** The composed Introduction Letter, saved as a draft before sending. */
   introLetterSubject?: string;

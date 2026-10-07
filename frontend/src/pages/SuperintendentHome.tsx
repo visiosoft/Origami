@@ -39,6 +39,7 @@ function useSiteWork() {
   const [board, setBoard] = useState<ProjectTask[]>([]);
   const [log, setLog] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Record<number, string>>({});
+  const [siteAccess, setSiteAccess] = useState<{ id: number; name: string; siteAccess: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
   const reload = useCallback(() => Promise.all([
     api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoard(r); }).catch(() => { }),
@@ -46,13 +47,17 @@ function useSiteWork() {
   ]).finally(() => setLoaded(true)), []);
   useEffect(() => {
     void reload();
-    api.projects.list().then((r: any) => { if (Array.isArray(r)) setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name]))); }).catch(() => { });
+    api.projects.list().then((r: any) => {
+      if (!Array.isArray(r)) return;
+      setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name])));
+      setSiteAccess(r.filter((p: any) => (p.siteAccess || '').trim()).map((p: any) => ({ id: p.id, name: p.name, siteAccess: p.siteAccess })));
+    }).catch(() => { });
   }, [reload]);
   const me = currentUser;
   const myBoard = board.filter((t) => isMine(t as any, me, true));
   const myLog = log.filter((t) => isMine(t, me, true));
   const raised = log.filter((t) => raisedBy(t, me?.id) && !isMine(t, me));
-  return { board, setBoard, log, setLog, projects, loaded, reload, myBoard, myLog, raised };
+  return { board, setBoard, log, setLog, projects, siteAccess, loaded, reload, myBoard, myLog, raised };
 }
 
 /** Task lists with the drawers that open them. */
@@ -192,6 +197,19 @@ export function SuperintendentDashboard() {
         </Section>
 
         <MyWorkforceRequests projectNames={w.projects} />
+
+        {w.siteAccess.length > 0 && (
+          <Section title="Site access" count={w.siteAccess.length}>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {w.siteAccess.map((p) => (
+                <div key={p.id} style={{ padding: '10px 12px', background: 'var(--panel)', borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>{p.name}</div>
+                  <div style={{ fontSize: 13, color: INK, whiteSpace: 'pre-wrap', marginTop: 2 }}>{p.siteAccess}</div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
 
         <Section title="My daily logs" count={logs.length} action={<span onClick={() => openLog()} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>Daily log →</span>}>
           {!logs.length ? <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>Logs you fill in on site show up here.</div> : (

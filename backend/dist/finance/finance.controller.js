@@ -110,6 +110,7 @@ let FinanceController = class FinanceController {
     async issue(id, dto, a) { return this.invoices.issue(id, dto, await this.actor(a)); }
     async void(id, dto, a) { return this.invoices.void(id, dto, await this.actor(a)); }
     async requestApproval(id, dto, a) { return this.invoices.requestApproval(id, dto, await this.actor(a)); }
+    async approveInvoice(id, dto, a) { return this.invoices.approve(id, dto, await this.actor(a)); }
     async returnDraft(id, dto, a) { return this.invoices.returnDraft(id, dto, await this.actor(a)); }
     async credit(id, dto, a) { return this.invoices.createCredit(id, dto, await this.actor(a)); }
     async pay(id, dto, a) { return this.invoices.recordPayment(id, dto, await this.actor(a)); }
@@ -529,6 +530,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "requestApproval", null);
+__decorate([
+    (0, common_1.Post)('invoices/:id/approve'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "approveInvoice", null);
 __decorate([
     (0, common_1.Post)('invoices/:id/return'),
     __param(0, (0, common_1.Param)('id')),

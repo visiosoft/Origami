@@ -12,6 +12,11 @@ export class UpdateFileDto {
   @IsString() @IsOptional() notes?: string;
 }
 
+/** Move a file to another folder of its project ([] = the project's top level). */
+export class MoveFileDto {
+  @IsArray() @IsString({ each: true }) folderPath: string[];
+}
+
 export class EmailFileDto {
   @IsString() to: string;
   @IsString() @IsOptional() note?: string;

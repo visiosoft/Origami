@@ -2,6 +2,9 @@ import { Repository } from 'typeorm';
 import { FileRoomFileEntity, FileRoomFolderEntity, ProjectEntity } from '../database/entities';
 import { GoogleService } from '../google/google.service';
 import type { UploadActor } from '../google/attachments.service';
+import { SettingsService } from '../settings/settings.service';
+export declare const FOLDER_TEMPLATE_KEY = "fileRoom.folderTemplate";
+export declare function parseFolderTemplate(text: string): string[][];
 export declare const DEFAULT_CATEGORIES: string[];
 export declare const MAX_FILE_BYTES: number;
 export declare const MAX_FILES_PER_UPLOAD = 20;
@@ -10,8 +13,14 @@ export declare class FileRoomService {
     private readonly folders;
     private readonly projects;
     private readonly google;
+    private readonly settings;
     private readonly log;
-    constructor(files: Repository<FileRoomFileEntity>, folders: Repository<FileRoomFolderEntity>, projects: Repository<ProjectEntity>, google: GoogleService);
+    constructor(files: Repository<FileRoomFileEntity>, folders: Repository<FileRoomFolderEntity>, projects: Repository<ProjectEntity>, google: GoogleService, settings: SettingsService);
+    folderTemplate(): Promise<string[][]>;
+    applyTemplate(projectId: number): Promise<{
+        created: number;
+        template: number;
+    }>;
     private hydrate;
     list(projectId?: number): Promise<{
         projects: {
@@ -44,6 +53,14 @@ export declare class FileRoomService {
         size?: string;
         file: FileRoomFileEntity;
     }>;
+    preview(id: string): Promise<{
+        pdf: Buffer | null;
+        body: any;
+        mimeType: string;
+        size?: string;
+        file: FileRoomFileEntity;
+    }>;
+    move(id: string, folderPath: string[]): Promise<FileRoomFileEntity>;
     update(id: string, patch: {
         name?: string;
         notes?: string;

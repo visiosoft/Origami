@@ -348,7 +348,8 @@ export class InvoicesService {
         }
       }
     }
-    Object.assign(inv, { updatedAt: now(), updatedBy: actor.name });
+    // Changed after sign-off: it needs approving again.
+    Object.assign(inv, { updatedAt: now(), updatedBy: actor.name }, inv.approvedAt ? { approvedAt: null, approvedBy: null } : {});
     const old = await this.lines.find({ where: { invoiceId: id } });
     let next = old;
     if (inv.kind !== 'credit') {
@@ -399,14 +400,28 @@ export class InvoicesService {
     return this.get(id, actor);
   }
 
+  /** The approver signs off a draft sent for approval; whoever may issue can then send it. */
+  async approve(id: string, dto: { version?: number; comment?: string }, actor: Actor) {
+    await this.fin.need(actor, 'approveInvoice');
+    const inv = await this.load(id);
+    if (inv.status !== 'draft' || !inv.approvalRequestedAt) throw new BadRequestException('This draft isn’t waiting for approval.');
+    if (inv.approvedAt) throw new BadRequestException(`Already approved by ${inv.approvedBy || 'someone'}.`);
+    assertVersion(inv, dto.version);
+    Object.assign(inv, { approvedAt: now(), approvedBy: actor.name, updatedAt: now(), updatedBy: actor.name });
+    await this.invoices.save(inv);
+    await this.fin.approval(null, { projectId: inv.projectId, entityType: inv.kind === 'credit' ? 'credit_note' : 'invoice', entityId: id, decision: 'approved', comment: dto.comment }, actor);
+    await this.fin.log(null, { projectId: inv.projectId, entityType: 'invoice', entityId: id, action: 'invoice_approved', reason: dto.comment }, actor);
+    return this.get(id, actor);
+  }
+
   /** The approver sends a draft back with a comment instead of issuing it. */
   async returnDraft(id: string, dto: { version?: number; comment?: string }, actor: Actor) {
-    await this.fin.need(actor, 'issueInvoice');
+    await this.fin.need(actor, 'approveInvoice');
     const inv = await this.load(id);
     if (inv.status !== 'draft' || !inv.approvalRequestedAt) throw new BadRequestException('This draft isn’t waiting for approval.');
     assertVersion(inv, dto.version);
     if (!dto.comment?.trim()) throw new BadRequestException('Say what needs changing.');
-    Object.assign(inv, { approvalRequestedAt: null, approvalRequestedBy: null, updatedAt: now(), updatedBy: actor.name });
+    Object.assign(inv, { approvalRequestedAt: null, approvalRequestedBy: null, approvedAt: null, approvedBy: null, updatedAt: now(), updatedBy: actor.name });
     await this.invoices.save(inv);
     await this.fin.approval(null, { projectId: inv.projectId, entityType: inv.kind === 'credit' ? 'credit_note' : 'invoice', entityId: id, decision: 'returned', comment: dto.comment }, actor);
     return this.get(id, actor);
@@ -434,9 +449,13 @@ export class InvoicesService {
    * re-checked against what is billed now, snapshotted, and the totals frozen.
    */
   async issue(id: string, dto: { version?: number }, actor: Actor) {
-    await this.fin.need(actor, 'issueInvoice');
+    const rights = await this.fin.need(actor, 'issueInvoice');
     const draft = await this.load(id);
     if (draft.status !== 'draft') throw new BadRequestException(`This invoice is already ${draft.status}.`);
+    // Sent for approval: it needs an approver's sign-off first (issuing it yourself counts, if you may approve).
+    if (draft.approvalRequestedAt && !draft.approvedAt && !rights.approveInvoice) {
+      throw new BadRequestException('This draft is waiting for approval -- someone who can approve invoices has to sign it off first.');
+    }
     assertVersion(draft, dto.version);
     if (draft.kind === 'credit') return this.issueCredit(draft, dto, actor);
     const issuedId = await this.invoices.manager.transaction(async (m) => {
@@ -470,7 +489,7 @@ export class InvoicesService {
       const s = await m.getRepository(ProjectFinancialEntity).findOneBy({ projectId: inv.projectId });
       if (s && !s.contractLockedAt && t.contractWorkC > 0) { s.contractLockedAt = now(); s.updatedAt = now(); s.updatedBy = actor.name; await m.getRepository(ProjectFinancialEntity).save(s); }
       await this.fin.log(m, { projectId: inv.projectId, entityType: 'invoice', entityId: id, action: 'invoice_issued', changes: { number: { from: null, to: number }, total: { from: null, to: fromCents(t.totalC) } } }, actor);
-      await this.fin.approval(m, { projectId: inv.projectId, entityType: 'invoice', entityId: id, decision: inv.approvalRequestedAt ? 'approved' : 'issued', amount: fromCents(t.totalC), comment: number }, actor);
+      await this.fin.approval(m, { projectId: inv.projectId, entityType: 'invoice', entityId: id, decision: inv.approvalRequestedAt && !inv.approvedAt ? 'approved' : 'issued', amount: fromCents(t.totalC), comment: number }, actor);
       return inv.id;
     });
     return this.get(issuedId, actor);

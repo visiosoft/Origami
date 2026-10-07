@@ -89,6 +89,10 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "leadId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000, nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "siteAccess", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "fileRoomSyncedAt", void 0);
@@ -4133,6 +4137,14 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectInvoiceEntity.prototype, "approvalRequestedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectInvoiceEntity.prototype, "approvedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectInvoiceEntity.prototype, "approvedBy", void 0);
 exports.ProjectInvoiceEntity = ProjectInvoiceEntity = __decorate([
     (0, typeorm_1.Entity)('project_invoices'),
     (0, typeorm_1.Index)('IX_project_invoices_project', ['projectId']),

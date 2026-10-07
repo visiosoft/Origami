@@ -12,13 +12,29 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FileRoomService = exports.MAX_FILES_PER_UPLOAD = exports.MAX_FILE_BYTES = exports.DEFAULT_CATEGORIES = void 0;
+exports.FileRoomService = exports.MAX_FILES_PER_UPLOAD = exports.MAX_FILE_BYTES = exports.DEFAULT_CATEGORIES = exports.FOLDER_TEMPLATE_KEY = void 0;
+exports.parseFolderTemplate = parseFolderTemplate;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const google_service_1 = require("../google/google.service");
 const task_types_1 = require("../database/task.types");
+const settings_service_1 = require("../settings/settings.service");
+exports.FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
+function parseFolderTemplate(text) {
+    const seen = new Set();
+    const out = [];
+    for (const line of String(text).split(/\r?\n/)) {
+        const path = line.split('/').map((s) => s.trim()).filter(Boolean);
+        const key = path.join('/').toLowerCase();
+        if (!path.length || seen.has(key))
+            continue;
+        seen.add(key);
+        out.push(path);
+    }
+    return out;
+}
 const DRIVE_ROOT = 'Origami File Room';
 exports.DEFAULT_CATEGORIES = [
     'Drawings & Plans',
@@ -42,12 +58,32 @@ const extOf = (name) => {
     return dot > -1 ? name.slice(dot + 1).toUpperCase() : '';
 };
 let FileRoomService = class FileRoomService {
-    constructor(files, folders, projects, google) {
+    constructor(files, folders, projects, google, settings) {
         this.files = files;
         this.folders = folders;
         this.projects = projects;
         this.google = google;
+        this.settings = settings;
         this.log = new common_1.Logger('FileRoomService');
+    }
+    async folderTemplate() {
+        return parseFolderTemplate((await this.settings.get(exports.FOLDER_TEMPLATE_KEY)) || '');
+    }
+    async applyTemplate(projectId) {
+        const template = await this.folderTemplate();
+        if (!template.length)
+            return { created: 0, template: 0 };
+        if (!(await this.google.isConnected()))
+            throw new common_1.BadRequestException('No Google account is connected.');
+        const name = await this.projectName(projectId);
+        const before = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
+        for (const path of template) {
+            await this.google.folderForPath(DRIVE_ROOT, [name, ...path]);
+            for (let i = 1; i <= path.length; i++)
+                await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+        }
+        const after = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
+        return { created: after - before, template: template.length };
     }
     hydrate(f) {
         return {
@@ -149,6 +185,36 @@ let FileRoomService = class FileRoomService {
         const stream = await this.google.downloadDriveFile(file.driveId, thumb);
         return { file: this.hydrate(file), ...stream };
     }
+    async preview(id) {
+        const file = await this.load(id);
+        if (!file.driveId)
+            throw new common_1.NotFoundException('File has no stored content');
+        const mime = file.mimeType || '';
+        if (/^image\//.test(mime) || mime === 'application/pdf' || mime === 'text/plain') {
+            return { file: this.hydrate(file), ...(await this.google.downloadDriveFile(file.driveId)), pdf: null };
+        }
+        const pdf = await this.google.previewPdf(file.driveId, mime, file.name);
+        return { file: this.hydrate(file), body: null, mimeType: 'application/pdf', pdf };
+    }
+    async move(id, folderPath) {
+        const file = await this.load(id);
+        const path = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean);
+        const projectId = Number(file.projectId);
+        const group = file.groupId
+            ? (await this.files.find()).filter((f) => f.groupId === file.groupId && Number(f.projectId) === projectId)
+            : [file];
+        const folderId = await this.google.folderForPath(DRIVE_ROOT, [await this.projectName(projectId), ...path]);
+        for (const f of group) {
+            if (f.driveId)
+                await this.google.updateDriveFile(f.driveId, { folderId });
+            f.folderPath = path;
+            f.updatedAt = new Date().toISOString();
+            await this.files.save(f);
+        }
+        for (let i = 1; i <= path.length; i++)
+            await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+        return this.hydrate(await this.load(id));
+    }
     async update(id, patch) {
         const file = await this.load(id);
         if (patch.name !== undefined) {
@@ -156,6 +222,8 @@ let FileRoomService = class FileRoomService {
             if (!clean)
                 throw new common_1.BadRequestException('A name is required.');
             this.assertAllowed(clean);
+            if (file.driveId && clean !== file.name)
+                await this.google.updateDriveFile(file.driveId, { name: clean });
             file.name = clean;
             file.ext = extOf(clean);
         }
@@ -276,6 +344,9 @@ let FileRoomService = class FileRoomService {
             await this.files.remove(file);
             removed++;
         }
+        const project = await this.projects.findOneBy({ id: projectId });
+        if (project && !project.fileRoomSyncedAt)
+            await this.applyTemplate(projectId).catch((e) => this.log.warn(`Folder template: ${e?.message}`));
         const syncedAt = new Date().toISOString();
         await this.projects.update({ id: projectId }, { fileRoomSyncedAt: syncedAt });
         this.log.log(`Drive sync for project ${projectId}: +${added} ~${updated} -${removed}, ${folders} folders`);
@@ -319,6 +390,7 @@ exports.FileRoomService = FileRoomService = __decorate([
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        google_service_1.GoogleService])
+        google_service_1.GoogleService,
+        settings_service_1.SettingsService])
 ], FileRoomService);
 //# sourceMappingURL=file-room.service.js.map

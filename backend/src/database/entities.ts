@@ -25,6 +25,7 @@ export class ProjectEntity {
   // task progress, so a team can park a project where they say it is.
   @Column({ nullable: true }) designPhase!: string;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) siteAccess!: string; // lockbox / gate codes, how to get on site
   @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
   // The composed Introduction Letter, saved as a draft before it's sent --
@@ -1537,6 +1538,9 @@ export class ProjectInvoiceEntity extends FinanceStamped {
   /** A draft sent for approval by someone who can prepare but not issue invoices. */
   @Column({ nullable: true }) approvalRequestedAt!: string;
   @Column({ nullable: true }) approvalRequestedBy!: string;
+  /** Approved for issue (by someone with "Approve invoices"); cleared if the draft is edited afterwards. */
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) approvedBy!: string;
 }
 
 /** One line of an invoice. Everything that explains its amount is copied onto it when the invoice is issued. */

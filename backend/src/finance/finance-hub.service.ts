@@ -96,14 +96,14 @@ export class FinanceHubService {
           detail: `${x.scope === 'project' ? 'Whole project' : x.scope} · requested by ${x.requestedBy || '—'}`, amount: x.amount, since: x.createdAt, canAct: r.releaseRetention,
         });
       }
-      const waiting = (await this.invoices.find({ where: { status: 'draft' } })).filter((i) => i.approvalRequestedAt);
+      const waiting = (await this.invoices.find({ where: { status: 'draft' } })).filter((i) => i.approvalRequestedAt && !i.approvedAt);
       const draftLines = waiting.length ? await this.lines.find({ where: { invoiceId: In(waiting.map((i) => i.id)) } }) : [];
       for (const x of waiting) {
         const total = invoiceTotals(draftLines.filter((l) => l.invoiceId === x.id).map((l) => ({ kind: l.kind, amountC: toCents(l.amount), retentionApplies: l.retentionApplies, retentionPct: l.retentionPct, taxable: l.taxable, taxPct: l.taxPct }))).totalC;
         out.push({
           type: 'invoice', id: x.id, projectId: x.projectId, projectName: pn(x.projectId),
           title: `Draft ${x.kind === 'credit' ? (x.creditType === 'write_off' ? 'write-off' : 'credit note') : x.kind === 'retention' ? 'retention invoice' : 'invoice'}${x.description ? ` — ${x.description}` : ''}`,
-          detail: `Sent for approval by ${x.approvalRequestedBy || '—'}`, amount: fromCents(total), since: x.approvalRequestedAt, canAct: r.issueInvoice,
+          detail: `Sent for approval by ${x.approvalRequestedBy || '—'}`, amount: fromCents(total), since: x.approvalRequestedAt, canAct: r.approveInvoice,
         });
       }
       // Progress reported above what's approved, on projects that bill approved progress only.

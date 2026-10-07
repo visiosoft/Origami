@@ -526,6 +526,10 @@ export const api = {
     createFolder: (projectId: number, path: string[], name: string) =>
       request('/file-room/folders', { method: 'POST', body: JSON.stringify({ projectId, path, name }) }),
     removeFolder: (id: string) => request(`/file-room/folders/${id}`, { method: 'DELETE' }),
+    move: (id: string, folderPath: string[]) => request(`/file-room/files/${id}/move`, { method: 'PUT', body: JSON.stringify({ folderPath }) }),
+    applyTemplate: (projectId: number) => request<{ created: number; template: number }>(`/file-room/template?projectId=${projectId}`, { method: 'POST' }),
+    /** A file the browser can show: Office and Google documents arrive as PDF. */
+    previewUrl: (id: string) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/preview`,
     share: (id: string) => request<{ url: string; name: string }>(`/file-room/files/${id}/share`, { method: 'POST' }),
     email: (id: string, to: string, note: string) =>
       request<{ sent: boolean; to: string }>(`/file-room/files/${id}/email`, { method: 'POST', body: JSON.stringify({ to, note }) }),
@@ -644,6 +648,7 @@ export const api = {
     approvals: () => request('/finance/approvals'),
     audit: (q: Record<string, string> = {}) => request(`/finance/audit?${new URLSearchParams(q).toString()}`),
     requestApproval: (id: string, d: unknown) => request(`/finance/invoices/${id}/request-approval`, { method: 'POST', body: JSON.stringify(d) }),
+    approveInvoice: (id: string, d: unknown) => request(`/finance/invoices/${id}/approve`, { method: 'POST', body: JSON.stringify(d) }),
     returnDraft: (id: string, d: unknown) => request(`/finance/invoices/${id}/return`, { method: 'POST', body: JSON.stringify(d) }),
     createCredit: (invoiceId: string, d: unknown) => request(`/finance/invoices/${invoiceId}/credit`, { method: 'POST', body: JSON.stringify(d) }),
     allChangeOrders: () => request('/finance/change-orders'),

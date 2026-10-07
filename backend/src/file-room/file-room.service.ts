@@ -5,6 +5,23 @@ import { FileRoomFileEntity, FileRoomFolderEntity, ProjectEntity } from '../data
 import { GoogleService } from '../google/google.service';
 import { subId } from '../database/task.types';
 import type { UploadActor } from '../google/attachments.service';
+import { SettingsService } from '../settings/settings.service';
+
+export const FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
+
+/** "Drawings/Architectural" per line -> [['Drawings', 'Architectural'], ...]; blanks and duplicates dropped. */
+export function parseFolderTemplate(text: string): string[][] {
+  const seen = new Set<string>();
+  const out: string[][] = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const path = line.split('/').map((s) => s.trim()).filter(Boolean);
+    const key = path.join('/').toLowerCase();
+    if (!path.length || seen.has(key)) continue;
+    seen.add(key);
+    out.push(path);
+  }
+  return out;
+}
 
 /** Where the File Room keeps everything inside the connected account's Drive. */
 const DRIVE_ROOT = 'Origami File Room';
@@ -50,7 +67,31 @@ export class FileRoomService {
     @InjectRepository(FileRoomFolderEntity) private readonly folders: Repository<FileRoomFolderEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly google: GoogleService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /** The standard folders every project gets: one path per line, '/' for subfolders. */
+  async folderTemplate(): Promise<string[][]> {
+    return parseFolderTemplate((await this.settings.get(FOLDER_TEMPLATE_KEY)) || '');
+  }
+
+  /**
+   * Lay out the standard folders for a project, in Drive and in the File Room.
+   * Safe to run again: folders already there are left alone.
+   */
+  async applyTemplate(projectId: number) {
+    const template = await this.folderTemplate();
+    if (!template.length) return { created: 0, template: 0 };
+    if (!(await this.google.isConnected())) throw new BadRequestException('No Google account is connected.');
+    const name = await this.projectName(projectId);
+    const before = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
+    for (const path of template) {
+      await this.google.folderForPath(DRIVE_ROOT, [name, ...path]);
+      for (let i = 1; i <= path.length; i++) await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+    }
+    const after = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
+    return { created: after - before, template: template.length };
+  }
 
   private hydrate(f: FileRoomFileEntity): FileRoomFileEntity {
     return {
@@ -184,6 +225,44 @@ export class FileRoomService {
     return { file: this.hydrate(file), ...stream };
   }
 
+  /**
+   * Something the browser can show: images, PDFs and text as they are; Office
+   * and Google documents as a PDF made by Drive. Null when there's no preview.
+   */
+  async preview(id: string) {
+    const file = await this.load(id);
+    if (!file.driveId) throw new NotFoundException('File has no stored content');
+    const mime = file.mimeType || '';
+    if (/^image\//.test(mime) || mime === 'application/pdf' || mime === 'text/plain') {
+      return { file: this.hydrate(file), ...(await this.google.downloadDriveFile(file.driveId)), pdf: null as Buffer | null };
+    }
+    const pdf = await this.google.previewPdf(file.driveId, mime, file.name);
+    return { file: this.hydrate(file), body: null, mimeType: 'application/pdf', pdf };
+  }
+
+  /**
+   * Move a file (and its other revisions) to another folder of the same
+   * project -- in Drive too, so the next sync doesn't put it back.
+   */
+  async move(id: string, folderPath: string[]) {
+    const file = await this.load(id);
+    const path = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean);
+    const projectId = Number(file.projectId);
+    const group = file.groupId
+      ? (await this.files.find()).filter((f) => f.groupId === file.groupId && Number(f.projectId) === projectId)
+      : [file];
+    const folderId = await this.google.folderForPath(DRIVE_ROOT, [await this.projectName(projectId), ...path]);
+    for (const f of group) {
+      if (f.driveId) await this.google.updateDriveFile(f.driveId, { folderId });
+      f.folderPath = path;
+      f.updatedAt = new Date().toISOString();
+      await this.files.save(f);
+    }
+    // Make sure the destination shows as a folder even if it was only just made.
+    for (let i = 1; i <= path.length; i++) await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+    return this.hydrate(await this.load(id));
+  }
+
   /** Rename and/or set the notes; whichever field is supplied is applied. */
   async update(id: string, patch: { name?: string; notes?: string }) {
     const file = await this.load(id);
@@ -191,6 +270,8 @@ export class FileRoomService {
       const clean = patch.name.trim();
       if (!clean) throw new BadRequestException('A name is required.');
       this.assertAllowed(clean);
+      // Rename in Drive as well, or the next sync would bring the old name back.
+      if (file.driveId && clean !== file.name) await this.google.updateDriveFile(file.driveId, { name: clean });
       file.name = clean;
       file.ext = extOf(clean);
     }
@@ -328,6 +409,9 @@ export class FileRoomService {
       removed++;
     }
 
+    // New projects get the standard folders the first time they're synced.
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (project && !project.fileRoomSyncedAt) await this.applyTemplate(projectId).catch((e) => this.log.warn(`Folder template: ${e?.message}`));
     const syncedAt = new Date().toISOString();
     await this.projects.update({ id: projectId }, { fileRoomSyncedAt: syncedAt });
     this.log.log(`Drive sync for project ${projectId}: +${added} ~${updated} -${removed}, ${folders} folders`);

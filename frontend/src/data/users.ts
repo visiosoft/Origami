@@ -67,6 +67,7 @@ export function can(role: Role | undefined, moduleKey: string, action: Action = 
 /** Granular finance permissions; stored in the role's permission map like modules (manage = allowed). */
 export const FIN_ACTIONS: [string, string, string][] = [
   ['finx_prepare_invoice', 'Prepare invoices', 'draft, edit and send for approval'],
+  ['finx_approve_invoice', 'Approve invoices', 'sign off drafts sent for approval, or return them'],
   ['finx_issue_invoice', 'Issue invoices', 'issue, void, credit notes and write-offs'],
   ['finx_record_payment', 'Record payments', 'record and void client payments'],
   ['finx_approve_progress', 'Approve progress', 'approve reported progress for billing'],

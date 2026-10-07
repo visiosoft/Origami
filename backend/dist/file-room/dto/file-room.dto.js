@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EmailFileDto = exports.UpdateFileDto = exports.CreateFolderDto = void 0;
+exports.EmailFileDto = exports.MoveFileDto = exports.UpdateFileDto = exports.CreateFolderDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateFolderDto {
 }
@@ -40,6 +40,14 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], UpdateFileDto.prototype, "notes", void 0);
+class MoveFileDto {
+}
+exports.MoveFileDto = MoveFileDto;
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], MoveFileDto.prototype, "folderPath", void 0);
 class EmailFileDto {
 }
 exports.EmailFileDto = EmailFileDto;

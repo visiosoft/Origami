@@ -96,6 +96,10 @@ export declare class InvoicesService {
         version?: number;
         comment?: string;
     }, actor: Actor): Promise<any>;
+    approve(id: string, dto: {
+        version?: number;
+        comment?: string;
+    }, actor: Actor): Promise<any>;
     returnDraft(id: string, dto: {
         version?: number;
         comment?: string;

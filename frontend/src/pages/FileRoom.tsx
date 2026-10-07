@@ -9,6 +9,11 @@ import {
 } from '../data/fileRoom';
 
 const BG = 'var(--font-display)';
+/** Documents Drive can show as a PDF (images have their own preview). */
+const PREVIEWABLE = new Set(['pdf', 'doc', 'docx', 'rtf', 'odt', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp', 'txt']);
+const canPreview = (f: { ext?: string; mimeType?: string }) =>
+  PREVIEWABLE.has((f.ext || '').toLowerCase().replace(/^\./, '')) || /^application\/vnd\.google-apps\.(document|spreadsheet|presentation)$/.test(f.mimeType || '');
+
 /** "Last synced 12 min ago" for the project's Drive folder. */
 function syncedLabel(iso?: string | null) {
   if (!iso) return 'Not synced with Drive yet';
@@ -436,6 +441,14 @@ export function FileRoom() {
             </div>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
             {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
+            {canManage && !atRoot && pill('Standard folders', false, async () => {
+              if (!projectId) return;
+              try {
+                const r = await api.fileRoom.applyTemplate(projectId);
+                toast(!r.template ? 'No standard folders set yet — add them under Settings → Integrations → Google Workspace' : r.created ? `Added ${r.created} standard folder${r.created === 1 ? '' : 's'}` : 'All standard folders are already here');
+                load();
+              } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not add the folders')); }
+            })}
             {!atRoot && (
               <div onClick={() => projectId && sync(projectId)}
                    title="Pull in anything added to this project's Drive folder"
@@ -518,6 +531,14 @@ export function FileRoom() {
                      style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)' }} />
               </div>
             )}
+            {canPreview(selected) && (
+              <div style={{ padding: '16px 22px 0' }}>
+                <iframe key={selected.id} src={api.fileRoom.previewUrl(selected.id)} title={selected.name}
+                        style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: 'var(--panel)' }} />
+                <a href={api.fileRoom.previewUrl(selected.id)} target="_blank" rel="noreferrer"
+                   style={{ display: 'inline-block', marginTop: 6, fontSize: 12, fontWeight: 700, color: 'var(--forest)' }}>Open full screen ↗</a>
+              </div>
+            )}
 
             <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
               {([['Project', data.projects.find((p) => p.id === Number(selected.projectId))?.name ?? '—'],
@@ -565,7 +586,20 @@ export function FileRoom() {
 
             <div style={{ padding: '0 22px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={api.fileRoom.contentUrl(selected.id, { download: true })}
-                 style={{ padding: '10px 0', borderRadius: 10, background: 'var(--forest)', color: 'white', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
+                 style={{ padding: '10px 0', borderRadius: 10, background: canPreview(selected) || isImage(selected) ? 'transparent' : 'var(--forest)', color: canPreview(selected) || isImage(selected) ? 'var(--forest)' : 'white', border: '1px solid ' + (canPreview(selected) || isImage(selected) ? 'rgba(var(--rgb-shade), 0.12)' : 'transparent'), fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
+
+              {canManage && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--body)' }}>
+                  Move to
+                  <select value={(selected.folderPath ?? []).join('/')} style={{ ...inputStyle, flex: 1 }}
+                          onChange={(e) => { const to = e.target.value ? e.target.value.split('/') : []; act(api.fileRoom.move(selected.id, to), to.length ? `Moved to ${to.join(' › ')}` : 'Moved to the project root'); }}>
+                    <option value="">Project root</option>
+                    {data.folders.filter((f) => Number(f.projectId) === Number(selected.projectId))
+                      .map((f) => (f.path || []).join('/')).sort()
+                      .map((k) => <option key={k} value={k}>{k.split('/').join(' › ')}</option>)}
+                  </select>
+                </label>
+              )}
 
               <div
                 onClick={async () => {

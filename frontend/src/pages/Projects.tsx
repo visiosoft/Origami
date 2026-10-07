@@ -1,5 +1,7 @@
 import { tint, useTheme } from '../theme';
 import { SubtaskForm, type NewSubtask } from '../components/SubtaskForm';
+import { LeadSummary } from '../components/LeadSummary';
+import { SiteAccess } from '../components/SiteAccess';
 import { ProjectCard } from '../components/ProjectCard';
 import { useEffect, useRef, useState } from 'react';
 import { AllFiles } from '../components/AllFiles';
@@ -21,7 +23,7 @@ import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
-import { api } from '../api';
+import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 
@@ -279,6 +281,13 @@ export function Projects() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selPt, templates, leads, sel]);
+
+  /** Gate / lockbox codes for the site. */
+  const saveSiteAccess = (siteAccess: string) => {
+    if (!sel) return;
+    setProjects((prev) => prev.map((p) => (p.id === sel.id ? { ...p, siteAccess } : p)));
+    persist(() => api.projects.update(sel.id, { name: sel.name, siteAccess })).then(() => toast('Site access saved')).catch((e: Error) => toast('⚠ Site access not saved — ' + (e.message || 'try again')));
+  };
 
   /** Link a lead to this project without leaving the panel. */
   const linkLead = (leadId: string) => {
@@ -739,6 +748,8 @@ export function Projects() {
                     ))}
                   </div>
                 </div>
+                <SiteAccess key={sel.id} value={sel.siteAccess || ''} canEdit={canManage} onSave={saveSiteAccess} />
+                {introLead && <LeadSummary lead={introLead} />}
                 <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Scope of Work</div>
                   <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10, fontSize: 13, lineHeight: 1.6, color: 'var(--body)' }}>{sel.scope}</div>
