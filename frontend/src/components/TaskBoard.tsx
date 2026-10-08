@@ -18,6 +18,7 @@ import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { TaskLinkBadge } from './TaskLinkBadge';
+import { AvatarStack, taskPeople } from './AvatarStack';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
@@ -51,6 +52,12 @@ function PriorityPill({ p }: { p?: Priority }) {
  */
 /** The fields the task panel edits; they autosave together. */
 const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels'];
+
+/** "Q3 PRD draft" -> "QP": the card's tile. */
+const initialsOf = (title: string) => {
+  const words = (title || '').replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  return ((words[0]?.[0] || '') + (words[1]?.[0] || words[0]?.[1] || '')).toUpperCase() || '·';
+};
 
 export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null; initialTaskId?: string | null }) {
   const { can, toast, users } = useApp();
@@ -272,30 +279,43 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           }}
           onClick={() => setSelectedId(t.id)}
         >
-          {(t.priority || t.parentId || subs.length > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
+          <div className="tb-head2">
+            {/* The tile is the done toggle: initials, a tick on hover, a filled tick once done. */}
+            <button type="button" className={'tb-initials' + (t.completed ? ' is-on' : '')} disabled={!canManage}
+              aria-label={t.completed ? 'Mark not done' : 'Mark done'} title={t.completed ? 'Mark not done' : 'Mark done'}
+              onClick={(e) => { e.stopPropagation(); updateTask(t.id, { completed: !t.completed }); }}>
+              <span className="tb-ini-text">{initialsOf(t.title)}</span>
+            </button>
+            <div className="tb-titlebox">
+              <div className="tb-title">{t.title}</div>
+              {subs.length > 0 && <div className="tb-sub">{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
+              {t.parentId && <div className="tb-sub">Subtask of {tasks.find((x) => x.id === t.parentId)?.title || 'another task'}</div>}
+            </div>
+            {t.priority && <span className={'tb-prio is-' + t.priority.toLowerCase()}>{t.priority}</span>}
+          </div>
+          {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
             <div className="tb-tags">
               {linkBadge(t)}
-              {t.priority && <span className={'tb-prio is-' + t.priority.toLowerCase()}>{t.priority}</span>}
               {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status">{t.status}</span>}
+              {(t.labels || []).map((l) => <LabelChip key={l} label={l} />)}
             </div>
           )}
-          <div className="tb-head">
-            <button type="button" className={'tb-check' + (t.completed ? ' is-on' : '')} disabled={!canManage} aria-label={t.completed ? 'Mark not done' : 'Mark done'}
-              onClick={(e) => { e.stopPropagation(); updateTask(t.id, { completed: !t.completed }); }} />
-            <div className="tb-title">{t.title}</div>
+          <div className="tb-foot">
+            <div className="tb-meta">
+            <span className="tb-count" title="Files">
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={ICON.clip} /></svg>
+              {String(t.attachments?.length || 0).padStart(2, '0')} Files
+            </span>
+            {t.dueDate && <span className="tb-sep" aria-hidden />}
+            {t.dueDate && <span className={'tb-due' + (overdue ? ' is-late' : t.dueDate === todayIso && !t.completed ? ' is-today' : '')}>{t.completed ? new Date(t.dueDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : dueText(t.dueDate)}</span>}
+            {counts.filter(([k]) => k !== 'clip').map(([k, v, title]) => (
+              <span key={k} className="tb-count" title={title}>
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[k]} /></svg>{v}
+              </span>
+            ))}
+            </div>
+            <span className="tb-who"><AvatarStack people={taskPeople(t)} size={24} /></span>
           </div>
-          {(t.labels?.length || 0) > 0 && <div className="tb-labels">{t.labels!.map((l) => <LabelChip key={l} label={l} />)}</div>}
-          {(t.dueDate || counts.length > 0 || t.assignee) && (
-            <div className="tb-foot">
-              {t.dueDate && <span className={'tb-due' + (overdue ? ' is-late' : t.dueDate === todayIso && !t.completed ? ' is-today' : '')}>{t.completed ? new Date(t.dueDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : dueText(t.dueDate)}</span>}
-              {counts.map(([k, v, title]) => (
-                <span key={k} className="tb-count" title={title}>
-                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[k]} /></svg>{v}
-                </span>
-              ))}
-              {t.assignee && <span className="tb-who"><Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={26} title={t.assignee} /></span>}
-            </div>
-          )}
         </div>
       );
     }
@@ -321,6 +341,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
+            {subs.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
             {(t.labels?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 {t.labels!.map((l) => <LabelChip key={l} label={l} />)}
@@ -334,11 +355,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               {check.total > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>✓ {check.done}/{check.total}</span>}
               {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>💬 {t.comments!.length}</span>}
               {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>📎 {t.attachments!.length}</span>}
-              {t.assignee && (
-                <span style={{ marginLeft: 'auto' }}>
-                  <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} />
-                </span>
-              )}
+              <span style={{ marginLeft: 'auto' }}><AvatarStack people={taskPeople(t)} size={22} /></span>
             </div>
           </div>
         </div>
@@ -475,8 +492,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
           <PriorityPill p={t.priority} />
           <span style={{ width: 76, flexShrink: 0, fontSize: 10.5, color: 'var(--muted)', textAlign: 'right' }}>{t.dueDate || ''}</span>
-          <span style={{ width: 26, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
-            {t.assignee ? <Avatar user={users.find((u) => u.id === t.assigneeId)} name={t.assignee} size={22} title={t.assignee} /> : null}
+          <span style={{ width: 58, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+            <AvatarStack people={taskPeople(t)} size={22} max={2} />
           </span>
         </div>
 

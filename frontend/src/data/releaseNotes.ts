@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-08f',
+    date: '2026-10-08',
+    title: 'Task cards show subtasks and everyone on the task',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Task cards are laid out more clearly: a tile with the task’s initials (click it to mark the task done), the title with “2 of 3 subtasks” under it and the priority beside it, labels in their own row, and files and due date at the bottom.', where: 'Tasks → Board' },
+      { area: 'Tasks', kind: 'new', text: 'The assignee and all collaborators show as overlapping avatars at the bottom right of each card (and in the list view), with “+N” when there are more.', where: 'Tasks → Board / List' },
+    ],
+  },
+  {
     id: '2026-10-08e',
     date: '2026-10-08',
     title: 'Email files to anyone, with a sent history',
