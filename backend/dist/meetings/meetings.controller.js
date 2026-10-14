@@ -26,7 +26,7 @@ let MeetingsController = class MeetingsController {
     list() { return this.service.list(); }
     get(id) { return this.service.get(id); }
     async create(dto, a) { return this.service.create(dto, await this.auth.actor(a)); }
-    update(id, dto) { return this.service.update(id, dto); }
+    async update(id, dto, a) { return this.service.update(id, dto, await this.auth.actor(a)); }
     remove(id) { return this.service.remove(id); }
     async addAction(id, dto, a) {
         return this.service.addAction(id, dto, await this.auth.actor(a));
@@ -58,9 +58,10 @@ __decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, dto_1.MeetingDto]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, dto_1.MeetingDto, String]),
+    __metadata("design:returntype", Promise)
 ], MeetingsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),

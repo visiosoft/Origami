@@ -9,8 +9,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomShareEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.MeetingEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
-exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = void 0;
+exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyReportTemplateEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomShareEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.MeetingEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -380,6 +380,14 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "meetingId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "linkedTaskIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "changeOrderIds", void 0);
 exports.TaskEntity = TaskEntity = __decorate([
     (0, typeorm_1.Entity)('tasks')
 ], TaskEntity);
@@ -435,9 +443,37 @@ __decorate([
     __metadata("design:type", String)
 ], MeetingEntity.prototype, "status", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "locationType", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Object)
 ], MeetingEntity.prototype, "rfiIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "changeOrderIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "recordingUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "transcriptUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "transcript", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "reviewedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "reviewedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
@@ -3104,9 +3140,83 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], DailyLogEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], DailyLogEntity.prototype, "version", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "versionOf", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyLogEntity.prototype, "sections", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "onBehalfOf", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "certifiedName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "signatureDataUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "autoReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyLogEntity.prototype, "dupBaseline", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "dupFromDate", void 0);
 exports.DailyLogEntity = DailyLogEntity = __decorate([
     (0, typeorm_1.Entity)('daily_logs')
 ], DailyLogEntity);
+let DailyReportTemplateEntity = class DailyReportTemplateEntity {
+};
+exports.DailyReportTemplateEntity = DailyReportTemplateEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyReportTemplateEntity.prototype, "sections", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyReportTemplateEntity.prototype, "entries", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "createdAt", void 0);
+exports.DailyReportTemplateEntity = DailyReportTemplateEntity = __decorate([
+    (0, typeorm_1.Entity)('daily_report_templates')
+], DailyReportTemplateEntity);
 let LaborLogEntryEntity = class LaborLogEntryEntity {
 };
 exports.LaborLogEntryEntity = LaborLogEntryEntity;

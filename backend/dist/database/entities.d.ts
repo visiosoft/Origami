@@ -102,6 +102,8 @@ export declare class TaskEntity {
     labels: string[];
     updatedAt: string;
     meetingId: string;
+    linkedTaskIds: string[] | null;
+    changeOrderIds: string[] | null;
 }
 export declare class MeetingEntity {
     id: string;
@@ -120,7 +122,14 @@ export declare class MeetingEntity {
     agenda: string;
     minutes: string;
     status: string;
+    locationType: string;
     rfiIds: string[] | null;
+    changeOrderIds: string[] | null;
+    recordingUrl: string;
+    transcriptUrl: string;
+    transcript: string;
+    reviewedBy: string;
+    reviewedAt: string;
     createdBy: string;
     createdAt: string;
     updatedAt: string;
@@ -875,6 +884,25 @@ export declare class DailyLogEntity {
     approvedByName: string;
     approvedAt: string;
     rejectionNote: string;
+    createdAt: string;
+    version: number;
+    versionOf: string;
+    sections: Record<string, any> | null;
+    onBehalfOf: string;
+    certifiedName: string;
+    signatureDataUrl: string;
+    signedAt: string;
+    autoReason: string;
+    dupBaseline: Record<string, any> | null;
+    dupFromDate: string;
+}
+export declare class DailyReportTemplateEntity {
+    id: string;
+    name: string;
+    sections: Record<string, any> | null;
+    entries: Record<string, any>[] | null;
+    createdById: string;
+    createdByName: string;
     createdAt: string;
 }
 export declare class LaborLogEntryEntity {

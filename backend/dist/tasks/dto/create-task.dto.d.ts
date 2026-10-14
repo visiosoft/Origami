@@ -21,4 +21,6 @@ export declare class CreateTaskDto {
         item: string;
         done: boolean;
     }[];
+    linkedTaskIds?: string[];
+    changeOrderIds?: string[];
 }

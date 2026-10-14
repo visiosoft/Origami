@@ -8,7 +8,7 @@ export declare class MeetingsController {
     list(): Promise<import("../database/entities").MeetingEntity[]>;
     get(id: string): Promise<import("../database/entities").MeetingEntity>;
     create(dto: MeetingDto, a?: string): Promise<import("../database/entities").MeetingEntity>;
-    update(id: string, dto: MeetingDto): Promise<import("../database/entities").MeetingEntity>;
+    update(id: string, dto: MeetingDto, a?: string): Promise<import("../database/entities").MeetingEntity>;
     remove(id: string): Promise<{
         ok: boolean;
     }>;

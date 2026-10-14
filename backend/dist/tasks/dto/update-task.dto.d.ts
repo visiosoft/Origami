@@ -22,6 +22,8 @@ export declare class UpdateTaskDto {
         item: string;
         done: boolean;
     }[];
+    linkedTaskIds?: string[];
+    changeOrderIds?: string[];
 }
 export declare class AddCommentDto {
     text: string;
@@ -29,4 +31,15 @@ export declare class AddCommentDto {
 export declare class AddLinkDto {
     name?: string;
     url: string;
+}
+export declare class LinkDto {
+    kind: 'task' | 'changeOrder';
+    targetId: string;
+}
+export declare class LinkedTaskDto {
+    subject?: string;
+    description?: string;
+    assignedTo?: string;
+    assignedToId?: string;
+    dueDate?: string;
 }

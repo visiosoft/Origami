@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TasksService = void 0;
+exports.cleanIds = cleanIds;
 exports.taskTitle = taskTitle;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
@@ -26,12 +27,13 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments, notifications, settings) {
+    constructor(repo, users, attachments, notifications, settings, cos) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
         this.notifications = notifications;
         this.settings = settings;
+        this.cos = cos;
         this.log = new common_1.Logger('TasksService');
     }
     async statuses() {
@@ -60,6 +62,8 @@ let TasksService = class TasksService {
             activity: (0, task_types_1.normalizeList)(task.activity),
             checklist: (0, task_types_1.normalizeList)(task.checklist),
             labels: (0, task_types_1.normalizeList)(task.labels),
+            linkedTaskIds: (0, task_types_1.normalizeList)(task.linkedTaskIds),
+            changeOrderIds: (0, task_types_1.normalizeList)(task.changeOrderIds),
         };
     }
     async findAll(tab, project) {
@@ -124,6 +128,8 @@ let TasksService = class TasksService {
             comments: [],
             checklist: (0, task_types_1.normalizeList)(dto.checklist),
             labels: (0, task_types_1.normalizeList)(dto.labels),
+            linkedTaskIds: cleanIds(dto.linkedTaskIds),
+            changeOrderIds: cleanIds(dto.changeOrderIds),
             collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
             updatedAt: new Date().toISOString(),
@@ -166,6 +172,9 @@ let TasksService = class TasksService {
         }
         if (patch.status && !closing)
             patch.dateClosed = '';
+        for (const k of ['linkedTaskIds', 'changeOrderIds'])
+            if (k in patch)
+                patch[k] = cleanIds(patch[k]);
         let joined = [];
         const collabEvents = [];
         if ('collaborators' in patch) {
@@ -244,6 +253,72 @@ let TasksService = class TasksService {
             throw new common_1.NotFoundException('Attachment not found');
         return att;
     }
+    async link(id, kind, targetId, actor) {
+        const task = await this.load(id);
+        targetId = String(targetId || '').trim();
+        if (!targetId)
+            throw new common_1.BadRequestException('Pick what to link it to.');
+        if (kind === 'task') {
+            if (targetId === id)
+                throw new common_1.BadRequestException('An entry can’t be linked to itself.');
+            const other = await this.load(targetId);
+            if (!cleanIds(task.linkedTaskIds).includes(targetId)) {
+                task.linkedTaskIds = [...cleanIds(task.linkedTaskIds), targetId];
+                task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('link', actor, { text: `linked task ${taskTitle(other)}` })];
+            }
+            if (!cleanIds(other.linkedTaskIds).includes(id)) {
+                other.linkedTaskIds = [...cleanIds(other.linkedTaskIds), id];
+                other.activity = [...(0, task_types_1.normalizeList)(other.activity), (0, task_types_1.event)('link', actor, { text: `linked ${task.topicType || 'entry'} ${taskTitle(task)}` })];
+                other.updatedAt = new Date().toISOString();
+                await this.repo.save(other);
+            }
+        }
+        else if (kind === 'changeOrder') {
+            const co = this.cos ? await this.cos.findOneBy({ id: targetId }) : null;
+            if (this.cos && !co)
+                throw new common_1.NotFoundException('Change order not found');
+            if (!cleanIds(task.changeOrderIds).includes(targetId)) {
+                task.changeOrderIds = [...cleanIds(task.changeOrderIds), targetId];
+                task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('link', actor, { text: `linked change order ${co ? `${co.number} · ${co.title}` : targetId}` })];
+            }
+        }
+        else {
+            throw new common_1.BadRequestException('Link to a task or a change order.');
+        }
+        task.updatedAt = new Date().toISOString();
+        return this.hydrate(await this.repo.save(task));
+    }
+    async unlink(id, kind, targetId, actor) {
+        const task = await this.load(id);
+        if (kind === 'task') {
+            task.linkedTaskIds = cleanIds(task.linkedTaskIds).filter((x) => x !== targetId);
+            const other = await this.repo.findOneBy({ id: targetId });
+            if (other && cleanIds(other.linkedTaskIds).includes(id)) {
+                other.linkedTaskIds = cleanIds(other.linkedTaskIds).filter((x) => x !== id);
+                await this.repo.save(other);
+            }
+        }
+        else {
+            task.changeOrderIds = cleanIds(task.changeOrderIds).filter((x) => x !== targetId);
+        }
+        task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('link', actor, { text: `removed a link to ${kind === 'task' ? 'task' : 'change order'} ${targetId}` })];
+        task.updatedAt = new Date().toISOString();
+        return this.hydrate(await this.repo.save(task));
+    }
+    async createLinkedTask(id, dto, actor) {
+        const source = await this.load(id);
+        const kind = source.topicType || 'entry';
+        const created = await this.create({
+            topicType: 'Task',
+            subject: String(dto.subject || '').trim() || `Follow up: ${taskTitle(source)}`.slice(0, 300),
+            description: String(dto.description || '').trim() || `From ${kind} ${source.id}: ${taskTitle(source)}`,
+            assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined,
+            project: source.project || '', tab: source.tab || 'internal',
+            meetingType: source.meetingType, meetingDate: source.meetingDate, meetingId: source.meetingId || undefined,
+        }, actor);
+        const entry = await this.link(id, 'task', created.id, actor);
+        return { task: await this.findOne(created.id), entry };
+    }
     async addComment(id, text, actor) {
         const task = await this.load(id);
         if (!text?.trim())
@@ -269,12 +344,18 @@ exports.TasksService = TasksService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.TaskEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
+    __param(5, (0, common_1.Optional)()),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.ChangeOrderEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
         notifications_service_1.NotificationsService,
-        settings_service_1.SettingsService])
+        settings_service_1.SettingsService,
+        typeorm_2.Repository])
 ], TasksService);
+function cleanIds(v) {
+    return [...new Set((0, task_types_1.normalizeList)(v).map((x) => String(x ?? '').trim()).filter(Boolean))];
+}
 function taskTitle(t) {
     return (t.subject || '').trim() || (t.description || '').split(/\r?\n/)[0].trim().slice(0, 120) || t.id;
 }

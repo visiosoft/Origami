@@ -9,11 +9,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MeetingActionDto = exports.MeetingDto = exports.AttendeeDto = exports.MEETING_STATUSES = exports.MEETING_TYPES = void 0;
+exports.MeetingActionDto = exports.MeetingDto = exports.AttendeeDto = exports.MEETING_ACTION_TOPICS = exports.MEETING_STATUSES = exports.MEETING_LOCATION_TYPES = exports.MEETING_TYPES = void 0;
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
+const meeting_status_1 = require("./meeting-status");
+Object.defineProperty(exports, "MEETING_LOCATION_TYPES", { enumerable: true, get: function () { return meeting_status_1.MEETING_LOCATION_TYPES; } });
+Object.defineProperty(exports, "MEETING_STATUSES", { enumerable: true, get: function () { return meeting_status_1.MEETING_STATUSES; } });
 exports.MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site'];
-exports.MEETING_STATUSES = ['scheduled', 'held', 'cancelled'];
+exports.MEETING_ACTION_TOPICS = ['Task', 'FYI', 'Observation', 'Decision'];
 class AttendeeDto {
 }
 exports.AttendeeDto = AttendeeDto;
@@ -73,6 +76,12 @@ __decorate([
     __metadata("design:type", String)
 ], MeetingDto.prototype, "location", void 0);
 __decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)([...meeting_status_1.MEETING_LOCATION_TYPES]),
+    __metadata("design:type", String)
+], MeetingDto.prototype, "locationType", void 0);
+__decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
@@ -92,7 +101,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsIn)(exports.MEETING_STATUSES),
+    (0, class_validator_1.IsIn)([...meeting_status_1.MEETING_STATUSES, 'held']),
     __metadata("design:type", String)
 ], MeetingDto.prototype, "status", void 0);
 __decorate([
@@ -101,12 +110,35 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], MeetingDto.prototype, "rfiIds", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], MeetingDto.prototype, "changeOrderIds", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(1000),
+    __metadata("design:type", String)
+], MeetingDto.prototype, "recordingUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(1000),
+    __metadata("design:type", String)
+], MeetingDto.prototype, "transcriptUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], MeetingDto.prototype, "transcript", void 0);
 class MeetingActionDto {
 }
 exports.MeetingActionDto = MeetingActionDto;
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsIn)(['Task', 'FYI', 'Observation']),
+    (0, class_validator_1.IsIn)(exports.MEETING_ACTION_TOPICS),
     __metadata("design:type", String)
 ], MeetingActionDto.prototype, "topicType", void 0);
 __decorate([

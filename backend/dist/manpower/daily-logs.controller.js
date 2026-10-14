@@ -28,8 +28,17 @@ let DailyLogsController = class DailyLogsController {
     findAll(status, projectId) {
         return this.service.findAllLogs({ status, projectId: projectId != null ? Number(projectId) : undefined });
     }
-    getForDay(projectId, date) {
-        return this.service.getForDay(Number(projectId), date);
+    getForDay(projectId, date, id) {
+        return this.service.getForDay(Number(projectId), date, id || undefined);
+    }
+    templates() {
+        return this.service.listTemplates();
+    }
+    async saveTemplate(dto, auth) {
+        return this.service.saveTemplate(dto, await this.auth.actor(auth));
+    }
+    async removeTemplate(id, auth) {
+        return this.service.removeTemplate(id, await this.auth.actor(auth));
     }
     async save(dto, auth) {
         return this.service.save(dto, await this.auth.actor(auth));
@@ -37,6 +46,11 @@ let DailyLogsController = class DailyLogsController {
     async submit(id, auth) {
         const log = await this.service.submit(id, await this.auth.actor(auth));
         this.backup.afterSubmit(log.id);
+        if (log.onBehalfOf) {
+            const to = await this.service.ownerEmail(log).catch(() => null);
+            if (to)
+                this.backup.send(log.id, [to]).catch(() => undefined);
+        }
         return log;
     }
     email(id, body) {
@@ -63,10 +77,33 @@ __decorate([
     (0, common_1.Get)('day'),
     __param(0, (0, common_1.Query)('projectId')),
     __param(1, (0, common_1.Query)('date')),
+    __param(2, (0, common_1.Query)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], DailyLogsController.prototype, "getForDay", null);
+__decorate([
+    (0, common_1.Get)('templates'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], DailyLogsController.prototype, "templates", null);
+__decorate([
+    (0, common_1.Post)('templates'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [daily_log_dto_1.SaveDailyReportTemplateDto, String]),
+    __metadata("design:returntype", Promise)
+], DailyLogsController.prototype, "saveTemplate", null);
+__decorate([
+    (0, common_1.Delete)('templates/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], DailyLogsController.prototype, "removeTemplate", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),

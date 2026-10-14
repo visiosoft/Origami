@@ -1,5 +1,7 @@
+import { MEETING_LOCATION_TYPES, MEETING_STATUSES } from './meeting-status';
 export declare const MEETING_TYPES: string[];
-export declare const MEETING_STATUSES: string[];
+export { MEETING_LOCATION_TYPES, MEETING_STATUSES };
+export declare const MEETING_ACTION_TOPICS: string[];
 export declare class AttendeeDto {
     id?: string;
     name: string;
@@ -13,11 +15,16 @@ export declare class MeetingDto {
     date?: string;
     time?: string;
     location?: string;
+    locationType?: string;
     attendees?: AttendeeDto[];
     agenda?: string;
     minutes?: string;
     status?: string;
     rfiIds?: string[];
+    changeOrderIds?: string[];
+    recordingUrl?: string;
+    transcriptUrl?: string;
+    transcript?: string;
 }
 export declare class MeetingActionDto {
     topicType: string;

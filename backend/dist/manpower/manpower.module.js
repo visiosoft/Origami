@@ -64,7 +64,7 @@ exports.ManpowerModule = ManpowerModule = __decorate([
         imports: [
             people_module_1.PeopleModule,
             typeorm_1.TypeOrmModule.forFeature([
-                entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.DailyLogEntity, entities_1.LaborLogEntryEntity, entities_1.LeaveRequestEntity, entities_1.ProjectEntity,
+                entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.DailyLogEntity, entities_1.DailyReportTemplateEntity, entities_1.LaborLogEntryEntity, entities_1.LeaveRequestEntity, entities_1.ProjectEntity,
                 entities_1.TradeEntity, entities_1.SubcontractorTradeEntity, entities_1.EmployeeRecordEntity, entities_1.EmployeeAssignmentEntity, entities_1.WorkforceRequestEntity, entities_1.ContractorEntity,
                 entities_1.PayComponentEntity, entities_1.PayrollRunEntity, entities_1.PayslipEntity, entities_1.OvertimeRequestEntity, entities_1.EmployeeAdvanceEntity, entities_1.RoleEntity,
                 entities_1.LeaveTypeEntity, entities_1.LeaveAdjustmentEntity, entities_1.PublicHolidayEntity, entities_1.ShiftTemplateEntity, entities_1.ShiftAssignmentEntity,

@@ -56,6 +56,15 @@ let TasksController = class TasksController {
     remove(id) {
         return this.tasksService.remove(id);
     }
+    async addRecordLink(id, dto, auth) {
+        return this.tasksService.link(id, dto.kind, dto.targetId, await this.auth.actor(auth));
+    }
+    async removeRecordLink(id, kind, targetId, auth) {
+        return this.tasksService.unlink(id, kind === 'task' ? 'task' : 'changeOrder', targetId, await this.auth.actor(auth));
+    }
+    async linkedTask(id, dto, auth) {
+        return this.tasksService.createLinkedTask(id, dto, await this.auth.actor(auth));
+    }
     async upload(id, files, auth) {
         return this.tasksService.addAttachments(id, files, await this.auth.requireActor(auth));
     }
@@ -134,6 +143,34 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TasksController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/links'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_task_dto_1.LinkDto, String]),
+    __metadata("design:returntype", Promise)
+], TasksController.prototype, "addRecordLink", null);
+__decorate([
+    (0, common_1.Delete)(':id/links/:kind/:targetId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('kind')),
+    __param(2, (0, common_1.Param)('targetId')),
+    __param(3, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], TasksController.prototype, "removeRecordLink", null);
+__decorate([
+    (0, common_1.Post)(':id/linked-task'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_task_dto_1.LinkedTaskDto, String]),
+    __metadata("design:returntype", Promise)
+], TasksController.prototype, "linkedTask", null);
 __decorate([
     (0, common_1.Post)(':id/attachments'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', attachments_service_1.MAX_FILES_PER_UPLOAD, { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),

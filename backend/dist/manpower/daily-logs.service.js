@@ -18,9 +18,11 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 let DailyLogsService = class DailyLogsService {
-    constructor(logs, entries) {
+    constructor(logs, entries, templates, users) {
         this.logs = logs;
         this.entries = entries;
+        this.templates = templates;
+        this.users = users;
     }
     async findEntries(opts) {
         const qb = this.logs.createQueryBuilder('log');
@@ -30,7 +32,7 @@ let DailyLogsService = class DailyLogsService {
             qb.andWhere('log.date >= :from', { from: opts.from });
         if (opts.to)
             qb.andWhere('log.date <= :to', { to: opts.to });
-        const logs = await qb.getMany();
+        const logs = (await qb.getMany()).filter((l) => l.status !== 'superseded');
         if (!logs.length)
             return [];
         const entries = await this.entries.find({ where: logs.map((l) => ({ dailyLogId: l.id })) });
@@ -57,27 +59,79 @@ let DailyLogsService = class DailyLogsService {
         }
         return logs.map((l) => ({ ...l, crewCount: sum.get(l.id)?.crew || 0, totalHours: Math.round((sum.get(l.id)?.hours || 0) * 100) / 100 }));
     }
-    async getForDay(projectId, date) {
-        const log = await this.logs.findOneBy({ projectId, date });
+    async versionsOf(projectId, date) {
+        const rows = await this.logs.find({ where: { projectId, date } });
+        return rows.sort((a, b) => (Number(a.version) || 1) - (Number(b.version) || 1));
+    }
+    newLog(projectId, date, actor, version = 1, versionOf = null) {
+        return this.logs.create({
+            id: 'DL-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(),
+            projectId, date, status: 'draft', version, versionOf: versionOf,
+            supervisorId: actor.id, supervisorName: actor.name,
+            createdAt: new Date().toISOString(),
+        });
+    }
+    async getForDay(projectId, date, id) {
+        const versions = await this.versionsOf(projectId, date);
+        const log = (id && versions.find((v) => v.id === id)) || versions[versions.length - 1] || null;
         const entries = log ? await this.entries.find({ where: { dailyLogId: log.id } }) : [];
-        return { log: log ?? { id: null, projectId, date, status: 'draft', notes: '' }, entries };
+        return {
+            log: log ?? { id: null, projectId, date, status: 'draft', notes: '', version: 1 },
+            entries,
+            versions: versions.map((v) => ({ id: v.id, version: Number(v.version) || 1, status: v.status, autoReason: v.autoReason || null, supervisorName: v.supervisorName, createdAt: v.createdAt })),
+        };
     }
     async save(dto, actor) {
-        let log = await this.logs.findOneBy({ projectId: dto.projectId, date: dto.date });
+        let log = null;
+        if (dto.id) {
+            log = await this.logs.findOneBy({ id: dto.id });
+            if (!log)
+                throw new common_1.NotFoundException('That report no longer exists.');
+        }
+        else if (!dto.newVersion) {
+            const versions = await this.versionsOf(dto.projectId, dto.date);
+            log = versions[versions.length - 1] || null;
+        }
         if (log && log.status !== 'draft' && log.status !== 'rejected') {
             throw new common_1.BadRequestException('This day has already been submitted -- it can no longer be edited directly.');
         }
         if (!log) {
-            log = this.logs.create({
-                id: 'DL-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase(),
-                projectId: dto.projectId, date: dto.date, status: 'draft',
-                supervisorId: actor.id, supervisorName: actor.name,
-                createdAt: new Date().toISOString(),
+            const versions = await this.versionsOf(dto.projectId, dto.date);
+            log = versions.length
+                ? this.newLog(dto.projectId, dto.date, actor, Math.max(...versions.map((v) => Number(v.version) || 1)) + 1, versions[0].id)
+                : this.newLog(dto.projectId, dto.date, actor);
+        }
+        if (log.date !== dto.date || Number(log.projectId) !== Number(dto.projectId)) {
+            const there = (await this.versionsOf(dto.projectId, dto.date)).filter((v) => v.id !== log.id);
+            if (there.length && !dto.newVersion)
+                throw new common_1.ConflictException(`There's already a report for ${dto.date}. Change the date, or add an updated report for that day.`);
+            Object.assign(log, {
+                projectId: dto.projectId, date: dto.date,
+                version: there.length ? Math.max(...there.map((v) => Number(v.version) || 1)) + 1 : 1,
+                versionOf: there.length ? there[0].id : null,
             });
         }
         if (log.status === 'rejected')
             log.status = 'draft';
         log.notes = dto.notes ?? log.notes;
+        if (dto.sections !== undefined)
+            log.sections = dto.sections && typeof dto.sections === 'object' ? dto.sections : null;
+        if (dto.onBehalfOf !== undefined)
+            log.onBehalfOf = String(dto.onBehalfOf || '').trim() || null;
+        if (dto.dupBaseline !== undefined)
+            log.dupBaseline = dto.dupBaseline && typeof dto.dupBaseline === 'object' ? dto.dupBaseline : null;
+        if (dto.dupFromDate !== undefined)
+            log.dupFromDate = dto.dupFromDate || null;
+        if (dto.certifiedName !== undefined || dto.signatureDataUrl !== undefined) {
+            const name = String(dto.certifiedName ?? log.certifiedName ?? '').trim();
+            const sig = String(dto.signatureDataUrl ?? log.signatureDataUrl ?? '');
+            log.certifiedName = name || null;
+            log.signatureDataUrl = sig || null;
+            if (name && sig)
+                log.signedAt = log.signedAt || new Date().toISOString();
+            else
+                log.signedAt = null;
+        }
         log = await this.logs.save(log);
         const existing = await this.entries.find({ where: { dailyLogId: log.id } });
         if (existing.length)
@@ -94,6 +148,13 @@ let DailyLogsService = class DailyLogsService {
         const log = await this.require(id);
         if (log.status !== 'draft' && log.status !== 'rejected')
             throw new common_1.BadRequestException(`Cannot submit a log in status "${log.status}"`);
+        if (log.sections) {
+            const worked = log.sections?.activity?.worked;
+            if (worked !== 'yes' && worked !== 'no')
+                throw new common_1.BadRequestException('Answer "Did work occur today?" (Section II) before submitting.');
+            if (!log.certifiedName || !log.signatureDataUrl || !log.signedAt)
+                throw new common_1.BadRequestException('Sign the certification (Section X) before submitting.');
+        }
         log.status = 'submitted';
         log.submittedAt = new Date().toISOString();
         log.supervisorId = log.supervisorId || actor.id || '';
@@ -111,7 +172,13 @@ let DailyLogsService = class DailyLogsService {
         log.approvedById = actor.id || '';
         log.approvedByName = actor.name;
         log.approvedAt = new Date().toISOString();
-        return this.logs.save(log);
+        const saved = await this.logs.save(log);
+        const others = (await this.versionsOf(log.projectId, log.date)).filter((v) => v.id !== log.id && v.status === 'approved');
+        for (const o of others) {
+            o.status = 'superseded';
+            await this.logs.save(o);
+        }
+        return saved;
     }
     async reject(id, note, actor) {
         const log = await this.require(id);
@@ -126,6 +193,50 @@ let DailyLogsService = class DailyLogsService {
         log.rejectionNote = note || '';
         return this.logs.save(log);
     }
+    async listTemplates() {
+        const rows = await this.templates.find();
+        return rows.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    async saveTemplate(dto, actor) {
+        const name = String(dto.name || '').trim();
+        if (!name)
+            throw new common_1.BadRequestException('Give the template a name.');
+        if (name.length > 120)
+            throw new common_1.BadRequestException('Keep the name under 120 characters.');
+        const existing = (await this.templates.find()).find((t) => t.name.toLowerCase() === name.toLowerCase());
+        if (existing && existing.createdById && existing.createdById !== actor.id && !(await this.isAdmin(actor))) {
+            throw new common_1.ConflictException(`There's already a template called "${existing.name}" -- pick another name.`);
+        }
+        const entries = (Array.isArray(dto.entries) ? dto.entries : []).map((e) => ({ employeeId: e.employeeId, csiCodeId: e.csiCodeId, team: e.team, taskStatus: e.taskStatus, hours: e.hours }));
+        const row = this.templates.create({
+            ...(existing || { id: 'DRT-' + Date.now().toString(36).toUpperCase(), createdById: actor.id, createdByName: actor.name }),
+            name, sections: dto.sections && typeof dto.sections === 'object' ? dto.sections : null, entries,
+            createdAt: existing?.createdAt || new Date().toISOString(),
+        });
+        return this.templates.save(row);
+    }
+    async removeTemplate(id, actor) {
+        const row = await this.templates.findOneBy({ id });
+        if (!row)
+            return { id, deleted: true };
+        if (row.createdById && row.createdById !== actor.id && !(await this.isAdmin(actor))) {
+            throw new common_1.ForbiddenException(`Only ${row.createdByName || 'whoever made it'} or an admin can delete this template.`);
+        }
+        await this.templates.remove(row);
+        return { id, deleted: true };
+    }
+    async ownerEmail(log) {
+        if (!log.supervisorId || !this.users)
+            return null;
+        const u = await this.users.findOneBy({ id: log.supervisorId });
+        return u?.email || null;
+    }
+    async isAdmin(actor) {
+        if (!actor.id || !this.users)
+            return false;
+        const u = await this.users.findOneBy({ id: actor.id });
+        return u?.roleKey === 'admin';
+    }
     async require(id) {
         const log = await this.logs.findOneBy({ id });
         if (!log)
@@ -138,7 +249,11 @@ exports.DailyLogsService = DailyLogsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.DailyLogEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.LaborLogEntryEntity)),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.DailyReportTemplateEntity)),
+    __param(3, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], DailyLogsService);
 //# sourceMappingURL=daily-logs.service.js.map

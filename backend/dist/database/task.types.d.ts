@@ -25,7 +25,7 @@ export interface ChecklistItem {
 }
 export interface ActivityEvent {
     id: string;
-    type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
+    type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators' | 'link';
     field?: string;
     from?: string;
     to?: string;

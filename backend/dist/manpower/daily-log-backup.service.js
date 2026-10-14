@@ -21,6 +21,7 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const google_service_1 = require("../google/google.service");
 const settings_service_1 = require("../settings/settings.service");
+const daily_report_html_1 = require("./daily-report.html");
 const shell_1 = require("../email/shell");
 const STATUS = { start: 'Start', continued: 'Continued', completing: 'Completing' };
 const csvCell = (v) => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -115,6 +116,7 @@ let DailyLogBackupService = class DailyLogBackupService {
         <tr><td style="${cell}"><b>Total</b></td><td style="${cell}"></td><td style="${cell}"></td><td style="${cell}"></td><td style="${cell}"><b>${hours}</b></td><td style="${cell}" colspan="3"></td></tr>
       </table>
       ${meta.notes ? `<h2 style="font-size:12pt;margin:16px 0 4px;">Site notes</h2><div style="font-size:10.5pt;white-space:pre-wrap;">${(0, shell_1.escapeHtml)(meta.notes)}</div>` : ''}
+      ${(0, daily_report_html_1.reportSectionsHtml)(day.sections, { onBehalfOf: day.onBehalfOf, certifiedName: day.certifiedName, signatureDataUrl: day.signatureDataUrl, signedAt: day.signedAt, filer: day.supervisorName })}
     </body></html>`;
         const base = `Daily log ${fileDate(day.date)} - ${projectName}`.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120);
         const attachments = [];

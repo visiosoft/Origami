@@ -19,7 +19,7 @@ let MeetingsModule = class MeetingsModule {
 exports.MeetingsModule = MeetingsModule;
 exports.MeetingsModule = MeetingsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.MeetingEntity, entities_1.TaskEntity]), auth_module_1.AuthModule, tasks_module_1.TasksModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.MeetingEntity, entities_1.TaskEntity, entities_1.RfiEntity, entities_1.ChangeOrderEntity]), auth_module_1.AuthModule, tasks_module_1.TasksModule],
         controllers: [meetings_controller_1.MeetingsController],
         providers: [meetings_service_1.MeetingsService],
     })

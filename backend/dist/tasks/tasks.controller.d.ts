@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto, AddCommentDto, AddLinkDto } from './dto/update-task.dto';
+import { UpdateTaskDto, AddCommentDto, AddLinkDto, LinkDto, LinkedTaskDto } from './dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 export declare class TasksController {
@@ -20,6 +20,12 @@ export declare class TasksController {
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;
+    }>;
+    addRecordLink(id: string, dto: LinkDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
+    removeRecordLink(id: string, kind: string, targetId: string, auth?: string): Promise<import("../database/entities").TaskEntity>;
+    linkedTask(id: string, dto: LinkedTaskDto, auth?: string): Promise<{
+        task: import("../database/entities").TaskEntity;
+        entry: import("../database/entities").TaskEntity;
     }>;
     upload(id: string, files: any[], auth?: string): Promise<import("../database/entities").TaskEntity>;
     link(id: string, dto: AddLinkDto, auth?: string): Promise<import("../database/entities").TaskEntity>;

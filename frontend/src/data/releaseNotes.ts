@@ -16,6 +16,20 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-14a',
+    date: '2026-10-14',
+    title: 'The Daily Report, FOR RECORD and meeting review',
+    items: [
+      { area: 'Daily Report', kind: 'new', text: 'The field daily log is now the full Daily Report in ten sections: General information (with % invoiced, % of schedule and task / RFI / change-order counts — never dollar amounts), Activity, Internal workers (the timesheet), Subcontractors, Inspectors, Site meeting & visitors, Deliveries, Equipment, Notes and Certification. Answering “No work today” marks Sections III–IX N/A so you can go straight to the signature.', where: 'Daily Report (field)' },
+      { area: 'Daily Report', kind: 'new', text: 'Start a day blank, from a named template, or by duplicating the previous day. A duplicate keeps everything except Sections I and X, and anything you haven’t changed stays highlighted yellow until you do.', where: 'Daily Report (field)' },
+      { area: 'Daily Report', kind: 'new', text: 'Delays (with a known or unknown get-well date), failed or partial inspections, visitors and notes can each be turned into a To Do task with “Convert to task”. Answering No to photos, transmittals or the equipment form adds an “Upload …” task for you when you submit.', where: 'Daily Report (field)' },
+      { area: 'Daily Report', kind: 'new', text: 'A second report for a day you’ve already filed is kept as an update, with tabs between the original and each update. Save a draft and submit later, save any report as a template the whole team can use, and sign with your finger — the signing time is stamped once and kept. Filling it in for someone else sends them a copy.', where: 'Daily Report (field)' },
+      { area: 'FOR RECORD', kind: 'new', text: '“Observations & FYI” is now FOR RECORD and holds observations, FYIs and decisions. Open any entry to attach it to a task or change order, or create a linked task or change-order draft from it.', where: 'Special Actions → FOR RECORD' },
+      { area: 'Meetings', kind: 'new', text: 'Meetings hold a recording link and a transcript (link or pasted text). “Review notes & transcript” puts them beside a form to pull out tasks, RFIs, change orders, observations, FYIs and decisions — select a passage and “Use selection” fills it in.', where: 'Special Actions → Meetings' },
+      { area: 'Meetings', kind: 'improved', text: 'Meetings are Scheduled, Rescheduled, Occurred, Reviewed, Complete or Cancelled; a reviewed meeting turns Complete by itself once everything raised in it is done. Meetings marked “Held” now show as Occurred. New meetings ask how they’re held — Virtual, Call, Text or In-Person — and the list filters by both.', where: 'Special Actions → Meetings' },
+    ],
+  },
+  {
     id: '2026-10-08f',
     date: '2026-10-08',
     title: 'Task cards show subtasks and everyone on the task',
