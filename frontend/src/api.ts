@@ -268,7 +268,8 @@ export const api = {
     create: (d: unknown) => request<import('./data/meetings').Meeting>('/meetings', { method: 'POST', body: JSON.stringify(d) }),
     update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    /** Raise a task, FYI or observation from the meeting: a Request Log entry linked to it. */
+    get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
+    /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Request Log entry linked to it. */
     addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
@@ -291,6 +292,12 @@ export const api = {
     addLink: (id: string, name: string, url: string) => request(`/tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
     addComment: (id: string, text: string) => request(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
+    /** FOR RECORD: attach an entry to a task or a change order, or detach it. */
+    link: (id: string, kind: 'task' | 'changeOrder', targetId: string) => request<any>(`/tasks/${encodeURIComponent(id)}/links`, { method: 'POST', body: JSON.stringify({ kind, targetId }) }),
+    unlink: (id: string, kind: 'task' | 'changeOrder', targetId: string) => request<any>(`/tasks/${encodeURIComponent(id)}/links/${kind}/${encodeURIComponent(targetId)}`, { method: 'DELETE' }),
+    /** A task driven by the entry, on its project and meeting, linked both ways. */
+    linkedTask: (id: string, d: { subject?: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string } = {}) =>
+      request<{ task: any; entry: any }>(`/tasks/${encodeURIComponent(id)}/linked-task`, { method: 'POST', body: JSON.stringify(d) }),
   },
   pipeline: {
     /** Archived deals are excluded unless asked for. */

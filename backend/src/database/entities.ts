@@ -138,6 +138,13 @@ export class TaskEntity {
   @Column({ nullable: true }) updatedAt!: string;
   /** The meeting this was raised in (MeetingEntity.id), when it came from one. */
   @Column({ nullable: true }) meetingId!: string;
+  /**
+   * FOR RECORD links (observations, FYIs and decisions): the Request Log tasks
+   * this entry drove or is attached to -- kept on both entries -- and the change
+   * orders (ChangeOrderEntity.id) it drove or backs up.
+   */
+  @Column({ type: 'simple-json', nullable: true }) linkedTaskIds!: string[] | null;
+  @Column({ type: 'simple-json', nullable: true }) changeOrderIds!: string[] | null;
 }
 
 /**
@@ -160,8 +167,20 @@ export class MeetingEntity {
   @Column({ type: 'simple-json', nullable: true }) attendees!: { id?: string; name: string; email?: string }[] | null;
   @Column({ ...TEXT, nullable: true }) agenda!: string;
   @Column({ ...TEXT, nullable: true }) minutes!: string;
-  @Column({ default: 'scheduled' }) status!: string; // scheduled | held | cancelled
+  /** scheduled | occurred | cancelled | rescheduled | reviewed | complete (older rows: held = occurred). See meetings/meeting-status.ts. */
+  @Column({ default: 'scheduled' }) status!: string;
+  /** virtual | call | text | in_person -- how it is held; `location` keeps the address or link. */
+  @Column({ nullable: true }) locationType!: string;
   @Column({ type: 'simple-json', nullable: true }) rfiIds!: string[] | null;
+  /** Change orders drafted from the meeting (ChangeOrderEntity.id). */
+  @Column({ type: 'simple-json', nullable: true }) changeOrderIds!: string[] | null;
+  /** The recording, and the transcript as a link and/or pasted text. */
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) recordingUrl!: string;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) transcriptUrl!: string;
+  @Column({ ...TEXT, nullable: true }) transcript!: string;
+  /** Who went through the notes / transcript and pulled out the special actions, and when. */
+  @Column({ nullable: true }) reviewedBy!: string;
+  @Column({ nullable: true }) reviewedAt!: string;
   @Column({ nullable: true }) createdBy!: string;
   @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;

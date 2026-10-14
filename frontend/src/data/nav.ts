@@ -36,9 +36,9 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'People', route: 'people', icon: 'people', desc: 'Internal executive, internal staff, clients, consultants, subs, authorities and vendors' },
     { label: 'All Files', route: 'allfiles', icon: 'files', desc: 'Every file in the business Google Drive. Limited access' },
   ] },
-  { key: 'actions', label: 'Special Actions', hint: 'Manages all: meetings, observations, FYI, RFI, task and change orders', items: [
+  { key: 'actions', label: 'Special Actions', hint: 'Manages all: meetings, FOR RECORD (observations, FYI, decisions), RFI, task and change orders', items: [
     { label: 'Meetings', route: 'meetings', icon: 'cal', desc: 'Manage, track and create meetings; generate the actions below from them' },
-    { label: 'Observations & FYI', route: 'observations', icon: 'q', desc: 'Manage, track and create observations and FYIs' },
+    { label: 'FOR RECORD', route: 'observations', icon: 'q', desc: 'Observations, FYIs and decisions on record; link them to tasks and change orders' },
     { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },
     { label: 'Task', route: 'requests', perm: 'tasks', icon: 'check', desc: 'Manage, track and create tasks raised in meetings (Request Log)' },
     { label: 'Change Orders', route: 'changeorders', icon: 'swap', desc: 'Manage, track and create change orders' },
@@ -61,7 +61,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Plan & File Room', route: 'planroom', icon: 'files', desc: 'File management, tracking the latest files, and sending and managing RFPs' },
     { label: 'Manpower & Resource Management', route: 'manpower_pre', perm: 'manpower_con', icon: 'crew', desc: 'RFPs for several projects for design, and timesheets for design' },
     { label: 'Consultant & Subcontractor Prequalifying', route: 'prequal', icon: 'shieldc', desc: 'Who is coming due for licences, insurance and the rest' },
-    { label: 'Special Actions', route: 'actions_design', perm: 'design', icon: 'q', desc: 'Design: meetings, observations, FYI, RFI, task and change orders' },
+    { label: 'Special Actions', route: 'actions_design', perm: 'design', icon: 'q', desc: 'Design: meetings, FOR RECORD, RFI, task and change orders' },
   ] },
   { key: 'construction', label: 'Construction', items: [
     { label: 'Project Management', route: 'pm', icon: 'clip', note: 'Board', desc: 'Construction work, board view' },
@@ -69,7 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Schedule', route: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
     { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', desc: 'RFPs for build, equipment, timesheets, labor and resource projection, deliveries and daily reports' },
     { label: 'Daily Reports', route: 'daily_reports', icon: 'clip', desc: 'Every site’s daily log: crew, hours, cost codes and notes' },
-    { label: 'Special Actions', route: 'actions_con', perm: 'pm', icon: 'q', desc: 'Construction: meetings, observations, FYI, RFI, task and change orders' },
+    { label: 'Special Actions', route: 'actions_con', perm: 'pm', icon: 'q', desc: 'Construction: meetings, FOR RECORD, RFI, task and change orders' },
   ] },
   { key: 'financial', label: 'Financial', items: [
     { label: 'Business', route: 'fin_business', icon: 'bank', desc: 'Rolls up all projects, design and build' },

@@ -3,7 +3,7 @@ import './ActionKit.css';
 
 /**
  * Small shared pieces for the list pages built on existing records (Holding &
- * Refer Out, Observations & FYI, Daily Reports, Special Actions): a lead line,
+ * Refer Out, FOR RECORD, Daily Reports, Special Actions): a lead line,
  * stat cards, filter pills and list rows. Styled with theme tokens, so they read
  * right in both the New and the Classic look.
  */

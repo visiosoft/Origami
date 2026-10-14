@@ -12,9 +12,9 @@ export class MeetingsController {
   @Get() list() { return this.service.list(); }
   @Get(':id') get(@Param('id') id: string) { return this.service.get(id); }
   @Post() async create(@Body() dto: MeetingDto, @Headers('authorization') a?: string) { return this.service.create(dto, await this.auth.actor(a)); }
-  @Put(':id') update(@Param('id') id: string, @Body() dto: MeetingDto) { return this.service.update(id, dto); }
+  @Put(':id') async update(@Param('id') id: string, @Body() dto: MeetingDto, @Headers('authorization') a?: string) { return this.service.update(id, dto, await this.auth.actor(a)); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
-  /** Raise a task, FYI or observation from the meeting (a Request Log entry linked to it). */
+  /** Raise a task, or a FOR RECORD item (FYI, observation, decision) from the meeting (a Request Log entry linked to it). */
   @Post(':id/actions') async addAction(@Param('id') id: string, @Body() dto: MeetingActionDto, @Headers('authorization') a?: string) {
     return this.service.addAction(id, dto, await this.auth.actor(a));
   }

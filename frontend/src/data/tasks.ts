@@ -13,7 +13,7 @@ export interface Task {
   /** One of the Request Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
   status: string;
   originator: string;
-  topicType: 'Task' | 'FYI' | 'Observation' | 'RFI';
+  topicType: 'Task' | 'FYI' | 'Observation' | 'Decision' | 'RFI';
   /** The meeting it was raised in, when it came from one. */
   meetingId?: string;
   /** The task's name. Older tasks have none: their first description line serves as the name. */
@@ -36,7 +36,14 @@ export interface Task {
   checklist?: ChecklistItem[];
   labels?: string[];
   updatedAt?: string;
+  /** FOR RECORD links: the Request Log tasks this entry drove or is attached to (kept on both), and change orders. */
+  linkedTaskIds?: string[];
+  changeOrderIds?: string[];
 }
+
+/** FOR RECORD: Request Log entries kept on record rather than worked -- observations, FYIs and decisions. */
+export const FOR_RECORD_TOPICS = ['Observation', 'FYI', 'Decision'] as const;
+export const isForRecord = (t: Pick<Task, 'topicType'>) => (FOR_RECORD_TOPICS as readonly string[]).includes(t.topicType);
 
 export type TaskTab = 'internal' | 'owner' | 'subcontractor';
 
@@ -110,6 +117,7 @@ export const TT_COLORS: Record<string, { bg: string; c: string }> = {
   Task: { bg: 'var(--mint)', c: 'var(--forest)' },
   FYI: { bg: 'var(--amber-light)', c: '#93520F' },
   Observation: { bg: '#EAE0F3', c: '#5B2E86' },
+  Decision: { bg: '#DCE6F5', c: '#2B4C7E' },
   RFI: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 export const MT_COLORS: Record<string, { bg: string; c: string }> = {

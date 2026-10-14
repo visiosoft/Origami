@@ -22,4 +22,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() project?: string;
   @IsArray() @IsOptional() labels?: string[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];
+  /** FOR RECORD links: the tasks and change orders (ids) this entry drove or is attached to. */
+  @IsArray() @IsOptional() @IsString({ each: true }) linkedTaskIds?: string[];
+  @IsArray() @IsOptional() @IsString({ each: true }) changeOrderIds?: string[];
 }
