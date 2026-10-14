@@ -1175,12 +1175,43 @@ export class DailyLogEntity {
   @Column({ nullable: true }) supervisorId!: string;
   @Column({ nullable: true }) supervisorName!: string;
   @Column({ ...TEXT, nullable: true }) notes!: string;
-  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected
+  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected | superseded (an approved report replaced by a later version of the same day)
   @Column({ nullable: true }) submittedAt!: string;
   @Column({ nullable: true }) approvedById!: string;
   @Column({ nullable: true }) approvedByName!: string;
   @Column({ nullable: true }) approvedAt!: string;
   @Column({ ...TEXT, nullable: true }) rejectionNote!: string;
+  @Column() createdAt!: string;
+  // --- Daily Report (Sections I-X) ---
+  /** 1 for the first report of a project+date; an "updated report" for the same day is 2, 3, ... */
+  @Column({ type: 'int', default: 1 }) version!: number;
+  /** The original (version 1) report this one updates. */
+  @Column({ nullable: true }) versionOf!: string;
+  /** Sections II and IV-IX as answered (activity, delays, subs, inspectors, visitors, deliveries, equipment, notes). */
+  @Column({ type: 'simple-json', nullable: true }) sections!: Record<string, any> | null;
+  /** I.E: filled in on behalf of this person. */
+  @Column({ nullable: true }) onBehalfOf!: string;
+  /** X: who signed, their signature, and when -- the time is taken once and never changed. */
+  @Column({ nullable: true }) certifiedName!: string;
+  @Column({ ...TEXT, nullable: true }) signatureDataUrl!: string;
+  @Column({ nullable: true }) signedAt!: string;
+  /** Made by the system for a stop-order or holiday day. */
+  @Column({ nullable: true }) autoReason!: string;
+  /** Duplicated from an earlier day: what was copied, so unchanged values can be highlighted. */
+  @Column({ type: 'simple-json', nullable: true }) dupBaseline!: Record<string, any> | null;
+  @Column({ nullable: true }) dupFromDate!: string;
+}
+
+/** A named Daily Report starting point anyone on the team can reuse. */
+@Entity('daily_report_templates')
+export class DailyReportTemplateEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ type: 'simple-json', nullable: true }) sections!: Record<string, any> | null;
+  /** Crew rows (Section III) without hours tied to a date. */
+  @Column({ type: 'simple-json', nullable: true }) entries!: Record<string, any>[] | null;
+  @Column({ nullable: true }) createdById!: string;
+  @Column({ nullable: true }) createdByName!: string;
   @Column() createdAt!: string;
 }
 

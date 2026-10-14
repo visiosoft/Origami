@@ -47,7 +47,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Calendar', route: 'my-calendar', icon: 'cal' },
     { label: 'Timesheets', route: 'my-timesheet', icon: 'clip', personal: true },
     { label: 'Tasks', route: 'tasks', icon: 'check' },
-    { label: 'Daily Log (field)', route: 'daily-log', icon: 'clip', superintendent: true },
+    { label: 'Daily Report (field)', route: 'daily-log', icon: 'clip', superintendent: true },
   ] },
   { key: 'crm', label: 'CRM', items: [
     { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', desc: 'Lead and referral intake to initial contract' },

@@ -910,9 +910,19 @@ export const api = {
       const qs = q.toString();
       return request(`/daily-logs${qs ? `?${qs}` : ''}`);
     },
-    day: (projectId: number, date: string) => request(`/daily-logs/day?projectId=${projectId}&date=${date}`),
-    save: (data: { projectId: number; date: string; notes?: string; entries?: unknown[] }) =>
-      request('/daily-logs', { method: 'POST', body: JSON.stringify(data) }),
+    /** A project's day: the asked-for report (`id`) or the latest version, plus every version. */
+    day: (projectId: number, date: string, id?: string) => request(`/daily-logs/day?projectId=${projectId}&date=${date}${id ? `&id=${encodeURIComponent(id)}` : ''}`),
+    save: (data: {
+      projectId: number; date: string; notes?: string; entries?: unknown[];
+      id?: string; newVersion?: boolean; sections?: Record<string, unknown> | null; onBehalfOf?: string;
+      certifiedName?: string; signatureDataUrl?: string; dupBaseline?: Record<string, unknown> | null; dupFromDate?: string;
+    }) => request('/daily-logs', { method: 'POST', body: JSON.stringify(data) }),
+    /** Section I figures: % invoiced, % of schedule, task / RFI / change-order counts. No dollars. */
+    summary: (projectId: number, date?: string) => request(`/daily-report/summary?projectId=${projectId}${date ? `&date=${date}` : ''}`),
+    templates: () => request('/daily-logs/templates'),
+    saveTemplate: (data: { name: string; sections?: Record<string, unknown> | null; entries?: unknown[] }) =>
+      request('/daily-logs/templates', { method: 'POST', body: JSON.stringify(data) }),
+    removeTemplate: (id: string) => request(`/daily-logs/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     submit: (id: string) => request(`/daily-logs/${id}/submit`, { method: 'POST' }),
     approve: (id: string) => request(`/daily-logs/${id}/approve`, { method: 'POST' }),
     reject: (id: string, note?: string) => request(`/daily-logs/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),

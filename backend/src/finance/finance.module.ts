@@ -5,9 +5,11 @@ import {
   ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity,
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
-  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity,
+  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity, RfiEntity,
 } from '../database/entities';
 import { ProjectSubsService } from './project-subs.service';
+import { DailyReportSummaryService } from './daily-report-summary.service';
+import { DailyReportSummaryController } from './daily-report-summary.controller';
 import { AuthModule } from '../auth/auth.module';
 import { GoogleModule } from '../google/google.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -41,14 +43,14 @@ import {
       ChangeOrderEntity, ChangeOrderItemEntity, ReimbursableEntity, RetentionReleaseEntity, FinancialApprovalEntity,
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
       TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
-      PersonEntity, SubcontractorTradeEntity,
+      PersonEntity, SubcontractorTradeEntity, RfiEntity,
     ]),
     AuthModule,
     GoogleModule,
     SettingsModule,
   ],
   controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
-    PortalController, PortalAccessController, SharedWithVendorFilesController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService],
+    PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService],
 })
 export class FinanceModule {}

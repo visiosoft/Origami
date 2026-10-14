@@ -37,7 +37,7 @@ import { MyCalendar } from './pages/MyCalendar';
 import { SignProposal } from './pages/SignProposal';
 import { GuestEntry } from './pages/GuestEntry';
 import { Portal } from './pages/Portal';
-import { FieldDailyLog } from './pages/FieldDailyLog';
+import { DailyReport } from './pages/DailyReport';
 import { useApp } from './AppContext';
 
 /** Sends anyone without a valid session to the log-in screen. */
@@ -90,7 +90,7 @@ export default function App() {
         <Route path="/my-calendar" element={<MyCalendar />} />
         <Route path="/my-timesheet" element={<MyTimesheet />} />
         {/* The superintendent's daily log -- a sheet of the crew, inside the app. */}
-        <Route path="/daily-log" element={<FieldDailyLog />} />
+        <Route path="/daily-log" element={<DailyReport />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/people" element={<People />} />

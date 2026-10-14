@@ -3,7 +3,7 @@ import { DailyLogBackupService } from './daily-log-backup.service';
 import { PeopleModule } from '../people/people.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
-  EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
+  EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
   TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
   PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
   LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
@@ -59,7 +59,7 @@ import { SampleDataController } from './sample-data.controller';
   imports: [
     PeopleModule,
     TypeOrmModule.forFeature([
-      EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
+      EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
       TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
       PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
       LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,

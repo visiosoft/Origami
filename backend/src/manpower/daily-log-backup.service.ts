@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CsiCodeEntity, DailyLogEntity, EmployeeEntity, LaborLogEntryEntity, ProjectEntity, UserEntity } from '../database/entities';
 import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
+import { reportSectionsHtml } from './daily-report.html';
 import { emailShell, escapeHtml, loadEmailBrand } from '../email/shell';
 
 const STATUS: Record<string, string> = { start: 'Start', continued: 'Continued', completing: 'Completing' };
@@ -117,6 +118,7 @@ export class DailyLogBackupService {
         <tr><td style="${cell}"><b>Total</b></td><td style="${cell}"></td><td style="${cell}"></td><td style="${cell}"></td><td style="${cell}"><b>${hours}</b></td><td style="${cell}" colspan="3"></td></tr>
       </table>
       ${meta.notes ? `<h2 style="font-size:12pt;margin:16px 0 4px;">Site notes</h2><div style="font-size:10.5pt;white-space:pre-wrap;">${escapeHtml(meta.notes)}</div>` : ''}
+      ${reportSectionsHtml(day.sections, { onBehalfOf: day.onBehalfOf, certifiedName: day.certifiedName, signatureDataUrl: day.signatureDataUrl, signedAt: day.signedAt, filer: day.supervisorName })}
     </body></html>`;
 
     const base = `Daily log ${fileDate(day.date)} - ${projectName}`.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120);
