@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { isLogClosed } from '../data/logStatuses';
-import { logTaskTitle, type Task } from '../data/tasks';
+import { isForRecord, logTaskTitle, type Task } from '../data/tasks';
+import { isPlanned, meetingStatus, meetingStatusInfo, locationTypeInfo } from '../data/meetings';
 import { raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
 
@@ -13,10 +14,10 @@ interface Item { key: string; kind: Exclude<Kind, 'all'>; projectId?: number; pr
 /** Which project stages belong to each phase. CRM (Kickoff) projects are in design and preconstruction. */
 const PHASE_STAGES: Record<Phase, string[]> = { design: ['Kickoff', 'Design'], construction: ['Construction'] };
 const PHASE_TEXT: Record<Phase, string> = {
-  design: 'Meetings, RFIs, tasks, observations and FYIs, and change orders on projects in CRM and design.',
-  construction: 'Meetings, RFIs, tasks, observations and FYIs, and change orders on projects under construction.',
+  design: 'Meetings, RFIs, tasks, FOR RECORD items (observations, FYIs, decisions) and change orders on projects in CRM and design.',
+  construction: 'Meetings, RFIs, tasks, FOR RECORD items (observations, FYIs, decisions) and change orders on projects under construction.',
 };
-const KIND_LABEL: Record<Item['kind'], string> = { meeting: 'Meeting', rfi: 'RFI', task: 'Task', obs: 'Observation / FYI', co: 'Change order' };
+const KIND_LABEL: Record<Item['kind'], string> = { meeting: 'Meeting', rfi: 'RFI', task: 'Task', obs: 'FOR RECORD', co: 'Change order' };
 const RFI_LABEL: Record<string, string> = { draft: 'Draft', open: 'Open', answered: 'Answered', closed: 'Closed', void: 'Void' };
 const CO_LABEL: Record<string, string> = { draft: 'Pending', internal_review: 'Internal review', submitted: 'With client', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' };
 const norm = (s?: string) => (s || '').trim().toLowerCase();
@@ -60,11 +61,14 @@ export function SpecialActions({ phase }: { phase: Phase }) {
     for (const m of meetings) {
       const p = (m.projectId != null && projects.find((x) => x.id === Number(m.projectId))) || byName.get(norm(m.project));
       if (!p) continue;
-      const open = m.status === 'scheduled' && m.date >= today;
+      // Open: still coming up, or happened and waiting to be reviewed or for its actions to finish.
+      const st = meetingStatus(m.status);
+      const late = isPlanned(st) && m.date < today;
+      const open = (isPlanned(st) && m.date >= today) || late || st === 'occurred' || st === 'reviewed';
       out.push({
         key: 'm' + m.id, kind: 'meeting', projectId: p.id, project: p.name, date: m.date, title: m.title,
-        sub: [p.name, m.type, m.time, m.attendees?.length ? `${m.attendees.length} attending` : ''].filter(Boolean).join(' · '),
-        status: m.status === 'scheduled' ? (m.date >= today ? 'Scheduled' : 'Not marked held') : m.status === 'held' ? 'Held' : 'Cancelled',
+        sub: [p.name, m.type, locationTypeInfo(m.locationType)?.short, m.time, m.attendees?.length ? `${m.attendees.length} attending` : ''].filter(Boolean).join(' · '),
+        status: late ? 'Not marked occurred' : st === 'occurred' ? 'To review' : meetingStatusInfo(st).label,
         open, overdue: false, to: `/meetings?open=${encodeURIComponent(m.id)}`,
       });
     }
@@ -80,13 +84,13 @@ export function SpecialActions({ phase }: { phase: Phase }) {
     for (const t of tasks) {
       const p = byName.get(norm(t.project));
       if (!p) continue;
-      const isObs = t.topicType === 'FYI' || t.topicType === 'Observation';
+      const isObs = isForRecord(t);
       if (t.topicType === 'RFI') continue; // RFIs come from the RFI log
       const open = !isLogClosed(t.status);
       out.push({
         key: 't' + t.id, kind: isObs ? 'obs' : 'task', projectId: p.id, project: p.name, date: raisedOn(t),
         title: logTaskTitle(t), sub: [p.name, isObs ? t.topicType : '', t.assignedTo && 'to ' + t.assignedTo, t.dueDate && 'due ' + akDay(t.dueDate)].filter(Boolean).join(' · '),
-        status: t.status, open, overdue: open && !!t.dueDate && t.dueDate < today, to: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
+        status: t.status, open, overdue: open && !!t.dueDate && t.dueDate < today, to: isObs ? `/observations?item=${encodeURIComponent(t.id)}` : `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
       });
     }
     for (const c of cos) {
@@ -113,16 +117,16 @@ export function SpecialActions({ phase }: { phase: Phase }) {
   return (
     <AkPage lead={<>{PHASE_TEXT[phase]} Open items first; click one to open it. {projects && <b style={{ color: 'var(--body)' }}>{projects.length} {projects.length === 1 ? 'project' : 'projects'} in this phase.</b>}</>}>
       <AkStats items={[
-        { key: 'mtg', label: 'Meetings coming up', value: loading ? '—' : count('meeting'), onClick: () => setKind('meeting'), on: kind === 'meeting' },
+        { key: 'mtg', label: 'Meetings open', value: loading ? '—' : count('meeting'), onClick: () => setKind('meeting'), on: kind === 'meeting' },
         { key: 'rfi', label: 'Open RFIs', value: loading ? '—' : count('rfi'), onClick: () => setKind('rfi'), on: kind === 'rfi' },
         { key: 'task', label: 'Open tasks', value: loading ? '—' : count('task'), onClick: () => setKind('task'), on: kind === 'task' },
-        { key: 'obs', label: 'Open observations & FYIs', value: loading ? '—' : count('obs'), onClick: () => setKind('obs'), on: kind === 'obs' },
+        { key: 'obs', label: 'Open FOR RECORD items', value: loading ? '—' : count('obs'), onClick: () => setKind('obs'), on: kind === 'obs' },
         { key: 'co', label: 'Change orders in progress', value: loading ? '—' : count('co'), onClick: () => setKind('co'), on: kind === 'co' },
         { key: 'late', label: 'Overdue', value: loading ? '—' : overdue, sub: 'past their due date', tone: overdue ? 'dark' : undefined },
       ]} />
 
       <div className="ak-tools">
-        <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All'], ['meeting', 'Meetings'], ['rfi', 'RFIs'], ['task', 'Tasks'], ['obs', 'Observations & FYI'], ['co', 'Change orders']]} />
+        <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All'], ['meeting', 'Meetings'], ['rfi', 'RFIs'], ['task', 'Tasks'], ['obs', 'FOR RECORD'], ['co', 'Change orders']]} />
         <AkSeg value={openOnly ? 'open' : 'all'} onChange={(v) => setOpenOnly(v === 'open')} options={[['open', 'Open'], ['all', 'Everything']]} />
         <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value ? Number(e.target.value) : '')}>
           <option value="">All {phase === 'design' ? 'design & precon' : 'construction'} projects</option>

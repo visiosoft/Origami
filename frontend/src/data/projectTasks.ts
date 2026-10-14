@@ -27,7 +27,7 @@ export interface ChecklistItem { id: string; item: string; done: boolean }
 /** One entry in a task's history — field edits, comments, files, assignment. */
 export interface ActivityEvent {
   id: string;
-  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
+  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators' | 'link';
   field?: string;
   from?: string;
   to?: string;

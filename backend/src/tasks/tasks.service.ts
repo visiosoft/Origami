@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
 import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, isClosedStatus, parseLogStatuses, type LogStatus } from './log-statuses';
-import { TaskEntity, UserEntity } from '../database/entities';
+import { ChangeOrderEntity, TaskEntity, UserEntity } from '../database/entities';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
@@ -25,6 +25,7 @@ export class TasksService implements OnApplicationBootstrap {
     private readonly attachments: AttachmentsService,
     private readonly notifications: NotificationsService,
     private readonly settings?: SettingsService,
+    @Optional() @InjectRepository(ChangeOrderEntity) private readonly cos?: Repository<ChangeOrderEntity>,
   ) {}
 
   /** The Request Log's statuses -- the defaults, or the list an administrator set in Settings. */
@@ -56,6 +57,8 @@ export class TasksService implements OnApplicationBootstrap {
       activity: normalizeList<ActivityEvent>(task.activity),
       checklist: normalizeList(task.checklist),
       labels: normalizeList<string>(task.labels),
+      linkedTaskIds: normalizeList<string>(task.linkedTaskIds),
+      changeOrderIds: normalizeList<string>(task.changeOrderIds),
     } as TaskEntity;
   }
 
@@ -128,6 +131,8 @@ export class TasksService implements OnApplicationBootstrap {
       comments: [],
       checklist: normalizeList(dto.checklist),
       labels: normalizeList<string>(dto.labels),
+      linkedTaskIds: cleanIds(dto.linkedTaskIds),
+      changeOrderIds: cleanIds(dto.changeOrderIds),
       collaborators: normalizeCollaborators(dto.collaborators, assignee.id),
       activity: [event('created', actor, { text: 'created this task' })],
       updatedAt: new Date().toISOString(),
@@ -179,6 +184,7 @@ export class TasksService implements OnApplicationBootstrap {
       patch.dateClosed = new Date().toISOString().slice(0, 10);
     }
     if (patch.status && !closing) patch.dateClosed = '';
+    for (const k of ['linkedTaskIds', 'changeOrderIds'] as const) if (k in patch) patch[k] = cleanIds(patch[k]);
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.
     let joined: { id: string; name: string }[] = [];
@@ -266,6 +272,80 @@ export class TasksService implements OnApplicationBootstrap {
     return att;
   }
 
+  // ------------------------------------------------------------ FOR RECORD links
+
+  /**
+   * Attach an entry (typically a FOR RECORD observation, FYI or decision) to a
+   * Request Log task -- recorded on both, so each shows the other -- or to a
+   * change order. Linking twice is harmless.
+   */
+  async link(id: string, kind: 'task' | 'changeOrder', targetId: string, actor: UploadActor) {
+    const task = await this.load(id);
+    targetId = String(targetId || '').trim();
+    if (!targetId) throw new BadRequestException('Pick what to link it to.');
+    if (kind === 'task') {
+      if (targetId === id) throw new BadRequestException('An entry can’t be linked to itself.');
+      const other = await this.load(targetId);
+      if (!cleanIds(task.linkedTaskIds).includes(targetId)) {
+        task.linkedTaskIds = [...cleanIds(task.linkedTaskIds), targetId];
+        task.activity = [...normalizeList<ActivityEvent>(task.activity), event('link', actor, { text: `linked task ${taskTitle(other)}` })];
+      }
+      if (!cleanIds(other.linkedTaskIds).includes(id)) {
+        other.linkedTaskIds = [...cleanIds(other.linkedTaskIds), id];
+        other.activity = [...normalizeList<ActivityEvent>(other.activity), event('link', actor, { text: `linked ${task.topicType || 'entry'} ${taskTitle(task)}` })];
+        other.updatedAt = new Date().toISOString();
+        await this.repo.save(other);
+      }
+    } else if (kind === 'changeOrder') {
+      const co = this.cos ? await this.cos.findOneBy({ id: targetId }) : null;
+      if (this.cos && !co) throw new NotFoundException('Change order not found');
+      if (!cleanIds(task.changeOrderIds).includes(targetId)) {
+        task.changeOrderIds = [...cleanIds(task.changeOrderIds), targetId];
+        task.activity = [...normalizeList<ActivityEvent>(task.activity), event('link', actor, { text: `linked change order ${co ? `${co.number} · ${co.title}` : targetId}` })];
+      }
+    } else {
+      throw new BadRequestException('Link to a task or a change order.');
+    }
+    task.updatedAt = new Date().toISOString();
+    return this.hydrate(await this.repo.save(task));
+  }
+
+  async unlink(id: string, kind: 'task' | 'changeOrder', targetId: string, actor: UploadActor) {
+    const task = await this.load(id);
+    if (kind === 'task') {
+      task.linkedTaskIds = cleanIds(task.linkedTaskIds).filter((x) => x !== targetId);
+      const other = await this.repo.findOneBy({ id: targetId });
+      if (other && cleanIds(other.linkedTaskIds).includes(id)) {
+        other.linkedTaskIds = cleanIds(other.linkedTaskIds).filter((x) => x !== id);
+        await this.repo.save(other);
+      }
+    } else {
+      task.changeOrderIds = cleanIds(task.changeOrderIds).filter((x) => x !== targetId);
+    }
+    task.activity = [...normalizeList<ActivityEvent>(task.activity), event('link', actor, { text: `removed a link to ${kind === 'task' ? 'task' : 'change order'} ${targetId}` })];
+    task.updatedAt = new Date().toISOString();
+    return this.hydrate(await this.repo.save(task));
+  }
+
+  /**
+   * A task driven by an entry: created on the same project and meeting, linked
+   * both ways. Returns the new task and the entry as it now stands.
+   */
+  async createLinkedTask(id: string, dto: { subject?: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string }, actor: UploadActor) {
+    const source = await this.load(id);
+    const kind = source.topicType || 'entry';
+    const created = await this.create({
+      topicType: 'Task',
+      subject: String(dto.subject || '').trim() || `Follow up: ${taskTitle(source)}`.slice(0, 300),
+      description: String(dto.description || '').trim() || `From ${kind} ${source.id}: ${taskTitle(source)}`,
+      assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined,
+      project: source.project || '', tab: source.tab || 'internal',
+      meetingType: source.meetingType, meetingDate: source.meetingDate, meetingId: source.meetingId || undefined,
+    }, actor);
+    const entry = await this.link(id, 'task', created.id, actor);
+    return { task: await this.findOne(created.id), entry };
+  }
+
   // ---------------------------------------------------------------- comments
 
   async addComment(id: string, text: string, actor: UploadActor) {
@@ -286,6 +366,11 @@ export class TasksService implements OnApplicationBootstrap {
     if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
     return this.hydrate(saved);
   }
+}
+
+/** A clean list of ids: strings, trimmed, no blanks or repeats. */
+export function cleanIds(v: unknown): string[] {
+  return [...new Set(normalizeList<unknown>(v as any).map((x) => String(x ?? '').trim()).filter(Boolean))];
 }
 
 /** A request-log task's name: its subject, or (older tasks) the first line of its description. */

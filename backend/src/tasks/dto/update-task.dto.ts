@@ -1,4 +1,4 @@
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Every field optional — this is a patch.
@@ -28,6 +28,9 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() project?: string;
   @IsArray() @IsOptional() labels?: string[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];
+  /** FOR RECORD links: the tasks and change orders (ids) this entry drove or is attached to. */
+  @IsArray() @IsOptional() @IsString({ each: true }) linkedTaskIds?: string[];
+  @IsArray() @IsOptional() @IsString({ each: true }) changeOrderIds?: string[];
 }
 
 export class AddCommentDto {
@@ -37,4 +40,19 @@ export class AddCommentDto {
 export class AddLinkDto {
   @IsString() @IsOptional() name?: string;
   @IsString() url: string;
+}
+
+/** Attach an entry to a Request Log task or a change order. */
+export class LinkDto {
+  @IsString() @IsIn(['task', 'changeOrder']) kind!: 'task' | 'changeOrder';
+  @IsString() targetId!: string;
+}
+
+/** A task driven by an entry (all optional: the subject defaults to "Follow up: …"). */
+export class LinkedTaskDto {
+  @IsString() @IsOptional() @MaxLength(300) subject?: string;
+  @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() assignedTo?: string;
+  @IsString() @IsOptional() assignedToId?: string;
+  @IsString() @IsOptional() dueDate?: string;
 }
