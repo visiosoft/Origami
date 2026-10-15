@@ -21,6 +21,8 @@ import { CsiCodesController } from './csi-codes.controller';
 import { CsiCodesService } from './csi-codes.service';
 import { DailyLogsController } from './daily-logs.controller';
 import { DailyLogsService } from './daily-logs.service';
+import { DailyReportAutomationService } from './daily-report-automation.service';
+import { ProjectTasksModule } from '../project-tasks/project-tasks.module';
 import { TimesheetsController } from './timesheets.controller';
 import { TimesheetsService } from './timesheets.service';
 import { SubcontractorTradesController } from './subcontractor-trades.controller';
@@ -69,6 +71,7 @@ import { SampleDataController } from './sample-data.controller';
     AuthModule,
     GoogleModule,
     SettingsModule,
+    ProjectTasksModule,
   ],
   controllers: [PicklistsController, 
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
@@ -76,7 +79,7 @@ import { SampleDataController } from './sample-data.controller';
     PayrollController, OvertimeController, AdvancesController,
     LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController, WeeklyTimesheetsController,
   ],
-  providers: [DailyLogBackupService, 
+  providers: [DailyLogBackupService, DailyReportAutomationService,
     ManpowerAccess, PicklistsService, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
     SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,

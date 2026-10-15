@@ -23,6 +23,8 @@ const csi_codes_controller_1 = require("./csi-codes.controller");
 const csi_codes_service_1 = require("./csi-codes.service");
 const daily_logs_controller_1 = require("./daily-logs.controller");
 const daily_logs_service_1 = require("./daily-logs.service");
+const daily_report_automation_service_1 = require("./daily-report-automation.service");
+const project_tasks_module_1 = require("../project-tasks/project-tasks.module");
 const timesheets_controller_1 = require("./timesheets.controller");
 const timesheets_service_1 = require("./timesheets.service");
 const subcontractor_trades_controller_1 = require("./subcontractor-trades.controller");
@@ -74,6 +76,7 @@ exports.ManpowerModule = ManpowerModule = __decorate([
             auth_module_1.AuthModule,
             google_module_1.GoogleModule,
             settings_module_1.SettingsModule,
+            project_tasks_module_1.ProjectTasksModule,
         ],
         controllers: [picklists_1.PicklistsController,
             employees_controller_1.EmployeesController, csi_codes_controller_1.CsiCodesController, daily_logs_controller_1.DailyLogsController, timesheets_controller_1.TimesheetsController,
@@ -81,7 +84,7 @@ exports.ManpowerModule = ManpowerModule = __decorate([
             payroll_controller_1.PayrollController, overtime_controller_1.OvertimeController, advances_controller_1.AdvancesController,
             leave_controller_1.LeaveController, shifts_controller_1.ShiftsController, assets_controller_1.AssetsController, accommodation_controller_1.AccommodationController, transport_controller_1.TransportController, sample_data_controller_1.SampleDataController, weekly_timesheets_controller_1.WeeklyTimesheetsController,
         ],
-        providers: [daily_log_backup_service_1.DailyLogBackupService,
+        providers: [daily_log_backup_service_1.DailyLogBackupService, daily_report_automation_service_1.DailyReportAutomationService,
             manpower_access_service_1.ManpowerAccess, picklists_1.PicklistsService, employees_service_1.EmployeesService, csi_codes_service_1.CsiCodesService, daily_logs_service_1.DailyLogsService, timesheets_service_1.TimesheetsService,
             subcontractor_trades_service_1.SubcontractorTradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService,
             payroll_setup_service_1.PayrollSetupService, payroll_service_1.PayrollService, overtime_service_1.OvertimeService, advances_service_1.AdvancesService,

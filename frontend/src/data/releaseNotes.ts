@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-15a',
+    date: '2026-10-15',
+    title: 'Stop orders and holidays look after themselves',
+    items: [
+      { area: 'Daily Report', kind: 'new', text: 'Submitting a report with a stop order puts the project on HOLD (until the projected end date, or a follow-up in 14 days when the end is unknown). Only a person can take it off hold, from the project.', where: 'Daily Report (field) → II. Activity → No → Stop order' },
+      { area: 'Daily Report', kind: 'new', text: 'Each stop-order or holiday day now gets a report made automatically as the day arrives (stop days only while the project stays on hold). Anyone can still file their own for that day — it’s kept as an update next to the automatic one.', where: 'Daily Report (field), Daily Reports' },
+      { area: 'Daily Report', kind: 'new', text: 'A week and two days before a stop order’s end date, whoever filed it and the admins get an email to plan the restart.', where: 'Email' },
+      { area: 'Daily Reports', kind: 'improved', text: 'The list shows no-work days with their reason, marks automatic reports, and labels updates.', where: 'Daily Reports' },
+    ],
+  },
+  {
     id: '2026-10-14a',
     date: '2026-10-14',
     title: 'The Daily Report, FOR RECORD and meeting review',
@@ -152,7 +163,7 @@ export const RELEASES: Release[] = [
     date: '2026-10-06',
     title: 'Daily log: the whole crew, and a menu fix',
     items: [
-      { area: 'Daily Log (field)', kind: 'improved', text: 'The superintendent’s daily log lists every worker assigned to the project in Manpower → Deployment — including people whose deployment starts later (marked “Deployment starts Oct 8”) and, on past days, people whose deployment has since ended. “+ Add worker” puts anyone else on the log (marked “Not deployed here”), so a whole day’s crew can always be submitted.', where: 'Daily Log (field)' },
+      { area: 'Daily Report (field)', kind: 'improved', text: 'The superintendent’s daily log lists every worker assigned to the project in Manpower → Deployment — including people whose deployment starts later (marked “Deployment starts Oct 8”) and, on past days, people whose deployment has since ended. “+ Add worker” puts anyone else on the log (marked “Not deployed here”), so a whole day’s crew can always be submitted.', where: 'Daily Report (field)' },
       { area: 'Manpower', kind: 'fixed', text: 'The menus under People, Operations, Payroll, Employee Services and Setup open on top of the page again instead of behind the cards below them.', where: 'Manpower & Resources' },
       { area: 'Access', kind: 'fixed', text: 'Refreshing while an update was being installed could briefly show every page in the menu to someone whose role doesn’t include them (for example a superintendent). The menu now always follows your own role.', where: 'Side menu' },
     ],
@@ -302,10 +313,10 @@ export const RELEASES: Release[] = [
     title: 'A home screen made for the superintendent',
     items: [
       { area: 'Manpower', kind: 'new', text: 'Superintendents can request workers by trade from their dashboard, follow each request through approval and allocation, and fix and resend a rejected one. HR is emailed when a request is waiting for approval.', where: 'Dashboard → Workforce requests · Manpower → Workforce Requests' },
-      { area: 'Manpower', kind: 'improved', text: 'The daily log is now a sheet inside the app: one row per employee deployed to that project. Click an hours button to put someone on the log, pick the cost code, task and team on the same row, fill down for everyone, and move with ↑ ↓ / Enter.', where: 'Daily Log (field)' },
+      { area: 'Manpower', kind: 'improved', text: 'The daily log is now a sheet inside the app: one row per employee deployed to that project. Click an hours button to put someone on the log, pick the cost code, task and team on the same row, fill down for everyone, and move with ↑ ↓ / Enter.', where: 'Daily Report (field)' },
       { area: 'Dashboard', kind: 'new', text: 'Superintendents get their own dashboard: today’s daily log, their tasks (overdue first), requests they’ve raised for others, their daily log history and their timesheets — no company figures or charts.', where: 'Dashboard (Site Superintendent role)' },
       { area: 'Tasks', kind: 'new', text: 'A superintendent’s Tasks page shows only their own tasks and the requests they’ve raised, with “+ New request” to ask the office or a team member for something. They can update their own tasks.', where: 'Tasks (Site Superintendent role)' },
-      { area: 'Settings', kind: 'improved', text: 'The Site Superintendent role no longer includes the Projects page or the Plan & File Room; its menu is Dashboard, My Timesheet, Daily Log (field) and Tasks.', where: 'User Access & Roles → Site Superintendent' },
+      { area: 'Settings', kind: 'improved', text: 'The Site Superintendent role no longer includes the Projects page or the Plan & File Room; its menu is Dashboard, My Timesheet, Daily Report (field) and Tasks.', where: 'User Access & Roles → Site Superintendent' },
     ],
   },
   {
@@ -315,8 +326,8 @@ export const RELEASES: Release[] = [
     items: [
       { area: 'Everywhere', kind: 'fixed', text: 'Staff who aren’t administrators saw every page and “Admin” under their name, whatever their role. Each login now sees only its role’s pages, with the right role name.' },
       { area: 'Manpower', kind: 'improved', text: 'On an employee whose designation is Superintendent, the Login card starts on the Site Superintendent role, and flags a login that has a different role with a one-click “Switch to Site Superintendent”.', where: 'Manpower → an employee → Login' },
-      { area: 'Settings', kind: 'improved', text: 'The Site Superintendent role now shows just Dashboard, My Timesheet, Daily Log (field), Projects, Tasks and the Plan & File Room — the rest is hidden. Change it any time under User Access & Roles.', where: 'User Access & Roles → Site Superintendent' },
-      { area: 'Manpower', kind: 'improved', text: 'The phone daily log shows in the menu only for superintendents — the Site Superintendent role or an employee whose designation is Superintendent. Everyone else sees and approves daily logs in Manpower.', where: 'Daily Log (field) · Manpower → Daily Log' },
+      { area: 'Settings', kind: 'improved', text: 'The Site Superintendent role now shows just Dashboard, My Timesheet, Daily Report (field), Projects, Tasks and the Plan & File Room — the rest is hidden. Change it any time under User Access & Roles.', where: 'User Access & Roles → Site Superintendent' },
+      { area: 'Manpower', kind: 'improved', text: 'The phone daily log shows in the menu only for superintendents — the Site Superintendent role or an employee whose designation is Superintendent. Everyone else sees and approves daily logs in Manpower.', where: 'Daily Report (field) · Manpower → Daily Log' },
     ],
   },
   {

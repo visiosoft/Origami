@@ -18,12 +18,14 @@ const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const auth_service_1 = require("../auth/auth.service");
 const daily_logs_service_1 = require("./daily-logs.service");
 const daily_log_backup_service_1 = require("./daily-log-backup.service");
+const daily_report_automation_service_1 = require("./daily-report-automation.service");
 const daily_log_dto_1 = require("./dto/daily-log.dto");
 let DailyLogsController = class DailyLogsController {
-    constructor(service, auth, backup) {
+    constructor(service, auth, backup, automation) {
         this.service = service;
         this.auth = auth;
         this.backup = backup;
+        this.automation = automation;
     }
     findAll(status, projectId) {
         return this.service.findAllLogs({ status, projectId: projectId != null ? Number(projectId) : undefined });
@@ -44,14 +46,16 @@ let DailyLogsController = class DailyLogsController {
         return this.service.save(dto, await this.auth.actor(auth));
     }
     async submit(id, auth) {
-        const log = await this.service.submit(id, await this.auth.actor(auth));
+        const actor = await this.auth.actor(auth);
+        const log = await this.service.submit(id, actor);
+        const auto = await this.automation.afterSubmit(log.id, actor).catch(() => ({ held: false, created: 0 }));
         this.backup.afterSubmit(log.id);
         if (log.onBehalfOf) {
             const to = await this.service.ownerEmail(log).catch(() => null);
             if (to)
                 this.backup.send(log.id, [to]).catch(() => undefined);
         }
-        return log;
+        return { ...log, projectHeld: auto.held, autoReportsMade: auto.created };
     }
     email(id, body) {
         const to = String(body?.to || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
@@ -150,6 +154,7 @@ exports.DailyLogsController = DailyLogsController = __decorate([
     (0, common_1.Controller)('daily-logs'),
     __metadata("design:paramtypes", [daily_logs_service_1.DailyLogsService,
         auth_service_1.AuthService,
-        daily_log_backup_service_1.DailyLogBackupService])
+        daily_log_backup_service_1.DailyLogBackupService,
+        daily_report_automation_service_1.DailyReportAutomationService])
 ], DailyLogsController);
 //# sourceMappingURL=daily-logs.controller.js.map

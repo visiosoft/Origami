@@ -361,7 +361,9 @@ export function DailyReport() {
         await Promise.all(jobs);
       }
       setLog((cur) => ({ ...(cur || {}), ...r }));
-      toast(draft.behalf ? 'Submitted — the office gets a copy, and so do you for your records' : 'Submitted — the office gets a PDF + Excel copy by email');
+      toast(r?.projectHeld ? `Submitted — ${projects.find((p) => p.id === projectId)?.name || 'the project'} is now on HOLD${r?.autoReportsMade ? `, and ${r.autoReportsMade} stop day${r.autoReportsMade === 1 ? '' : 's'} got a report` : ''}`
+        : r?.autoReportsMade ? `Submitted — ${r.autoReportsMade} holiday day${r.autoReportsMade === 1 ? '' : 's'} got a report`
+        : draft.behalf ? 'Submitted — the office gets a copy, and so do you for your records' : 'Submitted — the office gets a PDF + Excel copy by email');
       load(logIdRef.current);
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not submit')); }
     finally { setBusy(''); }
@@ -471,7 +473,7 @@ export function DailyReport() {
                 </div>
               )}
               <span style={{ padding: '6px 12px', borderRadius: 999, background: st[0], color: st[1], fontSize: 12.5, fontWeight: 700 }}>{st[2]}</span>
-              {log?.autoReason && <span style={{ fontSize: 12.5, color: MUTED }}>Made by the system for a {log.autoReason === 'stop' ? 'stop order' : 'holiday'} day</span>}
+              {log?.autoReason && <span style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--panel)', fontSize: 12.5, fontWeight: 700, color: 'var(--body)' }}>Made automatically — {log.autoReason === 'stop' ? 'stop order' : 'holiday'}</span>}
               <div style={{ flex: 1 }} />
               <button type="button" onClick={() => setStarting({ update: true })} style={pill(false)}>+ Add an updated report for this day</button>
             </div>

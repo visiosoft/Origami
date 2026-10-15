@@ -7,10 +7,13 @@ import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akToday } from '../compo
 interface LogRow {
   id: string; projectId: number; date: string; supervisorName?: string; notes?: string; status: string;
   submittedAt?: string; approvedByName?: string; rejectionNote?: string; crewCount?: number; totalHours?: number;
+  /** Daily Report: made by the system for a stop-order / holiday day, which version of the day, and Section II. */
+  autoReason?: string | null; version?: number; sections?: { activity?: { worked?: string; reason?: string } } | null;
 }
 type Status = 'all' | 'submitted' | 'approved' | 'rejected' | 'draft';
+const NO_WORK: Record<string, string> = { stop: 'Stop order', holiday: 'Holiday', ops: 'Operations delay', force: 'Force majeure' };
 const STATUS: Record<string, [string, 'yellow' | 'green' | 'warn' | 'soft']> = {
-  submitted: ['Waiting for approval', 'yellow'], approved: ['Approved', 'green'], rejected: ['Sent back', 'warn'], draft: ['Draft', 'soft'],
+  submitted: ['Waiting for approval', 'yellow'], approved: ['Approved', 'green'], rejected: ['Sent back', 'warn'], draft: ['Draft', 'soft'], superseded: ['Replaced by an update', 'soft'],
 };
 const TASK = { start: 'Start', continued: 'Continued', completing: 'Done' } as Record<string, string>;
 
@@ -49,7 +52,7 @@ export function DailyReports() {
   const shown = inProject.filter((l) => status === 'all' || l.status === status);
   const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
   const thisWeek = inProject.filter((l) => l.date >= weekStart && l.date <= akToday() && l.status !== 'draft');
-  const waiting = inProject.filter((l) => l.status === 'submitted');
+  const waiting = inProject.filter((l) => l.status === 'submitted' && !l.autoReason);
   const sentBack = inProject.filter((l) => l.status === 'rejected');
   const projectIds = useMemo(() => [...new Set(all.map((l) => l.projectId))], [all]);
   const nameOf = (id: number) => projects[id] || `Project ${id}`;
@@ -57,7 +60,7 @@ export function DailyReports() {
 
   return (
     <AkPage
-      lead="Each site’s day — crew, hours, cost codes, what got done and the superintendent’s notes. Superintendents fill these in on Daily Log (field)."
+      lead="Each site’s day — crew, hours, cost codes, what got done and the superintendent’s notes. Superintendents fill these in on Daily Report (field)."
       action={canApprove && waiting.length ? <button type="button" className="ak-btn is-dark" onClick={() => navigate('/manpower_con?tab=approvals')}>Approve {waiting.length} in Manpower</button> : undefined}
     >
       <AkStats items={[
@@ -77,7 +80,7 @@ export function DailyReports() {
 
       <section className="ak-card">
         {logs === null && <div className="ak-empty">Loading…</div>}
-        {logs && !shown.length && <div className="ak-empty">{all.length ? 'No reports match these filters.' : 'No daily reports yet. They appear here once a superintendent fills in Daily Log (field).'}</div>}
+        {logs && !shown.length && <div className="ak-empty">{all.length ? 'No reports match these filters.' : 'No daily reports yet. They appear here once a superintendent fills in Daily Report (field).'}</div>}
         {shown.map((l, i) => {
           const st = STATUS[l.status] || STATUS.draft;
           const open = openId === l.id;
@@ -87,8 +90,9 @@ export function DailyReports() {
               <AkRow index={i} onClick={() => toggle(l)}
                 lead={<AkDate iso={l.date} />}
                 title={nameOf(l.projectId)}
-                sub={[l.supervisorName && 'by ' + l.supervisorName, `${l.crewCount || 0} ${(l.crewCount || 0) === 1 ? 'worker' : 'workers'}`, `${l.totalHours || 0} h`, (l.notes || '').split('\n')[0]].filter(Boolean).join(' · ')}
-                right={<><AkPill tone={st[1]}>{st[0]}</AkPill><span aria-hidden style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .2s', color: 'var(--muted)' }}>⌄</span></>}
+                sub={[(l.version || 1) > 1 && `Update ${(l.version || 1) - 1}`, l.sections?.activity?.worked === 'no' ? `No work — ${NO_WORK[l.sections.activity.reason || ''] || 'reason not given'}` : null,
+                  !l.autoReason && l.supervisorName && 'by ' + l.supervisorName, l.sections?.activity?.worked !== 'no' && `${l.crewCount || 0} ${(l.crewCount || 0) === 1 ? 'worker' : 'workers'}`, l.sections?.activity?.worked !== 'no' && `${l.totalHours || 0} h`, (l.notes || '').split('\n')[0]].filter(Boolean).join(' · ')}
+                right={<>{l.autoReason ? <AkPill tone="soft">Auto</AkPill> : null}<AkPill tone={st[1]}>{l.autoReason ? 'Made automatically' : st[0]}</AkPill><span aria-hidden style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .2s', color: 'var(--muted)' }}>⌄</span></>}
               />
               {open && (
                 <div className="ak-detail">

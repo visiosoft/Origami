@@ -3,6 +3,7 @@ import { Tiers } from '../auth/guards/roles.decorator';
 import { AuthService } from '../auth/auth.service';
 import { DailyLogsService } from './daily-logs.service';
 import { DailyLogBackupService } from './daily-log-backup.service';
+import { DailyReportAutomationService } from './daily-report-automation.service';
 import { SaveDailyLogDto, RejectDailyLogDto, SaveDailyReportTemplateDto } from './dto/daily-log.dto';
 
 @Tiers('internal')
@@ -12,6 +13,7 @@ export class DailyLogsController {
     private readonly service: DailyLogsService,
     private readonly auth: AuthService,
     private readonly backup: DailyLogBackupService,
+    private readonly automation: DailyReportAutomationService,
   ) {}
 
   @Get()
@@ -47,7 +49,10 @@ export class DailyLogsController {
 
   @Post(':id/submit')
   async submit(@Param('id') id: string, @Headers('authorization') auth?: string) {
-    const log = await this.service.submit(id, await this.auth.actor(auth));
+    const actor = await this.auth.actor(auth);
+    const log = await this.service.submit(id, actor);
+    // A stop order puts the project on hold; stop / holiday days already passed get their reports.
+    const auto = await this.automation.afterSubmit(log.id, actor).catch(() => ({ held: false, created: 0 }));
     // The day goes out by email (PDF + Excel) as a backup -- never holding up the submit.
     this.backup.afterSubmit(log.id);
     // Completed on someone's behalf: they get a copy for their records.
@@ -55,7 +60,7 @@ export class DailyLogsController {
       const to = await this.service.ownerEmail(log).catch(() => null);
       if (to) this.backup.send(log.id, [to]).catch(() => undefined);
     }
-    return log;
+    return { ...log, projectHeld: auto.held, autoReportsMade: auto.created };
   }
 
   /** "Email a copy": the same backup, on demand, to the usual list or to given addresses. */
