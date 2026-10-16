@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import type { Attachment } from '../data/projectTasks';
 
 export const BG = 'var(--font-display)';
@@ -54,7 +55,8 @@ export function Badge({ tone, children }: { tone: keyof typeof TONES; children: 
 export function Drawer({ title, subtitle, width = 600, onClose, footer, children }: {
   title: string; subtitle?: string; width?: number; onClose: () => void; footer?: ReactNode; children: ReactNode;
 }) {
-  return (
+  // Portalled: a page wrapper left with an entry-animation transform would otherwise trap the overlay inside it.
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: `min(${width}px, 100vw)`, height: '100%', background: 'var(--surface)', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)' }}>
         <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -67,7 +69,8 @@ export function Drawer({ title, subtitle, width = 600, onClose, footer, children
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px' }}>{children}</div>
         {footer && <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

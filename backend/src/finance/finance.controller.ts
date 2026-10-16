@@ -135,6 +135,7 @@ export class FinanceController {
   }
 
   // --- reimbursables
+  @Get('reimbursables/receipt-check') async receiptCheck(@Query() q: any, @Headers('authorization') a?: string) { return this.reimbs.checkReceipt(q || {}, await this.actor(a)); }
   @Get('reimbursables/:id') async reimb(@Param('id') id: string, @Headers('authorization') a?: string) { return this.reimbs.get(id, await this.actor(a)); }
   @Put('reimbursables/:id') async updateReimb(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.reimbs.update(id, dto, await this.actor(a)); }
   @Delete('reimbursables/:id') async removeReimb(@Param('id') id: string, @Headers('authorization') a?: string) { return this.reimbs.remove(id, await this.actor(a)); }

@@ -36,18 +36,15 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'People', route: 'people', icon: 'people', desc: 'Internal executive, internal staff, clients, consultants, subs, authorities and vendors' },
     { label: 'All Files', route: 'allfiles', icon: 'files', desc: 'Every file in the business Google Drive. Limited access' },
   ] },
-  { key: 'actions', label: 'Special Actions', hint: 'Manages all: meetings, FOR RECORD (observations, FYI, decisions), RFI, task and change orders', items: [
+  { key: 'actions', label: 'Special Actions', hint: 'Your calendar and timesheets, and everything that needs action: meetings, FOR RECORD (observations, FYI, decisions), RFI, tasks, change orders and approvals', items: [
+    { label: 'My Calendar', route: 'my-calendar', icon: 'cal', desc: 'Your calendar: meetings, due dates and Google Calendar' },
+    { label: 'My Timesheets', route: 'my-timesheet', icon: 'clip', personal: true, desc: 'Your own hours, week by week' },
     { label: 'Meetings', route: 'meetings', icon: 'cal', desc: 'Manage, track and create meetings; generate the actions below from them' },
     { label: 'FOR RECORD', route: 'observations', icon: 'q', desc: 'Observations, FYIs and decisions on record; link them to tasks and change orders' },
     { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },
-    { label: 'Task', route: 'requests', perm: 'tasks', icon: 'check', desc: 'Manage, track and create tasks raised in meetings (Request Log)' },
+    { label: 'Task', route: 'tasks', icon: 'check', desc: 'The task board and the Request Log: manage, track and create tasks' },
     { label: 'Change Orders', route: 'changeorders', icon: 'swap', desc: 'Manage, track and create change orders' },
-  ] },
-  { key: 'mine', label: 'My Stuff', items: [
-    { label: 'Calendar', route: 'my-calendar', icon: 'cal' },
-    { label: 'Timesheets', route: 'my-timesheet', icon: 'clip', personal: true },
-    { label: 'Tasks', route: 'tasks', icon: 'check' },
-    { label: 'Daily Report (field)', route: 'daily-log', icon: 'clip', superintendent: true },
+    { label: 'Approvals', route: 'approvals', icon: 'check', personal: true, desc: 'Everything waiting on a decision: finance items, daily reports, timesheets and workforce requests' },
   ] },
   { key: 'crm', label: 'CRM', items: [
     { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', desc: 'Lead and referral intake to initial contract' },
@@ -68,6 +65,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Quality & Safety', route: 'quality', icon: 'shielda', desc: 'Quality and safety inspections and checklists, toolbox meetings, incident reports' },
     { label: 'Schedule', route: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
     { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', desc: 'RFPs for build, equipment, timesheets, labor and resource projection, deliveries and daily reports' },
+    { label: 'Daily Report (field)', route: 'daily-log', icon: 'clip', superintendent: true, desc: 'Fill in today’s Daily Report for your site' },
     { label: 'Daily Reports', route: 'daily_reports', icon: 'clip', desc: 'Every site’s daily log: crew, hours, cost codes and notes' },
     { label: 'Special Actions', route: 'actions_con', perm: 'pm', icon: 'q', desc: 'Construction: meetings, FOR RECORD, RFI, task and change orders' },
   ] },
@@ -102,7 +100,11 @@ export const MODULES: ModuleRef[] = NAV_GROUPS.flatMap((g) =>
 );
 
 /** Route -> permission key, for the route guard. */
-export const PERM_BY_ROUTE: Record<string, string> = Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((it) => [it.route, permOf(it)])));
+export const PERM_BY_ROUTE: Record<string, string> = {
+  ...Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((it) => [it.route, permOf(it)]))),
+  // Pages without their own menu entry: the Request Log opens inside Tasks.
+  requests: 'tasks',
+};
 
 /** Routes every internal user may open regardless of role. */
 export const PERSONAL_ROUTES = new Set(NAV_GROUPS.flatMap((g) => g.items.filter((it) => it.personal).map((it) => it.route)));

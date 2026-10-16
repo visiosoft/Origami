@@ -1309,6 +1309,7 @@ export declare class ReimbursableEntity extends FinanceStamped {
     description: string;
     category: string;
     vendor: string;
+    receiptNumber: string;
     cost: number;
     markupPct: number;
     billable: boolean;

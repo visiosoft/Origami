@@ -13,6 +13,8 @@ import { fromCents, roundPct, toCents } from './money';
 export const REIMB_CATEGORIES = ['travel', 'printing', 'permits_fees', 'materials', 'consultants', 'shipping', 'equipment', 'other'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const now = () => new Date().toISOString();
+export const normReceipt = (v?: string | null) => String(v ?? '').toLowerCase().replace(/[\s\-_#.]/g, '');
+const normVendor = (v?: string | null) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
 /**
  * Reimbursable expenses: submitted with receipts, approved (or rejected), then
@@ -53,7 +55,29 @@ export class ReimbursablesService {
 
   async get(id: string, actor: Actor) {
     await this.fin.need(actor, 'viewReimbursables');
-    return { ...this.present(await this.load(id)), approvals: await this.fin.approvalsFor(id) };
+    const r = await this.load(id);
+    return { ...this.present(r), approvals: await this.fin.approvalsFor(id), receiptDuplicates: await this.receiptDuplicates(r.receiptNumber, r.vendor, r.id) };
+  }
+
+  /**
+   * Other expenses carrying the same receipt number (ignoring case, spaces and
+   * dashes). When both name a vendor, the vendors must match too -- two shops
+   * can print the same number.
+   */
+  async receiptDuplicates(receipt: string | null | undefined, vendor?: string | null, excludeId?: string) {
+    const key = normReceipt(receipt);
+    if (!key) return [];
+    const v = normVendor(vendor);
+    const [rows, projects] = await Promise.all([this.repo.find(), this.projects.find()]);
+    const name = new Map(projects.map((p) => [p.id, p.name]));
+    return rows
+      .filter((x) => x.id !== excludeId && normReceipt(x.receiptNumber) === key && !(v && normVendor(x.vendor) && normVendor(x.vendor) !== v))
+      .map((x) => ({ id: x.id, number: x.number, projectId: x.projectId, projectName: name.get(x.projectId) || `Project ${x.projectId}`, date: x.date, cost: x.cost, vendor: x.vendor || null }));
+  }
+
+  async checkReceipt(q: { receipt?: string; vendor?: string; exclude?: string }, actor: Actor) {
+    await this.fin.need(actor, 'submitReimbursables');
+    return this.receiptDuplicates(q.receipt, q.vendor, q.exclude);
   }
 
   private fields(r: ReimbursableEntity, dto: any) {
@@ -71,7 +95,7 @@ export class ReimbursablesService {
       r.markupPct = roundPct(n);
     }
     for (const k of ['billable', 'taxable'] as const) if (dto[k] !== undefined) r[k] = !!dto[k];
-    for (const k of ['vendor', 'phaseId', 'csiCodeId', 'notes'] as const) if (dto[k] !== undefined) (r as any)[k] = String(dto[k] ?? '').trim() || null;
+    for (const k of ['vendor', 'receiptNumber', 'phaseId', 'csiCodeId', 'notes'] as const) if (dto[k] !== undefined) (r as any)[k] = String(dto[k] ?? '').trim() || null;
   }
 
   async create(projectId: number, dto: any, actor: Actor) {

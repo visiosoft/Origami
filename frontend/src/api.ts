@@ -682,6 +682,9 @@ export const api = {
     reimbursables: (projectId: number) => request(`/finance/projects/${projectId}/reimbursables`),
     createReimbursable: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/reimbursables`, { method: 'POST', body: JSON.stringify(d) }),
     reimbursable: (id: string) => request(`/finance/reimbursables/${id}`),
+    /** Other expenses already carrying this receipt number (same vendor, or no vendor given). */
+    receiptCheck: (receipt: string, vendor?: string, exclude?: string) =>
+      request<{ id: string; number: string; projectName: string; date: string; cost: number; vendor?: string | null }[]>(`/finance/reimbursables/receipt-check?${new URLSearchParams({ receipt, ...(vendor ? { vendor } : {}), ...(exclude ? { exclude } : {}) }).toString()}`),
     updateReimbursable: (id: string, d: unknown) => request(`/finance/reimbursables/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteReimbursable: (id: string) => request(`/finance/reimbursables/${id}`, { method: 'DELETE' }),
     decideReimbursable: (id: string, d: unknown) => request(`/finance/reimbursables/${id}/decision`, { method: 'POST', body: JSON.stringify(d) }),

@@ -286,7 +286,11 @@ const ago = (t: number | null) => {
  * Save status and the Save button. `blocked` explains why it can't save yet
  * (e.g. "Add a name to save").
  */
-export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: string; compact?: boolean }) {
+export function SaveBar({ auto, blocked, compact, onDone }: {
+  auto: Autosave; blocked?: string; compact?: boolean;
+  /** Given: the button is "Save & close" -- it saves now and then calls this (only once saved). */
+  onDone?: () => void;
+}) {
   const [, tick] = useState(0);
   const [flash, setFlash] = useState(false);
   useEffect(() => { const i = window.setInterval(() => tick((n) => n + 1), 15000); return () => window.clearInterval(i); }, []);
@@ -298,22 +302,32 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
     : state === 'dirty' ? 'Unsaved · autosaves in a moment'
     : lastSavedAt ? `Saved ${ago(lastSavedAt)}` : 'All changes saved';
   const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || blocked ? 'var(--c-8a6d12)' : 'var(--muted)';
-  const canSave = dirty && state !== 'saving' && !blocked;
+  // Always pressable (a forced save), except while a save is running or something blocks it.
+  const canPress = state !== 'saving' && !blocked;
+  const strong = dirty || !!onDone;
+  const press = () => { void auto.saveNow().then((ok) => { if (!ok) return; setFlash(true); onDone?.(); }); };
+  const label = blocked ? 'Save'
+    : state === 'saving' ? 'Saving…'
+    : state === 'error' ? 'Retry save'
+    : onDone ? 'Save & close'
+    : dirty ? 'Save' : flash ? '✓ Saved' : 'Save';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', minWidth: 0 }}>
       {!compact && <span style={{ fontSize: 11.5, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{status}</span>}
       <button
         type="button"
-        disabled={!canSave}
-        onClick={() => { void auto.saveNow().then((ok) => { if (ok) setFlash(true); }); }}
-        title={compact ? status : undefined}
+        disabled={!canPress}
+        onClick={press}
+        title={compact ? status : onDone ? 'Save now and close' : 'Save now'}
         style={{
           padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
-          border: '1px solid ' + (canSave ? 'var(--forest)' : flash ? 'var(--success)' : 'rgba(var(--rgb-shade), .14)'), background: canSave ? 'var(--forest)' : flash ? 'var(--c-d2ead3)' : 'var(--surface)', color: canSave ? '#fff' : flash ? 'var(--c-1e6b36)' : 'var(--muted)',
-          cursor: canSave ? 'pointer' : 'default',
+          border: '1px solid ' + (canPress && strong ? 'var(--forest)' : flash ? 'var(--success)' : 'rgba(var(--rgb-shade), .14)'),
+          background: canPress && strong ? 'var(--forest)' : flash ? 'var(--c-d2ead3)' : 'var(--surface)',
+          color: canPress && strong ? '#fff' : flash ? 'var(--c-1e6b36)' : 'var(--body)',
+          cursor: canPress ? 'pointer' : 'default', opacity: canPress ? 1 : 0.7,
         }}
       >
-        {blocked ? 'Save' : state === 'saving' ? 'Saving…' : state === 'error' ? 'Retry save' : dirty ? 'Save' : flash ? '✓ Saved' : 'Saved'}
+        {label}
       </button>
     </div>
   );

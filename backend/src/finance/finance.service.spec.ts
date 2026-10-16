@@ -433,6 +433,19 @@ describe('phase 2: reimbursables, retention release and credit notes', () => {
     expect(s.t.reimbs.rows[0]).toMatchObject({ status: 'approved', invoiceId: null });
   });
 
+  it('reimbursables: a receipt number already used on another expense is flagged (same vendor, or no vendor)', async () => {
+    const s = await readyProject();
+    const a = await s.reimb.create(7, { description: 'Lumber', cost: 200, vendor: 'Home Depot', receiptNumber: 'R-1043', csiCodeId: '06 10 00' }, site);
+    expect(a).toMatchObject({ receiptNumber: 'R-1043', csiCodeId: '06 10 00', receiptDuplicates: [] });
+    const b = await s.reimb.create(7, { description: 'Lumber again', cost: 200, vendor: 'home depot', receiptNumber: 'r 1043' }, site);
+    expect(b.receiptDuplicates.map((x: any) => x.number)).toEqual([a.number]);
+    // Another shop printing the same number is not a duplicate.
+    expect(await s.reimb.checkReceipt({ receipt: '1043-R', vendor: 'Lowes' }, site)).toEqual([]);
+    expect((await s.reimb.checkReceipt({ receipt: 'R1043', vendor: 'Lowes' }, site))).toEqual([]);
+    expect((await s.reimb.checkReceipt({ receipt: 'R1043' }, site)).length).toBe(2);
+    expect((await s.reimb.checkReceipt({ receipt: 'R1043', exclude: a.id }, site)).map((x: any) => x.id)).toEqual([b.id]);
+  });
+
   it('retention: request, approve, bill back to the items that held it, and pay', async () => {
     const s = await billedWork();
     let o = await s.ret.overview(7, finance);

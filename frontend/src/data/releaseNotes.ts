@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-16b',
+    date: '2026-10-16',
+    title: 'Save & close, one Special Actions menu, Approvals, and receipt numbers',
+    items: [
+      { area: 'Saving', kind: 'improved', text: 'Task panels now have a “Save & close” button: it saves at once and closes. “Saved 58s ago” stays, and autosave still runs. The Save button elsewhere can always be pressed to force a save.', where: 'Any task' },
+      { area: 'Menu', kind: 'improved', text: 'Special Actions now holds My Calendar, My Timesheets, Meetings, FOR RECORD, RFI, Task, Change Orders and Approvals. The separate “My Stuff” group is gone; Daily Report (field) moved under Construction.', where: 'Sidebar → Special Actions' },
+      { area: 'Approvals', kind: 'new', text: 'One list of everything waiting on a decision — change orders, reimbursements and other finance items, submitted daily reports, timesheets and workforce requests. Each row opens the place where it’s approved.', where: 'Special Actions → Approvals' },
+      { area: 'Reimbursements', kind: 'new', text: 'Each expense takes the receipt number and a CSI code. A receipt number already used on another expense shows a warning (“Receipt 1043 is already on RE-012”) so nothing is claimed twice. Both show in the list, and search finds receipt numbers.', where: 'Financial → Reimbursements → + Expense' },
+      { area: 'Drawers', kind: 'fixed', text: 'Side panels (expenses, change orders, tasks) open over the whole page again instead of being cut off inside the page area.' },
+    ],
+  },
+  {
     id: '2026-10-16a',
     date: '2026-10-16',
     title: 'Task buckets, originators and priorities that set due dates',

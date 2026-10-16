@@ -1,3 +1,4 @@
+import { Approvals } from './pages/Approvals';
 import { MyTimesheet } from './pages/MyTimesheet';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -121,6 +122,7 @@ export default function App() {
         <Route path="/crm_holding" element={<HoldingReferOut />} />
         <Route path="/observations" element={<Observations />} />
         <Route path="/daily_reports" element={<DailyReports />} />
+        <Route path="/approvals" element={<Approvals />} />
         <Route path="/actions_design" element={<SpecialActions key="design" phase="design" />} />
         <Route path="/actions_con" element={<SpecialActions key="construction" phase="construction" />} />
         <Route path="/:slug" element={<ModuleSpec />} />

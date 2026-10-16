@@ -122,6 +122,7 @@ let FinanceController = class FinanceController {
     async actCo(id, action, dto, a) {
         return this.cos.act(id, action, dto || {}, await this.actor(a));
     }
+    async receiptCheck(q, a) { return this.reimbs.checkReceipt(q || {}, await this.actor(a)); }
     async reimb(id, a) { return this.reimbs.get(id, await this.actor(a)); }
     async updateReimb(id, dto, a) { return this.reimbs.update(id, dto, await this.actor(a)); }
     async removeReimb(id, a) { return this.reimbs.remove(id, await this.actor(a)); }
@@ -618,6 +619,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object, String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "actCo", null);
+__decorate([
+    (0, common_1.Get)('reimbursables/receipt-check'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "receiptCheck", null);
 __decorate([
     (0, common_1.Get)('reimbursables/:id'),
     __param(0, (0, common_1.Param)('id')),

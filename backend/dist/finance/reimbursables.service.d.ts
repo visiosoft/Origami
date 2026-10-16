@@ -5,6 +5,7 @@ import { AttachmentsService, type UploadActor } from '../google/attachments.serv
 import { type TaskAttachment } from '../database/task.types';
 import { FinancialsService } from './financials.service';
 export declare const REIMB_CATEGORIES: string[];
+export declare const normReceipt: (v?: string | null) => string;
 export declare class ReimbursablesService {
     private readonly repo;
     private readonly projects;
@@ -24,6 +25,7 @@ export declare class ReimbursablesService {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -57,6 +59,7 @@ export declare class ReimbursablesService {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -80,6 +83,15 @@ export declare class ReimbursablesService {
     }[]>;
     get(id: string, actor: Actor): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -90,6 +102,7 @@ export declare class ReimbursablesService {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -111,9 +124,40 @@ export declare class ReimbursablesService {
         updatedBy: string;
         version: number;
     }>;
+    receiptDuplicates(receipt: string | null | undefined, vendor?: string | null, excludeId?: string): Promise<{
+        id: string;
+        number: string;
+        projectId: number;
+        projectName: string;
+        date: string;
+        cost: number;
+        vendor: string | null;
+    }[]>;
+    checkReceipt(q: {
+        receipt?: string;
+        vendor?: string;
+        exclude?: string;
+    }, actor: Actor): Promise<{
+        id: string;
+        number: string;
+        projectId: number;
+        projectName: string;
+        date: string;
+        cost: number;
+        vendor: string | null;
+    }[]>;
     private fields;
     create(projectId: number, dto: any, actor: Actor): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -124,6 +168,7 @@ export declare class ReimbursablesService {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -147,6 +192,15 @@ export declare class ReimbursablesService {
     }>;
     update(id: string, dto: any, actor: Actor): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -157,6 +211,7 @@ export declare class ReimbursablesService {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -184,6 +239,15 @@ export declare class ReimbursablesService {
         version?: number;
     }, actor: Actor): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -194,6 +258,7 @@ export declare class ReimbursablesService {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;

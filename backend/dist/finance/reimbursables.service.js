@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReimbursablesService = exports.REIMB_CATEGORIES = void 0;
+exports.ReimbursablesService = exports.normReceipt = exports.REIMB_CATEGORIES = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -26,6 +26,9 @@ const money_1 = require("./money");
 exports.REIMB_CATEGORIES = ['travel', 'printing', 'permits_fees', 'materials', 'consultants', 'shipping', 'equipment', 'other'];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const now = () => new Date().toISOString();
+const normReceipt = (v) => String(v ?? '').toLowerCase().replace(/[\s\-_#.]/g, '');
+exports.normReceipt = normReceipt;
+const normVendor = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 let ReimbursablesService = class ReimbursablesService {
     constructor(repo, projects, fin, attachments) {
         this.repo = repo;
@@ -55,7 +58,23 @@ let ReimbursablesService = class ReimbursablesService {
     }
     async get(id, actor) {
         await this.fin.need(actor, 'viewReimbursables');
-        return { ...this.present(await this.load(id)), approvals: await this.fin.approvalsFor(id) };
+        const r = await this.load(id);
+        return { ...this.present(r), approvals: await this.fin.approvalsFor(id), receiptDuplicates: await this.receiptDuplicates(r.receiptNumber, r.vendor, r.id) };
+    }
+    async receiptDuplicates(receipt, vendor, excludeId) {
+        const key = (0, exports.normReceipt)(receipt);
+        if (!key)
+            return [];
+        const v = normVendor(vendor);
+        const [rows, projects] = await Promise.all([this.repo.find(), this.projects.find()]);
+        const name = new Map(projects.map((p) => [p.id, p.name]));
+        return rows
+            .filter((x) => x.id !== excludeId && (0, exports.normReceipt)(x.receiptNumber) === key && !(v && normVendor(x.vendor) && normVendor(x.vendor) !== v))
+            .map((x) => ({ id: x.id, number: x.number, projectId: x.projectId, projectName: name.get(x.projectId) || `Project ${x.projectId}`, date: x.date, cost: x.cost, vendor: x.vendor || null }));
+    }
+    async checkReceipt(q, actor) {
+        await this.fin.need(actor, 'submitReimbursables');
+        return this.receiptDuplicates(q.receipt, q.vendor, q.exclude);
     }
     fields(r, dto) {
         if (dto.date !== undefined) {
@@ -89,7 +108,7 @@ let ReimbursablesService = class ReimbursablesService {
         for (const k of ['billable', 'taxable'])
             if (dto[k] !== undefined)
                 r[k] = !!dto[k];
-        for (const k of ['vendor', 'phaseId', 'csiCodeId', 'notes'])
+        for (const k of ['vendor', 'receiptNumber', 'phaseId', 'csiCodeId', 'notes'])
             if (dto[k] !== undefined)
                 r[k] = String(dto[k] ?? '').trim() || null;
     }

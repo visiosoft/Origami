@@ -133,6 +133,8 @@ export interface ChangeOrder {
 }
 export interface Reimbursable {
   id: string; projectId: number; projectName?: string; number: string; date: string; description: string; category: string; vendor?: string;
+  /** The number printed on the receipt; `receiptDuplicates` are other expenses with the same one. */
+  receiptNumber?: string; receiptDuplicates?: { id: string; number: string; projectName: string; date: string; cost: number; vendor?: string | null }[];
   cost: number; markupPct: number; markup: number; billAmount: number; billable: boolean; taxable: boolean; phaseId?: string; csiCodeId?: string;
   status: 'submitted' | 'approved' | 'rejected' | 'billed'; submittedBy?: string; approvedAt?: string; approvedBy?: string; rejectedAt?: string; rejectedBy?: string;
   rejectedReason?: string; invoiceId?: string; notes?: string; attachments: any[]; approvals?: Approval[]; version: number;

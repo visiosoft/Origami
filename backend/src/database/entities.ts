@@ -1785,6 +1785,8 @@ export class ReimbursableEntity extends FinanceStamped {
   /** travel | printing | permits_fees | materials | consultants | shipping | equipment | other */
   @Column({ default: 'other' }) category!: string;
   @Column({ nullable: true }) vendor!: string;
+  /** The number printed on the receipt -- checked against other expenses so one receipt isn't claimed twice. */
+  @Column({ nullable: true }) receiptNumber!: string;
   @Column({ ...MONEY }) cost!: number;
   @Column({ ...PCT, default: 0 }) markupPct!: number;
   /** False: tracked as a project cost only, never billed. */
