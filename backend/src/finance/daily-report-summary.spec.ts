@@ -7,6 +7,7 @@ describe('Daily Report Section I figures', () => {
     expect(taskColumn({ status: 'In progress', completed: false } as any)).toBe('In Progress');
     expect(taskColumn({ status: 'On hold', completed: false } as any)).toBe('On Hold');
     expect(taskColumn({ status: 'Done', completed: true } as any)).toBe('Complete');
+    expect(taskColumn({ status: 'Confirmed', completed: true } as any)).toBe('Confirmed');
     expect(['draft', 'open', 'answered', 'closed', 'void'].map(rfiColumn)).toEqual(['To Do', 'In Progress', 'Complete', 'Confirmed', null]);
   });
 

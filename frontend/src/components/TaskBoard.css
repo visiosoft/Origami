@@ -118,3 +118,13 @@
   .tb-card { animation: none; transition: none; }
   .tb-card:hover { transform: none; }
 }
+
+/* Move a card between columns without dragging (phones). */
+.tb-move { appearance: none; -webkit-appearance: none; height: 24px; max-width: 120px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border, rgba(var(--rgb-shade), .14)); background: var(--surface); color: var(--muted); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; flex-shrink: 0; }
+.tb-move:hover, .tb-move:focus { color: var(--ink); border-color: rgba(var(--rgb-shade), .3); outline: none; }
+
+/* The board scrolls sideways: keep the scrollbar visible and let the board shrink inside its page. */
+.tb-board, .tb-scroll { min-width: 0; max-width: 100%; scrollbar-width: thin; scrollbar-color: rgba(var(--rgb-shade), .35) transparent; }
+.tb-board::-webkit-scrollbar, .tb-scroll::-webkit-scrollbar { height: 10px; }
+.tb-board::-webkit-scrollbar-thumb, .tb-scroll::-webkit-scrollbar-thumb { background: rgba(var(--rgb-shade), .3); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+.tb-board::-webkit-scrollbar-track, .tb-scroll::-webkit-scrollbar-track { background: rgba(var(--rgb-shade), .05); border-radius: 999px; }

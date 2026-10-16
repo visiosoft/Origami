@@ -7,11 +7,14 @@ import { SectionsService } from './sections.service';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
-  normalizeCollaborators, collaboratorChanges, normalizeTaskStatus, isHoldSection,
+  normalizeCollaborators, collaboratorChanges, normalizeTaskStatus, bucketStatus, isDoneStatus,
 } from '../database/task.types';
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { NotificationsService } from '../notifications/notifications.service';
+
+/** Days a Confirmed task stays on the board before it's archived. */
+export const ARCHIVE_AFTER_DAYS = 7;
 
 @Injectable()
 export class ProjectTasksService implements OnApplicationBootstrap {
@@ -78,6 +81,16 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     } as ProjectTaskEntity;
   }
 
+  /** Confirmed tasks are archived 7 days later -- worked out whenever tasks are read. */
+  private async archiveConfirmed(rows: ProjectTaskEntity[]) {
+    const cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 86400000;
+    const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff);
+    if (!due.length) return;
+    const at = new Date().toISOString();
+    for (const t of due) t.archivedAt = at;
+    await this.repo.save(due).catch((e) => this.log.warn('Archiving confirmed tasks failed: ' + (e as Error).message));
+  }
+
   /**
    * `undefined` = every task across every project + General Tasks (used by
    * My Tasks, Notifications, the dashboard's attention strip -- callers that
@@ -86,6 +99,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
    */
   async findAll(projectId?: number | null): Promise<any[]> {
     const rows = await this.repo.find({ order: { order: 'ASC' } });
+    await this.archiveConfirmed(rows);
     const scoped = projectId === undefined
       ? rows
       : projectId === null
@@ -118,40 +132,84 @@ export class ProjectTasksService implements OnApplicationBootstrap {
    * are read in different places, so keep them consistent whichever one changed.
    */
   /**
-   * A board with an "On hold" column: the status and the column are one thing.
-   * Setting On hold files the task there; dragging it in sets On hold;
-   * dragging it out (or setting another status) takes it off hold.
+   * A column named like a bucket (To Do, Assigned, In Progress, On Hold, Done /
+   * Complete, Confirmed) and the task's status are one thing: dragging a card into
+   * it sets the status, and setting the status files the card there. Columns with
+   * other names ("In Review") leave the status alone.
    */
-  private async syncHoldSection(task: Partial<ProjectTaskEntity>, patch: Record<string, any>) {
+  private async syncBucketSection(task: Partial<ProjectTaskEntity>, patch: Record<string, any>) {
     const projectId = patch.projectId !== undefined ? patch.projectId : task.projectId;
     if (projectId === undefined) return;
     const sections = await this.sections.forProject(projectId == null ? null : Number(projectId));
-    const hold = sections.find((s) => isHoldSection(s.name));
-    if (!hold) return;
+    const bucketOf = (id?: string | null) => bucketStatus(sections.find((x) => x.id === id)?.name);
     const movingSection = 'sectionId' in patch && patch.sectionId !== task.sectionId;
     const changingStatus = 'status' in patch && patch.status !== task.status;
     if (movingSection && !changingStatus) {
-      if (patch.sectionId === hold.id) patch.status = 'On hold';
-      else if (task.sectionId === hold.id && task.status === 'On hold') patch.status = 'In progress';
+      const into = bucketOf(patch.sectionId);
+      if (into) patch.status = into;
+      // Out of the hold column into one that isn't a bucket: no longer on hold.
+      else if (task.status === 'On hold' && bucketOf(task.sectionId) === 'On hold') patch.status = 'In progress';
     } else if (changingStatus && !movingSection) {
-      if (patch.status === 'On hold') { if (task.sectionId !== hold.id) patch.sectionId = hold.id; }
-      else if (task.sectionId === hold.id) {
-        // Off hold: back to the column that matches the new status, when the board has one.
-        const want = patch.status === 'Done' ? /^done$/i : patch.status === 'Not started' ? /^(to[\s-]*do|not started)$/i : /^in[\s-]*progress$/i;
-        const target = sections.find((s) => want.test(s.name.trim()));
-        if (target) patch.sectionId = target.id;
+      if (bucketOf(task.sectionId) === patch.status) return;
+      // Complete may live in a "Done" column and Confirmed alongside it when there's no Confirmed column.
+      const target = sections.find((x) => bucketStatus(x.name) === patch.status)
+        || (patch.status === 'Confirmed' ? sections.find((x) => bucketStatus(x.name) === 'Done') : undefined)
+        || (patch.status === 'Assigned' ? sections.find((x) => bucketStatus(x.name) === 'Not started') : undefined);
+      if (target && target.id !== task.sectionId) patch.sectionId = target.id;
+      else if (!target && bucketOf(task.sectionId) && bucketOf(task.sectionId) !== patch.status) {
+        // Leaving a bucket column for a status with no column of its own: In Progress is the usual home.
+        const fallback = sections.find((x) => bucketStatus(x.name) === 'In progress');
+        if (fallback && patch.status !== 'Assigned' && patch.status !== 'Not started') patch.sectionId = fallback.id;
       }
     }
   }
 
-  private syncStatus(task: ProjectTaskEntity, patch: Record<string, any>) {
+  /**
+   * Keep `status` and the older `completed` flag together, and apply the bucket
+   * rules: To Do becomes Assigned once someone is assigned (and back if they're
+   * removed); a task's start date is set the first time it goes In Progress;
+   * Confirmed is the originator's call, and stamps the 7-day archive clock.
+   */
+  private async syncStatus(task: ProjectTaskEntity, patch: Record<string, any>, actor: UploadActor) {
     if ('status' in patch) {
-      patch.completed = patch.status === 'Done';
+      patch.completed = isDoneStatus(patch.status);
     } else if ('completed' in patch) {
-      const wasDone = (task.status || '') === 'Done';
-      if (patch.completed) patch.status = 'Done';
-      else if (wasDone || !task.status) patch.status = 'In progress';
+      if (patch.completed) { if (!isDoneStatus(task.status)) patch.status = 'Done'; }
+      else if (isDoneStatus(task.status) || !task.status) patch.status = 'In progress';
     }
+    const assigned = 'assigneeId' in patch || 'assignee' in patch
+      ? !!(patch.assigneeId || (patch.assignee || '').trim())
+      : !!(task.assigneeId || (task.assignee || '').trim());
+    const status = patch.status ?? task.status ?? 'Not started';
+    if (status === 'Not started' && assigned) patch.status = 'Assigned';
+    if (status === 'Assigned' && !assigned) patch.status = 'Not started';
+
+    const next = patch.status ?? task.status;
+    if (next === 'In progress' && task.status !== 'In progress' && !task.startDate && !patch.startDate) {
+      patch.startDate = new Date().toISOString().slice(0, 10);
+    }
+    if (next === 'Confirmed' && task.status !== 'Confirmed') {
+      const originator = task.createdById || this.createdByIdOf(task);
+      if (originator && actor.id !== originator && !(await this.isAdmin(actor))) {
+        throw new BadRequestException(`Only ${task.createdByName || 'whoever created it'} (or an admin) can confirm this task.`);
+      }
+      patch.confirmedAt = new Date().toISOString();
+      patch.completed = true;
+    } else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+      patch.confirmedAt = null;
+      patch.archivedAt = null;
+    }
+  }
+
+  private createdByIdOf(task: ProjectTaskEntity): string | undefined {
+    const ev = normalizeList<ActivityEvent>(task.activity).find((e) => e.type === 'created');
+    return (ev as any)?.actorId || (ev as any)?.byId || undefined;
+  }
+
+  private async isAdmin(actor: UploadActor) {
+    if (!actor.id) return false;
+    const u = await this.users.findOneBy({ id: actor.id });
+    return u?.roleKey === 'admin';
   }
 
   /** A subtask must say who does it and by when -- that's what makes it trackable. */
@@ -162,7 +220,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
   /** A parent can't be finished while any of its subtasks is still open. */
   private async assertSubtasksDone(parentId: string) {
-    const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && s.status !== 'Done');
+    const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && !isDoneStatus(s.status));
     if (open.length) throw new BadRequestException(`Finish its ${open.length} open subtask${open.length === 1 ? '' : 's'} first.`);
   }
 
@@ -171,16 +229,28 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     const id = dto.id || 'T-' + String(Date.now());
     if (dto.status) {
       dto = { ...dto, status: normalizeTaskStatus(dto.status) };
-      if (dto.status === 'On hold') { const p: Record<string, any> = { status: 'On hold' }; await this.syncHoldSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p); if (p.sectionId) dto.sectionId = p.sectionId; }
+      const p: Record<string, any> = { status: dto.status };
+      await this.syncBucketSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p);
+      if (p.sectionId) dto.sectionId = p.sectionId;
+    } else if (dto.sectionId) {
+      // Added straight into a bucket column (e.g. "+ Add task" under In Progress): that's its status.
+      const sections = await this.sections.forProject(dto.projectId == null ? null : Number(dto.projectId));
+      const b = bucketStatus(sections.find((x) => x.id === dto.sectionId)?.name);
+      if (b) dto = { ...dto, status: b };
     }
     const assignee = await resolveAssignee(this.users, { id: dto.assigneeId, name: dto.assignee });
+    let status: string = dto.status || (dto.completed ? 'Done' : 'Not started');
+    if (status === 'Not started' && assignee.name) status = 'Assigned';
     const task = {
-      order: 0, completed: false, parentId: null, attachments: [], comments: [],
+      order: 0, parentId: null, attachments: [], comments: [],
       createdAt: new Date().toISOString().slice(0, 10),
       ...dto,
       assignee: assignee.name,
       assigneeId: assignee.id ?? undefined,
-      status: dto.status || (dto.completed ? 'Done' : 'Not started'),
+      status,
+      completed: isDoneStatus(status) || !!dto.completed,
+      startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
+      createdById: actor.id, createdByName: actor.name,
       checklist: normalizeList(dto.checklist),
       labels: normalizeList<string>(dto.labels),
       collaborators: normalizeCollaborators(dto.collaborators, assignee.id),
@@ -220,14 +290,16 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       patch.assigneeId = assignee.id ?? null;
     }
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
-    await this.syncHoldSection(task, patch);
-    this.syncStatus(task, patch);
+    await this.syncBucketSection(task, patch);
+    await this.syncStatus(task, patch, actor);
+    // The rules above may have changed the status (e.g. To Do -> Assigned): file the card to match.
+    await this.syncBucketSection(task, patch);
     // Older subtasks may lack these; only stop someone clearing one that is set.
     if (task.parentId) {
       if ('dueDate' in patch && task.dueDate && !(patch.dueDate || '').trim()) throw new BadRequestException('A subtask needs a due date.');
       if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim())) throw new BadRequestException('A subtask needs an assignee.');
     }
-    if (patch.status === 'Done' && task.status !== 'Done' && !task.parentId) await this.assertSubtasksDone(id);
+    if (isDoneStatus(patch.status) && !isDoneStatus(task.status) && !task.parentId) await this.assertSubtasksDone(id);
 
     // Collaborators: a clean list, recorded in the activity, and newcomers told.
     let joined: { id: string; name: string }[] = [];
@@ -239,7 +311,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       if (added.length) collabEvents.push(event('collaborators', actor, { text: `added ${added.map((c) => c.name).join(', ')} as collaborator${added.length === 1 ? '' : 's'}` }));
       if (removed.length) collabEvents.push(event('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
     }
-    const finished = patch.status === 'Done' && task.status !== 'Done';
+    const finished = isDoneStatus(patch.status) && !isDoneStatus(task.status);
 
     const events = [...diffEvents(task, patch, actor), ...collabEvents];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId

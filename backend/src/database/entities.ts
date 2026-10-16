@@ -550,7 +550,7 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) assigneeId!: string;     // users.id — `assignee` stays as the display name
   /** People following the task without owning it ("Collaborative"): [{ id, name }]. */
   @Column({ type: 'simple-json', nullable: true }) collaborators!: { id: string; name: string }[];
-  @Column({ nullable: true }) status!: string;         // Not started | In progress | On hold | Done
+  @Column({ nullable: true }) status!: string;         // Not started (To Do) | Assigned | In progress | On hold | Done (Complete) | Confirmed
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
@@ -564,6 +564,13 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) endDate!: string;        // ISO; '' when open-ended
   @Column({ type: 'int', nullable: true }) durationDays!: number;
   @Column({ type: 'simple-json', nullable: true }) dependsOn!: string[]; // task ids
+  // --- Task buckets (To Do / Assigned / In progress / On hold / Complete / Confirmed) ---
+  /** Who created it -- the originator, who confirms it once complete. */
+  @Column({ nullable: true }) createdById!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  /** Moved to Confirmed by the originator; 7 days later it's archived. */
+  @Column({ nullable: true }) confirmedAt!: string;
+  @Column({ nullable: true }) archivedAt!: string;
 }
 
 /**

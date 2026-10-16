@@ -17,6 +17,7 @@ const pct = (n: number) => Math.max(0, Math.min(100, Math.round(n * 10) / 10));
 
 /** Task board status -> the report's column. */
 export function taskColumn(t: Pick<ProjectTaskEntity, 'status' | 'completed' | 'assigneeId' | 'assignee'>): keyof Rollup {
+  if (t.status === 'Confirmed') return 'Confirmed';
   if (t.completed || t.status === 'Done') return 'Complete';
   if (t.status === 'On hold') return 'On Hold';
   if (t.status === 'In progress') return 'In Progress';

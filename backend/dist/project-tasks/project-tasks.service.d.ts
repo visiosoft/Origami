@@ -5,6 +5,7 @@ import { SectionsService } from './sections.service';
 import { type TaskAttachment } from '../database/task.types';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { NotificationsService } from '../notifications/notifications.service';
+export declare const ARCHIVE_AFTER_DAYS = 7;
 export declare class ProjectTasksService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly users;
@@ -16,6 +17,7 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     onApplicationBootstrap(): Promise<void>;
     private renameLegacyTitles;
     private hydrate;
+    private archiveConfirmed;
     findAll(projectId?: number | null): Promise<any[]>;
     board(projectId: number | null): Promise<{
         sections: import("../seed-data/project-tasks").ProjectSection[];
@@ -23,8 +25,10 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     }>;
     get(id: string): Promise<ProjectTaskEntity>;
     private load;
-    private syncHoldSection;
+    private syncBucketSection;
     private syncStatus;
+    private createdByIdOf;
+    private isAdmin;
     private assertSubtaskFields;
     private assertSubtasksDone;
     create(dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;

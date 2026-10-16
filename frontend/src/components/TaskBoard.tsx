@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '../theme';
 import './TaskBoard.css';
-import { createdByText } from '../data/projectTasks';
+import { createdByOf } from '../data/projectTasks';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
@@ -9,7 +10,7 @@ import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
-  PRIORITIES, PRIORITY_STYLE, TASK_STATUSES, STATUS_STYLE, topLevelBySection, subtasksOf,
+  PRIORITY_STYLE, TASK_STATUSES, STATUS_STYLE, STATUS_HINT, statusLabel, topLevelBySection, subtasksOf,
   checklistProgress,
   type ProjectSection, type ProjectTask, type Priority, type TaskStatus,
   type Attachment as TaskAttachment, type ChecklistItem,
@@ -24,6 +25,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from './TaskScope';
+import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 
 const BG = 'var(--font-display)';
@@ -36,7 +38,7 @@ const inputStyle: React.CSSProperties = {
 function StatusPill({ s }: { s?: TaskStatus }) {
   if (!s || s === 'Not started') return null;
   const st = STATUS_STYLE[s];
-  return <span style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: st.bg, color: st.c }}>{s}</span>;
+  return <span title={STATUS_HINT[s]} style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: st.bg, color: st.c }}>{statusLabel(s)}</span>;
 }
 
 function PriorityPill({ p }: { p?: Priority }) {
@@ -61,7 +63,7 @@ const initialsOf = (title: string) => {
 
 export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null; initialTaskId?: string | null }) {
   const { can, toast, users } = useApp();
-  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
+  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
   const isMobile = useWindowWidth() <= 720;
@@ -69,7 +71,15 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const [sections, setSections] = useState<ProjectSection[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard'>('board');
+  // Dashboard first (Oct 16); the last view picked is remembered.
+  const [view, setViewState] = useState<'board' | 'list' | 'timeline' | 'dashboard'>(() => {
+    try { const v = localStorage.getItem('origami.taskView'); return v === 'board' || v === 'list' || v === 'timeline' ? v : 'dashboard'; } catch { return 'dashboard'; }
+  });
+  const setView = (v: 'board' | 'list' | 'timeline' | 'dashboard') => { setViewState(v); try { localStorage.setItem('origami.taskView', v); } catch { /* private window */ } };
+  // Confirmed tasks are archived after 7 days: off the board unless asked for.
+  const [showArchived, setShowArchived] = useState(false);
+  // Which of priority / due date was filled in automatically, per task -- so a hand-typed one is never overwritten.
+  const autoPD = useRef<Record<string, 'priority' | 'due' | null>>({});
   const [theme] = useTheme();
   const isNew = theme === 'coterie';
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -106,7 +116,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
-  const inScopeOfBoard = showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId);
+  const archivedCount = tasks.filter((t) => t.archivedAt && !t.parentId).length;
+  const inScopeOfBoard = (showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId)).filter((t) => (showArchived ? !!t.archivedAt : !t.archivedAt));
   const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query));
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
@@ -120,13 +131,13 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const updateTask = (id: string, patch: Partial<ProjectTask>) => {
     const before = tasks.find((x) => x.id === id);
-    const finishing = patch.completed === true || patch.status === 'Done';
+    const finishing = patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed';
     const openSubs = finishing && before && !before.parentId ? subtasksOf(tasks, id).filter((s) => !s.completed).length : 0;
     if (openSubs) { toast(`Finish its ${openSubs} open subtask${openSubs === 1 ? '' : 's'} first`); return; }
     patchLocal(id, patch);
-    // The server may move a task with it: an "On hold" column and the On hold status go together.
+    // The server keeps the status and its column together, and fills the start / confirmed dates.
     api.projectTasks.update(id, patch)
-      .then((res: any) => { if (res?.id && (res.status !== patch.status || res.sectionId !== patch.sectionId)) patchLocal(id, { status: res.status, sectionId: res.sectionId, completed: res.completed }); })
+      .then((res: any) => { if (res?.id) patchLocal(id, { status: res.status, sectionId: res.sectionId, completed: res.completed, startDate: res.startDate, confirmedAt: res.confirmedAt, archivedAt: res.archivedAt }); })
       .catch((e: Error) => {
         // Refused (e.g. a parent with open subtasks): put the card back as it was.
         if (before) patchLocal(id, Object.fromEntries(Object.keys(patch).map((k) => [k, (before as any)[k]])) as Partial<ProjectTask>);
@@ -296,7 +307,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
             <div className="tb-tags">
               {linkBadge(t)}
-              {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status">{t.status}</span>}
+              {t.status && t.status !== 'Not started' && t.status !== 'Done' && <span className="tb-status" title={STATUS_HINT[t.status]}>{statusLabel(t.status)}</span>}
               {(t.labels || []).map((l) => <LabelChip key={l} label={l} />)}
             </div>
           )}
@@ -314,6 +325,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               </span>
             ))}
             </div>
+            {canManage && sections.length > 1 && (
+              <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
+                onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
+                {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
+              </select>
+            )}
             <span className="tb-who"><AvatarStack people={taskPeople(t)} size={24} /></span>
           </div>
         </div>
@@ -355,6 +372,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               {check.total > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>✓ {check.done}/{check.total}</span>}
               {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>💬 {t.comments!.length}</span>}
               {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>📎 {t.attachments!.length}</span>}
+              {canManage && sections.length > 1 && (
+                <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
+                  onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
+                  {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
+                </select>
+              )}
               <span style={{ marginLeft: 'auto' }}><AvatarStack people={taskPeople(t)} size={22} /></span>
             </div>
           </div>
@@ -406,7 +429,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     </div>
   );
   const boardView = isNew ? boardViewNew : (
-    <div style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8 }}>
+    <div className="tb-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8, minWidth: 0 }}>
       {sections.map((sec) => {
         const secTasks = topLevelBySection(visibleTasks, sec.id);
         const isOver = dragOver === sec.id;
@@ -742,7 +765,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                 const st = STATUS_STYLE[s.status];
                 return (
                   <div key={s.status} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 90, fontSize: 11, color: 'var(--body)', flexShrink: 0 }}>{s.status}</div>
+                    <div style={{ width: 90, fontSize: 11, color: 'var(--body)', flexShrink: 0 }}>{statusLabel(s.status)}</div>
                     <div style={{ flex: 1, height: 10, background: '#F4F2ED', borderRadius: 999, overflow: 'hidden' }}>
                       <div style={{ width: `${(s.count / maxStatus) * 100}%`, height: '100%', background: st.c, borderRadius: 999, transition: 'width 0.4s ease' }} />
                     </div>
@@ -761,7 +784,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
-          {(['board', 'list', 'timeline', 'dashboard'] as const).map((v) => (
+          {(['dashboard', 'board', 'timeline', 'list'] as const).map((v) => (
             <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
           ))}
         </div>
@@ -771,9 +794,16 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           restricted={restricted}
           mineCount={mineCount}
           allCount={allCount}
+          counts={scopeCounts(inScopeOfBoard.filter((t) => !t.parentId))}
         />
-        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'all'} />
+        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'assigned'} />
         <TaskSearch value={query} onChange={setQuery} />
+        {(archivedCount > 0 || showArchived) && (
+          <div onClick={() => setShowArchived((v) => !v)} title="Confirmed tasks move to the archive 7 days after they're confirmed"
+            style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.14)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)' }}>
+            {showArchived ? '← Back to the board' : `Archived ${archivedCount}`}
+          </div>
+        )}
         {phaseTaskCount > 0 && (
           <div
             onClick={() => setShowPhaseTasks((v) => !v)}
@@ -798,11 +828,12 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
         {({ draft: d, set: setDraft, auto }) => {
         // A parent stays open while any subtask is open -- say so instead of saving a refusal.
         const set = (patch: Partial<ProjectTask>) => {
-          const open = (patch.completed === true || patch.status === 'Done') ? subtasksOf(tasks, selected.id).filter((s) => !s.completed).length : 0;
+          const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subtasksOf(tasks, selected.id).filter((s) => !s.completed).length : 0;
           if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
           setDraft(patch);
         };
-        return (
+        // Portalled: a transformed ancestor would otherwise trap the fixed overlay inside the board.
+        return createPortal(
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
             {canManage && (
@@ -824,22 +855,41 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                   disabled={!canManage}
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
-                {createdByText(selected) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{createdByText(selected)}</div>}
               </Field>
+              <div style={{ alignSelf: 'start', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Originator</div>
+                <div style={{ color: 'var(--ink)', fontWeight: 600 }}>{selected.createdByName || createdByOf(selected)?.by || '—'}</div>
+                <div>{(() => { const at = createdByOf(selected)?.at || selected.createdAt; return [at ? new Date(at.length > 10 ? at : at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', '#' + selected.id].filter(Boolean).join(' · '); })()}</div>
+              </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Collaborative">
                   <CollaboratorPicker value={d.collaborators} assigneeId={d.assigneeId} disabled={!canManage} onChange={(collaborators) => set({ collaborators })} />
                 </Field>
               </div>
               <Field label="Status">
-                <select disabled={!canManage} value={d.status || 'Not started'} onChange={(e) => set({ status: e.target.value as TaskStatus })} style={{ ...inputStyle, width: '100%' }}>
-                  {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+                <select disabled={!canManage} value={d.status || 'Not started'} title={STATUS_HINT[d.status || 'Not started']} onChange={(e) => set({ status: e.target.value as TaskStatus })} style={{ ...inputStyle, width: '100%' }}>
+                  {TASK_STATUSES.map((st) => {
+                    const originatorId = selected.createdById || createdByOf(selected)?.byId;
+                    const canConfirm = !originatorId || originatorId === currentUser?.id || currentUser?.roleKey === 'admin';
+                    return <option key={st} value={st} disabled={st === 'Confirmed' && !canConfirm && d.status !== 'Confirmed'}>{statusLabel(st)}{st === 'Confirmed' && !canConfirm ? ' — the originator confirms' : ''}</option>;
+                  })}
                 </select>
               </Field>
               <Field label="Start date"><input type="date" disabled={!canManage} value={d.startDate || ''} onChange={(e) => set({ startDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
-              <Field label="Due date"><input type="date" disabled={!canManage} value={d.dueDate || ''} onChange={(e) => set({ dueDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
-              <Field label="Priority"><select disabled={!canManage} value={d.priority || ''} onChange={(e) => set({ priority: e.target.value as Priority })} style={{ ...inputStyle, width: '100%' }}><option value="">None</option>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></Field>
-              <Field label="Section"><select disabled={!canManage} value={d.sectionId} onChange={(e) => set({ sectionId: e.target.value })} style={{ ...inputStyle, width: '100%' }}>{sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+              <Field label="Priority">
+                <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
+                  onChange={(e) => { const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: autoPD.current[selected.id] }, { priority: e.target.value as Priority | '' }); autoPD.current[selected.id] = r.auto; set({ priority: (r.priority || undefined) as Priority, dueDate: r.dueDate }); }}
+                  style={{ ...inputStyle, width: '100%' }}>
+                  <option value="">None</option>{['Urgent', 'High', 'Medium', 'Low'].map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p as Priority].replace('Due ', '')}</option>)}
+                </select>
+                {autoPD.current[selected.id] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
+              </Field>
+              <Field label="Due date">
+                <input type="date" disabled={!canManage} value={d.dueDate || ''}
+                  onChange={(e) => { const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: autoPD.current[selected.id] }, { dueDate: e.target.value }); autoPD.current[selected.id] = r.auto; set({ dueDate: r.dueDate, priority: (r.priority || undefined) as Priority }); }}
+                  style={{ ...inputStyle, width: '100%' }} />
+                {autoPD.current[selected.id] === 'due' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the priority — change it if you need to</div>}
+              </Field>
             </div>
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
@@ -924,8 +974,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               </div>
             )}
           </div>
-        </div>
-        );
+        </div>,
+        document.body);
         }}
         </DraftScope>
       )}

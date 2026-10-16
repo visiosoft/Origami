@@ -20,7 +20,7 @@ const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owne
 /** initialMode 'log' opens on the Request Log (Special Actions → Task). */
 export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log' } = {}) {
   const { can, users } = useApp();
-  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
+  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
   const [tab, setTab] = useState<TaskTab>('internal');
@@ -162,8 +162,9 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
           restricted={restricted}
           mineCount={logMineCount}
           allCount={inTab.length}
+          counts={scopeCounts(inTab as any[])}
         />
-        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'all'} />
+        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'assigned'} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
         <div style={{ position: 'relative' }}>
           <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'var(--surface)' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>

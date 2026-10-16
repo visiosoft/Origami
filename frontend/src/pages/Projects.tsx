@@ -22,7 +22,8 @@ import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
-import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
+import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
+import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
@@ -31,6 +32,7 @@ const BG = 'var(--font-display)';
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
+const TASK_PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
 const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
 const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
 
@@ -84,6 +86,8 @@ export function Projects() {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const introInitFor = useRef<string | null>(null);
+  // Per task: which of priority / due date was filled in automatically from the other.
+  const ptAutoPD = useRef<Record<string, 'priority' | 'due' | null>>({});
 
   const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
   useEffect(() => {
@@ -790,9 +794,9 @@ export function Projects() {
                   clientPersonality={introLead?.clientPersonality || ''}
                   clientName={introLead?.goByName || introLead?.leadName || ''}
                   linkedTasks={(boardTasks as any[])
-                    .map((t) => ({ stepKey: stepForTaskId(t.id) || '', id: t.id, title: t.title, done: !!t.completed || t.status === 'Done' }))
+                    .map((t) => ({ stepKey: stepForTaskId(t.id) || '', id: t.id, title: t.title, done: isTaskDone(t) }))
                     .filter((t) => t.stepKey)}
-                  onToggleTask={(id: string, done: boolean) => saveTask(id, { completed: done, status: done ? 'Done' : 'Not started' })}
+                  onToggleTask={(id: string, done: boolean) => saveTask(id, { completed: done })}
                 />
               </div>
             ) : tab === 'tasks' || tab === 'rfis' ? (
@@ -1119,18 +1123,25 @@ export function Projects() {
                     ))}
                   </div>
                   {fieldBox('Status', (
-                    <select disabled={!canManage} value={d.status || 'Not started'} onChange={(e) => set({ status: e.target.value, completed: e.target.value === 'Done' })} style={inputStyle}>
-                      {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+                    <select disabled={!canManage} value={d.status || 'Not started'} title={STATUS_HINT[(d.status || 'Not started') as TaskStatus]} onChange={(e) => set({ status: e.target.value, completed: isTaskDone({ status: e.target.value }) })} style={inputStyle}>
+                      {TASK_STATUSES.map((st) => <option key={st} value={st}>{statusLabel(st)}</option>)}
                     </select>
                   ))}
                   {fieldBox('Due date', (
-                    <input type="date" disabled={!canManage} value={d.dueDate || ''} onChange={(e) => set({ dueDate: e.target.value })} style={inputStyle} />
+                    <>
+                      <input type="date" disabled={!canManage} value={d.dueDate || ''} onChange={(e) => { const k = live?.id || ''; const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: ptAutoPD.current[k] }, { dueDate: e.target.value }); ptAutoPD.current[k] = r.auto; set({ dueDate: r.dueDate, priority: r.priority }); }} style={inputStyle} />
+                      {ptAutoPD.current[live?.id || ''] === 'due' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the priority — change it if you need to</div>}
+                    </>
                   ))}
                   {fieldBox('Priority', (
-                    <select disabled={!canManage} value={d.priority || ''} onChange={(e) => set({ priority: e.target.value })} style={inputStyle}>
-                      <option value="">None</option>
-                      {PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr}</option>)}
-                    </select>
+                    <>
+                      <select disabled={!canManage} value={d.priority || ''} title={d.priority ? PRIORITY_HINT[d.priority as Priority] : 'Picking a priority fills in the due date'}
+                        onChange={(e) => { const k = live?.id || ''; const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: ptAutoPD.current[k] }, { priority: e.target.value as Priority | '' }); ptAutoPD.current[k] = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} style={inputStyle}>
+                        <option value="">None</option>
+                        {TASK_PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr} — {PRIORITY_HINT[pr].replace('Due ', '')}</option>)}
+                      </select>
+                      {ptAutoPD.current[live?.id || ''] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
+                    </>
                   ))}
                   {fieldBox('Role', (
                     <select
@@ -1307,7 +1318,7 @@ export function Projects() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {subtasksOf(boardTasks as any, live.id).map((st: any) => (
                           <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--panel)', borderRadius: 8 }}>
-                            <input type="checkbox" checked={!!st.completed} disabled={!canManage} onChange={() => saveTask(st.id, { completed: !st.completed, status: st.completed ? 'Not started' : 'Done' })} />
+                            <input type="checkbox" checked={!!st.completed} disabled={!canManage} onChange={() => saveTask(st.id, { completed: !st.completed })} />
                             <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
                             {canManage && <span onClick={() => deleteTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                           </div>

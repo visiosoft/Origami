@@ -139,6 +139,10 @@ export declare class PhasesController {
             endDate: string;
             durationDays: number;
             dependsOn: string[];
+            createdById: string;
+            createdByName: string;
+            confirmedAt: string;
+            archivedAt: string;
         }[];
     }>;
     create(dto: CreatePhaseDto): Promise<import("../database/entities").ProjectPhaseEntity>;

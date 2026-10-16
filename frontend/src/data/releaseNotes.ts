@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-16a',
+    date: '2026-10-16',
+    title: 'Task buckets, originators and priorities that set due dates',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Tasks move through To Do → Assigned → In Progress → On Hold → Complete → Confirmed. Giving a To Do task an assignee makes it Assigned. Only whoever created a task (or an admin) can confirm it, and confirmed tasks move to the archive after 7 days. Anything can move back to any bucket.', where: 'Tasks → Task Board' },
+      { area: 'Tasks', kind: 'improved', text: 'One status per task: a column named after a bucket (To Do, In Progress, On Hold, Done…) and the task’s status now stay together — drag a card into Done and it’s Complete; set it to On Hold and it moves to that column.', where: 'Tasks → Task Board' },
+      { area: 'Tasks', kind: 'new', text: 'Picking a priority fills in the due date — Urgent: tomorrow, High: 5 business days, Medium: 2 weeks, Low: a month. Typing a due date first sets the priority instead. Anything you type yourself is never overwritten.', where: 'Any task → Priority / Due date' },
+      { area: 'Tasks', kind: 'new', text: 'Each task shows its originator, the date it was made and its number. The start date fills in by itself when a task first goes In Progress.', where: 'Any task' },
+      { area: 'Tasks', kind: 'improved', text: 'Views are now Dashboard (opens first, and the board remembers your last choice), Board, Timeline and List. Filter by Everyone, My tasks, From me (ones you created for others) or Assigned, with a person picker.', where: 'Tasks → Task Board' },
+      { area: 'Tasks', kind: 'new', text: '“Move ▾” on each card moves it to another column without dragging — handy on a phone. The board’s sideways scrollbar is now always visible.', where: 'Tasks → Task Board → Board' },
+    ],
+  },
+  {
     id: '2026-10-15a',
     date: '2026-10-15',
     title: 'Stop orders and holidays look after themselves',

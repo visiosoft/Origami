@@ -59,9 +59,31 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export function normalizeTaskStatus(v: unknown): string | undefined {
   if (v == null) return undefined;
   const s = String(v).trim();
-  if (/^(blocked|on[\s-]*hold|hold)$/i.test(s)) return 'On hold';
-  return s;
+  return bucketStatus(s) || s;
 }
+
+/**
+ * The task buckets (Oct 16): To Do, Assigned, In Progress, On Hold, Complete,
+ * Confirmed. Stored as the long-standing values -- "Not started" shows as To Do
+ * and "Done" as Complete -- so everything that reads them keeps working.
+ */
+export const TASK_BUCKETS = ['Not started', 'Assigned', 'In progress', 'On hold', 'Done', 'Confirmed'] as const;
+
+/** A status name, or a board column's name, read as a bucket (null when it isn't one). */
+export function bucketStatus(name?: string | null): string | null {
+  const s = (name || '').trim();
+  if (/^(to[\s-]*do|todo|not[\s-]*started|backlog|new)$/i.test(s)) return 'Not started';
+  if (/^assigned$/i.test(s)) return 'Assigned';
+  if (/^(in[\s-]*progress|doing)$/i.test(s)) return 'In progress';
+  if (/^(blocked|on[\s-]*hold|hold)$/i.test(s)) return 'On hold';
+  if (/^(done|complete|completed)$/i.test(s)) return 'Done';
+  if (/^confirmed$/i.test(s)) return 'Confirmed';
+  return null;
+}
+
+/** Finished, whether or not the originator has confirmed it yet. */
+export const isDoneStatus = (s?: string | null) => s === 'Done' || s === 'Confirmed';
+export const isTaskDone = (t: { completed?: boolean | null; status?: string | null }) => !!t.completed || isDoneStatus(t.status);
 
 /** A board column that means "on hold" -- a task's status and that column move together. */
 export const isHoldSection = (name?: string | null) => /^(on[\s-]*hold|blocked)$/i.test((name || '').trim());

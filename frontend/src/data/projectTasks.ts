@@ -1,6 +1,8 @@
 // Types + style maps for the Asana-style per-project task board.
 
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
+/** In order of urgency; '' is None. */
+export const PRIORITY_ORDER: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
 
 /**
  * A file on a task: either a real upload stored in Google Drive (`kind: 'drive'`)
@@ -37,16 +39,37 @@ export interface ActivityEvent {
   at: string;
 }
 
-/** "Blocked" and "On hold" were one thing under two names -- it's "On hold" now. */
-export type TaskStatus = 'Not started' | 'In progress' | 'On hold' | 'Done';
-export const TASK_STATUSES: TaskStatus[] = ['Not started', 'In progress', 'On hold', 'Done'];
+/**
+ * The task buckets: To Do, Assigned, In Progress, On Hold, Complete, Confirmed.
+ * Stored under their long-standing names -- "Not started" shows as To Do and
+ * "Done" as Complete -- so show them through STATUS_LABEL.
+ */
+export type TaskStatus = 'Not started' | 'Assigned' | 'In progress' | 'On hold' | 'Done' | 'Confirmed';
+export const TASK_STATUSES: TaskStatus[] = ['Not started', 'Assigned', 'In progress', 'On hold', 'Done', 'Confirmed'];
+export const STATUS_LABEL: Record<string, string> = {
+  'Not started': 'To Do', Assigned: 'Assigned', 'In progress': 'In Progress', 'On hold': 'On Hold', Done: 'Complete', Confirmed: 'Confirmed', Blocked: 'On Hold',
+};
+export const statusLabel = (s?: string | null) => STATUS_LABEL[s || 'Not started'] || s || 'To Do';
+/** Finished, whether or not the originator has confirmed it yet. */
+export const isTaskDone = (t: { completed?: boolean; status?: string | null }) => !!t.completed || t.status === 'Done' || t.status === 'Confirmed';
+/** What each bucket means (the Oct 16 definitions). */
+export const STATUS_HINT: Record<string, string> = {
+  'Not started': 'Added, but not fully detailed or assigned yet',
+  Assigned: 'Assigned to someone, not started',
+  'In progress': 'The assignee has picked it up',
+  'On hold': 'Paused',
+  Done: 'The assignee has finished it',
+  Confirmed: 'The originator confirmed it’s done — archived 7 days later',
+};
 
 export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
   'Not started': { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
+  Assigned: { bg: '#E3E0F5', c: '#4B3F8F' },
   'In progress': { bg: '#D6E8E5', c: '#2F6F68' },
   'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
   Blocked: { bg: 'var(--amber-light)', c: '#93520F' }, // an older row not yet renamed
   Done: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
+  Confirmed: { bg: '#1E6B36', c: '#FFFFFF' },
 };
 
 export interface ProjectSection {
@@ -92,6 +115,12 @@ export interface ProjectTask {
   endDate?: string;
   durationDays?: number | null;
   dependsOn?: string[];
+  /** The originator -- who confirms it once it's complete. */
+  createdById?: string;
+  createdByName?: string;
+  confirmedAt?: string | null;
+  /** Set 7 days after Confirmed; archived tasks are off the board unless asked for. */
+  archivedAt?: string | null;
 }
 
 /** A stage of the delivery programme. Tasks are filed under one. */
@@ -157,9 +186,9 @@ export function assignedByOf(t: { activity?: ActivityEvent[]; assignee?: string;
 }
 
 /** Who created a task, and when (from its history); null when the history doesn't say. */
-export function createdByOf(t: { activity?: ActivityEvent[] }): { by: string; at: string } | null {
+export function createdByOf(t: { activity?: ActivityEvent[] }): { by: string; at: string; byId?: string } | null {
   const created = (Array.isArray(t.activity) ? t.activity : []).find((e) => e.type === 'created');
-  return created ? { by: created.by, at: created.at } : null;
+  return created ? { by: created.by, at: created.at, byId: created.byId } : null;
 }
 
 /**

@@ -6,7 +6,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { subtasksOf, type ProjectTask } from '../data/projectTasks';
+import { isTaskDone, statusLabel, subtasksOf, type ProjectTask } from '../data/projectTasks';
 import { TaskLinkBadge } from '../components/TaskLinkBadge';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
@@ -141,7 +141,7 @@ export function DesignProject() {
 
   const stages = useMemo(() => scopedPhases.map((ph) => {
     const items = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
-    const done = items.filter((t) => t.completed || t.status === 'Done').length;
+    const done = items.filter((t) => isTaskDone(t)).length;
     const percent = items.length ? Math.round((done / items.length) * 100) : 0;
     const colors = STAGE_COLORS[ph.key] || { dot: ph.color, text: ph.color };
     return {
@@ -168,11 +168,13 @@ export function DesignProject() {
   /** Ticking writes through — the board and reports read the same completion. */
   const toggle = (task: ProjectTask) => {
     if (!canManage) return;
-    const next = !(task.completed || task.status === 'Done');
+    const next = !isTaskDone(task);
     setTasks((prev) => prev.map((t) => (t.id === task.id
       ? { ...t, completed: next, status: next ? 'Done' : 'In progress' }
       : t)));
-    api.projectTasks.update(task.id, { completed: next, status: next ? 'Done' : 'In progress' })
+    // Only "done or not" is sent: the server picks the status (and keeps a Confirmed task Confirmed).
+    api.projectTasks.update(task.id, { completed: next })
+      .then((res: any) => { if (res?.id) setTasks((prev) => prev.map((t) => (t.id === res.id ? { ...t, status: res.status, completed: res.completed, sectionId: res.sectionId } : t))); })
       .catch((e: Error) => {
         setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
         toast('⚠ ' + e.message);
@@ -198,7 +200,7 @@ export function DesignProject() {
     (roleFilter === 'All roles' || task.team === roleFilter)
     && (!q || task.title.toLowerCase().includes(q) || (task.assignee || '').toLowerCase().includes(q)));
 
-  const isDone = (t: ProjectTask) => !!(t.completed || t.status === 'Done');
+  const isDone = (t: ProjectTask) => isTaskDone(t);
   const isProgress = (t: ProjectTask) => !isDone(t) && t.status === 'In progress';
   const today = new Date().toISOString().slice(0, 10);
   const isLate = (t: any) => !isDone(t) && !!t.dueDate && t.dueDate < today;
@@ -470,7 +472,7 @@ export function DesignProject() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 26px', background: '#F7F3FF', borderBottom: '1px solid #DDD0FF' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#4A1FA0' }}>{selCount} selected</span>
               <div style={{ flex: 1 }} />
-              {bulkBtn('Mark complete', () => bulk({ completed: true, status: 'Done' }), true)}
+              {bulkBtn('Mark complete', () => bulk({ completed: true }), true)}
               {bulkBtn('Move to in progress', () => bulk({ completed: false, status: 'In progress' }))}
               {bulkBtn('Reopen', () => bulk({ completed: false, status: 'Not started' }))}
               <div onClick={() => setSelected([])} style={{ height: 34, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 13, fontWeight: 600, color: INK3, cursor: 'pointer' }}>Clear</div>
@@ -658,9 +660,9 @@ const PRIORITY_DOT: Record<string, { bg: string; c: string }> = {
 };
 
 const LIST_GROUPS = [
-  { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !(t.completed || t.status === 'Done') && t.status !== 'In progress' },
-  { key: 'progress', label: 'In progress', dot: ACCENT, match: (t: ProjectTask) => !(t.completed || t.status === 'Done') && t.status === 'In progress' },
-  { key: 'done', label: 'Done', dot: 'var(--c-16a34a)', match: (t: ProjectTask) => !!(t.completed || t.status === 'Done') },
+  { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !isTaskDone(t) && t.status !== 'In progress' },
+  { key: 'progress', label: 'In progress', dot: ACCENT, match: (t: ProjectTask) => !isTaskDone(t) && t.status === 'In progress' },
+  { key: 'done', label: 'Done', dot: 'var(--c-16a34a)', match: (t: ProjectTask) => isTaskDone(t) },
 ];
 
 const COLUMN_DEFS = [
@@ -739,8 +741,8 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
                           </span>
                         );
                         if (c.key === 'status') return (
-                          <span key={c.key} style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
-                            {t.status || 'Not started'}
+                          <span key={c.key} style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[isTaskDone(t) ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[isTaskDone(t) ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
+                            {statusLabel(t.status || 'Not started')}
                           </span>
                         );
                         if (c.key === 'priority') return pr ? (

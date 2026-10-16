@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TRACKED_FIELDS = exports.isHoldSection = exports.TASK_STATUSES = void 0;
+exports.TRACKED_FIELDS = exports.isHoldSection = exports.isTaskDone = exports.isDoneStatus = exports.TASK_BUCKETS = exports.TASK_STATUSES = void 0;
 exports.normalizeTaskStatus = normalizeTaskStatus;
+exports.bucketStatus = bucketStatus;
 exports.subId = subId;
 exports.normalizeAttachments = normalizeAttachments;
 exports.normalizeList = normalizeList;
@@ -14,10 +15,29 @@ function normalizeTaskStatus(v) {
     if (v == null)
         return undefined;
     const s = String(v).trim();
+    return bucketStatus(s) || s;
+}
+exports.TASK_BUCKETS = ['Not started', 'Assigned', 'In progress', 'On hold', 'Done', 'Confirmed'];
+function bucketStatus(name) {
+    const s = (name || '').trim();
+    if (/^(to[\s-]*do|todo|not[\s-]*started|backlog|new)$/i.test(s))
+        return 'Not started';
+    if (/^assigned$/i.test(s))
+        return 'Assigned';
+    if (/^(in[\s-]*progress|doing)$/i.test(s))
+        return 'In progress';
     if (/^(blocked|on[\s-]*hold|hold)$/i.test(s))
         return 'On hold';
-    return s;
+    if (/^(done|complete|completed)$/i.test(s))
+        return 'Done';
+    if (/^confirmed$/i.test(s))
+        return 'Confirmed';
+    return null;
 }
+const isDoneStatus = (s) => s === 'Done' || s === 'Confirmed';
+exports.isDoneStatus = isDoneStatus;
+const isTaskDone = (t) => !!t.completed || (0, exports.isDoneStatus)(t.status);
+exports.isTaskDone = isTaskDone;
 const isHoldSection = (name) => /^(on[\s-]*hold|blocked)$/i.test((name || '').trim());
 exports.isHoldSection = isHoldSection;
 let counter = 0;

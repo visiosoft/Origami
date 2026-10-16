@@ -28,6 +28,8 @@ const plus = (iso, n) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(
 const daysBetween = (a, b) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000);
 const pct = (n) => Math.max(0, Math.min(100, Math.round(n * 10) / 10));
 function taskColumn(t) {
+    if (t.status === 'Confirmed')
+        return 'Confirmed';
     if (t.completed || t.status === 'Done')
         return 'Complete';
     if (t.status === 'On hold')

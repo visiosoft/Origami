@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
@@ -9,7 +9,8 @@ import { Attachments, filesFromClipboard, nameClipboardFile } from './Attachment
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
-import { TASK_STATUSES, subtasksOf, type ChecklistItem } from '../data/projectTasks';
+import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
+import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 
 const BG = 'var(--font-display)';
@@ -18,7 +19,7 @@ const input: React.CSSProperties = {
   border: '1px solid rgba(var(--rgb-shade), 0.13)', background: 'var(--surface)', fontFamily: 'inherit',
   fontSize: 13, color: 'var(--ink)', outline: 'none',
 };
-const PRIORITIES = ['High', 'Medium', 'Low'];
+const PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
 /** Fields edited in the panel: they autosave together. Subtasks, files and comments act at once. */
 const FIELDS = ['title', 'description', 'assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'checklist', 'labels'];
 
@@ -54,9 +55,11 @@ export function PhaseTaskPanel({
   const [storageReady, setStorageReady] = useState(false);
   const [teams, setTeams] = useState<string[]>(['Automation']);
   const [draft, setDraft] = useState<any>(task);
+  // Which of priority / due date was filled in automatically from the other.
+  const autoPD = useRef<'priority' | 'due' | null>(null);
 
   // Another task opened in the panel starts fresh; replies for this one merge in.
-  useEffect(() => { setDraft(task); }, [task.id]);
+  useEffect(() => { setDraft(task); autoPD.current = null; }, [task.id]);
   useEffect(() => {
     api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false));
     api.roles.list()
@@ -143,20 +146,23 @@ export function PhaseTaskPanel({
           </div>
           <div>
             {label('Status')}
-            <select disabled={!canManage} value={draft.status || 'Not started'} onChange={(e) => set({ status: e.target.value, completed: e.target.value === 'Done' })} style={input}>
-              {TASK_STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}
+            <select disabled={!canManage} value={draft.status || 'Not started'} title={STATUS_HINT[(draft.status || 'Not started') as TaskStatus]} onChange={(e) => set({ status: e.target.value, completed: isTaskDone({ status: e.target.value as TaskStatus }) })} style={input}>
+              {TASK_STATUSES.map((st) => <option key={st} value={st}>{statusLabel(st)}</option>)}
             </select>
           </div>
           <div>
             {label('Due date')}
-            <input type="date" disabled={!canManage} value={draft.dueDate || ''} onChange={(e) => set({ dueDate: e.target.value })} style={input} />
+            <input type="date" disabled={!canManage} value={draft.dueDate || ''} onChange={(e) => { const r = linkPriorityDue({ priority: draft.priority, dueDate: draft.dueDate, auto: autoPD.current }, { dueDate: e.target.value }); autoPD.current = r.auto; set({ dueDate: r.dueDate, priority: r.priority }); }} style={input} />
+            {autoPD.current === 'due' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the priority — change it if you need to</div>}
           </div>
           <div>
             {label('Priority')}
-            <select disabled={!canManage} value={draft.priority || ''} onChange={(e) => set({ priority: e.target.value })} style={input}>
+            <select disabled={!canManage} value={draft.priority || ''} title={draft.priority ? PRIORITY_HINT[draft.priority as Priority] : 'Picking a priority fills in the due date'}
+              onChange={(e) => { const r = linkPriorityDue({ priority: draft.priority, dueDate: draft.dueDate, auto: autoPD.current }, { priority: e.target.value as Priority | '' }); autoPD.current = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} style={input}>
               <option value="">None</option>
-              {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+              {PRIORITIES.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p].replace('Due ', '')}</option>)}
             </select>
+            {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
             {label('Role')}
@@ -198,7 +204,7 @@ export function PhaseTaskPanel({
                   type="checkbox"
                   checked={!!st.completed}
                   disabled={!canManage}
-                  onChange={() => api.projectTasks.update(st.id, { completed: !st.completed, status: st.completed ? 'Not started' : 'Done' }).then(onSaved).catch(() => onReload?.())}
+                  onChange={() => api.projectTasks.update(st.id, { completed: !st.completed }).then(onSaved).catch(() => onReload?.())}
                 />
                 <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
                 {canManage && <span onClick={() => removeTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}

@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProjectTasksService = void 0;
+exports.ProjectTasksService = exports.ARCHIVE_AFTER_DAYS = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -23,6 +23,7 @@ const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
 const attachments_service_1 = require("../google/attachments.service");
 const notifications_service_1 = require("../notifications/notifications.service");
+exports.ARCHIVE_AFTER_DAYS = 7;
 let ProjectTasksService = class ProjectTasksService {
     constructor(repo, users, sections, attachments, notifications) {
         this.repo = repo;
@@ -78,8 +79,19 @@ let ProjectTasksService = class ProjectTasksService {
             status: task.status || (task.completed ? 'Done' : 'Not started'),
         };
     }
+    async archiveConfirmed(rows) {
+        const cutoff = Date.now() - exports.ARCHIVE_AFTER_DAYS * 86400000;
+        const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff);
+        if (!due.length)
+            return;
+        const at = new Date().toISOString();
+        for (const t of due)
+            t.archivedAt = at;
+        await this.repo.save(due).catch((e) => this.log.warn('Archiving confirmed tasks failed: ' + e.message));
+    }
     async findAll(projectId) {
         const rows = await this.repo.find({ order: { order: 'ASC' } });
+        await this.archiveConfirmed(rows);
         const scoped = projectId === undefined
             ? rows
             : projectId === null
@@ -101,46 +113,82 @@ let ProjectTasksService = class ProjectTasksService {
             throw new common_1.NotFoundException(`Task ${id} not found`);
         return task;
     }
-    async syncHoldSection(task, patch) {
+    async syncBucketSection(task, patch) {
         const projectId = patch.projectId !== undefined ? patch.projectId : task.projectId;
         if (projectId === undefined)
             return;
         const sections = await this.sections.forProject(projectId == null ? null : Number(projectId));
-        const hold = sections.find((s) => (0, task_types_1.isHoldSection)(s.name));
-        if (!hold)
-            return;
+        const bucketOf = (id) => (0, task_types_1.bucketStatus)(sections.find((x) => x.id === id)?.name);
         const movingSection = 'sectionId' in patch && patch.sectionId !== task.sectionId;
         const changingStatus = 'status' in patch && patch.status !== task.status;
         if (movingSection && !changingStatus) {
-            if (patch.sectionId === hold.id)
-                patch.status = 'On hold';
-            else if (task.sectionId === hold.id && task.status === 'On hold')
+            const into = bucketOf(patch.sectionId);
+            if (into)
+                patch.status = into;
+            else if (task.status === 'On hold' && bucketOf(task.sectionId) === 'On hold')
                 patch.status = 'In progress';
         }
         else if (changingStatus && !movingSection) {
-            if (patch.status === 'On hold') {
-                if (task.sectionId !== hold.id)
-                    patch.sectionId = hold.id;
-            }
-            else if (task.sectionId === hold.id) {
-                const want = patch.status === 'Done' ? /^done$/i : patch.status === 'Not started' ? /^(to[\s-]*do|not started)$/i : /^in[\s-]*progress$/i;
-                const target = sections.find((s) => want.test(s.name.trim()));
-                if (target)
-                    patch.sectionId = target.id;
+            if (bucketOf(task.sectionId) === patch.status)
+                return;
+            const target = sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === patch.status)
+                || (patch.status === 'Confirmed' ? sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === 'Done') : undefined)
+                || (patch.status === 'Assigned' ? sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === 'Not started') : undefined);
+            if (target && target.id !== task.sectionId)
+                patch.sectionId = target.id;
+            else if (!target && bucketOf(task.sectionId) && bucketOf(task.sectionId) !== patch.status) {
+                const fallback = sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === 'In progress');
+                if (fallback && patch.status !== 'Assigned' && patch.status !== 'Not started')
+                    patch.sectionId = fallback.id;
             }
         }
     }
-    syncStatus(task, patch) {
+    async syncStatus(task, patch, actor) {
         if ('status' in patch) {
-            patch.completed = patch.status === 'Done';
+            patch.completed = (0, task_types_1.isDoneStatus)(patch.status);
         }
         else if ('completed' in patch) {
-            const wasDone = (task.status || '') === 'Done';
-            if (patch.completed)
-                patch.status = 'Done';
-            else if (wasDone || !task.status)
+            if (patch.completed) {
+                if (!(0, task_types_1.isDoneStatus)(task.status))
+                    patch.status = 'Done';
+            }
+            else if ((0, task_types_1.isDoneStatus)(task.status) || !task.status)
                 patch.status = 'In progress';
         }
+        const assigned = 'assigneeId' in patch || 'assignee' in patch
+            ? !!(patch.assigneeId || (patch.assignee || '').trim())
+            : !!(task.assigneeId || (task.assignee || '').trim());
+        const status = patch.status ?? task.status ?? 'Not started';
+        if (status === 'Not started' && assigned)
+            patch.status = 'Assigned';
+        if (status === 'Assigned' && !assigned)
+            patch.status = 'Not started';
+        const next = patch.status ?? task.status;
+        if (next === 'In progress' && task.status !== 'In progress' && !task.startDate && !patch.startDate) {
+            patch.startDate = new Date().toISOString().slice(0, 10);
+        }
+        if (next === 'Confirmed' && task.status !== 'Confirmed') {
+            const originator = task.createdById || this.createdByIdOf(task);
+            if (originator && actor.id !== originator && !(await this.isAdmin(actor))) {
+                throw new common_1.BadRequestException(`Only ${task.createdByName || 'whoever created it'} (or an admin) can confirm this task.`);
+            }
+            patch.confirmedAt = new Date().toISOString();
+            patch.completed = true;
+        }
+        else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+            patch.confirmedAt = null;
+            patch.archivedAt = null;
+        }
+    }
+    createdByIdOf(task) {
+        const ev = (0, task_types_1.normalizeList)(task.activity).find((e) => e.type === 'created');
+        return ev?.actorId || ev?.byId || undefined;
+    }
+    async isAdmin(actor) {
+        if (!actor.id)
+            return false;
+        const u = await this.users.findOneBy({ id: actor.id });
+        return u?.roleKey === 'admin';
     }
     assertSubtaskFields(t) {
         const missing = [!(t.assigneeId || (t.assignee || '').trim()) && 'an assignee', !(t.dueDate || '').trim() && 'a due date'].filter(Boolean);
@@ -148,7 +196,7 @@ let ProjectTasksService = class ProjectTasksService {
             throw new common_1.BadRequestException(`A subtask needs ${missing.join(' and ')}.`);
     }
     async assertSubtasksDone(parentId) {
-        const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && s.status !== 'Done');
+        const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && !(0, task_types_1.isDoneStatus)(s.status));
         if (open.length)
             throw new common_1.BadRequestException(`Finish its ${open.length} open subtask${open.length === 1 ? '' : 's'} first.`);
     }
@@ -158,21 +206,31 @@ let ProjectTasksService = class ProjectTasksService {
         const id = dto.id || 'T-' + String(Date.now());
         if (dto.status) {
             dto = { ...dto, status: (0, task_types_1.normalizeTaskStatus)(dto.status) };
-            if (dto.status === 'On hold') {
-                const p = { status: 'On hold' };
-                await this.syncHoldSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p);
-                if (p.sectionId)
-                    dto.sectionId = p.sectionId;
-            }
+            const p = { status: dto.status };
+            await this.syncBucketSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p);
+            if (p.sectionId)
+                dto.sectionId = p.sectionId;
+        }
+        else if (dto.sectionId) {
+            const sections = await this.sections.forProject(dto.projectId == null ? null : Number(dto.projectId));
+            const b = (0, task_types_1.bucketStatus)(sections.find((x) => x.id === dto.sectionId)?.name);
+            if (b)
+                dto = { ...dto, status: b };
         }
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assigneeId, name: dto.assignee });
+        let status = dto.status || (dto.completed ? 'Done' : 'Not started');
+        if (status === 'Not started' && assignee.name)
+            status = 'Assigned';
         const task = {
-            order: 0, completed: false, parentId: null, attachments: [], comments: [],
+            order: 0, parentId: null, attachments: [], comments: [],
             createdAt: new Date().toISOString().slice(0, 10),
             ...dto,
             assignee: assignee.name,
             assigneeId: assignee.id ?? undefined,
-            status: dto.status || (dto.completed ? 'Done' : 'Not started'),
+            status,
+            completed: (0, task_types_1.isDoneStatus)(status) || !!dto.completed,
+            startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
+            createdById: actor.id, createdByName: actor.name,
             checklist: (0, task_types_1.normalizeList)(dto.checklist),
             labels: (0, task_types_1.normalizeList)(dto.labels),
             collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
@@ -210,15 +268,16 @@ let ProjectTasksService = class ProjectTasksService {
         }
         if ('status' in patch)
             patch.status = (0, task_types_1.normalizeTaskStatus)(patch.status);
-        await this.syncHoldSection(task, patch);
-        this.syncStatus(task, patch);
+        await this.syncBucketSection(task, patch);
+        await this.syncStatus(task, patch, actor);
+        await this.syncBucketSection(task, patch);
         if (task.parentId) {
             if ('dueDate' in patch && task.dueDate && !(patch.dueDate || '').trim())
                 throw new common_1.BadRequestException('A subtask needs a due date.');
             if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim()))
                 throw new common_1.BadRequestException('A subtask needs an assignee.');
         }
-        if (patch.status === 'Done' && task.status !== 'Done' && !task.parentId)
+        if ((0, task_types_1.isDoneStatus)(patch.status) && !(0, task_types_1.isDoneStatus)(task.status) && !task.parentId)
             await this.assertSubtasksDone(id);
         let joined = [];
         const collabEvents = [];
@@ -231,7 +290,7 @@ let ProjectTasksService = class ProjectTasksService {
             if (removed.length)
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
-        const finished = patch.status === 'Done' && task.status !== 'Done';
+        const finished = (0, task_types_1.isDoneStatus)(patch.status) && !(0, task_types_1.isDoneStatus)(task.status);
         const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)

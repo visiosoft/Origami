@@ -415,6 +415,10 @@ export declare class ProjectTaskEntity {
     endDate: string;
     durationDays: number;
     dependsOn: string[];
+    createdById: string;
+    createdByName: string;
+    confirmedAt: string;
+    archivedAt: string;
 }
 export declare class ProjectPhaseEntity {
     id: string;
