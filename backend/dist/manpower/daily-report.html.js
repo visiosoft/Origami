@@ -8,6 +8,7 @@ const OPS = {
     scheduling: 'Scheduling / Sequencing delay', safety: 'Safety incident delay', siteCondition: 'Unknown site condition',
 };
 const OUTCOME = { passed: 'Passed', partial: 'Partial passed', conditional: 'Conditional passed with comments', failed: 'Failed' };
+const CONDITION = { good: 'Good', damaged: 'Damaged', short: 'Short / missing items' };
 const REASON = { stop: 'Stop order', holiday: 'Holiday', ops: 'Operations delay', force: 'Force majeure delay' };
 function delayLine(label, d) {
     if (!d?.on && !d?.details && !d?.getWell)
@@ -58,12 +59,32 @@ function reportSectionsHtml(s, meta) {
         if (v.present === 'yes')
             for (const r of v.rows || [])
                 out.push(p(`<b>${esc(r.type || 'Visitor')}</b>${r.name ? ` — ${esc(r.name)}` : ''}${r.details ? `<br>${esc(r.details)}` : ''}`));
+        const table = (head, rows) => `<table style="width:100%;border-collapse:collapse;font-size:9.5pt;margin:4px 0;"><tr>${head.map((x) => `<th style="text-align:left;border-bottom:1px solid #CCD3CE;padding:3px 4px;">${esc(x)}</th>`).join('')}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td style="border-bottom:1px solid #EEF1EE;padding:3px 4px;vertical-align:top;">${c}</td>`).join('')}</tr>`).join('')}</table>`;
+        const filledRow = (r) => Object.entries(r || {}).some(([k, v]) => k !== 'id' && v !== '' && v != null);
         const d = s.deliveries || {};
+        const dRows = (d.rows || []).filter(filledRow);
         out.push(h2('VII. Deliveries'), p(`Delivery today? <b>${yn(d.present)}</b>${d.present === 'yes' ? ` · Transmittal completed? <b>${yn(d.transmittal)}</b>` : ''}`));
+        if (d.present === 'yes' && dRows.length) {
+            out.push(table(['Supplier', 'PO / ticket', 'Items', 'Qty', 'Received by', 'Condition', 'Notes'], dRows.map((r) => [
+                esc(r.supplier || '—'), esc(r.poRef || ''), esc(r.items || ''), esc(r.qty ?? ''), esc(r.receivedBy || ''),
+                esc(CONDITION[r.condition] || ''), `${esc(r.notes || '')}${r.photo ? ` <i>(photo: ${esc(r.photo.name)})</i>` : ''}${r.taskId ? ' <i>(task created)</i>' : ''}`,
+            ])));
+        }
         if ((d.files || []).length)
             out.push(p(`Attached: ${d.files.map((f) => esc(f.name)).join(', ')}`));
         const e = s.equipment || {};
+        const eRows = (e.rows || []).filter(filledRow);
         out.push(h2('VIII. Equipment used'), p(`Equipment used today? <b>${yn(e.used)}</b>${e.used === 'yes' ? ` · Utilization form completed? <b>${yn(e.form)}</b>` : ''}`));
+        if (e.used === 'yes' && eRows.length) {
+            const sum = (k) => eRows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+            out.push(table(['Equipment', 'Owned / rented', 'Operator', 'Hours used', 'Hours idle', 'Notes'], [
+                ...eRows.map((r) => [
+                    esc(r.equipment || '—'), esc(r.ownership === 'rented' ? `Rented${r.supplier ? ` from ${r.supplier}` : ''}` : r.ownership === 'owned' ? 'Owned' : ''),
+                    esc(r.operator || ''), esc(r.hoursUsed ?? ''), esc(r.hoursIdle ?? ''), `${esc(r.notes || '')}${r.taskId ? ' <i>(task created)</i>' : ''}`,
+                ]),
+                ['<b>Total</b>', '', '', `<b>${sum('hoursUsed')}</b>`, `<b>${sum('hoursIdle')}</b>`, ''],
+            ]));
+        }
         if ((e.files || []).length)
             out.push(p(`Attached: ${e.files.map((f) => esc(f.name)).join(', ')}`));
         const notes = (s.notes || []).filter((n) => String(n?.text || '').trim());

@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import {
-  AUTHORITIES, NO_WORK_REASONS, OPS_DELAYS, OUTCOMES, STOP_BY, VISITOR_TYPES, isRowCarried, rowId,
-  type Delay, type FileRef, type OpsKey, type Sections, type YesNo,
+  AUTHORITIES, DELIVERY_CONDITIONS, NO_WORK_REASONS, OPS_DELAYS, OUTCOMES, STOP_BY, VISITOR_TYPES, equipmentFormDone, equipmentHours, isRowCarried, rowId, transmittalDone,
+  type Delay, type DeliveryRow, type EquipmentRow, type FileRef, type OpsKey, type Sections, type YesNo,
 } from '../../data/dailyReport';
 import {
   AddRow, Carry, ConvertButton, DelayBlock, INK, Label, MUTED, RemoveRow, SectionCard, YesNoPick, area, input, pill, useReport,
@@ -311,16 +311,119 @@ export function VisitorsSection({ s, set, na, convert, consultants, baseline }: 
 
 // ------------------------------------------------------------------ VII. Deliveries / VIII. Equipment
 
-export function FormSection({ roman, title, codeA, questionA, codeB, questionB, a, b, files, pathA, pathB, onA, onB, onFiles, na, upload, missingTask, attachLabel }: {
-  roman: string; title: string; codeA: string; questionA: string; codeB: string; questionB: string; a: YesNo; b: YesNo; files: FileRef[];
-  pathA: string; pathB: string; onA: (v: YesNo) => void; onB: (v: YesNo) => void; onFiles: (f: FileRef[]) => void; na: boolean; upload: Upload; missingTask: string; attachLabel: string;
+/** "Still to do" note: nothing filled in or attached yet, so submitting adds a task. */
+function MissingNote({ task }: { task: string }) {
+  return <div style={{ fontSize: 12.5, color: '#8A5A12', background: 'rgba(245, 196, 67, 0.16)', borderRadius: 10, padding: '8px 12px' }}>Nothing filled in or attached yet — submitting adds a task for you: “{task}”.</div>;
+}
+
+/** VII. The transmittal, filled in here: one block per delivery. A signed paper copy can be attached instead (or as well). */
+export function DeliveriesSection({ s, set, na, convert, upload, contractors, baseline, missingTask }: {
+  s: Sections; set: Set; na: boolean; convert: Convert; upload: Upload; contractors: { id: string; companyName: string }[]; baseline?: Sections | null; missingTask: string;
 }) {
+  const { editable } = useReport();
+  const d = s.deliveries;
+  // "Transmittal completed" follows what's on the form, so the PDF and the task on submit agree with it.
+  const setD = (p: Partial<Sections['deliveries']>) => set((x) => {
+    const next = { ...x.deliveries, ...p };
+    return { ...x, deliveries: { ...next, transmittal: next.present === 'yes' ? (transmittalDone(next) ? 'yes' : 'no') : '' } };
+  });
+  const setRow = (id: string, p: Partial<DeliveryRow>) => setD({ rows: d.rows.map((r) => (r.id === id ? { ...r, ...p } : r)) });
+  const done = transmittalDone(d);
   return (
-    <YesNoSection roman={roman} title={title} code={codeA} question={questionA} value={a} onChange={onA} path={pathA} na={na}
-      summaryYes={b === 'yes' ? `Yes · ${files.length} form${files.length === 1 ? '' : 's'}` : b === 'no' ? 'Yes · form still to upload' : 'Yes'}>
-      <div><Label code={codeB}>{questionB}</Label><YesNoPick value={b} onChange={onB} path={pathB} /></div>
-      {b === 'no' && <div style={{ fontSize: 12.5, color: '#8A5A12', background: 'rgba(245, 196, 67, 0.16)', borderRadius: 10, padding: '8px 12px' }}>Submitting adds a task for you: “{missingTask}”.</div>}
-      {b === 'yes' && <Attachments files={files} onChange={onFiles} upload={upload} label={attachLabel} />}
+    <YesNoSection roman="VII" title="Deliveries" code="VII.A" question="Was there a delivery today?" value={d.present} na={na} path="deliveries.present"
+      onChange={(v) => setD({ present: v, rows: v === 'yes' && !d.rows.length ? [{ id: rowId() }] : d.rows })}
+      summaryYes={done ? `Yes · ${d.rows.length} on the transmittal${d.files.length ? ` · ${d.files.length} attached` : ''}` : 'Yes · transmittal still to do'}>
+      <Label code="VII.B" hint="One block per delivery. Or attach a signed transmittal below.">Transmittal</Label>
+      <datalist id="dr-suppliers">{contractors.map((c) => <option key={c.id} value={c.companyName} />)}</datalist>
+      {d.rows.map((r) => (
+        <Carry key={r.id} on={isRowCarried(baseline?.deliveries.rows, r)}>
+          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+              <div style={{ flex: '2 1 200px' }}><Label>Supplier</Label>
+                <input disabled={!editable} list="dr-suppliers" value={r.supplier || ''} placeholder="Choose or type a supplier"
+                  onChange={(e) => setRow(r.id, { supplier: e.target.value, contractorId: contractors.find((c) => c.companyName.toLowerCase() === e.target.value.trim().toLowerCase())?.id || '' })} style={input} />
+              </div>
+              <div style={{ flex: '1 1 130px' }}><Label>PO / delivery ticket #</Label><input disabled={!editable} value={r.poRef || ''} onChange={(e) => setRow(r.id, { poRef: e.target.value })} style={input} /></div>
+              <div style={{ flex: '1 1 150px' }}><Label>Received by</Label><input disabled={!editable} value={r.receivedBy || ''} onChange={(e) => setRow(r.id, { receivedBy: e.target.value })} style={input} /></div>
+              <RemoveRow onClick={() => setD({ rows: d.rows.filter((x) => x.id !== r.id) })} label="Remove delivery" />
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+              <div style={{ flex: '3 1 240px' }}><Label>Items delivered</Label><textarea disabled={!editable} value={r.items || ''} onChange={(e) => setRow(r.id, { items: e.target.value })} rows={2} placeholder="e.g. 40 sheets 3/4 ply, 2 pallets 2x6x16" style={area} /></div>
+              <div style={{ flex: '0 1 100px' }}><Label>Quantity</Label><input type="number" min={0} disabled={!editable} value={r.qty ?? ''} onChange={(e) => setRow(r.id, { qty: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)) })} style={input} /></div>
+            </div>
+            <div>
+              <Label>Condition on arrival</Label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {DELIVERY_CONDITIONS.map(([k, l]) => (
+                  <button key={k} type="button" disabled={!editable} onClick={() => setRow(r.id, { condition: r.condition === k ? '' : k })} style={pill(r.condition === k, !editable)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            <div><Label>Notes</Label><textarea disabled={!editable} value={r.notes || ''} onChange={(e) => setRow(r.id, { notes: e.target.value })} rows={2} style={area} /></div>
+            {(r.condition === 'damaged' || r.condition === 'short') && (
+              <ConvertButton taskId={r.taskId} text={[r.items, r.notes].filter(Boolean).join('\n') || `${r.condition === 'damaged' ? 'Damaged' : 'Short'} delivery`}
+                onConvert={(t) => convert(`${r.condition === 'damaged' ? 'Damaged' : 'Short'} delivery${r.supplier ? ` — ${r.supplier}` : ''}${r.poRef ? ` (${r.poRef})` : ''}`, t)}
+                onDone={(id) => setRow(r.id, { taskId: id })} />
+            )}
+            <div><Label>Photo of the ticket or the delivery</Label>
+              <Attachments files={r.photo ? [r.photo] : []} onChange={(f) => setRow(r.id, { photo: f[f.length - 1] || null })} upload={upload} label={r.photo ? 'Replace photo' : '+ Attach photo'} />
+            </div>
+          </div>
+        </Carry>
+      ))}
+      <AddRow onClick={() => setD({ rows: [...d.rows, { id: rowId() }] })}>+ Add delivery</AddRow>
+      <div><Label hint="A signed paper transmittal, if there is one">Attached transmittal</Label><Attachments files={d.files} onChange={(f) => setD({ files: f })} upload={upload} label="+ Attach transmittal" /></div>
+      {!done && <MissingNote task={missingTask} />}
+    </YesNoSection>
+  );
+}
+
+/** VIII. The Equipment Utilization form, filled in here: one row per machine, with hours used and idle. */
+export function EquipmentSection({ s, set, na, convert, upload, operators, baseline, missingTask }: {
+  s: Sections; set: Set; na: boolean; convert: Convert; upload: Upload; operators: string[]; baseline?: Sections | null; missingTask: string;
+}) {
+  const { editable } = useReport();
+  const e = s.equipment;
+  const setE = (p: Partial<Sections['equipment']>) => set((x) => {
+    const next = { ...x.equipment, ...p };
+    return { ...x, equipment: { ...next, form: next.used === 'yes' ? (equipmentFormDone(next) ? 'yes' : 'no') : '' } };
+  });
+  const setRow = (id: string, p: Partial<EquipmentRow>) => setE({ rows: e.rows.map((r) => (r.id === id ? { ...r, ...p } : r)) });
+  const hrs = equipmentHours(e.rows);
+  const num = (v: string) => (v === '' ? '' : Math.max(0, Math.min(24, Number(v))));
+  return (
+    <YesNoSection roman="VIII" title="Equipment used" code="VIII.A" question="Was equipment used today?" value={e.used} na={na} path="equipment.used"
+      onChange={(v) => setE({ used: v, rows: v === 'yes' && !e.rows.length ? [{ id: rowId() }] : e.rows })}
+      summaryYes={equipmentFormDone(e) ? `Yes · ${e.rows.length} machine${e.rows.length === 1 ? '' : 's'} · ${hrs.used} h used, ${hrs.idle} h idle` : 'Yes · utilization form still to do'}>
+      <Label code="VIII.B" hint="One row per machine. Or attach a completed form below.">Equipment Utilization</Label>
+      <datalist id="dr-operators">{operators.map((o) => <option key={o} value={o} />)}</datalist>
+      {e.rows.map((r) => (
+        <Carry key={r.id} on={isRowCarried(baseline?.equipment.rows, r)}>
+          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+              <div style={{ flex: '2 1 200px' }}><Label>Equipment</Label><input disabled={!editable} value={r.equipment || ''} onChange={(ev) => setRow(r.id, { equipment: ev.target.value })} placeholder="e.g. CAT 308 excavator" style={input} /></div>
+              <div style={{ flex: '0 0 auto' }}><Label>Owned or rented</Label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {(['owned', 'rented'] as const).map((k) => <button key={k} type="button" disabled={!editable} onClick={() => setRow(r.id, { ownership: r.ownership === k ? '' : k })} style={pill(r.ownership === k, !editable)}>{k === 'owned' ? 'Owned' : 'Rented'}</button>)}
+                </div>
+              </div>
+              <RemoveRow onClick={() => setE({ rows: e.rows.filter((x) => x.id !== r.id) })} label="Remove equipment" />
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+              {r.ownership === 'rented' && <div style={{ flex: '1 1 160px' }}><Label>Rented from</Label><input disabled={!editable} value={r.supplier || ''} onChange={(ev) => setRow(r.id, { supplier: ev.target.value })} style={input} /></div>}
+              <div style={{ flex: '1 1 160px' }}><Label>Operator</Label><input disabled={!editable} list="dr-operators" value={r.operator || ''} onChange={(ev) => setRow(r.id, { operator: ev.target.value })} style={input} /></div>
+              <div style={{ flex: '0 1 100px' }}><Label>Hours used</Label><input type="number" min={0} max={24} step={0.5} disabled={!editable} value={r.hoursUsed ?? ''} onChange={(ev) => setRow(r.id, { hoursUsed: num(ev.target.value) })} style={input} /></div>
+              <div style={{ flex: '0 1 100px' }}><Label>Hours idle</Label><input type="number" min={0} max={24} step={0.5} disabled={!editable} value={r.hoursIdle ?? ''} onChange={(ev) => setRow(r.id, { hoursIdle: num(ev.target.value) })} style={input} /></div>
+            </div>
+            <div><Label>Notes</Label><textarea disabled={!editable} value={r.notes || ''} onChange={(ev) => setRow(r.id, { notes: ev.target.value })} rows={2} placeholder="Breakdowns, fuel, service due…" style={area} /></div>
+            <ConvertButton taskId={r.taskId} text={r.notes || ''} onConvert={(t) => convert(`Equipment${r.equipment ? ` — ${r.equipment}` : ''}`, t)} onDone={(id) => setRow(r.id, { taskId: id })} />
+          </div>
+        </Carry>
+      ))}
+      <AddRow onClick={() => setE({ rows: [...e.rows, { id: rowId() }] })}>+ Add equipment</AddRow>
+      {e.rows.length > 0 && <div style={{ fontSize: 12.5, color: MUTED }}>Total: <b style={{ color: INK }}>{hrs.used} h used</b> · {hrs.idle} h idle</div>}
+      <div><Label hint="A completed paper form, if there is one">Attached form</Label><Attachments files={e.files} onChange={(f) => setE({ files: f })} upload={upload} label="+ Attach equipment form" /></div>
+      {!equipmentFormDone(e) && <MissingNote task={missingTask} />}
     </YesNoSection>
   );
 }

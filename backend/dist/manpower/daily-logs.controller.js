@@ -19,19 +19,28 @@ const auth_service_1 = require("../auth/auth.service");
 const daily_logs_service_1 = require("./daily-logs.service");
 const daily_log_backup_service_1 = require("./daily-log-backup.service");
 const daily_report_automation_service_1 = require("./daily-report-automation.service");
+const weekly_report_service_1 = require("./weekly-report.service");
 const daily_log_dto_1 = require("./dto/daily-log.dto");
 let DailyLogsController = class DailyLogsController {
-    constructor(service, auth, backup, automation) {
+    constructor(service, auth, backup, automation, weekly) {
         this.service = service;
         this.auth = auth;
         this.backup = backup;
         this.automation = automation;
+        this.weekly = weekly;
     }
     findAll(status, projectId) {
         return this.service.findAllLogs({ status, projectId: projectId != null ? Number(projectId) : undefined });
     }
     getForDay(projectId, date, id) {
         return this.service.getForDay(Number(projectId), date, id || undefined);
+    }
+    weeklyReport(projectId, week) {
+        return this.weekly.week(Number(projectId), week || '');
+    }
+    emailWeekly(body) {
+        const to = String(body?.to || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+        return this.weekly.email(Number(body?.projectId), String(body?.week || ''), to.length ? to : undefined);
     }
     templates() {
         return this.service.listTemplates();
@@ -86,6 +95,21 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], DailyLogsController.prototype, "getForDay", null);
+__decorate([
+    (0, common_1.Get)('weekly'),
+    __param(0, (0, common_1.Query)('projectId')),
+    __param(1, (0, common_1.Query)('week')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], DailyLogsController.prototype, "weeklyReport", null);
+__decorate([
+    (0, common_1.Post)('weekly/email'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], DailyLogsController.prototype, "emailWeekly", null);
 __decorate([
     (0, common_1.Get)('templates'),
     __metadata("design:type", Function),
@@ -155,6 +179,7 @@ exports.DailyLogsController = DailyLogsController = __decorate([
     __metadata("design:paramtypes", [daily_logs_service_1.DailyLogsService,
         auth_service_1.AuthService,
         daily_log_backup_service_1.DailyLogBackupService,
-        daily_report_automation_service_1.DailyReportAutomationService])
+        daily_report_automation_service_1.DailyReportAutomationService,
+        weekly_report_service_1.WeeklyReportService])
 ], DailyLogsController);
 //# sourceMappingURL=daily-logs.controller.js.map

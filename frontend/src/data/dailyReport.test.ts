@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { carriedCount, emptySections, isCarried, isRowCarried, normalizeSections, templateOf } from './dailyReport';
+import { carriedCount, emptySections, equipmentFormDone, equipmentHours, isCarried, isRowCarried, normalizeSections, templateOf, transmittalDone } from './dailyReport';
 
 describe('daily report helpers', () => {
   it('fills in a partial or old report so every section exists', () => {
@@ -45,5 +45,28 @@ describe('daily report helpers', () => {
     expect(t.deliveries.files).toEqual([]);
     expect(t.activity.dOps.rfi).toEqual({ on: true, getWell: 'known', date: '', details: 'RFI 12' });
     expect(t.activity.reason).toBe('stop');
+  });
+});
+
+describe('VII / VIII forms', () => {
+  it('older reports get empty delivery and equipment rows', () => {
+    const s = normalizeSections({ deliveries: { present: 'yes', transmittal: 'yes', files: [] }, equipment: { used: 'no' } });
+    expect(s.deliveries.rows).toEqual([]);
+    expect(s.equipment.rows).toEqual([]);
+  });
+  it('a form counts as done once a row is filled in or a file is attached', () => {
+    const s = emptySections();
+    expect(transmittalDone({ ...s.deliveries, rows: [{ id: 'a' }] })).toBe(false);
+    expect(transmittalDone({ ...s.deliveries, rows: [{ id: 'a', items: '40 sheets ply' }] })).toBe(true);
+    expect(equipmentFormDone({ ...s.equipment, files: [{ id: 'f', name: 'form.pdf' }] })).toBe(true);
+    expect(equipmentHours([{ id: 'a', hoursUsed: 6, hoursIdle: 2 }, { id: 'b', hoursUsed: '' }])).toEqual({ used: 6, idle: 2 });
+  });
+  it('a template keeps the usual suppliers and machines, not the day’s quantities and hours', () => {
+    const s = emptySections();
+    s.deliveries.rows = [{ id: 'd', supplier: 'Home Depot', contractorId: 'C1', items: 'ply', qty: 40, condition: 'damaged', taskId: 'T' }];
+    s.equipment.rows = [{ id: 'e', equipment: 'Excavator', ownership: 'rented', supplier: 'Sunbelt', operator: 'Kai', hoursUsed: 6, notes: 'leak', taskId: 'T' }];
+    const t = templateOf(s);
+    expect(t.deliveries.rows).toEqual([{ id: 'd', supplier: 'Home Depot', contractorId: 'C1' }]);
+    expect(t.equipment.rows).toEqual([{ id: 'e', equipment: 'Excavator', ownership: 'rented', supplier: 'Sunbelt', operator: 'Kai' }]);
   });
 });

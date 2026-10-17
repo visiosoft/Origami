@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akToday } from '../components/ActionKit';
+import { WeeklyReport } from '../components/dailyReport/WeeklyReport';
 
 interface LogRow {
   id: string; projectId: number; date: string; supervisorName?: string; notes?: string; status: string;
@@ -33,6 +34,8 @@ export function DailyReports() {
   const [status, setStatus] = useState<Status>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [days, setDays] = useState<Record<string, any[]>>({});
+  // Each day's reports, or one project's week rolled up.
+  const [mode, setMode] = useState<'days' | 'weekly'>(() => (new URLSearchParams(window.location.search).get('view') === 'weekly' ? 'weekly' : 'days'));
 
   useEffect(() => {
     api.dailyLogs.list().then((r: any) => setLogs(Array.isArray(r) ? r : [])).catch(() => setLogs([]));
@@ -63,6 +66,10 @@ export function DailyReports() {
       lead="Each site’s day — crew, hours, cost codes, what got done and the superintendent’s notes. Superintendents fill these in on Daily Report (field)."
       action={canApprove && waiting.length ? <button type="button" className="ak-btn is-dark" onClick={() => navigate('/manpower_con?tab=approvals')}>Approve {waiting.length} in Manpower</button> : undefined}
     >
+      <div className="ak-tools">
+        <AkSeg<'days' | 'weekly'> value={mode} onChange={setMode} options={[['days', 'Daily reports'], ['weekly', 'Weekly report']]} />
+      </div>
+      {mode === 'weekly' ? <WeeklyReport projects={projectIds.map((id) => ({ id, name: nameOf(id) })).sort((a, b) => a.name.localeCompare(b.name))} initialProject={project} /> : <>
       <AkStats items={[
         { key: 'wk', label: 'Reports this week', value: logs ? thisWeek.length : '—', sub: `${Math.round(thisWeek.reduce((a, l) => a + (l.totalHours || 0), 0))} h on site` },
         { key: 'crew', label: 'People on site this week', value: logs ? thisWeek.reduce((a, l) => a + (l.crewCount || 0), 0) : '—', sub: 'worker-days' },
@@ -118,6 +125,7 @@ export function DailyReports() {
           );
         })}
       </section>
+      </>}
     </AkPage>
   );
 }

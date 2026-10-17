@@ -10,6 +10,21 @@ export interface DerivedRef { kind: ActionKind; id: string; label: string; how: 
 /** Where a record came from, and what was made from it (duplicate / convert). */
 export interface ActionTrailFields { sourceType?: string | null; sourceId?: string | null; sourceLabel?: string | null; derivedRefs?: DerivedRef[] | null }
 
+/** A project's week, from its daily reports (Daily Reports -> Weekly). */
+export interface WeeklyReport {
+  projectId: number; weekStart: string; weekEnd: string;
+  days: { date: string; logId: string | null; status: string; worked: string; reason: string; auto: boolean; crew: number; hours: number; supervisor: string; updates: number }[];
+  totals: { hours: number; workerDays: number; daysWorked: number; daysNoWork: number; daysMissing: number; equipmentHours: number; equipmentIdle: number; deliveries: number };
+  byCode: { code: string; label: string; hours: number; workers: number }[];
+  byWorker: { name: string; trade: string; hours: number; days: number }[];
+  delays: { date: string; label: string; getWell: string; details: string }[];
+  inspections: { date: string; authority: string; what: string; outcome: string }[];
+  visitors: { date: string; type: string; name: string; details: string }[];
+  deliveries: { date: string; supplier: string; poRef: string; items: string; qty: number | ''; receivedBy: string; condition: string; notes: string }[];
+  equipment: { name: string; ownership: string; hoursUsed: number; hoursIdle: number; days: number }[];
+  notes: { date: string; text: string }[];
+}
+
 /** A checklist made in advance ("Pre-pour inspection"). */
 export interface ChecklistTemplate { id: string; name: string; items: { item: string }[]; createdById?: string; createdByName?: string; createdAt: string }
 
@@ -972,6 +987,10 @@ export const api = {
     submit: (id: string) => request(`/daily-logs/${id}/submit`, { method: 'POST' }),
     approve: (id: string) => request(`/daily-logs/${id}/approve`, { method: 'POST' }),
     reject: (id: string, note?: string) => request(`/daily-logs/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    /** A project's week rolled up from its daily reports; `week` is any day in it. */
+    weekly: (projectId: number, week: string) => request<WeeklyReport>(`/daily-logs/weekly?projectId=${projectId}&week=${week}`),
+    /** Email the week as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
+    emailWeekly: (projectId: number, week: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>('/daily-logs/weekly/email', { method: 'POST', body: JSON.stringify({ projectId, week, to }) }),
     /** Email the day as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
     email: (id: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>(`/daily-logs/${id}/email`, { method: 'POST', body: JSON.stringify({ to }) }),
   },

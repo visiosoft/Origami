@@ -6,11 +6,11 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useAutosave } from '../autosave';
 import {
-  carriedCount, emptySections, isCarried, normalizeSections, sameValue, templateOf, type FileRef, type Sections,
+  carriedCount, emptySections, equipmentFormDone, isCarried, normalizeSections, sameValue, templateOf, transmittalDone, type FileRef, type Sections,
 } from '../data/dailyReport';
 import { ACCENT, BG, INK, LINE, MUTED, ReportCtx, SectionCard, input, pill, Label, Carry } from '../components/dailyReport/ReportBits';
 import { CrewSheet, type Code, type Emp, type Entry } from '../components/dailyReport/CrewSheet';
-import { ActivitySection, FormSection, InspectorsSection, NotesSection, SubsSection, VisitorsSection, YesNoSection } from '../components/dailyReport/ReportSections';
+import { ActivitySection, DeliveriesSection, EquipmentSection, InspectorsSection, NotesSection, SubsSection, VisitorsSection, YesNoSection } from '../components/dailyReport/ReportSections';
 import { SignaturePad } from '../components/dailyReport/SignaturePad';
 
 // ------------------------------------------------------------------ shapes
@@ -356,8 +356,9 @@ export function DailyReport() {
         const day = niceDate(date);
         const jobs: Promise<unknown>[] = [];
         if (s.activity.photos === 'no') jobs.push(ownTask(`Upload job photos for ${day}`));
-        if (s.deliveries.present === 'yes' && s.deliveries.transmittal === 'no') jobs.push(ownTask(`Upload Transmittal for deliveries on ${day}`));
-        if (s.equipment.used === 'yes' && s.equipment.form === 'no') jobs.push(ownTask(`Upload Equipment Utilization form for ${day}`));
+        // Only when nothing was filled in or attached.
+        if (s.deliveries.present === 'yes' && !transmittalDone(s.deliveries)) jobs.push(ownTask(`Upload Transmittal for deliveries on ${day}`));
+        if (s.equipment.used === 'yes' && !equipmentFormDone(s.equipment)) jobs.push(ownTask(`Upload Equipment Utilization form for ${day}`));
         await Promise.all(jobs);
       }
       setLog((cur) => ({ ...(cur || {}), ...r }));
@@ -524,16 +525,10 @@ export function DailyReport() {
             <SubsSection s={s} set={setSections} na={noWork} contractors={contractors} baseline={baseline} />
             <InspectorsSection s={s} set={setSections} na={noWork} convert={convert} upload={upload} baseline={baseline} />
             <VisitorsSection s={s} set={setSections} na={noWork} convert={convert} consultants={consultants} baseline={baseline} />
-            <FormSection roman="VII" title="Deliveries" codeA="VII.A" questionA="Was there a delivery today?" codeB="VII.B" questionB="Was a transmittal form completed?"
-              a={s.deliveries.present} b={s.deliveries.transmittal} files={s.deliveries.files} pathA="deliveries.present" pathB="deliveries.transmittal" na={noWork} upload={upload}
-              onA={(v) => setSections((x) => ({ ...x, deliveries: { ...x.deliveries, present: v } }))} onB={(v) => setSections((x) => ({ ...x, deliveries: { ...x.deliveries, transmittal: v } }))}
-              onFiles={(f) => setSections((x) => ({ ...x, deliveries: { ...x.deliveries, files: f } }))}
-              missingTask={`Upload Transmittal for deliveries on ${niceDate(date)}`} attachLabel="+ Attach transmittal" />
-            <FormSection roman="VIII" title="Equipment used" codeA="VIII.A" questionA="Was equipment used today?" codeB="VIII.B" questionB="Was an Equipment Utilization form completed?"
-              a={s.equipment.used} b={s.equipment.form} files={s.equipment.files} pathA="equipment.used" pathB="equipment.form" na={noWork} upload={upload}
-              onA={(v) => setSections((x) => ({ ...x, equipment: { ...x.equipment, used: v } }))} onB={(v) => setSections((x) => ({ ...x, equipment: { ...x.equipment, form: v } }))}
-              onFiles={(f) => setSections((x) => ({ ...x, equipment: { ...x.equipment, files: f } }))}
-              missingTask={`Upload Equipment Utilization form for ${niceDate(date)}`} attachLabel="+ Attach equipment form" />
+            <DeliveriesSection s={s} set={setSections} na={noWork} convert={convert} upload={upload} contractors={contractors} baseline={baseline}
+              missingTask={`Upload Transmittal for deliveries on ${niceDate(date)}`} />
+            <EquipmentSection s={s} set={setSections} na={noWork} convert={convert} upload={upload} baseline={baseline}
+              operators={employees.filter((e: any) => onSite.has(e.id) || draft.entries.some((x: any) => x.employeeId === e.id)).map((e: any) => e.name)} missingTask={`Upload Equipment Utilization form for ${niceDate(date)}`} />
             <NotesSection s={s} set={setSections} na={noWork} convert={convert} baseline={baseline} />
 
             {/* X. Certification */}

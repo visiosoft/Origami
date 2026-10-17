@@ -2,13 +2,15 @@ import { AuthService } from '../auth/auth.service';
 import { DailyLogsService } from './daily-logs.service';
 import { DailyLogBackupService } from './daily-log-backup.service';
 import { DailyReportAutomationService } from './daily-report-automation.service';
+import { WeeklyReportService } from './weekly-report.service';
 import { SaveDailyLogDto, RejectDailyLogDto, SaveDailyReportTemplateDto } from './dto/daily-log.dto';
 export declare class DailyLogsController {
     private readonly service;
     private readonly auth;
     private readonly backup;
     private readonly automation;
-    constructor(service: DailyLogsService, auth: AuthService, backup: DailyLogBackupService, automation: DailyReportAutomationService);
+    private readonly weekly;
+    constructor(service: DailyLogsService, auth: AuthService, backup: DailyLogBackupService, automation: DailyReportAutomationService, weekly: WeeklyReportService);
     findAll(status?: string, projectId?: string): Promise<import("../database/entities").DailyLogEntity[]>;
     getForDay(projectId: string, date: string, id?: string): Promise<{
         log: import("../database/entities").DailyLogEntity;
@@ -21,6 +23,16 @@ export declare class DailyLogsController {
             supervisorName: string;
             createdAt: string;
         }[];
+    }>;
+    weeklyReport(projectId: string, week?: string): Promise<import("./weekly-report.service").WeeklyReport>;
+    emailWeekly(body: {
+        projectId?: number;
+        week?: string;
+        to?: string;
+    }): Promise<{
+        sent: boolean;
+        to: string[];
+        attachments: string[];
     }>;
     templates(): Promise<import("../database/entities").DailyReportTemplateEntity[]>;
     saveTemplate(dto: SaveDailyReportTemplateDto, auth?: string): Promise<import("../database/entities").DailyReportTemplateEntity>;

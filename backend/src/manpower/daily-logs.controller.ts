@@ -4,6 +4,7 @@ import { AuthService } from '../auth/auth.service';
 import { DailyLogsService } from './daily-logs.service';
 import { DailyLogBackupService } from './daily-log-backup.service';
 import { DailyReportAutomationService } from './daily-report-automation.service';
+import { WeeklyReportService } from './weekly-report.service';
 import { SaveDailyLogDto, RejectDailyLogDto, SaveDailyReportTemplateDto } from './dto/daily-log.dto';
 
 @Tiers('internal')
@@ -14,6 +15,7 @@ export class DailyLogsController {
     private readonly auth: AuthService,
     private readonly backup: DailyLogBackupService,
     private readonly automation: DailyReportAutomationService,
+    private readonly weekly: WeeklyReportService,
   ) {}
 
   @Get()
@@ -24,6 +26,19 @@ export class DailyLogsController {
   @Get('day')
   getForDay(@Query('projectId') projectId: string, @Query('date') date: string, @Query('id') id?: string) {
     return this.service.getForDay(Number(projectId), date, id || undefined);
+  }
+
+  /** A project's week, rolled up from its daily reports. `week` is any day in it. */
+  @Get('weekly')
+  weeklyReport(@Query('projectId') projectId: string, @Query('week') week?: string) {
+    return this.weekly.week(Number(projectId), week || '');
+  }
+
+  /** Email the week as PDF + Excel, to the usual backup list or to `to`. */
+  @Post('weekly/email')
+  emailWeekly(@Body() body: { projectId?: number; week?: string; to?: string }) {
+    const to = String(body?.to || '').split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+    return this.weekly.email(Number(body?.projectId), String(body?.week || ''), to.length ? to : undefined);
   }
 
   /** Named Daily Report templates -- shared by the whole team. */

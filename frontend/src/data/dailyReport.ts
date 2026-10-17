@@ -64,6 +64,17 @@ export interface SubRow { id: string; contractorId?: string; name?: string; head
 export interface InspectorRow { id: string; authority?: string; what?: string; outcome?: Outcome; delay?: Delay; card?: FileRef | null }
 export interface VisitorRow { id: string; type?: string; personId?: string; name?: string; details?: string; taskId?: string }
 export interface NoteRow { id: string; text?: string; taskId?: string }
+/** VII. One delivery on the transmittal. */
+export interface DeliveryRow {
+  id: string; contractorId?: string; supplier?: string; poRef?: string; items?: string; qty?: number | '';
+  receivedBy?: string; condition?: 'good' | 'damaged' | 'short' | ''; notes?: string; photo?: FileRef | null; taskId?: string;
+}
+/** VIII. One piece of equipment on the utilization form. */
+export interface EquipmentRow {
+  id: string; equipment?: string; ownership?: 'owned' | 'rented' | ''; supplier?: string; operator?: string;
+  hoursUsed?: number | ''; hoursIdle?: number | ''; notes?: string; taskId?: string;
+}
+export const DELIVERY_CONDITIONS: [NonNullable<DeliveryRow['condition']>, string][] = [['good', 'Good'], ['damaged', 'Damaged'], ['short', 'Short / missing items']];
 
 export interface Sections {
   activity: {
@@ -84,8 +95,10 @@ export interface Sections {
   subs: { present: YesNo; rows: SubRow[] };
   inspectors: { present: YesNo; rows: InspectorRow[] };
   visitors: { present: YesNo; rows: VisitorRow[] };
-  deliveries: { present: YesNo; transmittal: YesNo; files: FileRef[] };
-  equipment: { used: YesNo; form: YesNo; files: FileRef[] };
+  /** The transmittal is filled in here (rows) or attached as a scan (files); `transmittal` says whether it's done. */
+  deliveries: { present: YesNo; transmittal: YesNo; files: FileRef[]; rows: DeliveryRow[] };
+  /** The Equipment Utilization form, filled in here (rows) or attached (files). */
+  equipment: { used: YesNo; form: YesNo; files: FileRef[]; rows: EquipmentRow[] };
   notes: NoteRow[];
 }
 
@@ -98,8 +111,8 @@ export function emptySections(): Sections {
     subs: { present: '', rows: [] },
     inspectors: { present: '', rows: [] },
     visitors: { present: '', rows: [] },
-    deliveries: { present: '', transmittal: '', files: [] },
-    equipment: { used: '', form: '', files: [] },
+    deliveries: { present: '', transmittal: '', files: [], rows: [] },
+    equipment: { used: '', form: '', files: [], rows: [] },
     notes: [],
   };
 }
@@ -114,8 +127,8 @@ export function normalizeSections(raw: unknown): Sections {
     subs: { ...base.subs, ...(s.subs || {}), rows: Array.isArray(s.subs?.rows) ? s.subs!.rows : [] },
     inspectors: { ...base.inspectors, ...(s.inspectors || {}), rows: Array.isArray(s.inspectors?.rows) ? s.inspectors!.rows : [] },
     visitors: { ...base.visitors, ...(s.visitors || {}), rows: Array.isArray(s.visitors?.rows) ? s.visitors!.rows : [] },
-    deliveries: { ...base.deliveries, ...(s.deliveries || {}), files: Array.isArray(s.deliveries?.files) ? s.deliveries!.files : [] },
-    equipment: { ...base.equipment, ...(s.equipment || {}), files: Array.isArray(s.equipment?.files) ? s.equipment!.files : [] },
+    deliveries: { ...base.deliveries, ...(s.deliveries || {}), files: Array.isArray(s.deliveries?.files) ? s.deliveries!.files : [], rows: Array.isArray(s.deliveries?.rows) ? s.deliveries!.rows : [] },
+    equipment: { ...base.equipment, ...(s.equipment || {}), files: Array.isArray(s.equipment?.files) ? s.equipment!.files : [], rows: Array.isArray(s.equipment?.rows) ? s.equipment!.rows : [] },
     notes: Array.isArray(s.notes) ? s.notes : [],
   };
 }
@@ -132,11 +145,24 @@ export function templateOf(s: Sections): Sections {
     activity: { ...s.activity, stop: {}, holiday: {}, ops: delays(s.activity.ops), force: clean({ ...s.activity.force, date: '' }), dOps: delays(s.activity.dOps), dForce: clean({ ...s.activity.dForce, date: '' }) },
     inspectors: { ...s.inspectors, rows: s.inspectors.rows.map((r) => ({ ...r, card: null, delay: r.delay ? clean({ ...r.delay, date: '' }) : r.delay })) },
     visitors: { ...s.visitors, rows: s.visitors.rows.map(clean) },
-    deliveries: { ...s.deliveries, files: [] },
-    equipment: { ...s.equipment, files: [] },
+    // The usual suppliers and machines stay; what arrived, how much and the hours belong to the day.
+    deliveries: { ...s.deliveries, files: [], rows: s.deliveries.rows.map((r) => ({ id: r.id, contractorId: r.contractorId, supplier: r.supplier })) },
+    equipment: { ...s.equipment, files: [], rows: s.equipment.rows.map((r) => ({ id: r.id, equipment: r.equipment, ownership: r.ownership, supplier: r.supplier, operator: r.operator })) },
     notes: s.notes.map(clean),
   };
 }
+
+// ------------------------------------------------------------------ VII / VIII forms
+
+const filled = (r: object) => Object.entries(r).some(([k, v]) => k !== 'id' && v !== '' && v != null && !(Array.isArray(v) && !v.length));
+/** The transmittal counts as done once a delivery is written up or a signed copy is attached. */
+export const transmittalDone = (d: Sections['deliveries']) => d.rows.some(filled) || d.files.length > 0;
+/** Same for the Equipment Utilization form. */
+export const equipmentFormDone = (e: Sections['equipment']) => e.rows.some(filled) || e.files.length > 0;
+export const equipmentHours = (rows: EquipmentRow[]) => ({
+  used: rows.reduce((a, r) => a + (Number(r.hoursUsed) || 0), 0),
+  idle: rows.reduce((a, r) => a + (Number(r.hoursIdle) || 0), 0),
+});
 
 // ------------------------------------------------------------------ carried-over highlighting
 

@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17d',
+    date: '2026-10-17',
+    title: 'Transmittal and equipment forms in the Daily Report, and the weekly report',
+    items: [
+      { area: 'Daily Report', kind: 'new', text: 'VII. Deliveries now has the transmittal built in: supplier, PO / ticket number, items, quantity, who received it, condition on arrival and a photo. A damaged or short delivery can become a task. A signed paper transmittal can still be attached.', where: 'Daily Report (field) → VII. Deliveries' },
+      { area: 'Daily Report', kind: 'new', text: 'VIII. Equipment now has the Equipment Utilization form: each machine, owned or rented (and from whom), operator, hours used and hours idle, with totals. Notes can become a task. The “Upload … form” task is only added when nothing was filled in or attached.', where: 'Daily Report (field) → VIII. Equipment used' },
+      { area: 'Daily Reports', kind: 'new', text: 'Weekly report: pick a project and a week to see every day (and the days with no report), hours by cost code and by worker, delays, inspections, visitors, deliveries, equipment and notes. “Email PDF / Excel” sends it to the usual list or to anyone you type in.', where: 'Construction → Daily Reports → Weekly report' },
+      { area: 'Daily Reports', kind: 'improved', text: 'The PDF and Excel copies emailed with each daily report now include the transmittal and the equipment form.', where: 'Daily report emails' },
+    ],
+  },
+  {
     id: '2026-10-17c',
     date: '2026-10-17',
     title: 'Checklist templates, contact statuses and moving leads back',

@@ -29,14 +29,23 @@ export function dailyLogRows(entries: LaborLogEntryEntity[], employees: Employee
 }
 
 /** The spreadsheet: one row per worker line, then the notes. */
-export function dailyLogCsv(meta: { project: string; date: string; supervisor: string; status: string; notes?: string }, rows: DailyLogRow[]) {
-  const lines = [
+export function dailyLogCsv(meta: { project: string; date: string; supervisor: string; status: string; notes?: string; sections?: any }, rows: DailyLogRow[]) {
+  const filled = (r: any) => Object.entries(r || {}).some(([k, v]) => k !== 'id' && v !== '' && v != null);
+  const del = meta.sections?.deliveries?.present === 'yes' ? (meta.sections.deliveries.rows || []).filter(filled) : [];
+  const eq = meta.sections?.equipment?.used === 'yes' ? (meta.sections.equipment.rows || []).filter(filled) : [];
+  const lines: unknown[][] = [
     ['Daily log', meta.project], ['Date', meta.date], ['Superintendent', meta.supervisor], ['Status', meta.status], [],
     ['Worker', 'Worker ID', 'Trade', 'Cost code', 'Division', 'Hours', 'Task', 'Team', 'What they worked on'],
     ...rows.map((r) => [r.worker, r.workerId, r.trade, r.code, r.division, r.hours, r.status, r.team, r.detail]),
     ['Total', '', '', '', '', rows.reduce((a, r) => a + r.hours, 0)],
     [], ['Site notes', meta.notes || ''],
   ];
+  // VII and VIII, when filled in on the report.
+  if (del.length) lines.push([], ['Transmittal (deliveries)'], ['Supplier', 'PO / ticket', 'Items', 'Qty', 'Received by', 'Condition', 'Notes'],
+    ...del.map((r: any) => [r.supplier || '', r.poRef || '', r.items || '', r.qty ?? '', r.receivedBy || '', r.condition || '', r.notes || '']));
+  if (eq.length) lines.push([], ['Equipment utilization'], ['Equipment', 'Owned / rented', 'Rented from', 'Operator', 'Hours used', 'Hours idle', 'Notes'],
+    ...eq.map((r: any) => [r.equipment || '', r.ownership || '', r.supplier || '', r.operator || '', r.hoursUsed ?? '', r.hoursIdle ?? '', r.notes || '']),
+    ['Total', '', '', '', eq.reduce((a: number, r: any) => a + (Number(r.hoursUsed) || 0), 0), eq.reduce((a: number, r: any) => a + (Number(r.hoursIdle) || 0), 0)]);
   return lines.map((l) => l.map(csvCell).join(',')).join('\r\n');
 }
 
@@ -125,7 +134,7 @@ export class DailyLogBackupService {
     const attachments: { filename: string; mimeType: string; content: Buffer }[] = [];
     try { attachments.push({ filename: `${base}.pdf`, mimeType: 'application/pdf', content: await this.google.htmlToPdf(html, base, undefined, true) }); }
     catch (e) { this.log.warn(`PDF for ${day.id} skipped: ${(e as Error).message}`); }
-    const csv = dailyLogCsv(meta, rows);
+    const csv = dailyLogCsv({ ...meta, sections: day.sections }, rows);
     try { attachments.push({ filename: `${base}.xlsx`, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', content: await this.google.csvToXlsx(csv, base) }); }
     catch (e) {
       this.log.warn(`Excel for ${day.id} fell back to CSV: ${(e as Error).message}`);
