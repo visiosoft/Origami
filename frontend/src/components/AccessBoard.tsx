@@ -6,6 +6,8 @@ import {
   type Role, type User, type Tier, type UserStatus,
 } from '../data/users';
 import './AccessBoard.css';
+import { AccessImport, LevelCell, UserAccessDrawer } from './AccessLevels';
+import { OVERALL_KEY, dataTypeLabel, permFor, usesLevels, type Extent, type Level as AccessLevel } from '../data/accessLevels';
 
 type Perms = Role['permissions'];
 type Level = 0 | 1 | 2;
@@ -43,6 +45,8 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
   const [saving, setSaving] = useState(false);
   const [inviteNote, setInviteNote] = useState<{ email: string; sent: boolean; url?: string; error?: string } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [accessFor, setAccessFor] = useState<User | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const rolesForTier = (t: Tier) => roles.filter((r) => r.tier === t).sort((a, b) => a.order - b.order);
   const roleName = (k: string) => roles.find((r) => r.key === k)?.name || k;
@@ -91,10 +95,18 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
     return m;
   }, []);
   const dirtyKeys = Object.keys(drafts).filter((k) => JSON.stringify(drafts[k]) !== JSON.stringify(roles.find((r) => r.key === k)?.permissions ?? {}));
-  const edit = (r: Role, key: string, next: { view: boolean; manage: boolean }) => {
+  const edit = (r: Role, key: string, next: Perms[string] | null) => {
     if (readOnly || r.key === 'admin') return;
-    setDrafts((d) => ({ ...d, [r.key]: { ...permsOf(r), [key]: next } }));
+    setDrafts((d) => { const p = { ...permsOf(r) }; if (next) p[key] = next; else delete p[key]; return { ...d, [r.key]: p }; });
   };
+  /** A level / extent from the grid: '' level = follow the overall access. */
+  const setLevel = (r: Role, key: string, level: AccessLevel | '', extent: Extent | '') => {
+    const note = permsOf(r)[key]?.note;
+    if (!level && key !== OVERALL_KEY) { edit(r, key, extent ? { ...(permsOf(r)[OVERALL_KEY] || { view: false, manage: false }), extent, ...(note ? { note } : {}) } : null); return; }
+    edit(r, key, permFor((level || 'view') as AccessLevel, extent || undefined, note));
+  };
+  const levelRoles = tierRoles.filter((r) => r.key !== 'admin' && usesLevels(permsOf(r)));
+  const finKeys = [...new Set(levelRoles.flatMap((r) => Object.keys(permsOf(r)).filter((k) => k.startsWith('fin:') || (!MODULES.some((m) => m.key === k) && k !== OVERALL_KEY && !k.startsWith('fin_') && /[:_]/.test(k) && !FIN_ACTIONS.some(([fk]) => fk === k)))))];
   const cycle = (r: Role, key: string) => {
     const lv = ((levelOf(permsOf(r)[key]) + 1) % 3) as Level;
     edit(r, key, { view: lv >= 1, manage: lv === 2 });
@@ -103,7 +115,8 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
     if (readOnly || r.key === 'admin') return;
     setDrafts((d) => {
       const p = { ...permsOf(r) };
-      for (const m of mods) p[m.key] = { view: lv >= 1, manage: lv === 2 };
+      // A role with levels: the whole group to Modify / View only / Block.
+      for (const m of mods) p[m.key] = usesLevels(p) ? permFor(lv === 2 ? 'modify' : lv === 1 ? 'view' : 'block', p[m.key]?.extent as Extent | undefined) : { view: lv >= 1, manage: lv === 2 };
       return { ...d, [r.key]: p };
     });
   };
@@ -133,6 +146,7 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
 
   const Switch = ({ r, k, label }: { r: Role; k: string; label: string }) => {
     if (r.key === 'admin') return <span className="ab-check" title="Administrators can do everything" />;
+    if (usesLevels(permsOf(r))) return <LevelCell perms={permsOf(r)} k={k} label={label} roleName={r.name} readOnly={readOnly} onChange={(l, e) => setLevel(r, k, l, e)} />;
     const lv = levelOf(permsOf(r)[k]);
     return (
       <button type="button" className={'ab-switch is-' + lv} disabled={readOnly}
@@ -147,7 +161,10 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
         <div>
           <p>Who can sign in, and what each role is allowed to see and change.{readOnly && <b> Your role can view this page but not change it.</b>}</p>
         </div>
-        {!readOnly && <button type="button" className="ab-invite" onClick={() => { setAdding((a) => !a); setDraft(BLANK); }}>{adding ? 'Cancel' : '+ Invite person'}</button>}
+        {!readOnly && <span style={{ display: 'inline-flex', gap: 8 }}>
+          <button type="button" className="ab-btn" onClick={() => setImporting(true)}>Import access sheet</button>
+          <button type="button" className="ab-invite" onClick={() => { setAdding((a) => !a); setDraft(BLANK); }}>{adding ? 'Cancel' : '+ Invite person'}</button>
+        </span>}
       </div>
 
       <div className="ab-grid">
@@ -224,6 +241,11 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
                         <button type="button" className="ab-icon" title={u.hasPassword ? 'Email a password reset link' : 'Re-send the invitation'} onClick={() => resend(u)}>
                           <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={5} width={18} height={14} rx={2} /><path d="m3 7 9 6 9-6" /></svg>
                         </button>
+                        {u.roleKey !== 'admin' && (
+                          <button type="button" className={'ab-icon' + (u.permissionOverrides && Object.keys(u.permissionOverrides).length ? ' is-changed' : '')} title={u.permissionOverrides && Object.keys(u.permissionOverrides).length ? `Access — ${Object.keys(u.permissionOverrides).length} changed from the role` : 'Access — what this person can see and do'} onClick={() => setAccessFor(u)} aria-label={`Access for ${u.name}`}>
+                            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><rect x={4} y={10} width={16} height={11} rx={2} /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+                          </button>
+                        )}
                         <button type="button" className={'ab-icon' + (open ? ' is-on' : '')} title="Edit details" onClick={() => setEditing(open ? null : u.id)}>
                           <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
                         </button>
@@ -253,7 +275,7 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
           <div className="ab-card-head">
             <div>
               <h2>What each role can do</h2>
-              <span className="ab-sub">Administrators can do everything. Click a switch to change it: off, view, manage.</span>
+              <span className="ab-sub">Administrators can do everything. {levelRoles.length ? 'Roles from the access sheet have levels — Block … Full edit — and an extent (A assigned projects, P portfolio); “↳” follows the overall access. Others: click a switch for off, view, manage.' : 'Click a switch to change it: off, view, manage.'}</span>
             </div>
             {!readOnly && <button type="button" className="ab-btn" onClick={() => setRoleModal({ key: null, name: '', description: '' })}>+ Role</button>}
           </div>
@@ -284,6 +306,12 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
                 </tr>
               </thead>
               <tbody>
+                {levelRoles.length > 0 && (
+                  <tr className="ab-overall">
+                    <td className="ab-mod">Overall access<small>what a line without its own setting gets · A assigned projects · P portfolio</small></td>
+                    {tierRoles.map((r) => <td key={r.key}>{r.key === 'admin' ? <span className="ab-check" /> : usesLevels(permsOf(r)) ? <LevelCell perms={permsOf(r)} k={OVERALL_KEY} label="Overall access" roleName={r.name} readOnly={readOnly} onChange={(l, e) => setLevel(r, OVERALL_KEY, l, e)} /> : null}</td>)}
+                  </tr>
+                )}
                 {groups.map(([g, mods]) => {
                   const isClosed = closed.has(g);
                   return [
@@ -315,6 +343,19 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
                     ))),
                   ];
                 })}
+                {finKeys.length > 0 && [
+                  <tr key="gfint" className="ab-group">
+                    <td className="ab-mod"><button type="button" onClick={() => setClosed((s) => { const n = new Set(s); if (n.has('$fint')) n.delete('$fint'); else n.add('$fint'); return n; })}>
+                      <span className={'ab-caret' + (closed.has('$fint') ? '' : ' is-open')}>›</span>Financial items &amp; other data<small>{finKeys.length}</small></button></td>
+                    {tierRoles.map((r) => <td key={r.key} />)}
+                  </tr>,
+                  ...(closed.has('$fint') ? [] : finKeys.map((k) => (
+                    <tr key={k}>
+                      <td className="ab-mod">{dataTypeLabel(k, MODULES)}{k.startsWith('fin:') && <small>hidden per item in the next release</small>}</td>
+                      {tierRoles.map((r) => <td key={r.key}><Switch r={r} k={k} label={dataTypeLabel(k, MODULES)} /></td>)}
+                    </tr>
+                  ))),
+                ]}
                 {tier === 'internal' && [
                   <tr key="gfin" className="ab-group">
                     <td className="ab-mod"><button type="button" onClick={() => setClosed((s) => { const n = new Set(s); if (n.has('$fin')) n.delete('$fin'); else n.add('$fin'); return n; })}>
@@ -352,6 +393,9 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
           )}
         </section>
       </div>
+
+      {accessFor && <UserAccessDrawer user={accessFor} onClose={() => setAccessFor(null)} onSaved={refreshAccess} />}
+      {importing && <AccessImport roles={roles} onClose={() => setImporting(false)} onDone={refreshAccess} />}
 
       {roleModal && (
         <div className="ab-modal-bg" onClick={() => setRoleModal(null)}>

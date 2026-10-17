@@ -69,7 +69,7 @@ describe('formatLike (dashboard count-up)', () => {
 
 describe('tint', () => {
   it('appends hex alpha to a plain colour', () => {
-    expect(tint('#173326', '22')).toBe('#17332622');
+    expect(tint('var(--forest)', '22')).toBe('#17332622');
   });
   it('mixes a theme variable with transparency', () => {
     expect(tint('var(--forest)', '80')).toBe('color-mix(in srgb, var(--forest) 50.2%, transparent)');

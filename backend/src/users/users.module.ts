@@ -6,10 +6,11 @@ import { UsersController } from './users.controller';
 import { RolesController } from './roles.controller';
 import { UsersService } from './users.service';
 import { RolesService } from './roles.service';
+import { AccessImportService } from './access-import.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserEntity, RoleEntity, ProjectTaskEntity, TaskEntity, AppSettingEntity]), AuthModule],
   controllers: [UsersController, RolesController],
-  providers: [UsersService, RolesService],
+  providers: [UsersService, RolesService, AccessImportService],
 })
 export class UsersModule {}

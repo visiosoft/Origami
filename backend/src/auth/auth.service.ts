@@ -7,6 +7,7 @@ import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { inviteEmail, resetEmail } from './email.templates';
 import { loadEmailBrand } from '../email/shell';
 import { FOUNDER_ADMIN } from '../seed-data/users';
+import { effectivePermissions } from '../users/access-levels';
 import {
   hashPassword, verifyPassword, passwordProblem,
   randomToken, hashToken, signJwt, verifyJwt, type SessionClaims,
@@ -309,7 +310,8 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Not signed in.');
     // The role's module permissions ride along so the app can show outside accounts only what they may use.
     const role = await this.roles.findOneBy({ key: user.roleKey });
-    return { ...publicUser(user), roleName: role?.name || user.roleKey, rolePermissions: role?.permissions || {}, isSuperintendent: await this.isSuperintendent(user) };
+    // With this person's own overrides on top (User Access & Roles -> a user -> Access).
+    return { ...publicUser(user), roleName: role?.name || user.roleKey, rolePermissions: effectivePermissions(role?.permissions as any, user.permissionOverrides as any), isSuperintendent: await this.isSuperintendent(user) };
   }
 
   /**

@@ -2,11 +2,12 @@ import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common'
 import { Roles, Tiers } from '../auth/guards/roles.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { AccessImportService } from './access-import.service';
 
 @Roles('admin')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService, private readonly access: AccessImportService) {}
 
   @Get()
   findAll() {
@@ -34,6 +35,18 @@ export class UsersController {
   @Post(':id/resend-invite')
   resendInvite(@Param('id') id: string) {
     return this.usersService.resendInvite(id);
+  }
+
+  /** A person's access: their role's settings and their own changes from them. */
+  @Get(':id/access')
+  getAccess(@Param('id') id: string) {
+    return this.access.overrides(id);
+  }
+
+  /** Set a person's own access changes ({ dataType: { level, extent } }); leaving one out puts it back to the role's. */
+  @Put(':id/access')
+  setAccess(@Param('id') id: string, @Body() dto: any) {
+    return this.access.setOverrides(id, dto?.overrides);
   }
 
   @Put(':id')

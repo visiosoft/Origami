@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18f',
+    date: '2026-10-18',
+    title: 'Granular access: levels, extents, per-person changes, and the access sheet import',
+    items: [
+      { area: 'User Access & Roles', kind: 'new', text: 'Roles can now set an access level for every menu item — Block, Block as permit, View only, Input, User, Dashboard, Modify, Full edit — and an extent: Assigned projects or Portfolio, with an Overall access line that anything not set follows.', where: 'Admin → User Access & Roles' },
+      { area: 'User Access & Roles', kind: 'new', text: '“Import access sheet” reads the PEOPLE ACCESS spreadsheet and shows a preview: every role (the Executive becomes the built-in Administrator), what it maps onto, and every account. Import creates the roles and the accounts and emails each new person an invite — the passwords in the sheet are ignored, and an Administrator always stays one.', where: 'User Access & Roles → Import access sheet' },
+      { area: 'User Access & Roles', kind: 'new', text: 'Change a person’s access from their role’s (the lock button on their row): anything changed shows in red, with “Reset all to role”.', where: 'User Access & Roles → a person → Access' },
+      { area: 'Projects', kind: 'improved', text: 'Staff whose access is “Assigned projects” see only the projects they’re linked to in People. Hiding individual financial figures (markups, profit, contingency…) per role comes in the next release; their settings are already imported.', where: 'Everywhere projects are listed' },
+    ],
+  },
+  {
     id: '2026-10-18e',
     date: '2026-10-18',
     title: 'Progress Photos: photos in the Progress view, and every photo shows',

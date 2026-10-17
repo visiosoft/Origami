@@ -1949,6 +1949,10 @@ __decorate([
     __metadata("design:type", String)
 ], UserEntity.prototype, "inviteExpiresAt", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "permissionOverrides", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
     __metadata("design:type", Object)
 ], UserEntity.prototype, "notifyOnAssignment", void 0);

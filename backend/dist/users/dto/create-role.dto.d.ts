@@ -9,5 +9,8 @@ export declare class CreateRoleDto {
     permissions?: Record<string, {
         view: boolean;
         manage: boolean;
+        level?: string;
+        extent?: string;
+        note?: string;
     }>;
 }

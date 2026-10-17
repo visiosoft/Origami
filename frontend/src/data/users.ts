@@ -5,7 +5,8 @@ export type Tier = 'internal' | 'client' | 'consultant';
 export type Action = 'view' | 'manage';
 export type UserStatus = 'pending' | 'active' | 'suspended';
 
-export type RolePermissions = Record<string, { view: boolean; manage: boolean }>;
+/** view / manage, plus -- for roles from the access matrix -- a level and an extent (see data/accessLevels.ts). */
+export type RolePermissions = Record<string, { view: boolean; manage: boolean; level?: string; extent?: string; note?: string }>;
 
 export interface Role {
   key: string;
@@ -37,6 +38,8 @@ export interface User {
   rolePermissions?: RolePermissions;
   /** The role's display name, from who-am-I. */
   roleName?: string;
+  /** This person's own access, changed from their role's (data type -> level / extent). */
+  permissionOverrides?: Record<string, { level?: string; extent?: string }> | null;
 }
 
 export { MODULES };

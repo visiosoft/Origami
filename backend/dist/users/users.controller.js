@@ -17,9 +17,11 @@ const common_1 = require("@nestjs/common");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./dto/create-user.dto");
+const access_import_service_1 = require("./access-import.service");
 let UsersController = class UsersController {
-    constructor(usersService) {
+    constructor(usersService, access) {
         this.usersService = usersService;
+        this.access = access;
     }
     findAll() {
         return this.usersService.findAll();
@@ -32,6 +34,12 @@ let UsersController = class UsersController {
     }
     resendInvite(id) {
         return this.usersService.resendInvite(id);
+    }
+    getAccess(id) {
+        return this.access.overrides(id);
+    }
+    setAccess(id, dto) {
+        return this.access.setOverrides(id, dto?.overrides);
     }
     update(id, dto) {
         return this.usersService.update(id, dto);
@@ -70,6 +78,21 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "resendInvite", null);
 __decorate([
+    (0, common_1.Get)(':id/access'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getAccess", null);
+__decorate([
+    (0, common_1.Put)(':id/access'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "setAccess", null);
+__decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -87,6 +110,6 @@ __decorate([
 exports.UsersController = UsersController = __decorate([
     (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Controller)('users'),
-    __metadata("design:paramtypes", [users_service_1.UsersService])
+    __metadata("design:paramtypes", [users_service_1.UsersService, access_import_service_1.AccessImportService])
 ], UsersController);
 //# sourceMappingURL=users.controller.js.map

@@ -473,12 +473,18 @@ export const api = {
     update: (id: string, data: unknown) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),
     resendInvite: (id: string) => request<{ invite: { sent: boolean; url?: string; error?: string } }>(`/users/${id}/resend-invite`, { method: 'POST' }),
+    /** A person's access: their role's settings and their own changes. */
+    access: (id: string) => request<{ userId: string; roleKey: string; roleName: string; rolePermissions: import('./data/users').RolePermissions; overrides: Record<string, { level?: string; extent?: string }> }>(`/users/${encodeURIComponent(id)}/access`),
+    setAccess: (id: string, overrides: Record<string, { level?: string; extent?: string }>) => request<any>(`/users/${encodeURIComponent(id)}/access`, { method: 'PUT', body: JSON.stringify({ overrides }) }),
   },
   roles: {
     list: () => request('/roles'),
     create: (data: unknown) => request('/roles', { method: 'POST', body: JSON.stringify(data) }),
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
+    /** The PEOPLE ACCESS sheet's rows: a preview (dryRun) or applied. */
+    importMatrix: (rows: string[][], opts: { dryRun: boolean; mapping?: Record<string, string>; invite?: boolean; updateExisting?: boolean }) =>
+      request<any>('/roles/import-matrix', { method: 'POST', body: JSON.stringify({ rows, ...opts }) }),
   },
   projectTasks: {
     /** Save pressed in the task editor: send the emails held on the task and its subtasks. */

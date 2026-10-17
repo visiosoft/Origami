@@ -530,6 +530,10 @@ export declare class UserEntity {
     inviteToken: string;
     inviteSentAt: string;
     inviteExpiresAt: string;
+    permissionOverrides: Record<string, {
+        level?: string;
+        extent?: string;
+    }> | null;
     notifyOnAssignment: boolean | null;
     notifyByEmail: boolean | null;
     notifyBySms: boolean | null;
