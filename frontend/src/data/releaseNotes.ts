@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18e',
+    date: '2026-10-18',
+    title: 'Progress Photos: photos in the Progress view, and every photo shows',
+    items: [
+      { area: 'Progress Photos', kind: 'fixed', text: 'The Progress view shows each category’s latest photos under its progress bar (click to open; “View all” when there are more), with “+ Add photos” for a category that has none.', where: 'Progress Photos → Progress' },
+      { area: 'Progress Photos', kind: 'fixed', text: 'Photos always show: a tile falls back to the photo itself while Drive is still making its thumbnail, and the viewer shows a large preview that works for iPhone (HEIC) photos too. Download still gives the original.', where: 'Progress Photos' },
+    ],
+  },
+  {
     id: '2026-10-18d',
     date: '2026-10-18',
     title: 'Progress Photos: progress updates and descriptions',

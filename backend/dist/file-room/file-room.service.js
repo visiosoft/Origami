@@ -192,11 +192,11 @@ let FileRoomService = class FileRoomService {
             throw new common_1.NotFoundException('File not found');
         return file;
     }
-    async content(id, thumb = false) {
+    async content(id, thumb = false, size) {
         const file = await this.load(id);
         if (!file.driveId)
             throw new common_1.NotFoundException('File has no stored content');
-        const stream = await this.google.downloadDriveFile(file.driveId, thumb);
+        const stream = await this.google.downloadDriveFile(file.driveId, thumb, size);
         return { file: this.hydrate(file), ...stream };
     }
     async preview(id) {

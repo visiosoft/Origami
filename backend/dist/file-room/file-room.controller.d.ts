@@ -44,7 +44,7 @@ export declare class FileRoomController {
     moveMany(dto: MoveFilesDto): Promise<{
         moved: number;
     }>;
-    content(id: string, thumb: string, download: string, res: Response, claims: SessionClaims | null): Promise<void>;
+    content(id: string, thumb: string, download: string, res: Response, claims: SessionClaims | null, size?: string): Promise<void>;
     preview(id: string, res: Response, claims: SessionClaims | null): Promise<void>;
     template(projectId: string): Promise<{
         created: number;

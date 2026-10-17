@@ -63,8 +63,8 @@ let FileRoomController = class FileRoomController {
     moveMany(dto) {
         return this.service.moveMany(dto.ids, dto.folderPath);
     }
-    async content(id, thumb, download, res, claims) {
-        const { file, body, mimeType } = await this.service.content(id, thumb === '1');
+    async content(id, thumb, download, res, claims, size) {
+        const { file, body, mimeType } = await this.service.content(id, thumb === '1', Number(size) || undefined);
         if (!(await this.access.canSee(claims, file.projectId))) {
             await body?.cancel?.().catch?.(() => { });
             res.status(403).json({ message: 'You don’t have access to this file.' });
@@ -189,8 +189,9 @@ __decorate([
     __param(2, (0, common_1.Query)('download')),
     __param(3, (0, common_1.Res)()),
     __param(4, (0, claims_decorator_1.Claims)()),
+    __param(5, (0, common_1.Query)('size')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, Object, Object]),
+    __metadata("design:paramtypes", [String, String, String, Object, Object, String]),
     __metadata("design:returntype", Promise)
 ], FileRoomController.prototype, "content", null);
 __decorate([

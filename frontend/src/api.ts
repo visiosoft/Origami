@@ -620,7 +620,7 @@ export const api = {
     update: (id: string, d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressPhoto>(`/progress-photos/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/progress-photos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     /** The photo itself (thumb: Drive's small version; download: as a file). */
-    url: (id: string, opts: { thumb?: boolean; download?: boolean } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? '?thumb=1' : opts.download ? '?download=1' : ''}`,
+    url: (id: string, opts: { thumb?: boolean; download?: boolean; size?: number } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? `?thumb=1${opts.size ? `&size=${opts.size}` : ''}` : opts.download ? '?download=1' : ''}`,
   },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),

@@ -83,7 +83,7 @@ export declare class GoogleService {
         buffer: Buffer;
         parentId: string;
     }): Promise<DriveFile>;
-    downloadDriveFile(id: string, thumb?: boolean): Promise<{
+    downloadDriveFile(id: string, thumb?: boolean, size?: number): Promise<{
         body: any;
         mimeType: string;
         size?: string;
@@ -112,3 +112,4 @@ export declare class GoogleService {
     }>;
     listDriveFiles(q?: string, pageSize?: number): Promise<DriveFile[]>;
 }
+export declare function thumbnailAt(link: string, size?: number): string;

@@ -231,10 +231,10 @@ export class FileRoomService {
   }
 
   /** Stream a file's bytes; the record is resolved first, never a bare Drive id. */
-  async content(id: string, thumb = false) {
+  async content(id: string, thumb = false, size?: number) {
     const file = await this.load(id);
     if (!file.driveId) throw new NotFoundException('File has no stored content');
-    const stream = await this.google.downloadDriveFile(file.driveId, thumb);
+    const stream = await this.google.downloadDriveFile(file.driveId, thumb, size);
     return { file: this.hydrate(file), ...stream };
   }
 

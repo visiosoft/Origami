@@ -94,8 +94,9 @@ export class FileRoomController {
     @Query('download') download: string,
     @Res() res: Response,
     @Claims() claims: SessionClaims | null,
+    @Query('size') size?: string,
   ) {
-    const { file, body, mimeType } = await this.service.content(id, thumb === '1');
+    const { file, body, mimeType } = await this.service.content(id, thumb === '1', Number(size) || undefined);
     if (!(await this.access.canSee(claims, (file as any).projectId))) {
       await (body as any)?.cancel?.().catch?.(() => {});
       res.status(403).json({ message: 'You don’t have access to this file.' });

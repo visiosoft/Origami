@@ -409,7 +409,7 @@ export class GoogleService {
    * the requester is entitled to this particular file — see the task-scoped
    * content endpoints, which look the id up on the task first.
    */
-  async downloadDriveFile(id: string, thumb = false): Promise<{ body: any; mimeType: string; size?: string }> {
+  async downloadDriveFile(id: string, thumb = false, size?: number): Promise<{ body: any; mimeType: string; size?: string }> {
     const token = await this.workspaceToken();
 
     if (thumb) {
@@ -419,7 +419,7 @@ export class GoogleService {
       const metaBody: any = await meta.json().catch(() => ({}));
       if (meta.ok && metaBody?.thumbnailLink) {
         // Drive thumbnails are served from a token-authenticated CDN URL.
-        const thumbRes = await fetch(metaBody.thumbnailLink, { headers: { Authorization: `Bearer ${token}` } });
+        const thumbRes = await fetch(thumbnailAt(metaBody.thumbnailLink, size), { headers: { Authorization: `Bearer ${token}` } });
         if (thumbRes.ok) {
           return { body: thumbRes.body, mimeType: thumbRes.headers.get('content-type') || 'image/jpeg' };
         }
@@ -896,4 +896,14 @@ function encode(message: string) {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
+}
+
+/**
+ * A Drive thumbnail link at another size: the link ends in "=s220"; a larger
+ * one (up to 2000px) is a JPEG preview of any photo, HEIC included.
+ */
+export function thumbnailAt(link: string, size?: number): string {
+  if (!size) return link;
+  const px = Math.max(64, Math.min(2000, Math.round(size)));
+  return /=s\d+(-[a-z]+)?$/i.test(link) ? link.replace(/=s\d+(-[a-z]+)?$/i, `=s${px}`) : `${link}=s${px}`;
 }

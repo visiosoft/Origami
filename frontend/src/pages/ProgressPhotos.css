@@ -58,3 +58,7 @@
 .pp-thumbs figure { margin: 0; display: grid; gap: 4px; }
 .pp-thumbs img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; }
 .pp-thumbs input { width: 100%; box-sizing: border-box; font: inherit; font-size: 11px; padding: 3px 4px; border: 1px solid rgba(var(--rgb-shade), 0.14); border-radius: 6px; background: var(--surface); color: var(--ink); }
+
+/* The Progress view's row of a category's latest photos. */
+.pp-grid.is-strip { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.pp-grid.is-strip .pp-tile-desc { -webkit-line-clamp: 2; }

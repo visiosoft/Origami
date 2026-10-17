@@ -49,7 +49,7 @@ export declare class FileRoomService {
         buffer: Buffer;
     }>, actor: UploadActor): Promise<FileRoomFileEntity[]>;
     private load;
-    content(id: string, thumb?: boolean): Promise<{
+    content(id: string, thumb?: boolean, size?: number): Promise<{
         body: any;
         mimeType: string;
         size?: string;

@@ -46,7 +46,9 @@ function Tile({ id, title, sub, desc, flag, picked, onPick, onClick }: { id: str
   return (
     <button type="button" className={'pp-tile' + (picked ? ' is-picked' : '')} onClick={onClick} title={desc || title}>
       <span className="pp-tile-img">
-        <img src={api.progressPhotos.url(id, { thumb: true })} alt={desc || title} loading="lazy" />
+        {/* Drive makes thumbnails a few seconds after upload: until then, the photo itself. */}
+        <img src={api.progressPhotos.url(id, { thumb: true, size: 480 })} alt={desc || title} loading="lazy"
+          onError={(e) => { const img = e.currentTarget; if (!img.dataset.full) { img.dataset.full = '1'; img.src = api.progressPhotos.url(id); } }} />
         {flag && <span className="pp-tile-flag">{flag}</span>}
         {onPick && <input type="checkbox" className="pp-tile-check" checked={!!picked} onClick={(e) => e.stopPropagation()} onChange={(e) => onPick(e.target.checked)} aria-label={`Select ${title}`} />}
       </span>
@@ -105,6 +107,8 @@ export function ProgressPhotos() {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // "+ Add photos" from a category in the Progress view opens on that category.
+  const [uploadCat, setUploadCat] = useState('');
 
   useEffect(() => {
     api.projects.list().then((r: any) => {
@@ -205,6 +209,20 @@ export function ProgressPhotos() {
                     {canManage && <button type="button" className="ak-btn" style={{ height: 32 }} onClick={() => setNoting({ category: c.name, from: last, track: last?.track || (cats?.design.some((d) => d.name === c.name) ? 'design' : 'construction') })}>Update progress</button>}
                   </div>
                   {last?.description && <div style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{last.description}</div>}
+                  {(() => {
+                    const pics = shown.filter((p) => p.category === c.name);
+                    if (!pics.length) return (
+                      <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+                        No photos yet{canManage && <> — <button type="button" onClick={() => { setUploadCat(c.name); setUploading(true); }} style={{ border: 0, background: 'none', padding: 0, font: 'inherit', fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>+ Add photos</button></>}
+                      </div>
+                    );
+                    return (
+                      <>
+                        <div className="pp-grid is-strip">{pics.slice(0, 8).map(tile)}</div>
+                        {pics.length > 8 && <button type="button" onClick={() => { setCategory(c.name); setView('category'); }} style={{ justifySelf: 'start', border: 0, background: 'none', padding: 0, font: 'inherit', fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>View all {pics.length} →</button>}
+                      </>
+                    );
+                  })()}
                   {hist.length > 1 && (
                     <details><summary style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Earlier updates ({hist.length - 1})</summary>
                       <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>{hist.slice(1).map((n) => <NoteCard key={n.id} n={n} onEdit={noteEdit(n)} />)}</div>
@@ -252,8 +270,8 @@ export function ProgressPhotos() {
       {noting && projectId && <NoteDrawer projectId={projectId} cats={cats} note={noting.note} category={noting.category} track={noting.track} from={noting.from}
         onClose={() => setNoting(null)} onDone={() => { setNoting(null); load(); }} />}
 
-      {uploading && projectId && <Upload projectId={projectId} cats={cats} defaultTrack={track === 'design' ? 'design' : 'construction'} defaultCategory={category}
-        onClose={() => setUploading(false)} onDone={() => { setUploading(false); load(); }} />}
+      {uploading && projectId && <Upload projectId={projectId} cats={cats} defaultTrack={track === 'design' ? 'design' : 'construction'} defaultCategory={uploadCat || category}
+        onClose={() => { setUploading(false); setUploadCat(''); }} onDone={() => { setUploading(false); setUploadCat(''); load(); }} />}
     </AkPage>
   );
 }
@@ -352,7 +370,9 @@ function Viewer({ photo, cats, canManage, onPrev, onNext, onClose, onChanged, on
   return createPortal(
     <div className="pp-light" role="dialog" aria-label="Photo" onClick={onClose}>
       <div className="pp-light-img" onClick={(e) => e.stopPropagation()}>
-        <img src={api.progressPhotos.url(photo.id)} alt={photo.caption || photo.category} />
+        {/* A large JPEG preview shows any photo (iPhone HEIC too) and loads fast; the original if that fails. */}
+        <img key={photo.id} src={api.progressPhotos.url(photo.id, { thumb: true, size: 1600 })} alt={photo.caption || photo.category}
+          onError={(e) => { const img = e.currentTarget; if (!img.dataset.full) { img.dataset.full = '1'; img.src = api.progressPhotos.url(photo.id); } }} />
         {onPrev && <button type="button" className="pp-light-nav is-prev" onClick={onPrev} aria-label="Previous photo">‹</button>}
         {onNext && <button type="button" className="pp-light-nav is-next" onClick={onNext} aria-label="Next photo">›</button>}
       </div>

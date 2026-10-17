@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GoogleService = exports.MY_CALENDAR_SCOPES = exports.LOGIN_SCOPES = exports.WORKSPACE_SCOPES = void 0;
+exports.thumbnailAt = thumbnailAt;
 const common_1 = require("@nestjs/common");
 const settings_service_1 = require("../settings/settings.service");
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -319,7 +320,7 @@ let GoogleService = class GoogleService {
         }
         return out;
     }
-    async downloadDriveFile(id, thumb = false) {
+    async downloadDriveFile(id, thumb = false, size) {
         const token = await this.workspaceToken();
         if (thumb) {
             const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=thumbnailLink,mimeType&supportsAllDrives=true`, {
@@ -327,7 +328,7 @@ let GoogleService = class GoogleService {
             });
             const metaBody = await meta.json().catch(() => ({}));
             if (meta.ok && metaBody?.thumbnailLink) {
-                const thumbRes = await fetch(metaBody.thumbnailLink, { headers: { Authorization: `Bearer ${token}` } });
+                const thumbRes = await fetch(thumbnailAt(metaBody.thumbnailLink, size), { headers: { Authorization: `Bearer ${token}` } });
                 if (thumbRes.ok) {
                     return { body: thumbRes.body, mimeType: thumbRes.headers.get('content-type') || 'image/jpeg' };
                 }
@@ -739,5 +740,11 @@ function encode(message) {
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
+}
+function thumbnailAt(link, size) {
+    if (!size)
+        return link;
+    const px = Math.max(64, Math.min(2000, Math.round(size)));
+    return /=s\d+(-[a-z]+)?$/i.test(link) ? link.replace(/=s\d+(-[a-z]+)?$/i, `=s${px}`) : `${link}=s${px}`;
 }
 //# sourceMappingURL=google.service.js.map
