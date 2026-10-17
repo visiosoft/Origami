@@ -11,6 +11,7 @@ import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
   normalizeCollaborators, collaboratorChanges,
+  cleanPriority,
 } from '../database/task.types';
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -209,6 +210,7 @@ export class TasksService implements OnApplicationBootstrap {
       comments: [],
       checklist: normalizeList(dto.checklist),
       labels: normalizeList<string>(dto.labels),
+      priority: cleanPriority(dto.priority),
       linkedTaskIds: cleanIds(dto.linkedTaskIds),
       changeOrderIds: cleanIds(dto.changeOrderIds),
       collaborators: normalizeCollaborators(dto.collaborators, assignee.id),
@@ -256,6 +258,7 @@ export class TasksService implements OnApplicationBootstrap {
     }
 
     await this.bucketRules(task, patch, actor);
+    if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
 
     // Closing a task (any status marked "closed" in Settings) stamps the close
     // date; reopening clears it. "Blocked" is the board's old word for On hold.

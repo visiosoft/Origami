@@ -88,6 +88,7 @@ export declare class TaskEntity {
     assignedTo: string;
     status: string;
     originator: string;
+    priority: string;
     topicType: string;
     subject: string;
     description: string;

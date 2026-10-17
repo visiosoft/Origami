@@ -513,6 +513,8 @@ export const api = {
       request(`/project-program/versions/${id}/restore`, { method: 'POST', body: JSON.stringify(owner) }),
   },
   proposals: {
+    /** Client contracts sent and not signed yet (Approvals). */
+    awaiting: () => request<{ dealId: string; dealName: string; subject: string; amount: string; sentAt: string; sentTo: string }[]>('/proposals/awaiting'),
     get: (dealId: string) => request(`/proposals?dealId=${encodeURIComponent(dealId)}`),
     save: (dealId: string, body: { subject?: string; html?: string; amount?: string; requiresSecondSignatory?: boolean }) =>
       request('/proposals', { method: 'PUT', body: JSON.stringify({ dealId, ...body }) }),

@@ -125,6 +125,8 @@ export class TaskEntity {
   @Column({ nullable: true }) assignedTo!: string;
   @Column() status!: string;
   @Column({ nullable: true }) originator!: string;
+  /** Urgent / High / Medium / Low, or empty for none -- the same scale as every special action. */
+  @Column({ nullable: true }) priority!: string;
   @Column() topicType!: string;
   /** The task's name. Older tasks have none: their first description line serves as the name. */
   @Column({ nullable: true }) subject!: string;

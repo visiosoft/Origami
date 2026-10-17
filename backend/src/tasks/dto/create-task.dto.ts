@@ -15,6 +15,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() meetingId?: string;
   /** The task's name, kept apart from the description. */
   @IsString() @IsOptional() subject?: string;
+  @IsString() @IsOptional() priority?: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;

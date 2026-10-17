@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TRACKED_FIELDS = exports.isHoldSection = exports.isTaskDone = exports.isDoneStatus = exports.TASK_BUCKETS = exports.TASK_STATUSES = void 0;
+exports.TRACKED_FIELDS = exports.isHoldSection = exports.isTaskDone = exports.isDoneStatus = exports.TASK_BUCKETS = exports.TASK_STATUSES = exports.cleanPriority = exports.PRIORITIES = void 0;
 exports.normalizeTaskStatus = normalizeTaskStatus;
 exports.bucketStatus = bucketStatus;
 exports.subId = subId;
@@ -10,6 +10,9 @@ exports.event = event;
 exports.normalizeCollaborators = normalizeCollaborators;
 exports.collaboratorChanges = collaboratorChanges;
 exports.diffEvents = diffEvents;
+exports.PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'];
+const cleanPriority = (v) => exports.PRIORITIES.includes(String(v)) ? String(v) : '';
+exports.cleanPriority = cleanPriority;
 exports.TASK_STATUSES = ['Not started', 'In progress', 'On hold', 'Done'];
 function normalizeTaskStatus(v) {
     if (v == null)

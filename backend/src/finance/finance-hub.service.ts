@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
-  ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
+  ChangeOrderEntity, ChangeOrderItemEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
   ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
 } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
@@ -14,7 +14,7 @@ import { fromCents, sumCents, toCents } from './money';
 
 /** One thing waiting on someone's decision, wherever it lives. */
 export interface Pending {
-  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill';
+  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill' | 'commitment';
   id: string; projectId: number; projectName: string; title: string; detail: string; amount: number | null; since: string; canAct: boolean;
   itemKind?: string;
 }
@@ -43,6 +43,8 @@ export class FinanceHubService {
     private readonly costs?: CostsService,
     @InjectRepository(CostEntryEntity) private readonly costEntries?: Repository<CostEntryEntity>,
     @InjectRepository(ProjectPaymentEntity) private readonly payments?: Repository<ProjectPaymentEntity>,
+    @InjectRepository(CommitmentEntity) private readonly commitments?: Repository<CommitmentEntity>,
+    @InjectRepository(CommitmentLineEntity) private readonly commitmentLines?: Repository<CommitmentLineEntity>,
   ) {}
 
   private async names() {
@@ -72,6 +74,21 @@ export class FinanceHubService {
         out.push({
           type: 'reimbursable', id: x.id, projectId: x.projectId, projectName: pn(x.projectId), title: `${x.number} ${x.description}`,
           detail: `Submitted by ${x.submittedBy || '—'}${x.vendor ? ` · ${x.vendor}` : ''}`, amount: fromCents(reimbursableBillC(x)), since: x.createdAt, canAct: r.approveReimbursables,
+        });
+      }
+    }
+    if ((r.manageCosts || r.approveCosts) && this.commitments) {
+      // Contracts with subcontractors and vendors, drafted and waiting to be approved.
+      const drafts = await this.commitments.find({ where: { status: 'draft' } });
+      const lines = drafts.length && this.commitmentLines ? await this.commitmentLines.find({ where: { commitmentId: In(drafts.map((c) => c.id)) } }) : [];
+      const KIND: Record<string, string> = { subcontract: 'Subcontract', purchase_order: 'Purchase order', service: 'Service agreement' };
+      for (const c of drafts) {
+        const mine = lines.filter((l) => l.commitmentId === c.id);
+        if (!mine.length) continue; // still being written up
+        out.push({
+          type: 'commitment', id: c.id, projectId: c.projectId, projectName: pn(c.projectId), title: `${c.number} ${c.title}`,
+          detail: `${KIND[c.type] || 'Contract'} with ${c.vendorName || '—'}${c.createdBy ? ` · drafted by ${c.createdBy}` : ''}`,
+          amount: fromCents(sumCents(mine.map((l) => toCents(l.amount)))), since: c.createdAt, canAct: r.approveCosts,
         });
       }
     }

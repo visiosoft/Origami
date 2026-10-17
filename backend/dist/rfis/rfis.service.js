@@ -143,7 +143,7 @@ let RfisService = class RfisService {
                 discipline: rfi_document_1.RFI_DISCIPLINES.includes(dto.discipline) ? dto.discipline : undefined,
                 specSection: cleanText(dto.specSection, 100) || undefined, drawingRef: cleanText(dto.drawingRef, 300) || undefined,
                 drawings: cleanDrawings(dto.drawings), to: cleanContact(dto.to), cc: (Array.isArray(dto.cc) ? dto.cc : []).map(cleanContact).filter(Boolean),
-                ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: ['Low', 'Medium', 'High'].includes(dto.priority) ? dto.priority : 'Medium',
+                ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: (0, task_types_1.cleanPriority)(dto.priority),
                 dateDue: ISO.test(dto.dateDue || '') ? dto.dateDue : undefined,
                 sourceTaskId: cleanText(dto.sourceTaskId, 100) || undefined, sourceTaskType: dto.sourceTaskType === 'log' ? 'log' : dto.sourceTaskId ? 'board' : undefined,
                 attachments: [], history: [], createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
@@ -173,7 +173,7 @@ let RfisService = class RfisService {
             else if (k === 'discipline')
                 r.discipline = rfi_document_1.RFI_DISCIPLINES.includes(v) ? v : '';
             else if (k === 'priority')
-                r.priority = ['Low', 'Medium', 'High'].includes(v) ? v : 'Medium';
+                r.priority = (0, task_types_1.cleanPriority)(v);
             else if (k === 'dateDue' || k === 'dateAnswered')
                 r[k] = ISO.test(v || '') ? v : '';
             else if (k === 'costImpact' || k === 'scheduleImpact')

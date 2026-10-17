@@ -26,6 +26,9 @@ let ProposalController = class ProposalController {
         this.google = google;
         this.settings = settings;
     }
+    awaiting() {
+        return this.service.awaitingSignature();
+    }
     get(dealId) {
         return this.service.get(dealId);
     }
@@ -115,6 +118,13 @@ let ProposalController = class ProposalController {
     }
 };
 exports.ProposalController = ProposalController;
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Get)('awaiting'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ProposalController.prototype, "awaiting", null);
 __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Get)(),

@@ -18,6 +18,13 @@ export class ProposalController {
 
   // --- Staff side: preparing and sending the proposal ---
 
+  /** Sent to the client and not signed yet (Special Actions -> Approvals). */
+  @Tiers('internal')
+  @Get('awaiting')
+  awaiting() {
+    return this.service.awaitingSignature();
+  }
+
   @Tiers('internal')
   @Get()
   get(@Query('dealId') dealId: string) {

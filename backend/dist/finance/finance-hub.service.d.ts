@@ -1,10 +1,10 @@
 import { Repository } from 'typeorm';
-import { ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
+import { ChangeOrderEntity, ChangeOrderItemEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
 import { CostsService } from './costs.service';
 export interface Pending {
-    type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill';
+    type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill' | 'commitment';
     id: string;
     projectId: number;
     projectName: string;
@@ -33,7 +33,9 @@ export declare class FinanceHubService {
     private readonly costs?;
     private readonly costEntries?;
     private readonly payments?;
-    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined, costEntries?: Repository<CostEntryEntity> | undefined, payments?: Repository<ProjectPaymentEntity> | undefined);
+    private readonly commitments?;
+    private readonly commitmentLines?;
+    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined, costEntries?: Repository<CostEntryEntity> | undefined, payments?: Repository<ProjectPaymentEntity> | undefined, commitments?: Repository<CommitmentEntity> | undefined, commitmentLines?: Repository<CommitmentLineEntity> | undefined);
     private names;
     pending(actor: Actor): Promise<Pending[]>;
     portfolio(actor: Actor): Promise<any[]>;

@@ -23,7 +23,7 @@ const invoices_service_1 = require("./invoices.service");
 const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
 let FinanceHubService = class FinanceHubService {
-    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries, payments) {
+    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries, payments, commitments, commitmentLines) {
         this.fin = fin;
         this.projects = projects;
         this.pfin = pfin;
@@ -41,6 +41,8 @@ let FinanceHubService = class FinanceHubService {
         this.costs = costs;
         this.costEntries = costEntries;
         this.payments = payments;
+        this.commitments = commitments;
+        this.commitmentLines = commitmentLines;
     }
     async names() {
         return new Map((await this.projects.find()).map((p) => [p.id, p.name]));
@@ -67,6 +69,21 @@ let FinanceHubService = class FinanceHubService {
                 out.push({
                     type: 'reimbursable', id: x.id, projectId: x.projectId, projectName: pn(x.projectId), title: `${x.number} ${x.description}`,
                     detail: `Submitted by ${x.submittedBy || '—'}${x.vendor ? ` · ${x.vendor}` : ''}`, amount: (0, money_1.fromCents)((0, invoices_service_1.reimbursableBillC)(x)), since: x.createdAt, canAct: r.approveReimbursables,
+                });
+            }
+        }
+        if ((r.manageCosts || r.approveCosts) && this.commitments) {
+            const drafts = await this.commitments.find({ where: { status: 'draft' } });
+            const lines = drafts.length && this.commitmentLines ? await this.commitmentLines.find({ where: { commitmentId: (0, typeorm_2.In)(drafts.map((c) => c.id)) } }) : [];
+            const KIND = { subcontract: 'Subcontract', purchase_order: 'Purchase order', service: 'Service agreement' };
+            for (const c of drafts) {
+                const mine = lines.filter((l) => l.commitmentId === c.id);
+                if (!mine.length)
+                    continue;
+                out.push({
+                    type: 'commitment', id: c.id, projectId: c.projectId, projectName: pn(c.projectId), title: `${c.number} ${c.title}`,
+                    detail: `${KIND[c.type] || 'Contract'} with ${c.vendorName || '—'}${c.createdBy ? ` · drafted by ${c.createdBy}` : ''}`,
+                    amount: (0, money_1.fromCents)((0, money_1.sumCents)(mine.map((l) => (0, money_1.toCents)(l.amount)))), since: c.createdAt, canAct: r.approveCosts,
                 });
             }
         }
@@ -202,6 +219,8 @@ exports.FinanceHubService = FinanceHubService = __decorate([
     __param(13, (0, typeorm_1.InjectRepository)(entities_1.ProjectInvoiceLineEntity)),
     __param(15, (0, typeorm_1.InjectRepository)(entities_1.CostEntryEntity)),
     __param(16, (0, typeorm_1.InjectRepository)(entities_1.ProjectPaymentEntity)),
+    __param(17, (0, typeorm_1.InjectRepository)(entities_1.CommitmentEntity)),
+    __param(18, (0, typeorm_1.InjectRepository)(entities_1.CommitmentLineEntity)),
     __metadata("design:paramtypes", [financials_service_1.FinancialsService,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -217,6 +236,8 @@ exports.FinanceHubService = FinanceHubService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         costs_service_1.CostsService,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])
 ], FinanceHubService);

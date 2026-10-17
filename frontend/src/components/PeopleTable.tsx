@@ -1,4 +1,5 @@
 import { CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, internalLevelOf, type Person } from '../data/people';
+import { SortHeader, useSort } from './SortHeader';
 import './PeopleTable.css';
 
 /** Soft avatar colours, picked from the name so a person keeps theirs. */
@@ -28,21 +29,27 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
   onOpen: (id: number) => void;
 }) {
   const allOn = people.length > 0 && people.every((p) => picked.has(p.id));
+  // Click a heading to sort by it, again to reverse.
+  const { sorted, sort, toggle } = useSort(people, {
+    name: (p) => p.name, role: (p) => p.role, company: (p) => p.company, projects: (p) => p.projects.length,
+    since: (p) => (/^\d{4}-\d{2}-\d{2}/.test(p.since || '') ? p.since : ''), type: (p) => internalLevelOf(p) || p.kind,
+  }, null, { since: 'desc', projects: 'desc' });
+  const H = (k: string, label: string) => <SortHeader k={k} sort={sort} onSort={toggle}>{label}</SortHeader>;
   return (
     <div className="pt-card">
       <div className="pt-row pt-head" role="row">
         <span className="pt-check">
           <input type="checkbox" aria-label="Select all" checked={allOn} onChange={(e) => onPickAll(e.target.checked)} />
         </span>
-        <span>Name</span>
-        <span className="pt-hide-sm">Role</span>
-        <span className="pt-hide-md">Company</span>
-        <span className="pt-hide-md">Projects</span>
-        <span className="pt-hide-sm">Since</span>
-        <span>Type</span>
+        <span>{H('name', 'Name')}</span>
+        <span className="pt-hide-sm">{H('role', 'Role')}</span>
+        <span className="pt-hide-md">{H('company', 'Company')}</span>
+        <span className="pt-hide-md">{H('projects', 'Projects')}</span>
+        <span className="pt-hide-sm">{H('since', 'Since')}</span>
+        <span>{H('type', 'Type')}</span>
       </div>
       {people.length === 0 && <div className="pt-empty">No one matches.</div>}
-      {people.map((p, i) => {
+      {sorted.map((p, i) => {
         const on = picked.has(p.id);
         const alert = p.comply && !p.comply.ok;
         return (

@@ -48,6 +48,15 @@ let ProposalService = class ProposalService {
             this.log.warn(`Proposal amount backfill skipped: ${e.message}`);
         }
     }
+    async awaitingSignature() {
+        const rows = (await this.repo.find()).filter((r) => r.sentAt && !r.signedAt);
+        const out = [];
+        for (const r of rows) {
+            const deal = await this.pipeline.findOne(r.dealId).catch(() => null);
+            out.push({ dealId: r.dealId, dealName: deal?.name || r.dealId, subject: r.subject || '', amount: r.amount || '', sentAt: r.sentAt, sentTo: r.sentTo || '' });
+        }
+        return out.sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)));
+    }
     async get(dealId) {
         if (!dealId)
             throw new common_1.BadRequestException('Which deal?');

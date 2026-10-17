@@ -199,6 +199,7 @@ let TasksService = class TasksService {
             comments: [],
             checklist: (0, task_types_1.normalizeList)(dto.checklist),
             labels: (0, task_types_1.normalizeList)(dto.labels),
+            priority: (0, task_types_1.cleanPriority)(dto.priority),
             linkedTaskIds: cleanIds(dto.linkedTaskIds),
             changeOrderIds: cleanIds(dto.changeOrderIds),
             collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
@@ -237,6 +238,8 @@ let TasksService = class TasksService {
             patch.assignedToId = assignee.id ?? null;
         }
         await this.bucketRules(task, patch, actor);
+        if ('priority' in patch)
+            patch.priority = (0, task_types_1.cleanPriority)(patch.priority);
         const statuses = await this.statuses();
         if (patch.status && /^(blocked|on[\s-]*hold)$/i.test(String(patch.status)))
             patch.status = statuses.find((s) => /^on[\s-]*hold$/i.test(s.name))?.name || patch.status;

@@ -8,6 +8,14 @@ export declare class ProposalController {
     private readonly google;
     private readonly settings;
     constructor(service: ProposalService, google: GoogleService, settings: SettingsService);
+    awaiting(): Promise<{
+        dealId: string;
+        dealName: string;
+        subject: string;
+        amount: string;
+        sentAt: string;
+        sentTo: string;
+    }[]>;
     get(dealId: string): Promise<{
         dealId: string;
         dealName: string;

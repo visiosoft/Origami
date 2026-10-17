@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17f',
+    date: '2026-10-17',
+    title: 'Approvals for contracts and change orders, one priority scale, originators and more sorting',
+    items: [
+      { area: 'Approvals', kind: 'improved', text: 'Approvals now leads with contracts and change orders: subcontracts and purchase orders waiting to be approved, client contracts sent and not signed yet, and change orders in review. Everything else waiting on a decision is on the next tab.', where: 'Special Actions → Approvals' },
+      { area: 'Priority', kind: 'improved', text: 'RFIs and Request Log tasks use the same priority scale as board tasks — None, Urgent, High, Medium, Low — and picking one fills in the due date (or the date sets the priority).', where: 'Any RFI or task' },
+      { area: 'Special Actions', kind: 'new', text: 'Every task, FOR RECORD item, meeting, RFI and change order shows its originator, the date it was created and its number at the top.', where: 'Open any special action' },
+      { area: 'RFI', kind: 'new', text: 'A dashboard at the top of RFIs: awaiting an answer, overdue, answered, drafts, cost impact and average days open. Click a card to filter.', where: 'Special Actions → RFI' },
+      { area: 'Lists', kind: 'improved', text: 'More tables sort by their headings: People, Reimbursements, the finance approvals and the project portfolio.', where: 'People; Financial & Resource' },
+    ],
+  },
+  {
     id: '2026-10-17e',
     date: '2026-10-17',
     title: 'The new menu, one set of task buckets, and all tasks in one place',

@@ -47,6 +47,10 @@ export interface ActivityEvent {
   at: string;                 // ISO timestamp
 }
 
+/** One priority scale for every special action (Oct 16): Urgent, High, Medium, Low, or none (''). */
+export const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'] as const;
+export const cleanPriority = (v: unknown) => (PRIORITIES as readonly string[]).includes(String(v)) ? String(v) : '';
+
 /** The kinds of special action that can be duplicated or converted into one another. */
 export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
 

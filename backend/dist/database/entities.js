@@ -337,6 +337,10 @@ __decorate([
     __metadata("design:type", String)
 ], TaskEntity.prototype, "originator", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "priority", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "topicType", void 0);

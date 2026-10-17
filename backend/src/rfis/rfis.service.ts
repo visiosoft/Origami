@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { ProjectEntity, RfiEntity, UserEntity, type RfiContact, type RfiDrawingRef, type RfiEvent } from '../database/entities';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { GoogleService } from '../google/google.service';
-import { normalizeAttachments, subId, type TaskAttachment } from '../database/task.types';
+import { cleanPriority, normalizeAttachments, subId, type TaskAttachment } from '../database/task.types';
 import { ManpowerAccess, type Actor } from '../manpower/manpower-access.service';
 import { newId } from '../manpower/workforce.util';
 import { SettingsService } from '../settings/settings.service';
@@ -139,7 +139,7 @@ export class RfisService {
         discipline: RFI_DISCIPLINES.includes(dto.discipline) ? dto.discipline : undefined,
         specSection: cleanText(dto.specSection, 100) || undefined, drawingRef: cleanText(dto.drawingRef, 300) || undefined,
         drawings: cleanDrawings(dto.drawings), to: cleanContact(dto.to), cc: (Array.isArray(dto.cc) ? dto.cc : []).map(cleanContact).filter(Boolean) as RfiContact[],
-        ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: ['Low', 'Medium', 'High'].includes(dto.priority) ? dto.priority : 'Medium',
+        ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: cleanPriority(dto.priority),
         dateDue: ISO.test(dto.dateDue || '') ? dto.dateDue : undefined,
         sourceTaskId: cleanText(dto.sourceTaskId, 100) || undefined, sourceTaskType: dto.sourceTaskType === 'log' ? 'log' : dto.sourceTaskId ? 'board' : undefined,
         attachments: [], history: [], createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
@@ -157,7 +157,7 @@ export class RfisService {
       const v = dto[k];
       if (k === 'subject') { const s = cleanText(v, 300); if (!s) throw new BadRequestException('The subject can’t be empty.'); r.subject = s; }
       else if (k === 'discipline') r.discipline = RFI_DISCIPLINES.includes(v) ? v : '';
-      else if (k === 'priority') r.priority = ['Low', 'Medium', 'High'].includes(v) ? v : 'Medium';
+      else if (k === 'priority') r.priority = cleanPriority(v);
       else if (k === 'dateDue' || k === 'dateAnswered') (r as any)[k] = ISO.test(v || '') ? v : '';
       else if (k === 'costImpact' || k === 'scheduleImpact') (r as any)[k] = ['none', 'yes', 'tbd'].includes(v) ? v : '';
       else if (k === 'costAmount') r.costAmount = v === '' || v == null || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 100) / 100;

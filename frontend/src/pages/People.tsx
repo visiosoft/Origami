@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PeopleImport } from '../components/PeopleImport';
 import { PeopleTable } from '../components/PeopleTable';
+import { SortHeader, useSort } from '../components/SortHeader';
 import { getTheme, useTheme } from '../theme';
 import { toCsv } from '../data/csv';
 import { SubContractorSummary } from '../components/Contractors';
@@ -259,12 +260,18 @@ export function People() {
   );
 
   const cols = '1.5fr 92px 1.3fr 1.4fr 132px 84px';
+  const { sorted: tableSorted, sort: tableSort, toggle: toggleTableSort } = useSort(shown, {
+    name: (p) => p.name, kind: (p) => p.kind, projects: (p) => p.projects.length, contact: (p) => p.email || p.phone,
+    comply: (p) => (p.comply ? (p.comply.ok ? 1 : 0) : null), tier: (p) => p.tier,
+  }, null, { projects: 'desc' });
   const tableView = (
     <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 720 }}>
-        <span>Person / Company</span><span>Kind</span><span>Projects</span><span>Contact</span><span>Compliance</span><span>Tier</span>
+        <SortHeader k="name" sort={tableSort} onSort={toggleTableSort}>Person / Company</SortHeader><SortHeader k="kind" sort={tableSort} onSort={toggleTableSort}>Kind</SortHeader>
+        <SortHeader k="projects" sort={tableSort} onSort={toggleTableSort}>Projects</SortHeader><SortHeader k="contact" sort={tableSort} onSort={toggleTableSort}>Contact</SortHeader>
+        <SortHeader k="comply" sort={tableSort} onSort={toggleTableSort}>Compliance</SortHeader><SortHeader k="tier" sort={tableSort} onSort={toggleTableSort}>Tier</SortHeader>
       </div>
-      {shown.map((p) => {
+      {tableSorted.map((p) => {
         const ks = KIND_STYLE[p.kind];
         const ts = TIER_STYLE[p.tier];
         return (

@@ -47,6 +47,17 @@ export class ProposalService implements OnApplicationBootstrap {
     }
   }
 
+  /** Client contracts (proposals) sent and not signed yet -- for Approvals. */
+  async awaitingSignature() {
+    const rows = (await this.repo.find()).filter((r) => r.sentAt && !r.signedAt);
+    const out = [];
+    for (const r of rows) {
+      const deal = await this.pipeline.findOne(r.dealId).catch(() => null);
+      out.push({ dealId: r.dealId, dealName: deal?.name || r.dealId, subject: r.subject || '', amount: r.amount || '', sentAt: r.sentAt, sentTo: r.sentTo || '' });
+    }
+    return out.sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)));
+  }
+
   async get(dealId: string) {
     if (!dealId) throw new BadRequestException('Which deal?');
     const row = await this.repo.findOneBy({ dealId });

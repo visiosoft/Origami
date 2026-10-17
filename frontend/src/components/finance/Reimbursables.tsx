@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
+import { SortHeader, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input, todayISO } from '../manpowerUi';
 import { ApprovalTrail, REIMB_CATEGORIES, ReasonBox, ReimbBadge, failed, label, usd, usd0, type Overview, type Reimbursable, type Rights } from './financeUi';
 
@@ -29,6 +30,11 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
   const shown = all.filter((r) => (status === 'all' || r.status === status) && (!q || `${r.number} ${r.description} ${r.vendor || ''} ${r.receiptNumber || ''} ${r.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
   const total = (pred: (r: Reimbursable) => boolean) => all.filter(pred).reduce((a, r) => a + (r.billable ? r.billAmount : r.cost), 0);
   const ready = all.filter((r) => r.status === 'approved' && r.billable && !r.invoiceId);
+  const { sorted, sort, toggle } = useSort(shown, {
+    number: (r) => r.number, project: (r) => r.projectName, date: (r) => r.date, desc: (r) => r.description, category: (r) => label(REIMB_CATEGORIES, r.category),
+    cost: (r) => r.cost, bill: (r) => (r.billable ? r.billAmount : null), status: (r) => r.status,
+  }, null, { date: 'desc', cost: 'desc', bill: 'desc' });
+  const H = (k: string, t: string, right?: boolean) => <SortHeader k={k} sort={sort} onSort={toggle} align={right ? 'right' : undefined}>{t}</SortHeader>;
   const cols = `${onBill ? '28px ' : ''}80px ${projectId ? '' : 'minmax(140px,1.2fr) '}100px minmax(200px,2fr) 140px 110px 110px 150px`;
 
   return (
@@ -61,11 +67,11 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: projectId ? 880 : 1040 }}>
             <div style={headRow(cols)}>
-              {onBill && <span />}<span>No.</span>{!projectId && <span>Project</span>}<span>Date</span><span>Expense</span><span>Category</span>
-              <span style={{ textAlign: 'right' }}>Cost</span><span style={{ textAlign: 'right' }}>To bill</span><span>Status</span>
+              {onBill && <span />}{H('number', 'No.')}{!projectId && H('project', 'Project')}{H('date', 'Date')}{H('desc', 'Expense')}{H('category', 'Category')}
+              {H('cost', 'Cost', true)}{H('bill', 'To bill', true)}{H('status', 'Status')}
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {shown.map((r) => {
+            {sorted.map((r) => {
               const pickable = r.status === 'approved' && r.billable && !r.invoiceId;
               return (
                 <div key={r.id} onClick={() => setOpen(r.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: r.status === 'rejected' ? 0.55 : 1 }}>

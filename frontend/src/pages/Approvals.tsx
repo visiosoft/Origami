@@ -18,10 +18,13 @@ interface Waiting {
   /** The caller can decide it (not just see it). */
   canAct: boolean;
 }
-type Kind = 'change_order' | 'reimbursable' | 'finance' | 'daily_report' | 'timesheet' | 'workforce';
+type Kind = 'change_order' | 'contract' | 'client_contract' | 'reimbursable' | 'finance' | 'daily_report' | 'timesheet' | 'workforce';
 const KIND: Record<Kind, string> = {
-  change_order: 'Change order', reimbursable: 'Reimbursement', finance: 'Finance', daily_report: 'Daily report', timesheet: 'Timesheet', workforce: 'Workforce request',
+  change_order: 'Change order', contract: 'Contract', client_contract: 'Client contract', reimbursable: 'Reimbursement', finance: 'Finance',
+  daily_report: 'Daily report', timesheet: 'Timesheet', workforce: 'Workforce request',
 };
+/** What Approvals is for (Oct 16): contracts and change orders. The rest is one tab over. */
+const MAIN: Kind[] = ['change_order', 'contract', 'client_contract'];
 const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
 /**
@@ -35,6 +38,7 @@ export function Approvals() {
   const { can } = useApp();
   const [rows, setRows] = useState<Waiting[] | null>(null);
   const [kind, setKind] = useState<'all' | Kind>('all');
+  const [group, setGroup] = useState<'main' | 'other'>('main');
   const [mine, setMine] = useState(true);
 
   useEffect(() => {
@@ -42,21 +46,31 @@ export function Approvals() {
     const canManpower = can('manpower_con', 'manage');
     const safe = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
     (async () => {
-      const [projects, finance, logs, sheets, requests] = await Promise.all([
+      const canContracts = can('pipeline', 'view') || can('projects', 'view');
+      const [projects, finance, logs, sheets, requests, proposals] = await Promise.all([
         safe(api.projects.list() as Promise<any[]>, []),
         can('fin_project', 'view') || can('changeorders', 'view') || can('reimbursement', 'view') ? safe(api.finance.approvals() as Promise<any[]>, []) : Promise.resolve([]),
         canManpower ? safe(api.dailyLogs.list({ status: 'submitted' }) as Promise<any[]>, []) : Promise.resolve([]),
         safe(api.timesheets.pendingNotices(), []),
         canManpower ? safe(api.workforceRequests.list() as Promise<any[]>, []) : Promise.resolve([]),
+        canContracts ? safe(api.proposals.awaiting(), []) : Promise.resolve([]),
       ]);
       const name = new Map<number, string>((Array.isArray(projects) ? projects : []).map((p: any) => [p.id, p.name]));
       const pn = (id: number) => name.get(id) || `Project ${id}`;
       const out: Waiting[] = [];
       for (const p of Array.isArray(finance) ? finance : []) {
-        const k: Kind = p.type === 'change_order' ? 'change_order' : p.type === 'reimbursable' ? 'reimbursable' : 'finance';
+        const k: Kind = p.type === 'change_order' ? 'change_order' : p.type === 'commitment' ? 'contract' : p.type === 'reimbursable' ? 'reimbursable' : 'finance';
         out.push({
           key: 'f' + p.type + p.id, kind: k, title: p.title, sub: [p.projectName, p.detail].filter(Boolean).join(' · '), since: p.since, amount: p.amount, canAct: !!p.canAct,
-          to: k === 'change_order' ? '/changeorders' : k === 'reimbursable' ? '/reimbursement' : '/fin_project',
+          to: k === 'change_order' ? `/changeorders?co=${encodeURIComponent(p.id)}` : k === 'reimbursable' ? '/reimbursement' : '/fin_project',
+        });
+      }
+      // Client contracts sent and waiting for the client's signature.
+      for (const c of Array.isArray(proposals) ? proposals : []) {
+        const amt = Number(String(c.amount || '').replace(/[^0-9.]/g, ''));
+        out.push({
+          key: 'p' + c.dealId, kind: 'client_contract', title: c.subject || `Contract — ${c.dealName}`, sub: [c.dealName, c.sentTo && 'sent to ' + c.sentTo, 'waiting for the client to sign'].filter(Boolean).join(' · '),
+          since: c.sentAt, amount: Number.isFinite(amt) && amt > 0 ? amt : null, canAct: true, to: `/pipeline?open=${encodeURIComponent(c.dealId)}`,
         });
       }
       for (const l of Array.isArray(logs) ? logs : []) {
@@ -76,21 +90,29 @@ export function Approvals() {
   }, [can]);
 
   const all = rows || [];
-  const scoped = all.filter((r) => !mine || r.canAct);
+  const inGroup = all.filter((r) => (group === 'main' ? MAIN.includes(r.kind) : !MAIN.includes(r.kind)));
+  const scoped = inGroup.filter((r) => !mine || r.canAct);
   const shown = scoped.filter((r) => kind === 'all' || r.kind === kind);
   const kinds = (Object.keys(KIND) as Kind[]).filter((k) => scoped.some((r) => r.kind === k));
   const oldest = scoped[0]?.since;
   const { sorted, sort, setSort } = useSort(shown, { since: (r) => r.since, title: (r) => r.title, amount: (r) => r.amount, kind: (r) => KIND[r.kind] });
 
   return (
-    <AkPage lead="Everything waiting on a decision — change orders, reimbursements and other finance items, daily reports, timesheets and workforce requests. Open one to approve it where it lives.">
+    <AkPage lead="Contracts and change orders waiting for approval — subcontracts and purchase orders to approve, client contracts waiting to be signed, and change orders in review. Open one to approve it where it lives.">
       <AkStats items={[
         { key: 'all', label: mine ? 'Waiting on you' : 'Waiting', value: rows ? scoped.length : '—', sub: rows && oldest ? `oldest since ${new Date(oldest).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : undefined, tone: scoped.length ? 'yellow' : undefined, onClick: () => setKind('all'), on: kind === 'all' },
-        { key: 'fin', label: 'Finance', value: rows ? scoped.filter((r) => r.kind === 'change_order' || r.kind === 'reimbursable' || r.kind === 'finance').length : '—', sub: 'change orders, reimbursements, invoices' },
-        { key: 'site', label: 'Site & people', value: rows ? scoped.filter((r) => r.kind === 'daily_report' || r.kind === 'timesheet' || r.kind === 'workforce').length : '—', sub: 'daily reports, timesheets, workforce' },
+        ...(group === 'main' ? [
+          { key: 'co', label: 'Change orders', value: rows ? scoped.filter((r) => r.kind === 'change_order').length : '—', sub: 'in review or with the client', onClick: () => setKind('change_order'), on: kind === 'change_order' },
+          { key: 'ct', label: 'Contracts to approve', value: rows ? scoped.filter((r) => r.kind === 'contract').length : '—', sub: 'subcontracts and purchase orders', onClick: () => setKind('contract'), on: kind === 'contract' },
+          { key: 'cc', label: 'Client contracts', value: rows ? scoped.filter((r) => r.kind === 'client_contract').length : '—', sub: 'sent, not signed yet', onClick: () => setKind('client_contract'), on: kind === 'client_contract' },
+        ] : [
+          { key: 'fin', label: 'Finance', value: rows ? scoped.filter((r) => r.kind === 'reimbursable' || r.kind === 'finance').length : '—', sub: 'reimbursements, invoices, bills' },
+          { key: 'site', label: 'Site & people', value: rows ? scoped.filter((r) => r.kind === 'daily_report' || r.kind === 'timesheet' || r.kind === 'workforce').length : '—', sub: 'daily reports, timesheets, workforce' },
+        ]),
       ]} />
 
       <div className="ak-tools">
+        <AkSeg<'main' | 'other'> value={group} onChange={(g) => { setGroup(g); setKind('all'); }} options={[['main', 'Contracts & change orders', all.filter((r) => MAIN.includes(r.kind) && (!mine || r.canAct)).length], ['other', 'Everything else', all.filter((r) => !MAIN.includes(r.kind) && (!mine || r.canAct)).length]]} />
         <AkSeg<'all' | Kind> options={[['all', 'All', scoped.length], ...kinds.map((k) => [k, KIND[k], scoped.filter((r) => r.kind === k).length] as ['all' | Kind, string, number])]} value={kind} onChange={setKind} />
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--muted)' }}>
           <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />Only what I can decide

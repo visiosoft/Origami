@@ -13,7 +13,7 @@ import {
 import { RECORD_TONE, raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
 import { SavedViews } from '../components/SavedViews';
-import { ActionMenu, ActionTrail } from '../components/ActionTools';
+import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 
@@ -328,6 +328,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
           {editable ? <input className="mt-title" value={draft.title} onChange={(e) => set({ title: e.target.value })} aria-label="Meeting title" /> : <h2>{item.title}</h2>}
           <button type="button" className="mt-x" onClick={onClose} aria-label="Close">×</button>
         </div>
+        {saved && <OriginatorLine by={saved.createdBy} at={saved.createdAt} />}
         {item.kind === 'meeting' ? (
           <>
             <div className="mt-status">

@@ -19,6 +19,7 @@ export class UpdateTaskDto {
   /** The meeting it was raised in. */
   @IsString() @IsOptional() meetingId?: string;
   @IsString() @IsOptional() subject?: string;
+  @IsString() @IsOptional() priority?: string;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;

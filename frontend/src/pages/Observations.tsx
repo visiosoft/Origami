@@ -8,7 +8,7 @@ import { FOR_RECORD_TOPICS, isForRecord, logTaskTitle, type Task } from '../data
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay } from '../components/ActionKit';
 import { SavedViews } from '../components/SavedViews';
-import { ActionMenu, ActionTrail } from '../components/ActionTools';
+import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 
@@ -209,6 +209,7 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
           <span className="mt-muted">{[item.project || 'No project', raisedOn(item) && 'raised ' + akDay(raisedOn(item)), item.originator && 'by ' + item.originator].filter(Boolean).join(' · ')}</span>
         </div>
         {item.subject && item.description && <p className="mt-muted" style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--ink)' }}>{item.description}</p>}
+        <OriginatorLine by={item.originator || (item.activity || []).find((e) => e.type === 'created')?.by} at={(item.activity || []).find((e) => e.type === 'created')?.at || raisedOn(item)} number={'#' + item.id} />
         <ActionTrail sourceType={item.sourceType} sourceId={item.sourceId} sourceLabel={item.sourceLabel} derived={item.derivedRefs} />
         <div className="mt-row">
           <button type="button" className="ak-btn" onClick={() => navigate(`/tasks?task=${encodeURIComponent(item.id)}&type=log`)}>Open in the Request Log</button>

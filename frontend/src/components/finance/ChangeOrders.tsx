@@ -3,7 +3,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
 import { SavedViews } from '../SavedViews';
-import { ActionMenu, ActionTrail } from '../ActionTools';
+import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
 import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import {
@@ -227,8 +227,9 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
   const cols = editable ? 'minmax(180px,1.6fr) minmax(200px,1.5fr) 60px 70px 90px 110px 100px 24px' : 'minmax(200px,1.6fr) minmax(200px,1.5fr) 110px 110px';
 
   return (
-    <Drawer title={`${co.number} · ${co.title}`} subtitle={`${label(CO_REASONS, co.reason)}${co.requestedBy ? ` · requested by ${co.requestedBy}` : ''}${co.createdBy ? ` · raised by ${co.createdBy}` : ''}`} width={1060} onClose={onClose}>
+    <Drawer title={`${co.number} · ${co.title}`} subtitle={`${label(CO_REASONS, co.reason)}${co.requestedBy ? ` · requested by ${co.requestedBy}` : ''}`} width={1060} onClose={onClose}>
       <div style={{ display: 'grid', gap: 16 }}>
+        <OriginatorLine by={co.createdBy} at={co.createdAt} number={co.number} />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <CoBadge s={co.status} />
           {co.status === 'approved' && <span style={{ fontSize: 12.5, color: MUTED }}>Approved {fmtDate(co.clientApprovedDate || co.approvedAt)} · signed by {co.clientSigner}{co.clientReference ? ` · ${co.clientReference}` : ''}</span>}

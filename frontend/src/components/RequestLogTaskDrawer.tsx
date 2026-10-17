@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createdByText } from '../data/projectTasks';
 import { useLogStatuses } from '../data/logStatuses';
-import { ActionMenu, ActionTrail } from './ActionTools';
+import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
+import { PrioritySelect } from './PrioritySelect';
+import { linkPriorityDue } from '../data/priority';
+import type { Priority } from '../data/projectTasks';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
 import { isMine, raisedBy } from './TaskScope';
@@ -18,7 +21,7 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task }
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'subject', 'description', 'resolution', 'checklist', 'labels'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -44,9 +47,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   const canManage = canDelete || isMine(task, currentUser, true) || raisedBy(task, currentUser?.id);
   const statuses = useLogStatuses();
   const [t, setT] = useState<Task>(task);
+  // Which of priority / due date was filled in from the other.
+  const autoPD = useRef<'priority' | 'due' | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   // Another task opened in the same drawer starts fresh; a reply for this one merges in (below).
-  useEffect(() => { setT(task); }, [task.id]);
+  useEffect(() => { setT(task); autoPD.current = null; }, [task.id]);
   useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false)); }, []);
 
   /** Edits stay in the draft until Save, or 3 seconds after typing stops; only changed fields are sent. */
@@ -107,6 +112,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             <input value={t.subject || ''} disabled={!canManage} onChange={(e) => set({ subject: e.target.value })} placeholder={taskHeadline(t.description).title || 'Subject'} aria-label="Subject"
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
+            <div style={{ marginTop: 6 }}><OriginatorLine by={t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '')} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={'#' + t.id} /></div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
           <div onClick={() => onClose()} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)', marginLeft: 16, flexShrink: 0 }}>
@@ -162,9 +168,16 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 type="date"
                 disabled={!canManage}
                 value={t.dueDate || ''}
-                onChange={(e) => set({ dueDate: e.target.value })}
+                onChange={(e) => { const r = linkPriorityDue({ priority: t.priority as Priority, dueDate: t.dueDate, auto: autoPD.current }, { dueDate: e.target.value }); autoPD.current = r.auto; set({ dueDate: r.dueDate, priority: r.priority }); }}
                 style={{ ...inputStyle, padding: '7px 9px' }}
               />
+              {autoPD.current === 'due' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the priority</div>}
+            </div>
+            <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Priority</div>
+              <PrioritySelect disabled={!canManage} value={t.priority} style={{ ...inputStyle, padding: '7px 9px' }}
+                onChange={(p) => { const r = linkPriorityDue({ priority: t.priority as Priority, dueDate: t.dueDate, auto: autoPD.current }, { priority: p }); autoPD.current = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} />
+              {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
             </div>
             {([['Date Closed', t.dateClosed || '—'], ['Days Open', t.daysOpen > 0 ? t.daysOpen + ' days' : '—'], ['Originator', t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || '—']] as [string, string][]).map((r) => (
               <div key={r[0]} style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>

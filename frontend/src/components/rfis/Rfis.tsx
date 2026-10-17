@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
 import { SavedViews } from '../SavedViews';
-import { ActionMenu, ActionTrail } from '../ActionTools';
+import { AkStats } from '../ActionKit';
+import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
+import { PrioritySelect } from '../PrioritySelect';
+import { linkPriorityDue } from '../../data/priority';
+import type { Priority } from '../../data/projectTasks';
 import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { useApp } from '../../AppContext';
 import { SaveBar, useAutosave } from '../../autosave';
@@ -113,6 +117,17 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
   const applyView = (v: typeof viewValue) => {
     setStatus(v.status as typeof status); setQ(v.q || ''); setSort(sortFromString(v.sort));
   };
+  // The RFI dashboard (Oct 16): the numbers at a glance; each card filters the list.
+  const stats = useMemo(() => {
+    const live = rows.filter((r) => r.status !== 'void');
+    const days = live.map(daysOpen).filter((d): d is number => d != null);
+    return {
+      draft: live.filter((r) => r.status === 'draft').length,
+      avg: days.length ? Math.round(days.reduce((a, d) => a + d, 0) / days.length) : null,
+      cost: live.filter((r) => r.costImpact === 'yes' && r.status !== 'closed').length,
+      closed: live.filter((r) => r.status === 'closed').length,
+    };
+  }, [rows]);
   const counts = useMemo(() => ({
     open: rows.filter((r) => r.status === 'open').length,
     overdue: rows.filter(isOverdue).length,
@@ -159,6 +174,16 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
         </select>
         {rights?.manage && <button type="button" onClick={() => setCreating(true)} style={btn(true)}>+ New RFI</button>}
       </div>
+      {!compact && !loading && rows.length > 0 && (
+        <div style={{ marginBottom: 14 }}><AkStats items={[
+          { key: 'open', label: 'Awaiting an answer', value: counts.open, sub: 'sent, not answered', onClick: () => setStatus('open'), on: status === 'open' },
+          { key: 'late', label: 'Overdue', value: counts.overdue, sub: 'past the answer date', tone: counts.overdue ? 'dark' : undefined },
+          { key: 'ans', label: 'Answered', value: counts.answered, sub: 'to review and close', tone: counts.answered ? 'yellow' : undefined, onClick: () => setStatus('answered'), on: status === 'answered' },
+          { key: 'draft', label: 'Drafts', value: stats.draft, sub: 'not sent yet', onClick: () => setStatus('draft'), on: status === 'draft' },
+          { key: 'cost', label: 'Cost impact', value: stats.cost, sub: 'open RFIs that change the price' },
+          { key: 'avg', label: 'Average days open', value: stats.avg ?? '—', sub: `${stats.closed} closed so far` },
+        ]} /></div>
+      )}
       <div style={{ marginBottom: 12 }}><SavedViews page={projectId ? 'rfis.project' : 'rfis'} value={viewValue} defaults={{ status: 'active', q: '', sort: '' }} onApply={applyView} /></div>
 
       {creating && (
@@ -278,6 +303,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
     onSaved: (row) => { setRec(row); onChanged(row); },
   });
   const set = (patch: Partial<Rfi>) => setDraft((d) => ({ ...d, ...patch }));
+  // Which of priority / answer date was filled in from the other.
+  const autoPD = useRef<'priority' | 'due' | null>(null);
 
   /** Actions: save any pending edits first, then take the server's record as the new baseline. */
   const act = async (fn: () => Promise<Rfi>, done: string) => {
@@ -347,6 +374,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
             : <input value={draft.subject || ''} onChange={(e) => set({ subject: e.target.value })} style={{ ...input, fontFamily: BG, fontSize: 18, fontWeight: 700, border: '1px solid transparent', padding: '4px 6px', marginLeft: -6 }} />}
           {rec.status === 'void' && rec.voidReason && <div style={{ fontSize: 12.5, color: '#8E2E0A', marginTop: 6 }}>Voided: {rec.voidReason}</div>}
+          <div style={{ marginTop: 6 }}><OriginatorLine by={rec.createdBy} at={rec.createdAt} number={rec.number} /></div>
           <div style={{ marginTop: 8 }}><ActionTrail sourceType={rec.sourceType || (rec.sourceTaskId ? rec.sourceTaskType || 'board' : null)} sourceId={rec.sourceId || rec.sourceTaskId} sourceLabel={rec.sourceLabel || 'a task'} derived={rec.derivedRefs} /></div>
 
           {/* Actions */}
@@ -504,9 +532,11 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginTop: 12 }}>
-            <div><div style={lbl}>Answer needed by</div><input readOnly={ro} type="date" value={draft.dateDue || ''} onChange={(e) => set({ dateDue: e.target.value })} style={input} /></div>
+            <div><div style={lbl}>Answer needed by</div><input readOnly={ro} type="date" value={draft.dateDue || ''} onChange={(e) => { const r = linkPriorityDue({ priority: draft.priority as Priority, dueDate: draft.dateDue, auto: autoPD.current }, { dueDate: e.target.value }); autoPD.current = r.auto; set({ dateDue: r.dueDate, priority: r.priority }); }} style={input} />
+              {autoPD.current === 'due' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the priority</div>}</div>
             <div><div style={lbl}>Priority</div>
-              <select disabled={ro} value={draft.priority || 'Medium'} onChange={(e) => set({ priority: e.target.value })} style={input}>{['High', 'Medium', 'Low'].map((p) => <option key={p}>{p}</option>)}</select></div>
+              <PrioritySelect disabled={ro} value={draft.priority} style={input} onChange={(p) => { const r = linkPriorityDue({ priority: draft.priority as Priority, dueDate: draft.dateDue, auto: autoPD.current }, { priority: p }); autoPD.current = r.auto; set({ priority: r.priority, dateDue: r.dueDate }); }} />
+              {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the date</div>}</div>
             <div><div style={lbl}>Sent</div><div style={{ fontSize: 13, padding: '9px 0', color: 'var(--body)' }}>{rec.dateSent ? rfiDay(rec.dateSent) : 'Not yet'}{daysOpen(rec) != null ? ` · ${daysOpen(rec)} day${daysOpen(rec) === 1 ? '' : 's'} open` : ''}</div></div>
           </div>
         </>)}

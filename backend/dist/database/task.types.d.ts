@@ -34,6 +34,8 @@ export interface ActivityEvent {
     byId?: string;
     at: string;
 }
+export declare const PRIORITIES: readonly ["Urgent", "High", "Medium", "Low"];
+export declare const cleanPriority: (v: unknown) => string;
 export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
 export interface DerivedRef {
     kind: ActionKind;

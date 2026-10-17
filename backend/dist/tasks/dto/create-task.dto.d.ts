@@ -10,6 +10,7 @@ export declare class CreateTaskDto {
     topicType?: string;
     meetingId?: string;
     subject?: string;
+    priority?: string;
     description?: string;
     dueDate?: string;
     dueTime?: string;

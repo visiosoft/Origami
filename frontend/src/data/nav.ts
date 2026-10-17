@@ -46,7 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },
     { label: 'Task', route: 'tasks', icon: 'check', desc: 'The task board and the Request Log: manage, track and create tasks' },
     { label: 'Change Orders', route: 'changeorders', icon: 'swap', desc: 'Manage, track and create change orders' },
-    { label: 'Approvals', route: 'approvals', icon: 'check', personal: true, desc: 'Everything waiting on a decision: finance items, daily reports, timesheets and workforce requests' },
+    { label: 'Approvals', route: 'approvals', icon: 'check', personal: true, desc: 'Contracts and change orders waiting for approval (and everything else waiting on a decision)' },
   ] },
   { key: 'crm', label: 'CRM', items: [
     { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', desc: 'Lead and referral intake to initial contract' },

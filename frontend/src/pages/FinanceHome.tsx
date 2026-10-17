@@ -1,4 +1,5 @@
 import { stageLabel } from '../data/projects';
+import { SortHeader, useSort } from '../components/SortHeader';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -90,6 +91,9 @@ function Approvals({ rights, onProject }: { rights: Rights; onProject: (p: { id:
   const load = () => api.finance.approvals().then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load approvals')); });
   useEffect(() => { load(); }, []);
   const shown = (rows || []).filter((r) => !mine || r.canAct);
+  const { sorted: aSorted, sort: aSort, toggle: aToggle } = useSort(shown, {
+    type: (p) => TYPE_LABEL[p.type]?.[0] || p.type, project: (p) => p.projectName, what: (p) => p.title, amount: (p) => p.amount, since: (p) => p.since,
+  }, null, { amount: 'desc', since: 'asc' });
   const cols = '150px minmax(160px,1fr) minmax(220px,2fr) 120px 110px 110px';
   const open = (p: Pending) => {
     if (p.type === 'change_order') setCo(p.id);
@@ -105,9 +109,13 @@ function Approvals({ rights, onProject }: { rights: Rights; onProject: (p: { id:
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 900 }}>
-            <div style={headRow(cols)}><span>Type</span><span>Project</span><span>What</span><span style={{ textAlign: 'right' }}>Amount</span><span>Waiting since</span><span /></div>
+            <div style={headRow(cols)}>
+              <SortHeader k="type" sort={aSort} onSort={aToggle}>Type</SortHeader><SortHeader k="project" sort={aSort} onSort={aToggle}>Project</SortHeader>
+              <SortHeader k="what" sort={aSort} onSort={aToggle}>What</SortHeader><SortHeader k="amount" sort={aSort} onSort={aToggle} align="right">Amount</SortHeader>
+              <SortHeader k="since" sort={aSort} onSort={aToggle}>Waiting since</SortHeader><span />
+            </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {shown.map((p) => (
+            {aSorted.map((p) => (
               <div key={p.type + p.id} onClick={() => open(p)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><Badge tone={TYPE_LABEL[p.type][1]}>{TYPE_LABEL[p.type][0]}</Badge></span>
                 <span style={{ color: MUTED }}>{p.projectName}</span>
@@ -134,6 +142,10 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
   const [rows, setRows] = useState<any[] | null>(null);
   useEffect(() => { api.finance.portfolio().then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load')); }); }, []);
   const cols = 'minmax(200px,1.6fr) 125px 115px 115px 115px 115px 125px 115px 115px';
+  const money = (k: string) => (r: any) => (r[k] == null ? null : Number(r[k]));
+  const { sorted: pSorted, sort: pSort, toggle: pToggle } = useSort(rows || [], {
+    name: (r: any) => r.name, ...Object.fromEntries(['revisedContract', 'contractWorkInvoiced', 'paid', 'arOutstanding', 'unbilledEarned', 'committed', 'paidOut', 'stillToPay'].map((k) => [k, money(k)])),
+  }, null, Object.fromEntries(['revisedContract', 'contractWorkInvoiced', 'paid', 'arOutstanding', 'unbilledEarned', 'committed', 'paidOut', 'stillToPay'].map((k) => [k, 'desc' as const])));
   const costs = (rows || []).some((r) => r.committed != null);
   const sum = (k: string) => (rows || []).reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const num = (n: number, tone?: string) => <span style={{ textAlign: 'right', color: tone }}>{usd0(n)}</span>;
@@ -159,12 +171,12 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1180 }}>
             <div style={headRow(cols)}>
-              <span>Project</span><span style={{ textAlign: 'right' }}>Client contract</span><span style={{ textAlign: 'right' }}>Billed</span><span style={{ textAlign: 'right' }}>Received</span>
-              <span style={{ textAlign: 'right' }}>Client owes</span><span style={{ textAlign: 'right' }}>Done, not billed</span><span style={{ textAlign: 'right' }}>Committed to subs</span>
-              <span style={{ textAlign: 'right' }}>Paid out</span><span style={{ textAlign: 'right' }}>Still to pay</span>
+              <SortHeader k="name" sort={pSort} onSort={pToggle}>Project</SortHeader>
+              {([['revisedContract', 'Client contract'], ['contractWorkInvoiced', 'Billed'], ['paid', 'Received'], ['arOutstanding', 'Client owes'], ['unbilledEarned', 'Done, not billed'], ['committed', 'Committed to subs'], ['paidOut', 'Paid out'], ['stillToPay', 'Still to pay']] as [string, string][])
+                .map(([k, t]) => <SortHeader key={k} k={k} sort={pSort} onSort={pToggle} align="right">{t}</SortHeader>)}
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {(rows || []).map((r) => (
+            {pSorted.map((r) => (
               <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{stageLabel(r.stage)}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
                 {r.hasClientContract ? <>
