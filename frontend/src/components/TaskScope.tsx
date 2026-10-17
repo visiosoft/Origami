@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useApp } from '../AppContext';
 import type { User } from '../data/users';
 
@@ -26,6 +26,16 @@ export function raisedBy(task: { activity?: { type: string; byId?: string }[] },
   return !!created && created.byId === userId;
 }
 
+/** Whether this person raised (originated) the task, whoever it's assigned to. */
+export function raisedByUser(
+  task: { createdById?: string; activity?: { type: string; byId?: string }[]; originator?: string },
+  user?: Pick<User, 'id' | 'name'>,
+): boolean {
+  if (!user) return false;
+  return task.createdById === user.id || raisedBy(task, user.id)
+    || (!!task.originator && task.originator.trim().toLowerCase() === user.name.trim().toLowerCase());
+}
+
 /** Raised by this person and handed to someone else -- "From me". */
 export function fromMe(
   task: { createdById?: string; activity?: { type: string; byId?: string }[]; originator?: string; assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string },
@@ -37,8 +47,9 @@ export function fromMe(
   return mine && !isMine(task, user);
 }
 
-export type TaskScope = 'all' | 'mine' | 'fromMe' | 'assigned';
-const SCOPES: TaskScope[] = ['all', 'mine', 'fromMe', 'assigned'];
+/** Everyone, My tasks, From me, Assigned (to a person), From (a person). */
+export type TaskScope = 'all' | 'mine' | 'fromMe' | 'assigned' | 'from';
+const SCOPES: TaskScope[] = ['all', 'mine', 'fromMe', 'assigned', 'from'];
 
 /**
  * Whose tasks to show -- Everyone (the default), My tasks, From me (what I
@@ -75,6 +86,11 @@ export function useTaskScope() {
         const who = person ? users.find((u) => u.id === person) : undefined;
         return who ? tasks.filter((t) => isMine(t, who)) : tasks.filter((t) => !!(t.assigneeId || t.assignedToId || (t.assignee || t.assignedTo || '').trim()));
       }
+      if (scope === 'from') {
+        // Raised by the chosen person (everyone's tasks until someone is picked).
+        const who = person ? users.find((u) => u.id === person) : undefined;
+        return who ? tasks.filter((t) => raisedByUser(t as never, who)) : tasks;
+      }
       return tasks;
     },
     [scope, person, restricted, currentUser, users],
@@ -94,28 +110,46 @@ export function useTaskScope() {
   return { scope, setScope, filter, restricted, currentUser, person, setPerson, users, counts };
 }
 
-/** Narrow "Everyone" down to one person's work. */
-export function PersonFilter({ person, setPerson, users, visible }: {
+/**
+ * The person for "Assigned" or "From": type a name and pick from the
+ * suggestions. Clearing it shows everyone again.
+ */
+export function PersonFilter({ person, setPerson, users, visible, scope = 'assigned' }: {
   person: string;
   setPerson: (id: string) => void;
   users: User[];
   visible: boolean;
+  scope?: TaskScope;
 }) {
+  const listId = useId();
+  const picked = users.find((u) => u.id === person);
+  const [text, setText] = useState(picked?.name || '');
+  useEffect(() => { setText(picked?.name || ''); }, [picked?.name]);
   if (!visible) return null;
+  const active = users.filter((u) => u.status !== 'suspended');
+  const choose = (v: string) => {
+    setText(v);
+    const exact = active.find((u) => u.name.trim().toLowerCase() === v.trim().toLowerCase());
+    if (exact) setPerson(exact.id);
+    else if (!v.trim()) setPerson('');
+  };
   return (
-    <select
-      value={person}
-      onChange={(e) => setPerson(e.target.value)}
-      title="Show one person's tasks"
-      style={{
-        padding: '7px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)',
-        background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600,
-        color: person ? 'var(--ink)' : 'var(--muted)', outline: 'none', maxWidth: 190,
-      }}
-    >
-      <option value="">Anyone assigned</option>
-      {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-    </select>
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <input
+        list={listId}
+        value={text}
+        onChange={(e) => choose(e.target.value)}
+        placeholder={scope === 'from' ? 'From… type a name' : 'Assigned to… type a name'}
+        aria-label={scope === 'from' ? 'Tasks from this person' : 'Tasks assigned to this person'}
+        title={scope === 'from' ? 'Tasks this person raised' : "Show one person's tasks"}
+        style={{
+          padding: '7px 26px 7px 12px', borderRadius: 999, border: '1px solid ' + (person ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'),
+          background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: 'var(--ink)', outline: 'none', width: 190,
+        }}
+      />
+      <datalist id={listId}>{active.map((u) => <option key={u.id} value={u.name} />)}</datalist>
+      {text && <span onClick={() => choose('')} title="Clear" style={{ position: 'absolute', right: 10, cursor: 'pointer', color: 'var(--c-9aa39d)', fontSize: 14, lineHeight: 1 }}>×</span>}
+    </span>
   );
 }
 
@@ -160,7 +194,7 @@ export function matchesQuery(
   return haystack.includes(q);
 }
 
-/** Segmented Everyone / My tasks / From me / Assigned control. Renders nothing for restricted tiers. */
+/** Segmented Everyone / My tasks / From me / Assigned / From control. Renders nothing for restricted tiers. */
 export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCount, counts }: {
   scope: TaskScope;
   setScope: (s: TaskScope) => void;
@@ -191,6 +225,7 @@ export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCou
       {opt('mine', 'My tasks', counts?.mine ?? mineCount)}
       {opt('fromMe', 'From me', counts?.fromMe)}
       {opt('assigned', 'Assigned', counts?.assigned)}
+      {opt('from', 'From')}
     </div>
   );
 }

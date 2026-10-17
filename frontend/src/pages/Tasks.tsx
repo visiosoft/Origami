@@ -35,15 +35,17 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   // 'general' is a real, standing selection (the General Tasks board -- work
   // not tied to any client project), not an absence-of-choice placeholder.
-  const [boardProjectId, setBoardProjectId] = useState<number | 'general'>(() => {
+  // First view (Oct 16): every task -- all projects and internal -- unless a board was chosen before.
+  const [boardProjectId, setBoardProjectId] = useState<number | 'general' | 'all'>(() => {
     try {
       const stored = localStorage.getItem(PROJECT_KEY);
       if (stored === 'general') return 'general';
       const n = Number(stored);
-      return Number.isFinite(n) && n > 0 ? n : 'general';
-    } catch { return 'general'; }
+      return Number.isFinite(n) && n > 0 ? n : 'all';
+    } catch { return 'all'; }
   });
   const [logTasks, setLogTasks] = useState<Task[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   // Deep link from an assignment email or the notification bell:
   //   /tasks?task=<id>&project=<id>   board
@@ -53,7 +55,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const linkedIsLog = params.get('type') === 'log';
   const linkedProjectId = Number(params.get('project')) || null;
 
-  const selectBoardProject = (id: number | 'general') => {
+  const selectBoardProject = (id: number | 'general' | 'all') => {
     setBoardProjectId(id);
     try { localStorage.setItem(PROJECT_KEY, String(id)); } catch { /* ignore */ }
   };
@@ -69,12 +71,12 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       setProjects(real.map((p: any) => ({ id: p.id, name: p.name })));
       // A project named in the URL wins outright, for a deep link to land on
       // the right board. Otherwise keep the remembered selection (including
-      // "General Tasks") as long as it's still valid; a deleted remembered
-      // project falls back to General Tasks rather than guessing another one.
+      // "General Tasks" or "All tasks") as long as it's still valid; a deleted
+      // remembered project falls back to All tasks rather than guessing another one.
       setBoardProjectId((cur) => {
         if (linkedProjectId != null && real.some((p: any) => p.id === linkedProjectId)) return linkedProjectId;
-        if (cur === 'general') return cur;
-        return real.some((p: any) => p.id === cur) ? cur : 'general';
+        if (cur === 'general' || cur === 'all') return cur;
+        return real.some((p: any) => p.id === cur) ? cur : 'all';
       });
     }).catch(() => { });
     reloadLog();
@@ -118,8 +120,11 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const byProject = (list: Task[]) =>
     pf === 'All projects' ? list : pf === GENERAL_PF ? list.filter((x) => !x.project) : list.filter((x) => x.project === pf);
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
-  TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(logTasks.filter((x) => (x as any).tab === t))).length; });
-  const inTab = byProject(logTasks.filter((x) => (x as any).tab === tab));
+  // Confirmed entries leave the list a week later; "Archived" shows them.
+  const liveLog = logTasks.filter((x) => (showArchived ? !!x.archivedAt : !x.archivedAt));
+  const archivedCount = logTasks.filter((x) => x.archivedAt).length;
+  TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(liveLog.filter((x) => (x as any).tab === t))).length; });
+  const inTab = byProject(liveLog.filter((x) => (x as any).tab === tab));
   const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: [t.subject, t.description].filter(Boolean).join(' ') }, query));
   const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
   const { sorted, sort, setSort, toggle } = useSort(tasks, {
@@ -141,7 +146,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         {mode === 'board' && (
           <>
             <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>Project:</span>
-            <select value={boardProjectId} onChange={(e) => selectBoardProject(e.target.value === 'general' ? 'general' : Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)', outline: 'none', maxWidth: 320 }}>
+            <select value={boardProjectId} onChange={(e) => selectBoardProject(e.target.value === 'general' || e.target.value === 'all' ? e.target.value : Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)', outline: 'none', maxWidth: 320 }}>
+              <option value="all">All tasks — every project and General</option>
               <option value="general">General Tasks</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -170,8 +176,14 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
           allCount={inTab.length}
           counts={scopeCounts(inTab as any[])}
         />
-        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'assigned'} />
+        <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
+        {(archivedCount > 0 || showArchived) && (
+          <div onClick={() => setShowArchived((v) => !v)} title="Confirmed entries move here 7 days after they're confirmed"
+            style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+            {showArchived ? '← Back to the log' : `Archived ${archivedCount}`}
+          </div>
+        )}
         <div style={{ position: 'relative' }}>
           <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'var(--surface)' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
             <span>{pf}</span>

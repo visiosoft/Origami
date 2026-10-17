@@ -2,7 +2,10 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicati
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
-import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, isClosedStatus, parseLogStatuses, type LogStatus } from './log-statuses';
+import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, parseLogStatuses, withBuckets, type LogStatus } from './log-statuses';
+
+/** Confirmed Request Log tasks leave the list this many days later. */
+export const LOG_ARCHIVE_DAYS = 7;
 import { ChangeOrderEntity, TaskEntity, UserEntity } from '../database/entities';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
@@ -46,6 +49,81 @@ export class TasksService implements OnApplicationBootstrap {
     } catch (err) {
       this.log.error('Assignee backfill failed: ' + (err as Error).message);
     }
+    try {
+      const n = await this.moveToBuckets();
+      if (n) this.log.log(`Moved ${n} Request Log entries onto the task buckets`);
+    } catch (err) {
+      this.log.error('Request Log bucket move failed: ' + (err as Error).message);
+    }
+  }
+
+  /**
+   * Once: the Request Log moves onto the task buckets (Oct 16). A saved status
+   * list gets the buckets ("Open" is To Do, "Closed" is Complete) and entries
+   * on the old names move with it. Returns how many entries changed.
+   */
+  async moveToBuckets() {
+    if (!this.settings || (await this.settings.get('requestLog.bucketsV1'))) return 0;
+    const saved = await this.settings.get(LOG_STATUSES_KEY).catch(() => null);
+    if (saved) await this.settings.set(LOG_STATUSES_KEY, JSON.stringify(withBuckets(parseLogStatuses(saved))));
+    let n = 0;
+    for (const t of await this.repo.find()) {
+      const next = bucketOf(t.status, !!(t.assignedToId || String(t.assignedTo || '').trim()));
+      if (next && next !== t.status) { await this.repo.update({ id: t.id }, { status: next }); n++; }
+    }
+    await this.settings.set('requestLog.bucketsV1', new Date().toISOString());
+    return n;
+  }
+
+  private async isAdmin(actor: { id?: string }) {
+    if (!actor.id) return false;
+    return (await this.users.findOneBy({ id: actor.id }))?.roleKey === 'admin';
+  }
+
+  /** Who raised an entry: its creator in the history, else the originator's name. */
+  private raisedBy(t: TaskEntity) {
+    const created = normalizeList<ActivityEvent>(t.activity).find((e) => e.type === 'created');
+    return { id: created?.byId, name: String(t.originator || created?.by || '').trim() };
+  }
+
+  /**
+   * The bucket rules, as on the task board: old names map onto the buckets,
+   * To Do and Assigned follow whether someone is assigned, and only whoever
+   * raised it (or an admin) moves it to Confirmed -- it's archived 7 days later.
+   */
+  private async bucketRules(task: TaskEntity, patch: Record<string, any>, actor: UploadActor) {
+    const assigned = 'assignedTo' in patch || 'assignedToId' in patch
+      ? !!(patch.assignedToId || String(patch.assignedTo || '').trim())
+      : !!(task.assignedToId || String(task.assignedTo || '').trim());
+    if (patch.status) patch.status = bucketOf(patch.status, assigned);
+    const cur = patch.status ?? task.status;
+    if (cur === 'To Do' && assigned) patch.status = 'Assigned';
+    if (cur === 'Assigned' && !assigned) patch.status = 'To Do';
+    const next = patch.status ?? task.status;
+    if (next === 'Confirmed' && task.status !== 'Confirmed') {
+      const by = this.raisedBy(task);
+      const mine = (by.id && by.id === actor.id) || (!by.id && by.name && by.name.toLowerCase() === String(actor.name || '').toLowerCase());
+      if ((by.id || by.name) && !mine && !(await this.isAdmin(actor))) {
+        throw new BadRequestException(`Only ${by.name || 'whoever raised it'} (or an admin) can confirm this.`);
+      }
+      patch.confirmedAt = new Date().toISOString();
+    } else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+      patch.confirmedAt = null;
+      patch.archivedAt = null;
+    }
+  }
+
+  /** Confirmed a week ago or more: archived (out of the list unless asked for). */
+  private async archiveConfirmed(rows: TaskEntity[]) {
+    const cutoff = new Date(Date.now() - LOG_ARCHIVE_DAYS * 86400000).toISOString();
+    const now = new Date().toISOString();
+    for (const t of rows) {
+      if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff) {
+        t.archivedAt = now;
+        await this.repo.update({ id: t.id }, { archivedAt: now });
+      }
+    }
+    return rows;
   }
 
   /** Fill in the json columns so the client never has to null-check them. */
@@ -66,7 +144,7 @@ export class TasksService implements OnApplicationBootstrap {
     const where: Record<string, string> = {};
     if (tab) where.tab = tab;
     if (project) where.project = project;
-    const rows = await this.repo.find({ where });
+    const rows = await this.archiveConfirmed(await this.repo.find({ where }));
     return rows.map((t) => this.hydrate(t));
   }
 
@@ -116,7 +194,7 @@ export class TasksService implements OnApplicationBootstrap {
       tab: 'internal',
       meetingType: 'Internal',
       meetingDate: new Date().toISOString().slice(0, 10),
-      status: 'Open',
+      status: 'To Do',
       topicType: 'Task',
       description: '',
       project: '',
@@ -137,6 +215,9 @@ export class TasksService implements OnApplicationBootstrap {
       activity: [event('created', actor, { text: 'created this task' })],
       updatedAt: new Date().toISOString(),
     } as Partial<TaskEntity>);
+    // New entries start in To Do, or Assigned when someone is named.
+    task.status = bucketOf(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
+    if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim())) task.status = 'Assigned';
 
     const saved = await this.repo.save(task);
     if (assignee.id) {
@@ -173,6 +254,8 @@ export class TasksService implements OnApplicationBootstrap {
       patch.assignedTo = assignee.name;
       patch.assignedToId = assignee.id ?? null;
     }
+
+    await this.bucketRules(task, patch, actor);
 
     // Closing a task (any status marked "closed" in Settings) stamps the close
     // date; reopening clears it. "Blocked" is the board's old word for On hold.

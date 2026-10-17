@@ -139,7 +139,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 onChange={(e) => set({ status: e.target.value as Task['status'] })}
                 style={{ ...inputStyle, padding: '7px 9px' }}
               >
-                {[...statuses.map((s) => s.name), ...(statuses.some((s) => s.name === t.status) || !t.status ? [] : [t.status])].map((st) => <option key={st} value={st}>{st}</option>)}
+                {[...statuses.map((s) => s.name), ...(statuses.some((s) => s.name === t.status) || !t.status ? [] : [t.status])].map((st) => {
+                  // Only whoever raised it (or an admin) confirms it.
+                  const locked = st === 'Confirmed' && t.status !== 'Confirmed' && !(raisedBy(t, currentUser?.id) || currentUser?.roleKey === 'admin' || (!!t.originator && t.originator === currentUser?.name));
+                  return <option key={st} value={st} disabled={locked}>{st}{locked ? ' — whoever raised it confirms' : ''}</option>;
+                })}
               </select>
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>

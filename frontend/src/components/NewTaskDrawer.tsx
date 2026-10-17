@@ -19,7 +19,7 @@ interface NewTask {
 }
 const blank = (project: string, labels: string[], dueDate = '', dueTime = '', assignedTo = ''): NewTask => ({
   tab: 'internal', meetingType: 'Internal', meetingDate: '', assignedTo, originator: '',
-  topicType: 'Task', status: 'Open', dueDate, dueTime, project, subject: '', description: '', linkedFile: '', labels,
+  topicType: 'Task', status: 'To Do', dueDate, dueTime, project, subject: '', description: '', linkedFile: '', labels,
 });
 
 /**

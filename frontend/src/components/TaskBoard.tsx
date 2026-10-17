@@ -63,11 +63,25 @@ const initialsOf = (title: string) => {
   return ((words[0]?.[0] || '') + (words[1]?.[0] || words[0]?.[1] || '')).toUpperCase() || '·';
 };
 
-export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null; initialTaskId?: string | null }) {
+/** "All projects": every board task, in one column per task bucket. */
+const ALL_BUCKETS = TASK_STATUSES.map((st, i) => ({ id: 'B:' + st, name: statusLabel(st), order: i, projectId: null })) as unknown as ProjectSection[];
+const bucketCol = (status?: string | null) => 'B:' + (TASK_STATUSES.includes(status as TaskStatus) ? status : 'Not started');
+
+/**
+ * projectId: a project, null for General Tasks, or 'all' -- every task across
+ * every project and General, in bucket columns (moving a card sets its status).
+ */
+export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null | 'all'; initialTaskId?: string | null }) {
+  const all = projectId === 'all';
   const { can, toast, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
+  // Columns and new cards belong to one project's board, not the all-projects view.
+  const canShape = canManage && !all;
+  // Each task's real column is kept, and its bucket column shown, on the all-projects view.
+  const inBucket = (t: ProjectTask): ProjectTask => (all ? { ...t, homeSectionId: (t as any).homeSectionId ?? t.sectionId, sectionId: bucketCol(t.status) } as ProjectTask : t);
+  const [projectNames, setProjectNames] = useState<Record<number, string>>({});
   const isMobile = useWindowWidth() <= 720;
 
   const [sections, setSections] = useState<ProjectSection[]>([]);
@@ -108,11 +122,11 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const loadedProject = useRef<number | null>(null);
 
   const load = () => {
-    api.projectTasks.board(projectId)
+    (all ? (api.projectTasks.list() as Promise<any>).then((rows: any) => ({ sections: ALL_BUCKETS, tasks: Array.isArray(rows) ? rows : [] })) : api.projectTasks.board(projectId))
       .then((res: any) => {
         if (!res) return;
         setSections(res.sections || []);
-        setTasks(res.tasks || []);
+        setTasks((res.tasks || []).map(inBucket));
         // Open the deep-linked task now that it exists in `tasks`.
         if (initialTaskId && (res.tasks || []).some((t: ProjectTask) => t.id === initialTaskId)) {
           setSelectedId(initialTaskId);
@@ -121,7 +135,10 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       .catch(() => { })
       .finally(() => setLoading(false));
   };
-  useEffect(() => { setLoading(true); loadedProject.current = projectId; load(); }, [projectId]);
+  useEffect(() => { setLoading(true); loadedProject.current = all ? -1 : projectId; load(); }, [projectId]);
+  useEffect(() => {
+    if (all) api.projects.list().then((r: any) => setProjectNames(Object.fromEntries((Array.isArray(r) ? r : []).map((p: any) => [p.id, p.name])))).catch(() => { });
+  }, [all]);
   // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
@@ -137,7 +154,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const allLabels = Array.from(new Set(tasks.flatMap((t) => t.labels ?? []))).sort();
 
   // ---- task mutations (optimistic + persist) ----
-  const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? inBucket({ ...t, ...patch, ...(all && patch.sectionId ? { homeSectionId: patch.sectionId, sectionId: t.sectionId } : {}) } as ProjectTask) : t)));
   const updateTask = (id: string, patch: Partial<ProjectTask>) => {
     const before = tasks.find((x) => x.id === id);
     const finishing = patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed';
@@ -162,8 +179,10 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       ? { assigneeId: currentUser.id, assignee: currentUser.name }
       : {};
     const parent = parentId ? tasks.find((x) => x.id === parentId) : null;
-    return api.projectTasks.create({ projectId, sectionId, phaseId: parent?.phaseId, title: t, order, parentId, ...mine, ...extra }).then((res: any) => {
-      if (res) setTasks((prev) => [...prev, res as ProjectTask]);
+    // On the all-projects view a subtask goes on its parent's own board and column.
+    const home = all ? { projectId: parent?.projectId ?? null, sectionId: (parent as any)?.homeSectionId } : { projectId, sectionId };
+    return api.projectTasks.create({ ...home, phaseId: parent?.phaseId, title: t, order, parentId, ...mine, ...extra }).then((res: any) => {
+      if (res) setTasks((prev) => [...prev, inBucket(res as ProjectTask)]);
     }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add task')));
   };
   const deleteTask = (id: string) => {
@@ -173,6 +192,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   };
   const moveTask = (id: string, sectionId: string) => {
     const t = tasks.find((x) => x.id === id); if (!t || t.sectionId === sectionId) return;
+    // A bucket column on the all-projects view: moving there sets the status.
+    if (all) { updateTask(id, { status: sectionId.slice(2) as TaskStatus }); return; }
     updateTask(id, { sectionId });
   };
 
@@ -202,7 +223,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   const addSubtask = (s: NewSubtask) => (selected ? addTask(selected.sectionId, s.title, selected.id, s) : undefined);
   // Comments and attachments are written server-side so the author, timestamp
   // and history entry are recorded consistently; the response is the fresh task.
-  const replaceTask = (res: any) => { if (res?.id) setTasks((prev) => prev.map((t) => (t.id === res.id ? (res as ProjectTask) : t))); };
+  const replaceTask = (res: any) => { if (res?.id) setTasks((prev) => prev.map((t) => (t.id === res.id ? inBucket(res as ProjectTask) : t))); };
 
   const addComment = async (text: string) => {
     if (!selected) return;
@@ -226,6 +247,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
   /** Persist a manual card order after a drag inside one column. */
   const reorderIn = (sectionId: string, draggedId: string, index: number) => {
+    if (all) { moveTask(draggedId, sectionId); return; }
     const current = topLevelBySection(tasks, sectionId).filter((t) => t.id !== draggedId);
     const dragged = tasks.find((t) => t.id === draggedId);
     if (!dragged) return;
@@ -308,6 +330,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </button>
             <div className="tb-titlebox">
               <div className="tb-title">{t.title}</div>
+              {all && <div className="tb-sub">{t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks'}</div>}
               {subs.length > 0 && <div className="tb-sub">{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
               {t.parentId && <div className="tb-sub">Subtask of {tasks.find((x) => x.id === t.parentId)?.title || 'another task'}</div>}
             </div>
@@ -367,6 +390,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
+            {all && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks'}</div>}
             {subs.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
             {(t.labels?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -412,9 +436,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             }}>
             <div className="tb-col-head">
               <span className={'tb-col-dot is-' + (si % 4)} />
-              <input value={sec.name} disabled={!canManage} onChange={(e) => renameSection(sec.id, e.target.value)} aria-label="Section name" />
+              <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} aria-label="Section name" />
               <span className="tb-col-count">{secTasks.length}</span>
-              {canManage && <button type="button" className="tb-col-x" onClick={() => deleteSection(sec.id)} title="Delete section" aria-label="Delete section">×</button>}
+              {canShape && <button type="button" className="tb-col-x" onClick={() => deleteSection(sec.id)} title="Delete section" aria-label="Delete section">×</button>}
             </div>
             <div className="tb-col-body">
               {secTasks.map((t, i) => renderCard(t, i))}
@@ -427,14 +451,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                     <button type="button" className="tb-btn" onClick={() => { setAddingIn(null); setAddDraft(''); }}>Cancel</button>
                   </div>
                 </div>
-              ) : canManage && (
+              ) : canShape && (
                 <button type="button" className="tb-add" onClick={() => { setAddingIn(sec.id); setAddDraft(''); }}>+ Add task</button>
               )}
             </div>
           </div>
         );
       })}
-      {canManage && <button type="button" className="tb-add-section" onClick={addSection}>+ Add section</button>}
+      {canShape && <button type="button" className="tb-add-section" onClick={addSection}>+ Add section</button>}
     </div>
   );
   const boardView = isNew ? boardViewNew : (
@@ -458,9 +482,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             }}
             style={{ width: 270, flexShrink: 0, background: isOver ? 'var(--mist)' : 'var(--panel)', borderRadius: 'var(--r-12)', border: isOver ? '2px dashed var(--muted)' : '1px solid rgba(var(--rgb-shade), 0.05)', display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px' }}>
-              <input value={sec.name} disabled={!canManage} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
+              <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
               <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', background: 'var(--sand)', padding: '1px 7px', borderRadius: 999 }}>{secTasks.length}</span>
-              {canManage && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
+              {canShape && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
             </div>
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
               {secTasks.map((t, i) => renderCard(t, i))}
@@ -472,14 +496,14 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                     <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
                   </div>
                 </div>
-              ) : canManage && (
+              ) : canShape && (
                 <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>+ Add task</div>
               )}
             </div>
           </div>
         );
       })}
-      {canManage && <div onClick={addSection} style={{ width: 190, flexShrink: 0, padding: '11px 14px', borderRadius: 'var(--r-12)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'var(--forest)', border: '1px dashed rgba(var(--rgb-forest), 0.3)', background: 'var(--surface)' }}>+ Add section</div>}
+      {canShape && <div onClick={addSection} style={{ width: 190, flexShrink: 0, padding: '11px 14px', borderRadius: 'var(--r-12)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'var(--forest)', border: '1px dashed rgba(var(--rgb-forest), 0.3)', background: 'var(--surface)' }}>+ Add section</div>}
     </div>
   );
 
@@ -572,7 +596,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflow: 'hidden' }}>
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
               {sortRows(secTasks, LIST_BY, listSort).map((t) => listRow(t, 0))}
-              {canManage && (addingIn === sec.id ? (
+              {canShape && (addingIn === sec.id ? (
                 <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>
                   <input
                     autoFocus
@@ -807,7 +831,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           allCount={allCount}
           counts={scopeCounts(inScopeOfBoard.filter((t) => !t.parentId))}
         />
-        <PersonFilter person={person} setPerson={setPerson} users={allUsers} visible={!restricted && scope === 'assigned'} />
+        <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} />
         {(archivedCount > 0 || showArchived) && (
           <div onClick={() => setShowArchived((v) => !v)} title="Confirmed tasks move to the archive 7 days after they're confirmed"
@@ -993,7 +1017,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                 <div style={{ marginBottom: 12 }}>
                   <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} onMade={(made) => {
                     // Copies onto this board appear at once; the task's own history now notes them.
-                    api.projectTasks.board(projectId).then((r: any) => { if (r?.tasks) setTasks(r.tasks); }).catch(() => { });
+                    load();
                     if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
                   }} />
                 </div>

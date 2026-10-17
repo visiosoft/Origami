@@ -16,6 +16,8 @@ export interface NavItem {
   personal?: boolean;
   /** Only for site superintendents -- not a role permission either. */
   superintendent?: boolean;
+  /** Not in the menu (opened from another page) but still a module with its own permission. */
+  hidden?: boolean;
 }
 
 export interface NavGroup {
@@ -49,32 +51,41 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: 'crm', label: 'CRM', items: [
     { label: 'CRM & Leads', route: 'pipeline', icon: 'chart', desc: 'Lead and referral intake to initial contract' },
     { label: 'Holding & Refer Out', route: 'crm_holding', icon: 'swap', desc: 'Leads that are not active, and leads referred out' },
+    { label: 'Feedback', route: 'feedback', icon: 'q', desc: 'Feedback from lead and referral intake to initial contract' },
     { label: 'Warranty', route: 'warranty', icon: 'shielda', desc: 'Construction, equipment and material warranties, and any required warranty work' },
   ] },
-  { key: 'design', label: 'Design & Preconstruction', items: [
+  { key: 'design', label: 'Design', items: [
+    { label: 'Consultant Prequalifying & RFP', route: 'prequal', icon: 'shieldc', desc: 'Consultants: who is coming due for licences and insurance, RFPs sent and answered' },
     { label: 'Design', route: 'design', icon: 'pen', note: 'Board', desc: 'Design work, board view' },
-    { label: 'Selections & Specifications', route: 'selections', icon: 'list', desc: 'Our library, and one place to make selections, manage orders and track orders' },
+  ] },
+  { key: 'precon', label: 'Preconstruction', items: [
     { label: 'Estimating', route: 'estimating', icon: 'calc', desc: 'Estimating tools for design and/or build work that needs estimating' },
+    { label: 'Selections & Specifications', route: 'selections', icon: 'list', desc: 'Our library, and one place to make selections, manage orders and track orders' },
+    { label: 'Schedule', route: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
     { label: 'Plan & File Room', route: 'planroom', icon: 'files', desc: 'File management, tracking the latest files, and sending and managing RFPs' },
-    { label: 'Manpower & Resource Management', route: 'manpower_pre', perm: 'manpower_con', icon: 'crew', desc: 'RFPs for several projects for design, and timesheets for design' },
-    { label: 'Consultant & Subcontractor Prequalifying', route: 'prequal', icon: 'shieldc', desc: 'Who is coming due for licences, insurance and the rest' },
-    { label: 'Special Actions', route: 'actions_design', perm: 'design', icon: 'q', desc: 'Design: meetings, FOR RECORD, RFI, task and change orders' },
+    { label: 'GC & Sub Prequalify & RFP', route: 'sub_prequal', icon: 'shieldc', desc: 'General contractors and subcontractors: prequalification and RFPs' },
   ] },
   { key: 'construction', label: 'Construction', items: [
     { label: 'Project Management', route: 'pm', icon: 'clip', note: 'Board', desc: 'Construction work, board view' },
-    { label: 'Quality & Safety', route: 'quality', icon: 'shielda', desc: 'Quality and safety inspections and checklists, toolbox meetings, incident reports' },
-    { label: 'Schedule', route: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
-    { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', desc: 'RFPs for build, equipment, timesheets, labor and resource projection, deliveries and daily reports' },
+    { label: 'QA/QC', route: 'quality', icon: 'shielda', desc: 'Inspections and checklists for quality assurance and quality control' },
+    { label: 'Safety', route: 'safety', icon: 'shielda', desc: 'Safety inspections and checklists, toolbox meetings, incident reports' },
+    { label: 'Schedule', route: 'schedule_con', perm: 'schedule', icon: 'cal', desc: 'All projects and their timelines' },
+    { label: 'Equipment Management', route: 'equipment', icon: 'crew', desc: 'Equipment across projects: where it is, rentals, maintenance and cost' },
+    { label: 'Procurement Management', route: 'procurement', icon: 'receipt', desc: 'Purchasing and deliveries for build: orders, lead times and receiving' },
     { label: 'Daily Report (field)', route: 'daily-log', icon: 'clip', superintendent: true, desc: 'Fill in today’s Daily Report for your site' },
-    { label: 'Daily Reports', route: 'daily_reports', icon: 'clip', desc: 'Every site’s daily log: crew, hours, cost codes and notes' },
-    { label: 'Special Actions', route: 'actions_con', perm: 'pm', icon: 'q', desc: 'Construction: meetings, FOR RECORD, RFI, task and change orders' },
+    { label: 'Daily Reports', route: 'daily_reports', icon: 'clip', desc: 'Every site’s daily report, and the weekly report' },
+    { label: 'Manpower & Resource (Build)', route: 'manpower_build', perm: 'manpower_con', icon: 'crew', desc: 'RFPs for several projects for build, equipment, timesheets for build, labor and resource projection, deliveries and daily reports' },
+    { label: 'Progress Photos', route: 'progress_photos', icon: 'files', desc: 'Site progress photos by project and date' },
   ] },
-  { key: 'financial', label: 'Financial', items: [
+  { key: 'financial', label: 'Financial & Resource', items: [
     { label: 'Business', route: 'fin_business', icon: 'bank', desc: 'Rolls up all projects, design and build' },
-    { label: 'Project', route: 'fin_project', icon: 'dollar', desc: 'Project finance: client, internal staff, subcontractors, consultants, vendors' },
-    { label: 'Reimbursements', route: 'reimbursement', icon: 'receipt' },
-    { label: 'Resources', route: 'fin_resources', icon: 'crew', desc: 'Resource costs, rate cards and utilization' },
+    { label: 'Project Invoicing', route: 'fin_project', icon: 'dollar', desc: 'Payables and receivables, including reimbursables and change orders: client, internal staff, subcontractors, consultants, vendors' },
+    { label: 'Manpower & Resource Management', route: 'manpower_con', icon: 'crew', desc: 'Plan and run the week(s) for subs, labor and admin, and manage timesheets' },
+    { label: 'Accounting', route: 'accounting', icon: 'calc', desc: 'For the accountant and bookkeeper' },
     { label: 'Affiliates', route: 'affiliates', icon: 'people', desc: 'Affiliates and their rates, contracted projects, and amounts due, paid and overdue' },
+    // Opened from Project Invoicing and Approvals / from Manpower; kept as their own permissions.
+    { label: 'Reimbursements', route: 'reimbursement', icon: 'receipt', hidden: true },
+    { label: 'Resources', route: 'fin_resources', icon: 'crew', hidden: true, desc: 'Resource costs, rate cards and utilization' },
   ] },
   { key: 'insight', label: 'Insight & Documents', items: [
     { label: 'Reports & Analytics', route: 'reports', icon: 'chart' },
@@ -102,8 +113,10 @@ export const MODULES: ModuleRef[] = NAV_GROUPS.flatMap((g) =>
 /** Route -> permission key, for the route guard. */
 export const PERM_BY_ROUTE: Record<string, string> = {
   ...Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((it) => [it.route, permOf(it)]))),
-  // Pages without their own menu entry: the Request Log opens inside Tasks.
+  // Pages without their own menu entry: the Request Log opens inside Tasks; the phase lists of special actions.
   requests: 'tasks',
+  actions_design: 'design',
+  actions_con: 'pm',
 };
 
 /** Routes every internal user may open regardless of role. */

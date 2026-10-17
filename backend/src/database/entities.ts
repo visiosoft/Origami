@@ -147,6 +147,9 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  /** Confirmed by whoever raised it; archived 7 days later. */
+  @Column({ nullable: true }) confirmedAt!: string;
+  @Column({ nullable: true }) archivedAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
   /** The meeting this was raised in (MeetingEntity.id), when it came from one. */
   @Column({ nullable: true }) meetingId!: string;

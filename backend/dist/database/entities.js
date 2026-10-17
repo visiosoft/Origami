@@ -407,6 +407,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], TaskEntity.prototype, "confirmedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "archivedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], TaskEntity.prototype, "updatedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),

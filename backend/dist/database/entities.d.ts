@@ -108,6 +108,8 @@ export declare class TaskEntity {
     activity: ActivityEvent[];
     checklist: ChecklistItem[];
     labels: string[];
+    confirmedAt: string;
+    archivedAt: string;
     updatedAt: string;
     meetingId: string;
     linkedTaskIds: string[] | null;

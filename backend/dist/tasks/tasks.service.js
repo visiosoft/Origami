@@ -12,7 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TasksService = void 0;
+exports.TasksService = exports.LOG_ARCHIVE_DAYS = void 0;
 exports.cleanIds = cleanIds;
 exports.taskTitle = taskTitle;
 const common_1 = require("@nestjs/common");
@@ -20,6 +20,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const settings_service_1 = require("../settings/settings.service");
 const log_statuses_1 = require("./log-statuses");
+exports.LOG_ARCHIVE_DAYS = 7;
 const entities_1 = require("../database/entities");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
@@ -53,6 +54,76 @@ let TasksService = class TasksService {
         catch (err) {
             this.log.error('Assignee backfill failed: ' + err.message);
         }
+        try {
+            const n = await this.moveToBuckets();
+            if (n)
+                this.log.log(`Moved ${n} Request Log entries onto the task buckets`);
+        }
+        catch (err) {
+            this.log.error('Request Log bucket move failed: ' + err.message);
+        }
+    }
+    async moveToBuckets() {
+        if (!this.settings || (await this.settings.get('requestLog.bucketsV1')))
+            return 0;
+        const saved = await this.settings.get(log_statuses_1.LOG_STATUSES_KEY).catch(() => null);
+        if (saved)
+            await this.settings.set(log_statuses_1.LOG_STATUSES_KEY, JSON.stringify((0, log_statuses_1.withBuckets)((0, log_statuses_1.parseLogStatuses)(saved))));
+        let n = 0;
+        for (const t of await this.repo.find()) {
+            const next = (0, log_statuses_1.bucketOf)(t.status, !!(t.assignedToId || String(t.assignedTo || '').trim()));
+            if (next && next !== t.status) {
+                await this.repo.update({ id: t.id }, { status: next });
+                n++;
+            }
+        }
+        await this.settings.set('requestLog.bucketsV1', new Date().toISOString());
+        return n;
+    }
+    async isAdmin(actor) {
+        if (!actor.id)
+            return false;
+        return (await this.users.findOneBy({ id: actor.id }))?.roleKey === 'admin';
+    }
+    raisedBy(t) {
+        const created = (0, task_types_1.normalizeList)(t.activity).find((e) => e.type === 'created');
+        return { id: created?.byId, name: String(t.originator || created?.by || '').trim() };
+    }
+    async bucketRules(task, patch, actor) {
+        const assigned = 'assignedTo' in patch || 'assignedToId' in patch
+            ? !!(patch.assignedToId || String(patch.assignedTo || '').trim())
+            : !!(task.assignedToId || String(task.assignedTo || '').trim());
+        if (patch.status)
+            patch.status = (0, log_statuses_1.bucketOf)(patch.status, assigned);
+        const cur = patch.status ?? task.status;
+        if (cur === 'To Do' && assigned)
+            patch.status = 'Assigned';
+        if (cur === 'Assigned' && !assigned)
+            patch.status = 'To Do';
+        const next = patch.status ?? task.status;
+        if (next === 'Confirmed' && task.status !== 'Confirmed') {
+            const by = this.raisedBy(task);
+            const mine = (by.id && by.id === actor.id) || (!by.id && by.name && by.name.toLowerCase() === String(actor.name || '').toLowerCase());
+            if ((by.id || by.name) && !mine && !(await this.isAdmin(actor))) {
+                throw new common_1.BadRequestException(`Only ${by.name || 'whoever raised it'} (or an admin) can confirm this.`);
+            }
+            patch.confirmedAt = new Date().toISOString();
+        }
+        else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+            patch.confirmedAt = null;
+            patch.archivedAt = null;
+        }
+    }
+    async archiveConfirmed(rows) {
+        const cutoff = new Date(Date.now() - exports.LOG_ARCHIVE_DAYS * 86400000).toISOString();
+        const now = new Date().toISOString();
+        for (const t of rows) {
+            if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff) {
+                t.archivedAt = now;
+                await this.repo.update({ id: t.id }, { archivedAt: now });
+            }
+        }
+        return rows;
     }
     hydrate(task) {
         return {
@@ -72,7 +143,7 @@ let TasksService = class TasksService {
             where.tab = tab;
         if (project)
             where.project = project;
-        const rows = await this.repo.find({ where });
+        const rows = await this.archiveConfirmed(await this.repo.find({ where }));
         return rows.map((t) => this.hydrate(t));
     }
     async findOne(id) {
@@ -114,7 +185,7 @@ let TasksService = class TasksService {
             tab: 'internal',
             meetingType: 'Internal',
             meetingDate: new Date().toISOString().slice(0, 10),
-            status: 'Open',
+            status: 'To Do',
             topicType: 'Task',
             description: '',
             project: '',
@@ -134,6 +205,9 @@ let TasksService = class TasksService {
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
             updatedAt: new Date().toISOString(),
         });
+        task.status = (0, log_statuses_1.bucketOf)(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
+        if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim()))
+            task.status = 'Assigned';
         const saved = await this.repo.save(task);
         if (assignee.id) {
             this.notifications.taskAssigned({
@@ -162,6 +236,7 @@ let TasksService = class TasksService {
             patch.assignedTo = assignee.name;
             patch.assignedToId = assignee.id ?? null;
         }
+        await this.bucketRules(task, patch, actor);
         const statuses = await this.statuses();
         if (patch.status && /^(blocked|on[\s-]*hold)$/i.test(String(patch.status)))
             patch.status = statuses.find((s) => /^on[\s-]*hold$/i.test(s.name))?.name || patch.status;

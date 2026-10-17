@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17e',
+    date: '2026-10-17',
+    title: 'The new menu, one set of task buckets, and all tasks in one place',
+    items: [
+      { area: 'Menu', kind: 'improved', text: 'The sidebar now follows the agreed structure: Main, Special Actions, CRM (with Feedback), Design, Preconstruction, Construction (QA/QC, Safety, Equipment, Procurement, Daily Reports, Manpower & Resource (Build), Progress Photos), Financial & Resource (Business, Project Invoicing, Manpower & Resource Management, Accounting, Affiliates), Insight & Documents and Admin. Modules still being built show what they’ll do.', where: 'Sidebar' },
+      { area: 'Tasks', kind: 'new', text: 'The Task page opens on All tasks — every project and General Tasks — on the Dashboard for Everyone. On the board, the columns are the task buckets; moving a card sets its status. Each card shows its project.', where: 'Special Actions → Task' },
+      { area: 'Tasks', kind: 'improved', text: 'Request Log tasks use the same buckets as the board: To Do, Assigned, In Progress, On hold, Complete, Confirmed. Open became To Do (or Assigned) and Closed became Complete. Only whoever raised a task can confirm it, and confirmed tasks go to the archive after 7 days.', where: 'Special Actions → Task → Request Log' },
+      { area: 'Tasks', kind: 'new', text: '“From” joins Everyone, My tasks, From me and Assigned. For Assigned and From, type a name and pick from the suggestions.', where: 'Task board and Request Log' },
+    ],
+  },
+  {
     id: '2026-10-17d',
     date: '2026-10-17',
     title: 'Transmittal and equipment forms in the Daily Report, and the weekly report',

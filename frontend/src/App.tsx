@@ -110,6 +110,7 @@ export default function App() {
         <Route path="/my-program" element={<MyProjectProgram />} />
         <Route path="/prequal" element={<ConsultantMatrix />} />
         <Route path="/manpower_con" element={<Manpower />} />
+        <Route path="/manpower_build" element={<Manpower />} />
         <Route path="/help" element={<Help />} />
         <Route path="/help/finance" element={<FinanceGuide />} />
         <Route path="/fin_project" element={<FinanceHome />} />
@@ -118,6 +119,7 @@ export default function App() {
         <Route path="/rfis" element={<RfisPage />} />
         <Route path="/fin_business" element={<BusinessFinance />} />
         <Route path="/schedule" element={<Schedule />} />
+        <Route path="/schedule_con" element={<Schedule />} />
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/crm_holding" element={<HoldingReferOut />} />
         <Route path="/observations" element={<Observations />} />

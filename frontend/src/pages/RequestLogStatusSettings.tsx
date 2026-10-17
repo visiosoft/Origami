@@ -2,7 +2,7 @@ import { tint } from '../theme';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { DEFAULT_LOG_STATUSES, loadLogStatuses, logStatusTone, setLogStatuses, type LogStatus } from '../data/logStatuses';
+import { DEFAULT_LOG_STATUSES, LOG_BUCKETS, loadLogStatuses, logStatusTone, setLogStatuses, type LogStatus } from '../data/logStatuses';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)' };
@@ -10,7 +10,7 @@ const COLORS = ['#8E2E0A', '#93520F', '#2F6F68', '#1C5230', '#3C5C8A', '#6B3FA0'
 
 /**
  * Settings -> Request Log statuses. The office's own list for the Request
- * Log (the task board keeps its fixed Not started / In progress / On hold /
+ * Log: the six task buckets (shared with the task board) plus any the office adds /
  * Done). "Counts as closed" statuses end a task: the close date is stamped
  * and it drops out of open counts and reminders. "Open" (where new tasks
  * start) and "Closed" can be renamed around but not removed.
@@ -26,7 +26,8 @@ export function RequestLogStatusSettings() {
   if (!list) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
   const set = (i: number, patch: Partial<LogStatus>) => setList(list.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= list.length) return; const next = [...list]; [next[i], next[j]] = [next[j], next[i]]; setList(next); };
-  const fixed = (s: LogStatus) => s.name === 'Open' || s.name === 'Closed';
+  // The six task buckets stay; an admin can recolour them and add their own in between.
+  const fixed = (s: LogStatus) => LOG_BUCKETS.includes(s.name);
 
   const save = () => {
     const names = list.map((s) => s.name.trim().toLowerCase());
@@ -43,8 +44,9 @@ export function RequestLogStatusSettings() {
     <div style={{ maxWidth: 680 }}>
       <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Request Log statuses</div>
       <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, marginBottom: 16, lineHeight: 1.6 }}>
-        The choices in the Request Log’s Status field. Statuses marked <b>counts as closed</b> finish a task — its close date is
-        stamped and it stops showing as open or in reminders. “On hold” matches the task board’s On hold.
+        The Request Log uses the same task buckets as the task board — To Do, Assigned, In Progress, On hold, Complete, Confirmed.
+        You can recolour them and add statuses of your own; ones marked <b>counts as closed</b> finish a task — its close date is
+        stamped and it stops showing as open or in reminders.
       </div>
       {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F7E4DB', fontSize: 12.5, fontWeight: 600, color: '#8E2E0A', marginBottom: 12 }}>{error}</div>}
       <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 12, display: 'grid', gap: 8 }}>
@@ -64,7 +66,7 @@ export function RequestLogStatusSettings() {
                 </span>
               )}
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, color: 'var(--body)', marginLeft: 'auto' }}>
-                <input type="checkbox" checked={!!s.closed} disabled={!isAdmin || s.name === 'Closed' || s.name === 'Open'} onChange={(e) => set(i, { closed: e.target.checked })} />
+                <input type="checkbox" checked={!!s.closed} disabled={!isAdmin || fixed(s)} onChange={(e) => set(i, { closed: e.target.checked })} />
                 counts as closed
               </label>
               {isAdmin && !fixed(s) && <span onClick={() => setList(list.filter((_, j) => j !== i))} title="Remove" style={{ cursor: 'pointer', color: '#8E2E0A', fontWeight: 700, padding: '0 4px' }}>×</span>}

@@ -38,6 +38,8 @@ export const MODULE_KEYS = [
   // Menu restructure (Oct 2026): new modules. Existing roles get them by being granted in User Access & Roles.
   'allfiles', 'meetings', 'observations', 'crm_holding', 'feedback', 'warranty',
   'gc_prequal', 'sub_prequal', 'safety', 'equipment', 'deliveries', 'daily_reports', 'affiliates',
+  // Oct 17 menu: the rest of the list.
+  'procurement', 'progress_photos', 'accounting',
 ];
 
 const allPerms = (): RolePermissions =>
