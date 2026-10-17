@@ -10,6 +10,8 @@ export declare class CreateProjectTaskDto {
     dueDate?: string;
     priority?: string;
     leadId?: string;
+    holdReason?: string;
+    deferNotify?: boolean;
     status?: string;
     order?: number;
     completed?: boolean;

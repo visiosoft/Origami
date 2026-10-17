@@ -330,6 +330,8 @@ export const api = {
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
   tasks: {
+    /** Save pressed in the editor: send the emails held on this entry. */
+    notify: (id: string) => request<{ sent: number }>(`/tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** Projects and open leads a task can be linked to. */
     linkTargets: () => request<import('./data/linkTargets').LinkTargets>('/tasks/link-targets'),
     /** The Request Log's statuses (Settings -> Request Log statuses). */
@@ -462,6 +464,8 @@ export const api = {
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
   },
   projectTasks: {
+    /** Save pressed in the task editor: send the emails held on the task and its subtasks. */
+    notify: (id: string) => request<{ sent: number }>(`/project-tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** projectId: a number scopes to that project; null scopes to the
      *  General Tasks board; omitted (list only) returns everything. */
     board: (projectId: number | null) => request(`/project-tasks/board?projectId=${projectId === null ? 'null' : projectId}`),

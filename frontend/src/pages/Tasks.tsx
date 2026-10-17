@@ -62,6 +62,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const linkedTaskId = params.get('task');
   const linkedIsLog = params.get('type') === 'log';
   const linkedProjectId = Number(params.get('project')) || null;
+  // The linked board task, kept after the URL is tidied so the board can open it once it has loaded.
+  const [deepTask] = useState<string | null>(() => (params.get('type') === 'log' ? null : params.get('task')));
 
   const selectBoardProject = (id: BoardSel) => {
     setBoardProjectId(id);
@@ -102,6 +104,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       setSelectedId(linkedTaskId);
     } else {
       setMode('board');
+      // Look in every task (General, subtasks, any project) until the linked project's board is known.
+      setBoardProjectId('all');
     }
     const next = new URLSearchParams(params);
     next.delete('task');
@@ -173,7 +177,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       </div>
 
       {mode === 'board' ? (
-        <TaskBoard projectId={boardProjectId === 'general' || boardLead ? null : boardProjectId as number | 'all'} leadId={boardLead} initialTaskId={linkedIsLog ? null : linkedTaskId} />
+        <TaskBoard projectId={boardProjectId === 'general' || boardLead ? null : boardProjectId as number | 'all'} leadId={boardLead} initialTaskId={deepTask} />
       ) : (
       <>
       {/* Tabs + filter + new */}

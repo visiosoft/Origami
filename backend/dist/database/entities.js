@@ -297,6 +297,14 @@ __decorate([
     __metadata("design:type", String)
 ], TaskEntity.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "pendingNotices", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "holdReason", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "leadId", void 0);
@@ -1484,6 +1492,14 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ProjectTaskEntity.prototype, "pendingNotices", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "holdReason", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)

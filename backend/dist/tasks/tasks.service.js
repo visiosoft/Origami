@@ -25,6 +25,7 @@ const log_statuses_1 = require("./log-statuses");
 exports.LOG_ARCHIVE_DAYS = 7;
 const entities_1 = require("../database/entities");
 const lead_link_1 = require("./lead-link");
+const pending_notices_1 = require("../notifications/pending-notices");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
 const notifications_service_1 = require("../notifications/notifications.service");
@@ -55,6 +56,8 @@ let TasksService = class TasksService {
         return clean;
     }
     async onApplicationBootstrap() {
+        const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + e.message)); }, 60_000);
+        tick.unref?.();
         try {
             await (0, assignee_util_1.backfillAssignees)(this.repo, this.users, 'assignedToId', 'assignedTo', this.log);
         }
@@ -190,7 +193,7 @@ let TasksService = class TasksService {
         const cutoff = new Date(Date.now() - exports.LOG_ARCHIVE_DAYS * 86400000).toISOString();
         const now = new Date().toISOString();
         for (const t of rows) {
-            if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff) {
+            if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff && (!t.updatedAt || t.updatedAt <= cutoff)) {
                 t.archivedAt = now;
                 await this.repo.update({ id: t.id }, { archivedAt: now });
             }
@@ -251,6 +254,9 @@ let TasksService = class TasksService {
         if (!String(dto.subject || '').trim() && !String(dto.description || '').trim())
             throw new common_1.BadRequestException('Give the task a subject.');
         dto = { ...dto, ...(await this.leadFields(dto)) };
+        const defer = !!dto.deferNotify;
+        delete dto.deferNotify;
+        delete dto.pendingNotices;
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assignedToId, name: dto.assignedTo });
         const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
         const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: (0, serials_1.logSerialKind)(dto.topicType || 'Task'), type: dto.topicType || 'Task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
@@ -283,17 +289,18 @@ let TasksService = class TasksService {
         if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim()))
             task.status = 'Assigned';
         task.serial = (0, serials_1.nextSerial)(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), (0, serials_1.logSerialKind)(task.topicType), (0, serials_1.serialYear)());
+        const at = new Date().toISOString();
+        const who = { id: actor.id, name: actor.name };
+        const followers = (0, task_types_1.normalizeCollaborators)(task.collaborators);
+        const notices = [
+            ...(assignee.id ? [{ kind: 'assigned', ids: [String(assignee.id)], actor: who, at }] : []),
+            ...(followers.length ? [{ kind: 'added', ids: followers.map((c) => c.id), actor: who, at }] : []),
+        ];
+        if (defer)
+            task.pendingNotices = (0, pending_notices_1.holdNotices)(null, notices);
         const saved = await this.repo.save(task);
-        if (assignee.id) {
-            this.notifications.taskAssigned({
-                surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
-                projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
-                status: saved.status, assigneeId: assignee.id, actor,
-            });
-        }
-        const followers = (0, task_types_1.normalizeCollaborators)(saved.collaborators);
-        if (followers.length)
-            this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
+        if (!defer)
+            this.sendNotices(saved, notices);
         return this.hydrate(saved);
     }
     notice(t, actor) {
@@ -304,6 +311,9 @@ let TasksService = class TasksService {
         const patch = { ...dto };
         delete patch.id;
         delete patch.serial;
+        delete patch.pendingNotices;
+        const defer = !!patch.deferNotify;
+        delete patch.deferNotify;
         Object.assign(patch, await this.leadFields(patch));
         if ('assignedTo' in patch || 'assignedToId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, {
@@ -345,23 +355,50 @@ let TasksService = class TasksService {
         const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
             ? String(patch.assignedToId)
             : null;
+        if ((patch.status ?? task.status) !== 'On hold' && task.holdReason)
+            patch.holdReason = null;
+        const at = new Date().toISOString();
+        const who = { id: actor.id, name: actor.name };
+        const notices = [
+            ...(reassignedTo ? [{ kind: 'assigned', ids: [reassignedTo], actor: who, at }] : []),
+            ...(joined.length ? [{ kind: 'added', ids: joined.map((c) => c.id), actor: who, at }] : []),
+            ...(finished ? [{ kind: 'done', ids: [], actor: who, at }] : []),
+        ];
         Object.assign(task, patch, { id });
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), ...events];
         task.daysOpen = this.daysOpen(task);
         task.updatedAt = new Date().toISOString();
+        if (defer && notices.length)
+            task.pendingNotices = (0, pending_notices_1.holdNotices)(task.pendingNotices, notices);
         const saved = await this.repo.save(task);
-        if (reassignedTo) {
-            this.notifications.taskAssigned({
-                surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
-                projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
-                status: saved.status, assigneeId: reassignedTo, actor,
-            });
-        }
-        if (joined.length)
-            this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
-        if (finished)
-            this.notifications.taskFollowUp(this.notice(saved, actor), (0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), { kind: 'done' });
+        if (!defer)
+            this.sendNotices(saved, notices);
         return this.hydrate(saved);
+    }
+    sendNotices(t, notices) {
+        for (const n of notices) {
+            const notice = this.notice(t, n.actor);
+            if (n.kind === 'assigned')
+                this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+            else if (n.kind === 'added')
+                this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+            else
+                this.notifications.taskFollowUp(notice, (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), { kind: 'done' });
+        }
+    }
+    async flushNotices(id) {
+        const t = await this.repo.findOneBy({ id });
+        if (!t?.pendingNotices?.length)
+            return { sent: 0 };
+        const closed = new Set((await this.statuses()).filter((s) => s.closed).map((s) => s.name));
+        const live = (0, pending_notices_1.stillTrue)(t.pendingNotices, { assigneeId: t.assignedToId, collaboratorIds: (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), done: closed.has(t.status) });
+        await this.repo.update({ id }, { pendingNotices: null });
+        this.sendNotices(t, live);
+        return { sent: live.length };
+    }
+    async flushOverdue() {
+        for (const t of (await this.repo.find()).filter((x) => (0, pending_notices_1.overdue)(x.pendingNotices)))
+            await this.flushNotices(t.id);
     }
     async remove(id) {
         const task = await this.repo.findOneBy({ id });

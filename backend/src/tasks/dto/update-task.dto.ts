@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Every field optional — this is a patch.
@@ -21,6 +21,8 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() subject?: string;
   @IsString() @IsOptional() priority?: string;
   @IsString() @IsOptional() leadId?: string;
+  @IsString() @IsOptional() holdReason?: string;
+  @IsBoolean() @IsOptional() deferNotify?: boolean;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;

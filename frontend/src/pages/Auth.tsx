@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowWidth } from '../useWindowWidth';
 import { api, session } from '../api';
 import { useApp } from '../AppContext';
+import { takeReturnTo } from '../returnTo';
 import { AuthLayout, authInput, label as fieldLabel } from './AuthLayout';
 
 export function Auth({ mode }: { mode: 'login' | 'signup' }) {
@@ -35,12 +36,12 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
       return;
     }
     signIn(decodeURIComponent(match[1]));
-    navigate('/dashboard', { replace: true });
+    navigate(takeReturnTo(), { replace: true });
   }, [signIn, navigate]);
 
   // Already signed in? Skip the form.
   useEffect(() => {
-    if (authReady && authUser) navigate('/dashboard', { replace: true });
+    if (authReady && authUser) navigate(takeReturnTo(), { replace: true });
   }, [authReady, authUser, navigate]);
 
   const submit = () => {
@@ -53,7 +54,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     api.auth.login(email.trim(), password)
       .then((res) => {
         signIn(res.token, res.user as any);
-        navigate('/dashboard', { replace: true });
+        navigate(takeReturnTo(), { replace: true });
       })
       .catch((e: Error) => setError(e.message || 'Sign in failed.'))
       .finally(() => setBusy(false));

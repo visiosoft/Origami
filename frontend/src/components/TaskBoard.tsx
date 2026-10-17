@@ -5,7 +5,7 @@ import './TaskBoard.css';
 import { createdByOf, PRIORITY_ORDER } from '../data/projectTasks';
 import { SavedViews } from './SavedViews';
 import { SortHeader, sortFromString, sortRows, sortToString, type SortState } from './SortHeader';
-import { ActionMenu, ActionTrail } from './ActionTools';
+import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
 import { api, persist } from '../api';
@@ -57,7 +57,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId', 'holdReason'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -80,12 +80,14 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   initialTaskId?: string | null;
 }) {
   const all = projectId === 'all';
-  const { can, toast, users } = useApp();
+  const { can, toast, users, authUser } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
   const canManage = can('tasks', 'manage');
-  // Columns and new cards belong to one project's board, not the all-projects view.
-  const canShape = canManage && !all;
+  // New cards belong to one project's board, not the all-projects view.
+  const canAdd = canManage && !all;
+  // The board's columns (their titles, adding, deleting and order) are set by an administrator.
+  const canShape = authUser?.roleKey === 'admin' && !all;
   // Each task's real column is kept, and its bucket column shown, on the all-projects view.
   const inBucket = (t: ProjectTask): ProjectTask => (all ? { ...t, homeSectionId: (t as any).homeSectionId ?? t.sectionId, sectionId: bucketCol(t.status) } as ProjectTask : t);
   const [projectNames, setProjectNames] = useState<Record<number, string>>({});
@@ -107,6 +109,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   const isNew = theme === 'coterie';
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
+  // The subtask being edited in the task drawer.
+  const [editingSub, setEditingSub] = useState<string | null>(null);
   // Which parents are expanded, plus the inline subtask composer.
   const [openTasks, setOpenTasks] = useState<Record<string, boolean>>({});
   const [addingSubIn, setAddingSubIn] = useState<string | null>(null);
@@ -127,6 +131,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
     priority: (t) => (t.priority ? PRIORITY_ORDER.indexOf(t.priority) : null),
   };
   const loadedProject = useRef<number | null>(null);
+  // The emailed task opens once, not again on every reload.
+  const openedLink = useRef(false);
 
   const load = () => {
     (all ? (api.projectTasks.list() as Promise<any>).then((rows: any) => ({ sections: ALL_BUCKETS, tasks: Array.isArray(rows) ? rows : [] })) : api.projectTasks.board(projectId))
@@ -135,7 +141,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
         setSections(res.sections || []);
         setTasks((res.tasks || []).filter((t: ProjectTask) => !leadId || t.leadId === leadId).map(inBucket));
         // Open the deep-linked task now that it exists in `tasks`.
-        if (initialTaskId && (res.tasks || []).some((t: ProjectTask) => t.id === initialTaskId)) {
+        if (initialTaskId && !openedLink.current && (res.tasks || []).some((t: ProjectTask) => t.id === initialTaskId)) {
+          openedLink.current = true;
           setSelectedId(initialTaskId);
         }
       })
@@ -214,6 +221,18 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   const renameSection = (id: string, name: string) => {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
     persist(() => api.projectSections.update(id, { name })).catch((e: Error) => toast('⚠ Section name not saved — ' + (e.message || 'try again')));
+  };
+  /** Move a column one place left (-1) or right (+1). */
+  const moveSection = (id: string, dir: -1 | 1) => {
+    const i = sections.findIndex((s) => s.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= sections.length) return;
+    const next = [...sections];
+    [next[i], next[j]] = [next[j], next[i]];
+    const ordered = next.map((s, k) => ({ ...s, order: k }));
+    setSections(ordered);
+    persist(() => Promise.all([ordered[i], ordered[j]].map((s) => api.projectSections.update(s.id, { order: s.order }))))
+      .catch((e: Error) => toast('⚠ Column order not saved — ' + (e.message || 'try again')));
   };
   const deleteSection = (id: string) => {
     if (sections.length <= 1) { toast('Keep at least one section'); return; }
@@ -339,6 +358,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             <div className="tb-titlebox">
               <div className="tb-title">{t.title}</div>
               {(all || t.serial || t.leadName) && <div className="tb-sub">{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
+              {t.status === 'On hold' && t.holdReason && <div className="tb-sub" style={{ color: 'var(--c-8a6d12)' }}>On hold: {t.holdReason}</div>}
               {subs.length > 0 && <div className="tb-sub">{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
               {t.parentId && <div className="tb-sub">Subtask of {tasks.find((x) => x.id === t.parentId)?.title || 'another task'}</div>}
             </div>
@@ -399,6 +419,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
             {(all || t.serial || t.leadName) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
+            {t.status === 'On hold' && t.holdReason && <div style={{ fontSize: 11, color: 'var(--c-8a6d12)', marginTop: 2 }}>On hold: {t.holdReason}</div>}
             {subs.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
             {(t.labels?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -446,6 +467,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
               <span className={'tb-col-dot is-' + (si % 4)} />
               <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} aria-label="Section name" />
               <span className="tb-col-count">{secTasks.length}</span>
+              {canShape && <button type="button" className="tb-col-x" onClick={() => moveSection(sec.id, -1)} title="Move left" aria-label="Move column left">‹</button>}
+              {canShape && <button type="button" className="tb-col-x" onClick={() => moveSection(sec.id, 1)} title="Move right" aria-label="Move column right">›</button>}
               {canShape && <button type="button" className="tb-col-x" onClick={() => deleteSection(sec.id)} title="Delete section" aria-label="Delete section">×</button>}
             </div>
             <div className="tb-col-body">
@@ -459,7 +482,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                     <button type="button" className="tb-btn" onClick={() => { setAddingIn(null); setAddDraft(''); }}>Cancel</button>
                   </div>
                 </div>
-              ) : canShape && (
+              ) : canAdd && (
                 <button type="button" className="tb-add" onClick={() => { setAddingIn(sec.id); setAddDraft(''); }}>+ Add task</button>
               )}
             </div>
@@ -492,6 +515,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px' }}>
               <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
               <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', background: 'var(--sand)', padding: '1px 7px', borderRadius: 999 }}>{secTasks.length}</span>
+              {canShape && <span onClick={() => moveSection(sec.id, -1)} title="Move left" aria-label="Move column left" style={{ fontSize: 14, color: 'var(--muted)', cursor: 'pointer' }}>‹</span>}
+              {canShape && <span onClick={() => moveSection(sec.id, 1)} title="Move right" aria-label="Move column right" style={{ fontSize: 14, color: 'var(--muted)', cursor: 'pointer' }}>›</span>}
               {canShape && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
             </div>
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
@@ -504,7 +529,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                     <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
                   </div>
                 </div>
-              ) : canShape && (
+              ) : canAdd && (
                 <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>+ Add task</div>
               )}
             </div>
@@ -547,6 +572,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
           {depth === 0 && t.parentId ? linkBadge(t) : null}
           <span style={{ flex: 1, minWidth: 0, fontSize: depth ? 12.5 : 13, fontWeight: depth ? 500 : 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {t.title}
+            {t.status === 'On hold' && t.holdReason && <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--c-8a6d12)', textDecoration: 'none' }}> · On hold: {t.holdReason}</span>}
           </span>
 
           {kids.length > 0 && (
@@ -604,7 +630,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflow: 'hidden' }}>
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
               {sortRows(secTasks, LIST_BY, listSort).map((t) => listRow(t, 0))}
-              {canShape && (addingIn === sec.id ? (
+              {canAdd && (addingIn === sec.id ? (
                 <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>
                   <input
                     autoFocus
@@ -874,7 +900,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
           and files still save the moment they're added. */}
       {selected && (
         <DraftScope key={selected.id} record={selected} fields={BOARD_FIELDS} enabled={canManage} label="task"
-          save={(changes) => api.projectTasks.update(selected.id, changes) as Promise<ProjectTask>} onSaved={replaceTask}>
+          // Emails (assigned, added as a collaborator, done) wait for the Save button.
+          save={(changes) => api.projectTasks.update(selected.id, { ...changes, deferNotify: true }) as Promise<ProjectTask>} onSaved={replaceTask}>
         {({ draft: d, set: setDraft, auto }) => {
         // A parent stays open while any subtask is open -- say so instead of saving a refusal.
         const set = (patch: Partial<ProjectTask>) => {
@@ -888,13 +915,22 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
           <div onClick={(e) => e.stopPropagation()} style={{ width: isMobile ? '100%' : 440, maxWidth: '96vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
             {canManage && (
               <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-                <SaveBar auto={auto} onDone={() => setSelectedId(null)} />
+                <SaveBar auto={auto} onDone={() => { void api.projectTasks.notify(selected.id).catch(() => undefined); setSelectedId(null); }} />
               </div>
             )}
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <input type="checkbox" checked={!!d.completed} disabled={!canManage} onChange={() => set({ completed: !d.completed })} style={{ marginTop: 5 }} />
               <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', background: 'transparent' }} />
               <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
+            </div>
+            {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
+            <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+              <OriginatorLine by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={selected.serial || '#' + selected.id} />
+              {selected.parentId && (
+                <div onClick={() => setSelectedId(selected.parentId!)} style={{ fontSize: 12, color: 'var(--forest)', fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
+                  ← Subtask of {tasks.find((x) => x.id === selected.parentId)?.title || 'its parent'}
+                </div>
+              )}
             </div>
 
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -906,11 +942,6 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
                 />
               </Field>
-              <div style={{ alignSelf: 'start', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Originator</div>
-                <div style={{ color: 'var(--ink)', fontWeight: 600 }}>{selected.createdByName || createdByOf(selected)?.by || '—'}</div>
-                <div>{(() => { const at = createdByOf(selected)?.at || selected.createdAt; return [at ? new Date(at.length > 10 ? at : at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', selected.serial || '#' + selected.id].filter(Boolean).join(' · '); })()}</div>
-              </div>
               {(selected.sourceId || (selected.derivedRefs || []).length > 0) && (
                 <div style={{ gridColumn: '1 / -1' }}><ActionTrail sourceType={selected.sourceType} sourceId={selected.sourceId} sourceLabel={selected.sourceLabel} derived={selected.derivedRefs} /></div>
               )}
@@ -928,6 +959,14 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                   })}
                 </select>
               </Field>
+              {d.status === 'On hold' && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Field label="Why is it on hold?">
+                    <textarea value={d.holdReason || ''} disabled={!canManage} onChange={(e) => set({ holdReason: e.target.value })} rows={2} placeholder="e.g. Waiting on the client’s tile selection" aria-label="Why is it on hold"
+                      style={{ ...inputStyle, width: '100%', resize: 'vertical', background: 'var(--amber-light)' }} />
+                  </Field>
+                </div>
+              )}
               <Field label="Lead">
                 <LeadSelect value={d.leadId} name={d.leadName} disabled={!canManage} onChange={(v) => set({ leadId: v })} style={{ ...inputStyle, width: '100%' }} />
               </Field>
@@ -965,13 +1004,22 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <FieldLabel>Subtasks</FieldLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {subtasksOf(tasks, selected.id).map((s) => (
+                {subtasksOf(tasks, selected.id).map((s) => editingSub === s.id ? (
+                  <div key={s.id} style={{ padding: 8, background: 'var(--panel)', borderRadius: 8 }}>
+                    <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: s.title, assigneeId: s.assigneeId, assignee: s.assignee || '', dueDate: s.dueDate || '' }}
+                      onCancel={() => setEditingSub(null)}
+                      onAdd={(v) => api.projectTasks.update(s.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, deferNotify: true })
+                        .then((res: any) => { if (res) replaceTask(res as ProjectTask); setEditingSub(null); })
+                        .catch((e: Error) => toast('⚠ ' + (e.message || 'Subtask not saved')))} />
+                  </div>
+                ) : (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--panel)', borderRadius: 8 }}>
                     <input type="checkbox" checked={s.completed} disabled={!canManage} onChange={() => toggleSub(s)} />
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
+                    <span onClick={() => setSelectedId(s.id)} title="Open the subtask" style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
                     {s.dueDate && <span style={{ fontSize: 11, color: !s.completed && s.dueDate < todayIso ? '#9A4318' : 'var(--muted)', flexShrink: 0 }}>{dueText(s.dueDate)}</span>}
                     {s.assignee && <Avatar user={users.find((u) => u.id === s.assigneeId)} name={s.assignee} size={20} title={s.assignee} />}
-                    {canManage && <span onClick={() => deleteTask(s.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
+                    {canManage && <span onClick={() => setEditingSub(s.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
+                    {canManage && <span onClick={() => deleteTask(s.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                   </div>
                 ))}
               </div>

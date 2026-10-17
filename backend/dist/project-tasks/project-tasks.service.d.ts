@@ -37,6 +37,11 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     create(dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;
     private notice;
     update(id: string, dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;
+    private sendNotices;
+    flushNotices(id: string, withSubtasks?: boolean): Promise<{
+        sent: number;
+    }>;
+    flushOverdue(): Promise<void>;
     reorder(sectionId: string, ids: string[]): Promise<{
         sectionId: string;
         ordered: number;

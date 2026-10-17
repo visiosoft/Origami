@@ -36,6 +36,8 @@ export interface Task extends ActionTrailFields {
   /** The lead it's for (work before a signed contract), and its name. */
   leadId?: string | null;
   leadName?: string | null;
+  /** Why it's on hold (status On hold). */
+  holdReason?: string | null;
   tab?: TaskTab;
   /** users.id — `assignedTo` is kept alongside as the display name. */
   assignedToId?: string;

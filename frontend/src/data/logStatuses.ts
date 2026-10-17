@@ -63,3 +63,13 @@ export function logStatusTone(name?: string | null): { bg: string; c: string } {
   if (custom) return { bg: tint(custom, '22'), c: custom };
   return isLogClosed(name) ? TONES.Closed : { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 }
+
+/** What each bucket means (Oct 2026) -- shown as a hint on the status picker. */
+export const LOG_STATUS_HINT: Record<string, string> = {
+  'To Do': 'Not assigned to anyone yet — may or may not have a due date',
+  Assigned: 'Assigned to someone',
+  'In Progress': 'The assignee has acknowledged it — it’s on their radar',
+  'On hold': 'On hold or blocked — say why',
+  Complete: 'The assignee says it’s complete',
+  Confirmed: 'The originator confirms it’s complete — archived a week later unless it’s moved or changed',
+};

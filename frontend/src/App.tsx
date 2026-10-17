@@ -40,6 +40,7 @@ import { GuestEntry } from './pages/GuestEntry';
 import { Portal } from './pages/Portal';
 import { DailyReport } from './pages/DailyReport';
 import { useApp } from './AppContext';
+import { rememberReturnTo } from './returnTo';
 
 /** Sends anyone without a valid session to the log-in screen. */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -57,7 +58,11 @@ function RequireAuth({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!authUser) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (!authUser) {
+    // Back to exactly this page after signing in -- e.g. the task an email linked to.
+    rememberReturnTo(location.pathname + location.search);
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  }
   return <>{children}</>;
 }
 

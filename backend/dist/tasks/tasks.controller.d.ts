@@ -29,6 +29,9 @@ export declare class TasksController {
     findOne(id: string, auth?: string): Promise<import("../database/entities").TaskEntity>;
     create(dto: CreateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
     update(id: string, dto: UpdateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
+    notify(id: string): Promise<{
+        sent: number;
+    }>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

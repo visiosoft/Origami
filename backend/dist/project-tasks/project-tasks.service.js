@@ -18,6 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const lead_link_1 = require("../tasks/lead-link");
+const pending_notices_1 = require("../notifications/pending-notices");
 const auto_checklist_1 = require("./auto-checklist");
 const project_tasks_1 = require("../seed-data/project-tasks");
 const sections_service_1 = require("./sections.service");
@@ -50,6 +51,8 @@ let ProjectTasksService = class ProjectTasksService {
         return rows.length;
     }
     async onApplicationBootstrap() {
+        const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + e.message)); }, 60_000);
+        tick.unref?.();
         try {
             if ((await this.repo.count()) === 0) {
                 await this.repo.save(project_tasks_1.DEFAULT_TASKS);
@@ -108,7 +111,7 @@ let ProjectTasksService = class ProjectTasksService {
     }
     async archiveConfirmed(rows) {
         const cutoff = Date.now() - exports.ARCHIVE_AFTER_DAYS * 86400000;
-        const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff);
+        const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff && (!t.updatedAt || Date.parse(t.updatedAt) <= cutoff));
         if (!due.length)
             return;
         const at = new Date().toISOString();
@@ -230,6 +233,10 @@ let ProjectTasksService = class ProjectTasksService {
     async create(dto, actor = { name: 'Unknown' }) {
         if (dto.parentId)
             this.assertSubtaskFields(dto);
+        const defer = !!dto.parentId || !!dto.deferNotify;
+        dto = { ...dto };
+        delete dto.deferNotify;
+        delete dto.pendingNotices;
         const id = dto.id || 'T-' + String(Date.now());
         if (dto.status) {
             dto = { ...dto, status: (0, task_types_1.normalizeTaskStatus)(dto.status) };
@@ -272,17 +279,18 @@ let ProjectTasksService = class ProjectTasksService {
         };
         const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
         task.serial = (0, serials_1.nextSerial)(peers.map((t) => t.serial), 'task', (0, serials_1.serialYear)());
+        const at = new Date().toISOString();
+        const who = { id: actor.id, name: actor.name };
+        const followers = (0, task_types_1.normalizeCollaborators)(task.collaborators);
+        const notices = [
+            ...(assignee.id ? [{ kind: 'assigned', ids: [String(assignee.id)], actor: who, at }] : []),
+            ...(followers.length ? [{ kind: 'added', ids: followers.map((c) => c.id), actor: who, at }] : []),
+        ];
+        if (defer)
+            task.pendingNotices = (0, pending_notices_1.holdNotices)(null, notices);
         const saved = await this.repo.save(this.repo.create(task));
-        if (assignee.id) {
-            this.notifications.taskAssigned({
-                surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
-                projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
-                status: saved.status, assigneeId: assignee.id, actor,
-            });
-        }
-        const followers = (0, task_types_1.normalizeCollaborators)(saved.collaborators);
-        if (followers.length)
-            this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
+        if (!defer)
+            this.sendNotices(saved, notices);
         return this.hydrate(saved);
     }
     notice(t, actor) {
@@ -295,6 +303,9 @@ let ProjectTasksService = class ProjectTasksService {
         const patch = { ...dto };
         delete patch.id;
         delete patch.serial;
+        delete patch.pendingNotices;
+        const defer = !!patch.deferNotify;
+        delete patch.deferNotify;
         if ('leadId' in patch)
             Object.assign(patch, await (0, lead_link_1.resolveLead)(this.leads, patch.leadId));
         if ('assignee' in patch || 'assigneeId' in patch) {
@@ -331,22 +342,51 @@ let ProjectTasksService = class ProjectTasksService {
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)
             : null;
+        const nextStatus = patch.status ?? task.status;
+        if (nextStatus !== 'On hold' && task.holdReason)
+            patch.holdReason = null;
+        const at = new Date().toISOString();
+        const who = { id: actor.id, name: actor.name };
+        const notices = [
+            ...(reassignedTo ? [{ kind: 'assigned', ids: [reassignedTo], actor: who, at }] : []),
+            ...(joined.length ? [{ kind: 'added', ids: joined.map((c) => c.id), actor: who, at }] : []),
+            ...(finished ? [{ kind: 'done', ids: [], actor: who, at }] : []),
+        ];
         Object.assign(task, patch, { id });
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), ...events];
         task.updatedAt = new Date().toISOString();
+        if (defer && notices.length)
+            task.pendingNotices = (0, pending_notices_1.holdNotices)(task.pendingNotices, notices);
         const saved = await this.repo.save(task);
-        if (reassignedTo) {
-            this.notifications.taskAssigned({
-                surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
-                projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
-                status: saved.status, assigneeId: reassignedTo, actor,
-            });
-        }
-        if (joined.length)
-            this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
-        if (finished)
-            this.notifications.taskFollowUp(this.notice(saved, actor), (0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), { kind: 'done' });
+        if (!defer)
+            this.sendNotices(saved, notices);
         return this.hydrate(saved);
+    }
+    sendNotices(t, notices) {
+        for (const n of notices) {
+            const notice = this.notice(t, n.actor);
+            if (n.kind === 'assigned')
+                this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+            else if (n.kind === 'added')
+                this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+            else
+                this.notifications.taskFollowUp(notice, (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), { kind: 'done' });
+        }
+    }
+    async flushNotices(id, withSubtasks = true) {
+        const rows = [await this.repo.findOneBy({ id }), ...(withSubtasks ? await this.repo.findBy({ parentId: id }) : [])].filter(Boolean);
+        let sent = 0;
+        for (const t of rows.filter((x) => x.pendingNotices?.length)) {
+            const live = (0, pending_notices_1.stillTrue)(t.pendingNotices, { assigneeId: t.assigneeId, collaboratorIds: (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), done: (0, task_types_1.isDoneStatus)(t.status) });
+            await this.repo.update({ id: t.id }, { pendingNotices: null });
+            this.sendNotices(t, live);
+            sent += live.length;
+        }
+        return { sent };
+    }
+    async flushOverdue() {
+        for (const t of (await this.repo.find()).filter((x) => (0, pending_notices_1.overdue)(x.pendingNotices)))
+            await this.flushNotices(t.id, false);
     }
     async reorder(sectionId, ids) {
         const rows = await this.repo.find({ where: { sectionId } });

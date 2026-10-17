@@ -73,6 +73,12 @@ export class TasksController {
     return this.tasksService.update(id, dto, await this.auth.actor(auth));
   }
 
+  /** Save pressed in the task editor: send the emails held on the entry. */
+  @Post(':id/notify')
+  notify(@Param('id') id: string) {
+    return this.tasksService.flushNotices(id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.tasksService.remove(id);

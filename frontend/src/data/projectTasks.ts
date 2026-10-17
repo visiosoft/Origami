@@ -55,12 +55,12 @@ export const statusLabel = (s?: string | null) => STATUS_LABEL[s || 'Not started
 export const isTaskDone = (t: { completed?: boolean; status?: string | null }) => !!t.completed || t.status === 'Done' || t.status === 'Confirmed';
 /** What each bucket means (the Oct 16 definitions). */
 export const STATUS_HINT: Record<string, string> = {
-  'Not started': 'Added, but not fully detailed or assigned yet',
-  Assigned: 'Assigned to someone, not started',
-  'In progress': 'The assignee has picked it up',
-  'On hold': 'Paused',
-  Done: 'The assignee has finished it',
-  Confirmed: 'The originator confirmed it’s done — archived 7 days later',
+  'Not started': 'Not assigned to anyone yet — may or may not have a due date',
+  Assigned: 'Assigned to someone',
+  'In progress': 'The assignee has acknowledged it — it’s on their radar',
+  'On hold': 'On hold or blocked — say why',
+  Done: 'The assignee says it’s complete',
+  Confirmed: 'The originator confirms it’s complete — archived a week later unless it’s moved or changed',
 };
 
 export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
@@ -90,6 +90,8 @@ export interface ProjectTask extends ActionTrailFields {
   /** The lead it's for (work before a signed contract), and its name. */
   leadId?: string | null;
   leadName?: string | null;
+  /** Why it's on hold (status On hold). */
+  holdReason?: string | null;
   sectionId: string;
   title: string;
   description?: string;

@@ -25,6 +25,9 @@ export declare class ProjectTasksController {
     }>;
     create(dto: CreateProjectTaskDto, auth?: string): Promise<import("../database/entities").ProjectTaskEntity>;
     update(id: string, dto: Partial<CreateProjectTaskDto>, auth?: string, claims?: SessionClaims | null): Promise<import("../database/entities").ProjectTaskEntity>;
+    notify(id: string, claims?: SessionClaims | null): Promise<{
+        sent: number;
+    }>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

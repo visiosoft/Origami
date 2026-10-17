@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
 import { resolveLead } from '../tasks/lead-link';
+import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
 import { withAutoChecklists } from './auto-checklist';
 import { DEFAULT_TASKS } from '../seed-data/project-tasks';
 import { SectionsService } from './sections.service';
@@ -49,6 +50,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
+    tick.unref?.();
     try {
       if ((await this.repo.count()) === 0) {
         await this.repo.save(DEFAULT_TASKS as unknown as ProjectTaskEntity[]);
@@ -112,7 +115,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
   /** Confirmed tasks are archived 7 days later -- worked out whenever tasks are read. */
   private async archiveConfirmed(rows: ProjectTaskEntity[]) {
     const cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 86400000;
-    const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff);
+    // A week after it's confirmed -- unless it was moved or changed since.
+    const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff && (!t.updatedAt || Date.parse(t.updatedAt) <= cutoff));
     if (!due.length) return;
     const at = new Date().toISOString();
     for (const t of due) t.archivedAt = at;
@@ -254,6 +258,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
   async create(dto: any, actor: UploadActor = { name: 'Unknown' }) {
     if (dto.parentId) this.assertSubtaskFields(dto);
+    // A subtask's emails wait until its parent is saved (as do any the editor asks to hold).
+    const defer = !!dto.parentId || !!dto.deferNotify;
+    dto = { ...dto }; delete dto.deferNotify; delete dto.pendingNotices;
     const id = dto.id || 'T-' + String(Date.now());
     if (dto.status) {
       dto = { ...dto, status: normalizeTaskStatus(dto.status) };
@@ -293,16 +300,16 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     };
     const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
     task.serial = nextSerial(peers.map((t) => t.serial), 'task', serialYear());
+    const at = new Date().toISOString();
+    const who = { id: actor.id, name: actor.name };
+    const followers = normalizeCollaborators(task.collaborators);
+    const notices: PendingNotice[] = [
+      ...(assignee.id ? [{ kind: 'assigned' as const, ids: [String(assignee.id)], actor: who, at }] : []),
+      ...(followers.length ? [{ kind: 'added' as const, ids: followers.map((c) => c.id), actor: who, at }] : []),
+    ];
+    if (defer) (task as any).pendingNotices = holdNotices(null, notices);
     const saved = await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>));
-    if (assignee.id) {
-      this.notifications.taskAssigned({
-        surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
-        projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
-        status: saved.status, assigneeId: assignee.id, actor,
-      });
-    }
-    const followers = normalizeCollaborators(saved.collaborators);
-    if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
+    if (!defer) this.sendNotices(saved, notices);
     return this.hydrate(saved);
   }
 
@@ -316,7 +323,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (!task) task = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<ProjectTaskEntity>);
 
     const patch: Record<string, any> = { ...dto };
-    delete patch.id; delete patch.serial;
+    delete patch.id; delete patch.serial; delete patch.pendingNotices;
+    // From the task editor (autosave): emails wait for its Save button.
+    const defer = !!patch.deferNotify; delete patch.deferNotify;
     if ('leadId' in patch) Object.assign(patch, await resolveLead(this.leads, patch.leadId));
 
     if ('assignee' in patch || 'assigneeId' in patch) {
@@ -353,21 +362,55 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       ? String(patch.assigneeId)
       : null;
 
+    // Off hold: the reason goes with it (it stays in the history).
+    const nextStatus = patch.status ?? task.status;
+    if (nextStatus !== 'On hold' && task.holdReason) patch.holdReason = null;
+
+    const at = new Date().toISOString();
+    const who = { id: actor.id, name: actor.name };
+    const notices: PendingNotice[] = [
+      ...(reassignedTo ? [{ kind: 'assigned' as const, ids: [reassignedTo], actor: who, at }] : []),
+      ...(joined.length ? [{ kind: 'added' as const, ids: joined.map((c) => c.id), actor: who, at }] : []),
+      ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
+    ];
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.updatedAt = new Date().toISOString();
+    if (defer && notices.length) task.pendingNotices = holdNotices(task.pendingNotices, notices);
     const saved = await this.repo.save(task);
-
-    if (reassignedTo) {
-      this.notifications.taskAssigned({
-        surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
-        projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
-        status: saved.status, assigneeId: reassignedTo, actor,
-      });
-    }
-    if (joined.length) this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
-    if (finished) this.notifications.taskFollowUp(this.notice(saved, actor), normalizeCollaborators(saved.collaborators).map((c) => c.id), { kind: 'done' });
+    if (!defer) this.sendNotices(saved, notices);
     return this.hydrate(saved);
+  }
+
+  /** Send task emails now. */
+  private sendNotices(t: ProjectTaskEntity, notices: PendingNotice[]) {
+    for (const n of notices) {
+      const notice = this.notice(t, n.actor);
+      if (n.kind === 'assigned') this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+      else if (n.kind === 'added') this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+      else this.notifications.taskFollowUp(notice, normalizeCollaborators(t.collaborators).map((c) => c.id), { kind: 'done' });
+    }
+  }
+
+  /**
+   * Save pressed: send the emails held on this task and its subtasks -- the
+   * ones still true (an assignment since undone isn't sent). Returns how many.
+   */
+  async flushNotices(id: string, withSubtasks = true) {
+    const rows = [await this.repo.findOneBy({ id }), ...(withSubtasks ? await this.repo.findBy({ parentId: id }) : [])].filter(Boolean) as ProjectTaskEntity[];
+    let sent = 0;
+    for (const t of rows.filter((x) => x.pendingNotices?.length)) {
+      const live = stillTrue(t.pendingNotices, { assigneeId: t.assigneeId, collaboratorIds: normalizeCollaborators(t.collaborators).map((c) => c.id), done: isDoneStatus(t.status) });
+      await this.repo.update({ id: t.id }, { pendingNotices: null } as any);
+      this.sendNotices(t, live);
+      sent += live.length;
+    }
+    return { sent };
+  }
+
+  /** Emails held more than 15 minutes (the page was closed without Save) go out anyway. */
+  async flushOverdue() {
+    for (const t of (await this.repo.find()).filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id, false);
   }
 
   /** Persist a manual card order within one section (drag-to-reorder). */

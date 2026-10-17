@@ -1,3 +1,4 @@
+import type { PendingNotice } from '../notifications/pending-notices';
 import { Column, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
 import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent, DerivedRef } from './task.types';
 
@@ -113,6 +114,10 @@ export class PersonEntity {
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
+  @Column({ type: 'simple-json', nullable: true }) pendingNotices!: PendingNotice[] | null;
+  /** Why it's on hold (status On hold). */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) holdReason!: string;
   /** The lead it's for, when the work comes before a signed contract (the lead's / deal's id), and its name. */
   @Column({ nullable: true }) leadId!: string;
   @Column({ nullable: true }) leadName!: string;
@@ -564,6 +569,10 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
+  @Column({ type: 'simple-json', nullable: true }) pendingNotices!: PendingNotice[] | null;
+  /** Why it's on hold (status On hold). */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) holdReason!: string;
   /** The lead it's for, when the work comes before a signed contract (the lead's / deal's id), and its name. */
   @Column({ nullable: true }) leadId!: string;
   @Column({ nullable: true }) leadName!: string;

@@ -10,6 +10,7 @@ import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, parse
 export const LOG_ARCHIVE_DAYS = 7;
 import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity, DealEntity, LeadEntity, ProjectEntity } from '../database/entities';
 import { isLeadId, leadDisplayName, resolveLead } from './lead-link';
+import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
@@ -52,6 +53,8 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
+    tick.unref?.();
     try {
       await backfillAssignees(this.repo, this.users, 'assignedToId', 'assignedTo', this.log);
     } catch (err) {
@@ -194,7 +197,8 @@ export class TasksService implements OnApplicationBootstrap {
     const cutoff = new Date(Date.now() - LOG_ARCHIVE_DAYS * 86400000).toISOString();
     const now = new Date().toISOString();
     for (const t of rows) {
-      if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff) {
+      // A week after it's confirmed -- unless it was moved or changed since.
+      if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff && (!t.updatedAt || t.updatedAt <= cutoff)) {
         t.archivedAt = now;
         await this.repo.update({ id: t.id }, { archivedAt: now });
       }
@@ -265,6 +269,8 @@ export class TasksService implements OnApplicationBootstrap {
 
     if (!String(dto.subject || '').trim() && !String(dto.description || '').trim()) throw new BadRequestException('Give the task a subject.');
     dto = { ...dto, ...(await this.leadFields(dto)) };
+    const defer = !!dto.deferNotify;
+    delete dto.deferNotify; delete dto.pendingNotices;
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
     // Checklist templates marked "add automatically to" this kind of entry.
     const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
@@ -301,16 +307,16 @@ export class TasksService implements OnApplicationBootstrap {
     if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim())) task.status = 'Assigned';
     task.serial = nextSerial(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), logSerialKind(task.topicType), serialYear());
 
+    const at = new Date().toISOString();
+    const who = { id: actor.id, name: actor.name };
+    const followers = normalizeCollaborators(task.collaborators);
+    const notices: PendingNotice[] = [
+      ...(assignee.id ? [{ kind: 'assigned' as const, ids: [String(assignee.id)], actor: who, at }] : []),
+      ...(followers.length ? [{ kind: 'added' as const, ids: followers.map((c) => c.id), actor: who, at }] : []),
+    ];
+    if (defer) task.pendingNotices = holdNotices(null, notices);
     const saved = await this.repo.save(task);
-    if (assignee.id) {
-      this.notifications.taskAssigned({
-        surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
-        projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
-        status: saved.status, assigneeId: assignee.id, actor,
-      });
-    }
-    const followers = normalizeCollaborators(saved.collaborators);
-    if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
+    if (!defer) this.sendNotices(saved, notices);
     return this.hydrate(saved);
   }
 
@@ -326,7 +332,9 @@ export class TasksService implements OnApplicationBootstrap {
   async update(id: string, dto: any, actor: UploadActor) {
     const task = await this.load(id);
     const patch: Record<string, any> = { ...dto };
-    delete patch.id; delete patch.serial;
+    delete patch.id; delete patch.serial; delete patch.pendingNotices;
+    // From the task editor (autosave): emails wait for its Save button.
+    const defer = !!patch.deferNotify; delete patch.deferNotify;
     Object.assign(patch, await this.leadFields(patch));
 
     if ('assignedTo' in patch || 'assignedToId' in patch) {
@@ -370,22 +378,51 @@ export class TasksService implements OnApplicationBootstrap {
       ? String(patch.assignedToId)
       : null;
 
+    // Off hold: the reason goes with it (it stays in the history).
+    if ((patch.status ?? task.status) !== 'On hold' && task.holdReason) patch.holdReason = null;
+
+    const at = new Date().toISOString();
+    const who = { id: actor.id, name: actor.name };
+    const notices: PendingNotice[] = [
+      ...(reassignedTo ? [{ kind: 'assigned' as const, ids: [reassignedTo], actor: who, at }] : []),
+      ...(joined.length ? [{ kind: 'added' as const, ids: joined.map((c) => c.id), actor: who, at }] : []),
+      ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
+    ];
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
     task.daysOpen = this.daysOpen(task);
     task.updatedAt = new Date().toISOString();
+    if (defer && notices.length) task.pendingNotices = holdNotices(task.pendingNotices, notices);
 
     const saved = await this.repo.save(task);
-    if (reassignedTo) {
-      this.notifications.taskAssigned({
-        surface: 'log', taskId: saved.id, title: taskTitle(saved), description: saved.subject ? saved.description || undefined : undefined,
-        projectName: saved.project, dueDate: saved.dueDate, priority: saved.topicType,
-        status: saved.status, assigneeId: reassignedTo, actor,
-      });
-    }
-    if (joined.length) this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
-    if (finished) this.notifications.taskFollowUp(this.notice(saved, actor), normalizeCollaborators(saved.collaborators).map((c) => c.id), { kind: 'done' });
+    if (!defer) this.sendNotices(saved, notices);
     return this.hydrate(saved);
+  }
+
+  /** Send task emails now. */
+  private sendNotices(t: TaskEntity, notices: PendingNotice[]) {
+    for (const n of notices) {
+      const notice = this.notice(t, n.actor);
+      if (n.kind === 'assigned') this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+      else if (n.kind === 'added') this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+      else this.notifications.taskFollowUp(notice, normalizeCollaborators(t.collaborators).map((c) => c.id), { kind: 'done' });
+    }
+  }
+
+  /** Save pressed: send the emails held on this entry (the ones still true). */
+  async flushNotices(id: string) {
+    const t = await this.repo.findOneBy({ id });
+    if (!t?.pendingNotices?.length) return { sent: 0 };
+    const closed = new Set((await this.statuses()).filter((s) => s.closed).map((s) => s.name));
+    const live = stillTrue(t.pendingNotices, { assigneeId: t.assignedToId, collaboratorIds: normalizeCollaborators(t.collaborators).map((c) => c.id), done: closed.has(t.status) });
+    await this.repo.update({ id }, { pendingNotices: null } as any);
+    this.sendNotices(t, live);
+    return { sent: live.length };
+  }
+
+  /** Emails held more than 15 minutes (the page was closed without Save) go out anyway. */
+  async flushOverdue() {
+    for (const t of (await this.repo.find()).filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id);
   }
 
   async remove(id: string) {

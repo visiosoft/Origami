@@ -16,6 +16,19 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17j',
+    date: '2026-10-17',
+    title: 'Task emails on Save, editable subtasks, email links that open the task, and “My tasks” your way',
+    items: [
+      { area: 'Task', kind: 'fixed', text: 'The link in a task email opens that task or subtask — also when you have to sign in first (signing in used to drop the link and land on the dashboard).', where: 'Task emails' },
+      { area: 'Task', kind: 'improved', text: 'Emails go out when you press Save & close, not while you type. A new subtask’s email waits for its parent to be saved. If the page is closed without saving, held emails still go out 15 minutes later.', where: 'Task and Request Log editors' },
+      { area: 'Task', kind: 'improved', text: 'Subtasks can be edited: Edit on a subtask changes its title, who it’s assigned to and its due date. Clicking a subtask opens it in full, with a link back to its parent.', where: 'Task → a task → Subtasks' },
+      { area: 'Task', kind: 'improved', text: '“My tasks” can show tasks assigned to you, ones you collaborate on and ones you originated — tick any mix.', where: 'Task → My tasks' },
+      { area: 'Task', kind: 'improved', text: 'The originator, date and number are at the top of every task. On hold asks why, and the reason shows on the card. The status hints follow the agreed meanings, and Confirmed tasks archive a week later unless they are moved or changed.', where: 'Task' },
+      { area: 'Task', kind: 'improved', text: 'Administrators set up the board’s columns: add, rename, delete and move them left or right.', where: 'Task → a project or General board' },
+    ],
+  },
+  {
     id: '2026-10-17i',
     date: '2026-10-17',
     title: 'Link tasks to leads as well as projects',

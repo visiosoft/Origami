@@ -88,6 +88,13 @@ export class ProjectTasksController {
     return this.service.update(id, dto, await this.auth.actor(auth));
   }
 
+  /** Save pressed in the task editor: send the emails held on the task and its subtasks. */
+  @Post(':id/notify')
+  async notify(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    await this.mayTouch(id, claims ?? null);
+    return this.service.flushNotices(id);
+  }
+
   @Tiers('internal')
   @Delete(':id')
   remove(@Param('id') id: string) {

@@ -52,6 +52,11 @@ export declare class TasksService implements OnApplicationBootstrap {
     create(dto: any, actor: UploadActor): Promise<TaskEntity>;
     private notice;
     update(id: string, dto: any, actor: UploadActor): Promise<TaskEntity>;
+    private sendNotices;
+    flushNotices(id: string): Promise<{
+        sent: number;
+    }>;
+    flushOverdue(): Promise<void>;
     remove(id: string): Promise<{
         id: string;
         deleted: boolean;

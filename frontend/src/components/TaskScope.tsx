@@ -3,6 +3,43 @@ import { useApp } from '../AppContext';
 import type { User } from '../data/users';
 
 const KEY = 'origami.taskScope';
+const PARTS_KEY = 'origami.taskScope.mine';
+const PARTS_EVENT = 'origami:mineParts';
+
+/** What "My tasks" covers: assigned to me, ones I collaborate on, ones I originated -- any mix. */
+export interface MineParts { assigned: boolean; collab: boolean; originated: boolean }
+const ALL_PARTS: MineParts = { assigned: true, collab: true, originated: true };
+function readParts(): MineParts {
+  try { const v = JSON.parse(localStorage.getItem(PARTS_KEY) || 'null'); return v && typeof v === 'object' ? { ...ALL_PARTS, ...v } : ALL_PARTS; } catch { return ALL_PARTS; }
+}
+/** Shared by the filter and its toggle (and remembered between visits). */
+export function useMineParts(): [MineParts, (p: MineParts) => void] {
+  const [parts, setParts] = useState<MineParts>(readParts);
+  useEffect(() => {
+    const on = () => setParts(readParts());
+    window.addEventListener(PARTS_EVENT, on);
+    return () => window.removeEventListener(PARTS_EVENT, on);
+  }, []);
+  const set = useCallback((p: MineParts) => {
+    // At least one stays on -- none would hide everything.
+    const next = p.assigned || p.collab || p.originated ? p : ALL_PARTS;
+    try { localStorage.setItem(PARTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    setParts(next);
+    window.dispatchEvent(new Event(PARTS_EVENT));
+  }, []);
+  return [parts, set];
+}
+
+/** Is this task "mine" under the chosen parts? */
+export function mineByParts(
+  task: { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string; collaborators?: { id: string }[]; createdById?: string; activity?: { type: string; byId?: string }[]; originator?: string },
+  user: User | undefined, parts: MineParts,
+): boolean {
+  if (!user) return false;
+  return (parts.assigned && isMine(task, user))
+    || (parts.collab && (task.collaborators || []).some((c) => c.id === user.id))
+    || (parts.originated && raisedByUser(task, user));
+}
 
 /** Whether a task belongs to this person — by id, falling back to the name. */
 export function isMine(
@@ -63,6 +100,7 @@ const SCOPES: TaskScope[] = ['all', 'mine', 'fromMe', 'assigned', 'from'];
 export function useTaskScope() {
   const { currentUser, tier, users } = useApp();
   const restricted = tier === 'client' || tier === 'consultant';
+  const [parts] = useMineParts();
   // When looking at everyone's work, optionally narrow to one person.
   const [person, setPerson] = useState('');
 
@@ -80,7 +118,7 @@ export function useTaskScope() {
   const filter = useCallback(
     <T extends { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string }>(tasks: T[]): T[] => {
       if (restricted) return tasks;              // the server already scoped these
-      if (scope === 'mine') return tasks.filter((t) => isMine(t, currentUser, true));
+      if (scope === 'mine') return tasks.filter((t) => mineByParts(t as never, currentUser, parts));
       if (scope === 'fromMe') return tasks.filter((t) => fromMe(t as never, currentUser));
       if (scope === 'assigned') {
         const who = person ? users.find((u) => u.id === person) : undefined;
@@ -93,18 +131,18 @@ export function useTaskScope() {
       }
       return tasks;
     },
-    [scope, person, restricted, currentUser, users],
+    [scope, person, restricted, currentUser, users, parts],
   );
 
   /** How many tasks each scope would show -- for the counts on the toggle. */
   const counts = useCallback(
     <T extends { assigneeId?: string; assignee?: string; assignedToId?: string; assignedTo?: string }>(tasks: T[]) => ({
       all: tasks.length,
-      mine: tasks.filter((t) => isMine(t, currentUser, true)).length,
+      mine: tasks.filter((t) => mineByParts(t as never, currentUser, parts)).length,
       fromMe: tasks.filter((t) => fromMe(t as never, currentUser)).length,
       assigned: tasks.filter((t) => !!(t.assigneeId || t.assignedToId || (t.assignee || t.assignedTo || '').trim())).length,
     }),
-    [currentUser],
+    [currentUser, parts],
   );
 
   return { scope, setScope, filter, restricted, currentUser, person, setPerson, users, counts };
@@ -223,9 +261,28 @@ export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCou
     <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
       {opt('all', 'Everyone', counts?.all ?? allCount)}
       {opt('mine', 'My tasks', counts?.mine ?? mineCount)}
+      {scope === 'mine' && <MinePartsChips />}
       {opt('fromMe', 'From me', counts?.fromMe)}
       {opt('assigned', 'Assigned', counts?.assigned)}
       {opt('from', 'From')}
     </div>
+  );
+}
+
+/** Under "My tasks": which of mine -- assigned to me, I'm a collaborator, I originated (any mix). */
+function MinePartsChips() {
+  const [parts, setParts] = useMineParts();
+  const chip = (k: keyof MineParts, label: string) => (
+    <label key={k} title={`Include tasks ${label.toLowerCase()}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+      background: parts[k] ? 'var(--surface)' : 'transparent', color: parts[k] ? 'var(--forest)' : 'var(--muted)', border: '1px solid ' + (parts[k] ? 'rgba(var(--rgb-forest), 0.35)' : 'transparent') }}>
+      <input type="checkbox" checked={parts[k]} onChange={(e) => setParts({ ...parts, [k]: e.target.checked })} style={{ margin: 0 }} />{label}
+    </label>
+  );
+  return (
+    <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
+      {chip('assigned', 'Assigned to me')}
+      {chip('collab', 'I collaborate on')}
+      {chip('originated', 'Originated by me')}
+    </span>
   );
 }

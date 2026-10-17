@@ -108,6 +108,8 @@ export declare class PhasesController {
             targetDays: number;
             targetDerived: boolean;
             id: string;
+            pendingNotices: import("../notifications/pending-notices").PendingNotice[] | null;
+            holdReason: string;
             leadId: string;
             leadName: string;
             serial: string;

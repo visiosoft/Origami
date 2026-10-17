@@ -18,6 +18,8 @@ export class CreateProjectTaskDto {
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() priority?: string;
   @IsString() @IsOptional() leadId?: string;
+  @IsString() @IsOptional() holdReason?: string;
+  @IsBoolean() @IsOptional() deferNotify?: boolean;
   @IsString() @IsOptional() status?: string;
   @IsNumber() @IsOptional() order?: number;
   @IsBoolean() @IsOptional() completed?: boolean;

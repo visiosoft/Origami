@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createdByText } from '../data/projectTasks';
-import { useLogStatuses } from '../data/logStatuses';
+import { LOG_STATUS_HINT, useLogStatuses } from '../data/logStatuses';
 import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
 import { LeadSelect } from './LeadSelect';
 import { useLinkTargets } from '../data/linkTargets';
@@ -23,7 +23,7 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task }
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId', 'holdReason'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -59,7 +59,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   /** Edits stay in the draft until Save, or 3 seconds after typing stops; only changed fields are sent. */
   const auto = useAutosave<Task>({
     draft: t, saved: task, fields: [...FIELDS], enabled: canManage, label: 'task',
-    save: (changes) => api.tasks.update(t.id, changes) as Promise<Task>,
+    // Emails (assigned, added as a collaborator, done) wait for the Save button.
+    save: (changes) => api.tasks.update(t.id, { ...changes, deferNotify: true } as Partial<Task>) as Promise<Task>,
     onSaved: (row, sent) => { setT((cur) => mergeSaved(cur, row, sent)); onChanged?.(row); },
   });
   const set = (patch: Partial<Task>) => setT((prev) => ({ ...prev, ...patch }));
@@ -99,7 +100,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} onDone={onClose} />
+            <SaveBar auto={auto} onDone={() => { void api.tasks.notify(t.id).catch(() => undefined); onClose(); }} />
           </div>
         )}
         {/* Header */}
@@ -146,15 +147,23 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 disabled={!canManage}
                 value={t.status}
                 onChange={(e) => set({ status: e.target.value as Task['status'] })}
+                title={LOG_STATUS_HINT[t.status]}
                 style={{ ...inputStyle, padding: '7px 9px' }}
               >
                 {[...statuses.map((s) => s.name), ...(statuses.some((s) => s.name === t.status) || !t.status ? [] : [t.status])].map((st) => {
                   // Only whoever raised it (or an admin) confirms it.
                   const locked = st === 'Confirmed' && t.status !== 'Confirmed' && !(raisedBy(t, currentUser?.id) || currentUser?.roleKey === 'admin' || (!!t.originator && t.originator === currentUser?.name));
-                  return <option key={st} value={st} disabled={locked}>{st}{locked ? ' — whoever raised it confirms' : ''}</option>;
+                  return <option key={st} value={st} disabled={locked} title={LOG_STATUS_HINT[st]}>{st}{locked ? ' — whoever raised it confirms' : ''}</option>;
                 })}
               </select>
             </div>
+            {t.status === 'On hold' && (
+              <div style={{ padding: '12px 14px', background: 'var(--amber-light)', borderRadius: 10, gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-8a6d12)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Why is it on hold?</div>
+                <textarea value={t.holdReason || ''} disabled={!canManage} onChange={(e) => set({ holdReason: e.target.value })} rows={2} placeholder="e.g. Waiting on the client’s tile selection" aria-label="Why is it on hold"
+                  style={{ ...inputStyle, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
+              </div>
+            )}
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Meeting Date</div>
               <div style={{ fontSize: 13, fontWeight: 600 }}>{t.meetingDate}</div>

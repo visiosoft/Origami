@@ -1,3 +1,4 @@
+import type { PendingNotice } from '../notifications/pending-notices';
 import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent, DerivedRef } from './task.types';
 export declare class ProjectEntity {
     id: number;
@@ -78,6 +79,8 @@ export declare class PersonEntity {
 }
 export declare class TaskEntity {
     id: string;
+    pendingNotices: PendingNotice[] | null;
+    holdReason: string;
     leadId: string;
     leadName: string;
     serial: string;
@@ -404,6 +407,8 @@ export declare class ProjectSectionEntity {
 }
 export declare class ProjectTaskEntity {
     id: string;
+    pendingNotices: PendingNotice[] | null;
+    holdReason: string;
     leadId: string;
     leadName: string;
     serial: string;

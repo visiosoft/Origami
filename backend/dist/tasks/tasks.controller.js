@@ -59,6 +59,9 @@ let TasksController = class TasksController {
     async update(id, dto, auth) {
         return this.tasksService.update(id, dto, await this.auth.actor(auth));
     }
+    notify(id) {
+        return this.tasksService.flushNotices(id);
+    }
     remove(id) {
         return this.tasksService.remove(id);
     }
@@ -149,6 +152,13 @@ __decorate([
     __metadata("design:paramtypes", [String, update_task_dto_1.UpdateTaskDto, String]),
     __metadata("design:returntype", Promise)
 ], TasksController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)(':id/notify'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TasksController.prototype, "notify", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
