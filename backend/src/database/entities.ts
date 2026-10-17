@@ -116,6 +116,8 @@ export class PersonEntity {
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Closed with "Close task": complete and archived at once. */
+  @Column({ nullable: true }) closedAt!: string;
   /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
   @Column({ type: 'simple-json', nullable: true }) pendingNotices!: PendingNotice[] | null;
   /** Why it's on hold (status On hold). */
@@ -571,6 +573,8 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** Closed with "Close task": complete and archived at once. */
+  @Column({ nullable: true }) closedAt!: string;
   /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
   @Column({ type: 'simple-json', nullable: true }) pendingNotices!: PendingNotice[] | null;
   /** Why it's on hold (status On hold). */

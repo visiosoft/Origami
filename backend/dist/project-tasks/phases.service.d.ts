@@ -112,6 +112,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
             targetDays: number;
             targetDerived: boolean;
             id: string;
+            closedAt: string;
             pendingNotices: import("../notifications/pending-notices").PendingNotice[] | null;
             holdReason: string;
             leadId: string;

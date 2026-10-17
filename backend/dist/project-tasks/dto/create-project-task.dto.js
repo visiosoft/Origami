@@ -74,6 +74,11 @@ __decorate([
     __metadata("design:type", Boolean)
 ], CreateProjectTaskDto.prototype, "deferNotify", void 0);
 __decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateProjectTaskDto.prototype, "close", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

@@ -67,7 +67,23 @@ const initialsOf = (title: string) => {
 
 /** "All projects": every board task, in one column per task bucket. */
 const ALL_BUCKETS = TASK_STATUSES.map((st, i) => ({ id: 'B:' + st, name: statusLabel(st), order: i, projectId: null })) as unknown as ProjectSection[];
-const bucketCol = (status?: string | null) => 'B:' + (TASK_STATUSES.includes(status as TaskStatus) ? status : 'Not started');
+/** A status in any of its spellings (To Do, Complete, Blocked…) as the stored bucket value. */
+const normStatus = (s?: string | null): TaskStatus => {
+  const v = String(s || '').trim();
+  if (TASK_STATUSES.includes(v as TaskStatus)) return v as TaskStatus;
+  if (/^(done|complete|completed)$/i.test(v)) return 'Done' as TaskStatus;
+  if (/^(in[\s-]*progress|doing)$/i.test(v)) return 'In progress' as TaskStatus;
+  if (/^(blocked|on[\s-]*hold|hold)$/i.test(v)) return 'On hold' as TaskStatus;
+  if (/^(assigned|confirmed)$/i.test(v)) return (v[0].toUpperCase() + v.slice(1).toLowerCase()) as TaskStatus;
+  return 'Not started' as TaskStatus;
+};
+/** Completed means Done -- whatever an older status says. */
+const isFinished = (t: { completed?: boolean | null; status?: string | null }) => !!t.completed || normStatus(t.status) === 'Done' || normStatus(t.status) === 'Confirmed';
+const CLOSE_OPT = '__close';
+const bucketCol = (t: { completed?: boolean | null; status?: string | null }) => {
+  const st = normStatus(t.status);
+  return 'B:' + (t.completed && st !== 'Confirmed' ? 'Done' : st);
+};
 
 /**
  * projectId: a project, null for General Tasks, or 'all' -- every task across
@@ -89,7 +105,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   // The board's columns (their titles, adding, deleting and order) are set by an administrator.
   const canShape = authUser?.roleKey === 'admin' && !all;
   // Each task's real column is kept, and its bucket column shown, on the all-projects view.
-  const inBucket = (t: ProjectTask): ProjectTask => (all ? { ...t, homeSectionId: (t as any).homeSectionId ?? t.sectionId, sectionId: bucketCol(t.status) } as ProjectTask : t);
+  const inBucket = (t: ProjectTask): ProjectTask => (all ? { ...t, homeSectionId: (t as any).homeSectionId ?? t.sectionId, sectionId: bucketCol(t) } as ProjectTask : t);
   const [projectNames, setProjectNames] = useState<Record<number, string>>({});
   const isMobile = useWindowWidth() <= 720;
 
@@ -158,7 +174,11 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
 
   const archivedCount = tasks.filter((t) => t.archivedAt && !t.parentId).length;
   const inScopeOfBoard = (showPhaseTasks ? tasks : tasks.filter((t) => !t.phaseId)).filter((t) => (showArchived ? !!t.archivedAt : !t.archivedAt));
-  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query));
+  // On a project's own board a finished card always shows in its Done column (not "In Review" or To Do).
+  const doneColId = all ? undefined : sections.find((s) => /^(done|complete|completed)$/i.test(s.name.trim()))?.id;
+  const inDoneCol = (id: string) => /^(done|complete|completed|confirmed)$/i.test(sections.find((s) => s.id === id)?.name.trim() || '');
+  const placed = (t: ProjectTask): ProjectTask => (doneColId && !t.parentId && isFinished(t) && !inDoneCol(t.sectionId) ? { ...t, sectionId: doneColId } : t);
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query)).map(placed);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
@@ -205,7 +225,24 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
     if (selectedId === id) setSelectedId(null);
     api.projectTasks.remove(id).catch(() => toast('⚠ Failed to delete'));
   };
+  /** "Close task": complete and into the archive at once (Reopen from Archived). */
+  const closeTask = (id: string) => {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    const open = subtasksOf(tasks, id).filter((s) => !isFinished(s)).length;
+    if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
+    if (!window.confirm(`Close “${t.title}” and move it to the archive? You can reopen it from Archived.`)) return;
+    api.projectTasks.update(id, { close: true } as any)
+      .then(() => { if (selectedId === id) setSelectedId(null); toast('Task closed and archived'); load(); })
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Not closed')));
+  };
+  const reopenTask = (id: string) => {
+    api.projectTasks.update(id, { status: 'In progress' })
+      .then(() => { toast('Task reopened'); load(); })
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Not reopened')));
+  };
   const moveTask = (id: string, sectionId: string) => {
+    if (sectionId === CLOSE_OPT) { closeTask(id); return; }
     const t = tasks.find((x) => x.id === id); if (!t || t.sectionId === sectionId) return;
     // A bucket column on the all-projects view: moving there sets the status.
     if (all) { updateTask(id, { status: sectionId.slice(2) as TaskStatus }); return; }
@@ -389,6 +426,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
               <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
                 onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
                 {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
+                {!t.parentId && <option value={CLOSE_OPT}>✓ Close (archive)</option>}
               </select>
             )}
             <span className="tb-who"><AvatarStack people={taskPeople(t)} size={24} /></span>
@@ -438,6 +476,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                 <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"
                   onClick={(e) => e.stopPropagation()} onChange={(e) => moveTask(t.id, e.target.value)}>
                   {sections.map((sec) => <option key={sec.id} value={sec.id}>{sec.id === t.sectionId ? `Move ▾` : `→ ${sec.name}`}</option>)}
+                {!t.parentId && <option value={CLOSE_OPT}>✓ Close (archive)</option>}
                 </select>
               )}
               <span style={{ marginLeft: 'auto' }}><AvatarStack people={taskPeople(t)} size={22} /></span>
@@ -925,7 +964,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             </div>
             {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-              <OriginatorLine by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={selected.serial || '#' + selected.id} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={selected.serial || '#' + selected.id} /></div>
+                {canManage && !selected.parentId && (selected.archivedAt
+                  ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
+                  : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
+              </div>
               {selected.parentId && (
                 <div onClick={() => setSelectedId(selected.parentId!)} style={{ fontSize: 12, color: 'var(--forest)', fontWeight: 700, cursor: 'pointer', marginTop: 4 }}>
                   ← Subtask of {tasks.find((x) => x.id === selected.parentId)?.title || 'its parent'}

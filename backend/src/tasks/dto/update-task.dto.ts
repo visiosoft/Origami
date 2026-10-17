@@ -23,6 +23,7 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() leadId?: string;
   @IsString() @IsOptional() holdReason?: string;
   @IsBoolean() @IsOptional() deferNotify?: boolean;
+  @IsBoolean() @IsOptional() close?: boolean;
   @IsString() @IsOptional() description?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;

@@ -186,9 +186,15 @@ export class TasksService implements OnApplicationBootstrap {
         throw new BadRequestException(`Only ${by.name || 'whoever raised it'} (or an admin) can confirm this.`);
       }
       patch.confirmedAt = new Date().toISOString();
-    } else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+    } else if (next !== 'Confirmed' && task.confirmedAt) {
+      // Leaving Confirmed stops the archive clock.
       patch.confirmedAt = null;
       patch.archivedAt = null;
+    }
+    // Reopened (its status changed): out of the archive.
+    if ((task.archivedAt || task.closedAt) && 'status' in patch && patch.status !== task.status) {
+      patch.archivedAt = null;
+      patch.closedAt = null;
     }
   }
 
@@ -335,6 +341,9 @@ export class TasksService implements OnApplicationBootstrap {
     delete patch.id; delete patch.serial; delete patch.pendingNotices;
     // From the task editor (autosave): emails wait for its Save button.
     const defer = !!patch.deferNotify; delete patch.deferNotify;
+    // "Close task": complete and archived at once (reopened by changing its status).
+    const closingNow = !!patch.close; delete patch.close; delete patch.closedAt; delete patch.archivedAt;
+    if (closingNow && !['Complete', 'Confirmed'].includes(task.status)) patch.status = 'Complete';
     Object.assign(patch, await this.leadFields(patch));
 
     if ('assignedTo' in patch || 'assignedToId' in patch) {
@@ -373,7 +382,8 @@ export class TasksService implements OnApplicationBootstrap {
     }
     const finished = closing && !wasClosed;
 
-    const events = [...diffEvents(task, patch, actor), ...collabEvents];
+    if (closingNow) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; }
+    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
       ? String(patch.assignedToId)
       : null;

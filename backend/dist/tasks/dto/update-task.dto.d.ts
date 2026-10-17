@@ -13,6 +13,7 @@ export declare class UpdateTaskDto {
     leadId?: string;
     holdReason?: string;
     deferNotify?: boolean;
+    close?: boolean;
     description?: string;
     dueDate?: string;
     dueTime?: string;

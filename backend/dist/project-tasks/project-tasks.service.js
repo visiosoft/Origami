@@ -60,6 +60,9 @@ let ProjectTasksService = class ProjectTasksService {
             }
             await (0, assignee_util_1.backfillAssignees)(this.repo, this.users, 'assigneeId', 'assignee', this.log);
             await this.renameLegacyTitles();
+            const fixed = await this.fixCompleted();
+            if (fixed)
+                this.log.log(`Put ${fixed} completed task(s) in Done`);
             const blocked = await this.repo.findBy({ status: 'Blocked' });
             if (blocked.length) {
                 for (const t of blocked)
@@ -155,6 +158,8 @@ let ProjectTasksService = class ProjectTasksService {
             const into = bucketOf(patch.sectionId);
             if (into)
                 patch.status = into;
+            else if ((0, task_types_1.isDoneStatus)(task.status))
+                patch.status = 'In progress';
             else if (task.status === 'On hold' && bucketOf(task.sectionId) === 'On hold')
                 patch.status = 'In progress';
         }
@@ -205,9 +210,13 @@ let ProjectTasksService = class ProjectTasksService {
             patch.confirmedAt = new Date().toISOString();
             patch.completed = true;
         }
-        else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+        else if (next !== 'Confirmed' && task.confirmedAt) {
             patch.confirmedAt = null;
             patch.archivedAt = null;
+        }
+        if ((task.archivedAt || task.closedAt) && 'status' in patch && patch.status !== task.status) {
+            patch.archivedAt = null;
+            patch.closedAt = null;
         }
     }
     createdByIdOf(task) {
@@ -306,6 +315,12 @@ let ProjectTasksService = class ProjectTasksService {
         delete patch.pendingNotices;
         const defer = !!patch.deferNotify;
         delete patch.deferNotify;
+        const closing = !!patch.close;
+        delete patch.close;
+        delete patch.closedAt;
+        delete patch.archivedAt;
+        if (closing && !(0, task_types_1.isDoneStatus)(task.status))
+            patch.status = 'Done';
         if ('leadId' in patch)
             Object.assign(patch, await (0, lead_link_1.resolveLead)(this.leads, patch.leadId));
         if ('assignee' in patch || 'assigneeId' in patch) {
@@ -338,7 +353,13 @@ let ProjectTasksService = class ProjectTasksService {
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
         const finished = (0, task_types_1.isDoneStatus)(patch.status) && !(0, task_types_1.isDoneStatus)(task.status);
-        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
+        if (closing) {
+            const at = new Date().toISOString();
+            patch.archivedAt = at;
+            patch.closedAt = at;
+            patch.completed = true;
+        }
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...(closing ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)
             : null;
@@ -358,9 +379,44 @@ let ProjectTasksService = class ProjectTasksService {
         if (defer && notices.length)
             task.pendingNotices = (0, pending_notices_1.holdNotices)(task.pendingNotices, notices);
         const saved = await this.repo.save(task);
+        if (closing)
+            for (const s of await this.repo.findBy({ parentId: id }))
+                if (!s.archivedAt)
+                    await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt });
         if (!defer)
             this.sendNotices(saved, notices);
         return this.hydrate(saved);
+    }
+    async fixCompleted() {
+        const rows = await this.repo.find();
+        const boards = new Map();
+        const sectionsOf = async (pid) => {
+            const k = String(pid ?? 'general');
+            if (!boards.has(k))
+                boards.set(k, await this.sections.forProject(pid));
+            return boards.get(k);
+        };
+        let n = 0;
+        for (const t of rows) {
+            const patch = {};
+            if (t.completed && !(0, task_types_1.isDoneStatus)(t.status))
+                patch.status = 'Done';
+            const status = patch.status ?? t.status;
+            if ((0, task_types_1.isDoneStatus)(status) && !t.parentId && t.sectionId) {
+                const sections = await sectionsOf(t.projectId == null ? null : Number(t.projectId));
+                const here = (0, task_types_1.bucketStatus)(sections.find((s) => s.id === t.sectionId)?.name);
+                if (!(0, task_types_1.isDoneStatus)(here || '')) {
+                    const done = sections.find((s) => (0, task_types_1.bucketStatus)(s.name) === (status === 'Confirmed' ? 'Confirmed' : 'Done')) || sections.find((s) => (0, task_types_1.bucketStatus)(s.name) === 'Done');
+                    if (done)
+                        patch.sectionId = done.id;
+                }
+            }
+            if (Object.keys(patch).length) {
+                await this.repo.update({ id: t.id }, patch);
+                n++;
+            }
+        }
+        return n;
     }
     sendNotices(t, notices) {
         for (const n of notices) {

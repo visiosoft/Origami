@@ -65,6 +65,19 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   });
   const set = (patch: Partial<Task>) => setT((prev) => ({ ...prev, ...patch }));
   const targets = useLinkTargets();
+  /** "Close task": complete and into the archive at once (Reopen from Archived). */
+  const closeTask = async () => {
+    if (!window.confirm('Close this task and move it to the archive? You can reopen it from Archived.')) return;
+    try {
+      if (auto.dirty) await auto.saveNow();
+      const res = await api.tasks.update(t.id, { close: true } as Partial<Task>) as Task;
+      onChanged?.(res); toast('Task closed and archived'); onClose();
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not closed')); }
+  };
+  const reopen = async () => {
+    try { const res = await api.tasks.update(t.id, { status: 'In Progress' }) as Task; onChanged?.(res); setT((cur) => ({ ...cur, ...res })); toast('Task reopened'); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Not reopened')); }
+  };
   const apply = (res: any) => { if (res?.id) { setT((cur) => keepEdits(cur, res as Task, FIELDS)); onChanged?.(res as Task); } };
   const addComment = async (text: string) => {
     try { apply(await api.tasks.addComment(t.id, text)); }
@@ -116,7 +129,12 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             <input value={t.subject || ''} disabled={!canManage} onChange={(e) => set({ subject: e.target.value })} placeholder={taskHeadline(t.description).title || 'Subject'} aria-label="Subject"
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
-            <div style={{ marginTop: 6 }}><OriginatorLine by={t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '')} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={task.serial || '#' + t.id} /></div>
+            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine by={t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '')} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={task.serial || '#' + t.id} /></div>
+              {canManage && (task.archivedAt
+                ? <button type="button" onClick={reopen} title="Bring it back into the Request Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
+                : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
+            </div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
           <div onClick={() => onClose()} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)', marginLeft: 16, flexShrink: 0 }}>

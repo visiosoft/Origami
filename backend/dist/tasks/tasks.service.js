@@ -184,9 +184,13 @@ let TasksService = class TasksService {
             }
             patch.confirmedAt = new Date().toISOString();
         }
-        else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+        else if (next !== 'Confirmed' && task.confirmedAt) {
             patch.confirmedAt = null;
             patch.archivedAt = null;
+        }
+        if ((task.archivedAt || task.closedAt) && 'status' in patch && patch.status !== task.status) {
+            patch.archivedAt = null;
+            patch.closedAt = null;
         }
     }
     async archiveConfirmed(rows) {
@@ -314,6 +318,12 @@ let TasksService = class TasksService {
         delete patch.pendingNotices;
         const defer = !!patch.deferNotify;
         delete patch.deferNotify;
+        const closingNow = !!patch.close;
+        delete patch.close;
+        delete patch.closedAt;
+        delete patch.archivedAt;
+        if (closingNow && !['Complete', 'Confirmed'].includes(task.status))
+            patch.status = 'Complete';
         Object.assign(patch, await this.leadFields(patch));
         if ('assignedTo' in patch || 'assignedToId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, {
@@ -351,7 +361,12 @@ let TasksService = class TasksService {
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
         const finished = closing && !wasClosed;
-        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
+        if (closingNow) {
+            const at = new Date().toISOString();
+            patch.archivedAt = at;
+            patch.closedAt = at;
+        }
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...(closingNow ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
         const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
             ? String(patch.assignedToId)
             : null;

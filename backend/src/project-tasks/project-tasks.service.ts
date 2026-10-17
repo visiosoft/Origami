@@ -59,6 +59,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       }
       await backfillAssignees(this.repo, this.users, 'assigneeId', 'assignee', this.log);
       await this.renameLegacyTitles();
+      const fixed = await this.fixCompleted();
+      if (fixed) this.log.log(`Put ${fixed} completed task(s) in Done`);
       // "Blocked" became "On hold" -- carry saved tasks across once.
       const blocked = await this.repo.findBy({ status: 'Blocked' });
       if (blocked.length) {
@@ -179,6 +181,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (movingSection && !changingStatus) {
       const into = bucketOf(patch.sectionId);
       if (into) patch.status = into;
+      // A finished card moved into a column that isn't a status ("In Review"): it's back in work.
+      else if (isDoneStatus(task.status)) patch.status = 'In progress';
       // Out of the hold column into one that isn't a bucket: no longer on hold.
       else if (task.status === 'On hold' && bucketOf(task.sectionId) === 'On hold') patch.status = 'In progress';
     } else if (changingStatus && !movingSection) {
@@ -227,9 +231,15 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       }
       patch.confirmedAt = new Date().toISOString();
       patch.completed = true;
-    } else if (next !== 'Confirmed' && (task.confirmedAt || task.archivedAt)) {
+    } else if (next !== 'Confirmed' && task.confirmedAt) {
+      // Leaving Confirmed stops the archive clock.
       patch.confirmedAt = null;
       patch.archivedAt = null;
+    }
+    // Reopened (its status changed): out of the archive.
+    if ((task.archivedAt || task.closedAt) && 'status' in patch && patch.status !== task.status) {
+      patch.archivedAt = null;
+      patch.closedAt = null;
     }
   }
 
@@ -326,6 +336,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     delete patch.id; delete patch.serial; delete patch.pendingNotices;
     // From the task editor (autosave): emails wait for its Save button.
     const defer = !!patch.deferNotify; delete patch.deferNotify;
+    // "Close task": complete and archived at once (reopened by changing its status).
+    const closing = !!patch.close; delete patch.close; delete patch.closedAt; delete patch.archivedAt;
+    if (closing && !isDoneStatus(task.status)) patch.status = 'Done';
     if ('leadId' in patch) Object.assign(patch, await resolveLead(this.leads, patch.leadId));
 
     if ('assignee' in patch || 'assigneeId' in patch) {
@@ -357,7 +370,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     }
     const finished = isDoneStatus(patch.status) && !isDoneStatus(task.status);
 
-    const events = [...diffEvents(task, patch, actor), ...collabEvents];
+    if (closing) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; patch.completed = true; }
+    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
       ? String(patch.assigneeId)
       : null;
@@ -378,8 +392,41 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     task.updatedAt = new Date().toISOString();
     if (defer && notices.length) task.pendingNotices = holdNotices(task.pendingNotices, notices);
     const saved = await this.repo.save(task);
+    // Its subtasks (all finished -- checked above) go into the archive with it.
+    if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
     if (!defer) this.sendNotices(saved, notices);
     return this.hydrate(saved);
+  }
+
+  /**
+   * Completed means Done (Oct 2026): rows marked completed with another status
+   * become Done, and finished top-level cards sitting in a column that isn't
+   * Done / Confirmed move to their board's Done column. Returns how many changed.
+   */
+  async fixCompleted() {
+    const rows = await this.repo.find();
+    const boards = new Map<string, { id: string; name: string }[]>();
+    const sectionsOf = async (pid: number | null) => {
+      const k = String(pid ?? 'general');
+      if (!boards.has(k)) boards.set(k, await this.sections.forProject(pid));
+      return boards.get(k)!;
+    };
+    let n = 0;
+    for (const t of rows) {
+      const patch: Record<string, any> = {};
+      if (t.completed && !isDoneStatus(t.status)) patch.status = 'Done';
+      const status = patch.status ?? t.status;
+      if (isDoneStatus(status) && !t.parentId && t.sectionId) {
+        const sections = await sectionsOf(t.projectId == null ? null : Number(t.projectId));
+        const here = bucketStatus(sections.find((s) => s.id === t.sectionId)?.name);
+        if (!isDoneStatus(here || '')) {
+          const done = sections.find((s) => bucketStatus(s.name) === (status === 'Confirmed' ? 'Confirmed' : 'Done')) || sections.find((s) => bucketStatus(s.name) === 'Done');
+          if (done) patch.sectionId = done.id;
+        }
+      }
+      if (Object.keys(patch).length) { await this.repo.update({ id: t.id }, patch); n++; }
+    }
+    return n;
   }
 
   /** Send task emails now. */

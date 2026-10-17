@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18b',
+    date: '2026-10-18',
+    title: 'Completed tasks always in Done, and Close task',
+    items: [
+      { area: 'Task', kind: 'fixed', text: 'A completed task always shows in Done — on All tasks and on each board — instead of sometimes in To Do or a column like “In Review”. Dragging a finished card into a column that isn’t a status puts it back in progress. Existing tasks were straightened out once.', where: 'Task board' },
+      { area: 'Task', kind: 'new', text: '“Close task” marks a task complete and moves it to the archive straight away (with its subtasks). Reopen it from Archived. It’s on the task window and in each card’s Move menu, and on Request Log tasks.', where: 'Task → a task → ✓ Close task' },
+    ],
+  },
+  {
     id: '2026-10-18a',
     date: '2026-10-18',
     title: 'Business cards on contacts — snap, read, review, save',

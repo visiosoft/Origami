@@ -83,6 +83,7 @@ export declare class PersonEntity {
 }
 export declare class TaskEntity {
     id: string;
+    closedAt: string;
     pendingNotices: PendingNotice[] | null;
     holdReason: string;
     leadId: string;
@@ -411,6 +412,7 @@ export declare class ProjectSectionEntity {
 }
 export declare class ProjectTaskEntity {
     id: string;
+    closedAt: string;
     pendingNotices: PendingNotice[] | null;
     holdReason: string;
     leadId: string;
