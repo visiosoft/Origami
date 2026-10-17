@@ -57,7 +57,7 @@ export function RecipientPicker({ value, onChange, style, dropUp }: { value: str
           style={{ flex: 1, minWidth: 140, border: 0, outline: 'none', background: 'transparent', font: 'inherit', fontSize: 13, color: 'var(--ink)', padding: '4px 2px', boxShadow: 'none' }} />
       </div>
       {open && matches.length > 0 && (
-        <div style={{ position: 'absolute', left: 0, right: 0, ...(dropUp ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }), zIndex: 5, background: 'var(--surface)', borderRadius: 12, boxShadow: '0 12px 30px rgba(var(--rgb-ink), 0.18)', border: '1px solid rgba(var(--rgb-shade), 0.1)', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, ...(dropUp ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }), zIndex: 5, background: 'var(--surface)', borderRadius: 'var(--r-12)', boxShadow: '0 12px 30px rgba(var(--rgb-ink), 0.18)', border: '1px solid rgba(var(--rgb-shade), 0.1)', overflow: 'hidden' }}>
           {matches.map((c) => (
             <div key={c.email} onMouseDown={(e) => { e.preventDefault(); add(c.email); }} style={{ padding: '8px 12px', cursor: 'pointer', display: 'grid', gap: 1 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{c.name} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>{c.email}</span></span>

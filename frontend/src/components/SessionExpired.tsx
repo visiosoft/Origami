@@ -31,7 +31,7 @@ export function SessionExpired() {
     if (!w) setError('Your browser blocked the pop-up — allow pop-ups for this site, or use your password.');
   };
 
-  const input: React.CSSProperties = { height: 44, padding: '0 14px', borderRadius: 12, border: '1px solid var(--border-strong)', background: 'var(--surface)', font: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none', width: '100%', boxSizing: 'border-box' };
+  const input: React.CSSProperties = { height: 44, padding: '0 14px', borderRadius: 'var(--r-12)', border: '1px solid var(--border-strong)', background: 'var(--surface)', font: 'inherit', fontSize: 14, color: 'var(--ink)', outline: 'none', width: '100%', boxSizing: 'border-box' };
   const btn = (dark: boolean): React.CSSProperties => ({ height: 44, borderRadius: 999, border: dark ? 0 : '1px solid var(--border-strong)', background: dark ? 'var(--ink)' : 'var(--surface)', color: dark ? '#FDFCF9' : 'var(--ink)', font: 'inherit', fontSize: 14, fontWeight: 600, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.7 : 1 });
 
   return (

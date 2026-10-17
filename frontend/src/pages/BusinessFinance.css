@@ -1,7 +1,7 @@
 /* Financial -> Business. Works in both looks. */
 .bf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px; align-items: stretch; }
 .bf-lines { padding-bottom: 14px; }
-.bf-line { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 10px 12px; border: 0; border-radius: 14px; background: transparent; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
+.bf-line { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--r-14); background: transparent; font: inherit; color: var(--ink); text-align: left; cursor: pointer; }
 .bf-line:hover, .bf-line.is-on { background: rgba(245, 196, 67, 0.12); }
 .bf-line-top { display: flex; align-items: baseline; gap: 8px; }
 .bf-line-top b { font-size: 14px; font-weight: 600; }

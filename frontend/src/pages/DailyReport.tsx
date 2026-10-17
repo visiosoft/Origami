@@ -53,7 +53,7 @@ function Card({ children, style }: { children: ReactNode; style?: React.CSSPrope
 
 function Stat({ code, label, value, hint }: { code: string; label: string; value: ReactNode; hint?: string }) {
   return (
-    <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 12, minWidth: 0 }}>
+    <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 'var(--r-12)', minWidth: 0 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.06em' }}>{code} · {label}</div>
       <div style={{ fontFamily: BG, fontSize: 24, color: INK, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
       {hint && <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>{hint}</div>}
@@ -65,7 +65,7 @@ function Counts({ code, label, counts, order, labels }: { code: string; label: s
   const keys = order || Object.keys(counts);
   const total = keys.reduce((n, k) => n + (counts[k] || 0), 0);
   return (
-    <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 12, minWidth: 0 }}>
+    <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 'var(--r-12)', minWidth: 0 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.06em' }}>{code} · {label} <span style={{ color: INK }}>{total}</span></div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
         {keys.length ? keys.map((k) => (
@@ -480,7 +480,7 @@ export function DailyReport() {
             </div>
             {log?.status === 'rejected' && log.rejectionNote && <div style={{ fontSize: 13, color: '#8E2E0A', background: '#F2DFD4', borderRadius: 'var(--r-12)', padding: 12 }}>Sent back: {log.rejectionNote}</div>}
             {!locked && baseline && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 12, background: 'rgba(245, 196, 67, 0.16)', border: '1px solid rgba(245, 196, 67, 0.6)', fontSize: 13, color: INK }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 'var(--r-12)', background: 'rgba(245, 196, 67, 0.16)', border: '1px solid rgba(245, 196, 67, 0.6)', fontSize: 13, color: INK }}>
                 <span style={{ width: 14, height: 14, borderRadius: 4, background: 'rgba(245, 196, 67, 0.55)', flexShrink: 0 }} />
                 <span>Copied from <b>{log?.dupFromDate ? niceDate(log.dupFromDate) : 'the previous report'}</b>. Yellow = carried over and not changed yet{stillCarried ? ` (${stillCarried} left)` : ' — everything has been reviewed'}.</span>
               </div>
@@ -533,7 +533,7 @@ export function DailyReport() {
 
             {/* X. Certification */}
             <SectionCard roman="X" title="Certification" summary={log?.signedAt ? `Signed ${stamp(log.signedAt)}` : 'Sign to submit'}>
-              <div style={{ fontSize: 13.5, color: INK, lineHeight: 1.65, padding: '12px 14px', borderRadius: 12, background: 'var(--panel)' }}>
+              <div style={{ fontSize: 13.5, color: INK, lineHeight: 1.65, padding: '12px 14px', borderRadius: 'var(--r-12)', background: 'var(--panel)' }}>
                 {draft.behalf
                   ? <>I <b>{draft.certifiedName.trim() || '__________'}</b> am completing this form on behalf of <b>{filer}</b>. And I am certifying that the information contained in this report is true and correct to the best of my recollection. A copy of this report will be sent to <b>{filer}</b> for record.</>
                   : <>I am certifying that the information contained in this report is true and correct to the best of my recollection.</>}
@@ -548,7 +548,7 @@ export function DailyReport() {
                 </div>
                 <div><Label>Signature</Label>
                   {locked && draft.signatureDataUrl
-                    ? <img src={draft.signatureDataUrl} alt="Signature" style={{ width: '100%', maxHeight: 140, objectFit: 'contain', background: '#fff', borderRadius: 12, border: '1px solid ' + LINE }} />
+                    ? <img src={draft.signatureDataUrl} alt="Signature" style={{ width: '100%', maxHeight: 140, objectFit: 'contain', background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid ' + LINE }} />
                     : <SignaturePad key={`${log?.id}-${loadKey}`} value={draft.signatureDataUrl} disabled={!editable} onChange={(v) => setDraft((d) => ({ ...d, signatureDataUrl: v, certifiedName: d.certifiedName || (d.behalf ? d.onBehalfOf : authUser?.name || '') }))} />}
                 </div>
               </div>
@@ -615,6 +615,6 @@ export function DailyReport() {
 }
 
 const choice: React.CSSProperties = {
-  display: 'grid', gap: 3, textAlign: 'left', padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(var(--rgb-shade), .14)',
+  display: 'grid', gap: 3, textAlign: 'left', padding: '14px 16px', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), .14)',
   background: 'var(--surface)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, color: 'var(--body)', lineHeight: 1.5,
 };

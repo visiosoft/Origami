@@ -93,7 +93,7 @@ export function DelayBlock({ value, onChange, path, onConvert, convertTitle }: {
   const [busy, setBusy] = useState(false);
   const set = (p: Partial<Delay>) => onChange({ ...value, ...p });
   return (
-    <div style={{ display: 'grid', gap: 10, padding: '12px 14px', borderRadius: 12, background: 'var(--panel)' }}>
+    <div style={{ display: 'grid', gap: 10, padding: '12px 14px', borderRadius: 'var(--r-12)', background: 'var(--panel)' }}>
       <Carry path={`${path}.getWell`}>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, color: INK }}>

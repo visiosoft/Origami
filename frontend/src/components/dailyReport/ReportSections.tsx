@@ -105,7 +105,7 @@ export function ActivitySection({ s, set, convert, baseline }: { s: Sections; se
           </div>
 
           {a.reason === 'stop' && (
-            <div style={{ display: 'grid', gap: 12, padding: 14, borderRadius: 12, background: 'var(--panel)' }}>
+            <div style={{ display: 'grid', gap: 12, padding: 14, borderRadius: 'var(--r-12)', background: 'var(--panel)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
                 <div>
                   <Label>Project ordered to STOP by</Label>
@@ -133,7 +133,7 @@ export function ActivitySection({ s, set, convert, baseline }: { s: Sections; se
           )}
 
           {a.reason === 'holiday' && (
-            <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, background: 'var(--panel)' }}>
+            <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 'var(--r-12)', background: 'var(--panel)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
                 <div><Label>Start holiday date</Label><Carry path="activity.holiday.start"><input type="date" disabled={!editable} value={a.holiday.start || ''} onChange={(e) => setA({ holiday: { ...a.holiday, start: e.target.value } })} style={input} /></Carry></div>
                 <div><Label>End holiday date</Label><Carry path="activity.holiday.end"><input type="date" disabled={!editable} value={a.holiday.end || ''} min={a.holiday.start || undefined} onChange={(e) => setA({ holiday: { ...a.holiday, end: e.target.value } })} style={input} /></Carry></div>
@@ -197,7 +197,7 @@ export function SubsSection({ s, set, na, contractors, baseline }: { s: Sections
       summaryYes={`${sub.rows.length} subcontractor${sub.rows.length === 1 ? '' : 's'} · ${heads} people`}>
       {sub.rows.map((r) => (
         <Carry key={r.id} on={isRowCarried(baseline?.subs.rows, r)}>
-          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: '2 1 220px' }}><Label>Subcontractor</Label>
                 <select disabled={!editable} value={r.contractorId || ''} onChange={(e) => setRow(r.id, { contractorId: e.target.value, name: contractors.find((c) => c.id === e.target.value)?.companyName || '' })} style={input}>
@@ -233,7 +233,7 @@ export function InspectorsSection({ s, set, na, convert, upload, baseline }: { s
       summaryYes={`${ins.rows.length} inspection${ins.rows.length === 1 ? '' : 's'}${failed ? ` · ${failed} failed` : ''}`}>
       {ins.rows.map((r) => (
         <Carry key={r.id} on={isRowCarried(baseline?.inspectors.rows, r)}>
-          <div style={{ display: 'grid', gap: 12, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+          <div style={{ display: 'grid', gap: 12, padding: 14, borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)' }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: 1 }}><Label>Inspection authority</Label>
                 <select disabled={!editable} value={r.authority || ''} onChange={(e) => setRow(r.id, { authority: e.target.value })} style={input}>
@@ -282,7 +282,7 @@ export function VisitorsSection({ s, set, na, convert, consultants, baseline }: 
       summaryYes={`${v.rows.length} visitor${v.rows.length === 1 ? '' : 's'}`}>
       {v.rows.map((r) => (
         <Carry key={r.id} on={isRowCarried(baseline?.visitors.rows, r)}>
-          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: '1 1 150px' }}><Label>Visitor</Label>
                 <select disabled={!editable} value={r.type || ''} onChange={(e) => setRow(r.id, { type: e.target.value, personId: '', name: '' })} style={input}>
@@ -337,7 +337,7 @@ export function DeliveriesSection({ s, set, na, convert, upload, contractors, ba
       <datalist id="dr-suppliers">{contractors.map((c) => <option key={c.id} value={c.companyName} />)}</datalist>
       {d.rows.map((r) => (
         <Carry key={r.id} on={isRowCarried(baseline?.deliveries.rows, r)}>
-          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: '2 1 200px' }}><Label>Supplier</Label>
                 <input disabled={!editable} list="dr-suppliers" value={r.supplier || ''} placeholder="Choose or type a supplier"
@@ -399,7 +399,7 @@ export function EquipmentSection({ s, set, na, convert, upload, operators, basel
       <datalist id="dr-operators">{operators.map((o) => <option key={o} value={o} />)}</datalist>
       {e.rows.map((r) => (
         <Carry key={r.id} on={isRowCarried(baseline?.equipment.rows, r)}>
-          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), .1)' }}>
+          <div style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
               <div style={{ flex: '2 1 200px' }}><Label>Equipment</Label><input disabled={!editable} value={r.equipment || ''} onChange={(ev) => setRow(r.id, { equipment: ev.target.value })} placeholder="e.g. CAT 308 excavator" style={input} /></div>
               <div style={{ flex: '0 0 auto' }}><Label>Owned or rented</Label>

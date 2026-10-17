@@ -435,7 +435,7 @@ export function People() {
           {projOpen && (
             <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 60, minWidth: 200, background: 'var(--surface)', borderRadius: 18, border: '1px solid var(--border)', boxShadow: 'var(--shadow-pop)', padding: 6, maxHeight: 280, overflowY: 'auto' }}>
               {['All projects', ...projectNames].map((pr) => (
-                <div key={pr} onClick={() => { setPf(pr); setProjOpen(false); }} style={{ padding: '9px 12px', borderRadius: 12, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: pf === pr ? 600 : 400, color: 'var(--ink)', background: pf === pr ? 'var(--yellow-soft)' : 'transparent' }}>{pr}</div>
+                <div key={pr} onClick={() => { setPf(pr); setProjOpen(false); }} style={{ padding: '9px 12px', borderRadius: 'var(--r-12)', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: pf === pr ? 600 : 400, color: 'var(--ink)', background: pf === pr ? 'var(--yellow-soft)' : 'transparent' }}>{pr}</div>
               ))}
             </div>
           )}

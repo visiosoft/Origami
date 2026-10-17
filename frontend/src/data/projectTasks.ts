@@ -70,7 +70,7 @@ export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
   'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
   Blocked: { bg: 'var(--amber-light)', c: '#93520F' }, // an older row not yet renamed
   Done: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
-  Confirmed: { bg: '#1E6B36', c: '#FFFFFF' },
+  Confirmed: { bg: 'var(--c-1e6b36)', c: '#FFFFFF' },
 };
 
 export interface ProjectSection {

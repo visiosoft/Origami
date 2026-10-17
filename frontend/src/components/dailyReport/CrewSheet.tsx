@@ -120,7 +120,7 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" style={{ ...cellInput, width: 170, height: 32, borderRadius: 999, padding: '0 12px' }} />
       </div>
       {editable && (
-        <div style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)', borderRadius: 12, position: 'relative', zIndex: 6 }}>
+        <div style={{ padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', background: 'var(--panel)', borderRadius: 'var(--r-12)', position: 'relative', zIndex: 6 }}>
           {crewMissing > 0 && <button type="button" onClick={addCrew} style={pill(true)}>+ Put the crew on ({crewMissing}) · 8 h</button>}
           <div style={{ position: 'relative' }}>
             <button type="button" onClick={() => { setAdding((a) => !a); setPickQ(''); }} style={pill(adding)}>+ Add worker</button>
@@ -161,7 +161,7 @@ export function CrewSheet({ employees, codes, onSite, entries, setEntries, edita
           {crewMissing === 0 && entries.length <= 1 && <span style={{ fontSize: 12.5, color: MUTED }}>Click an hours button on a row to put that person on the timesheet. ↑ ↓ and Enter move between rows.</span>}
         </div>
       )}
-      <div style={{ border: '1px solid ' + LINE, borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ border: '1px solid ' + LINE, borderRadius: 'var(--r-12)', overflow: 'hidden' }}>
         <div ref={sheetRef} style={{ overflowX: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: COLS, gap: 10, padding: '10px 14px', background: 'var(--panel)', fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.07em', minWidth: 1100 }}>
             <span>Worker</span><span>Hours</span><span>Cost code</span><span>Task</span><span>Team</span><span>Work done</span>

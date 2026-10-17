@@ -28,7 +28,7 @@
 .st-fields div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .st-fields span { font-size: 12.5px; color: var(--muted); }
 .st-fields b {
-  height: 42px; display: flex; align-items: center; padding: 0 14px; border-radius: 14px; border: 1px solid var(--border-strong);
+  height: 42px; display: flex; align-items: center; padding: 0 14px; border-radius: var(--r-14); border: 1px solid var(--border-strong);
   font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: rgba(29, 29, 27, 0.015);
 }
 .st-foot { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); }

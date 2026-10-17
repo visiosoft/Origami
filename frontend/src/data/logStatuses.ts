@@ -19,7 +19,7 @@ const TONES: Record<string, { bg: string; c: string }> = {
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
   'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
   Complete: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
-  Confirmed: { bg: '#1E6B36', c: '#fff' },
+  Confirmed: { bg: 'var(--c-1e6b36)', c: '#fff' },
   // From before the buckets.
   Closed: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },
