@@ -39,7 +39,8 @@
   font-size: 14px; font-weight: 600; color: rgba(29, 29, 27, 0.72); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6);
 }
 .pc-prio { margin-left: auto; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1.5px solid rgba(29, 29, 27, 0.2); color: var(--ink); }
-.pc-prio.is-high, .pc-prio.is-urgent { background: var(--yellow); border-color: var(--yellow); color: #4A3708; }
+.pc-prio.is-high { background: var(--yellow); border-color: var(--yellow); color: #4A3708; }
+.pc-prio.is-urgent { background: #C0392B; border-color: #C0392B; color: #FFFFFF; }
 .pc-prio.is-low { color: var(--muted); border-style: dashed; }
 .pc-arrow {
   width: 34px; height: 34px; border-radius: 999px; border: 1px solid var(--border-strong); display: grid; place-items: center; flex-shrink: 0;
