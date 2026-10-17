@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { FileRoomFileEntity, ProgressPhotoEntity } from '../database/entities';
+import { FileRoomFileEntity, ProgressNoteEntity, ProgressPhotoEntity } from '../database/entities';
 import type { UploadActor } from '../google/attachments.service';
 import { FileRoomService } from './file-room.service';
-import { CONSTRUCTION_CATEGORIES, DESIGN_CATEGORIES, cleanPhotoMeta, isImage, photoFolder, type PhotoTrack } from './progress-photos';
+import { CONSTRUCTION_CATEGORIES, DESIGN_CATEGORIES, cleanNote, cleanPhotoMeta, isImage, photoFolder, progressSummary, type PhotoTrack } from './progress-photos';
+import { randomUUID } from 'crypto';
 
 type Incoming = { originalname: string; mimetype: string; size: number; buffer: Buffer };
 
@@ -20,7 +21,31 @@ export class ProgressPhotosService {
     @InjectRepository(ProgressPhotoEntity) private readonly repo: Repository<ProgressPhotoEntity>,
     @InjectRepository(FileRoomFileEntity) private readonly files: Repository<FileRoomFileEntity>,
     private readonly fileRoom: FileRoomService,
+    @InjectRepository(ProgressNoteEntity) private readonly notes: Repository<ProgressNoteEntity>,
   ) {}
+
+  // ------------------------------------------------------------ progress updates
+
+  async addNote(projectId: number, dto: any, actor: UploadActor) {
+    const f = cleanNote(dto);
+    const now = new Date().toISOString();
+    return this.notes.save(this.notes.create({ ...f, description: f.description || '', clientVisible: !!f.clientVisible, id: 'PN-' + randomUUID().slice(0, 8), projectId, createdBy: actor.name, createdAt: now, updatedAt: now } as Partial<ProgressNoteEntity>));
+  }
+
+  async updateNote(id: string, dto: any) {
+    const row = await this.notes.findOneBy({ id });
+    if (!row) throw new NotFoundException('Progress update not found.');
+    return this.notes.save({ ...row, ...cleanNote(dto, true), updatedAt: new Date().toISOString() });
+  }
+
+  async removeNote(id: string) {
+    await this.notes.delete({ id });
+    return { id, deleted: true };
+  }
+
+  async noteProject(id: string) {
+    return (await this.notes.findOneBy({ id }))?.projectId ?? null;
+  }
 
   categories() {
     return { construction: CONSTRUCTION_CATEGORIES, design: DESIGN_CATEGORIES };
@@ -35,7 +60,8 @@ export class ProgressPhotosService {
 
   /** A project's photos (newest first) and, for staff, its File Room images not yet sorted. */
   async list(projectId: number, staff: boolean) {
-    const [metas, files] = await Promise.all([this.repo.findBy({ projectId }), this.files.find()]);
+    const [metas, files, allNotes] = await Promise.all([this.repo.findBy({ projectId }), this.files.find(), this.notes.findBy({ projectId })]);
+    const notes = allNotes.filter((n) => staff || n.clientVisible).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
     const fileById = new Map(files.filter((f) => Number(f.projectId) === projectId).map((f) => [f.id, f]));
     const photos = metas
       .filter((m) => fileById.has(m.id) && (staff || m.clientVisible))
@@ -47,7 +73,7 @@ export class ProgressPhotosService {
         .map((f) => ({ id: f.id, name: f.name, mimeType: f.mimeType, uploadedBy: f.uploadedBy, updatedAt: f.updatedAt, folderPath: f.folderPath || [] }))
         .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
       : [];
-    return { photos, unsorted };
+    return { photos, unsorted, notes, progress: progressSummary(notes) };
   }
 
   /** Upload photos into the category's folder, each with its own date taken (from the camera when known). */

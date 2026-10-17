@@ -42,6 +42,28 @@ export class ProgressPhotosController {
     return { uploaded: count };
   }
 
+  /** A progress update for a category (how far along, its state, what's happening). */
+  @Tiers('internal')
+  @Post('notes')
+  async addNote(@Body() dto: any, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+    const pid = Number(dto?.projectId);
+    if (!Number.isFinite(pid) || pid <= 0) throw new BadRequestException('Pick a project.');
+    await this.access.assert(claims ?? null, pid);
+    return this.service.addNote(pid, dto, await this.auth.requireActor(auth));
+  }
+
+  @Tiers('internal')
+  @Put('notes/:id')
+  updateNote(@Param('id') id: string, @Body() dto: any) {
+    return this.service.updateNote(id, dto || {});
+  }
+
+  @Tiers('internal')
+  @Delete('notes/:id')
+  removeNote(@Param('id') id: string) {
+    return this.service.removeNote(id);
+  }
+
   @Tiers('internal')
   @Post('classify')
   async classify(@Body() dto: { fileIds?: string[]; meta?: any }, @Headers('authorization') auth?: string) {

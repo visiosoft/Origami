@@ -565,6 +565,20 @@ export declare class AppSettingEntity {
     value: string;
     updatedAt: string;
 }
+export declare class ProgressNoteEntity {
+    id: string;
+    projectId: number;
+    track: string;
+    category: string;
+    percent: number;
+    status: string;
+    description: string;
+    date: string;
+    clientVisible: boolean;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+}
 export declare class ProgressPhotoEntity {
     id: string;
     projectId: number;

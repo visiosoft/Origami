@@ -59,3 +59,38 @@ export function cleanPhotoMeta(dto: any, partial = false): Partial<PhotoMeta> {
   if (has('clientVisible')) out.clientVisible = !!dto.clientVisible;
   return out;
 }
+
+export const PROGRESS_STATUSES = ['not_started', 'in_progress', 'on_hold', 'complete'] as const;
+export interface NoteFields { track: PhotoTrack; category: string; percent: number; status: string; description: string; date: string; clientVisible: boolean }
+
+/** A progress update as sent; `partial` for an edit. 100% means complete unless said otherwise. */
+export function cleanNote(dto: any, partial = false): Partial<NoteFields> {
+  const out: Partial<NoteFields> = {};
+  const base = cleanPhotoMeta({ track: dto?.track, category: dto?.category, takenOn: dto?.date }, partial);
+  if (base.track) out.track = base.track;
+  if (base.category) out.category = base.category;
+  if (base.takenOn) out.date = base.takenOn;
+  const has = (k: string) => dto && dto[k] !== undefined;
+  if (has('percent') || !partial) {
+    const n = Math.round(Number(dto?.percent ?? 0));
+    if (!Number.isFinite(n) || n < 0 || n > 100) throw new BadRequestException('Progress is 0 to 100%.');
+    out.percent = n;
+  }
+  if (has('status') || !partial) {
+    const st = String(dto?.status || (out.percent === 100 ? 'complete' : out.percent === 0 ? 'not_started' : 'in_progress'));
+    if (!(PROGRESS_STATUSES as readonly string[]).includes(st)) throw new BadRequestException('Unknown progress status.');
+    out.status = st;
+  }
+  if (has('description')) out.description = String(dto.description || '').trim().slice(0, 4000);
+  if (has('clientVisible')) out.clientVisible = !!dto.clientVisible;
+  return out;
+}
+
+/** Each category's latest update, and the project's overall figure (the average of the categories that have one). */
+export function progressSummary(notes: { category: string; track: string; percent: number; date: string; createdAt: string }[]) {
+  const latest = new Map<string, (typeof notes)[number]>();
+  for (const n of [...notes].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))) latest.set(n.track + '|' + n.category, n);
+  const rows = [...latest.values()];
+  const avg = (t?: string) => { const r = rows.filter((x) => !t || x.track === t); return r.length ? Math.round(r.reduce((s, x) => s + x.percent, 0) / r.length) : null; };
+  return { latest: rows, overall: avg(), construction: avg('construction'), design: avg('design') };
+}

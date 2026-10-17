@@ -22,7 +22,7 @@ exports.FileRoomModule = FileRoomModule;
 exports.FileRoomModule = FileRoomModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([entities_1.FileRoomFileEntity, entities_1.FileRoomFolderEntity, entities_1.FileRoomShareEntity, entities_1.ProjectEntity, entities_1.ProgressPhotoEntity]),
+            typeorm_1.TypeOrmModule.forFeature([entities_1.FileRoomFileEntity, entities_1.FileRoomFolderEntity, entities_1.FileRoomShareEntity, entities_1.ProjectEntity, entities_1.ProgressPhotoEntity, entities_1.ProgressNoteEntity]),
             google_module_1.GoogleModule,
             auth_module_1.AuthModule,
         ],

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18d',
+    date: '2026-10-18',
+    title: 'Progress Photos: progress updates and descriptions',
+    items: [
+      { area: 'Progress Photos', kind: 'new', text: 'Progress updates for each category: % complete, status (not started, in progress, on hold, complete) and a description of what’s happening, dated, with an option to share with the client. They show on the timeline, beside each category, and in a new Progress view with history; the Overall progress card averages the categories.', where: 'Progress Photos → + Progress update / Progress' },
+      { area: 'Progress Photos', kind: 'improved', text: 'Each photo shows its description under it. Adding photos can post a progress update for the same category at the same time.', where: 'Progress Photos' },
+    ],
+  },
+  {
     id: '2026-10-18c',
     date: '2026-10-18',
     title: 'Progress Photos',

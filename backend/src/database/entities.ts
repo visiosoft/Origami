@@ -836,6 +836,26 @@ export class AppSettingEntity {
  * to. `folderPath` excludes the project itself — ['Drawings & Plans', 'Rev 4'].
  */
 
+/** A dated progress update for one category of a project: how far along, its state, and what's happening. */
+@Entity('progress_notes')
+@Index('IX_progress_notes_project', ['projectId'])
+export class ProgressNoteEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ default: 'construction' }) track!: string;
+  @Column() category!: string;
+  /** 0-100 */
+  @Column('int') percent!: number;
+  /** not_started | in_progress | on_hold | complete */
+  @Column({ default: 'in_progress' }) status!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) description!: string;
+  @Column() date!: string;
+  @Column({ default: false }) clientVisible!: boolean;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
 /** What a progress photo shows: its track, category, area, date taken and caption. The file is the File Room file with this id. */
 @Entity('progress_photos')
 @Index('IX_progress_photos_project', ['projectId'])

@@ -604,7 +604,10 @@ export const api = {
   /** Construction -> Progress Photos: a project's photos by track and category (files live in its File Room). */
   progressPhotos: {
     categories: () => request<import('./data/progressPhotos').PhotoCategories>('/progress-photos/categories'),
-    list: (projectId: number) => request<{ photos: import('./data/progressPhotos').ProgressPhoto[]; unsorted: import('./data/progressPhotos').UnsortedPhoto[] }>(`/progress-photos?projectId=${projectId}`),
+    list: (projectId: number) => request<{ photos: import('./data/progressPhotos').ProgressPhoto[]; unsorted: import('./data/progressPhotos').UnsortedPhoto[]; notes: import('./data/progressPhotos').ProgressNote[]; progress: import('./data/progressPhotos').ProgressSummary }>(`/progress-photos?projectId=${projectId}`),
+    addNote: (d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressNote>('/progress-photos/notes', { method: 'POST', body: JSON.stringify(d) }),
+    updateNote: (id: string, d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressNote>(`/progress-photos/notes/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeNote: (id: string) => request(`/progress-photos/notes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     upload: (projectId: number, files: File[], meta: Record<string, unknown>, dates: string[]) => {
       const form = new FormData();
       form.append('projectId', String(projectId));

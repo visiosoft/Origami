@@ -5,12 +5,12 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkPage, AkSeg, AkStats, akToday } from '../components/ActionKit';
 import { Drawer } from '../components/manpowerUi';
-import { groupBy, photoDate, weekOf, type PhotoCategories, type PhotoTrack, type ProgressPhoto, type UnsortedPhoto } from '../data/progressPhotos';
+import { PROGRESS_STATUS, groupBy, photoDate, weekOf, type PhotoCategories, type PhotoTrack, type ProgressNote, type ProgressPhoto, type ProgressStatus, type ProgressSummary, type UnsortedPhoto } from '../data/progressPhotos';
 import './ProgressPhotos.css';
 
 const PROJECT_KEY = 'origami.progressPhotos.project';
 const TRACKS: [PhotoTrack, string][] = [['construction', 'Construction'], ['design', 'Design']];
-type View = 'timeline' | 'category' | 'compare' | 'unsorted';
+type View = 'timeline' | 'category' | 'progress' | 'compare' | 'unsorted';
 const day = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 const shortDay = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -42,14 +42,46 @@ function MetaFields({ meta, set, cats, withDate }: { meta: Meta; set: (m: Meta) 
   );
 }
 
-function Tile({ id, title, sub, flag, picked, onPick, onClick }: { id: string; title: string; sub?: string; flag?: string; picked?: boolean; onPick?: (v: boolean) => void; onClick: () => void }) {
+function Tile({ id, title, sub, desc, flag, picked, onPick, onClick }: { id: string; title: string; sub?: string; desc?: string; flag?: string; picked?: boolean; onPick?: (v: boolean) => void; onClick: () => void }) {
   return (
-    <button type="button" className={'pp-tile' + (picked ? ' is-picked' : '')} onClick={onClick} title={title}>
-      <img src={api.progressPhotos.url(id, { thumb: true })} alt={title} loading="lazy" />
-      {flag && <span className="pp-tile-flag">{flag}</span>}
-      {onPick && <input type="checkbox" className="pp-tile-check" checked={!!picked} onClick={(e) => e.stopPropagation()} onChange={(e) => onPick(e.target.checked)} aria-label={`Select ${title}`} />}
-      <span className="pp-tile-cap"><b>{title}</b>{sub}</span>
+    <button type="button" className={'pp-tile' + (picked ? ' is-picked' : '')} onClick={onClick} title={desc || title}>
+      <span className="pp-tile-img">
+        <img src={api.progressPhotos.url(id, { thumb: true })} alt={desc || title} loading="lazy" />
+        {flag && <span className="pp-tile-flag">{flag}</span>}
+        {onPick && <input type="checkbox" className="pp-tile-check" checked={!!picked} onClick={(e) => e.stopPropagation()} onChange={(e) => onPick(e.target.checked)} aria-label={`Select ${title}`} />}
+      </span>
+      <span className="pp-tile-text">
+        <b>{title}</b>
+        {sub && <span className="pp-tile-sub">{sub}</span>}
+        {desc && <span className="pp-tile-desc">{desc}</span>}
+      </span>
     </button>
+  );
+}
+
+/** A progress bar with its figure. */
+function Bar({ pct, status }: { pct: number | null | undefined; status?: ProgressStatus }) {
+  if (pct == null) return <span style={{ fontSize: 12, color: 'var(--muted)' }}>No progress update yet</span>;
+  return (
+    <span className="pp-bar" title={status ? PROGRESS_STATUS[status] : undefined}>
+      <span className="pp-bar-track"><span className={'pp-bar-fill is-' + (status || 'in_progress')} style={{ width: pct + '%' }} /></span>
+      <b>{pct}%</b>{status && <span className={'pp-status is-' + status}>{PROGRESS_STATUS[status]}</span>}
+    </span>
+  );
+}
+
+/** One progress update as a card: category, %, state, what's happening. */
+function NoteCard({ n, onEdit }: { n: ProgressNote; onEdit?: () => void }) {
+  return (
+    <div className="pp-note" onClick={onEdit} role={onEdit ? 'button' : undefined}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 13, color: 'var(--ink)' }}>{n.category}</b>
+        <Bar pct={n.percent} status={n.status} />
+        {n.clientVisible && <span className="pp-tile-flag" style={{ position: 'static' }}>Client</span>}
+      </div>
+      {n.description && <div style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.55, whiteSpace: 'pre-wrap', marginTop: 4 }}>{n.description}</div>}
+      <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>{shortDay(n.date)}{n.createdBy ? ` · ${n.createdBy}` : ''}</div>
+    </div>
   );
 }
 
@@ -65,7 +97,8 @@ export function ProgressPhotos() {
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [projectId, setProjectId] = useState<number | null>(() => Number(params.get('project')) || (() => { try { return Number(localStorage.getItem(PROJECT_KEY)) || null; } catch { return null; } })());
   const [cats, setCats] = useState<PhotoCategories | null>(null);
-  const [data, setData] = useState<{ photos: ProgressPhoto[]; unsorted: UnsortedPhoto[] } | null>(null);
+  const [data, setData] = useState<{ photos: ProgressPhoto[]; unsorted: UnsortedPhoto[]; notes: ProgressNote[]; progress: ProgressSummary } | null>(null);
+  const [noting, setNoting] = useState<{ note?: ProgressNote; category?: string; track?: PhotoTrack; from?: ProgressNote } | null>(null);
   const [track, setTrack] = useState<'all' | PhotoTrack>('all');
   const [category, setCategory] = useState('');
   const [view, setView] = useState<View>('timeline');
@@ -81,7 +114,7 @@ export function ProgressPhotos() {
     }).catch(() => setProjects([]));
     api.progressPhotos.categories().then(setCats).catch(() => setCats(null));
   }, []);
-  const load = () => { if (projectId) api.progressPhotos.list(projectId).then(setData).catch((e: Error) => { setData({ photos: [], unsorted: [] }); toast('⚠ ' + (e.message || 'Could not load photos')); }); };
+  const load = () => { if (projectId) api.progressPhotos.list(projectId).then(setData).catch((e: Error) => { setData({ photos: [], unsorted: [], notes: [], progress: { latest: [], overall: null, construction: null, design: null } }); toast('⚠ ' + (e.message || 'Could not load photos')); }); };
   useEffect(() => {
     setData(null); setCategory('');
     if (projectId) { try { localStorage.setItem(PROJECT_KEY, String(projectId)); } catch { /* ignore */ } }
@@ -106,8 +139,12 @@ export function ProgressPhotos() {
   const current = index >= 0 ? shown[index] : null;
 
   const tile = (p: ProgressPhoto) => (
-    <Tile key={p.id} id={p.id} title={p.caption || p.category} sub={[shortDay(p.takenOn), p.area].filter(Boolean).join(' · ')} flag={p.clientVisible ? 'Client' : undefined} onClick={() => setOpen(p.id)} />
+    <Tile key={p.id} id={p.id} title={p.category} sub={[shortDay(p.takenOn), p.area].filter(Boolean).join(' · ')} desc={p.caption} flag={p.clientVisible ? 'Client' : undefined} onClick={() => setOpen(p.id)} />
   );
+  const notes = (data?.notes || []).filter((n) => (track === 'all' || n.track === track) && (!category || n.category === category));
+  const latestOf = (c: string) => data?.progress.latest.find((n) => n.category === c && (track === 'all' || n.track === track));
+  const overall = track === 'all' ? data?.progress.overall : data?.progress[track];
+  const noteEdit = (n: ProgressNote) => (canManage ? () => setNoting({ note: n }) : undefined);
 
   return (
     <AkPage lead="Every project’s photos by stage — construction and design — on a timeline, by category, or two dates side by side. They’re kept in the project’s File Room."
@@ -118,14 +155,15 @@ export function ProgressPhotos() {
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <AkSeg<'all' | PhotoTrack> value={track} onChange={(t) => { setTrack(t); setCategory(''); }} options={[['all', 'All', photos.length], ...TRACKS.map(([k, l]) => [k, l, photos.filter((p) => p.track === k).length] as [PhotoTrack, string, number])]} />
-        <AkSeg<View> value={view} onChange={setView} options={[['timeline', 'Timeline'], ['category', 'By category'], ['compare', 'Compare dates'], ...(canManage ? [['unsorted', 'Unsorted', data?.unsorted.length || 0] as [View, string, number]] : [])]} />
+        <AkSeg<View> value={view} onChange={setView} options={[['timeline', 'Timeline'], ['category', 'By category'], ['progress', 'Progress'], ['compare', 'Compare dates'], ...(canManage ? [['unsorted', 'Unsorted', data?.unsorted.length || 0] as [View, string, number]] : [])]} />
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search area, caption…" aria-label="Search photos" />
       </div>
 
       <AkStats items={[
         { key: 'all', label: 'Photos', value: data ? inTrack.length : '—', sub: track === 'all' ? 'construction and design' : TRACKS.find(([k]) => k === track)?.[1] },
         { key: 'week', label: 'This week', value: data ? inTrack.filter((p) => p.takenOn >= thisWeek).length : '—', sub: 'taken since Monday' },
-        { key: 'cats', label: 'Categories covered', value: data ? `${covered} of ${catList.length}` : '—' },
+        { key: 'prog', label: 'Overall progress', value: data ? (overall != null ? overall + '%' : '—') : '—', sub: overall != null ? 'average of the categories updated' : 'no progress updates yet', onClick: () => setView('progress'), on: view === 'progress' },
+        { key: 'cats', label: 'Categories covered', value: data ? `${covered} of ${catList.length}` : '—', sub: 'with photos' },
         { key: 'last', label: 'Latest photo', value: inTrack[0] ? shortDay(inTrack[0].takenOn) : '—', sub: inTrack[0]?.category },
         ...(canManage ? [{ key: 'uns', label: 'Unsorted', value: data ? data.unsorted.length : '—', sub: 'in the File Room, no category yet', tone: data?.unsorted.length ? 'yellow' as const : undefined, onClick: () => setView('unsorted'), on: view === 'unsorted' }] : []),
       ]} />
@@ -143,7 +181,8 @@ export function ProgressPhotos() {
       {view !== 'unsorted' && (
         <div className="pp-cats">
           <button type="button" className={'pp-cat' + (!category ? ' is-on' : '')} onClick={() => setCategory('')}>All categories <b>{inTrack.length}</b></button>
-          {catList.map((c) => { const n = countOf(c.name); return <button type="button" key={c.name} className={'pp-cat' + (category === c.name ? ' is-on' : '') + (n ? '' : ' is-empty')} onClick={() => setCategory(category === c.name ? '' : c.name)}>{c.name} <b>{n}</b></button>; })}
+          {catList.map((c) => { const n = countOf(c.name); const pct = latestOf(c.name)?.percent; return <button type="button" key={c.name} className={'pp-cat' + (category === c.name ? ' is-on' : '') + (n || pct != null ? '' : ' is-empty')} onClick={() => setCategory(category === c.name ? '' : c.name)}>{c.name} <b>{n}</b>{pct != null && <i className="pp-cat-pct">{pct}%</i>}</button>; })}
+          {canManage && <button type="button" className="pp-cat" onClick={() => setNoting({ category: category || undefined, track: track === 'design' ? 'design' : 'construction' })}>+ Progress update</button>}
         </div>
       )}
 
@@ -151,19 +190,48 @@ export function ProgressPhotos() {
         : !data ? <section className="ak-card"><div className="ak-empty">Loading…</div></section>
         : view === 'unsorted' ? <Unsorted rows={data.unsorted} cats={cats} onSorted={load} />
         : view === 'compare' ? <Compare photos={shown} onOpen={setOpen} />
-        : !shown.length ? (
+        : view === 'progress' ? (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {catList.filter((c) => !category || c.name === category).map((c) => {
+              const hist = notes.filter((n) => n.category === c.name);
+              const last = latestOf(c.name);
+              return (
+                <section key={c.name} className="ak-card" style={{ padding: '12px 16px', display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 15, color: 'var(--ink)', minWidth: 200 }}>{c.name}</b>
+                    <Bar pct={last?.percent} status={last?.status} />
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{countOf(c.name)} photo{countOf(c.name) === 1 ? '' : 's'}</span>
+                    <span style={{ flex: 1 }} />
+                    {canManage && <button type="button" className="ak-btn" style={{ height: 32 }} onClick={() => setNoting({ category: c.name, from: last, track: last?.track || (cats?.design.some((d) => d.name === c.name) ? 'design' : 'construction') })}>Update progress</button>}
+                  </div>
+                  {last?.description && <div style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{last.description}</div>}
+                  {hist.length > 1 && (
+                    <details><summary style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Earlier updates ({hist.length - 1})</summary>
+                      <div style={{ display: 'grid', gap: 6, marginTop: 6 }}>{hist.slice(1).map((n) => <NoteCard key={n.id} n={n} onEdit={noteEdit(n)} />)}</div>
+                    </details>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )
+        : !shown.length && !notes.length ? (
           <section className="ak-card"><div className="ak-empty">{photos.length ? 'No photos match.' : canManage ? 'No progress photos yet — “+ Add photos” to start, or sort the File Room’s photos under Unsorted.' : 'No progress photos have been shared yet.'}</div></section>
         ) : view === 'category' ? (
           groupBy([...shown].sort((a, b) => catList.findIndex((c) => c.name === a.category) - catList.findIndex((c) => c.name === b.category) || b.takenOn.localeCompare(a.takenOn)), (p) => p.category).map(([c, rows]) => (
             <div key={c} className="pp-group">
-              <div className="pp-group-head"><h3>{c}</h3><span>{rows.length} photo{rows.length === 1 ? '' : 's'} · {shortDay(rows[rows.length - 1].takenOn)} – {shortDay(rows[0].takenOn)}</span></div>
+              <div className="pp-group-head"><h3>{c}</h3><span>{rows.length} photo{rows.length === 1 ? '' : 's'} · {shortDay(rows[rows.length - 1].takenOn)} – {shortDay(rows[0].takenOn)}</span><Bar pct={latestOf(c)?.percent} status={latestOf(c)?.status} /></div>
+              {latestOf(c)?.description && <div style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.55, margin: '-4px 0 10px', whiteSpace: 'pre-wrap' }}>{latestOf(c)!.description}</div>}
               <div className="pp-grid">{rows.map(tile)}</div>
             </div>
           ))
         ) : (
-          groupBy(shown, (p) => weekOf(p.takenOn)).map(([wk, rows]) => (
+          [...new Set([...shown.map((p) => weekOf(p.takenOn)), ...notes.map((n) => weekOf(n.date))])].sort().reverse().map((wk) => [wk, shown.filter((p) => weekOf(p.takenOn) === wk)] as [string, ProgressPhoto[]]).map(([wk, rows]) => (
             <div key={wk} className="pp-group">
-              <div className="pp-group-head"><h3>Week of {shortDay(wk)}</h3><span>{rows.length} photo{rows.length === 1 ? '' : 's'} · {[...new Set(rows.map((r) => r.category))].join(', ')}</span></div>
+              <div className="pp-group-head"><h3>Week of {shortDay(wk)}</h3><span>{rows.length} photo{rows.length === 1 ? '' : 's'}{rows.length ? ' · ' + [...new Set(rows.map((r) => r.category))].join(', ') : ''}</span></div>
+              {notes.filter((n) => weekOf(n.date) === wk).length > 0 && (
+                <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>{notes.filter((n) => weekOf(n.date) === wk).map((n) => <NoteCard key={n.id} n={n} onEdit={noteEdit(n)} />)}</div>
+              )}
               {groupBy(rows, (p) => p.takenOn).map(([d, dayRows]) => (
                 <div key={d} style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', margin: '6px 0' }}>{day(d)}</div>
@@ -181,6 +249,9 @@ export function ProgressPhotos() {
         onChanged={(p) => setData((d) => d && ({ ...d, photos: d.photos.map((x) => (x.id === p.id ? { ...x, ...p } : x)) }))}
         onDeleted={(id) => { setOpen(null); setData((d) => d && ({ ...d, photos: d.photos.filter((x) => x.id !== id) })); }} />}
 
+      {noting && projectId && <NoteDrawer projectId={projectId} cats={cats} note={noting.note} category={noting.category} track={noting.track} from={noting.from}
+        onClose={() => setNoting(null)} onDone={() => { setNoting(null); load(); }} />}
+
       {uploading && projectId && <Upload projectId={projectId} cats={cats} defaultTrack={track === 'design' ? 'design' : 'construction'} defaultCategory={category}
         onClose={() => setUploading(false)} onDone={() => { setUploading(false); load(); }} />}
     </AkPage>
@@ -194,6 +265,8 @@ function Upload({ projectId, cats, defaultTrack, defaultCategory, onClose, onDon
   const [meta, setMeta] = useState<Meta>({ track: defaultTrack, category: defaultCategory || first(defaultTrack), area: '', caption: '', clientVisible: false });
   const [files, setFiles] = useState<{ file: File; url: string; date: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  // Optionally, a progress update for the same category alongside the photos.
+  const [prog, setProg] = useState<{ on: boolean; percent: number; description: string }>({ on: false, percent: 50, description: '' });
   useEffect(() => () => files.forEach((f) => URL.revokeObjectURL(f.url)), [files]);
   const add = async (list: FileList | null) => {
     const picked = Array.from(list || []).filter((f) => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
@@ -205,7 +278,8 @@ function Upload({ projectId, cats, defaultTrack, defaultCategory, onClose, onDon
     setBusy(true);
     try {
       const r = await api.progressPhotos.upload(projectId, files.map((f) => f.file), { ...meta, takenOn: files[0].date }, files.map((f) => f.date));
-      toast(`${r.uploaded} photo${r.uploaded === 1 ? '' : 's'} added to ${meta.category}`);
+      if (prog.on) await api.progressPhotos.addNote({ projectId, track: meta.track, category: meta.category, percent: prog.percent, description: prog.description, date: files.map((f) => f.date).sort().pop(), clientVisible: meta.clientVisible });
+      toast(`${r.uploaded} photo${r.uploaded === 1 ? '' : 's'} added to ${meta.category}${prog.on ? ` · progress ${prog.percent}%` : ''}`);
       onDone();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Upload failed')); }
     finally { setBusy(false); }
@@ -233,6 +307,15 @@ function Upload({ projectId, cats, defaultTrack, defaultCategory, onClose, onDon
           </div>
         )}
         <MetaFields meta={meta} set={setMeta} cats={cats} />
+        <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--panel)', display: 'grid', gap: 8 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
+            <input type="checkbox" checked={prog.on} onChange={(e) => setProg({ ...prog, on: e.target.checked })} /> Also post a progress update for {meta.category || 'this category'}
+          </label>
+          {prog.on && <>
+            <label className="pp-field">Progress — {prog.percent}%<input type="range" min={0} max={100} step={5} value={prog.percent} onChange={(e) => setProg({ ...prog, percent: Number(e.target.value) })} aria-label="Upload percent complete" style={{ padding: 0 }} /></label>
+            <label className="pp-field">What’s happening<textarea rows={3} value={prog.description} onChange={(e) => setProg({ ...prog, description: e.target.value })} placeholder="e.g. Walls framed, waiting on trusses" aria-label="Upload progress description" /></label>
+          </>}
+        </div>
       </div>
     </Drawer>
   );
@@ -357,5 +440,74 @@ function Compare({ photos, onOpen }: { photos: ProgressPhoto[]; onOpen: (id: str
       )}
       <div className="pp-compare">{side(from, setA, 'Before')}{side(to, setB, 'After')}</div>
     </div>
+  );
+}
+
+/** A progress update: how far along a category is, its state, and what's happening -- for the record and the client. */
+function NoteDrawer({ projectId, cats, note, category, track, from, onClose, onDone }: {
+  projectId: number; cats: PhotoCategories | null; note?: ProgressNote; category?: string; track?: PhotoTrack;
+  /** A new update starts from the category's latest figure. */
+  from?: ProgressNote; onClose: () => void; onDone: () => void;
+}) {
+  const { toast } = useApp();
+  const t0: PhotoTrack = note?.track || track || 'construction';
+  const [f, setF] = useState({
+    track: t0, category: note?.category || category || (t0 === 'design' ? cats?.design : cats?.construction)?.[0]?.name || '',
+    percent: note?.percent ?? from?.percent ?? 0, status: (note?.status || from?.status || 'not_started') as ProgressStatus, description: note?.description || '',
+    date: note?.date || akToday(), clientVisible: note?.clientVisible ?? false,
+  });
+  const [busy, setBusy] = useState(false);
+  const list = (f.track === 'design' ? cats?.design : cats?.construction) || [];
+  const setPct = (percent: number) => setF({ ...f, percent, status: percent >= 100 ? 'complete' : percent === 0 && f.status === 'complete' ? 'not_started' : f.status === 'complete' || f.status === 'not_started' ? (percent ? 'in_progress' : f.status) : f.status });
+  const save = async () => {
+    setBusy(true);
+    try {
+      if (note) await api.progressPhotos.updateNote(note.id, { ...f });
+      else await api.progressPhotos.addNote({ ...f, projectId });
+      toast('Progress saved'); onDone();
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
+    finally { setBusy(false); }
+  };
+  const remove = async () => {
+    if (!note || !window.confirm('Delete this progress update?')) return;
+    try { await api.progressPhotos.removeNote(note.id); onDone(); } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); }
+  };
+  return (
+    <Drawer title={note ? 'Edit progress update' : 'Progress update'} subtitle="How far along this part of the job is, and what’s happening — it shows on the timeline and the Progress view." width={520} onClose={onClose}
+      footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        {note && <button type="button" className="ak-btn" style={{ color: '#8E2E0A', marginRight: 'auto' }} onClick={remove}>Delete</button>}
+        <button type="button" className="ak-btn" onClick={onClose}>Cancel</button>
+        <button type="button" className="ak-btn is-dark" disabled={busy || !f.category} onClick={save}>{busy ? 'Saving…' : 'Save update'}</button>
+      </div>}>
+      <div style={{ display: 'grid', gap: 12 }}>
+        <label className="pp-field">Track
+          <select value={f.track} onChange={(e) => { const tr = e.target.value as PhotoTrack; setF({ ...f, track: tr, category: (tr === 'design' ? cats?.design : cats?.construction)?.[0]?.name || '' }); }}>
+            {TRACKS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+        <label className="pp-field">Category
+          <select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} aria-label="Progress category">
+            {!list.some((c) => c.name === f.category) && f.category && <option value={f.category}>{f.category}</option>}
+            {list.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="pp-field">Progress — {f.percent}%
+          <input type="range" min={0} max={100} step={5} value={f.percent} onChange={(e) => setPct(Number(e.target.value))} aria-label="Percent complete" style={{ padding: 0 }} />
+        </label>
+        <label className="pp-field">Status
+          <select value={f.status} onChange={(e) => setF({ ...f, status: e.target.value as ProgressStatus })} aria-label="Progress status">
+            {(Object.keys(PROGRESS_STATUS) as ProgressStatus[]).map((k) => <option key={k} value={k}>{PROGRESS_STATUS[k]}</option>)}
+          </select>
+        </label>
+        <label className="pp-field">Date<input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label="Progress date" /></label>
+        <label className="pp-field">What’s happening
+          <textarea rows={5} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} aria-label="Progress description"
+            placeholder={'e.g. Second-floor walls framed and sheathed. Waiting on roof trusses (delivery Thursday). Framing inspection booked for the 24th.'} />
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--body)' }}>
+          <input type="checkbox" checked={f.clientVisible} onChange={(e) => setF({ ...f, clientVisible: e.target.checked })} /> Client can see this update
+        </label>
+      </div>
+    </Drawer>
   );
 }

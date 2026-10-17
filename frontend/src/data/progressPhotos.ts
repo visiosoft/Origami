@@ -5,6 +5,14 @@ export interface ProgressPhoto {
   clientVisible: boolean; name: string; mimeType: string; uploadedBy: string; createdAt: string;
 }
 export interface UnsortedPhoto { id: string; name: string; mimeType?: string; uploadedBy?: string; updatedAt?: string; folderPath: string[] }
+/** A dated progress update for one category. */
+export interface ProgressNote {
+  id: string; projectId: number; track: PhotoTrack; category: string; percent: number; status: ProgressStatus;
+  description: string; date: string; clientVisible: boolean; createdBy?: string; createdAt: string;
+}
+export type ProgressStatus = 'not_started' | 'in_progress' | 'on_hold' | 'complete';
+export const PROGRESS_STATUS: Record<ProgressStatus, string> = { not_started: 'Not started', in_progress: 'In progress', on_hold: 'On hold', complete: 'Complete' };
+export interface ProgressSummary { latest: ProgressNote[]; overall: number | null; construction: number | null; design: number | null }
 export interface PhotoCategories { construction: { name: string; cover?: boolean }[]; design: { name: string }[] }
 
 /** Monday of the week a date falls in (yyyy-mm-dd), for grouping the timeline. */
