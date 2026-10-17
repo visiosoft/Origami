@@ -69,7 +69,8 @@ describe('formatLike (dashboard count-up)', () => {
 
 describe('tint', () => {
   it('appends hex alpha to a plain colour', () => {
-    expect(tint('var(--forest)', '22')).toBe('#17332622');
+    // Keep the plain hex here: this case checks the hex path (a var() goes the color-mix path, tested below).
+    expect(tint('#173326', '22')).toBe('#17332622');
   });
   it('mixes a theme variable with transparency', () => {
     expect(tint('var(--forest)', '80')).toBe('color-mix(in srgb, var(--forest) 50.2%, transparent)');

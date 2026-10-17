@@ -55,8 +55,9 @@ export function SignaturePad({ value, onChange, disabled }: { value: string; onC
 
   return (
     <div style={{ display: 'grid', gap: 6 }}>
+      {/* Always white (not a theme colour): the signature is saved as an image and must read on paper and in dark mode. */}
       <canvas ref={ref} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} aria-label="Signature — draw with your finger or mouse"
-        style={{ width: '100%', height: 140, borderRadius: 'var(--r-12)', border: '1.5px dashed rgba(var(--rgb-shade), .25)', background: 'var(--surface)', touchAction: 'none', cursor: disabled ? 'default' : 'crosshair' }} />
+        style={{ width: '100%', height: 140, borderRadius: 'var(--r-12)', border: '1.5px dashed rgba(var(--rgb-shade), .25)', background: '#FFFFFF', touchAction: 'none', cursor: disabled ? 'default' : 'crosshair' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: 'var(--muted)' }}>
         <span style={{ flex: 1 }}>{disabled ? 'Signed' : value ? 'Signed — clear to sign again' : 'Sign above with your finger or mouse'}</span>
         {!disabled && value && <button type="button" onClick={clear} style={{ border: 0, background: 'none', color: '#8E2E0A', fontWeight: 700, fontFamily: 'inherit', fontSize: 12, cursor: 'pointer' }}>Clear</button>}

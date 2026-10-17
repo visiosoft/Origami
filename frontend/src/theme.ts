@@ -26,7 +26,8 @@ export function getTheme(): Theme {
 
 export function applyTheme(t: Theme = getTheme()) {
   document.documentElement.dataset.theme = t;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'coterie' ? '#F3EFE6' : 'var(--sidebar)');
+  // Plain colours only: the browser's theme-color meta can't read CSS variables.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'coterie' ? '#F3EFE6' : '#0F2417');
 }
 
 export function setTheme(t: Theme) {
