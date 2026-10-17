@@ -550,6 +550,39 @@ export class GoogleService {
   }
 
   /**
+   * Read the text on a photo (a business card): Drive converts the image to a
+   * Google Doc with OCR, the Doc is exported as plain text, and trashed.
+   */
+  async imageToText(image: Buffer, mimeType: string, name = 'scan'): Promise<string> {
+    const token = await this.workspaceToken();
+    const boundary = 'origami_ocr_' + Math.random().toString(36).slice(2);
+    const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+      Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`, 'utf8'),
+      image,
+      Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+    ]);
+    const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&ocrLanguage=en&fields=id`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
+    const doc: any = await created.json().catch(() => ({}));
+    if (!created.ok || !doc?.id) {
+      this.log.error(`OCR upload failed: ${JSON.stringify(doc)}`);
+      throw new BadRequestException(doc?.error?.message || 'Could not read the card.');
+    }
+    try {
+      const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new BadRequestException('Drive could not read the text on the card.');
+      return (await res.text()).replace(/^\uFEFF/, '');
+    } finally {
+      await this.trashDriveFile(doc.id).catch(() => undefined);
+    }
+  }
+
+  /**
    * Turn CSV into a real Excel file (.xlsx), the same way as the PDF: Drive
    * imports it as a Google Sheet, exports it as xlsx, and the Sheet is trashed.
    */

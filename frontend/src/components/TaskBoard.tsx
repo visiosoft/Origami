@@ -1018,6 +1018,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                     <span onClick={() => setSelectedId(s.id)} title="Open the subtask" style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
                     {s.dueDate && <span style={{ fontSize: 11, color: !s.completed && s.dueDate < todayIso ? '#9A4318' : 'var(--muted)', flexShrink: 0 }}>{dueText(s.dueDate)}</span>}
                     {s.assignee && <Avatar user={users.find((u) => u.id === s.assigneeId)} name={s.assignee} size={20} title={s.assignee} />}
+                    <span onClick={() => setSelectedId(s.id)} title="Open the subtask in full" aria-label="Open subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Open</span>
                     {canManage && <span onClick={() => setEditingSub(s.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
                     {canManage && <span onClick={() => deleteTask(s.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                   </div>

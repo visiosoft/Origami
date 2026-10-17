@@ -159,6 +159,10 @@ __decorate([
     __metadata("design:type", Number)
 ], PersonEntity.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "businessCards", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], PersonEntity.prototype, "name", void 0);

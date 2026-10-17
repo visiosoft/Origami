@@ -61,6 +61,8 @@ export class ProjectEntity {
 @Entity('people')
 export class PersonEntity {
   @PrimaryColumn('int') id!: number;
+  /** Photos of their business card, front and back (Drive files), kept with the contact. */
+  @Column({ type: 'simple-json', nullable: true }) businessCards!: { front?: TaskAttachment | null; back?: TaskAttachment | null } | null;
   @Column() name!: string;
   @Column() role!: string;
   @Column() company!: string;

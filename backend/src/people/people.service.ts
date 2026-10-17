@@ -1,10 +1,20 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
 import { ContractorDirectorySync, isSubCompany } from '../manpower/contractor-directory.sync';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonEntity } from '../database/entities';
 import { CONTACT_STATUSES } from './contact-status';
+import { AttachmentsService, type UploadActor } from '../google/attachments.service';
+import { GoogleService } from '../google/google.service';
+import { SettingsService } from '../settings/settings.service';
+import { signState, readState } from '../auth/crypto.util';
+import type { TaskAttachment } from '../database/task.types';
+import { parseBusinessCard } from './business-card';
+
+type CardFile = { originalname: string; mimetype: string; size: number; buffer: Buffer };
+type Side = 'front' | 'back';
+const CARD_TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class PeopleService {
@@ -12,6 +22,9 @@ export class PeopleService {
     @InjectRepository(PersonEntity) private readonly repo: Repository<PersonEntity>,
     private readonly staff?: StaffDirectorySync,
     private readonly subs?: ContractorDirectorySync,
+    @Optional() private readonly attachments?: AttachmentsService,
+    @Optional() private readonly google?: GoogleService,
+    @Optional() private readonly settings?: SettingsService,
   ) {}
 
   async findAll(project?: string) {
@@ -76,7 +89,78 @@ export class PeopleService {
     return rows.reduce((m: number, p: any) => Math.max(m, Number(p.id) || 0), 0) + 1;
   }
 
+  // ------------------------------------------------------------ business cards
+
+  /**
+   * A new card: the photos go to Drive, Google reads their text, and the text
+   * is sorted into fields for the person to review. The token puts the photos
+   * on the contact when it's saved (create or update).
+   */
+  async scanCard(files: { front?: CardFile; back?: CardFile }, actor: UploadActor) {
+    if (!this.attachments || !this.google || !this.settings) throw new BadRequestException('Card scanning needs Google connected (Settings → Integrations).');
+    const sides = (['front', 'back'] as Side[]).filter((s) => files[s]);
+    const uploaded = await this.attachments.upload(sides.map((s) => files[s]!), 'Business cards', actor);
+    const cards: Partial<Record<Side, TaskAttachment>> = {};
+    sides.forEach((s, i) => { cards[s] = uploaded[i]; });
+    const texts: string[] = [];
+    let readError = '';
+    for (const s of sides) {
+      try { texts.push(await this.google.imageToText(files[s]!.buffer, files[s]!.mimetype, `card-${s}`)); }
+      catch (e) { readError = (e as Error).message || 'Could not read the card'; }
+    }
+    const text = texts.join('\n').trim();
+    const cardToken = signState({ mode: 'business-card', cards }, await this.settings.jwtSecret());
+    return { cardToken, front: cards.front || null, back: cards.back || null, text, fields: parseBusinessCard(text), readError: text ? '' : readError };
+  }
+
+  /** The card photos a scan token carries, if it's genuine and recent. */
+  private async cardsFromToken(token: unknown): Promise<Partial<Record<Side, TaskAttachment>> | null> {
+    if (!token || !this.settings) return null;
+    const st = readState(String(token), await this.settings.jwtSecret(), CARD_TOKEN_MAX_AGE_MS);
+    return st?.mode === 'business-card' && st.cards && typeof st.cards === 'object' ? st.cards : null;
+  }
+
+  /** Card photos are only ever set from a scan or an upload here, never from a client-sent record. */
+  private async applyCardToken(dto: Record<string, any>, current?: PersonEntity | null) {
+    const cards = await this.cardsFromToken(dto.businessCardToken);
+    delete dto.businessCardToken;
+    delete dto.businessCards;
+    if (cards) dto.businessCards = { ...(current?.businessCards || {}), ...cards };
+  }
+
+  async addCardPhotos(id: string, files: { front?: CardFile; back?: CardFile }, actor: UploadActor) {
+    if (!this.attachments) throw new BadRequestException('Uploads need Google connected (Settings → Integrations).');
+    const person = await this.repo.findOneBy({ id: Number(id) });
+    if (!person) throw new NotFoundException(`Person ${id} not found`);
+    const sides = (['front', 'back'] as Side[]).filter((s) => files[s]);
+    if (!sides.length) throw new BadRequestException('Add a photo of the card.');
+    const uploaded = await this.attachments.upload(sides.map((s) => files[s]!), 'Business cards', actor);
+    const cards = { ...(person.businessCards || {}) };
+    for (const [i, s] of sides.entries()) { await this.attachments.discard(cards[s] || undefined); cards[s] = uploaded[i]; }
+    await this.repo.update({ id: person.id }, { businessCards: cards } as any);
+    return { ...person, businessCards: cards };
+  }
+
+  async removeCardPhoto(id: string, side: Side) {
+    const person = await this.repo.findOneBy({ id: Number(id) });
+    if (!person) throw new NotFoundException(`Person ${id} not found`);
+    const cards = { ...(person.businessCards || {}) };
+    await this.attachments?.discard(cards[side] || undefined);
+    cards[side] = null;
+    await this.repo.update({ id: person.id }, { businessCards: cards } as any);
+    return { ...person, businessCards: cards };
+  }
+
+  async cardPhoto(id: string, side: Side): Promise<TaskAttachment> {
+    const person = await this.repo.findOneBy({ id: Number(id) });
+    const att = person?.businessCards?.[side];
+    if (!att) throw new NotFoundException('No card photo.');
+    return att;
+  }
+
   async create(dto: any) {
+    dto = { ...dto };
+    await this.applyCardToken(dto);
     const id = Number(dto.id) || (await this.nextId());
     const now = new Date().toISOString();
     const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id, contactStatus: 'active', contactStatusAt: now, lastActivityAt: now };
@@ -95,6 +179,7 @@ export class PeopleService {
     const now = new Date().toISOString();
     const patch: Record<string, any> = { ...dto };
     delete patch.lastActivityAt;
+    await this.applyCardToken(patch, person);
     // Status changes are recorded with when and why; any other edit, or setting it Active, counts as activity.
     if ('contactStatus' in patch) {
       const next = String(patch.contactStatus || 'active').toLowerCase();

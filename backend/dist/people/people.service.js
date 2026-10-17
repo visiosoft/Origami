@@ -20,11 +20,20 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const contact_status_1 = require("./contact-status");
+const attachments_service_1 = require("../google/attachments.service");
+const google_service_1 = require("../google/google.service");
+const settings_service_1 = require("../settings/settings.service");
+const crypto_util_1 = require("../auth/crypto.util");
+const business_card_1 = require("./business-card");
+const CARD_TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 let PeopleService = class PeopleService {
-    constructor(repo, staff, subs) {
+    constructor(repo, staff, subs, attachments, google, settings) {
         this.repo = repo;
         this.staff = staff;
         this.subs = subs;
+        this.attachments = attachments;
+        this.google = google;
+        this.settings = settings;
     }
     async findAll(project) {
         const all = await this.repo.find({ order: { id: 'ASC' } });
@@ -70,7 +79,78 @@ let PeopleService = class PeopleService {
         const rows = await this.repo.find();
         return rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
     }
+    async scanCard(files, actor) {
+        if (!this.attachments || !this.google || !this.settings)
+            throw new common_1.BadRequestException('Card scanning needs Google connected (Settings → Integrations).');
+        const sides = ['front', 'back'].filter((s) => files[s]);
+        const uploaded = await this.attachments.upload(sides.map((s) => files[s]), 'Business cards', actor);
+        const cards = {};
+        sides.forEach((s, i) => { cards[s] = uploaded[i]; });
+        const texts = [];
+        let readError = '';
+        for (const s of sides) {
+            try {
+                texts.push(await this.google.imageToText(files[s].buffer, files[s].mimetype, `card-${s}`));
+            }
+            catch (e) {
+                readError = e.message || 'Could not read the card';
+            }
+        }
+        const text = texts.join('\n').trim();
+        const cardToken = (0, crypto_util_1.signState)({ mode: 'business-card', cards }, await this.settings.jwtSecret());
+        return { cardToken, front: cards.front || null, back: cards.back || null, text, fields: (0, business_card_1.parseBusinessCard)(text), readError: text ? '' : readError };
+    }
+    async cardsFromToken(token) {
+        if (!token || !this.settings)
+            return null;
+        const st = (0, crypto_util_1.readState)(String(token), await this.settings.jwtSecret(), CARD_TOKEN_MAX_AGE_MS);
+        return st?.mode === 'business-card' && st.cards && typeof st.cards === 'object' ? st.cards : null;
+    }
+    async applyCardToken(dto, current) {
+        const cards = await this.cardsFromToken(dto.businessCardToken);
+        delete dto.businessCardToken;
+        delete dto.businessCards;
+        if (cards)
+            dto.businessCards = { ...(current?.businessCards || {}), ...cards };
+    }
+    async addCardPhotos(id, files, actor) {
+        if (!this.attachments)
+            throw new common_1.BadRequestException('Uploads need Google connected (Settings → Integrations).');
+        const person = await this.repo.findOneBy({ id: Number(id) });
+        if (!person)
+            throw new common_1.NotFoundException(`Person ${id} not found`);
+        const sides = ['front', 'back'].filter((s) => files[s]);
+        if (!sides.length)
+            throw new common_1.BadRequestException('Add a photo of the card.');
+        const uploaded = await this.attachments.upload(sides.map((s) => files[s]), 'Business cards', actor);
+        const cards = { ...(person.businessCards || {}) };
+        for (const [i, s] of sides.entries()) {
+            await this.attachments.discard(cards[s] || undefined);
+            cards[s] = uploaded[i];
+        }
+        await this.repo.update({ id: person.id }, { businessCards: cards });
+        return { ...person, businessCards: cards };
+    }
+    async removeCardPhoto(id, side) {
+        const person = await this.repo.findOneBy({ id: Number(id) });
+        if (!person)
+            throw new common_1.NotFoundException(`Person ${id} not found`);
+        const cards = { ...(person.businessCards || {}) };
+        await this.attachments?.discard(cards[side] || undefined);
+        cards[side] = null;
+        await this.repo.update({ id: person.id }, { businessCards: cards });
+        return { ...person, businessCards: cards };
+    }
+    async cardPhoto(id, side) {
+        const person = await this.repo.findOneBy({ id: Number(id) });
+        const att = person?.businessCards?.[side];
+        if (!att)
+            throw new common_1.NotFoundException('No card photo.');
+        return att;
+    }
     async create(dto) {
+        dto = { ...dto };
+        await this.applyCardToken(dto);
         const id = Number(dto.id) || (await this.nextId());
         const now = new Date().toISOString();
         const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id, contactStatus: 'active', contactStatusAt: now, lastActivityAt: now };
@@ -89,6 +169,7 @@ let PeopleService = class PeopleService {
         const now = new Date().toISOString();
         const patch = { ...dto };
         delete patch.lastActivityAt;
+        await this.applyCardToken(patch, person);
         if ('contactStatus' in patch) {
             const next = String(patch.contactStatus || 'active').toLowerCase();
             if (!contact_status_1.CONTACT_STATUSES.includes(next))
@@ -125,8 +206,14 @@ exports.PeopleService = PeopleService;
 exports.PeopleService = PeopleService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.PersonEntity)),
+    __param(3, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Optional)()),
+    __param(5, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         staff_directory_sync_1.StaffDirectorySync,
-        contractor_directory_sync_1.ContractorDirectorySync])
+        contractor_directory_sync_1.ContractorDirectorySync,
+        attachments_service_1.AttachmentsService,
+        google_service_1.GoogleService,
+        settings_service_1.SettingsService])
 ], PeopleService);
 //# sourceMappingURL=people.service.js.map

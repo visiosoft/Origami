@@ -44,6 +44,10 @@ export declare class ProjectEntity {
 }
 export declare class PersonEntity {
     id: number;
+    businessCards: {
+        front?: TaskAttachment | null;
+        back?: TaskAttachment | null;
+    } | null;
     name: string;
     role: string;
     company: string;

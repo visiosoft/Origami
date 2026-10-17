@@ -430,6 +430,36 @@ let GoogleService = class GoogleService {
             await this.trashDriveFile(doc.id).catch(() => undefined);
         }
     }
+    async imageToText(image, mimeType, name = 'scan') {
+        const token = await this.workspaceToken();
+        const boundary = 'origami_ocr_' + Math.random().toString(36).slice(2);
+        const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
+        const body = Buffer.concat([
+            Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+            Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`, 'utf8'),
+            image,
+            Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+        ]);
+        const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&ocrLanguage=en&fields=id`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body: body,
+        });
+        const doc = await created.json().catch(() => ({}));
+        if (!created.ok || !doc?.id) {
+            this.log.error(`OCR upload failed: ${JSON.stringify(doc)}`);
+            throw new common_1.BadRequestException(doc?.error?.message || 'Could not read the card.');
+        }
+        try {
+            const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok)
+                throw new common_1.BadRequestException('Drive could not read the text on the card.');
+            return (await res.text()).replace(/^\uFEFF/, '');
+        }
+        finally {
+            await this.trashDriveFile(doc.id).catch(() => undefined);
+        }
+    }
     async spreadsheetToCsv(file, mimeType, name = 'import') {
         const token = await this.workspaceToken();
         const boundary = 'origami_csv_' + Math.random().toString(36).slice(2);

@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18a',
+    date: '2026-10-18',
+    title: 'Business cards on contacts — snap, read, review, save',
+    items: [
+      { area: 'People', kind: 'new', text: 'Add a photo of a business card (front and back — on a phone it opens the camera). “Read card & fill in” reads it and fills the empty fields: name, title, company, phone, email, website and business address. Check them, and the contact saves with the card photos kept on it. For a company entry the firm becomes the name and the person on the card the primary contact.', where: 'People → Add (or Edit) → Business card' },
+      { area: 'People', kind: 'new', text: 'A contact’s card photos show in their details — click for full size, or remove one.', where: 'People → a contact' },
+      { area: 'Task', kind: 'improved', text: 'Subtasks have an Open link (as well as Edit) in the task’s Subtasks list.', where: 'Task → a task → Subtasks' },
+      { area: 'Task', kind: 'improved', text: 'The Urgent priority badge is red.', where: 'Task board' },
+    ],
+  },
+  {
     id: '2026-10-17j',
     date: '2026-10-17',
     title: 'Task emails on Save, editable subtasks, email links that open the task, and “My tasks” your way',

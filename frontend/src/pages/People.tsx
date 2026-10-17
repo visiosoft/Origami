@@ -13,6 +13,8 @@ import { useApp } from '../AppContext';
 import { api } from '../api';
 import { PersonProfileEditor } from '../components/PersonProfileEditor';
 import { normalizeProfile, personDisplayName, missingFields, type PersonProfile } from '../data/personProfile';
+import { BusinessCardPhotos, BusinessCardScan } from '../components/BusinessCardScan';
+import { fillFromCard } from '../data/businessCard';
 import {
   KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, INTERNAL_LEVELS, initials, internalLevelOf, levelFromRole, type Person, type Comply,
   CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus,
@@ -32,6 +34,8 @@ interface NewPerson {
   phone: string; email: string; tier: Person['tier']; projects: string[]; complyDate: string; complyRef: string;
   /** Internal people: their level; '' = worked out from the role. */
   internalLevel: string;
+  /** From reading a business card: saves its photos with the contact. */
+  businessCardToken?: string;
 }
 const BLANK: NewPerson = { name: '', kind: 'Consultant', role: '', company: '', contact: '', phone: '', email: '', tier: 'Consultant', projects: [], complyDate: '', complyRef: '', internalLevel: '' };
 
@@ -52,6 +56,7 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
     comply: needsComply && np.complyDate.trim() ? { label: 'Insurance', date: np.complyDate.trim(), ok: true, extra: np.complyRef.trim() || 'No reference on file' } : null,
     ...profile,
   };
+  if (np.businessCardToken) payload.businessCardToken = np.businessCardToken;
   // The directory shows one name, composed from the parts the profile holds.
   const composed = personDisplayName(profile);
   if (composed) payload.name = composed;
@@ -548,6 +553,13 @@ export function People() {
               </div>
               {contactStatusOf(sel) !== 'active' && <div style={{ fontSize: 12, color: 'var(--body)' }}>{sel.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(sel)]}{sel.contactStatusAt ? ` · since ${new Date(sel.contactStatusAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>}
             </div>
+            {!!(sel.businessCards?.front || sel.businessCards?.back) && (
+              <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Business card</div>
+                <BusinessCardPhotos personId={sel.id} cards={sel.businessCards} canManage={canManage}
+                  onChanged={(p) => setPeople((prev) => prev.map((x) => (x.id === sel.id ? { ...x, businessCards: p?.businessCards } : x)))} />
+              </div>
+            )}
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
               {([['Kind', sel.kind], ['Access tier', sel.tier], ['Phone', sel.phone], ['Email', sel.email], ['Open tasks', String(sel.openTasks)], ['With us since', sel.since]] as [string, string][]).map((r) => (
                 <div key={r[0]} style={{ padding: '11px 13px', background: 'var(--panel)', borderRadius: 10 }}>
@@ -652,6 +664,14 @@ export function People() {
                   <div onClick={() => { setShowNew(false); navigate('/manpower_con?add=employee'); }} style={{ justifySelf: 'start', padding: '9px 16px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Add as an employee →</div>
                 </div>
               )}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <BusinessCardScan compact={editingId != null} onRead={(scan) => {
+                  const r = fillFromCard(np, profile, scan.fields, isCompany);
+                  setNp({ ...r.form, businessCardToken: scan.cardToken });
+                  setProfile(r.profile);
+                  toast(r.filled.length ? `Filled in ${r.filled.join(', ')} — check them, then it saves with the card photos` : 'Card photos added — nothing new to fill in');
+                }} />
+              </div>
               {field(isCompany ? 'Company or firm name' : 'Full name', 'name', isCompany ? 'e.g. Kestrel Electric Co.' : 'e.g. Dana Whitfield', 'required', '1 / -1')}
               {field(isCompany ? 'Trade or discipline' : 'Role or title', 'role', isCompany ? 'e.g. Electrical' : 'e.g. Project Coordinator')}
               {field('Company shown in lists', 'company', isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build')}

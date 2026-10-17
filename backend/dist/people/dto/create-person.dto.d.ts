@@ -12,6 +12,7 @@ export declare class CreatePersonDto {
     licenses?: unknown[];
     insurance?: Record<string, unknown>;
     notLicensedDesigner?: boolean;
+    businessCardToken?: string;
     role?: string;
     company?: string;
     contact?: string;

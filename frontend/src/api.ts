@@ -1,4 +1,5 @@
 import type { ContractorBid } from './data/contractorBids';
+import type { CardScan } from './data/businessCard';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -314,6 +315,22 @@ export const api = {
     create: (data: unknown) => request('/people', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/people/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
+    /** Read a business card (front and/or back photo): fields to review, and a token that keeps the photos with the contact. */
+    scanCard: (front?: File | null, back?: File | null) => {
+      const f = new FormData();
+      if (front) f.append('front', front, front.name);
+      if (back) f.append('back', back, back.name);
+      return requestForm<CardScan>('/people/business-card/scan', f);
+    },
+    /** Add or replace card photos on a saved contact. */
+    addCard: (id: number, front?: File | null, back?: File | null) => {
+      const f = new FormData();
+      if (front) f.append('front', front, front.name);
+      if (back) f.append('back', back, back.name);
+      return requestForm<any>(`/people/${id}/business-card`, f);
+    },
+    removeCard: (id: number, side: 'front' | 'back') => request<any>(`/people/${id}/business-card/${side}`, { method: 'DELETE' }),
+    cardUrl: (id: number, side: 'front' | 'back', thumb = false) => `${API_BASE}/people/${id}/business-card/${side}/content${thumb ? '?thumb=1' : ''}`,
     /** Bulk import (People -> Import): the template's columns, Excel -> CSV, and preview / apply. */
     importColumns: () => request('/people/import/columns'),
     importConvert: (file: File) => { const f = new FormData(); f.append('file', file, file.name); return requestForm('/people/import/convert', f); },

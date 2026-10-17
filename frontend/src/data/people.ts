@@ -26,6 +26,8 @@ export interface Person {
   last: string;
   /** Active / Review / Expired (empty = Active). Review comes on its own after 12 months with no activity. */
   contactStatus?: ContactStatus | null;
+  /** Photos of their business card (Drive files), shown through /people/:id/business-card/:side/content. */
+  businessCards?: { front?: unknown; back?: unknown } | null;
   contactStatusAt?: string | null;
   contactStatusReason?: string | null;
   lastActivityAt?: string | null;

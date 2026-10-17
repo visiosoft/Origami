@@ -16,6 +16,8 @@ export class CreatePersonDto {
   @IsArray() @IsOptional() licenses?: unknown[];
   @IsObject() @IsOptional() insurance?: Record<string, unknown>;
   @IsBoolean() @IsOptional() notLicensedDesigner?: boolean;
+  /** From a business-card scan: puts the card photos on the contact (see PeopleService.scanCard). */
+  @IsString() @IsOptional() businessCardToken?: string;
   @IsString() @IsOptional() role?: string;
   @IsString() @IsOptional() company?: string;
   @IsString() @IsOptional() contact?: string;

@@ -95,6 +95,7 @@ export declare class GoogleService {
         header?: string;
         footer?: string;
     }, landscape?: boolean): Promise<Buffer>;
+    imageToText(image: Buffer, mimeType: string, name?: string): Promise<string>;
     spreadsheetToCsv(file: Buffer, mimeType: string, name?: string): Promise<string>;
     csvToXlsx(csv: string, name?: string): Promise<Buffer>;
     private setPageOrientation;
