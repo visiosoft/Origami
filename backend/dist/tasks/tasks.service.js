@@ -19,6 +19,8 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const settings_service_1 = require("../settings/settings.service");
+const auto_checklist_1 = require("../project-tasks/auto-checklist");
+const serials_1 = require("../database/serials");
 const log_statuses_1 = require("./log-statuses");
 exports.LOG_ARCHIVE_DAYS = 7;
 const entities_1 = require("../database/entities");
@@ -28,13 +30,14 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments, notifications, settings, cos) {
+    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
         this.notifications = notifications;
         this.settings = settings;
         this.cos = cos;
+        this.checklistTemplates = checklistTemplates;
         this.log = new common_1.Logger('TasksService');
     }
     async statuses() {
@@ -62,6 +65,24 @@ let TasksService = class TasksService {
         catch (err) {
             this.log.error('Request Log bucket move failed: ' + err.message);
         }
+        try {
+            const n = await this.numberUnnumbered();
+            if (n)
+                this.log.log(`Gave ${n} Request Log entries a serial number`);
+        }
+        catch (err) {
+            this.log.error('Request Log serial numbers failed: ' + err.message);
+        }
+    }
+    async numberUnnumbered() {
+        const rows = await this.repo.find();
+        if (!rows.some((t) => !t.serial))
+            return 0;
+        const made = (t) => (/^\d{8}-/.test(t.id) ? `${t.id.slice(0, 4)}-${t.id.slice(4, 6)}-${t.id.slice(6, 8)}` : t.meetingDate);
+        const pairs = (0, serials_1.backfillSerials)(rows, (t) => (0, serials_1.logSerialKind)(t.topicType) + '|' + (t.project || ''), (t) => (0, serials_1.logSerialKind)(t.topicType), made);
+        for (const [id, serial] of pairs)
+            await this.repo.update({ id }, { serial });
+        return pairs.length;
     }
     async moveToBuckets() {
         if (!this.settings || (await this.settings.get('requestLog.bucketsV1')))
@@ -181,6 +202,8 @@ let TasksService = class TasksService {
         if (!String(dto.subject || '').trim() && !String(dto.description || '').trim())
             throw new common_1.BadRequestException('Give the task a subject.');
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assignedToId, name: dto.assignedTo });
+        const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
+        const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: (0, serials_1.logSerialKind)(dto.topicType || 'Task'), type: dto.topicType || 'Task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
         const task = this.repo.create({
             tab: 'internal',
             meetingType: 'Internal',
@@ -197,7 +220,7 @@ let TasksService = class TasksService {
             assignedToId: assignee.id ?? undefined,
             attachments: [],
             comments: [],
-            checklist: (0, task_types_1.normalizeList)(dto.checklist),
+            checklist,
             labels: (0, task_types_1.normalizeList)(dto.labels),
             priority: (0, task_types_1.cleanPriority)(dto.priority),
             linkedTaskIds: cleanIds(dto.linkedTaskIds),
@@ -209,6 +232,7 @@ let TasksService = class TasksService {
         task.status = (0, log_statuses_1.bucketOf)(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
         if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim()))
             task.status = 'Assigned';
+        task.serial = (0, serials_1.nextSerial)(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), (0, serials_1.logSerialKind)(task.topicType), (0, serials_1.serialYear)());
         const saved = await this.repo.save(task);
         if (assignee.id) {
             this.notifications.taskAssigned({
@@ -229,6 +253,7 @@ let TasksService = class TasksService {
         const task = await this.load(id);
         const patch = { ...dto };
         delete patch.id;
+        delete patch.serial;
         if ('assignedTo' in patch || 'assignedToId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, {
                 id: patch.assignedToId,
@@ -424,11 +449,14 @@ exports.TasksService = TasksService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __param(5, (0, common_1.Optional)()),
     __param(5, (0, typeorm_1.InjectRepository)(entities_1.ChangeOrderEntity)),
+    __param(6, (0, common_1.Optional)()),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.ChecklistTemplateEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
         notifications_service_1.NotificationsService,
         settings_service_1.SettingsService,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], TasksService);
 function cleanIds(v) {

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChecklistTemplateEntity } from '../database/entities';
+import { cleanAutoFor } from './auto-checklist';
 
 export interface TemplateActor { id?: string; name: string; roleKey?: string }
 const MAX_ITEMS = 100;
@@ -16,14 +17,14 @@ export class ChecklistTemplatesService {
   constructor(@InjectRepository(ChecklistTemplateEntity) private readonly repo: Repository<ChecklistTemplateEntity>) {}
 
   async list() {
-    return (await this.repo.find()).map((t) => ({ ...t, items: Array.isArray(t.items) ? t.items : [] })).sort((a, b) => a.name.localeCompare(b.name));
+    return (await this.repo.find()).map((t) => ({ ...t, items: Array.isArray(t.items) ? t.items : [], autoFor: Array.isArray(t.autoFor) ? t.autoFor : [] })).sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private mayEdit(t: ChecklistTemplateEntity, actor: TemplateActor) {
     return !t.createdById || t.createdById === actor.id || actor.roleKey === 'admin';
   }
 
-  private clean(dto: { name?: string; items?: unknown }) {
+  private clean(dto: { name?: string; items?: unknown; autoFor?: unknown }) {
     const name = String(dto.name || '').trim();
     if (!name) throw new BadRequestException('Name the checklist.');
     if (name.length > 120) throw new BadRequestException('Keep the name under 120 characters.');
@@ -33,29 +34,29 @@ export class ChecklistTemplatesService {
       .map((item) => ({ item }));
     if (!items.length) throw new BadRequestException('Add at least one item.');
     if (items.length > MAX_ITEMS) throw new BadRequestException(`Keep it to ${MAX_ITEMS} items.`);
-    return { name, items };
+    return { name, items, autoFor: cleanAutoFor(dto.autoFor) };
   }
 
   /** Saving under a name that's taken replaces it -- if it's yours (or you're an admin). */
-  async save(dto: { name?: string; items?: unknown }, actor: TemplateActor) {
-    const { name, items } = this.clean(dto);
+  async save(dto: { name?: string; items?: unknown; autoFor?: unknown }, actor: TemplateActor) {
+    const { name, items, autoFor } = this.clean(dto);
     const existing = (await this.repo.find()).find((t) => t.name.toLowerCase() === name.toLowerCase());
     if (existing && !this.mayEdit(existing, actor)) throw new ConflictException(`There's already a checklist called “${existing.name}” — pick another name.`);
     const now = new Date().toISOString();
     return this.repo.save(this.repo.create({
       ...(existing || { id: 'CLT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(), createdById: actor.id, createdByName: actor.name, createdAt: now }),
-      name, items, updatedAt: now,
+      name, items, autoFor: dto.autoFor === undefined && existing ? existing.autoFor : autoFor, updatedAt: now,
     }));
   }
 
-  async update(id: string, dto: { name?: string; items?: unknown }, actor: TemplateActor) {
+  async update(id: string, dto: { name?: string; items?: unknown; autoFor?: unknown }, actor: TemplateActor) {
     const t = await this.repo.findOneBy({ id });
     if (!t) throw new NotFoundException('Checklist template not found.');
     if (!this.mayEdit(t, actor)) throw new ForbiddenException(`Only ${t.createdByName || 'whoever made it'} or an admin can change this checklist.`);
-    const { name, items } = this.clean({ name: dto.name ?? t.name, items: dto.items ?? t.items });
+    const { name, items, autoFor } = this.clean({ name: dto.name ?? t.name, items: dto.items ?? t.items, autoFor: dto.autoFor ?? t.autoFor });
     const clash = (await this.repo.find()).find((x) => x.id !== id && x.name.toLowerCase() === name.toLowerCase());
     if (clash) throw new ConflictException(`There's already a checklist called “${clash.name}”.`);
-    return this.repo.save({ ...t, name, items, updatedAt: new Date().toISOString() });
+    return this.repo.save({ ...t, name, items, autoFor, updatedAt: new Date().toISOString() });
   }
 
   async remove(id: string, actor: TemplateActor) {

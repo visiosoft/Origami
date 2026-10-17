@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ChangeOrderEntity, MeetingEntity, RfiEntity, TaskEntity } from '../database/entities';
 import { TasksService } from '../tasks/tasks.service';
+import { backfillSerials, nextSerial, serialYear } from '../database/serials';
 import type { MeetingActionDto, MeetingDto } from './dto';
 import { normalizeMeetingStatus, settleMeetingStatus, type CapturedAction } from './meeting-status';
 
@@ -40,6 +41,14 @@ export class MeetingsService implements OnApplicationBootstrap {
     } catch (err) {
       this.log.error('Meeting status migration failed: ' + (err as Error).message);
     }
+    try {
+      const rows = await this.repo.find();
+      const pairs = backfillSerials(rows, (m) => String(m.projectId ?? ''), () => 'meeting', (m) => m.createdAt);
+      for (const [id, serial] of pairs) await this.repo.update({ id }, { serial });
+      if (pairs.length) this.log.log(`Gave ${pairs.length} meeting(s) a serial number`);
+    } catch (err) {
+      this.log.error('Meeting serial numbers failed: ' + (err as Error).message);
+    }
   }
 
   /** Older statuses ("held") onto the current set ("occurred"). Returns how many changed. */
@@ -76,8 +85,11 @@ export class MeetingsService implements OnApplicationBootstrap {
     if (!ISO.test(dto.date || '')) throw new BadRequestException('Pick the meeting date.');
     const now = new Date().toISOString();
     const id = 'MTG-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+    const projectId = (dto as any).projectId == null ? null : Number((dto as any).projectId);
+    const peers = (await this.repo.find()).filter((m) => (m.projectId ?? null) === projectId);
     return this.repo.save(this.repo.create({
       type: 'Internal', attendees: [], rfiIds: [], changeOrderIds: [], ...dto, title: dto.title!.trim(),
+      serial: nextSerial(peers.map((m) => m.serial), 'meeting', serialYear(now)),
       status: normalizeMeetingStatus(dto.status),
       id, createdBy: actor.name, createdAt: now, updatedAt: now,
     } as Partial<MeetingEntity>));
@@ -88,6 +100,7 @@ export class MeetingsService implements OnApplicationBootstrap {
     if (dto.title !== undefined && !dto.title.trim()) throw new BadRequestException('The meeting needs a title.');
     if (dto.date !== undefined && !ISO.test(dto.date)) throw new BadRequestException('Pick the meeting date.');
     const patch: Partial<MeetingEntity> = { ...(dto as any) };
+    delete patch.serial;
     if (dto.status !== undefined) {
       patch.status = normalizeMeetingStatus(dto.status);
       // Marking it reviewed (or complete by hand) records who went through it.

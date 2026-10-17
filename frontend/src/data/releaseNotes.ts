@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17g',
+    date: '2026-10-17',
+    title: 'Change orders save themselves, serial numbers, and checklists that add themselves',
+    items: [
+      { area: 'Change Orders', kind: 'improved', text: 'A draft change order now saves by itself a moment after each change, like the other special actions. The footer shows “Saved just now”, and Save still forces it. Submitting or approving saves anything typed first.', where: 'Special Actions → Change Orders' },
+      { area: 'Special Actions', kind: 'new', text: 'Tasks, FOR RECORD entries and meetings get a serial number per project and year — T-2026-0142, FR-2026-0031, MTG-2026-0012. It shows next to the originator and in the lists, and you can search by it. Existing records were numbered oldest first. RFIs and change orders keep RFI-004 and CO-003.', where: 'Task, FOR RECORD, Meetings' },
+      { area: 'Checklists', kind: 'new', text: 'A checklist template can be marked “Add automatically to” all new tasks, all FOR RECORD entries, one type (e.g. Observations) or tasks with a label (e.g. Safety). New records start with its items; people can still remove items, add more or add another checklist.', where: 'Settings → Workspace → Checklist templates' },
+    ],
+  },
+  {
     id: '2026-10-17f',
     date: '2026-10-17',
     title: 'Approvals for contracts and change orders, one priority scale, originators and more sorting',

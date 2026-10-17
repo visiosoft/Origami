@@ -97,7 +97,7 @@ export function Meetings() {
     .filter((i) => (view === 'all' || (view === 'upcoming' ? isUpcoming(i) : !isUpcoming(i)))
       && statusOk(i) && whereOk(i)
       && (!project || i.project === project)
-      && (!needle || [i.title, i.type, i.project, i.meeting?.location, ...(i.meeting?.attendees || []).map((a) => a.name)].filter(Boolean).join(' ').toLowerCase().includes(needle)))
+      && (!needle || [i.title, i.meeting?.serial, i.type, i.project, i.meeting?.location, ...(i.meeting?.attendees || []).map((a) => a.name)].filter(Boolean).join(' ').toLowerCase().includes(needle)))
     .sort((a, b) => (view === 'upcoming' ? `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`) : `${b.date}${b.time || ''}`.localeCompare(`${a.date}${a.time || ''}`)));
   const { sorted, sort, setSort } = useSort(shown, { date: (i) => `${i.date}${i.time || ''}`, title: (i) => i.title, project: (i) => i.project, type: (i) => i.type });
   const viewValue = { view, status, where, project, q, sort: sortToString(sort) };
@@ -165,7 +165,7 @@ export function Meetings() {
             <AkRow key={i.key} index={n} muted={i.status === 'cancelled' || i.status === 'complete'} onClick={() => setOpenKey(i.key)}
               lead={<AkDate iso={i.date} />}
               title={i.title}
-              sub={[i.type !== 'Internal' || i.kind === 'meeting' ? i.type : '', i.project, timeLabel(i.time), i.meeting?.attendees?.length ? `${i.meeting.attendees.length} attending` : '', i.meeting?.location].filter(Boolean).join(' · ')}
+              sub={[i.meeting?.serial, i.type !== 'Internal' || i.kind === 'meeting' ? i.type : '', i.project, timeLabel(i.time), i.meeting?.attendees?.length ? `${i.meeting.attendees.length} attending` : '', i.meeting?.location].filter(Boolean).join(' · ')}
               right={<>
                 {(acts.length > 0 || rec > 0) && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[acts.length && `${acts.length} ${acts.length === 1 ? 'action' : 'actions'}${open ? ` · ${open} open` : ''}`, rec && `${rec} on record`].filter(Boolean).join(' · ')}</span>}
                 {lt && <span className="ak-hide-sm"><AkPill tone="outline" title={lt.label}>{lt.short}</AkPill></span>}
@@ -328,7 +328,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
           {editable ? <input className="mt-title" value={draft.title} onChange={(e) => set({ title: e.target.value })} aria-label="Meeting title" /> : <h2>{item.title}</h2>}
           <button type="button" className="mt-x" onClick={onClose} aria-label="Close">×</button>
         </div>
-        {saved && <OriginatorLine by={saved.createdBy} at={saved.createdAt} />}
+        {saved && <OriginatorLine by={saved.createdBy} at={saved.createdAt} number={saved.serial} />}
         {item.kind === 'meeting' ? (
           <>
             <div className="mt-status">

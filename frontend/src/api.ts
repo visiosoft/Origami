@@ -8,7 +8,9 @@ export interface MadeAction { kind: ActionKind; id: string; label: string; proje
 export interface DerivedRef { kind: ActionKind; id: string; label: string; how: 'converted' | 'duplicated'; projectName?: string; by: string; at: string }
 
 /** Where a record came from, and what was made from it (duplicate / convert). */
-export interface ActionTrailFields { sourceType?: string | null; sourceId?: string | null; sourceLabel?: string | null; derivedRefs?: DerivedRef[] | null }
+export interface ActionTrailFields { sourceType?: string | null; sourceId?: string | null; sourceLabel?: string | null; derivedRefs?: DerivedRef[] | null;
+  /** Serial number per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  serial?: string | null }
 
 /** A project's week, from its daily reports (Daily Reports -> Weekly). */
 export interface WeeklyReport {
@@ -26,7 +28,9 @@ export interface WeeklyReport {
 }
 
 /** A checklist made in advance ("Pre-pour inspection"). */
-export interface ChecklistTemplate { id: string; name: string; items: { item: string }[]; createdById?: string; createdByName?: string; createdAt: string }
+export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
+  /** Added by itself to new records: task, record, record:Observation, label:Safety. */
+  autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string }
 
 /** A saved filter set on a list page (Saved views). */
 export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
@@ -215,8 +219,8 @@ export const api = {
   /** Checklists made in advance and added to tasks. */
   checklistTemplates: {
     list: () => request<ChecklistTemplate[]>('/checklist-templates'),
-    save: (name: string, items: string[]) => request<ChecklistTemplate>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items }) }),
-    update: (id: string, d: { name?: string; items?: string[] }) => request<ChecklistTemplate>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    save: (name: string, items: string[], autoFor?: string[]) => request<ChecklistTemplate>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items, autoFor }) }),
+    update: (id: string, d: { name?: string; items?: string[]; autoFor?: string[] }) => request<ChecklistTemplate>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
   /** The caller's own saved filter sets, per list page. */

@@ -1,6 +1,6 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { ProjectTaskEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
 import { SectionsService } from './sections.service';
 import { type TaskAttachment } from '../database/task.types';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
@@ -12,8 +12,9 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     private readonly sections;
     private readonly attachments;
     private readonly notifications;
+    private readonly checklistTemplates?;
     private readonly log;
-    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService);
+    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined);
     onApplicationBootstrap(): Promise<void>;
     private renameLegacyTitles;
     private hydrate;

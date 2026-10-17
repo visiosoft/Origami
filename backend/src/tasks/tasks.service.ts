@@ -2,11 +2,13 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicati
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
+import { withAutoChecklists } from '../project-tasks/auto-checklist';
+import { backfillSerials, logSerialKind, nextSerial, serialYear } from '../database/serials';
 import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, parseLogStatuses, withBuckets, type LogStatus } from './log-statuses';
 
 /** Confirmed Request Log tasks leave the list this many days later. */
 export const LOG_ARCHIVE_DAYS = 7;
-import { ChangeOrderEntity, TaskEntity, UserEntity } from '../database/entities';
+import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity } from '../database/entities';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
@@ -30,6 +32,7 @@ export class TasksService implements OnApplicationBootstrap {
     private readonly notifications: NotificationsService,
     private readonly settings?: SettingsService,
     @Optional() @InjectRepository(ChangeOrderEntity) private readonly cos?: Repository<ChangeOrderEntity>,
+    @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
   ) {}
 
   /** The Request Log's statuses -- the defaults, or the list an administrator set in Settings. */
@@ -56,6 +59,22 @@ export class TasksService implements OnApplicationBootstrap {
     } catch (err) {
       this.log.error('Request Log bucket move failed: ' + (err as Error).message);
     }
+    try {
+      const n = await this.numberUnnumbered();
+      if (n) this.log.log(`Gave ${n} Request Log entries a serial number`);
+    } catch (err) {
+      this.log.error('Request Log serial numbers failed: ' + (err as Error).message);
+    }
+  }
+
+  /** Entries made before serial numbers get one: T- for tasks, FR- for FOR RECORD, per project and year. */
+  async numberUnnumbered() {
+    const rows = await this.repo.find();
+    if (!rows.some((t) => !t.serial)) return 0;
+    const made = (t: TaskEntity) => (/^\d{8}-/.test(t.id) ? `${t.id.slice(0, 4)}-${t.id.slice(4, 6)}-${t.id.slice(6, 8)}` : t.meetingDate);
+    const pairs = backfillSerials(rows, (t) => logSerialKind(t.topicType) + '|' + (t.project || ''), (t) => logSerialKind(t.topicType), made);
+    for (const [id, serial] of pairs) await this.repo.update({ id }, { serial });
+    return pairs.length;
   }
 
   /**
@@ -190,6 +209,9 @@ export class TasksService implements OnApplicationBootstrap {
 
     if (!String(dto.subject || '').trim() && !String(dto.description || '').trim()) throw new BadRequestException('Give the task a subject.');
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
+    // Checklist templates marked "add automatically to" this kind of entry.
+    const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
+    const checklist = withAutoChecklists(templates, { kind: logSerialKind(dto.topicType || 'Task') as 'task' | 'record', type: dto.topicType || 'Task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
 
     const task = this.repo.create({
       tab: 'internal',
@@ -208,7 +230,7 @@ export class TasksService implements OnApplicationBootstrap {
       assignedToId: assignee.id ?? undefined,
       attachments: [],
       comments: [],
-      checklist: normalizeList(dto.checklist),
+      checklist,
       labels: normalizeList<string>(dto.labels),
       priority: cleanPriority(dto.priority),
       linkedTaskIds: cleanIds(dto.linkedTaskIds),
@@ -220,6 +242,7 @@ export class TasksService implements OnApplicationBootstrap {
     // New entries start in To Do, or Assigned when someone is named.
     task.status = bucketOf(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
     if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim())) task.status = 'Assigned';
+    task.serial = nextSerial(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), logSerialKind(task.topicType), serialYear());
 
     const saved = await this.repo.save(task);
     if (assignee.id) {
@@ -246,7 +269,7 @@ export class TasksService implements OnApplicationBootstrap {
   async update(id: string, dto: any, actor: UploadActor) {
     const task = await this.load(id);
     const patch: Record<string, any> = { ...dto };
-    delete patch.id;
+    delete patch.id; delete patch.serial;
 
     if ('assignedTo' in patch || 'assignedToId' in patch) {
       const assignee = await resolveAssignee(this.users, {

@@ -61,7 +61,7 @@ export function Observations() {
   const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind));
   const shown = inScope
     .filter((t) => (state === 'all' || (state === 'open' ? !isLogClosed(t.status) : isLogClosed(t.status)))
-      && (!needle || [t.subject, t.description, t.project, t.assignedTo, t.originator].filter(Boolean).join(' ').toLowerCase().includes(needle)))
+      && (!needle || [t.serial, t.subject, t.description, t.project, t.assignedTo, t.originator].filter(Boolean).join(' ').toLowerCase().includes(needle)))
     .sort((a, b) => String(raisedOn(b) || '').localeCompare(String(raisedOn(a) || '')));
   const { sorted, sort, setSort } = useSort(shown, { date: (t) => raisedOn(t), title: (t) => t.subject, project: (t) => t.project, kind: (t) => t.topicType, due: (t) => t.dueDate });
   const viewValue = { kind, state, project, q, sort: sortToString(sort) };
@@ -122,7 +122,7 @@ export function Observations() {
             <AkRow key={t.id} index={i} muted={isLogClosed(t.status)} onClick={() => setOpenId(t.id)}
               lead={<AkDate iso={raisedOn(t)} />}
               title={logTaskTitle(t)}
-              sub={[t.project || 'No project', t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
+              sub={[t.serial, t.project || 'No project', t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
               right={<>
                 {nT + nC > 0 && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[nT && `${nT} ${nT === 1 ? 'task' : 'tasks'}`, nC && `${nC} CO`].filter(Boolean).join(' · ')}</span>}
                 <AkPill tone={RECORD_TONE[t.topicType] || 'soft'}>{t.topicType}</AkPill>
@@ -209,7 +209,7 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
           <span className="mt-muted">{[item.project || 'No project', raisedOn(item) && 'raised ' + akDay(raisedOn(item)), item.originator && 'by ' + item.originator].filter(Boolean).join(' · ')}</span>
         </div>
         {item.subject && item.description && <p className="mt-muted" style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--ink)' }}>{item.description}</p>}
-        <OriginatorLine by={item.originator || (item.activity || []).find((e) => e.type === 'created')?.by} at={(item.activity || []).find((e) => e.type === 'created')?.at || raisedOn(item)} number={'#' + item.id} />
+        <OriginatorLine by={item.originator || (item.activity || []).find((e) => e.type === 'created')?.by} at={(item.activity || []).find((e) => e.type === 'created')?.at || raisedOn(item)} number={item.serial || '#' + item.id} />
         <ActionTrail sourceType={item.sourceType} sourceId={item.sourceId} sourceLabel={item.sourceLabel} derived={item.derivedRefs} />
         <div className="mt-row">
           <button type="button" className="ak-btn" onClick={() => navigate(`/tasks?task=${encodeURIComponent(item.id)}&type=log`)}>Open in the Request Log</button>

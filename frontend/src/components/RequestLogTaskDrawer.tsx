@@ -103,7 +103,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
         <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', background: 'var(--panel)', padding: '3px 10px', borderRadius: 6 }}>{t.id}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', background: 'var(--panel)', padding: '3px 10px', borderRadius: 6 }}>{task.serial || t.id}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(ST_COLORS, t.status).bg, color: tone(ST_COLORS, t.status).c }}>{t.status}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(TT_COLORS, t.topicType).bg, color: tone(TT_COLORS, t.topicType).c }}>{t.topicType}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(MT_COLORS, t.meetingType).bg, color: tone(MT_COLORS, t.meetingType).c }}>{t.meetingType}</span>
@@ -112,7 +112,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             <input value={t.subject || ''} disabled={!canManage} onChange={(e) => set({ subject: e.target.value })} placeholder={taskHeadline(t.description).title || 'Subject'} aria-label="Subject"
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
-            <div style={{ marginTop: 6 }}><OriginatorLine by={t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '')} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={'#' + t.id} /></div>
+            <div style={{ marginTop: 6 }}><OriginatorLine by={t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '')} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={task.serial || '#' + t.id} /></div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
           <div onClick={() => onClose()} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)', marginLeft: 16, flexShrink: 0 }}>

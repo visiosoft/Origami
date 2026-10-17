@@ -330,7 +330,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </button>
             <div className="tb-titlebox">
               <div className="tb-title">{t.title}</div>
-              {all && <div className="tb-sub">{t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks'}</div>}
+              {(all || t.serial) && <div className="tb-sub">{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks')].filter(Boolean).join(' · ')}</div>}
               {subs.length > 0 && <div className="tb-sub">{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
               {t.parentId && <div className="tb-sub">Subtask of {tasks.find((x) => x.id === t.parentId)?.title || 'another task'}</div>}
             </div>
@@ -390,7 +390,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
-            {all && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks'}</div>}
+            {(all || t.serial) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks')].filter(Boolean).join(' · ')}</div>}
             {subs.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
             {(t.labels?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -901,7 +901,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
               <div style={{ alignSelf: 'start', fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.6 }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Originator</div>
                 <div style={{ color: 'var(--ink)', fontWeight: 600 }}>{selected.createdByName || createdByOf(selected)?.by || '—'}</div>
-                <div>{(() => { const at = createdByOf(selected)?.at || selected.createdAt; return [at ? new Date(at.length > 10 ? at : at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', '#' + selected.id].filter(Boolean).join(' · '); })()}</div>
+                <div>{(() => { const at = createdByOf(selected)?.at || selected.createdAt; return [at ? new Date(at.length > 10 ? at : at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', selected.serial || '#' + selected.id].filter(Boolean).join(' · '); })()}</div>
               </div>
               {(selected.sourceId || (selected.derivedRefs || []).length > 0) && (
                 <div style={{ gridColumn: '1 / -1' }}><ActionTrail sourceType={selected.sourceType} sourceId={selected.sourceId} sourceLabel={selected.sourceLabel} derived={selected.derivedRefs} /></div>

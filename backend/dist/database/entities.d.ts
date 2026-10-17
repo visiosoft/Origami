@@ -78,6 +78,7 @@ export declare class PersonEntity {
 }
 export declare class TaskEntity {
     id: string;
+    serial: string;
     sourceType: string;
     sourceId: string;
     sourceLabel: string;
@@ -118,6 +119,7 @@ export declare class TaskEntity {
 }
 export declare class MeetingEntity {
     id: string;
+    serial: string;
     sourceType: string;
     sourceId: string;
     sourceLabel: string;
@@ -400,6 +402,7 @@ export declare class ProjectSectionEntity {
 }
 export declare class ProjectTaskEntity {
     id: string;
+    serial: string;
     sourceType: string;
     sourceId: string;
     sourceLabel: string;
@@ -528,6 +531,7 @@ export declare class ChecklistTemplateEntity {
     items: {
         item: string;
     }[] | null;
+    autoFor: string[] | null;
     createdById: string;
     createdByName: string;
     createdAt: string;

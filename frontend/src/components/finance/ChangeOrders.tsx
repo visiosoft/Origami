@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
+import { SaveBar, useAutosave } from '../../autosave';
 import { SavedViews } from '../SavedViews';
 import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
 import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
@@ -145,13 +146,19 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
 // ------------------------------------------------------------------ drawer
 
 type Step = null | 'return' | 'reject' | 'cancel' | 'client' | 'email';
+type CoForm = Record<string, any> & { items: ChangeOrderItem[] };
+/** The editable part of a change order, as the drawer holds it (numbers as typed text). */
+const formOf = (c: ChangeOrder): CoForm => ({
+  title: c.title, reason: c.reason, requestedBy: c.requestedBy || '', dateRequested: c.dateRequested || '', scheduleImpactDays: String(c.scheduleImpactDays || 0), description: c.description || '', notes: c.notes || '',
+  items: c.items.map((i) => ({ ...i, amount: String(i.amount), cost: i.cost == null ? '' : String(i.cost), quantity: i.quantity == null ? '' : String(i.quantity), rate: i.rate == null ? '' : String(i.rate) })),
+});
+const amountOf = (it: ChangeOrderItem) => (it.quantity !== '' && it.quantity != null && it.rate !== '' && it.rate != null ? Number(it.quantity) * Number(it.rate) : Number(it.amount) || 0);
 
 export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: { id: string; overview?: Overview; rights: Rights; onClose: () => void; onChanged: () => void }) {
   const { toast } = useApp();
   const [co, setCo] = useState<ChangeOrder | null>(null);
   const [f, setF] = useState<Record<string, any>>({});
   const [items, setItems] = useState<ChangeOrderItem[]>([]);
-  const [dirty, setDirty] = useState(false);
   const [targets, setTargets] = useState<Targets>({ phases: [], tasks: [] });
   const [impact, setImpact] = useState<any>(null);
   const [step, setStep] = useState<Step>(null);
@@ -165,37 +172,55 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
     api.finance.overview(projectId).then((o: any) => setBillTo(o?.settings?.billToEmail || '')).catch(() => setBillTo('')).finally(() => setStep('email'));
   };
 
-  const apply = (c: ChangeOrder) => {
-    setCo(c); setDirty(false); setStep(null);
-    setF({ title: c.title, reason: c.reason, requestedBy: c.requestedBy || '', dateRequested: c.dateRequested || '', scheduleImpactDays: String(c.scheduleImpactDays || 0), description: c.description || '', notes: c.notes || '' });
-    setItems(c.items.map((i) => ({ ...i, amount: String(i.amount), cost: i.cost == null ? '' : String(i.cost), quantity: i.quantity == null ? '' : String(i.quantity), rate: i.rate == null ? '' : String(i.rate) })));
+  // The change order as last saved -- each save and step needs its current version.
+  const coRef = useRef<ChangeOrder | null>(null);
+  // What autosave compares the draft with: reset when the change order is (re)loaded or a step runs.
+  const [baseline, setBaseline] = useState<CoForm | null>(null);
+  const refreshImpact = (c: ChangeOrder) => {
     if (['draft', 'internal_review', 'submitted'].includes(c.status)) api.finance.changeOrderImpact(c.id).then(setImpact).catch(() => setImpact(null)); else setImpact(null);
   };
+  const apply = (c: ChangeOrder) => {
+    coRef.current = c; setCo(c); setStep(null);
+    const { items: its, ...rest } = formOf(c);
+    setF(rest); setItems(its); setBaseline({ ...rest, items: its, id: c.id });
+    refreshImpact(c);
+  };
+  const draft = useMemo<CoForm>(() => ({ ...f, items, id: co?.id }), [f, items, co?.id]);
+  // Drafts save by themselves a moment after each change; Save forces it.
+  const auto = useAutosave<CoForm>({
+    draft, saved: baseline, label: 'Saving change order…',
+    enabled: !!co && co.status === 'draft' && rights.editChangeOrders,
+    save: async (_changes, { draft: d }) => {
+      const cur = coRef.current!;
+      const { items: its, ...rest } = d;
+      delete rest.id;
+      try {
+        const r = await api.finance.updateChangeOrder(cur.id, { ...rest, version: cur.version, items: its.map((it) => ({ ...it, amount: amountOf(it) })) }) as ChangeOrder;
+        coRef.current = r; setCo(r); onChanged(); refreshImpact(r);
+        // The baseline is what was sent, so server-side rounding doesn't read as a new edit.
+        return d;
+      } catch (e) {
+        if (/since you opened it/.test((e as any)?.message || '')) { failed(toast, e); load(); }
+        throw e;
+      }
+    },
+  });
   const load = () => api.finance.changeOrder(id).then((c: any) => apply(c)).catch((e: any) => failed(toast, e));
   useEffect(() => { load(); api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, [id]);
   useEffect(() => { if (!co) return; if (overview && overview.project.id === co.projectId) setTargets(targetsFrom(overview)); else loadTargets(co.projectId).then(setTargets); }, [co?.projectId]);
 
   if (!co) return <Drawer title="Change order" width={1000} onClose={onClose}><div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div></Drawer>;
   const editable = co.status === 'draft' && rights.editChangeOrders;
-  const set = (k: string) => (e: any) => { setF({ ...f, [k]: e.target.value }); setDirty(true); };
-  const patch = (i: number, p: Partial<ChangeOrderItem>) => { setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x))); setDirty(true); };
-  const amountOf = (it: ChangeOrderItem) => (it.quantity !== '' && it.quantity != null && it.rate !== '' && it.rate != null ? Number(it.quantity) * Number(it.rate) : Number(it.amount) || 0);
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+  const patch = (i: number, p: Partial<ChangeOrderItem>) => setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const total = items.reduce((a, it) => a + amountOf(it), 0);
   const cost = items.reduce((a, it) => a + (Number(it.cost) || 0), 0);
 
-  const save = async () => {
-    setBusy(true);
-    try {
-      const r = await api.finance.updateChangeOrder(co.id, { ...f, version: co.version, items: items.map((it) => ({ ...it, amount: amountOf(it) })) }) as ChangeOrder;
-      apply(r); onChanged(); toast('Saved'); return r;
-    } catch (e) { failed(toast, e); if (/since you opened it/.test((e as any)?.message || '')) load(); return null; }
-    finally { setBusy(false); }
-  };
   /** Run a step; true when it went through. */
   const act = async (action: string, extra: Record<string, unknown> = {}): Promise<boolean> => {
-    let cur: ChangeOrder | null = co;
-    if (dirty && co.status === 'draft') cur = await save();
-    if (!cur) return false;
+    // Anything typed goes first, so the step acts on what's on screen.
+    if (editable && auto.dirty && !(await auto.saveNow())) { toast('⚠ Save the change order first: ' + (auto.error || 'it did not save')); return false; }
+    const cur = coRef.current || co;
     setBusy(true);
     try {
       apply(await api.finance.changeOrderStep(cur.id, action, { version: cur.version, ...extra }) as ChangeOrder); onChanged();
@@ -286,7 +311,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
                       ? <b style={{ textAlign: 'right' }}>{usd(amountOf(it))}</b>
                       : <input type="number" value={it.amount} onChange={(e) => patch(i, { amount: e.target.value })} placeholder="− to deduct" style={{ ...input, padding: '5px 6px', fontSize: 12.5, textAlign: 'right' }} />}
                     <input type="number" value={it.cost ?? ''} onChange={(e) => patch(i, { cost: e.target.value })} placeholder="optional" style={{ ...input, padding: '5px 6px', fontSize: 12.5, textAlign: 'right' }} />
-                    <span onClick={() => { setItems(items.filter((_, j) => j !== i)); setDirty(true); }} title="Remove" style={{ cursor: 'pointer', color: MUTED, fontSize: 16, textAlign: 'center' }}>×</span>
+                    <span onClick={() => setItems(items.filter((_, j) => j !== i))} title="Remove" style={{ cursor: 'pointer', color: MUTED, fontSize: 16, textAlign: 'center' }}>×</span>
                   </> : <>
                     <span>{it.description}{it.quantity != null && it.quantity !== '' ? <span style={{ color: MUTED }}> · {it.quantity} {it.unit || ''} × {usd(Number(it.rate))}</span> : null}</span>
                     <span style={{ color: MUTED }}>{describeTarget(it)}</span>
@@ -297,7 +322,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
               ))}
               {!items.length && <div style={{ padding: 14, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>No items yet — price the change line by line.</div>}
               <div style={{ display: 'flex', gap: 16, padding: '10px 14px', borderTop: '1px solid ' + LINE, alignItems: 'center', flexWrap: 'wrap' }}>
-                {editable && <div onClick={() => { setItems([...items, { description: '', targetType: 'none', amount: '' }]); setDirty(true); }} style={btn()}>+ Item</div>}
+                {editable && <div onClick={() => setItems([...items, { description: '', targetType: 'none', amount: '' }])} style={btn()}>+ Item</div>}
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 12.5, color: MUTED }}>Cost {usd(cost)} · margin {usd(total - cost)}</span>
                 <span style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, color: total < 0 ? DANGER : INK }}>Total {usd(total)}</span>
@@ -326,7 +351,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           {editable && !co.submittedAt && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete draft</div>}
           {rights.editChangeOrders && ['draft', 'internal_review', 'submitted'].includes(co.status) && <div onClick={() => setStep('cancel')} style={{ ...btn(), color: DANGER }}>Cancel CO</div>}
           <div style={{ flex: 1 }} />
-          {editable && <div onClick={busy ? undefined : save} style={btn(false, busy || !dirty)}>Save</div>}
+          {editable && <SaveBar auto={auto} />}
           {editable && <div onClick={busy ? undefined : () => act('submit')} style={btn(!rights.approveChangeOrders, busy)}>Submit for internal review</div>}
           {co.status === 'draft' && rights.approveChangeOrders && <div onClick={() => setStep('client')} style={btn(true)} title="The client has already signed it">Record signed approval</div>}
           {co.status === 'internal_review' && rights.approveChangeOrders && <>

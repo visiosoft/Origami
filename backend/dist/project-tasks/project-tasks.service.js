@@ -17,20 +17,23 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const auto_checklist_1 = require("./auto-checklist");
 const project_tasks_1 = require("../seed-data/project-tasks");
 const sections_service_1 = require("./sections.service");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
 const attachments_service_1 = require("../google/attachments.service");
 const notifications_service_1 = require("../notifications/notifications.service");
+const serials_1 = require("../database/serials");
 exports.ARCHIVE_AFTER_DAYS = 7;
 let ProjectTasksService = class ProjectTasksService {
-    constructor(repo, users, sections, attachments, notifications) {
+    constructor(repo, users, sections, attachments, notifications, checklistTemplates) {
         this.repo = repo;
         this.users = users;
         this.sections = sections;
         this.attachments = attachments;
         this.notifications = notifications;
+        this.checklistTemplates = checklistTemplates;
         this.log = new common_1.Logger('ProjectTasksService');
     }
     async onApplicationBootstrap() {
@@ -51,6 +54,17 @@ let ProjectTasksService = class ProjectTasksService {
         }
         catch (err) {
             this.log.error('Task seed failed: ' + err.message);
+        }
+        try {
+            const rows = await this.repo.find();
+            const pairs = (0, serials_1.backfillSerials)(rows, (t) => String(t.projectId ?? ''), () => 'task', (t) => t.createdAt);
+            for (const [id, serial] of pairs)
+                await this.repo.update({ id }, { serial });
+            if (pairs.length)
+                this.log.log(`Gave ${pairs.length} board task(s) a serial number`);
+        }
+        catch (err) {
+            this.log.error('Board task serial numbers failed: ' + err.message);
         }
     }
     async renameLegacyTitles() {
@@ -218,6 +232,8 @@ let ProjectTasksService = class ProjectTasksService {
                 dto = { ...dto, status: b };
         }
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assigneeId, name: dto.assignee });
+        const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
+        const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: 'task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
         let status = dto.status || (dto.completed ? 'Done' : 'Not started');
         if (status === 'Not started' && assignee.name)
             status = 'Assigned';
@@ -231,7 +247,7 @@ let ProjectTasksService = class ProjectTasksService {
             completed: (0, task_types_1.isDoneStatus)(status) || !!dto.completed,
             startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
             createdById: actor.id, createdByName: actor.name,
-            checklist: (0, task_types_1.normalizeList)(dto.checklist),
+            checklist,
             labels: (0, task_types_1.normalizeList)(dto.labels),
             collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
@@ -239,6 +255,8 @@ let ProjectTasksService = class ProjectTasksService {
             projectId: dto.projectId == null ? null : Number(dto.projectId),
             id,
         };
+        const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
+        task.serial = (0, serials_1.nextSerial)(peers.map((t) => t.serial), 'task', (0, serials_1.serialYear)());
         const saved = await this.repo.save(this.repo.create(task));
         if (assignee.id) {
             this.notifications.taskAssigned({
@@ -261,6 +279,7 @@ let ProjectTasksService = class ProjectTasksService {
             task = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) });
         const patch = { ...dto };
         delete patch.id;
+        delete patch.serial;
         if ('assignee' in patch || 'assigneeId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: patch.assigneeId, name: patch.assignee });
             patch.assignee = assignee.name;
@@ -408,10 +427,13 @@ exports.ProjectTasksService = ProjectTasksService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
+    __param(5, (0, common_1.Optional)()),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.ChecklistTemplateEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         sections_service_1.SectionsService,
         attachments_service_1.AttachmentsService,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        typeorm_2.Repository])
 ], ProjectTasksService);
 //# sourceMappingURL=project-tasks.service.js.map

@@ -299,6 +299,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], TaskEntity.prototype, "serial", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], TaskEntity.prototype, "sourceType", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -442,6 +446,10 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], MeetingEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "serial", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
@@ -1471,6 +1479,10 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "serial", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "sourceType", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -1946,6 +1958,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Object)
 ], ChecklistTemplateEntity.prototype, "items", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ChecklistTemplateEntity.prototype, "autoFor", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)

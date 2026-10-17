@@ -108,6 +108,7 @@ export declare class PhasesController {
             targetDays: number;
             targetDerived: boolean;
             id: string;
+            serial: string;
             sourceType: string;
             sourceId: string;
             sourceLabel: string;

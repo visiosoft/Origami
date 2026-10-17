@@ -184,12 +184,12 @@ export function TaskSearch({ value, onChange, placeholder = 'Search tasks…' }:
 
 /** Does a task match a free-text query? */
 export function matchesQuery(
-  task: { title?: string; description?: string; assignee?: string; assignedTo?: string; labels?: string[] },
+  task: { title?: string; description?: string; assignee?: string; assignedTo?: string; labels?: string[]; serial?: string | null },
   query: string,
 ): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const haystack = [task.title, task.description, task.assignee, task.assignedTo, ...(task.labels ?? [])]
+  const haystack = [task.serial, task.title, task.description, task.assignee, task.assignedTo, ...(task.labels ?? [])]
     .filter(Boolean).join(' ').toLowerCase();
   return haystack.includes(q);
 }

@@ -113,6 +113,8 @@ export class PersonEntity {
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  @Column({ nullable: true }) serial!: string;
   /** Where it came from when it was converted or duplicated from another special action. */
   @Column({ nullable: true }) sourceType!: string;
   @Column({ nullable: true }) sourceId!: string;
@@ -173,6 +175,8 @@ export class TaskEntity {
 @Entity('meetings')
 export class MeetingEntity {
   @PrimaryColumn() id!: string;
+  /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  @Column({ nullable: true }) serial!: string;
   /** Where it came from when it was converted or duplicated from another special action. */
   @Column({ nullable: true }) sourceType!: string;
   @Column({ nullable: true }) sourceId!: string;
@@ -557,6 +561,8 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  @Column({ nullable: true }) serial!: string;
   /** Where it came from when it was converted or duplicated from another special action. */
   @Column({ nullable: true }) sourceType!: string;
   @Column({ nullable: true }) sourceId!: string;
@@ -774,6 +780,8 @@ export class ChecklistTemplateEntity {
   @PrimaryColumn() id!: string;
   @Column() name!: string;
   @Column({ type: 'simple-json', nullable: true }) items!: { item: string }[] | null;
+  /** Added by itself to new records of these kinds: task, record, record:Observation, label:Safety. */
+  @Column({ type: 'simple-json', nullable: true }) autoFor!: string[] | null;
   @Column({ nullable: true }) createdById!: string;
   @Column({ nullable: true }) createdByName!: string;
   @Column() createdAt!: string;

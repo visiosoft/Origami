@@ -18,6 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const tasks_service_1 = require("../tasks/tasks.service");
+const serials_1 = require("../database/serials");
 const meeting_status_1 = require("./meeting-status");
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 exports.FOR_RECORD_TOPICS = ['FYI', 'Observation', 'Decision'];
@@ -38,6 +39,17 @@ let MeetingsService = class MeetingsService {
         }
         catch (err) {
             this.log.error('Meeting status migration failed: ' + err.message);
+        }
+        try {
+            const rows = await this.repo.find();
+            const pairs = (0, serials_1.backfillSerials)(rows, (m) => String(m.projectId ?? ''), () => 'meeting', (m) => m.createdAt);
+            for (const [id, serial] of pairs)
+                await this.repo.update({ id }, { serial });
+            if (pairs.length)
+                this.log.log(`Gave ${pairs.length} meeting(s) a serial number`);
+        }
+        catch (err) {
+            this.log.error('Meeting serial numbers failed: ' + err.message);
         }
     }
     async migrateStatuses() {
@@ -73,8 +85,11 @@ let MeetingsService = class MeetingsService {
             throw new common_1.BadRequestException('Pick the meeting date.');
         const now = new Date().toISOString();
         const id = 'MTG-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
+        const projectId = dto.projectId == null ? null : Number(dto.projectId);
+        const peers = (await this.repo.find()).filter((m) => (m.projectId ?? null) === projectId);
         return this.repo.save(this.repo.create({
             type: 'Internal', attendees: [], rfiIds: [], changeOrderIds: [], ...dto, title: dto.title.trim(),
+            serial: (0, serials_1.nextSerial)(peers.map((m) => m.serial), 'meeting', (0, serials_1.serialYear)(now)),
             status: (0, meeting_status_1.normalizeMeetingStatus)(dto.status),
             id, createdBy: actor.name, createdAt: now, updatedAt: now,
         }));
@@ -86,6 +101,7 @@ let MeetingsService = class MeetingsService {
         if (dto.date !== undefined && !ISO.test(dto.date))
             throw new common_1.BadRequestException('Pick the meeting date.');
         const patch = { ...dto };
+        delete patch.serial;
         if (dto.status !== undefined) {
             patch.status = (0, meeting_status_1.normalizeMeetingStatus)(dto.status);
             const wasReviewed = ['reviewed', 'complete'].includes((0, meeting_status_1.normalizeMeetingStatus)(m.status));

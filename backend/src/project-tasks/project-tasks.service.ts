@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProjectTaskEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
+import { withAutoChecklists } from './auto-checklist';
 import { DEFAULT_TASKS } from '../seed-data/project-tasks';
 import { SectionsService } from './sections.service';
 import {
@@ -12,6 +13,7 @@ import {
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { backfillSerials, nextSerial, serialYear } from '../database/serials';
 
 /** Days a Confirmed task stays on the board before it's archived. */
 export const ARCHIVE_AFTER_DAYS = 7;
@@ -26,6 +28,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     private readonly sections: SectionsService,
     private readonly attachments: AttachmentsService,
     private readonly notifications: NotificationsService,
+    @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -45,6 +48,14 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       }
     } catch (err) {
       this.log.error('Task seed failed: ' + (err as Error).message);
+    }
+    try {
+      const rows = await this.repo.find();
+      const pairs = backfillSerials(rows, (t) => String(t.projectId ?? ''), () => 'task', (t) => t.createdAt);
+      for (const [id, serial] of pairs) await this.repo.update({ id }, { serial });
+      if (pairs.length) this.log.log(`Gave ${pairs.length} board task(s) a serial number`);
+    } catch (err) {
+      this.log.error('Board task serial numbers failed: ' + (err as Error).message);
     }
   }
 
@@ -239,6 +250,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       if (b) dto = { ...dto, status: b };
     }
     const assignee = await resolveAssignee(this.users, { id: dto.assigneeId, name: dto.assignee });
+    // Checklist templates marked "add automatically to" tasks (not subtasks).
+    const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
+    const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
     let status: string = dto.status || (dto.completed ? 'Done' : 'Not started');
     if (status === 'Not started' && assignee.name) status = 'Assigned';
     const task = {
@@ -251,7 +265,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       completed: isDoneStatus(status) || !!dto.completed,
       startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
       createdById: actor.id, createdByName: actor.name,
-      checklist: normalizeList(dto.checklist),
+      checklist,
       labels: normalizeList<string>(dto.labels),
       collaborators: normalizeCollaborators(dto.collaborators, assignee.id),
       activity: [event('created', actor, { text: 'created this task' })],
@@ -259,6 +273,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       projectId: dto.projectId == null ? null : Number(dto.projectId),
       id,
     };
+    const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
+    task.serial = nextSerial(peers.map((t) => t.serial), 'task', serialYear());
     const saved = await this.repo.save(this.repo.create(task as Partial<ProjectTaskEntity>));
     if (assignee.id) {
       this.notifications.taskAssigned({
@@ -282,7 +298,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (!task) task = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) } as Partial<ProjectTaskEntity>);
 
     const patch: Record<string, any> = { ...dto };
-    delete patch.id;
+    delete patch.id; delete patch.serial;
 
     if ('assignee' in patch || 'assigneeId' in patch) {
       const assignee = await resolveAssignee(this.users, { id: patch.assigneeId, name: patch.assignee });
