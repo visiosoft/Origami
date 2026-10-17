@@ -10,6 +10,7 @@ export declare class UpdateTaskDto {
     meetingId?: string;
     subject?: string;
     priority?: string;
+    leadId?: string;
     description?: string;
     dueDate?: string;
     dueTime?: string;

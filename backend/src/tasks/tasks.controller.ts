@@ -43,6 +43,15 @@ export class TasksController {
     return this.tasksService.saveStatuses(body?.statuses);
   }
 
+  /** Projects and open leads a task can be linked to (for the pickers). */
+  @Get('link-targets')
+  async linkTargets(@Headers('authorization') auth?: string) {
+    // Clients and subcontractors never see the list of leads and projects.
+    const claims = await this.auth.verify(auth);
+    if (!claims || isRestrictedViewer(claims)) return { projects: [], leads: [] };
+    return this.tasksService.linkTargets();
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);

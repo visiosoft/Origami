@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createdByText } from '../data/projectTasks';
 import { useLogStatuses } from '../data/logStatuses';
 import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
+import { LeadSelect } from './LeadSelect';
+import { useLinkTargets } from '../data/linkTargets';
 import { PrioritySelect } from './PrioritySelect';
 import { linkPriorityDue } from '../data/priority';
 import type { Priority } from '../data/projectTasks';
@@ -21,7 +23,7 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task }
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -61,6 +63,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
     onSaved: (row, sent) => { setT((cur) => mergeSaved(cur, row, sent)); onChanged?.(row); },
   });
   const set = (patch: Partial<Task>) => setT((prev) => ({ ...prev, ...patch }));
+  const targets = useLinkTargets();
   const apply = (res: any) => { if (res?.id) { setT((cur) => keepEdits(cur, res as Task, FIELDS)); onChanged?.(res as Task); } };
   const addComment = async (text: string) => {
     try { apply(await api.tasks.addComment(t.id, text)); }
@@ -158,7 +161,19 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             </div>
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Project</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--forest)' }}>{t.project || 'General (no project)'}</div>
+              {canManage ? (
+                <select value={t.project || ''} onChange={(e) => set({ project: e.target.value })} aria-label="Project" style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: 'var(--forest)', fontFamily: 'inherit', padding: 0 }}>
+                  <option value="">General (no project)</option>
+                  {t.project && !targets.projects.some((p) => p.name === t.project) && <option value={t.project}>{t.project}</option>}
+                  {targets.projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+              ) : <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--forest)' }}>{t.project || 'General (no project)'}</div>}
+            </div>
+            <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Lead</div>
+              {canManage
+                ? <LeadSelect value={t.leadId} name={t.leadName} onChange={(leadId) => set({ leadId, leadName: targets.leads.find((l) => l.id === leadId)?.name || null })} style={{ width: '100%', border: 'none', background: 'transparent', fontSize: 13, fontWeight: 600, color: 'var(--forest)', fontFamily: 'inherit', padding: 0 }} />
+                : <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--forest)' }}>{t.leadName || '—'}</div>}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 12 }}>

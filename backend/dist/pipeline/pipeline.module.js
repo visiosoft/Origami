@@ -14,12 +14,14 @@ const pipeline_service_1 = require("./pipeline.service");
 const entities_1 = require("../database/entities");
 const projects_module_1 = require("../projects/projects.module");
 const auth_module_1 = require("../auth/auth.module");
+const tasks_module_1 = require("../tasks/tasks.module");
+const project_tasks_module_1 = require("../project-tasks/project-tasks.module");
 let PipelineModule = class PipelineModule {
 };
 exports.PipelineModule = PipelineModule;
 exports.PipelineModule = PipelineModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.DealEntity, entities_1.LeadEntity]), auth_module_1.AuthModule, projects_module_1.ProjectsModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.DealEntity, entities_1.LeadEntity]), auth_module_1.AuthModule, projects_module_1.ProjectsModule, tasks_module_1.TasksModule, project_tasks_module_1.ProjectTasksModule],
         controllers: [pipeline_controller_1.PipelineController],
         providers: [pipeline_service_1.PipelineService],
         exports: [pipeline_service_1.PipelineService],

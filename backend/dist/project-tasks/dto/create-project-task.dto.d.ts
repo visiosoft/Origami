@@ -9,6 +9,7 @@ export declare class CreateProjectTaskDto {
     assigneeId?: string;
     dueDate?: string;
     priority?: string;
+    leadId?: string;
     status?: string;
     order?: number;
     completed?: boolean;

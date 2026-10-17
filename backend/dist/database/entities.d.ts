@@ -78,6 +78,8 @@ export declare class PersonEntity {
 }
 export declare class TaskEntity {
     id: string;
+    leadId: string;
+    leadName: string;
     serial: string;
     sourceType: string;
     sourceId: string;
@@ -402,6 +404,8 @@ export declare class ProjectSectionEntity {
 }
 export declare class ProjectTaskEntity {
     id: string;
+    leadId: string;
+    leadName: string;
     serial: string;
     sourceType: string;
     sourceId: string;

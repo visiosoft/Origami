@@ -299,6 +299,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], TaskEntity.prototype, "leadId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "leadName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], TaskEntity.prototype, "serial", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -1476,6 +1484,14 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "leadId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "leadName", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)

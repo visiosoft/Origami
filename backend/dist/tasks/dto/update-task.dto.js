@@ -73,6 +73,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
+], UpdateTaskDto.prototype, "leadId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
 ], UpdateTaskDto.prototype, "description", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),

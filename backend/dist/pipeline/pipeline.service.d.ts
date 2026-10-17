@@ -2,6 +2,8 @@ import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
+import { TasksService } from '../tasks/tasks.service';
+import { ProjectTasksService } from '../project-tasks/project-tasks.service';
 export declare const MAX_FOLLOW_UPS = 3;
 export interface FollowUpInput {
     direction?: 'out' | 'in';
@@ -21,8 +23,10 @@ export declare class PipelineService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly leads;
     private readonly projects;
+    private readonly tasks?;
+    private readonly boardTasks?;
     private readonly log;
-    constructor(repo: Repository<DealEntity>, leads: Repository<LeadEntity>, projects: ProjectsService);
+    constructor(repo: Repository<DealEntity>, leads: Repository<LeadEntity>, projects: ProjectsService, tasks?: TasksService | undefined, boardTasks?: ProjectTasksService | undefined);
     onApplicationBootstrap(): Promise<void>;
     private rehomeRetiredStages;
     setContractValue(dealId: string, amount: string): Promise<string | null>;

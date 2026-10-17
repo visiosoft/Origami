@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { taskHeadline } from '../data/tasks';
 import { useLogStatuses } from '../data/logStatuses';
 import { api } from '../api';
+import { useLinkTargets } from '../data/linkTargets';
+import { LeadSelect } from './LeadSelect';
 import { useApp } from '../AppContext';
 import type { TaskTab } from '../data/tasks';
 
@@ -14,12 +16,12 @@ const inputStyle: React.CSSProperties = {
 
 interface NewTask {
   tab: TaskTab; meetingType: string; meetingDate: string; assignedTo: string; originator: string;
-  topicType: string; status: string; dueDate: string; dueTime: string; project: string; subject: string; description: string;
+  topicType: string; status: string; dueDate: string; dueTime: string; project: string; leadId: string; subject: string; description: string;
   linkedFile: string; labels: string[];
 }
 const blank = (project: string, labels: string[], dueDate = '', dueTime = '', assignedTo = ''): NewTask => ({
   tab: 'internal', meetingType: 'Internal', meetingDate: '', assignedTo, originator: '',
-  topicType: 'Task', status: 'To Do', dueDate, dueTime, project, subject: '', description: '', linkedFile: '', labels,
+  topicType: 'Task', status: 'To Do', dueDate, dueTime, project, leadId: '', subject: '', description: '', linkedFile: '', labels,
 });
 
 /**
@@ -59,17 +61,9 @@ export function NewTaskDrawer({
   subject: taskHeadline(defaultDescription).title, description: taskHeadline(defaultDescription).details,
   ...(defaultTopic ? { topicType: defaultTopic } : {}) }));
   const [section, setSection] = useState(defaultSection || sections?.[0] || '');
-  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  // Every project, signed or not -- and open leads, for work done before a contract.
+  const { projects } = useLinkTargets();
   const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    if (!fixedProject) {
-      api.projects.list()
-        .then((r: any) => { if (Array.isArray(r)) setProjects(r.filter((p: any) => p.stage !== 'Kickoff').map((p: any) => ({ id: p.id, name: p.name }))); })
-        .catch(() => { });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const create = () => {
     if (nt.subject.trim().length < 2) { toast('Give the task a subject'); return; }
@@ -103,8 +97,10 @@ export function NewTaskDrawer({
           <Fld label="Due Time"><input type="time" value={nt.dueTime} onChange={(e) => setNt({ ...nt, dueTime: e.target.value })} style={inputStyle} /></Fld>
           {sections ? (
             <Fld label="Section"><select value={section} onChange={(e) => setSection(e.target.value)} style={inputStyle}>{sections.map((s) => <option key={s} value={s}>{s}</option>)}</select></Fld>
-          ) : (
+          ) : (<>
             <Fld label="Project"><select value={nt.project} onChange={(e) => setNt({ ...nt, project: e.target.value })} style={inputStyle}><option value="">General task — no project</option>{projects.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Fld>
+            <Fld label="Lead"><LeadSelect value={nt.leadId} onChange={(leadId) => setNt({ ...nt, leadId })} style={inputStyle} /></Fld>
+          </>
           )}
           <Fld label="Topic Type"><select value={nt.topicType} onChange={(e) => setNt({ ...nt, topicType: e.target.value })} style={inputStyle}>{['Task', 'FYI', 'Observation', 'Decision', 'RFI'].map((o) => <option key={o}>{o}</option>)}</select></Fld>
           <Fld label="Status"><select value={nt.status} onChange={(e) => setNt({ ...nt, status: e.target.value })} style={inputStyle}>{statuses.map((s) => s.name).map((o) => <option key={o}>{o}</option>)}</select></Fld>

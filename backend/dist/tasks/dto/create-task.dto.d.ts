@@ -11,6 +11,7 @@ export declare class CreateTaskDto {
     meetingId?: string;
     subject?: string;
     priority?: string;
+    leadId?: string;
     description?: string;
     dueDate?: string;
     dueTime?: string;

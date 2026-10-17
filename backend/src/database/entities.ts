@@ -113,6 +113,9 @@ export class PersonEntity {
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** The lead it's for, when the work comes before a signed contract (the lead's / deal's id), and its name. */
+  @Column({ nullable: true }) leadId!: string;
+  @Column({ nullable: true }) leadName!: string;
   /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
   @Column({ nullable: true }) serial!: string;
   /** Where it came from when it was converted or duplicated from another special action. */
@@ -561,6 +564,9 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** The lead it's for, when the work comes before a signed contract (the lead's / deal's id), and its name. */
+  @Column({ nullable: true }) leadId!: string;
+  @Column({ nullable: true }) leadName!: string;
   /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
   @Column({ nullable: true }) serial!: string;
   /** Where it came from when it was converted or duplicated from another special action. */

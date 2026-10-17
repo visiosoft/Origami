@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ChecklistTemplateEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
+import { resolveLead } from '../tasks/lead-link';
 import { withAutoChecklists } from './auto-checklist';
 import { DEFAULT_TASKS } from '../seed-data/project-tasks';
 import { SectionsService } from './sections.service';
@@ -29,7 +30,23 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     private readonly attachments: AttachmentsService,
     private readonly notifications: NotificationsService,
     @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
+    @Optional() @InjectRepository(LeadEntity) private readonly leads?: Repository<LeadEntity>,
   ) {}
+
+  /**
+   * A lead became a project: its board tasks with no project move onto that
+   * project's board, each into the column matching its status (else the first).
+   */
+  async adoptLead(leadId: string, projectId: number) {
+    const rows = (await this.repo.findBy({ leadId })).filter((t) => t.projectId == null);
+    if (!rows.length) return 0;
+    const sections = await this.sections.forProject(projectId);
+    for (const t of rows) {
+      const home = sections.find((s) => bucketStatus(s.name) === normalizeTaskStatus(t.status)) || sections[0];
+      await this.repo.update({ id: t.id }, { projectId, ...(t.parentId ? {} : { sectionId: home?.id ?? t.sectionId }) });
+    }
+    return rows.length;
+  }
 
   async onApplicationBootstrap() {
     try {
@@ -250,6 +267,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       if (b) dto = { ...dto, status: b };
     }
     const assignee = await resolveAssignee(this.users, { id: dto.assigneeId, name: dto.assignee });
+    if (dto.leadId !== undefined) dto = { ...dto, ...(await resolveLead(this.leads, dto.leadId)) };
     // Checklist templates marked "add automatically to" tasks (not subtasks).
     const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
@@ -299,6 +317,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
     const patch: Record<string, any> = { ...dto };
     delete patch.id; delete patch.serial;
+    if ('leadId' in patch) Object.assign(patch, await resolveLead(this.leads, patch.leadId));
 
     if ('assignee' in patch || 'assigneeId' in patch) {
       const assignee = await resolveAssignee(this.users, { id: patch.assigneeId, name: patch.assignee });

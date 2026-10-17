@@ -39,6 +39,12 @@ let TasksController = class TasksController {
     saveStatuses(body) {
         return this.tasksService.saveStatuses(body?.statuses);
     }
+    async linkTargets(auth) {
+        const claims = await this.auth.verify(auth);
+        if (!claims || (0, viewer_util_1.isRestrictedViewer)(claims))
+            return { projects: [], leads: [] };
+        return this.tasksService.linkTargets();
+    }
     async findOne(id, auth) {
         const claims = await this.auth.verify(auth);
         const task = await this.tasksService.findOne(id);
@@ -111,6 +117,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TasksController.prototype, "saveStatuses", null);
+__decorate([
+    (0, common_1.Get)('link-targets'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], TasksController.prototype, "linkTargets", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

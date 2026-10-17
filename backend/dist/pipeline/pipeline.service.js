@@ -19,13 +19,17 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const projects_service_1 = require("../projects/projects.service");
+const tasks_service_1 = require("../tasks/tasks.service");
+const project_tasks_service_1 = require("../project-tasks/project-tasks.service");
 const pipeline_1 = require("../seed-data/pipeline");
 exports.MAX_FOLLOW_UPS = 3;
 let PipelineService = class PipelineService {
-    constructor(repo, leads, projects) {
+    constructor(repo, leads, projects, tasks, boardTasks) {
         this.repo = repo;
         this.leads = leads;
         this.projects = projects;
+        this.tasks = tasks;
+        this.boardTasks = boardTasks;
         this.log = new common_1.Logger('PipelineService');
     }
     async onApplicationBootstrap() {
@@ -329,6 +333,13 @@ let PipelineService = class PipelineService {
             this.event(`Converted to project #${project.id} (${project.stage}) — card archived`, actor),
         ];
         await this.repo.save(deal);
+        try {
+            await this.tasks?.adoptLead(id, project.name);
+            await this.boardTasks?.adoptLead(id, Number(project.id));
+        }
+        catch (err) {
+            this.log.warn(`Could not move ${deal.name}'s tasks onto project ${project.id}: ${err.message}`);
+        }
         return { project, deal };
     }
     async remove(id) {
@@ -343,9 +354,13 @@ exports.PipelineService = PipelineService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __param(3, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
-        projects_service_1.ProjectsService])
+        projects_service_1.ProjectsService,
+        tasks_service_1.TasksService,
+        project_tasks_service_1.ProjectTasksService])
 ], PipelineService);
 function initialsOf(name) {
     const parts = name.trim().split(/\s+/).filter(Boolean);

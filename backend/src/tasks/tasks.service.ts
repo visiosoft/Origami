@@ -8,7 +8,8 @@ import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, parse
 
 /** Confirmed Request Log tasks leave the list this many days later. */
 export const LOG_ARCHIVE_DAYS = 7;
-import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity } from '../database/entities';
+import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity, DealEntity, LeadEntity, ProjectEntity } from '../database/entities';
+import { isLeadId, leadDisplayName, resolveLead } from './lead-link';
 import {
   diffEvents, event, normalizeAttachments, normalizeList, subId,
   type ActivityEvent, type TaskAttachment, type TaskComment,
@@ -33,6 +34,9 @@ export class TasksService implements OnApplicationBootstrap {
     private readonly settings?: SettingsService,
     @Optional() @InjectRepository(ChangeOrderEntity) private readonly cos?: Repository<ChangeOrderEntity>,
     @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
+    @Optional() @InjectRepository(LeadEntity) private readonly leads?: Repository<LeadEntity>,
+    @Optional() @InjectRepository(DealEntity) private readonly deals?: Repository<DealEntity>,
+    @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
   ) {}
 
   /** The Request Log's statuses -- the defaults, or the list an administrator set in Settings. */
@@ -60,11 +64,63 @@ export class TasksService implements OnApplicationBootstrap {
       this.log.error('Request Log bucket move failed: ' + (err as Error).message);
     }
     try {
+      const n = await this.linkLeads();
+      if (n) this.log.log(`Linked ${n} Request Log entries to their lead`);
+    } catch (err) {
+      this.log.error('Request Log lead links failed: ' + (err as Error).message);
+    }
+    try {
       const n = await this.numberUnnumbered();
       if (n) this.log.log(`Gave ${n} Request Log entries a serial number`);
     } catch (err) {
       this.log.error('Request Log serial numbers failed: ' + (err as Error).message);
     }
+  }
+
+  /**
+   * Entries the CRM filed under a lead's id as their "project" get a real lead
+   * link instead; the project is blank until the lead becomes one.
+   */
+  async linkLeads() {
+    if (!this.deals || !this.leads) return 0;
+    const dealIds = new Set((await this.deals.find({ select: { id: true } as any })).map((d) => d.id));
+    const rows = (await this.repo.find()).filter((t) => t.project && dealIds.has(t.project) && !t.leadId);
+    if (!rows.length) return 0;
+    const leads = new Map((await this.leads.find()).map((l) => [l.id, leadDisplayName(l)]));
+    const converted = new Map(((await this.projects?.find()) || []).filter((p: any) => p.leadId && p.stage !== 'Kickoff').map((p: any) => [p.leadId, p.name]));
+    for (const t of rows) await this.repo.update({ id: t.id }, { leadId: t.project, leadName: leads.get(t.project) || '', project: converted.get(t.project) || '' });
+    return rows.length;
+  }
+
+  /**
+   * What a task can be linked to: every project (not the placeholder a lead
+   * keeps until it's converted) and every open lead -- work often starts
+   * before a contract is signed.
+   */
+  async linkTargets() {
+    const projects = ((await this.projects?.find()) || []) as any[];
+    const deals = this.deals ? (await this.deals.find()).filter((d) => !d.archived && !d.convertedProjectId) : [];
+    const leads = new Map(((await this.leads?.find()) || []).map((l) => [l.id, leadDisplayName(l)]));
+    return {
+      projects: projects.filter((p) => !(p.leadId && p.stage === 'Kickoff')).map((p) => ({ id: p.id, name: p.name, stage: p.stage })).sort((a, b) => a.name.localeCompare(b.name)),
+      leads: deals.map((d) => ({ id: d.id, name: leads.get(d.id) || d.id, stage: d.stage })).sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }
+
+  /** A lead became a project: its tasks with no project go to it (and stay linked to the lead). */
+  async adoptLead(leadId: string, projectName: string) {
+    const rows = await this.repo.findBy({ leadId });
+    for (const t of rows.filter((x) => !x.project)) await this.repo.update({ id: t.id }, { project: projectName });
+    return rows.length;
+  }
+
+  /** The lead fields of a create or patch: a lead's id given as the "project" becomes the lead link. */
+  private async leadFields(dto: Record<string, any>) {
+    const out: Record<string, any> = {};
+    if (dto.project !== undefined && (await isLeadId(this.deals, dto.project))) { out.leadId = dto.project; out.project = ''; }
+    else if (dto.leadId === undefined) return out;
+    Object.assign(out, await resolveLead(this.leads, out.leadId ?? dto.leadId));
+    return out;
   }
 
   /** Entries made before serial numbers get one: T- for tasks, FR- for FOR RECORD, per project and year. */
@@ -163,8 +219,8 @@ export class TasksService implements OnApplicationBootstrap {
   async findAll(tab?: string, project?: string) {
     const where: Record<string, string> = {};
     if (tab) where.tab = tab;
-    if (project) where.project = project;
-    const rows = await this.archiveConfirmed(await this.repo.find({ where }));
+    // A lead's id finds the entries linked to that lead.
+    const rows = await this.archiveConfirmed(await this.repo.find({ where: project ? [{ ...where, project }, { ...where, leadId: project }] : where }));
     return rows.map((t) => this.hydrate(t));
   }
 
@@ -208,6 +264,7 @@ export class TasksService implements OnApplicationBootstrap {
     const id = dto.id || `${dateStr}-${String(seq).padStart(2, '0')}`;
 
     if (!String(dto.subject || '').trim() && !String(dto.description || '').trim()) throw new BadRequestException('Give the task a subject.');
+    dto = { ...dto, ...(await this.leadFields(dto)) };
     const assignee = await resolveAssignee(this.users, { id: dto.assignedToId, name: dto.assignedTo });
     // Checklist templates marked "add automatically to" this kind of entry.
     const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
@@ -270,6 +327,7 @@ export class TasksService implements OnApplicationBootstrap {
     const task = await this.load(id);
     const patch: Record<string, any> = { ...dto };
     delete patch.id; delete patch.serial;
+    Object.assign(patch, await this.leadFields(patch));
 
     if ('assignedTo' in patch || 'assignedToId' in patch) {
       const assignee = await resolveAssignee(this.users, {

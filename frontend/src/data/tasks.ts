@@ -33,6 +33,9 @@ export interface Task extends ActionTrailFields {
   resolution: string;
   linkedFile: string;
   project: string;
+  /** The lead it's for (work before a signed contract), and its name. */
+  leadId?: string | null;
+  leadName?: string | null;
   tab?: TaskTab;
   /** users.id — `assignedTo` is kept alongside as the display name. */
   assignedToId?: string;

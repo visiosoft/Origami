@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17i',
+    date: '2026-10-17',
+    title: 'Link tasks to leads as well as projects',
+    items: [
+      { area: 'Task', kind: 'new', text: 'Every task can be linked to a lead as well as a project, for work done before a contract is signed. New Task, the Request Log task and the board task all have a Lead field, and the Request Log’s Project can now be changed after the task is made.', where: 'Special Actions → Task' },
+      { area: 'Task', kind: 'new', text: 'The board’s Project picker lists open leads too: pick one to see and add that lead’s tasks. The Request Log filter and rows show “Lead · name”.', where: 'Task → Task Board / Request Log' },
+      { area: 'CRM', kind: 'improved', text: 'Tasks on a lead follow it into the project when it converts, and stay linked to the lead.', where: 'CRM & Leads' },
+    ],
+  },
+  {
     id: '2026-10-17h',
     date: '2026-10-17',
     title: 'Estimate and bid history on subcontractors',

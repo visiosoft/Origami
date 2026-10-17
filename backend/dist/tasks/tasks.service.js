@@ -24,13 +24,14 @@ const serials_1 = require("../database/serials");
 const log_statuses_1 = require("./log-statuses");
 exports.LOG_ARCHIVE_DAYS = 7;
 const entities_1 = require("../database/entities");
+const lead_link_1 = require("./lead-link");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
 const notifications_service_1 = require("../notifications/notifications.service");
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates) {
+    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates, leads, deals, projects) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
@@ -38,6 +39,9 @@ let TasksService = class TasksService {
         this.settings = settings;
         this.cos = cos;
         this.checklistTemplates = checklistTemplates;
+        this.leads = leads;
+        this.deals = deals;
+        this.projects = projects;
         this.log = new common_1.Logger('TasksService');
     }
     async statuses() {
@@ -66,6 +70,14 @@ let TasksService = class TasksService {
             this.log.error('Request Log bucket move failed: ' + err.message);
         }
         try {
+            const n = await this.linkLeads();
+            if (n)
+                this.log.log(`Linked ${n} Request Log entries to their lead`);
+        }
+        catch (err) {
+            this.log.error('Request Log lead links failed: ' + err.message);
+        }
+        try {
             const n = await this.numberUnnumbered();
             if (n)
                 this.log.log(`Gave ${n} Request Log entries a serial number`);
@@ -73,6 +85,45 @@ let TasksService = class TasksService {
         catch (err) {
             this.log.error('Request Log serial numbers failed: ' + err.message);
         }
+    }
+    async linkLeads() {
+        if (!this.deals || !this.leads)
+            return 0;
+        const dealIds = new Set((await this.deals.find({ select: { id: true } })).map((d) => d.id));
+        const rows = (await this.repo.find()).filter((t) => t.project && dealIds.has(t.project) && !t.leadId);
+        if (!rows.length)
+            return 0;
+        const leads = new Map((await this.leads.find()).map((l) => [l.id, (0, lead_link_1.leadDisplayName)(l)]));
+        const converted = new Map(((await this.projects?.find()) || []).filter((p) => p.leadId && p.stage !== 'Kickoff').map((p) => [p.leadId, p.name]));
+        for (const t of rows)
+            await this.repo.update({ id: t.id }, { leadId: t.project, leadName: leads.get(t.project) || '', project: converted.get(t.project) || '' });
+        return rows.length;
+    }
+    async linkTargets() {
+        const projects = ((await this.projects?.find()) || []);
+        const deals = this.deals ? (await this.deals.find()).filter((d) => !d.archived && !d.convertedProjectId) : [];
+        const leads = new Map(((await this.leads?.find()) || []).map((l) => [l.id, (0, lead_link_1.leadDisplayName)(l)]));
+        return {
+            projects: projects.filter((p) => !(p.leadId && p.stage === 'Kickoff')).map((p) => ({ id: p.id, name: p.name, stage: p.stage })).sort((a, b) => a.name.localeCompare(b.name)),
+            leads: deals.map((d) => ({ id: d.id, name: leads.get(d.id) || d.id, stage: d.stage })).sort((a, b) => a.name.localeCompare(b.name)),
+        };
+    }
+    async adoptLead(leadId, projectName) {
+        const rows = await this.repo.findBy({ leadId });
+        for (const t of rows.filter((x) => !x.project))
+            await this.repo.update({ id: t.id }, { project: projectName });
+        return rows.length;
+    }
+    async leadFields(dto) {
+        const out = {};
+        if (dto.project !== undefined && (await (0, lead_link_1.isLeadId)(this.deals, dto.project))) {
+            out.leadId = dto.project;
+            out.project = '';
+        }
+        else if (dto.leadId === undefined)
+            return out;
+        Object.assign(out, await (0, lead_link_1.resolveLead)(this.leads, out.leadId ?? dto.leadId));
+        return out;
     }
     async numberUnnumbered() {
         const rows = await this.repo.find();
@@ -162,9 +213,7 @@ let TasksService = class TasksService {
         const where = {};
         if (tab)
             where.tab = tab;
-        if (project)
-            where.project = project;
-        const rows = await this.archiveConfirmed(await this.repo.find({ where }));
+        const rows = await this.archiveConfirmed(await this.repo.find({ where: project ? [{ ...where, project }, { ...where, leadId: project }] : where }));
         return rows.map((t) => this.hydrate(t));
     }
     async findOne(id) {
@@ -201,6 +250,7 @@ let TasksService = class TasksService {
         const id = dto.id || `${dateStr}-${String(seq).padStart(2, '0')}`;
         if (!String(dto.subject || '').trim() && !String(dto.description || '').trim())
             throw new common_1.BadRequestException('Give the task a subject.');
+        dto = { ...dto, ...(await this.leadFields(dto)) };
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assignedToId, name: dto.assignedTo });
         const templates = this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
         const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: (0, serials_1.logSerialKind)(dto.topicType || 'Task'), type: dto.topicType || 'Task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
@@ -254,6 +304,7 @@ let TasksService = class TasksService {
         const patch = { ...dto };
         delete patch.id;
         delete patch.serial;
+        Object.assign(patch, await this.leadFields(patch));
         if ('assignedTo' in patch || 'assignedToId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, {
                 id: patch.assignedToId,
@@ -451,11 +502,20 @@ exports.TasksService = TasksService = __decorate([
     __param(5, (0, typeorm_1.InjectRepository)(entities_1.ChangeOrderEntity)),
     __param(6, (0, common_1.Optional)()),
     __param(6, (0, typeorm_1.InjectRepository)(entities_1.ChecklistTemplateEntity)),
+    __param(7, (0, common_1.Optional)()),
+    __param(7, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __param(8, (0, common_1.Optional)()),
+    __param(8, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
+    __param(9, (0, common_1.Optional)()),
+    __param(9, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
         notifications_service_1.NotificationsService,
         settings_service_1.SettingsService,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])
 ], TasksService);

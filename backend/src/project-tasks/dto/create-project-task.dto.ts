@@ -17,6 +17,7 @@ export class CreateProjectTaskDto {
   @IsString() @IsOptional() assigneeId?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() priority?: string;
+  @IsString() @IsOptional() leadId?: string;
   @IsString() @IsOptional() status?: string;
   @IsNumber() @IsOptional() order?: number;
   @IsBoolean() @IsOptional() completed?: boolean;

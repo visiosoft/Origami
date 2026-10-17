@@ -3,7 +3,7 @@ import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
 import { type LogStatus } from './log-statuses';
 export declare const LOG_ARCHIVE_DAYS = 7;
-import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity } from '../database/entities';
+import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity, DealEntity, LeadEntity, ProjectEntity } from '../database/entities';
 import { type TaskAttachment } from '../database/task.types';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
@@ -15,11 +15,29 @@ export declare class TasksService implements OnApplicationBootstrap {
     private readonly settings?;
     private readonly cos?;
     private readonly checklistTemplates?;
+    private readonly leads?;
+    private readonly deals?;
+    private readonly projects?;
     private readonly log;
-    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService, settings?: SettingsService | undefined, cos?: Repository<ChangeOrderEntity> | undefined, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined);
+    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService, settings?: SettingsService | undefined, cos?: Repository<ChangeOrderEntity> | undefined, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, deals?: Repository<DealEntity> | undefined, projects?: Repository<ProjectEntity> | undefined);
     statuses(): Promise<LogStatus[]>;
     saveStatuses(list: unknown): Promise<LogStatus[]>;
     onApplicationBootstrap(): Promise<void>;
+    linkLeads(): Promise<number>;
+    linkTargets(): Promise<{
+        projects: {
+            id: any;
+            name: any;
+            stage: any;
+        }[];
+        leads: {
+            id: string;
+            name: string;
+            stage: string;
+        }[];
+    }>;
+    adoptLead(leadId: string, projectName: string): Promise<number>;
+    private leadFields;
     numberUnnumbered(): Promise<number>;
     moveToBuckets(): Promise<number>;
     private isAdmin;

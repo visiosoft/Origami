@@ -14,6 +14,18 @@ export declare class TasksController {
     saveStatuses(body: {
         statuses?: unknown;
     }): Promise<import("./log-statuses").LogStatus[]>;
+    linkTargets(auth?: string): Promise<{
+        projects: {
+            id: any;
+            name: any;
+            stage: any;
+        }[];
+        leads: {
+            id: string;
+            name: string;
+            stage: string;
+        }[];
+    }>;
     findOne(id: string, auth?: string): Promise<import("../database/entities").TaskEntity>;
     create(dto: CreateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;
     update(id: string, dto: UpdateTaskDto, auth?: string): Promise<import("../database/entities").TaskEntity>;

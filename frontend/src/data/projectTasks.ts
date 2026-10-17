@@ -87,6 +87,9 @@ export interface ProjectTask extends ActionTrailFields {
   collaborators?: { id: string; name: string }[];
   /** null = a General Tasks board task, not tied to any client project. */
   projectId: number | null;
+  /** The lead it's for (work before a signed contract), and its name. */
+  leadId?: string | null;
+  leadName?: string | null;
   sectionId: string;
   title: string;
   description?: string;

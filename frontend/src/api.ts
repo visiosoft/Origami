@@ -330,6 +330,8 @@ export const api = {
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
   tasks: {
+    /** Projects and open leads a task can be linked to. */
+    linkTargets: () => request<import('./data/linkTargets').LinkTargets>('/tasks/link-targets'),
     /** The Request Log's statuses (Settings -> Request Log statuses). */
     statuses: () => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses'),
     saveStatuses: (statuses: unknown) => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses', { method: 'PUT', body: JSON.stringify({ statuses }) }),

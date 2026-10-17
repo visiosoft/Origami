@@ -1,9 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
+import { TasksService } from '../tasks/tasks.service';
+import { ProjectTasksService } from '../project-tasks/project-tasks.service';
 import { STAGES, RETIRED_STAGE_KEYS, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
 
 /** How many chases before the lead is handed on rather than chased again. */
@@ -38,6 +40,8 @@ export class PipelineService implements OnApplicationBootstrap {
     @InjectRepository(DealEntity) private readonly repo: Repository<DealEntity>,
     @InjectRepository(LeadEntity) private readonly leads: Repository<LeadEntity>,
     private readonly projects: ProjectsService,
+    @Optional() private readonly tasks?: TasksService,
+    @Optional() private readonly boardTasks?: ProjectTasksService,
   ) {}
 
   /**
@@ -485,6 +489,14 @@ export class PipelineService implements OnApplicationBootstrap {
       this.event(`Converted to project #${project.id} (${project.stage}) — card archived`, actor),
     ];
     await this.repo.save(deal);
+
+    // Work done for the lead carries on in the project (still linked to the lead).
+    try {
+      await this.tasks?.adoptLead(id, project.name);
+      await this.boardTasks?.adoptLead(id, Number(project.id));
+    } catch (err) {
+      this.log.warn(`Could not move ${deal.name}'s tasks onto project ${project.id}: ${(err as Error).message}`);
+    }
 
     return { project, deal };
   }

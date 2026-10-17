@@ -26,6 +26,8 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
+import { LeadSelect } from './LeadSelect';
+import { leadLabel } from '../data/linkTargets';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
@@ -55,7 +57,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -71,7 +73,12 @@ const bucketCol = (status?: string | null) => 'B:' + (TASK_STATUSES.includes(sta
  * projectId: a project, null for General Tasks, or 'all' -- every task across
  * every project and General, in bucket columns (moving a card sets its status).
  */
-export function TaskBoard({ projectId, initialTaskId }: { projectId: number | null | 'all'; initialTaskId?: string | null }) {
+export function TaskBoard({ projectId, leadId, initialTaskId }: {
+  projectId: number | null | 'all';
+  /** A lead's tasks: the General board's columns, showing (and adding) only tasks linked to this lead. */
+  leadId?: string | null;
+  initialTaskId?: string | null;
+}) {
   const all = projectId === 'all';
   const { can, toast, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
@@ -126,7 +133,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       .then((res: any) => {
         if (!res) return;
         setSections(res.sections || []);
-        setTasks((res.tasks || []).map(inBucket));
+        setTasks((res.tasks || []).filter((t: ProjectTask) => !leadId || t.leadId === leadId).map(inBucket));
         // Open the deep-linked task now that it exists in `tasks`.
         if (initialTaskId && (res.tasks || []).some((t: ProjectTask) => t.id === initialTaskId)) {
           setSelectedId(initialTaskId);
@@ -135,7 +142,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       .catch(() => { })
       .finally(() => setLoading(false));
   };
-  useEffect(() => { setLoading(true); loadedProject.current = all ? -1 : projectId; load(); }, [projectId]);
+  useEffect(() => { setLoading(true); loadedProject.current = all ? -1 : projectId; load(); }, [projectId, leadId]);
   useEffect(() => {
     if (all) api.projects.list().then((r: any) => setProjectNames(Object.fromEntries((Array.isArray(r) ? r : []).map((p: any) => [p.id, p.name])))).catch(() => { });
   }, [all]);
@@ -181,7 +188,8 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
     const parent = parentId ? tasks.find((x) => x.id === parentId) : null;
     // On the all-projects view a subtask goes on its parent's own board and column.
     const home = all ? { projectId: parent?.projectId ?? null, sectionId: (parent as any)?.homeSectionId } : { projectId, sectionId };
-    return api.projectTasks.create({ ...home, phaseId: parent?.phaseId, title: t, order, parentId, ...mine, ...extra }).then((res: any) => {
+    const lead = leadId ? { leadId } : parent?.leadId ? { leadId: parent.leadId } : {};
+    return api.projectTasks.create({ ...home, ...lead, phaseId: parent?.phaseId, title: t, order, parentId, ...mine, ...extra }).then((res: any) => {
       if (res) setTasks((prev) => [...prev, inBucket(res as ProjectTask)]);
     }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add task')));
   };
@@ -330,7 +338,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </button>
             <div className="tb-titlebox">
               <div className="tb-title">{t.title}</div>
-              {(all || t.serial) && <div className="tb-sub">{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks')].filter(Boolean).join(' · ')}</div>}
+              {(all || t.serial || t.leadName) && <div className="tb-sub">{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
               {subs.length > 0 && <div className="tb-sub">{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
               {t.parentId && <div className="tb-sub">Subtask of {tasks.find((x) => x.id === t.parentId)?.title || 'another task'}</div>}
             </div>
@@ -390,7 +398,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
-            {(all || t.serial) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : 'General Tasks')].filter(Boolean).join(' · ')}</div>}
+            {(all || t.serial || t.leadName) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
             {subs.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
             {(t.labels?.length || 0) > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
@@ -919,6 +927,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                     return <option key={st} value={st} disabled={st === 'Confirmed' && !canConfirm && d.status !== 'Confirmed'}>{statusLabel(st)}{st === 'Confirmed' && !canConfirm ? ' — the originator confirms' : ''}</option>;
                   })}
                 </select>
+              </Field>
+              <Field label="Lead">
+                <LeadSelect value={d.leadId} name={d.leadName} disabled={!canManage} onChange={(v) => set({ leadId: v })} style={{ ...inputStyle, width: '100%' }} />
               </Field>
               <Field label="Start date"><input type="date" disabled={!canManage} value={d.startDate || ''} onChange={(e) => set({ startDate: e.target.value })} style={{ ...inputStyle, width: '100%' }} /></Field>
               <Field label="Priority">

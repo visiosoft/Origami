@@ -11,6 +11,7 @@ import { SavedViews } from '../components/SavedViews';
 import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
+import { leadLabel } from '../data/linkTargets';
 
 type Kind = 'all' | (typeof FOR_RECORD_TOPICS)[number];
 type Pill = 'soft' | 'yellow' | 'dark' | 'outline' | 'green';
@@ -122,7 +123,7 @@ export function Observations() {
             <AkRow key={t.id} index={i} muted={isLogClosed(t.status)} onClick={() => setOpenId(t.id)}
               lead={<AkDate iso={raisedOn(t)} />}
               title={logTaskTitle(t)}
-              sub={[t.serial, t.project || 'No project', t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
+              sub={[t.serial, t.project || (t.leadName ? '' : 'No project'), leadLabel(t.leadName), t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
               right={<>
                 {nT + nC > 0 && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[nT && `${nT} ${nT === 1 ? 'task' : 'tasks'}`, nC && `${nC} CO`].filter(Boolean).join(' · ')}</span>}
                 <AkPill tone={RECORD_TONE[t.topicType] || 'soft'}>{t.topicType}</AkPill>

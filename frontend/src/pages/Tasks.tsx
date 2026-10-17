@@ -12,6 +12,7 @@ import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
 import { TT_COLORS, logTaskTitle, type Task, type TaskTab } from '../data/tasks';
 import { SavedViews } from '../components/SavedViews';
 import { SortHeader, sortFromString, sortToString, useSort } from '../components/SortHeader';
+import { leadLabel, useLinkTargets } from '../data/linkTargets';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
@@ -20,6 +21,10 @@ const PROJECT_KEY = 'origami.tasksProjectId';
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 
 /** initialMode 'log' opens on the Request Log (Special Actions → Task). */
+/** The board picker: a project, General, everything, or a lead's tasks ('lead:<id>'). */
+type BoardSel = number | 'general' | 'all' | `lead:${string}`;
+const LEAD_PF = 'Lead · ';
+
 export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log' } = {}) {
   const { can, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
@@ -36,14 +41,17 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   // 'general' is a real, standing selection (the General Tasks board -- work
   // not tied to any client project), not an absence-of-choice placeholder.
   // First view (Oct 16): every task -- all projects and internal -- unless a board was chosen before.
-  const [boardProjectId, setBoardProjectId] = useState<number | 'general' | 'all'>(() => {
+  const [boardProjectId, setBoardProjectId] = useState<BoardSel>(() => {
     try {
       const stored = localStorage.getItem(PROJECT_KEY);
       if (stored === 'general') return 'general';
+      if (stored?.startsWith('lead:')) return stored as BoardSel;
       const n = Number(stored);
       return Number.isFinite(n) && n > 0 ? n : 'all';
     } catch { return 'all'; }
   });
+  const boardLead = typeof boardProjectId === 'string' && boardProjectId.startsWith('lead:') ? boardProjectId.slice(5) : null;
+  const targets = useLinkTargets();
   const [logTasks, setLogTasks] = useState<Task[]>([]);
   const [showArchived, setShowArchived] = useState(false);
 
@@ -55,7 +63,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const linkedIsLog = params.get('type') === 'log';
   const linkedProjectId = Number(params.get('project')) || null;
 
-  const selectBoardProject = (id: number | 'general' | 'all') => {
+  const selectBoardProject = (id: BoardSel) => {
     setBoardProjectId(id);
     try { localStorage.setItem(PROJECT_KEY, String(id)); } catch { /* ignore */ }
   };
@@ -75,7 +83,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       // remembered project falls back to All tasks rather than guessing another one.
       setBoardProjectId((cur) => {
         if (linkedProjectId != null && real.some((p: any) => p.id === linkedProjectId)) return linkedProjectId;
-        if (cur === 'general' || cur === 'all') return cur;
+        if (typeof cur === 'string') return cur;
         return real.some((p: any) => p.id === cur) ? cur : 'all';
       });
     }).catch(() => { });
@@ -116,9 +124,11 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const GENERAL_PF = 'General (no project)';
   const taskProjects: string[] = [];
   logTasks.forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); });
-  const hasGeneral = logTasks.some((x) => !x.project);
+  // Leads come after the projects, as "Lead · name".
+  logTasks.forEach((x) => { const l = leadLabel(x.leadName); if (l && !taskProjects.includes(l)) taskProjects.push(l); });
+  const hasGeneral = logTasks.some((x) => !x.project && !x.leadId);
   const byProject = (list: Task[]) =>
-    pf === 'All projects' ? list : pf === GENERAL_PF ? list.filter((x) => !x.project) : list.filter((x) => x.project === pf);
+    pf === 'All projects' ? list : pf === GENERAL_PF ? list.filter((x) => !x.project && !x.leadId) : pf.startsWith(LEAD_PF) ? list.filter((x) => leadLabel(x.leadName) === pf) : list.filter((x) => x.project === pf);
   const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
   // Confirmed entries leave the list a week later; "Archived" shows them.
   const liveLog = logTasks.filter((x) => (showArchived ? !!x.archivedAt : !x.archivedAt));
@@ -146,17 +156,24 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         {mode === 'board' && (
           <>
             <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>Project:</span>
-            <select value={boardProjectId} onChange={(e) => selectBoardProject(e.target.value === 'general' || e.target.value === 'all' ? e.target.value : Number(e.target.value))} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)', outline: 'none', maxWidth: 320 }}>
+            <select value={boardProjectId} onChange={(e) => { const v = e.target.value; selectBoardProject(v === 'general' || v === 'all' || v.startsWith('lead:') ? v as BoardSel : Number(v)); }} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)', outline: 'none', maxWidth: 320 }}>
               <option value="all">All tasks — every project and General</option>
               <option value="general">General Tasks</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              <optgroup label="Projects">{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+              {/* Work for a lead, before there's a signed contract. */}
+              {(targets.leads.length > 0 || boardLead) && (
+                <optgroup label="Leads (no contract yet)">
+                  {boardLead && !targets.leads.some((l) => l.id === boardLead) && <option value={boardProjectId}>{boardLead}</option>}
+                  {targets.leads.map((l) => <option key={l.id} value={'lead:' + l.id}>{l.name}</option>)}
+                </optgroup>
+              )}
             </select>
           </>
         )}
       </div>
 
       {mode === 'board' ? (
-        <TaskBoard projectId={boardProjectId === 'general' ? null : boardProjectId} initialTaskId={linkedIsLog ? null : linkedTaskId} />
+        <TaskBoard projectId={boardProjectId === 'general' || boardLead ? null : boardProjectId as number | 'all'} leadId={boardLead} initialTaskId={linkedIsLog ? null : linkedTaskId} />
       ) : (
       <>
       {/* Tabs + filter + new */}
@@ -225,7 +242,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
                 <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
-                  {createdByText(t) && <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{createdByText(t)}</span>}
+                  {(createdByText(t) || t.project || t.leadName) && <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[t.project, leadLabel(t.leadName), createdByText(t)].filter(Boolean).join(' · ')}</span>}
                 </span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.c, textAlign: 'center' }}>{t.status}</span>
                 {t.assignedTo ? (

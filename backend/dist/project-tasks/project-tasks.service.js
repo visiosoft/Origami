@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const lead_link_1 = require("../tasks/lead-link");
 const auto_checklist_1 = require("./auto-checklist");
 const project_tasks_1 = require("../seed-data/project-tasks");
 const sections_service_1 = require("./sections.service");
@@ -27,14 +28,26 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const serials_1 = require("../database/serials");
 exports.ARCHIVE_AFTER_DAYS = 7;
 let ProjectTasksService = class ProjectTasksService {
-    constructor(repo, users, sections, attachments, notifications, checklistTemplates) {
+    constructor(repo, users, sections, attachments, notifications, checklistTemplates, leads) {
         this.repo = repo;
         this.users = users;
         this.sections = sections;
         this.attachments = attachments;
         this.notifications = notifications;
         this.checklistTemplates = checklistTemplates;
+        this.leads = leads;
         this.log = new common_1.Logger('ProjectTasksService');
+    }
+    async adoptLead(leadId, projectId) {
+        const rows = (await this.repo.findBy({ leadId })).filter((t) => t.projectId == null);
+        if (!rows.length)
+            return 0;
+        const sections = await this.sections.forProject(projectId);
+        for (const t of rows) {
+            const home = sections.find((s) => (0, task_types_1.bucketStatus)(s.name) === (0, task_types_1.normalizeTaskStatus)(t.status)) || sections[0];
+            await this.repo.update({ id: t.id }, { projectId, ...(t.parentId ? {} : { sectionId: home?.id ?? t.sectionId }) });
+        }
+        return rows.length;
     }
     async onApplicationBootstrap() {
         try {
@@ -232,6 +245,8 @@ let ProjectTasksService = class ProjectTasksService {
                 dto = { ...dto, status: b };
         }
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assigneeId, name: dto.assignee });
+        if (dto.leadId !== undefined)
+            dto = { ...dto, ...(await (0, lead_link_1.resolveLead)(this.leads, dto.leadId)) };
         const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
         const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: 'task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
         let status = dto.status || (dto.completed ? 'Done' : 'Not started');
@@ -280,6 +295,8 @@ let ProjectTasksService = class ProjectTasksService {
         const patch = { ...dto };
         delete patch.id;
         delete patch.serial;
+        if ('leadId' in patch)
+            Object.assign(patch, await (0, lead_link_1.resolveLead)(this.leads, patch.leadId));
         if ('assignee' in patch || 'assigneeId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: patch.assigneeId, name: patch.assignee });
             patch.assignee = assignee.name;
@@ -429,11 +446,14 @@ exports.ProjectTasksService = ProjectTasksService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __param(5, (0, common_1.Optional)()),
     __param(5, (0, typeorm_1.InjectRepository)(entities_1.ChecklistTemplateEntity)),
+    __param(6, (0, common_1.Optional)()),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         sections_service_1.SectionsService,
         attachments_service_1.AttachmentsService,
         notifications_service_1.NotificationsService,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], ProjectTasksService);
 //# sourceMappingURL=project-tasks.service.js.map
