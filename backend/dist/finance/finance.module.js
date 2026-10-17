@@ -50,6 +50,7 @@ exports.FinanceModule = FinanceModule = __decorate([
         controllers: [finance_controller_1.FinanceController, finance_controller_1.FinanceInvoiceFilesController, finance_controller_1.FinanceChangeOrderFilesController, finance_controller_1.FinanceReimbursableFilesController, finance_controller_1.FinanceCostFilesController,
             portal_controller_1.PortalController, portal_controller_1.PortalAccessController, portal_controller_1.SharedWithVendorFilesController, daily_report_summary_controller_1.DailyReportSummaryController],
         providers: [manpower_access_service_1.ManpowerAccess, financials_service_1.FinancialsService, invoices_service_1.InvoicesService, change_orders_service_1.ChangeOrdersService, reimbursables_service_1.ReimbursablesService, retention_service_1.RetentionService, finance_hub_service_1.FinanceHubService, costs_service_1.CostsService, reports_service_1.ReportsService, portal_service_1.PortalService, project_subs_service_1.ProjectSubsService, daily_report_summary_service_1.DailyReportSummaryService],
+        exports: [change_orders_service_1.ChangeOrdersService, financials_service_1.FinancialsService],
     })
 ], FinanceModule);
 //# sourceMappingURL=finance.module.js.map

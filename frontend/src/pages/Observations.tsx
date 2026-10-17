@@ -8,6 +8,7 @@ import { FOR_RECORD_TOPICS, isForRecord, logTaskTitle, type Task } from '../data
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay } from '../components/ActionKit';
 import { SavedViews } from '../components/SavedViews';
+import { ActionMenu, ActionTrail } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 
@@ -141,11 +142,6 @@ export function Observations() {
   );
 }
 
-/** Draft a change order on a project from a FOR RECORD item or a meeting. Finance permissions apply. */
-export async function draftChangeOrder(projectId: number, title: string, description: string) {
-  return api.finance.createChangeOrder(projectId, { title: title.trim().slice(0, 300), description }) as Promise<any>;
-}
-
 // ------------------------------------------------------------------ one entry
 
 function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onCo }: {
@@ -179,13 +175,14 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
     setSubject(''); setDue('');
     toast(`Task created${u ? ' — ' + u.name + ' is emailed' : ''}`);
   });
+  // Through the shared conversion: both entries record it, and the change order links back here.
   const createCo = () => run(async () => {
     if (!projectId) { toast('⚠ This entry has no project — a change order belongs to a project'); return; }
-    const co = await draftChangeOrder(projectId, subject.trim() || logTaskTitle(item), `From ${item.topicType} ${item.id}: ${logTaskTitle(item)}${item.description ? '\n\n' + item.description : ''}`);
-    onCo(co);
-    onTask(await api.tasks.link(item.id, 'changeOrder', co.id));
+    const made = await api.specialActions.convert({ from: { kind: 'log', id: item.id }, to: 'co', title: subject.trim() || undefined });
+    api.finance.changeOrder(made.id).then((co: any) => onCo(co)).catch(() => { });
+    onTask(await api.tasks.get(item.id) as Task);
     setSubject('');
-    toast(`${co.number || 'Change order'} drafted`);
+    toast(`${made.label} drafted`);
   });
   const linkPicked = () => run(async () => {
     if (!pick) return;
@@ -212,6 +209,7 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
           <span className="mt-muted">{[item.project || 'No project', raisedOn(item) && 'raised ' + akDay(raisedOn(item)), item.originator && 'by ' + item.originator].filter(Boolean).join(' · ')}</span>
         </div>
         {item.subject && item.description && <p className="mt-muted" style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--ink)' }}>{item.description}</p>}
+        <ActionTrail sourceType={item.sourceType} sourceId={item.sourceId} sourceLabel={item.sourceLabel} derived={item.derivedRefs} />
         <div className="mt-row">
           <button type="button" className="ak-btn" onClick={() => navigate(`/tasks?task=${encodeURIComponent(item.id)}&type=log`)}>Open in the Request Log</button>
           {item.meetingId && <button type="button" className="ak-btn" onClick={() => navigate(`/meetings?open=${encodeURIComponent(item.meetingId!)}`)}>Open the meeting</button>}
@@ -261,6 +259,12 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
               <button type="button" className="ak-btn" disabled={busy || !pick} onClick={linkPicked}>Attach</button>
             </div>
           </div>
+        )}
+        {canEdit && (
+          <>
+            <h3 className="mt-h">Duplicate or convert</h3>
+            <ActionMenu kind="log" id={item.id} topicType={item.topicType} projectName={item.project} onMade={() => { api.tasks.get(item.id).then((t) => onTask(t as Task)).catch(() => { }); }} />
+          </>
         )}
       </aside>
     </div>,

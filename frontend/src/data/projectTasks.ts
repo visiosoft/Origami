@@ -1,3 +1,4 @@
+import type { ActionTrailFields } from '../api';
 // Types + style maps for the Asana-style per-project task board.
 
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
@@ -80,7 +81,7 @@ export interface ProjectSection {
   order: number;
 }
 
-export interface ProjectTask {
+export interface ProjectTask extends ActionTrailFields {
   id: string;
   /** People following the task without owning it ("Collaborative"). */
   collaborators?: { id: string; name: string }[];

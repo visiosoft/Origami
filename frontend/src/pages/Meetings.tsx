@@ -10,9 +10,10 @@ import {
   MEETING_FIELDS, MEETING_LOCATION_TYPES, MEETING_STATUSES, MEETING_TYPES, isPlanned, locationTypeInfo, meetingStatus, meetingStatusInfo, needsReview,
   type Attendee, type Meeting, type MeetingLocationType, type MeetingStatus,
 } from '../data/meetings';
-import { RECORD_TONE, draftChangeOrder, raisedOn } from './Observations';
+import { RECORD_TONE, raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
 import { SavedViews } from '../components/SavedViews';
+import { ActionMenu, ActionTrail } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 
@@ -399,8 +400,15 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
           <p className="mt-muted" style={{ margin: '0 0 6px' }}>Recorded in the Request Log as a {item.type.toLowerCase()} meeting{item.project ? ` on ${item.project}` : ''} — these are the entries raised in it.</p>
         )}
 
+        {saved && <div style={{ margin: '4px 0 10px' }}><ActionTrail sourceType={saved.sourceType} sourceId={saved.sourceId} sourceLabel={saved.sourceLabel} derived={saved.derivedRefs} /></div>}
         <Captured item={item} draft={draft} rfis={rfis} cos={cos} navigate={navigate} />
         {editable && <ActionForm ctx={ctx} />}
+        {editable && saved && (
+          <div style={{ margin: '12px 0' }}>
+            <ActionMenu kind="meeting" id={saved.id} projectId={saved.projectId ?? null} projectName={saved.project || undefined}
+              onMade={() => { api.meetings.get(saved.id).then((r) => applyServer(r)).catch(() => { }); }} />
+          </div>
+        )}
 
         {item.kind === 'meeting' && (
           <div className="mt-foot">
@@ -495,18 +503,17 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
     if (!subject.trim()) { toast('⚠ Say what it is'); return; }
     setAdding(true);
     try {
-      if (kind === 'RFI') {
-        if (!draft.projectId) { toast('⚠ Pick the meeting’s project first — an RFI belongs to a project'); return; }
-        const r = await api.rfis.create({ projectId: draft.projectId, project: draft.project, subject: subject.trim().slice(0, 300), question: [subject.trim(), details.trim(), source].filter(Boolean).join('\n\n') });
-        ctx.onRfi(r);
-        ctx.applyServer(await api.meetings.update(draft.id, { rfiIds: [...(draft.rfiIds || []), r.id] }));
-        toast(`${r.number || 'RFI'} drafted`);
-      } else if (kind === 'CO') {
-        if (!draft.projectId) { toast('⚠ Pick the meeting’s project first — a change order belongs to a project'); return; }
-        const co = await draftChangeOrder(draft.projectId, subject, [details.trim(), source].filter(Boolean).join('\n\n'));
-        ctx.onCo(co);
-        ctx.applyServer(await api.meetings.update(draft.id, { changeOrderIds: [...(draft.changeOrderIds || []), co.id] }));
-        toast(`${co.number || 'Change order'} drafted`);
+      if (kind === 'RFI' || kind === 'CO') {
+        if (!draft.projectId) { toast(`⚠ Pick the meeting’s project first — ${kind === 'RFI' ? 'an RFI' : 'a change order'} belongs to a project`); return; }
+        // Through the shared conversion: the meeting lists it, and both record where it came from.
+        const made = await api.specialActions.convert({
+          from: { kind: 'meeting', id: draft.id }, to: kind === 'RFI' ? 'rfi' : 'co', projectId: draft.projectId,
+          title: subject.trim().slice(0, 300), body: [kind === 'RFI' ? subject.trim() : '', details.trim(), source].filter(Boolean).join('\n\n'),
+        });
+        if (kind === 'RFI') api.rfis.get(made.id).then(ctx.onRfi).catch(() => { });
+        else api.finance.changeOrder(made.id).then(ctx.onCo).catch(() => { });
+        ctx.applyServer(await api.meetings.get(draft.id));
+        toast(`${made.label} drafted`);
       } else {
         const u = users.find((x) => x.id === assignee);
         const t = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined });

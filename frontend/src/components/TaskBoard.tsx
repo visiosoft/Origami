@@ -5,7 +5,7 @@ import './TaskBoard.css';
 import { createdByOf, PRIORITY_ORDER } from '../data/projectTasks';
 import { SavedViews } from './SavedViews';
 import { SortHeader, sortFromString, sortRows, sortToString, type SortState } from './SortHeader';
-import { ConvertToRfiButton } from './rfis/Rfis';
+import { ActionMenu, ActionTrail } from './ActionTools';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
 import { api, persist } from '../api';
@@ -879,6 +879,9 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
                 <div style={{ color: 'var(--ink)', fontWeight: 600 }}>{selected.createdByName || createdByOf(selected)?.by || '—'}</div>
                 <div>{(() => { const at = createdByOf(selected)?.at || selected.createdAt; return [at ? new Date(at.length > 10 ? at : at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '', '#' + selected.id].filter(Boolean).join(' · '); })()}</div>
               </div>
+              {(selected.sourceId || (selected.derivedRefs || []).length > 0) && (
+                <div style={{ gridColumn: '1 / -1' }}><ActionTrail sourceType={selected.sourceType} sourceId={selected.sourceId} sourceLabel={selected.sourceLabel} derived={selected.derivedRefs} /></div>
+              )}
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Collaborative">
                   <CollaboratorPicker value={d.collaborators} assigneeId={d.assigneeId} disabled={!canManage} onChange={(collaborators) => set({ collaborators })} />
@@ -987,7 +990,13 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
 
             {canManage && (
               <div style={{ padding: '0 22px 24px' }}>
-                <ConvertToRfiButton source={{ taskId: selected.id, type: 'board', projectId: selected.projectId, title: selected.title, description: selected.description }} />
+                <div style={{ marginBottom: 12 }}>
+                  <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} onMade={(made) => {
+                    // Copies onto this board appear at once; the task's own history now notes them.
+                    api.projectTasks.board(projectId).then((r: any) => { if (r?.tasks) setTasks(r.tasks); }).catch(() => { });
+                    if (made.some((m) => m.kind !== 'board')) toast('Done — open it from the link');
+                  }} />
+                </div>
                 <div onClick={() => deleteTask(selected.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
               </div>
             )}

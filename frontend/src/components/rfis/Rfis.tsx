@@ -1,25 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { SavedViews } from '../SavedViews';
+import { ActionMenu, ActionTrail } from '../ActionTools';
 import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { useApp } from '../../AppContext';
 import { SaveBar, useAutosave } from '../../autosave';
 import { AssigneePicker } from '../AssigneePicker';
 import { Attachments } from '../Attachments';
 import type { Attachment } from '../../data/projectTasks';
+import type { ActionTrailFields } from '../../api';
 
 // ------------------------------------------------------------------ types & looks
 
 export interface RfiContact { name: string; email?: string; company?: string; personId?: number }
-export interface Rfi {
+export interface Rfi extends ActionTrailFields {
   id: string; projectId: number; projectName?: string; number: string; subject: string;
   status: 'draft' | 'open' | 'answered' | 'closed' | 'void';
   priority?: string; question?: string; suggestion?: string; discipline?: string; specSection?: string; drawingRef?: string;
   drawings?: { fileId: string; name: string }[] | null; to?: RfiContact | null; cc?: RfiContact[] | null;
   ownerId?: string; ownerName?: string; dateSent?: string; dateDue?: string; dateAnswered?: string; dateClosed?: string;
   answer?: string; answeredBy?: string; costImpact?: string; costAmount?: number | null; scheduleImpact?: string; scheduleDays?: number | null;
-  changeOrderId?: string; changeOrderNumber?: string; sourceTaskId?: string; attachments?: Attachment[];
+  changeOrderId?: string; changeOrderNumber?: string; sourceTaskId?: string; sourceTaskType?: string; attachments?: Attachment[];
   history?: { at: string; by: string; action: string; note?: string }[]; voidReason?: string; ballInCourt?: string;
   createdAt?: string; createdBy?: string;
 }
@@ -290,14 +291,12 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
     finally { setBusy(false); }
   };
 
+  // Through the shared conversion, so both records note it and the RFI links the change order.
   const createChangeOrder = () => act(async () => {
-    const co: any = await api.finance.createChangeOrder(rec.projectId, {
-      title: `${rec.number}: ${rec.subject}`,
-      description: [rec.question && `Question: ${rec.question}`, rec.answer && `Answer (${rec.answeredBy || 'recipient'}): ${rec.answer}`].filter(Boolean).join('\n\n'),
-      reason: 'design_change', requestedBy: rec.answeredBy || rec.to?.name, scheduleImpactDays: rec.scheduleDays || 0,
-    });
-    return api.rfis.update(rec.id, { changeOrderId: co.id, changeOrderNumber: co.number });
+    await api.specialActions.convert({ from: { kind: 'rfi', id: rec.id }, to: 'co' });
+    return api.rfis.get(rec.id) as Promise<Rfi>;
   }, 'Change order drafted — find it in the project’s Financial tab');
+  const reloadTrail = () => { api.rfis.get(rec.id).then((r: Rfi) => { setRec((cur) => ({ ...cur, history: r.history, derivedRefs: r.derivedRefs, changeOrderId: r.changeOrderId, changeOrderNumber: r.changeOrderNumber })); onChanged(r); }).catch(() => { }); };
 
   const pickPerson = (id: string) => {
     const p = people.find((x) => String(x.id) === id);
@@ -348,6 +347,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
             : <input value={draft.subject || ''} onChange={(e) => set({ subject: e.target.value })} style={{ ...input, fontFamily: BG, fontSize: 18, fontWeight: 700, border: '1px solid transparent', padding: '4px 6px', marginLeft: -6 }} />}
           {rec.status === 'void' && rec.voidReason && <div style={{ fontSize: 12.5, color: '#8E2E0A', marginTop: 6 }}>Voided: {rec.voidReason}</div>}
+          <div style={{ marginTop: 8 }}><ActionTrail sourceType={rec.sourceType || (rec.sourceTaskId ? rec.sourceTaskType || 'board' : null)} sourceId={rec.sourceId || rec.sourceTaskId} sourceLabel={rec.sourceLabel || 'a task'} derived={rec.derivedRefs} /></div>
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
@@ -536,6 +536,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           />
         ))}
 
+        {canManage && section('Duplicate or convert', <ActionMenu kind="rfi" id={rec.id} projectId={rec.projectId} onMade={reloadTrail} />)}
+
         {section('History', (
           <div style={{ display: 'grid', gap: 7 }}>
             {[...(rec.history || [])].reverse().map((h, i) => (
@@ -554,35 +556,3 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
 
 // ------------------------------------------------------------------ from a task
 
-/**
- * "Convert to RFI" on a task: a draft RFI with the task's title and text,
- * noted on the task, then opened on the RFIs page. The task itself stays.
- */
-export function ConvertToRfiButton({ source }: {
-  source: { taskId: string; type: 'log' | 'board'; projectId?: number | null; project?: string; title: string; description?: string };
-}) {
-  const { toast } = useApp();
-  const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  if (!source.projectId && !source.project) return null;
-  const go = () => {
-    setBusy(true);
-    api.rfis.create({
-      projectId: source.projectId || undefined, project: source.project, subject: source.title.slice(0, 300) || 'RFI',
-      question: source.description || source.title, sourceTaskId: source.taskId, sourceTaskType: source.type,
-    })
-      .then((r: Rfi) => {
-        const note = `Converted to ${r.number} — ${r.subject}`;
-        (source.type === 'log' ? api.tasks.addComment(source.taskId, note) : api.projectTasks.addComment(source.taskId, note)).catch(() => { });
-        toast(`${r.number} drafted from this task`);
-        navigate(`/rfis?rfi=${encodeURIComponent(r.id)}`);
-      })
-      .catch((e: Error) => toast('⚠ ' + e.message))
-      .finally(() => setBusy(false));
-  };
-  return (
-    <div onClick={busy ? undefined : go} title="Start a Request for Information from this task" style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.14)', color: 'var(--forest)', marginRight: 8 }}>
-      {busy ? 'Converting…' : 'Convert to RFI'}
-    </div>
-  );
-}

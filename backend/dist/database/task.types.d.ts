@@ -34,6 +34,16 @@ export interface ActivityEvent {
     byId?: string;
     at: string;
 }
+export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
+export interface DerivedRef {
+    kind: ActionKind;
+    id: string;
+    label: string;
+    how: 'converted' | 'duplicated';
+    projectName?: string;
+    by: string;
+    at: string;
+}
 export declare const TASK_STATUSES: readonly ["Not started", "In progress", "On hold", "Done"];
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export declare function normalizeTaskStatus(v: unknown): string | undefined;

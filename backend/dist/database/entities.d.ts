@@ -1,4 +1,4 @@
-import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
+import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent, DerivedRef } from './task.types';
 export declare class ProjectEntity {
     id: number;
     priority: string;
@@ -74,6 +74,10 @@ export declare class PersonEntity {
 }
 export declare class TaskEntity {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     tab: string;
     meetingType: string;
     meetingDate: string;
@@ -107,6 +111,11 @@ export declare class TaskEntity {
 }
 export declare class MeetingEntity {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
+    activity: ActivityEvent[] | null;
     title: string;
     type: string;
     projectId: number | null;
@@ -384,6 +393,10 @@ export declare class ProjectSectionEntity {
 }
 export declare class ProjectTaskEntity {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     projectId: number | null;
     sectionId: string;
     title: string;
@@ -1264,6 +1277,10 @@ export declare class FinanceActivityEntity {
 }
 export declare class ChangeOrderEntity extends FinanceStamped {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     projectId: number;
     number: string;
     title: string;
@@ -1459,6 +1476,10 @@ export interface RfiEvent {
 }
 export declare class RfiEntity {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     projectId: number;
     number: string;
     subject: string;

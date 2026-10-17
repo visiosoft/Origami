@@ -1,5 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
-import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
+import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent, DerivedRef } from './task.types';
 
 const TEXT = { type: 'nvarchar', length: 'MAX' } as const;
 
@@ -107,6 +107,12 @@ export class PersonEntity {
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   @Column() tab!: string; // internal | owner | subcontractor
   @Column() meetingType!: string;
   @Column() meetingDate!: string;
@@ -156,6 +162,14 @@ export class TaskEntity {
 @Entity('meetings')
 export class MeetingEntity {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
+  /** History: created, converted / duplicated, links. */
+  @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[] | null;
   @Column() title!: string;
   @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site
   @Column({ type: 'int', nullable: true }) projectId!: number | null;
@@ -532,6 +546,12 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   // Null = a General Tasks board task, not tied to any client project.
   @Column({ type: 'int', nullable: true }) projectId!: number | null;
   @Column({ nullable: true }) sectionId!: string;
@@ -1725,6 +1745,12 @@ export class FinanceActivityEntity {
 @Index('UQ_change_orders_number', ['projectId', 'number'], { unique: true })
 export class ChangeOrderEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   @Column('int') projectId!: number;
   /** CO-001, per project, given when the change order is created. */
   @Column() number!: string;
@@ -1996,6 +2022,12 @@ export interface RfiEvent { at: string; by: string; action: string; note?: strin
 @Index('IX_rfis_project', ['projectId'])
 export class RfiEntity {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   @Column('int') projectId!: number;
   @Column() number!: string;
   @Column() subject!: string;

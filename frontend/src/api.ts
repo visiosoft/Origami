@@ -1,5 +1,15 @@
 const API_BASE = '/api';
 
+/** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
+export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
+/** A record made by duplicating or converting. */
+export interface MadeAction { kind: ActionKind; id: string; label: string; projectId: number | null; projectName: string }
+/** What was made from a record ("Converted to CO-003"). */
+export interface DerivedRef { kind: ActionKind; id: string; label: string; how: 'converted' | 'duplicated'; projectName?: string; by: string; at: string }
+
+/** Where a record came from, and what was made from it (duplicate / convert). */
+export interface ActionTrailFields { sourceType?: string | null; sourceId?: string | null; sourceLabel?: string | null; derivedRefs?: DerivedRef[] | null }
+
 /** A saved filter set on a list page (Saved views). */
 export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
 
@@ -176,6 +186,13 @@ export const api = {
     forgotPassword: (email: string) =>
       request<{ ok: boolean; reason?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
     googleLoginUrl: () => `${API_BASE}/google/login`,
+  },
+  /** Duplicate a special action (to several projects at once) or convert it into another kind. */
+  specialActions: {
+    duplicate: (d: { kind: ActionKind; id: string; projectIds: (number | null)[] }) =>
+      request<{ created: MadeAction[]; failed: { projectId: number | null; projectName: string; reason: string }[] }>('/special-actions/duplicate', { method: 'POST', body: JSON.stringify(d) }),
+    convert: (d: { from: { kind: ActionKind; id: string }; to: ActionKind; topicType?: string; projectId?: number | null; title?: string; body?: string }) =>
+      request<MadeAction>('/special-actions/convert', { method: 'POST', body: JSON.stringify(d) }),
   },
   /** The caller's own saved filter sets, per list page. */
   views: {

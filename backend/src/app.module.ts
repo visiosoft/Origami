@@ -33,6 +33,7 @@ import { SchedulingModule } from './scheduling/scheduling.module';
 import { ManpowerModule } from './manpower/manpower.module';
 import { FinanceModule } from './finance/finance.module';
 import { ViewsModule } from './views/views.module';
+import { SpecialActionsModule } from './special-actions/special-actions.module';
 import { SessionGuard } from './auth/guards/session.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -91,6 +92,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     ManpowerModule,
     FinanceModule,
     ViewsModule,
+    SpecialActionsModule,
   ],
   // Every route requires a session unless marked @Public(); role and tier rules
   // are applied after, once the caller is known. Order matters: SessionGuard

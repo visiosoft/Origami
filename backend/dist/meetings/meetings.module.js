@@ -22,6 +22,7 @@ exports.MeetingsModule = MeetingsModule = __decorate([
         imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.MeetingEntity, entities_1.TaskEntity, entities_1.RfiEntity, entities_1.ChangeOrderEntity]), auth_module_1.AuthModule, tasks_module_1.TasksModule],
         controllers: [meetings_controller_1.MeetingsController],
         providers: [meetings_service_1.MeetingsService],
+        exports: [meetings_service_1.MeetingsService],
     })
 ], MeetingsModule);
 //# sourceMappingURL=meetings.module.js.map

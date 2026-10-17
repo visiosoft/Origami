@@ -42,6 +42,7 @@ const scheduling_module_1 = require("./scheduling/scheduling.module");
 const manpower_module_1 = require("./manpower/manpower.module");
 const finance_module_1 = require("./finance/finance.module");
 const views_module_1 = require("./views/views.module");
+const special_actions_module_1 = require("./special-actions/special-actions.module");
 const session_guard_1 = require("./auth/guards/session.guard");
 const roles_guard_1 = require("./auth/guards/roles.guard");
 let AppModule = class AppModule {
@@ -99,6 +100,7 @@ exports.AppModule = AppModule = __decorate([
             manpower_module_1.ManpowerModule,
             finance_module_1.FinanceModule,
             views_module_1.ViewsModule,
+            special_actions_module_1.SpecialActionsModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: session_guard_1.SessionGuard },

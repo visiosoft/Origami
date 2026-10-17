@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17b',
+    date: '2026-10-17',
+    title: 'Duplicate and convert special actions',
+    items: [
+      { area: 'Special Actions', kind: 'new', text: '“Duplicate…” copies a task, FOR RECORD item, meeting, RFI or change order — onto this project or onto several projects at once (Edward’s weather change order on every job). Copies start fresh; any project that can’t take one (say, no financials set up for a change order) is listed and the rest still go ahead.', where: 'Open any task, FOR RECORD item, meeting, RFI or change order → Duplicate…' },
+      { area: 'Special Actions', kind: 'new', text: '“Convert to ▾” makes a new special action from this one: a FOR RECORD item into a task, RFI or change order; a task into an RFI or change order; an RFI into a task or change order; and so on. The original stays as it is.', where: 'Same panels → Convert to ▾' },
+      { area: 'Audit trail', kind: 'new', text: 'Both records say what happened — “Converted from Observation #…”, “Converted to CO-003”, “Duplicated to Maple as RFI-007” — in their history, with chips at the top that open the other one. RFIs turned into change orders, and RFIs or change orders raised from a meeting, are recorded the same way.', where: 'History / activity on each record' },
+    ],
+  },
+  {
     id: '2026-10-17a',
     date: '2026-10-17',
     title: 'Saved views, Clear all filters and sortable lists',

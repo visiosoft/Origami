@@ -10,5 +10,6 @@ import { MeetingsService } from './meetings.service';
   imports: [TypeOrmModule.forFeature([MeetingEntity, TaskEntity, RfiEntity, ChangeOrderEntity]), AuthModule, TasksModule],
   controllers: [MeetingsController],
   providers: [MeetingsService],
+  exports: [MeetingsService],
 })
 export class MeetingsModule {}

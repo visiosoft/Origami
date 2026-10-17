@@ -108,6 +108,10 @@ export declare class PhasesController {
             targetDays: number;
             targetDerived: boolean;
             id: string;
+            sourceType: string;
+            sourceId: string;
+            sourceLabel: string;
+            derivedRefs: import("../database/task.types").DerivedRef[] | null;
             projectId: number | null;
             sectionId: string;
             title: string;

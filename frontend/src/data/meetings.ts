@@ -1,3 +1,4 @@
+import type { ActionTrailFields } from '../api';
 /** A meeting and what came out of it; see the backend MeetingEntity and meetings/meeting-status.ts. */
 export interface Attendee { id?: string; name: string; email?: string }
 
@@ -9,7 +10,7 @@ export interface Attendee { id?: string; name: string; email?: string }
 export type MeetingStatus = 'scheduled' | 'occurred' | 'cancelled' | 'rescheduled' | 'reviewed' | 'complete';
 export type MeetingLocationType = 'virtual' | 'call' | 'text' | 'in_person';
 
-export interface Meeting {
+export interface Meeting extends ActionTrailFields {
   id: string; title: string; type: string; projectId?: number | null; project?: string; date: string; time?: string;
   /** The address (in person) or the link / dial-in. */
   location?: string;

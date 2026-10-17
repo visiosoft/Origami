@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Badge, input as INPUT } from '../manpowerUi';
+import type { ActionTrailFields } from '../../api';
 
 export interface Figures {
   value: number | null; ev: number; invoiced: number; retention: number; paid: number; billable: number; overBilled: number;
@@ -123,7 +124,7 @@ export interface ChangeOrderItem {
   id?: string; description: string; targetType: 'phase' | 'task' | 'new_phase' | 'new_task' | 'none'; phaseId?: string | null; taskId?: string | null;
   newName?: string; amount: number | string; cost?: number | string | null; quantity?: number | string | null; unit?: string; rate?: number | string | null; csiCodeId?: string;
 }
-export interface ChangeOrder {
+export interface ChangeOrder extends ActionTrailFields {
   id: string; projectId: number; projectName?: string; number: string; title: string; description?: string; reason: string; requestedBy?: string;
   status: 'draft' | 'internal_review' | 'submitted' | 'approved' | 'rejected' | 'cancelled'; scheduleImpactDays: number; amount: number | null;
   dateRequested?: string; notes?: string; attachments: any[]; items: ChangeOrderItem[]; total: number; cost: number; margin: number;

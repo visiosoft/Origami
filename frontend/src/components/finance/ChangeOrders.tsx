@@ -3,6 +3,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
 import { SavedViews } from '../SavedViews';
+import { ActionMenu, ActionTrail } from '../ActionTools';
 import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import {
@@ -341,6 +342,14 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           {co.status === 'rejected' && rights.editChangeOrders && <div onClick={() => act('reopen')} style={btn()}>Reopen as draft</div>}
         </div>
 
+        <ActionTrail sourceType={co.sourceType} sourceId={co.sourceId} sourceLabel={co.sourceLabel} derived={co.derivedRefs} />
+        {rights.editChangeOrders && (
+          <ActionMenu kind="co" id={co.id} projectId={co.projectId} onMade={() => {
+            // Only the trail changes on this one; keep any edits in progress.
+            api.finance.changeOrder(co.id).then((c: any) => setCo((cur) => (cur ? { ...cur, derivedRefs: c.derivedRefs } : cur))).catch(() => { });
+            onChanged();
+          }} />
+        )}
         <Attachments scope="finance-change-orders" taskId={co.id} attachments={co.attachments || []} canManage={rights.editChangeOrders} storageReady={storageReady}
           onUpload={async (files) => { await api.finance.coUpload(co.id, files); load(); }}
           onRemove={async (att) => { await api.finance.coRemoveAttachment(co.id, att.id); load(); }}

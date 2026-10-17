@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createdByText } from '../data/projectTasks';
-import { isLogClosed, useLogStatuses } from '../data/logStatuses';
-import { ConvertToRfiButton } from './rfis/Rfis';
+import { useLogStatuses } from '../data/logStatuses';
+import { ActionMenu, ActionTrail } from './ActionTools';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { useApp } from '../AppContext';
 import { isMine, raisedBy } from './TaskScope';
@@ -13,7 +13,7 @@ import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
-import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, logTaskDetails, logTaskTitle, taskHeadline, type Task } from '../data/tasks';
+import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task } from '../data/tasks';
 
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
@@ -78,6 +78,14 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   };
   const lt = getLeadTime(t);
 
+  // After a duplicate or conversion: its history and links now say so.
+  const refreshTrail = () => {
+    api.tasks.get(t.id).then((row: any) => {
+      if (!row?.id) return;
+      setT((cur) => ({ ...cur, activity: row.activity, derivedRefs: row.derivedRefs, linkedTaskIds: row.linkedTaskIds, changeOrderIds: row.changeOrderIds }));
+      onChanged?.(row);
+    }).catch(() => { });
+  };
   return (
     <div onClick={() => onClose()} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 760, maxWidth: '95vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
@@ -99,6 +107,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             <input value={t.subject || ''} disabled={!canManage} onChange={(e) => set({ subject: e.target.value })} placeholder={taskHeadline(t.description).title || 'Subject'} aria-label="Subject"
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
+            <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
           <div onClick={() => onClose()} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)', marginLeft: 16, flexShrink: 0 }}>
             <svg width={15} height={15} viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--muted)' }} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
@@ -256,9 +265,13 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           />
         </div>
 
+        {canManage && (
+          <div style={{ padding: '0 28px 14px' }}>
+            <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} onMade={refreshTrail} />
+          </div>
+        )}
         {canDelete && (
           <div style={{ padding: '0 28px 26px' }}>
-            {!isLogClosed(t.status) && <ConvertToRfiButton source={{ taskId: t.id, type: 'log', project: t.project, title: logTaskTitle(t), description: logTaskDetails(t) || t.description }} />}
             <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
           </div>
         )}

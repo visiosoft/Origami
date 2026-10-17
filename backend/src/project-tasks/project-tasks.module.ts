@@ -18,6 +18,6 @@ import { SettingsModule } from '../settings/settings.module';
   imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity]), GoogleModule, AuthModule],
   controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController],
   providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService],
-  exports: [ProjectHoldService],
+  exports: [ProjectHoldService, ProjectTasksService, SectionsService],
 })
 export class ProjectTasksModule {}

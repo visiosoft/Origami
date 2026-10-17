@@ -2,8 +2,9 @@ import { isLogClosed } from './logStatuses';
 // Tasks fixtures + lead-time logic ported from the Origami v4 prototype (getAllTasks / getLeadTime).
 
 import type { Attachment, TaskComment, ActivityEvent, ChecklistItem } from './projectTasks';
+import type { ActionTrailFields } from '../api';
 
-export interface Task {
+export interface Task extends ActionTrailFields {
   id: string;
   /** People following the task without owning it ("Collaborative"). */
   collaborators?: { id: string; name: string }[];

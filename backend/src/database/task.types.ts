@@ -47,6 +47,20 @@ export interface ActivityEvent {
   at: string;                 // ISO timestamp
 }
 
+/** The kinds of special action that can be duplicated or converted into one another. */
+export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
+
+/** Something made from this record: "Converted to CO-003", "Duplicated to Chelliah as RFI-007". */
+export interface DerivedRef {
+  kind: ActionKind;
+  id: string;
+  label: string;
+  how: 'converted' | 'duplicated';
+  projectName?: string;
+  by: string;
+  at: string;
+}
+
 /** Statuses for project (board) tasks. Kept in sync with the `completed` flag. */
 export const TASK_STATUSES = ['Not started', 'In progress', 'On hold', 'Done'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
