@@ -12,6 +12,7 @@ import { People } from './pages/People';
 import { Tasks } from './pages/Tasks';
 import { SuperintendentTasks, isSiteSuper } from './pages/SuperintendentHome';
 import { ModuleSpec } from './pages/ModuleSpec';
+import { ProgressPhotos } from './pages/ProgressPhotos';
 import { PublicPage } from './pages/PublicPage';
 import { HoldingReferOut } from './pages/HoldingReferOut';
 import { Observations } from './pages/Observations';
@@ -132,6 +133,7 @@ export default function App() {
         <Route path="/approvals" element={<Approvals />} />
         <Route path="/actions_design" element={<SpecialActions key="design" phase="design" />} />
         <Route path="/actions_con" element={<SpecialActions key="construction" phase="construction" />} />
+        <Route path="/progress_photos" element={<ProgressPhotos />} />
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>

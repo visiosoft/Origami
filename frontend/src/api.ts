@@ -601,6 +601,24 @@ export const api = {
       location?: string; attendees?: string[]; video?: boolean;
     }) => request<{ id: string; htmlLink: string; meetLink?: string }>('/scheduling/events', { method: 'POST', body: JSON.stringify(payload) }),
   },
+  /** Construction -> Progress Photos: a project's photos by track and category (files live in its File Room). */
+  progressPhotos: {
+    categories: () => request<import('./data/progressPhotos').PhotoCategories>('/progress-photos/categories'),
+    list: (projectId: number) => request<{ photos: import('./data/progressPhotos').ProgressPhoto[]; unsorted: import('./data/progressPhotos').UnsortedPhoto[] }>(`/progress-photos?projectId=${projectId}`),
+    upload: (projectId: number, files: File[], meta: Record<string, unknown>, dates: string[]) => {
+      const form = new FormData();
+      form.append('projectId', String(projectId));
+      form.append('meta', JSON.stringify(meta));
+      form.append('dates', JSON.stringify(dates));
+      files.forEach((f) => form.append('files', f, f.name));
+      return requestForm<{ uploaded: number }>('/progress-photos/upload', form);
+    },
+    classify: (fileIds: string[], meta: Record<string, unknown>) => request<{ sorted: number }>('/progress-photos/classify', { method: 'POST', body: JSON.stringify({ fileIds, meta }) }),
+    update: (id: string, d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressPhoto>(`/progress-photos/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/progress-photos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** The photo itself (thumb: Drive's small version; download: as a file). */
+    url: (id: string, opts: { thumb?: boolean; download?: boolean } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? '?thumb=1' : opts.download ? '?download=1' : ''}`,
+  },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
     upload: (projectId: number, path: string[], files: File[] | FileList) => {

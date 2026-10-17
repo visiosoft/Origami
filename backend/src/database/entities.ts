@@ -835,6 +835,27 @@ export class AppSettingEntity {
  * row holds where it sits in the folder tree and which version group it belongs
  * to. `folderPath` excludes the project itself — ['Drawings & Plans', 'Rev 4'].
  */
+
+/** What a progress photo shows: its track, category, area, date taken and caption. The file is the File Room file with this id. */
+@Entity('progress_photos')
+@Index('IX_progress_photos_project', ['projectId'])
+export class ProgressPhotoEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** construction | design */
+  @Column({ default: 'construction' }) track!: string;
+  @Column() category!: string;
+  @Column({ nullable: true }) area!: string;
+  @Column() takenOn!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) caption!: string;
+  @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
+  /** Shown to the project's client (otherwise staff only). */
+  @Column({ default: false }) clientVisible!: boolean;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
 @Entity('file_room_files')
 export class FileRoomFileEntity {
   @PrimaryColumn() id!: string;

@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18c',
+    date: '2026-10-18',
+    title: 'Progress Photos',
+    items: [
+      { area: 'Progress Photos', kind: 'new', text: 'Every project’s photos by stage: Construction (existing conditions, framing, rough plumbing / electrical / HVAC, insulation, drywall, finishes, inspections, punch list, completion…) and Design (site survey, inspiration, sketches, drawings, renderings, samples, selections…). See them on a timeline by week, by category, or two dates side by side.', where: 'Construction → Progress Photos' },
+      { area: 'Progress Photos', kind: 'new', text: 'Add photos (up to 20 at once; on a phone it opens the camera). Each keeps the date it was taken from the camera. Give a category, area or room and caption, and tick “Client can see” to share it with the client.', where: 'Progress Photos → + Add photos' },
+      { area: 'Progress Photos', kind: 'new', text: '“Before it’s covered up” shows which framing, rough-in and insulation photos exist and which are still missing. Photos already in the File Room (including daily-report uploads) appear under Unsorted to be given a category.', where: 'Progress Photos' },
+    ],
+  },
+  {
     id: '2026-10-18b',
     date: '2026-10-18',
     title: 'Completed tasks always in Done, and Close task',
