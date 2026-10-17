@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../theme';
 import './TaskBoard.css';
-import { createdByOf } from '../data/projectTasks';
+import { createdByOf, PRIORITY_ORDER } from '../data/projectTasks';
+import { SavedViews } from './SavedViews';
+import { SortHeader, sortFromString, sortRows, sortToString, type SortState } from './SortHeader';
 import { ConvertToRfiButton } from './rfis/Rfis';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { DraftScope, SaveBar } from '../autosave';
@@ -24,7 +26,7 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker, LabelChip } from './LabelPicker';
-import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from './TaskScope';
+import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
 
@@ -96,6 +98,13 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
   // Phase tasks belong to the project's delivery programme and have their own
   // board; keep them out of here unless asked for.
   const [showPhaseTasks, setShowPhaseTasks] = useState(false);
+  // List view: sorted within each section (null keeps the board's own order).
+  const [listSort, setListSort] = useState<SortState | null>(null);
+  const toggleListSort = (k: string) => setListSort((s) => (s?.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'asc' }));
+  const LIST_BY: Record<string, (t: ProjectTask) => string | number | null | undefined> = {
+    name: (t) => t.title, due: (t) => t.dueDate, who: (t) => t.assignee, status: (t) => statusLabel(t.status),
+    priority: (t) => (t.priority ? PRIORITY_ORDER.indexOf(t.priority) : null),
+  };
   const loadedProject = useRef<number | null>(null);
 
   const load = () => {
@@ -546,9 +555,11 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--c-9aa39d)' }}>
         <span style={{ width: 12, flexShrink: 0 }} />
         <span style={{ width: 13, flexShrink: 0 }} />
-        <span style={{ flex: 1 }}>Name</span>
-        <span style={{ width: 76, flexShrink: 0, textAlign: 'right' }}>Due</span>
-        <span style={{ width: 26, flexShrink: 0, textAlign: 'right' }}>Who</span>
+        <span style={{ flex: 1 }}><SortHeader k="name" sort={listSort} onSort={toggleListSort}>Name</SortHeader>
+          <span style={{ marginLeft: 14 }}><SortHeader k="priority" sort={listSort} onSort={toggleListSort}>Priority</SortHeader></span>
+          <span style={{ marginLeft: 14 }}><SortHeader k="status" sort={listSort} onSort={toggleListSort}>Status</SortHeader></span></span>
+        <span style={{ width: 76, flexShrink: 0, textAlign: 'right' }}><SortHeader k="due" sort={listSort} onSort={toggleListSort} align="right">Due</SortHeader></span>
+        <span style={{ width: 58, flexShrink: 0, textAlign: 'right' }}><SortHeader k="who" sort={listSort} onSort={toggleListSort} align="right">Who</SortHeader></span>
       </div>
 
       {sections.map((sec) => {
@@ -560,7 +571,7 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
             </div>
             <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflow: 'hidden' }}>
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
-              {secTasks.map((t) => listRow(t, 0))}
+              {sortRows(secTasks, LIST_BY, listSort).map((t) => listRow(t, 0))}
               {canManage && (addingIn === sec.id ? (
                 <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>
                   <input
@@ -815,6 +826,13 @@ export function TaskBoard({ projectId, initialTaskId }: { projectId: number | nu
         )}
         <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
       </div>
+      {!restricted && (
+        <div style={{ marginBottom: 14 }}>
+          <SavedViews page="tasks.board" value={{ query, scope, person, showArchived, showPhaseTasks, sort: sortToString(listSort) }}
+            defaults={{ query: '', scope: 'all', person: '', showArchived: false, showPhaseTasks: false, sort: '' }}
+            onApply={(v) => { setQuery(String(v.query || '')); setScope(v.scope as TaskScopeKind); setPerson(String(v.person || '')); setShowArchived(!!v.showArchived); setShowPhaseTasks(!!v.showPhaseTasks); setListSort(sortFromString(v.sort)); }} />
+        </div>
+      )}
 
       {view === 'board' ? boardView : view === 'list' ? listView : view === 'timeline' ? timelineView : dashboardView}
 

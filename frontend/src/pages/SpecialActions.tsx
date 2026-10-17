@@ -6,6 +6,8 @@ import { isForRecord, logTaskTitle, type Task } from '../data/tasks';
 import { isPlanned, meetingStatus, meetingStatusInfo, locationTypeInfo } from '../data/meetings';
 import { raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
+import { SavedViews } from '../components/SavedViews';
+import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 
 export type Phase = 'design' | 'construction';
 type Kind = 'all' | 'meeting' | 'rfi' | 'task' | 'obs' | 'co';
@@ -27,6 +29,11 @@ const norm = (s?: string) => (s || '').trim().toLowerCase();
  * every RFI, task, observation / FYI and change order on that phase's projects
  * in one list, open ones first. Each row opens the real record.
  */
+/** "Open first" keeps the page's own order: open, then overdue, then newest. */
+const SORTS = [
+  { key: 'default', dir: 'asc' as const, label: 'Open first' }, { key: 'date', dir: 'desc' as const, label: 'Newest first' }, { key: 'date', dir: 'asc' as const, label: 'Oldest first' },
+  { key: 'title', dir: 'asc' as const, label: 'A–Z' }, { key: 'project', dir: 'asc' as const, label: 'Project' }, { key: 'kind', dir: 'asc' as const, label: 'Type' },
+];
 export function SpecialActions({ phase }: { phase: Phase }) {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<{ id: number; name: string }[] | null>(null);
@@ -113,6 +120,8 @@ export function SpecialActions({ phase }: { phase: Phase }) {
   const shown = scope.filter((i) => (kind === 'all' || i.kind === kind) && (!openOnly || i.open) && (!needle || `${i.title} ${i.sub}`.toLowerCase().includes(needle)));
   const overdue = scope.filter((i) => i.overdue).length;
   const loading = !projects || loaded < 4;
+  const { sorted, sort, setSort } = useSort(shown, { date: (i) => i.date, title: (i) => i.title, project: (i) => i.project, kind: (i) => KIND_LABEL[i.kind] });
+  const viewValue = { kind, openOnly, project, q, sort: sortToString(sort) };
 
   return (
     <AkPage lead={<>{PHASE_TEXT[phase]} Open items first; click one to open it. {projects && <b style={{ color: 'var(--body)' }}>{projects.length} {projects.length === 1 ? 'project' : 'projects'} in this phase.</b>}</>}>
@@ -133,12 +142,15 @@ export function SpecialActions({ phase }: { phase: Phase }) {
           {(projects || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" />
+        <SortSelect className="ak-select" value={sort} onChange={setSort} options={SORTS} />
       </div>
+      <SavedViews page={`special-actions.${phase}`} value={viewValue} defaults={{ kind: 'all', openOnly: true, project: '', q: '', sort: '' }}
+        onApply={(v) => { setKind(v.kind as Kind); setOpenOnly(!!v.openOnly); setProject(v.project === '' ? '' : Number(v.project)); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
         {loading && <div className="ak-empty">Loading…</div>}
         {!loading && !shown.length && <div className="ak-empty">{projects?.length ? (openOnly ? 'Nothing open here.' : 'Nothing here yet.') : 'No projects are in this phase right now.'}</div>}
-        {!loading && shown.map((i, n) => (
+        {!loading && sorted.map((i, n) => (
           <AkRow key={i.key} index={n} muted={!i.open} onClick={() => navigate(i.to)}
             lead={<AkDate iso={i.date} />}
             title={i.title} sub={i.sub}

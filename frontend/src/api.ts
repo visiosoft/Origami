@@ -1,5 +1,8 @@
 const API_BASE = '/api';
 
+/** A saved filter set on a list page (Saved views). */
+export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
+
 /** One email of File Room files: what went to whom, when, from whom. */
 export type FileShare = { id: string; projectId: number | null; files: { id: string; name: string; folderPath?: string[] }[]; to: string; note?: string | null; sentByName: string; sentAt: string };
 
@@ -173,6 +176,12 @@ export const api = {
     forgotPassword: (email: string) =>
       request<{ ok: boolean; reason?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
     googleLoginUrl: () => `${API_BASE}/google/login`,
+  },
+  /** The caller's own saved filter sets, per list page. */
+  views: {
+    list: (page: string) => request<SavedView[]>(`/views?page=${encodeURIComponent(page)}`),
+    save: (page: string, name: string, filters: Record<string, unknown>) => request<SavedView>('/views', { method: 'POST', body: JSON.stringify({ page, name, filters }) }),
+    remove: (id: string) => request(`/views/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
   settings: {
     get: () => request<Record<string, string>>('/settings'),

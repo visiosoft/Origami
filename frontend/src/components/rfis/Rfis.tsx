@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
+import { SavedViews } from '../SavedViews';
+import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { useApp } from '../../AppContext';
 import { SaveBar, useAutosave } from '../../autosave';
 import { AssigneePicker } from '../AssigneePicker';
@@ -102,6 +104,14 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
       .filter((r) => status === 'all' ? true : status === 'active' ? r.status !== 'closed' && r.status !== 'void' : r.status === status)
       .filter((r) => !t || [r.number, r.subject, r.to?.name, r.to?.company, r.projectName, r.drawingRef, r.discipline].some((x) => (x || '').toLowerCase().includes(t)));
   }, [rows, status, q]);
+  const { sorted, sort, setSort, toggle } = useSort(shown, {
+    number: (r) => r.number, subject: (r) => r.subject, project: (r) => r.projectName, to: (r) => r.to?.name, status: (r) => RFI_STATUS[r.status]?.label || r.status,
+    sent: (r) => r.dateSent, due: (r) => r.dateDue, days: (r) => daysOpen(r), ball: (r) => r.ballInCourt,
+  }, null, { sent: 'desc', due: 'asc', days: 'desc' });
+  const viewValue = { status, q, sort: sortToString(sort) };
+  const applyView = (v: typeof viewValue) => {
+    setStatus(v.status as typeof status); setQ(v.q || ''); setSort(sortFromString(v.sort));
+  };
   const counts = useMemo(() => ({
     open: rows.filter((r) => r.status === 'open').length,
     overdue: rows.filter(isOverdue).length,
@@ -148,6 +158,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
         </select>
         {rights?.manage && <button type="button" onClick={() => setCreating(true)} style={btn(true)}>+ New RFI</button>}
       </div>
+      <div style={{ marginBottom: 12 }}><SavedViews page={projectId ? 'rfis.project' : 'rfis'} value={viewValue} defaults={{ status: 'active', q: '', sort: '' }} onApply={applyView} /></div>
 
       {creating && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12, background: 'var(--panel)', borderRadius: 'var(--r-12)', marginBottom: 12 }}>
@@ -176,13 +187,13 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 760 }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: MUTED, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {['No.', 'Subject', ...(projectId ? [] : ['Project']), 'To', 'Status', 'Sent', 'Due', 'Days', 'Ball in court', 'Impact'].map((h) => (
-                    <th key={h} style={{ padding: '10px 12px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
+                  {([['number', 'No.'], ['subject', 'Subject'], ...(projectId ? [] : [['project', 'Project']]), ['to', 'To'], ['status', 'Status'], ['sent', 'Sent'], ['due', 'Due'], ['days', 'Days'], ['ball', 'Ball in court'], ['', 'Impact']] as [string, string][]).map(([k, h]) => (
+                    <th key={h} style={{ padding: '10px 12px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', fontWeight: 700, whiteSpace: 'nowrap' }}>{k ? <SortHeader k={k} sort={sort} onSort={toggle}>{h}</SortHeader> : h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {shown.map((r) => {
+                {sorted.map((r) => {
                   const d = daysOpen(r);
                   return (
                     <tr key={r.id} onClick={() => setOpenRfi(r.id)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(var(--rgb-shade), 0.05)' }}

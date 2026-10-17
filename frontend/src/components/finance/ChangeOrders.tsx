@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
+import { SavedViews } from '../SavedViews';
+import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import {
   ApprovalTrail, CO_REASONS, CoBadge, ReasonBox, failed, label, usd, usd0,
@@ -54,6 +56,11 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
 
   const shown = (rows || []).filter((c) => (status === 'all' || (status === 'pending' ? ['draft', 'internal_review'].includes(c.status) : c.status === status))
     && (!q || `${c.number} ${c.title} ${c.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
+  const { sorted, sort, setSort, toggle } = useSort(shown, {
+    number: (c) => c.number, project: (c) => c.projectName, title: (c) => c.title, reason: (c) => label(CO_REASONS, c.reason), amount: (c) => c.total,
+    requested: (c) => c.dateRequested, days: (c) => c.scheduleImpactDays, status: (c) => c.status,
+  }, null, { amount: 'desc', requested: 'desc', days: 'desc' });
+  const viewValue = { status, q, sort: sortToString(sort) };
   const sum = (pred: (c: ChangeOrder) => boolean) => (rows || []).filter(pred).reduce((a, c) => a + (c.total || 0), 0);
   const cols = projectId ? '90px minmax(200px,2fr) 150px 120px 120px 90px 130px' : '90px minmax(160px,1.4fr) minmax(200px,2fr) 150px 120px 120px 90px 130px';
 
@@ -91,6 +98,8 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
         <div style={{ flex: 1 }} />
         {rights.editChangeOrders && <div onClick={() => setAdding(true)} style={btn(true)}>+ Change order</div>}
       </div>
+      <SavedViews page={projectId ? 'changeorders.project' : 'changeorders'} value={viewValue} defaults={{ status: 'all', q: '', sort: '' }}
+        onApply={(v) => { setStatus(String(v.status)); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
       {adding && (
         <ReasonBox title="New change order" confirm="Create" onCancel={() => setAdding(false)} onSubmit={create}
           fields={[
@@ -104,11 +113,14 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: projectId ? 880 : 1060 }}>
             <div style={headRow(cols)}>
-              <span>No.</span>{!projectId && <span>Project</span>}<span>Title</span><span>Reason</span><span style={{ textAlign: 'right' }}>Amount</span>
-              <span>Requested</span><span style={{ textAlign: 'right' }}>Days</span><span>Status</span>
+              <SortHeader k="number" sort={sort} onSort={toggle}>No.</SortHeader>{!projectId && <SortHeader k="project" sort={sort} onSort={toggle}>Project</SortHeader>}
+              <SortHeader k="title" sort={sort} onSort={toggle}>Title</SortHeader><SortHeader k="reason" sort={sort} onSort={toggle}>Reason</SortHeader>
+              <SortHeader k="amount" sort={sort} onSort={toggle} align="right">Amount</SortHeader>
+              <SortHeader k="requested" sort={sort} onSort={toggle}>Requested</SortHeader><SortHeader k="days" sort={sort} onSort={toggle} align="right">Days</SortHeader>
+              <SortHeader k="status" sort={sort} onSort={toggle}>Status</SortHeader>
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {shown.map((c) => (
+            {sorted.map((c) => (
               <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: c.status === 'cancelled' ? 0.55 : 1 }}>
                 <b style={{ color: ACCENT }}>{c.number}</b>
                 {!projectId && <span style={{ color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.projectName}</span>}

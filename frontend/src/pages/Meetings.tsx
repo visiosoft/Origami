@@ -12,6 +12,8 @@ import {
 } from '../data/meetings';
 import { RECORD_TONE, draftChangeOrder, raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
+import { SavedViews } from '../components/SavedViews';
+import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 
 type View = 'upcoming' | 'past' | 'all';
@@ -96,6 +98,8 @@ export function Meetings() {
       && (!project || i.project === project)
       && (!needle || [i.title, i.type, i.project, i.meeting?.location, ...(i.meeting?.attendees || []).map((a) => a.name)].filter(Boolean).join(' ').toLowerCase().includes(needle)))
     .sort((a, b) => (view === 'upcoming' ? `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`) : `${b.date}${b.time || ''}`.localeCompare(`${a.date}${a.time || ''}`)));
+  const { sorted, sort, setSort } = useSort(shown, { date: (i) => `${i.date}${i.time || ''}`, title: (i) => i.title, project: (i) => i.project, type: (i) => i.type });
+  const viewValue = { view, status, where, project, q, sort: sortToString(sort) };
   const upcoming = items.filter(isUpcoming).sort((a, b) => `${a.date}${a.time || ''}`.localeCompare(`${b.date}${b.time || ''}`));
   const reviewCount = real.filter(toReview).length;
   const weekStart = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
@@ -128,6 +132,10 @@ export function Meetings() {
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, project, attendee…" />
+        <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
+          { key: 'default', dir: 'asc', label: view === 'upcoming' ? 'Soonest first' : 'Newest first' }, { key: 'date', dir: 'desc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' },
+          { key: 'title', dir: 'asc', label: 'A–Z' }, { key: 'project', dir: 'asc', label: 'Project' }, { key: 'type', dir: 'asc', label: 'Meeting type' },
+        ]} />
       </div>
       <div className="ak-tools">
         <AkSeg<StatusFilter> value={status} onChange={pickStatus}
@@ -135,6 +143,8 @@ export function Meetings() {
         <AkSeg<WhereFilter> value={where} onChange={setWhere}
           options={[['all', 'Any way'], ...MEETING_LOCATION_TYPES.map((l) => [l.key, l.short, real.filter((i) => i.meeting?.locationType === l.key).length] as [WhereFilter, string, number])]} />
       </div>
+      <SavedViews page="meetings" value={viewValue} defaults={{ view: 'upcoming', status: 'all', where: 'all', project: '', q: '', sort: '' }}
+        onApply={(v) => { setView(v.view as View); setStatus(v.status as StatusFilter); setWhere(v.where as WhereFilter); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
         {meetings === null && <div className="ak-empty">Loading…</div>}
@@ -144,7 +154,7 @@ export function Meetings() {
             {canEdit && <> <button type="button" className="ak-link" onClick={() => setOpenKey('new')}>Schedule one</button></>}
           </div>
         )}
-        {shown.map((i, n) => {
+        {sorted.map((i, n) => {
           const acts = i.actions.filter((t) => !isForRecord(t));
           const open = acts.filter((t) => !isLogClosed(t.status)).length;
           const rec = i.actions.length - acts.length;

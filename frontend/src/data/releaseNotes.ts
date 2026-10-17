@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17a',
+    date: '2026-10-17',
+    title: 'Saved views, Clear all filters and sortable lists',
+    items: [
+      { area: 'Lists', kind: 'new', text: 'Set the filters you want, then “+ Save view” to keep them under a name. Views are yours alone and follow you to any device; click one to apply it, × to delete it. “Clear all filters” puts the list back to normal.', where: 'Tasks (board and Request Log), Special Actions, Meetings, FOR RECORD, RFI, Change Orders' },
+      { area: 'Lists', kind: 'new', text: 'Click a column heading to sort by it — A–Z, newest / oldest, low / high — and again to reverse. Lists without headings have a “Sort” menu. The sort is saved with a view.', where: 'RFI, Change Orders, Request Log, task List view; Sort menu on Special Actions, Meetings, FOR RECORD and Approvals' },
+    ],
+  },
+  {
     id: '2026-10-16b',
     date: '2026-10-16',
     title: 'Save & close, one Special Actions menu, Approvals, and receipt numbers',

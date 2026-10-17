@@ -5,11 +5,13 @@ import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { Avatar } from '../components/Avatar';
-import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine } from '../components/TaskScope';
+import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope } from '../components/TaskScope';
 import { TaskBoard } from '../components/TaskBoard';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
 import { TT_COLORS, logTaskTitle, type Task, type TaskTab } from '../data/tasks';
+import { SavedViews } from '../components/SavedViews';
+import { SortHeader, sortFromString, sortToString, useSort } from '../components/SortHeader';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
@@ -120,6 +122,10 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const inTab = byProject(logTasks.filter((x) => (x as any).tab === tab));
   const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: [t.subject, t.description].filter(Boolean).join(' ') }, query));
   const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
+  const { sorted, sort, setSort, toggle } = useSort(tasks, {
+    id: (t) => t.id, type: (t) => t.topicType, subject: (t) => logTaskTitle(t), status: (t) => t.status, who: (t) => t.assignedTo, date: (t) => t.meetingDate, due: (t) => t.dueDate,
+  }, null, { date: 'desc' });
+  const viewValue = { tab, pf, query, scope, person, sort: sortToString(sort) };
 
   const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
 
@@ -182,15 +188,21 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         {canManage && <div onClick={openNew} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 600, background: 'var(--forest)', color: 'white', cursor: 'pointer', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>+ New Task</div>}
       </div>
 
+      {!restricted && (
+        <div style={{ marginBottom: 12 }}>
+          <SavedViews page="tasks.log" value={viewValue} defaults={{ tab: 'internal', pf: 'All projects', query: '', scope: 'all', person: '', sort: '' }}
+            onApply={(v) => { setTab(v.tab as TaskTab); setPf(String(v.pf || 'All projects')); setQuery(String(v.query || '')); setScope(v.scope as TaskScope); setPerson(String(v.person || '')); setSort(sortFromString(v.sort)); }} />
+        </div>
+      )}
       {/* Table */}
       <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflowX: 'auto' }}>
         <div style={{ display: 'grid', gridTemplateColumns: COLS, padding: '12px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', gap: 10, fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 760 }}>
-          <span>Task #</span><span>Type</span><span>Subject</span><span>Status</span><span>Assigned To</span><span>Date</span><span>Due</span>
+          {([['id', 'Task #'], ['type', 'Type'], ['subject', 'Subject'], ['status', 'Status'], ['who', 'Assigned To'], ['date', 'Date'], ['due', 'Due']] as [string, string][]).map(([k, h]) => <SortHeader key={k} k={k} sort={sort} onSort={toggle}>{h}</SortHeader>)}
         </div>
         {tasks.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No tasks in this category.</div>
         ) : (
-          tasks.map((t) => {
+          sorted.map((t) => {
             const sc = logStatusTone(t.status);
             const tc = TT_COLORS[t.topicType];
             const assignedUser = users.find((u) => (t.assignedToId && u.id === t.assignedToId) || u.name === t.assignedTo);

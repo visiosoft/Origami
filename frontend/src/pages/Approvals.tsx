@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats } from '../components/ActionKit';
+import { SortSelect, useSort } from '../components/SortHeader';
 
 /** One thing waiting on a decision, from whichever module holds it. */
 interface Waiting {
@@ -79,6 +80,7 @@ export function Approvals() {
   const shown = scoped.filter((r) => kind === 'all' || r.kind === kind);
   const kinds = (Object.keys(KIND) as Kind[]).filter((k) => scoped.some((r) => r.kind === k));
   const oldest = scoped[0]?.since;
+  const { sorted, sort, setSort } = useSort(shown, { since: (r) => r.since, title: (r) => r.title, amount: (r) => r.amount, kind: (r) => KIND[r.kind] });
 
   return (
     <AkPage lead="Everything waiting on a decision — change orders, reimbursements and other finance items, daily reports, timesheets and workforce requests. Open one to approve it where it lives.">
@@ -93,12 +95,16 @@ export function Approvals() {
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--muted)' }}>
           <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} />Only what I can decide
         </label>
+        <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
+          { key: 'default', dir: 'asc', label: 'Waiting longest' }, { key: 'since', dir: 'desc', label: 'Newest first' }, { key: 'amount', dir: 'desc', label: 'Largest amount' },
+          { key: 'title', dir: 'asc', label: 'A–Z' }, { key: 'kind', dir: 'asc', label: 'Type' },
+        ]} />
       </div>
 
       <section className="ak-card">
         {rows === null && <div className="ak-empty">Loading…</div>}
         {rows && !shown.length && <div className="ak-empty">Nothing is waiting{mine ? ' on you' : ''}.</div>}
-        {shown.map((r, i) => (
+        {sorted.map((r, i) => (
           <AkRow key={r.key} index={i} onClick={() => navigate(r.to)}
             lead={<AkDate iso={r.since ? String(r.since).slice(0, 10) : undefined} />}
             title={r.title}

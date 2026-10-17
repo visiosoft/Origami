@@ -7,6 +7,8 @@ import { isLogClosed } from '../data/logStatuses';
 import { FOR_RECORD_TOPICS, isForRecord, logTaskTitle, type Task } from '../data/tasks';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay } from '../components/ActionKit';
+import { SavedViews } from '../components/SavedViews';
+import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 
 type Kind = 'all' | (typeof FOR_RECORD_TOPICS)[number];
@@ -60,6 +62,8 @@ export function Observations() {
     .filter((t) => (state === 'all' || (state === 'open' ? !isLogClosed(t.status) : isLogClosed(t.status)))
       && (!needle || [t.subject, t.description, t.project, t.assignedTo, t.originator].filter(Boolean).join(' ').toLowerCase().includes(needle)))
     .sort((a, b) => String(raisedOn(b) || '').localeCompare(String(raisedOn(a) || '')));
+  const { sorted, sort, setSort } = useSort(shown, { date: (t) => raisedOn(t), title: (t) => t.subject, project: (t) => t.project, kind: (t) => t.topicType, due: (t) => t.dueDate });
+  const viewValue = { kind, state, project, q, sort: sortToString(sort) };
   const open = all.filter((t) => !isLogClosed(t.status));
   const linked = all.filter((t) => (t.linkedTaskIds?.length || 0) + (t.changeOrderIds?.length || 0) > 0).length;
   const count = (k: string) => all.filter((t) => t.topicType === k).length;
@@ -94,7 +98,13 @@ export function Observations() {
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" />
+        <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
+          { key: 'default', dir: 'asc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' }, { key: 'title', dir: 'asc', label: 'A–Z' },
+          { key: 'project', dir: 'asc', label: 'Project' }, { key: 'kind', dir: 'asc', label: 'Type' }, { key: 'due', dir: 'asc', label: 'Due soonest' },
+        ]} />
       </div>
+      <SavedViews page="for-record" value={viewValue} defaults={{ kind: 'all', state: 'open', project: '', q: '', sort: '' }}
+        onApply={(v) => { setKind(v.kind as Kind); setState(v.state as 'open' | 'closed' | 'all'); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
         {rows === null && <div className="ak-empty">Loading…</div>}
@@ -104,7 +114,7 @@ export function Observations() {
             {canAdd && !all.length && <> <button type="button" className="ak-link" onClick={() => setCreating('Observation')}>Record the first one</button></>}
           </div>
         )}
-        {shown.map((t, i) => {
+        {sorted.map((t, i) => {
           const nT = t.linkedTaskIds?.length || 0;
           const nC = t.changeOrderIds?.length || 0;
           return (

@@ -502,6 +502,14 @@ export declare class UserEntity {
     calendarEmail: string;
     calendarConnectedAt: string;
 }
+export declare class UserViewEntity {
+    id: string;
+    userId: string;
+    page: string;
+    name: string;
+    filters: Record<string, unknown> | null;
+    createdAt: string;
+}
 export declare class AppSettingEntity {
     key: string;
     value: string;

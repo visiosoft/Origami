@@ -736,6 +736,19 @@ export class UserEntity {
   @Column({ nullable: true }) calendarConnectedAt!: string;
 }
 
+
+/** A person's own saved filter set on a list page ("My overdue RFIs"). Only its owner sees it. */
+@Entity('user_views')
+export class UserViewEntity {
+  @PrimaryColumn() id!: string;
+  @Column() userId!: string;
+  /** Which list: "tasks.board", "rfis", "special-actions" … */
+  @Column() page!: string;
+  @Column() name!: string;
+  @Column({ type: 'simple-json', nullable: true }) filters!: Record<string, unknown> | null;
+  @Column() createdAt!: string;
+}
+
 // Simple key/value store for workspace configuration (Google OAuth credentials,
 // the app base URL, the signing secret …). Secrets are never returned in full.
 @Entity('app_settings')
