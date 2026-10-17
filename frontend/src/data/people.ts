@@ -24,7 +24,22 @@ export interface Person {
   since: string;
   comply: Comply | null;
   last: string;
+  /** Active / Review / Expired (empty = Active). Review comes on its own after 12 months with no activity. */
+  contactStatus?: ContactStatus | null;
+  contactStatusAt?: string | null;
+  contactStatusReason?: string | null;
+  lastActivityAt?: string | null;
 }
+
+export type ContactStatus = 'active' | 'review' | 'expired';
+export const CONTACT_STATUS_LABEL: Record<ContactStatus, string> = { active: 'Active', review: 'Review', expired: 'Expired' };
+export const CONTACT_STATUS_HINT: Record<ContactStatus, string> = {
+  active: 'Current — worked with recently',
+  review: 'Check before using: no activity in 12 months, or flagged by someone',
+  expired: 'No longer current — kept for the record',
+};
+export const contactStatusOf = (p: Pick<Person, 'contactStatus'>): ContactStatus =>
+  p.contactStatus === 'review' || p.contactStatus === 'expired' ? p.contactStatus : 'active';
 
 export const KIND_STYLE: Record<string, { bg: string; c: string }> = {
   Staff: { bg: 'var(--mint)', c: 'var(--forest)' },

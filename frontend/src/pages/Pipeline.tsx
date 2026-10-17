@@ -7,7 +7,7 @@ import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt } from '../data/pipeline';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -1092,6 +1092,16 @@ export function Pipeline() {
     return null;
   };
 
+  const prevStageFor = (deal: Deal) => previousStage(deal.stageIdx, (key) => blockedFor(deal.id, key));
+  /** Move a lead back without dragging; the reason (optional) goes in its timeline. */
+  const moveBack = (deal: Deal, to: { key: string; idx: number; name: string } | null) => {
+    if (!to) return;
+    const reason = window.prompt(`Move “${deal.name}” back to ${to.name}? Add a reason for the timeline (optional).`, '');
+    if (reason === null) return;
+    applyOverride(deal.id, { stage: to.key, stageIdx: to.idx, daysInStage: 0, status: 'in_progress' });
+    if (reason.trim()) logEvent(deal.id, `Moved back to ${to.name}: ${reason.trim()}`);
+  };
+
   const onDrop = (e: React.DragEvent, stageKey: string, stageIdx: number) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
@@ -1292,9 +1302,14 @@ export function Pipeline() {
           <div style={{ padding: '10px 20px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Pipeline Progress</div>
             <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
-              {STAGES.map((s, i) => (
-                <div key={s.key} title={s.name} style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? s.color : 'var(--c-d6e0d7)' }} />
-              ))}
+              {STAGES.map((s, i) => {
+                // An earlier active stage can be clicked to move the lead back to it.
+                const back = i < selected.stageIdx && selected.stageIdx < STAGE_KEYS.length && i < STAGE_KEYS.length && !blockedFor(selected.id, s.key);
+                return (
+                  <div key={s.key} title={back ? `Move back to ${s.name}` : s.name} onClick={back ? () => moveBack(selected, { key: s.key, idx: i, name: s.name }) : undefined}
+                    style={{ flex: 1, height: 6, borderRadius: 3, background: i <= selected.stageIdx ? s.color : 'var(--c-d6e0d7)', cursor: back ? 'pointer' : 'default' }} />
+                );
+              })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--muted)' }}>
               <span>{STAGES[0]?.name}</span>
@@ -2146,12 +2161,17 @@ export function Pipeline() {
           {selectedStage.isDecision ? (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0, background: 'var(--surface)' }}>
               <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 8 }}>PM Decision — Does this project fit?</div>
-              {!rejectChoice ? (
+              {!rejectChoice ? (<>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <div onClick={() => applyOverride(selected.id, { stage: 'site_visit', stageIdx: stageIndex('site_visit'), daysInStage: 0, status: 'in_progress' })} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'var(--success)', color: 'white' }}>✓ Approve — Good Fit</div>
                   <div onClick={() => setRejectChoice('choosing')} style={{ flex: 1, padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>✗ Reject — Not a Fit</div>
                 </div>
-              ) : rejectChoice === 'choosing' ? (
+                {prevStageFor(selected) && (
+                  <div onClick={() => moveBack(selected, prevStageFor(selected))} style={{ marginTop: 8, padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: 'var(--muted)' }}>
+                    ← Back to {prevStageFor(selected)!.name}
+                  </div>
+                )}
+              </>) : rejectChoice === 'choosing' ? (
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>What happened to this lead?</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -2184,6 +2204,12 @@ export function Pipeline() {
                 </div>
               ) : (
                 <div onClick={() => { const next = nextStageFor(selected); if (next) applyOverride(selected.id, { stage: next.key, stageIdx: next.idx, daysInStage: 0, status: 'in_progress' }); }} style={{ flex: '1 1 100%', padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>{nextStageFor(selected) ? 'Move to ' + nextStageFor(selected)!.name : '✓ Complete'}</div>
+              )}
+              {prevStageFor(selected) && selected.stage !== 'referred_monitoring' && (
+                <div onClick={() => moveBack(selected, prevStageFor(selected))} title="Move this lead back a stage"
+                  style={{ flex: '1 1 100%', padding: 8, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--body)' }}>
+                  ← Back to {prevStageFor(selected)!.name}
+                </div>
               )}
               {selected.stageIdx >= stageIndex('client_approval') && !selectedStage.isHold && !selectedStage.isClosed && !selected.convertedProjectId && (
                 <div onClick={() => setConverting(selected)} style={{ flex: '1 1 100%', textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--success)', color: 'white' }}>

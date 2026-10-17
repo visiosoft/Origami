@@ -1,5 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { checklistProgress, type ChecklistItem } from '../data/projectTasks';
+import { api, type ChecklistTemplate } from '../api';
+import { useApp } from '../AppContext';
+
+/** Templates are shared by every checklist on the page; fetched once per visit. */
+let templateCache: Promise<ChecklistTemplate[]> | null = null;
+export const loadChecklistTemplates = (fresh = false) => {
+  if (fresh || !templateCache) templateCache = api.checklistTemplates.list().then((r) => (Array.isArray(r) ? r : [])).catch(() => { templateCache = null; return []; });
+  return templateCache;
+};
+
+/** Items from a template, added unticked with fresh ids. Items already on the list aren't added twice. */
+export function itemsFromTemplate(current: ChecklistItem[], tpl: Pick<ChecklistTemplate, 'items'>, stamp = Date.now().toString(36)): ChecklistItem[] {
+  const have = new Set(current.map((c) => c.item.trim().toLowerCase()));
+  const add = (tpl.items || []).map((x) => x.item.trim()).filter((x) => x && !have.has(x.toLowerCase()));
+  return [...current, ...add.map((item, i) => ({ id: `ci-${stamp}-${i}`, item, done: false }))];
+}
 
 /**
  * A task's checklist with a progress bar — the "Checklist {done}/{total}" block
@@ -14,8 +30,27 @@ export function Checklist({
   canManage: boolean;
   onChange: (next: ChecklistItem[]) => void;
 }) {
+  const { toast } = useApp();
   const [draft, setDraft] = useState('');
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  useEffect(() => { if (canManage) loadChecklistTemplates().then(setTemplates); }, [canManage]);
   const { done, total } = checklistProgress(items);
+  const fromTemplate = (id: string) => {
+    const tpl = templates.find((t) => t.id === id);
+    if (!tpl) return;
+    const next = itemsFromTemplate(items, tpl);
+    if (next.length === items.length) { toast('Everything on that checklist is already here'); return; }
+    onChange(next);
+  };
+  const saveAsTemplate = async () => {
+    const name = (window.prompt('Name this checklist so it can be added to other tasks:') || '').trim();
+    if (!name) return;
+    try {
+      await api.checklistTemplates.save(name, items.map((c) => c.item));
+      setTemplates(await loadChecklistTemplates(true));
+      toast(`Saved “${name}” — add it to any task from “Add from template”`);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not save the template')); }
+  };
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   const add = () => {
@@ -81,6 +116,18 @@ export function Checklist({
             style={{ flex: 1, padding: '7px 9px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 12, fontFamily: 'inherit', outline: 'none' }}
           />
           <div onClick={add} style={{ padding: '7px 14px', borderRadius: 999, background: 'var(--mist)', color: 'var(--forest)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Add</div>
+        </div>
+      )}
+      {canManage && (templates.length > 0 || items.length > 0) && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {templates.length > 0 && (
+            <select aria-label="Add from template" value="" onChange={(e) => fromTemplate(e.target.value)}
+              style={{ padding: '5px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', color: 'var(--body)', fontSize: 11.5, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+              <option value="">Add from template ▾</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.items.length})</option>)}
+            </select>
+          )}
+          {items.length > 0 && <button type="button" onClick={saveAsTemplate} style={{ all: 'unset', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: 'var(--muted)' }}>Save as template</button>}
         </div>
       )}
     </div>

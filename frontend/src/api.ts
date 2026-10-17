@@ -10,6 +10,9 @@ export interface DerivedRef { kind: ActionKind; id: string; label: string; how: 
 /** Where a record came from, and what was made from it (duplicate / convert). */
 export interface ActionTrailFields { sourceType?: string | null; sourceId?: string | null; sourceLabel?: string | null; derivedRefs?: DerivedRef[] | null }
 
+/** A checklist made in advance ("Pre-pour inspection"). */
+export interface ChecklistTemplate { id: string; name: string; items: { item: string }[]; createdById?: string; createdByName?: string; createdAt: string }
+
 /** A saved filter set on a list page (Saved views). */
 export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
 
@@ -193,6 +196,13 @@ export const api = {
       request<{ created: MadeAction[]; failed: { projectId: number | null; projectName: string; reason: string }[] }>('/special-actions/duplicate', { method: 'POST', body: JSON.stringify(d) }),
     convert: (d: { from: { kind: ActionKind; id: string }; to: ActionKind; topicType?: string; projectId?: number | null; title?: string; body?: string }) =>
       request<MadeAction>('/special-actions/convert', { method: 'POST', body: JSON.stringify(d) }),
+  },
+  /** Checklists made in advance and added to tasks. */
+  checklistTemplates: {
+    list: () => request<ChecklistTemplate[]>('/checklist-templates'),
+    save: (name: string, items: string[]) => request<ChecklistTemplate>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items }) }),
+    update: (id: string, d: { name?: string; items?: string[] }) => request<ChecklistTemplate>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
   /** The caller's own saved filter sets, per list page. */
   views: {

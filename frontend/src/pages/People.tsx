@@ -14,6 +14,7 @@ import { PersonProfileEditor } from '../components/PersonProfileEditor';
 import { normalizeProfile, personDisplayName, missingFields, type PersonProfile } from '../data/personProfile';
 import {
   KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, INTERNAL_LEVELS, initials, internalLevelOf, levelFromRole, type Person, type Comply,
+  CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus,
 } from '../data/people';
 
 const BG = 'var(--font-display)';
@@ -92,6 +93,8 @@ export function People() {
   const [view, setView] = useState<'cards' | 'table' | 'company'>(() => (getTheme() === 'coterie' ? 'table' : 'cards'));
   const [q, setQ] = useState('');
   const [onlyAlerts, setOnlyAlerts] = useState(false);
+  // Contact status: Active / Review / Expired ('' = everyone).
+  const [sf, setSf] = useState<'' | ContactStatus>('');
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [contactGroup, setContactGroup] = useState<'company' | 'project'>('company');
   const [projOpen, setProjOpen] = useState(false);
@@ -125,6 +128,8 @@ export function People() {
   let shown = all.filter((p) => matchKind(p, kf));
   if (pf !== 'All projects') shown = shown.filter((p) => p.projects.includes(pf));
   if (onlyAlerts) shown = shown.filter((p) => p.comply && !p.comply.ok);
+  if (sf) shown = shown.filter((p) => contactStatusOf(p) === sf);
+  const statusCount = (st: ContactStatus) => all.filter((p) => contactStatusOf(p) === st).length;
   const qn = q.trim().toLowerCase();
   if (qn) shown = shown.filter((p) => [p.name, p.role, p.company, p.email, p.contact, ...p.projects].some((v) => (v || '').toLowerCase().includes(qn)));
   const alertCount = all.filter((p) => p.comply && !p.comply.ok).length;
@@ -144,9 +149,25 @@ export function People() {
     { label: 'Internal Staff', value: String(all.filter((p) => p.kind === 'Staff').length), sub: 'Full access tier', color: 'var(--success)' },
     { label: 'Consultants & Subs', value: String(all.filter((p) => p.kind === 'Consultant' || p.kind === 'Sub').length), sub: 'Scoped to their projects', color: '#6B2FA0' },
     { label: 'Compliance Alerts', value: String(all.filter((p) => p.comply && !p.comply.ok).length), sub: 'Insurance expiring soon', color: '#B8410F' },
+    { label: 'Needs Review', value: String(all.filter((p) => contactStatusOf(p) === 'review').length), sub: 'No activity in 12 months, or flagged', color: '#93520F' },
   ];
 
   const sel = all.find((p) => p.id === selectedId) || null;
+  // Moving someone to Review or Expired asks why; back to Active needs no reason.
+  const setContactStatus = async (p: Person, st: ContactStatus) => {
+    if (st === contactStatusOf(p)) return;
+    let reason = '';
+    if (st !== 'active') {
+      const r = window.prompt(st === 'review' ? `Why should ${p.name} be reviewed? (optional)` : `Why is ${p.name} no longer current? (optional)`, '');
+      if (r === null) return;
+      reason = r.trim();
+    }
+    try {
+      const saved = await api.people.update(p.id, { contactStatus: st, contactStatusReason: reason }) as Person;
+      setPeople((prev) => prev.map((x) => (x.id === p.id ? { ...x, ...saved } : x)));
+      toast(`${p.name} is now ${CONTACT_STATUS_LABEL[st]}`);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
+  };
   const [profile, setProfile] = useState<PersonProfile>(() => normalizeProfile({}));
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
@@ -251,7 +272,7 @@ export function People() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 999, background: ks.c, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(p.name)}</div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{contactStatusOf(p) !== 'active' && <span title={p.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(p)]} style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: contactStatusOf(p) === 'review' ? '#FBEFC9' : '#E6E3DE', color: contactStatusOf(p) === 'review' ? '#7A5A0B' : '#6B6660' }}>{CONTACT_STATUS_LABEL[contactStatusOf(p)]}</span>}</div>
                 <div style={{ fontSize: 10.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role} · {p.company}</div>
               </div>
             </div>
@@ -386,6 +407,13 @@ export function People() {
         {alertCount > 0 && (
           <button type="button" className={'pp-chip is-alert' + (onlyAlerts ? ' is-on' : '')} onClick={() => setOnlyAlerts((v) => !v)}>Compliance <small>{alertCount}</small></button>
         )}
+        {(['review', 'expired'] as ContactStatus[]).filter((st) => statusCount(st) > 0 || sf === st).map((st) => (
+          <button type="button" key={st} title={CONTACT_STATUS_HINT[st]} className={'pp-chip' + (sf === st ? ' is-on' : '')} onClick={() => setSf(sf === st ? '' : st)}>{CONTACT_STATUS_LABEL[st]} <small>{statusCount(st)}</small></button>
+        ))}
+        {sf === '' && statusCount('review') + statusCount('expired') > 0 && (
+          <button type="button" className="pp-chip" title={CONTACT_STATUS_HINT.active} onClick={() => setSf('active')}>Active only <small>{statusCount('active')}</small></button>
+        )}
+        {sf === 'active' && <button type="button" className="pp-chip is-on" onClick={() => setSf('')}>Active only <small>{statusCount('active')}</small></button>}
         <span className="pp-spacer" />
         <div style={{ position: 'relative' }}>
           <button type="button" className={'pp-chip' + (pf !== 'All projects' ? ' is-on' : '')} onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }}>
@@ -408,7 +436,7 @@ export function People() {
           ))}
         </div>
       )}
-      {(pickedShown.length > 0 || qn || onlyAlerts || pf !== 'All projects') && (
+      {(pickedShown.length > 0 || qn || onlyAlerts || sf || pf !== 'All projects') && (
         <div className="pp-select-bar">
           {pickedShown.length > 0
             ? <><span>{pickedShown.length} selected</span><span className="pp-link" onClick={exportPicked}>Export to spreadsheet</span><span className="pp-link" onClick={() => setPicked(new Set())}>Clear</span></>
@@ -449,6 +477,7 @@ export function People() {
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', width: '100%' }}>
           {KINDS.filter((k) => !isLevel(k) || kindCount(k) > 0).map((k) => chip(kindLabel(k), kf === k, () => setKf(k)))}
+          {(['active', 'review', 'expired'] as ContactStatus[]).filter((st) => st === 'active' || statusCount(st) > 0).map((st) => chip(`${CONTACT_STATUS_LABEL[st]} (${statusCount(st)})`, sf === st, () => setSf(sf === st ? '' : st)))}
           <div style={{ marginLeft: 'auto', position: 'relative' }}>
             <div onClick={(e) => { e.stopPropagation(); swallow.current = true; setProjOpen((o) => !o); }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', color: pf === 'All projects' ? 'var(--muted)' : 'white', background: pf === 'All projects' ? 'var(--surface)' : 'var(--forest)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
               <span>{pf}</span>
@@ -499,6 +528,18 @@ export function People() {
                 {sel.contact && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Primary contact: {sel.contact}</div>}
               </div>
               <div onClick={() => setSelectedId(null)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>×</div>
+            </div>
+            <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Status</span>
+                <select value={contactStatusOf(sel)} disabled={!canManage} title={CONTACT_STATUS_HINT[contactStatusOf(sel)]} aria-label="Contact status"
+                  onChange={(e) => setContactStatus(sel, e.target.value as ContactStatus)}
+                  style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', background: contactStatusOf(sel) === 'review' ? '#FBEFC9' : contactStatusOf(sel) === 'expired' ? '#E6E3DE' : 'var(--mist)', color: 'var(--ink)' }}>
+                  {(['active', 'review', 'expired'] as ContactStatus[]).map((st) => <option key={st} value={st}>{CONTACT_STATUS_LABEL[st]}</option>)}
+                </select>
+                {sel.lastActivityAt && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Last activity {new Date(sel.lastActivityAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>}
+              </div>
+              {contactStatusOf(sel) !== 'active' && <div style={{ fontSize: 12, color: 'var(--body)' }}>{sel.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(sel)]}{sel.contactStatusAt ? ` · since ${new Date(sel.contactStatusAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>}
             </div>
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
               {([['Kind', sel.kind], ['Access tier', sel.tier], ['Phone', sel.phone], ['Email', sel.email], ['Open tasks', String(sel.openTasks)], ['With us since', sel.since]] as [string, string][]).map((r) => (

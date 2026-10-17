@@ -81,6 +81,12 @@ export class PersonEntity {
   @Column() since!: string;
   @Column({ type: 'simple-json', nullable: true }) comply!: unknown;
   @Column() last!: string;
+  /** Active / Review / Expired. Review comes on its own after 12 months with no activity; Expired is set by hand. */
+  @Column({ nullable: true }) contactStatus!: string;
+  @Column({ nullable: true }) contactStatusAt!: string;
+  @Column({ nullable: true }) contactStatusReason!: string;
+  /** Last time anything touched this contact: an edit, a task, a file sent to them. */
+  @Column({ nullable: true }) lastActivityAt!: string;
 
   // --- Profile ---
   // `name` stays the display name; these are the parts it is composed from.
@@ -756,6 +762,18 @@ export class UserEntity {
   @Column({ nullable: true }) calendarConnectedAt!: string;
 }
 
+
+/** A checklist made in advance ("Pre-pour inspection") and added to any task in one go. */
+@Entity('checklist_templates')
+export class ChecklistTemplateEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ type: 'simple-json', nullable: true }) items!: { item: string }[] | null;
+  @Column({ nullable: true }) createdById!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
 
 /** A person's own saved filter set on a list page ("My overdue RFIs"). Only its owner sees it. */
 @Entity('user_views')

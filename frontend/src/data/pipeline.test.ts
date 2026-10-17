@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deliveryCode, slaState, stageBlockedFor } from './pipeline';
+import { deliveryCode, previousStage, slaState, stageBlockedFor, STAGE_KEYS } from './pipeline';
 
 describe('deliveryCode', () => {
   it('reads the code in brackets at the end', () => {
@@ -37,5 +37,18 @@ describe('slaState', () => {
     expect(slaState({ stage: 'proposal', daysInStage: 1 }, sla, { isHold: true } as never)).toBeNull();
     expect(slaState({ stage: 'zoning', daysInStage: 1 }, sla)).toBeNull();
     expect(slaState({ stage: 'proposal', stageEnteredAt: 'not a date' }, sla)).toBeNull();
+  });
+});
+
+describe('previousStage', () => {
+  it('steps back to the nearest earlier stage the lead may be in', () => {
+    const at = STAGE_KEYS.indexOf('site_visit');
+    expect(previousStage(at)?.key).toBe('project_fit');
+    expect(previousStage(at, (k) => k === 'project_fit')?.key).toBe('virtual_ff');
+  });
+  it('has nowhere to go from the first stage, or from hold and closed', () => {
+    expect(previousStage(0)).toBeNull();
+    expect(previousStage(STAGE_KEYS.length)).toBeNull();
+    expect(previousStage(14)).toBeNull();
   });
 });

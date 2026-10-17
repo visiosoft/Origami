@@ -105,6 +105,8 @@
 .pt-pill.is-warm { background: #F3E6D6; color: #8A4B12; }
 .pt-pill.is-soft { background: var(--mist); color: var(--body); }
 .pt-pill.is-alert { width: 30px; padding: 0; justify-content: center; background: #F2DFD4; color: #8E2E0A; font-weight: 700; }
+.pt-pill.is-review { background: #FBEFC9; color: #7A5A0B; }
+.pt-pill.is-expired { background: #E6E3DE; color: #6B6660; text-decoration: line-through; }
 .pt-body.is-on .pt-pill.is-staff, .pt-body.is-on .pt-pill.is-exec { background: rgba(255, 255, 255, 0.45); }
 
 .pt-empty { padding: 34px 0; text-align: center; color: var(--muted); font-size: 14px; }

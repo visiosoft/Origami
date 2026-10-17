@@ -25,5 +25,7 @@ export declare class CreatePersonDto {
     since?: string;
     last?: string;
     comply?: unknown;
+    contactStatus?: string;
+    contactStatusReason?: string;
     userId?: string | null;
 }

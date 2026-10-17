@@ -29,6 +29,9 @@ export class CreatePersonDto {
   @IsString() @IsOptional() since?: string;
   @IsString() @IsOptional() last?: string;
   @IsObject() @IsOptional() comply?: unknown;
+  /** Active / Review / Expired, and why (set by hand). */
+  @IsString() @IsOptional() contactStatus?: string;
+  @IsString() @IsOptional() contactStatusReason?: string;
   /** Their login (users.id); null to unlink. */
   @IsString() @IsOptional() userId?: string | null;
 }

@@ -146,6 +146,16 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "contactStatus", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreatePersonDto.prototype, "contactStatusReason", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Object)
 ], CreatePersonDto.prototype, "userId", void 0);
 //# sourceMappingURL=create-person.dto.js.map

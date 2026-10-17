@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplatesController } from './checklist-templates.controller';
+import { ChecklistTemplatesService } from './checklist-templates.service';
 import { GoogleModule } from '../google/google.module';
 import { AuthModule } from '../auth/auth.module';
 import { ProjectTasksController } from './project-tasks.controller';
@@ -15,9 +17,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity]), GoogleModule, AuthModule],
-  controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController],
-  providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService],
+  imports: [SettingsModule, NotificationsModule, TypeOrmModule.forFeature([ProjectTaskEntity, ProjectSectionEntity, ProjectPhaseEntity, ProjectEntity, UserEntity, ChecklistTemplateEntity]), GoogleModule, AuthModule],
+  controllers: [ProjectTasksController, SectionsController, PhasesController, ProjectHoldController, ChecklistTemplatesController],
+  providers: [ProjectTasksService, SectionsService, PhasesService, ProjectHoldService, ChecklistTemplatesService],
   exports: [ProjectHoldService, ProjectTasksService, SectionsService],
 })
 export class ProjectTasksModule {}

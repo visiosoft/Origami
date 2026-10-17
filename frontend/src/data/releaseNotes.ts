@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17c',
+    date: '2026-10-17',
+    title: 'Checklist templates, contact statuses and moving leads back',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Checklist templates: “Add from template” drops a ready-made checklist (e.g. Pre-pour inspection) into any task, unticked. “Save as template” turns a task’s checklist into one. Manage them in Settings → Checklist templates.', where: 'Any task → Checklist; Settings → Checklist templates' },
+      { area: 'People', kind: 'new', text: 'Every contact is Active, Review or Expired. Anyone with no activity for 12 months (no edits, tasks or files sent to them) moves to Review by itself, and back to Active when there’s new activity. Expired is set by hand, with a reason. Filter by status, and see “Needs review” at the top.', where: 'People → status chips; open a person → Status' },
+      { area: 'CRM', kind: 'new', text: 'Move a lead back a stage without dragging: “← Back to …” in the lead panel, or click an earlier stage on its progress bar. An optional reason goes in the timeline.', where: 'CRM & Leads → open a lead' },
+    ],
+  },
+  {
     id: '2026-10-17b',
     date: '2026-10-17',
     title: 'Duplicate and convert special actions',

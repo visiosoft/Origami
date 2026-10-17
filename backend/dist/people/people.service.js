@@ -19,6 +19,7 @@ const contractor_directory_sync_1 = require("../manpower/contractor-directory.sy
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const contact_status_1 = require("./contact-status");
 let PeopleService = class PeopleService {
     constructor(repo, staff, subs) {
         this.repo = repo;
@@ -71,7 +72,8 @@ let PeopleService = class PeopleService {
     }
     async create(dto) {
         const id = Number(dto.id) || (await this.nextId());
-        const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
+        const now = new Date().toISOString();
+        const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id, contactStatus: 'active', contactStatusAt: now, lastActivityAt: now };
         const saved = await this.repo.save(this.repo.create(person));
         if (saved.kind === 'Staff' && !saved.employeeId && this.staff)
             await this.staff.employeeForPerson(saved);
@@ -84,7 +86,23 @@ let PeopleService = class PeopleService {
         const person = await this.repo.findOneBy({ id: numId });
         if (!person)
             throw new common_1.NotFoundException(`Person ${id} not found`);
-        Object.assign(person, dto, { id: numId });
+        const now = new Date().toISOString();
+        const patch = { ...dto };
+        delete patch.lastActivityAt;
+        if ('contactStatus' in patch) {
+            const next = String(patch.contactStatus || 'active').toLowerCase();
+            if (!contact_status_1.CONTACT_STATUSES.includes(next))
+                throw new common_1.BadRequestException('Status is Active, Review or Expired.');
+            if (next !== (person.contactStatus || 'active'))
+                Object.assign(patch, { contactStatus: next, contactStatusAt: now, contactStatusReason: String(patch.contactStatusReason || '').trim().slice(0, 300) || null });
+            else
+                delete patch.contactStatusReason;
+            if (next === 'active')
+                patch.lastActivityAt = now;
+        }
+        if (Object.keys(dto).some((k) => !k.startsWith('contactStatus')))
+            patch.lastActivityAt = now;
+        Object.assign(person, patch, { id: numId });
         const saved = await this.repo.save(person);
         await this.staff?.personChanged(saved, dto);
         await this.subs?.personChanged(saved, dto);

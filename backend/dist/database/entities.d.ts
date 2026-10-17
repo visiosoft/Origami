@@ -60,6 +60,10 @@ export declare class PersonEntity {
     since: string;
     comply: unknown;
     last: string;
+    contactStatus: string;
+    contactStatusAt: string;
+    contactStatusReason: string;
+    lastActivityAt: string;
     firstName: string;
     lastName: string;
     goByName: string;
@@ -514,6 +518,17 @@ export declare class UserEntity {
     calendarRefreshToken: string;
     calendarEmail: string;
     calendarConnectedAt: string;
+}
+export declare class ChecklistTemplateEntity {
+    id: string;
+    name: string;
+    items: {
+        item: string;
+    }[] | null;
+    createdById: string;
+    createdByName: string;
+    createdAt: string;
+    updatedAt: string;
 }
 export declare class UserViewEntity {
     id: string;

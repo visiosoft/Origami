@@ -12,6 +12,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const people_controller_1 = require("./people.controller");
 const people_service_1 = require("./people.service");
 const entities_1 = require("../database/entities");
+const contact_status_service_1 = require("./contact-status.service");
 const google_module_1 = require("../google/google.module");
 const people_import_controller_1 = require("./people-import.controller");
 const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
@@ -21,9 +22,9 @@ let PeopleModule = class PeopleModule {
 exports.PeopleModule = PeopleModule;
 exports.PeopleModule = PeopleModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity, entities_1.EmployeeEntity, entities_1.ContractorEntity, entities_1.ProjectEntity]), google_module_1.GoogleModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity, entities_1.EmployeeEntity, entities_1.ContractorEntity, entities_1.ProjectEntity, entities_1.TaskEntity, entities_1.ProjectTaskEntity, entities_1.FileRoomShareEntity]), google_module_1.GoogleModule],
         controllers: [people_import_controller_1.PeopleImportController, people_controller_1.PeopleController],
-        providers: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync, contractor_directory_sync_1.ContractorDirectorySync],
+        providers: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync, contractor_directory_sync_1.ContractorDirectorySync, contact_status_service_1.ContactStatusService],
         exports: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync, contractor_directory_sync_1.ContractorDirectorySync],
     })
 ], PeopleModule);

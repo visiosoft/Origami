@@ -195,6 +195,20 @@ export const DEALS: Deal[] = [
 /** Stages taken out of the funnel. Deals on one are moved forward on boot. */
 export const RETIRED_STAGE_KEYS = ['f2f', 'rfp'];
 
+/**
+ * The stage a lead goes back to with "← Back": the nearest earlier active stage
+ * its delivery method allows. Null at the first stage, and for leads on hold or
+ * closed (those are brought back from their own controls).
+ */
+export function previousStage(stageIdx: number, blocked: (key: string) => boolean = () => false): { key: string; idx: number; name: string } | null {
+  if (stageIdx <= 0 || stageIdx >= STAGE_KEYS.length) return null;
+  for (let i = stageIdx - 1; i >= 0; i -= 1) {
+    const key = STAGE_KEYS[i];
+    if (!blocked(key)) return { key, idx: i, name: STAGES.find((s) => s.key === key)?.name || key };
+  }
+  return null;
+}
+
 export const BLOCKED_STAGES_BY_DELIVERY: Record<string, string[]> = {
   BO: ['virtual_ff', 'project_fit', 'zoning'],
 };

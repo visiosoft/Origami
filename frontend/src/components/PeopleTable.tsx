@@ -1,4 +1,4 @@
-import { internalLevelOf, type Person } from '../data/people';
+import { CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, internalLevelOf, type Person } from '../data/people';
 import './PeopleTable.css';
 
 /** Soft avatar colours, picked from the name so a person keeps theirs. */
@@ -73,6 +73,7 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
               {(() => { const lv = internalLevelOf(p); return lv
                 ? <span className={LEVEL_PILL[lv]}><i />{lv}</span>
                 : <span className={TYPE_PILL[p.kind] || 'pt-pill is-soft'}><i />{p.kind === 'Sub' ? 'Sub' : p.kind}</span>; })()}
+              {contactStatusOf(p) !== 'active' && <span className={'pt-pill is-' + contactStatusOf(p)} title={p.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(p)]}>{CONTACT_STATUS_LABEL[contactStatusOf(p)]}</span>}
               {alert && <span className="pt-pill is-alert" title={p.comply?.label || 'Insurance or licence needs attention'}>!</span>}
             </span>
           </div>
