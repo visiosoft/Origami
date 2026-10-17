@@ -10,6 +10,7 @@ import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
 import { AddLinkDto } from '../tasks/dto/update-task.dto';
 import { ContractorsService } from './contractors.service';
+import { ContractorBidsService } from './contractor-bids.service';
 
 export class ContractorDto {
   @IsString() @IsOptional() companyName?: string;
@@ -40,6 +41,7 @@ export class ContractorsController {
     private readonly service: ContractorsService,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly bids: ContractorBidsService,
   ) {}
 
   @Get()
@@ -60,6 +62,27 @@ export class ContractorsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+
+  // ------------------------------------------------------------ estimates / bids
+  @Get(':id/bids')
+  listBids(@Param('id') id: string) {
+    return this.bids.list(id);
+  }
+
+  @Post(':id/bids')
+  async addBid(@Param('id') id: string, @Body() dto: any, @Headers('authorization') auth?: string) {
+    return this.bids.create(id, dto || {}, await this.auth.actor(auth));
+  }
+
+  @Put('bids/:bidId')
+  updateBid(@Param('bidId') bidId: string, @Body() dto: any) {
+    return this.bids.update(bidId, dto || {});
+  }
+
+  @Delete('bids/:bidId')
+  removeBid(@Param('bidId') bidId: string) {
+    return this.bids.remove(bidId);
   }
 
   @Post(':id/attachments')

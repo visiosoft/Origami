@@ -1,3 +1,4 @@
+import type { ContractorBid } from './data/contractorBids';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -840,6 +841,11 @@ export const api = {
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/contractors/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/contractors/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/contractors/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    /** Their estimates, newest first. Each change returns the whole list again. */
+    bids: (id: string) => request<ContractorBid[]>(`/contractors/${encodeURIComponent(id)}/bids`),
+    addBid: (id: string, d: Partial<ContractorBid>) => request<ContractorBid[]>(`/contractors/${encodeURIComponent(id)}/bids`, { method: 'POST', body: JSON.stringify(d) }),
+    updateBid: (bidId: string, d: Partial<ContractorBid>) => request<ContractorBid[]>(`/contractors/bids/${encodeURIComponent(bidId)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeBid: (bidId: string) => request<ContractorBid[]>(`/contractors/bids/${encodeURIComponent(bidId)}`, { method: 'DELETE' }),
   },
   payroll: {
     /** Tax and deduction summaries: query string from, to, employeeId, drafts=1. */

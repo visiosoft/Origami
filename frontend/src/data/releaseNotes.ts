@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-17h',
+    date: '2026-10-17',
+    title: 'Estimate and bid history on subcontractors',
+    items: [
+      { area: 'Subcontractors', kind: 'new', text: 'Each subcontractor record has an “Estimates & bids” log: the project (in Origami or not), trade, date received, amount, and whether it was awarded, not awarded, withdrawn or declined. Totals at the top show estimates received, projects bid, awards, and how many estimates they have sent since their last job.', where: 'Construction → Manpower & Resource → Contractors → a contractor' },
+      { area: 'Subcontractors', kind: 'new', text: 'Subs with 3 or more estimates since their last award are flagged “without a job”. The contractor list has a Bids column, an “Owed a job” filter and a “Most bids without a job” sort, so they can be considered first.', where: 'Contractors list; People → a Sub' },
+    ],
+  },
+  {
     id: '2026-10-17g',
     date: '2026-10-17',
     title: 'Change orders save themselves, serial numbers, and checklists that add themselves',

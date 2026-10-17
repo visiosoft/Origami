@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { Attachment } from '../data/projectTasks';
+import type { BidStats } from '../data/contractorBids';
 
 export const BG = 'var(--font-display)';
 export const INK = 'var(--ink)';
@@ -103,6 +104,8 @@ export interface Contractor {
   tradeIds: string[]; licenseNumber?: string; licenseExpiry?: string;
   contractStatus: 'none' | 'valid' | 'expiring' | 'expired'; insuranceStatus: 'none' | 'valid' | 'expiring' | 'expired';
   licenseStatus: 'none' | 'valid' | 'expiring' | 'expired';
+  /** Their estimate history (see data/contractorBids.ts). */
+  bidStats?: BidStats;
 }
 
 /** A licence classification a subcontractor company holds, e.g. C-10 Electrical. */

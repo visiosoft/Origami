@@ -4,7 +4,7 @@ import { WeeklyReportService } from './weekly-report.service';
 import { PeopleModule } from '../people/people.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
-  EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
+  EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity, ContractorBidEntity,
   TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
   PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
   LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
@@ -35,6 +35,7 @@ import { AssignmentsService } from './assignments.service';
 import { WorkforceRequestsController } from './workforce-requests.controller';
 import { WorkforceRequestsService } from './workforce-requests.service';
 import { ContractorsController } from './contractors.controller';
+import { ContractorBidsService } from './contractor-bids.service';
 import { ContractorsService } from './contractors.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import { PayrollService } from './payroll.service';
@@ -62,7 +63,7 @@ import { SampleDataController } from './sample-data.controller';
   imports: [
     PeopleModule,
     TypeOrmModule.forFeature([
-      EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
+      EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity, ContractorBidEntity,
       TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
       PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
       LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
@@ -82,7 +83,7 @@ import { SampleDataController } from './sample-data.controller';
   ],
   providers: [DailyLogBackupService, WeeklyReportService, DailyReportAutomationService,
     ManpowerAccess, PicklistsService, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
-    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
+    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService, ContractorBidsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
     LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService, WeeklyTimesheetsService,
   ],

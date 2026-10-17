@@ -1987,6 +1987,32 @@ export class CommitmentLineEntity {
   @Column({ ...MONEY }) amount!: number;
 }
 
+/**
+ * An estimate a subcontractor sent us (or was asked for): the project, trade,
+ * amount and whether they got the job. Kept on the sub's record so the team can
+ * see who has bid several times without an award.
+ */
+@Entity('contractor_bids')
+@Index('IX_contractor_bids_contractor', ['contractorId'])
+export class ContractorBidEntity {
+  @PrimaryColumn() id!: string;
+  @Column() contractorId!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  /** The job's name -- typed for one not in Origami, or copied from the project. */
+  @Column({ nullable: true }) projectName!: string;
+  @Column({ nullable: true }) tradeId!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  @Column() dateReceived!: string;
+  @Column({ ...MONEY, nullable: true }) amount!: number | null;
+  /** pending | awarded | not_awarded | withdrawn | declined */
+  @Column({ default: 'pending' }) outcome!: string;
+  @Column({ nullable: true }) outcomeDate!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
 /** A cost incurred: a vendor bill, subcontractor invoice, material or equipment charge. Labor and reimbursables are counted from their own records. */
 @Entity('cost_entries')
 @Index('IX_cost_entries_project', ['projectId'])

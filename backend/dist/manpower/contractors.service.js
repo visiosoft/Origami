@@ -17,17 +17,19 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const contractor_bids_1 = require("./contractor-bids");
 const contractor_directory_sync_1 = require("./contractor-directory.sync");
 const attachments_service_1 = require("../google/attachments.service");
 const task_types_1 = require("../database/task.types");
 const employee_records_service_1 = require("./employee-records.service");
 const workforce_util_1 = require("./workforce.util");
 let ContractorsService = class ContractorsService {
-    constructor(repo, employees, attachments, directory) {
+    constructor(repo, employees, attachments, directory, bids) {
         this.repo = repo;
         this.employees = employees;
         this.attachments = attachments;
         this.directory = directory;
+        this.bids = bids;
     }
     async mirror(c) {
         try {
@@ -36,7 +38,7 @@ let ContractorsService = class ContractorsService {
         catch { }
         return c;
     }
-    hydrate(c, workerCount) {
+    hydrate(c, workerCount, stats) {
         return {
             ...c,
             attachments: (0, task_types_1.normalizeAttachments)(c.attachments),
@@ -45,6 +47,7 @@ let ContractorsService = class ContractorsService {
             licenseStatus: (0, employee_records_service_1.expiryStatus)(c.licenseExpiry),
             tradeIds: c.tradeIds || [],
             workerCount,
+            bidStats: stats || (0, contractor_bids_1.bidStats)([]),
         };
     }
     async counts() {
@@ -56,8 +59,11 @@ let ContractorsService = class ContractorsService {
         return map;
     }
     async findAll() {
-        const [rows, counts] = await Promise.all([this.repo.find({ order: { companyName: 'ASC' } }), this.counts()]);
-        return rows.map((c) => this.hydrate(c, counts.get(c.id) || 0));
+        const [rows, counts, bids] = await Promise.all([this.repo.find({ order: { companyName: 'ASC' } }), this.counts(), this.bids ? this.bids.find() : Promise.resolve([])]);
+        const byContractor = new Map();
+        for (const b of bids)
+            byContractor.set(b.contractorId, [...(byContractor.get(b.contractorId) || []), b]);
+        return rows.map((c) => this.hydrate(c, counts.get(c.id) || 0, (0, contractor_bids_1.bidStats)(byContractor.get(c.id) || [])));
     }
     async load(id) {
         const c = await this.repo.findOneBy({ id });
@@ -66,7 +72,7 @@ let ContractorsService = class ContractorsService {
         return c;
     }
     async one(c) {
-        return this.hydrate(c, (await this.counts()).get(c.id) || 0);
+        return this.hydrate(c, (await this.counts()).get(c.id) || 0, (0, contractor_bids_1.bidStats)(this.bids ? await this.bids.findBy({ contractorId: c.id }) : []));
     }
     async create(dto) {
         if (!dto.companyName?.trim())
@@ -93,6 +99,7 @@ let ContractorsService = class ContractorsService {
             throw new common_1.BadRequestException(`${c.companyName} still has ${workers} worker(s) on record -- set the contractor to Ended instead.`);
         await this.attachments.discardAll((0, task_types_1.normalizeAttachments)(c.attachments));
         await this.repo.remove(c);
+        await this.bids?.delete({ contractorId: id });
         await this.directory?.removeContractor(id);
         return { id, deleted: true };
     }
@@ -131,9 +138,12 @@ exports.ContractorsService = ContractorsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ContractorEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.EmployeeEntity)),
+    __param(4, (0, common_1.Optional)()),
+    __param(4, (0, typeorm_1.InjectRepository)(entities_1.ContractorBidEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
-        contractor_directory_sync_1.ContractorDirectorySync])
+        contractor_directory_sync_1.ContractorDirectorySync,
+        typeorm_2.Repository])
 ], ContractorsService);
 //# sourceMappingURL=contractors.service.js.map

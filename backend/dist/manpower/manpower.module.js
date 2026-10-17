@@ -37,6 +37,7 @@ const assignments_service_1 = require("./assignments.service");
 const workforce_requests_controller_1 = require("./workforce-requests.controller");
 const workforce_requests_service_1 = require("./workforce-requests.service");
 const contractors_controller_1 = require("./contractors.controller");
+const contractor_bids_service_1 = require("./contractor-bids.service");
 const contractors_service_1 = require("./contractors.service");
 const payroll_setup_service_1 = require("./payroll-setup.service");
 const payroll_service_1 = require("./payroll.service");
@@ -67,7 +68,7 @@ exports.ManpowerModule = ManpowerModule = __decorate([
         imports: [
             people_module_1.PeopleModule,
             typeorm_1.TypeOrmModule.forFeature([
-                entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.DailyLogEntity, entities_1.DailyReportTemplateEntity, entities_1.LaborLogEntryEntity, entities_1.LeaveRequestEntity, entities_1.ProjectEntity,
+                entities_1.EmployeeEntity, entities_1.CsiCodeEntity, entities_1.DailyLogEntity, entities_1.DailyReportTemplateEntity, entities_1.LaborLogEntryEntity, entities_1.LeaveRequestEntity, entities_1.ProjectEntity, entities_1.ContractorBidEntity,
                 entities_1.TradeEntity, entities_1.SubcontractorTradeEntity, entities_1.EmployeeRecordEntity, entities_1.EmployeeAssignmentEntity, entities_1.WorkforceRequestEntity, entities_1.ContractorEntity,
                 entities_1.PayComponentEntity, entities_1.PayrollRunEntity, entities_1.PayslipEntity, entities_1.OvertimeRequestEntity, entities_1.EmployeeAdvanceEntity, entities_1.RoleEntity,
                 entities_1.LeaveTypeEntity, entities_1.LeaveAdjustmentEntity, entities_1.PublicHolidayEntity, entities_1.ShiftTemplateEntity, entities_1.ShiftAssignmentEntity,
@@ -87,7 +88,7 @@ exports.ManpowerModule = ManpowerModule = __decorate([
         ],
         providers: [daily_log_backup_service_1.DailyLogBackupService, weekly_report_service_1.WeeklyReportService, daily_report_automation_service_1.DailyReportAutomationService,
             manpower_access_service_1.ManpowerAccess, picklists_1.PicklistsService, employees_service_1.EmployeesService, csi_codes_service_1.CsiCodesService, daily_logs_service_1.DailyLogsService, timesheets_service_1.TimesheetsService,
-            subcontractor_trades_service_1.SubcontractorTradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService,
+            subcontractor_trades_service_1.SubcontractorTradesService, employee_records_service_1.EmployeeRecordsService, assignments_service_1.AssignmentsService, workforce_requests_service_1.WorkforceRequestsService, contractors_service_1.ContractorsService, contractor_bids_service_1.ContractorBidsService,
             payroll_setup_service_1.PayrollSetupService, payroll_service_1.PayrollService, overtime_service_1.OvertimeService, advances_service_1.AdvancesService,
             leave_service_1.LeaveService, shifts_service_1.ShiftsService, assets_service_1.AssetsService, accommodation_service_1.AccommodationService, transport_service_1.TransportService, sample_data_service_1.SampleDataService, weekly_timesheets_service_1.WeeklyTimesheetsService,
         ],

@@ -1446,6 +1446,22 @@ export declare class CommitmentLineEntity {
     taskId: string;
     amount: number;
 }
+export declare class ContractorBidEntity {
+    id: string;
+    contractorId: string;
+    projectId: number | null;
+    projectName: string;
+    tradeId: string;
+    scope: string;
+    dateReceived: string;
+    amount: number | null;
+    outcome: string;
+    outcomeDate: string;
+    notes: string;
+    createdByName: string;
+    createdAt: string;
+    updatedAt: string;
+}
 export declare class CostEntryEntity extends FinanceStamped {
     id: string;
     projectId: number;
