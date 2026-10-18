@@ -1,11 +1,15 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { RoleEntity, UserEntity } from '../database/entities';
+import { AppSettingEntity, RoleEntity, UserEntity } from '../database/entities';
 import { MODULE_KEYS } from '../seed-data/users';
+import { ACCESS_MATRIX } from '../seed-data/access-matrix';
 import { AuthService } from '../auth/auth.service';
-import { LEVELS, parseAccessMatrix, rolePermissionsFrom, type Override } from './access-levels';
+import { LEVELS, parseAccessMatrix, rolePermissionsFrom, type MatrixParse, type Override } from './access-levels';
+
+/** Marks the one-time apply of the built-in PEOPLE ACCESS sheet. */
+export const ACCESS_MATRIX_KEY = 'roles.accessMatrix.v1';
 
 export interface ImportOptions {
   dryRun?: boolean;
@@ -18,23 +22,42 @@ export interface ImportOptions {
 }
 
 /**
- * User Access & Roles -> Import access matrix: the PEOPLE ACCESS sheet's roles
+ * The PEOPLE ACCESS sheet is the app's default access: on first start its roles
  * become roles (each data type's level and extent), and the accounts it names
- * are created -- invited -- or moved to their role.
+ * are created (no email -- send invites from User Access & Roles) or moved to
+ * their role. After that, roles are edited in the app; it never re-applies.
  */
 @Injectable()
-export class AccessImportService {
+export class AccessImportService implements OnApplicationBootstrap {
   private readonly log = new Logger('AccessImport');
   constructor(
     @InjectRepository(RoleEntity) private readonly roles: Repository<RoleEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
     private readonly auth: AuthService,
+    @InjectRepository(AppSettingEntity) private readonly settings?: Repository<AppSettingEntity>,
   ) {}
+
+  async onApplicationBootstrap() {
+    try { await this.applyDefault(); }
+    catch (err) { this.log.error('Default access sheet failed: ' + (err as Error).message); }
+  }
+
+  /** Once per install: the built-in sheet's roles and accounts. */
+  async applyDefault() {
+    if (!this.settings || (await this.settings.findOneBy({ key: ACCESS_MATRIX_KEY }))) return null;
+    const r = await this.applyParsed(ACCESS_MATRIX as MatrixParse, { dryRun: false, invite: false, updateExisting: true });
+    await this.settings.save({ key: ACCESS_MATRIX_KEY, value: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    return r;
+  }
 
   async importMatrix(rows: string[][], opts: ImportOptions) {
     let parsed;
     try { parsed = parseAccessMatrix(Array.isArray(rows) ? rows.map((r) => (Array.isArray(r) ? r.map((c) => String(c ?? '')) : [])) : []); }
     catch (e) { throw new BadRequestException((e as Error).message); }
+    return this.applyParsed(parsed, opts);
+  }
+
+  private async applyParsed(parsed: MatrixParse, opts: ImportOptions) {
     const existingRoles = await this.roles.find();
     const existingUsers = await this.users.find();
     const byEmail = new Map(existingUsers.map((u) => [String(u.email || '').trim().toLowerCase(), u]));

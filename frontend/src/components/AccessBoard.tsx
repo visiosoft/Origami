@@ -6,7 +6,7 @@ import {
   type Role, type User, type Tier, type UserStatus,
 } from '../data/users';
 import './AccessBoard.css';
-import { AccessImport, LevelCell, UserAccessDrawer } from './AccessLevels';
+import { LevelCell, UserAccessDrawer } from './AccessLevels';
 import { OVERALL_KEY, dataTypeLabel, permFor, usesLevels, type Extent, type Level as AccessLevel } from '../data/accessLevels';
 
 type Perms = Role['permissions'];
@@ -46,7 +46,6 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
   const [inviteNote, setInviteNote] = useState<{ email: string; sent: boolean; url?: string; error?: string } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [accessFor, setAccessFor] = useState<User | null>(null);
-  const [importing, setImporting] = useState(false);
 
   const rolesForTier = (t: Tier) => roles.filter((r) => r.tier === t).sort((a, b) => a.order - b.order);
   const roleName = (k: string) => roles.find((r) => r.key === k)?.name || k;
@@ -162,7 +161,6 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
           <p>Who can sign in, and what each role is allowed to see and change.{readOnly && <b> Your role can view this page but not change it.</b>}</p>
         </div>
         {!readOnly && <span style={{ display: 'inline-flex', gap: 8 }}>
-          <button type="button" className="ab-btn" onClick={() => setImporting(true)}>Import access sheet</button>
           <button type="button" className="ab-invite" onClick={() => { setAdding((a) => !a); setDraft(BLANK); }}>{adding ? 'Cancel' : '+ Invite person'}</button>
         </span>}
       </div>
@@ -395,7 +393,6 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
       </div>
 
       {accessFor && <UserAccessDrawer user={accessFor} onClose={() => setAccessFor(null)} onSaved={refreshAccess} />}
-      {importing && <AccessImport roles={roles} onClose={() => setImporting(false)} onDone={refreshAccess} />}
 
       {roleModal && (
         <div className="ab-modal-bg" onClick={() => setRoleModal(null)}>

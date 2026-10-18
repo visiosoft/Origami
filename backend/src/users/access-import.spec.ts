@@ -21,7 +21,8 @@ const setup = () => {
   });
   const sent: string[] = [];
   const auth = { sendInvite: async (u: any) => { sent.push(u.email); return { sent: true }; } };
-  return { svc: new AccessImportService(repo(roles, 'key') as any, repo(users, 'id') as any, auth as any), roles, users, sent };
+  const settings: any[] = [];
+  return { svc: new AccessImportService(repo(roles, 'key') as any, repo(users, 'id') as any, auth as any, repo(settings, 'key') as any), roles, users, sent, settings };
 };
 
 describe('access matrix import', () => {
@@ -58,5 +59,23 @@ describe('access matrix import', () => {
     const id = users.find((u) => u.email === 'pm@x.com').id;
     const r = await svc.setOverrides(id, { rfis: { level: 'view' }, bad: { level: 'god' }, dashboard: { extent: 'portfolio' } });
     expect(r.overrides).toEqual({ rfis: { level: 'view' }, dashboard: { extent: 'portfolio' } });
+  });
+
+  it('applies the built-in access sheet once, with no emails, and never touches the administrator', async () => {
+    const { svc, roles, users, sent, settings } = setup();
+    users[0].email = 'edward@origamidb.com';
+    await svc.applyDefault();
+    expect(roles.length).toBe(25); // admin + the sheet's 24 other roles
+    expect(roles.find((r) => r.key === 'admin').permissions).toEqual({});
+    expect(roles.find((r) => r.key === 'r_internal_project_manager').permissions.__overall).toMatchObject({ level: 'modify', extent: 'assigned' });
+    expect(users.find((u) => u.email === 'edward@origamidb.com').roleKey).toBe('admin');
+    expect(users.find((u) => u.email === 'labor@origamidb.com')).toMatchObject({ roleKey: 'r_internal_labor', status: 'pending' });
+    expect(sent).toEqual([]);
+    expect(settings.map((s) => s.key)).toEqual(['roles.accessMatrix.v1']);
+    const before = roles.length + users.length;
+    roles.find((r) => r.key === 'r_internal_labor').name = 'Renamed';
+    expect(await svc.applyDefault()).toBeNull();
+    expect(roles.length + users.length).toBe(before);
+    expect(roles.find((r) => r.key === 'r_internal_labor').name).toBe('Renamed');
   });
 });

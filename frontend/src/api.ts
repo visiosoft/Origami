@@ -483,8 +483,6 @@ export const api = {
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
     /** The PEOPLE ACCESS sheet's rows: a preview (dryRun) or applied. */
-    importMatrix: (rows: string[][], opts: { dryRun: boolean; mapping?: Record<string, string>; invite?: boolean; updateExisting?: boolean }) =>
-      request<any>('/roles/import-matrix', { method: 'POST', body: JSON.stringify({ rows, ...opts }) }),
   },
   projectTasks: {
     /** Save pressed in the task editor: send the emails held on the task and its subtasks. */

@@ -17,17 +17,12 @@ const common_1 = require("@nestjs/common");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const roles_service_1 = require("./roles.service");
 const create_role_dto_1 = require("./dto/create-role.dto");
-const access_import_service_1 = require("./access-import.service");
 let RolesController = class RolesController {
-    constructor(rolesService, accessImport) {
+    constructor(rolesService) {
         this.rolesService = rolesService;
-        this.accessImport = accessImport;
     }
     findAll() {
         return this.rolesService.findAll();
-    }
-    importMatrix(dto) {
-        return this.accessImport.importMatrix(dto?.rows || [], { dryRun: dto?.dryRun !== false, mapping: dto?.mapping || {}, invite: dto?.invite !== false, updateExisting: dto?.updateExisting !== false });
     }
     create(dto) {
         return this.rolesService.create(dto);
@@ -46,13 +41,6 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "findAll", null);
-__decorate([
-    (0, common_1.Post)('import-matrix'),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], RolesController.prototype, "importMatrix", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
@@ -78,6 +66,6 @@ __decorate([
 exports.RolesController = RolesController = __decorate([
     (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Controller)('roles'),
-    __metadata("design:paramtypes", [roles_service_1.RolesService, access_import_service_1.AccessImportService])
+    __metadata("design:paramtypes", [roles_service_1.RolesService])
 ], RolesController);
 //# sourceMappingURL=roles.controller.js.map

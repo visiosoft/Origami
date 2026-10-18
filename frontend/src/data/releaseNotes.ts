@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-18g',
+    date: '2026-10-18',
+    title: 'The PEOPLE ACCESS sheet is now the built-in default',
+    items: [
+      { area: 'User Access & Roles', kind: 'improved', text: 'The PEOPLE ACCESS sheet’s 25 roles, with each one’s level and extent for every menu item and financial item, are now built in and set up automatically on first start — no import needed. The Executive is the Administrator, which is never changed.', where: 'Admin → User Access & Roles' },
+      { area: 'User Access & Roles', kind: 'improved', text: 'The accounts the sheet names are created (or moved to their role) at the same time, without emails: send each person their invite from their row when they’re ready. The passwords in the sheet are not used.', where: 'User Access & Roles → a person → Re-send the invitation (envelope button)' },
+      { area: 'User Access & Roles', kind: 'improved', text: 'The “Import access sheet” button is gone. After the first start, roles are edited here and the sheet is never applied again.' },
+    ],
+  },
+  {
     id: '2026-10-18f',
     date: '2026-10-18',
     title: 'Granular access: levels, extents, per-person changes, and the access sheet import',
