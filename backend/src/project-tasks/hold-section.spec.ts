@@ -60,7 +60,7 @@ describe('task bucket rules', () => {
   });
 
   it('only the originator or an admin confirms; leaving Confirmed clears the archive clock', async () => {
-    const svc = setup({ id: 'T1', projectId: 23, sectionId: 'S-done', status: 'Done', completed: true, createdById: 'U-1', createdByName: 'Edward' }, [{ id: 'U-9', roleKey: 'admin' }, { id: 'U-2', roleKey: 'staff' }]);
+    const svc = setup({ id: 'T1', projectId: 23, sectionId: 'S-done', status: 'Done', completed: true, assigneeId: 'U-2', assignee: 'Astrid', createdById: 'U-1', createdByName: 'Edward' }, [{ id: 'U-9', roleKey: 'admin' }, { id: 'U-2', roleKey: 'staff' }]);
     await expect(svc.update('T1', { status: 'Confirmed' }, { id: 'U-2', name: 'Astrid' })).rejects.toThrow(/Only Edward/);
     const ok = await svc.update('T1', { status: 'Confirmed' }, { id: 'U-1', name: 'Edward' });
     expect(ok).toMatchObject({ status: 'Confirmed', completed: true });
@@ -77,5 +77,36 @@ describe('task bucket rules', () => {
     const all = await svc.findAll();
     expect(all.find((t) => t.id === 'T1').archivedAt).toBeTruthy();
     expect(all.find((t) => t.id === 'T2').archivedAt).toBeFalsy();
+  });
+
+  it('a start date that has arrived moves an assigned task to In Progress; a future one waits', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const svc = setup({ id: 'T1', projectId: 23, sectionId: 'S-todo', status: 'Assigned', assigneeId: 'U-2', assignee: 'Astrid' });
+    expect((await svc.update('T1', { startDate: '2999-01-01' }, { id: 'U-1', name: 'Edward' })).status).toBe('Assigned');
+    const t = await svc.update('T1', { startDate: today }, { id: 'U-1', name: 'Edward' });
+    expect(t).toMatchObject({ status: 'In progress', sectionId: 'S-prog', startDate: today });
+  });
+
+  it('nothing goes In Progress without an assignee', async () => {
+    const svc = setup({ id: 'T1', projectId: 23, sectionId: 'S-todo', status: 'Not started' });
+    await expect(svc.update('T1', { status: 'In progress' }, { id: 'U-1', name: 'Edward' })).rejects.toThrow(/Assign someone/);
+    expect((await svc.update('T1', { startDate: '2020-01-01' }, { id: 'U-1', name: 'Edward' })).status).toBe('Not started');
+  });
+
+  it('marking it complete needs a note, which goes into the activity', async () => {
+    const svc = setup({ id: 'T1', projectId: 23, sectionId: 'S-prog', status: 'In progress', assigneeId: 'U-2', assignee: 'Astrid', activity: [] });
+    await expect(svc.update('T1', { status: 'Done' }, { id: 'U-2', name: 'Astrid' })).rejects.toThrow(/note saying what was done/);
+    const t = await svc.update('T1', { status: 'Done', completionNote: '  Sent to the client on the 20th ' }, { id: 'U-2', name: 'Astrid' });
+    expect(t).toMatchObject({ status: 'Done', completionNote: 'Sent to the client on the 20th' });
+    expect(t.activity.some((e: any) => e.type === 'comment' && /Sent to the client/.test(e.text))).toBe(true);
+  });
+
+  it('a start date reached later starts the task on the next check', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const row = { id: 'T1', projectId: 23, sectionId: 'S-todo', status: 'Assigned', assigneeId: 'U-2', assignee: 'Astrid', startDate: today };
+    const svc = setup(row);
+    (svc as any).repo.find = jest.fn(async () => [row]);
+    expect(await svc.startDueTasks()).toBe(1);
+    expect((await (svc as any).repo.findOneBy({ id: 'T1' })).status).toBe('In progress');
   });
 });

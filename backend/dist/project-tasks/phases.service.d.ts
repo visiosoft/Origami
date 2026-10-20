@@ -155,6 +155,9 @@ export declare class PhasesService implements OnApplicationBootstrap {
             dependsOn: string[];
             createdById: string;
             createdByName: string;
+            requestedById: string;
+            requestedBy: string;
+            completionNote: string;
             confirmedAt: string;
             archivedAt: string;
         }[];

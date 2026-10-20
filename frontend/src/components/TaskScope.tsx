@@ -282,7 +282,7 @@ function MinePartsChips() {
     <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
       {chip('assigned', 'Assigned to me')}
       {chip('collab', 'I collaborate on')}
-      {chip('originated', 'Originated by me')}
+      {chip('originated', 'Assigned by me')}
     </span>
   );
 }

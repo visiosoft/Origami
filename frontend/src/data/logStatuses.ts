@@ -68,8 +68,8 @@ export function logStatusTone(name?: string | null): { bg: string; c: string } {
 export const LOG_STATUS_HINT: Record<string, string> = {
   'To Do': 'Not assigned to anyone yet — may or may not have a due date',
   Assigned: 'Assigned to someone',
-  'In Progress': 'The assignee has acknowledged it — it’s on their radar',
+  'In Progress': 'The assignee has started it (setting a start date does this) — needs an assignee',
   'On hold': 'On hold or blocked — say why',
-  Complete: 'The assignee says it’s complete',
-  Confirmed: 'The originator confirms it’s complete — archived a week later unless it’s moved or changed',
+  Complete: 'The assignee says it’s complete, with a note saying what was done',
+  Confirmed: 'The assigner (whoever entered it) confirms it’s complete — archived a week later unless it’s moved or changed',
 };

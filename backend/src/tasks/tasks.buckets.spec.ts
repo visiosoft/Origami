@@ -30,7 +30,7 @@ describe('Request Log task buckets', () => {
 
   it('only whoever raised it, or an admin, confirms it', async () => {
     const { svc } = setup();
-    await svc.update('T1', { status: 'Complete' }, { name: 'Kai', id: 'U-KAI' });
+    await svc.update('T1', { status: 'Complete', completionNote: 'Ordered' }, { name: 'Kai', id: 'U-KAI' });
     await expect(svc.update('T1', { status: 'Confirmed' }, { name: 'Kai', id: 'U-KAI' })).rejects.toThrow(/Only Sara/);
     const t = await svc.update('T1', { status: 'Confirmed' }, { name: 'Sara', id: 'U-SARA' });
     expect(t.confirmedAt).toBeTruthy();
@@ -57,6 +57,7 @@ describe('Request Log task buckets', () => {
   it('fills the start date the first time it goes In Progress, and keeps it after', async () => {
     const { svc } = setup();
     const today = new Date().toISOString().slice(0, 10);
+    await svc.update('T1', { assignedTo: 'Kai', assignedToId: 'U-KAI' }, { name: 'Sara', id: 'U-SARA' });
     const t = await svc.update('T1', { status: 'In Progress' }, { name: 'Sara', id: 'U-SARA' });
     expect(t.startDate).toBe(today);
     expect(t.activity.some((e: any) => e.field === 'startDate' || /start date/i.test(e.text || ''))).toBe(true);

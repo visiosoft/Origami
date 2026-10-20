@@ -18,6 +18,8 @@ exports.taskTitle = taskTitle;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const mentions_1 = require("./mentions");
+const task_rules_1 = require("./task-rules");
 const settings_service_1 = require("../settings/settings.service");
 const auto_checklist_1 = require("../project-tasks/auto-checklist");
 const serials_1 = require("../database/serials");
@@ -58,6 +60,9 @@ let TasksService = class TasksService {
     async onApplicationBootstrap() {
         const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + e.message)); }, 60_000);
         tick.unref?.();
+        const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + e.message)); }, 30 * 60_000);
+        starts.unref?.();
+        this.startDueTasks().catch(() => undefined);
         try {
             await (0, assignee_util_1.backfillAssignees)(this.repo, this.users, 'assignedToId', 'assignedTo', this.log);
         }
@@ -175,7 +180,16 @@ let TasksService = class TasksService {
             patch.status = 'Assigned';
         if (cur === 'Assigned' && !assigned)
             patch.status = 'To Do';
-        const next = patch.status ?? task.status;
+        const pending = (s) => !s || s === 'To Do' || s === 'Assigned';
+        if ('startDate' in patch && patch.startDate !== task.startDate && pending(patch.status ?? task.status) && (0, task_rules_1.startDue)(patch.startDate, assigned)) {
+            patch.status = 'In Progress';
+        }
+        let next = patch.status ?? task.status;
+        if ((0, log_statuses_1.isInProgress)(next) && !(0, log_statuses_1.isInProgress)(task.status) && !assigned) {
+            if (!['Complete', 'Confirmed'].includes(task.status))
+                throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
+            patch.status = next = 'To Do';
+        }
         if ((0, log_statuses_1.isInProgress)(next) && !(0, log_statuses_1.isInProgress)(task.status) && !task.startDate && !patch.startDate) {
             patch.startDate = new Date().toISOString().slice(0, 10);
         }
@@ -295,6 +309,10 @@ let TasksService = class TasksService {
         task.status = (0, log_statuses_1.bucketOf)(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
         if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim()))
             task.status = 'Assigned';
+        if ((task.status === 'To Do' || task.status === 'Assigned') && task.assignedTo && (0, task_rules_1.startDue)(task.startDate, true))
+            task.status = 'In Progress';
+        if ((0, log_statuses_1.isInProgress)(task.status) && !(task.assignedToId || String(task.assignedTo || '').trim()))
+            throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
         if ((0, log_statuses_1.isInProgress)(task.status) && !task.startDate)
             task.startDate = new Date().toISOString().slice(0, 10);
         task.serial = (0, serials_1.nextSerial)(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), (0, serials_1.logSerialKind)(task.topicType), (0, serials_1.serialYear)());
@@ -338,6 +356,8 @@ let TasksService = class TasksService {
             patch.assignedTo = assignee.name;
             patch.assignedToId = assignee.id ?? null;
         }
+        const note = (0, task_rules_1.cleanCompletionNote)(patch.completionNote);
+        delete patch.completionNote;
         await this.bucketRules(task, patch, actor);
         if ('priority' in patch)
             patch.priority = (0, task_types_1.cleanPriority)(patch.priority);
@@ -366,12 +386,19 @@ let TasksService = class TasksService {
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
         const finished = closing && !wasClosed;
+        const noteEvents = [];
+        if (finished && !closingNow && !note && !String(patch.resolution ?? '').trim())
+            throw new common_1.BadRequestException(task_rules_1.NEEDS_COMPLETION_NOTE);
+        if (finished && note) {
+            patch.completionNote = note;
+            noteEvents.push((0, task_types_1.event)('comment', actor, { text: `Completion note: ${note}` }));
+        }
         if (closingNow) {
             const at = new Date().toISOString();
             patch.archivedAt = at;
             patch.closedAt = at;
         }
-        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...(closingNow ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...noteEvents, ...(closingNow ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
         const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
             ? String(patch.assignedToId)
             : null;
@@ -415,6 +442,19 @@ let TasksService = class TasksService {
         await this.repo.update({ id }, { pendingNotices: null });
         this.sendNotices(t, live);
         return { sent: live.length };
+    }
+    async startDueTasks() {
+        const rows = (await this.repo.find()).filter((t) => !t.archivedAt && (t.status === 'To Do' || t.status === 'Assigned')
+            && (0, task_rules_1.startDue)(t.startDate, !!(t.assignedToId || String(t.assignedTo || '').trim())));
+        for (const t of rows) {
+            try {
+                await this.update(t.id, { status: 'In Progress' }, { name: 'System' });
+            }
+            catch (e) {
+                this.log.warn(`Start ${t.id}: ${e.message}`);
+            }
+        }
+        return rows.length;
     }
     async flushOverdue() {
         for (const t of (await this.repo.find()).filter((x) => (0, pending_notices_1.overdue)(x.pendingNotices)))
@@ -544,7 +584,10 @@ let TasksService = class TasksService {
         task.comments = [...(0, task_types_1.normalizeList)(task.comments), comment];
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('comment', actor, { text: comment.text })];
         const saved = await this.repo.save(task);
-        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assignedToId].filter(Boolean);
+        const mentioned = (0, mentions_1.mentionedIds)(comment.text, await this.users.find());
+        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assignedToId].filter((x) => x && !mentioned.includes(x));
+        if (mentioned.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), mentioned, { kind: 'mention', comment: comment.text });
         if (followers.length)
             this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
         return this.hydrate(saved);

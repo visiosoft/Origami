@@ -57,10 +57,10 @@ export const isTaskDone = (t: { completed?: boolean; status?: string | null }) =
 export const STATUS_HINT: Record<string, string> = {
   'Not started': 'Not assigned to anyone yet — may or may not have a due date',
   Assigned: 'Assigned to someone',
-  'In progress': 'The assignee has acknowledged it — it’s on their radar',
+  'In progress': 'The assignee has started it (setting a start date does this) — needs an assignee',
   'On hold': 'On hold or blocked — say why',
-  Done: 'The assignee says it’s complete',
-  Confirmed: 'The originator confirms it’s complete — archived a week later unless it’s moved or changed',
+  Done: 'The assignee says it’s complete, with a note saying what was done',
+  Confirmed: 'The assigner (whoever entered it) confirms it’s complete — archived a week later unless it’s moved or changed',
 };
 
 export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
@@ -92,6 +92,11 @@ export interface ProjectTask extends ActionTrailFields {
   leadName?: string | null;
   /** Why it's on hold (status On hold). */
   holdReason?: string | null;
+  /** Source: who asked for it (the assigner is whoever entered it). */
+  requestedById?: string | null;
+  requestedBy?: string | null;
+  /** What was done -- written when it's marked complete. */
+  completionNote?: string | null;
   sectionId: string;
   title: string;
   description?: string;

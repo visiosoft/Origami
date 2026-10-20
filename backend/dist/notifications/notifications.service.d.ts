@@ -28,11 +28,11 @@ export declare class NotificationsService {
     constructor(users: Repository<UserEntity>, projects: Repository<ProjectEntity>, settings: SettingsService, google: GoogleService);
     taskAssigned(notice: AssignmentNotice): void;
     taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: {
-        kind: 'added' | 'comment' | 'done';
+        kind: 'added' | 'comment' | 'done' | 'mention';
         comment?: string;
     }): void;
     sendAssignment(notice: AssignmentNotice, follow?: {
-        kind: 'added' | 'comment' | 'done';
+        kind: 'added' | 'comment' | 'done' | 'mention';
         comment?: string;
     }): Promise<{
         sent: boolean;

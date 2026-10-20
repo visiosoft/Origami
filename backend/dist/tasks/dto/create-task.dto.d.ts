@@ -13,6 +13,7 @@ export declare class CreateTaskDto {
     priority?: string;
     leadId?: string;
     holdReason?: string;
+    completionNote?: string;
     deferNotify?: boolean;
     description?: string;
     startDate?: string;

@@ -381,6 +381,10 @@ __decorate([
     __metadata("design:type", String)
 ], TaskEntity.prototype, "description", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "completionNote", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "startDate", void 0);
@@ -1664,6 +1668,18 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "requestedById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "requestedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "completionNote", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)

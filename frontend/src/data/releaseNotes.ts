@@ -16,6 +16,24 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-20b',
+    date: '2026-10-20',
+    title: 'From the Oct 20 sync: task rules, @mentions, People dashboard, design tabs',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Putting a start date on an assigned task moves it to In Progress — straight away if the date is today or earlier, otherwise on that day. Moving a task to In Progress still fills in today’s start date.', where: 'Tasks → a task → Start date' },
+      { area: 'Tasks', kind: 'new', text: 'A task can’t go In Progress without an assignee: the option says “assign someone first”.' },
+      { area: 'Tasks', kind: 'new', text: 'Marking a task complete asks “What was done?”. The note is shown on the task and in its Activity for the assigner to read before confirming. Closing a task (the assigner’s call) doesn’t ask.' },
+      { area: 'Tasks', kind: 'new', text: 'Three roles on every task: Source (who asked for it — pick anyone), Assigner (whoever entered it; they confirm and close it) and Assignee (who does it). The top of the task shows its project, the assigner and the source.', where: 'Tasks → a task' },
+      { area: 'Tasks', kind: 'new', text: 'Type @ in a comment to mention someone; they get an email saying you mentioned them.', where: 'Tasks → a task → Activity' },
+      { area: 'Tasks', kind: 'improved', text: 'The Assignee list shows the people attached to the task’s project in People (the internal team for lead and General tasks); “Show everyone…” is at the bottom when needed.' },
+      { area: 'Tasks', kind: 'improved', text: 'Subtasks are listed under their parent card on the board in their own tint, with who has each; click one to open it. Long titles and project names now wrap instead of being cut off.' },
+      { area: 'People', kind: 'improved', text: 'The dashboard tiles are back on every view, and an “Out of compliance” list sits under the people. Click Compliance Alerts or Needs Review to filter.', where: 'People' },
+      { area: 'People', kind: 'improved', text: 'The list shows name, role, company, compliance, type and tier — projects are a filter (All projects ▾) rather than a column.' },
+      { area: 'People', kind: 'improved', text: 'People are entered with a first and last name, and a company’s primary contact the same way. Trade, discipline and company are picked from lists (“Other…” to type a new one).', where: 'People → Add member' },
+      { area: 'Design & Construction', kind: 'improved', text: 'Project tabs are now Dashboard, Board, List, Timeline | Special Actions (the project’s tasks and RFIs), People (everyone on the project, then its subcontracts) and Financials.' },
+    ],
+  },
+  {
     id: '2026-10-20a',
     date: '2026-10-20',
     title: 'Task activity newest first; start dates fill themselves',

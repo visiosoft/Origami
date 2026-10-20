@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { RfiLog } from '../components/rfis/Rfis';
+import { ProjectPeople } from '../components/ProjectPeople';
+import { TaskBoard } from '../components/TaskBoard';
 import { HoldBadge } from '../components/ProjectHold';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
@@ -70,6 +72,7 @@ export function DesignProject() {
   const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis' | 'subs'>('board');
   const [rfiView, setRfiView] = useState(false);
+  const [actionKind, setActionKind] = useState<'tasks' | 'rfis'>('tasks');
   useEffect(() => { api.rfis.access().then((r) => setRfiView(!!r?.view)).catch(() => setRfiView(false)); }, []);
   const [finView, setFinView] = useState(false);
   useEffect(() => { api.finance.access().then((r: any) => setFinView(!!r?.view)).catch(() => setFinView(false)); }, []);
@@ -384,7 +387,10 @@ export function DesignProject() {
             </div>
 
             <div style={{ display: 'flex', gap: 6, marginTop: 20, flexWrap: 'wrap' }}>
-              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ...(rfiView ? [['rfis', 'RFIs']] : []), ['subs', 'Subcontractors'], ['dashboard', 'Dashboard'], ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis' | 'subs', string][]).map(([key, label]) => (
+              {/* Dashboard first; the work views; then a divider before the project's other records (Oct 20). */}
+              {([['dashboard', 'Dashboard'], ['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['|', ''], ['rfis', 'Special Actions'], ['subs', 'People'], ...(finView ? [['financials', 'Financials']] : [])] as [typeof view | '|', string][]).map(([key, label], i) => key === '|'
+                ? <span key={'sep' + i} aria-hidden style={{ width: 1, alignSelf: 'stretch', margin: '2px 4px', background: 'rgba(var(--rgb-shade), .18)' }} />
+                : (
                 <div
                   key={key}
                   onClick={() => setView(key)}
@@ -607,14 +613,24 @@ export function DesignProject() {
           )}
 
           {view === 'rfis' && project && (
-            <div style={{ padding: '18px 26px 28px' }}>
-              <RfiLog projectId={id} projectName={project.name} compact />
+            <div style={{ padding: '18px 26px 28px', display: 'grid', gap: 14 }}>
+              {/* Special Actions on this project: its tasks, and its RFIs for those who can see them. */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                {([['tasks', 'Tasks'], ...(rfiView ? [['rfis', 'RFIs']] : [])] as ['tasks' | 'rfis', string][]).map(([k, label]) => (
+                  <button key={k} type="button" onClick={() => setActionKind(k)} style={{ padding: '6px 13px', borderRadius: 999, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid ' + (actionKind === k ? INK : 'rgba(var(--rgb-shade), .14)'), background: actionKind === k ? INK : 'var(--surface)', color: actionKind === k ? '#fff' : '#4A4357' }}>{label}</button>
+                ))}
+              </div>
+              {actionKind === 'rfis' && rfiView ? <RfiLog projectId={id} projectName={project.name} compact /> : <TaskBoard projectId={id} />}
             </div>
           )}
 
           {view === 'subs' && (
-            <div style={{ padding: '18px 26px 28px' }}>
-              <ProjectSubcontractors projectId={id} onAddSubcontract={finView ? () => setView('financials') : undefined} />
+            <div style={{ padding: '18px 26px 28px', display: 'grid', gap: 22 }}>
+              {project && <ProjectPeople projectName={project.name} />}
+              <div>
+                <h4 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Subcontracts</h4>
+                <ProjectSubcontractors projectId={id} onAddSubcontract={finView ? () => setView('financials') : undefined} />
+              </div>
             </div>
           )}
 

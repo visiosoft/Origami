@@ -12,7 +12,7 @@ export interface AssignmentEmailInput {
     url: string;
     settingsUrl: string;
     follow?: {
-        kind: 'added' | 'comment' | 'done';
+        kind: 'added' | 'comment' | 'done' | 'mention';
         comment?: string;
     };
 }

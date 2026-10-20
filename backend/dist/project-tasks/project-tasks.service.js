@@ -16,6 +16,8 @@ exports.ProjectTasksService = exports.ARCHIVE_AFTER_DAYS = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const mentions_1 = require("../tasks/mentions");
+const task_rules_1 = require("../tasks/task-rules");
 const entities_1 = require("../database/entities");
 const lead_link_1 = require("../tasks/lead-link");
 const pending_notices_1 = require("../notifications/pending-notices");
@@ -53,6 +55,9 @@ let ProjectTasksService = class ProjectTasksService {
     async onApplicationBootstrap() {
         const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + e.message)); }, 60_000);
         tick.unref?.();
+        const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + e.message)); }, 30 * 60_000);
+        starts.unref?.();
+        this.startDueTasks().catch(() => undefined);
         try {
             if ((await this.repo.count()) === 0) {
                 await this.repo.save(project_tasks_1.DEFAULT_TASKS);
@@ -198,7 +203,17 @@ let ProjectTasksService = class ProjectTasksService {
             patch.status = 'Assigned';
         if (status === 'Assigned' && !assigned)
             patch.status = 'Not started';
-        const next = patch.status ?? task.status;
+        const board = !(patch.phaseId ?? task.phaseId);
+        const pending = (s) => !s || s === 'Not started' || s === 'Assigned';
+        if (board && 'startDate' in patch && patch.startDate !== task.startDate && pending(patch.status ?? task.status) && (0, task_rules_1.startDue)(patch.startDate, assigned)) {
+            patch.status = 'In progress';
+        }
+        let next = patch.status ?? task.status;
+        if (board && next === 'In progress' && task.status !== 'In progress' && !assigned) {
+            if (!(0, task_types_1.isDoneStatus)(task.status))
+                throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
+            patch.status = next = 'Not started';
+        }
         if (next === 'In progress' && task.status !== 'In progress' && !task.startDate && !patch.startDate) {
             patch.startDate = new Date().toISOString().slice(0, 10);
         }
@@ -265,15 +280,22 @@ let ProjectTasksService = class ProjectTasksService {
             dto = { ...dto, ...(await (0, lead_link_1.resolveLead)(this.leads, dto.leadId)) };
         const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
         const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: 'task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
+        const requester = dto.requestedById || dto.requestedBy ? await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.requestedById, name: dto.requestedBy }) : null;
         let status = dto.status || (dto.completed ? 'Done' : 'Not started');
         if (status === 'Not started' && assignee.name)
             status = 'Assigned';
+        const board = !dto.phaseId;
+        if (board && (status === 'Not started' || status === 'Assigned') && (0, task_rules_1.startDue)(dto.startDate, !!assignee.name))
+            status = 'In progress';
+        if (board && status === 'In progress' && !assignee.name)
+            throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
         const task = {
             order: 0, parentId: null, attachments: [], comments: [],
             createdAt: new Date().toISOString().slice(0, 10),
             ...dto,
             assignee: assignee.name,
             assigneeId: assignee.id ?? undefined,
+            ...(requester ? { requestedBy: requester.name, requestedById: requester.id ?? undefined } : {}),
             status,
             completed: (0, task_types_1.isDoneStatus)(status) || !!dto.completed,
             startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
@@ -328,6 +350,13 @@ let ProjectTasksService = class ProjectTasksService {
             patch.assignee = assignee.name;
             patch.assigneeId = assignee.id ?? null;
         }
+        if ('requestedBy' in patch || 'requestedById' in patch) {
+            const src = await (0, assignee_util_1.resolveAssignee)(this.users, { id: patch.requestedById, name: patch.requestedBy });
+            patch.requestedBy = src.name;
+            patch.requestedById = src.id ?? null;
+        }
+        const note = (0, task_rules_1.cleanCompletionNote)(patch.completionNote);
+        delete patch.completionNote;
         if ('status' in patch)
             patch.status = (0, task_types_1.normalizeTaskStatus)(patch.status);
         await this.syncBucketSection(task, patch);
@@ -353,13 +382,22 @@ let ProjectTasksService = class ProjectTasksService {
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
         const finished = (0, task_types_1.isDoneStatus)(patch.status) && !(0, task_types_1.isDoneStatus)(task.status);
+        const noteEvents = [];
+        if (finished && !closing && !(patch.phaseId ?? task.phaseId)) {
+            if (!note)
+                throw new common_1.BadRequestException(task_rules_1.NEEDS_COMPLETION_NOTE);
+        }
+        if (finished && note) {
+            patch.completionNote = note;
+            noteEvents.push((0, task_types_1.event)('comment', actor, { text: `Completion note: ${note}` }));
+        }
         if (closing) {
             const at = new Date().toISOString();
             patch.archivedAt = at;
             patch.closedAt = at;
             patch.completed = true;
         }
-        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...(closing ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...noteEvents, ...(closing ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)
             : null;
@@ -439,6 +477,19 @@ let ProjectTasksService = class ProjectTasksService {
             sent += live.length;
         }
         return { sent };
+    }
+    async startDueTasks() {
+        const rows = (await this.repo.find()).filter((t) => !t.phaseId && !t.archivedAt && (!t.status || t.status === 'Not started' || t.status === 'Assigned')
+            && (0, task_rules_1.startDue)(t.startDate, !!(t.assigneeId || (t.assignee || '').trim())));
+        for (const t of rows) {
+            try {
+                await this.update(t.id, { status: 'In progress' }, { name: 'System' });
+            }
+            catch (e) {
+                this.log.warn(`Start ${t.id}: ${e.message}`);
+            }
+        }
+        return rows.length;
     }
     async flushOverdue() {
         for (const t of (await this.repo.find()).filter((x) => (0, pending_notices_1.overdue)(x.pendingNotices)))
@@ -529,7 +580,10 @@ let ProjectTasksService = class ProjectTasksService {
         task.comments = [...(0, task_types_1.normalizeList)(task.comments), comment];
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('comment', actor, { text: comment.text })];
         const saved = await this.repo.save(task);
-        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assigneeId].filter(Boolean);
+        const mentioned = (0, mentions_1.mentionedIds)(comment.text, await this.users.find());
+        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assigneeId].filter((x) => x && !mentioned.includes(x));
+        if (mentioned.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), mentioned, { kind: 'mention', comment: comment.text });
         if (followers.length)
             this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
         return this.hydrate(saved);

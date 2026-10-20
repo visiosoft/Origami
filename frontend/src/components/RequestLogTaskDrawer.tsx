@@ -3,7 +3,7 @@ import { createdByText } from '../data/projectTasks';
 import { LOG_STATUS_HINT, useLogStatuses } from '../data/logStatuses';
 import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
 import { LeadSelect } from './LeadSelect';
-import { useLinkTargets } from '../data/linkTargets';
+import { leadLabel, useLinkTargets } from '../data/linkTargets';
 import { PrioritySelect } from './PrioritySelect';
 import { linkPriorityDue } from '../data/priority';
 import type { Priority } from '../data/projectTasks';
@@ -13,17 +13,18 @@ import { isMine, raisedBy } from './TaskScope';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
+import { askCompletionNote } from './CompletionNote';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
-import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task } from '../data/tasks';
+import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, logTaskTitle, taskHeadline, type Task } from '../data/tasks';
 
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId', 'holdReason'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId', 'holdReason', 'completionNote', 'originator'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -63,7 +64,13 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
     save: (changes) => api.tasks.update(t.id, { ...changes, deferNotify: true } as Partial<Task>) as Promise<Task>,
     onSaved: (row, sent) => { setT((cur) => mergeSaved(cur, row, sent)); onChanged?.(row); },
   });
-  const set = (patch: Partial<Task>) => setT((prev) => ({ ...prev, ...patch }));
+  const put = (patch: Partial<Task>) => setT((prev) => ({ ...prev, ...patch }));
+  // Marking it complete (or confirmed straight away) asks what was done; the note saves with the status.
+  const closedNames = new Set(statuses.filter((s) => s.closed).map((s) => s.name));
+  const set = (patch: Partial<Task>) => {
+    if (!patch.status || !closedNames.has(patch.status) || closedNames.has(t.status)) { put(patch); return; }
+    void askCompletionNote(logTaskTitle(t)).then((note) => { if (note) put({ ...patch, completionNote: note }); });
+  };
   const targets = useLinkTargets();
   /** "Close task": complete and into the archive at once (Reopen from Archived). */
   const closeTask = async () => {
@@ -130,7 +137,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine by={t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '')} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={task.serial || '#' + t.id} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={t.project || (t.leadName ? leadLabel(t.leadName) : 'General (no project)')} source={t.originator} by={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || t.originator} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={task.serial || '#' + t.id} /></div>
               {canManage && (task.archivedAt
                 ? <button type="button" onClick={reopen} title="Bring it back into the Request Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                 : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
@@ -151,6 +158,8 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 valueId={t.assignedToId}
                 valueName={t.assignedTo}
                 disabled={!canManage}
+                project={t.project || null}
+                internalOnly={!t.project}
                 onChange={(u) => set({ assignedToId: u?.id ?? '', assignedTo: u?.name ?? '' })}
               />
               {createdByText(task) && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 6 }}>{createdByText(task)}</div>}
@@ -169,11 +178,23 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 style={{ ...inputStyle, padding: '7px 9px' }}
               >
                 {[...statuses.map((s) => s.name), ...(statuses.some((s) => s.name === t.status) || !t.status ? [] : [t.status])].map((st) => {
-                  // Only whoever raised it (or an admin) confirms it.
-                  const locked = st === 'Confirmed' && t.status !== 'Confirmed' && !(raisedBy(t, currentUser?.id) || currentUser?.roleKey === 'admin' || (!!t.originator && t.originator === currentUser?.name));
-                  return <option key={st} value={st} disabled={locked} title={LOG_STATUS_HINT[st]}>{st}{locked ? ' — whoever raised it confirms' : ''}</option>;
+                  // Only the assigner -- whoever entered it -- (or an admin) confirms it.
+                  const creatorId = (task.activity || []).find((e) => e.type === 'created')?.byId;
+                  const locked = st === 'Confirmed' && t.status !== 'Confirmed' && !(raisedBy(t, currentUser?.id) || currentUser?.roleKey === 'admin' || (!creatorId && !!t.originator && t.originator === currentUser?.name));
+                  const noOne = /^in[\s-]*progress$/i.test(st) && !/^in[\s-]*progress$/i.test(t.status) && !(t.assignedToId || (t.assignedTo || '').trim());
+                  return <option key={st} value={st} disabled={locked || noOne} title={LOG_STATUS_HINT[st]}>{st}{locked ? ' — the assigner confirms' : noOne ? ' — assign someone first' : ''}</option>;
                 })}
               </select>
+            </div>
+            {closedNames.has(t.status) && t.completionNote && (
+              <div style={{ padding: '12px 14px', background: 'var(--mint)', borderRadius: 10, gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--forest)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Completion note</div>
+                <div style={{ fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{t.completionNote}</div>
+              </div>
+            )}
+            <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Source (requested by)</div>
+              <AssigneePicker valueName={t.originator || undefined} disabled={!canManage} emptyLabel="— the assigner —" onChange={(u) => set({ originator: u?.name ?? '' })} />
             </div>
             {t.status === 'On hold' && (
               <div style={{ padding: '12px 14px', background: 'var(--amber-light)', borderRadius: 10, gridColumn: '1 / -1' }}>
@@ -226,7 +247,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
                 onChange={(p) => { const r = linkPriorityDue({ priority: t.priority as Priority, dueDate: t.dueDate, auto: autoPD.current }, { priority: p }); autoPD.current = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} />
               {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
             </div>
-            {([['Date Closed', t.dateClosed || '—'], ['Days Open', t.daysOpen > 0 ? t.daysOpen + ' days' : '—'], ['Originator', t.originator || (Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || '—']] as [string, string][]).map((r) => (
+            {([['Date Closed', t.dateClosed || '—'], ['Days Open', t.daysOpen > 0 ? t.daysOpen + ' days' : '—']] as [string, string][]).map((r) => (
               <div key={r[0]} style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{r[0]}</div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{r[1]}</div>

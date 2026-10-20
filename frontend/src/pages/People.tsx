@@ -36,8 +36,18 @@ interface NewPerson {
   internalLevel: string;
   /** From reading a business card: saves its photos with the contact. */
   businessCardToken?: string;
+  /** A company's primary contact, as first and last name (composed into `contact`). */
+  contactFirst?: string;
+  contactLast?: string;
 }
 const BLANK: NewPerson = { name: '', kind: 'Consultant', role: '', company: '', contact: '', phone: '', email: '', tier: 'Consultant', projects: [], complyDate: '', complyRef: '', internalLevel: '' };
+/** "Dana Whitfield" -> ["Dana", "Whitfield"]; the last word is the last name. */
+const splitName = (full: string): [string, string] => {
+  const w = String(full || '').trim().split(/\s+/).filter(Boolean);
+  return w.length < 2 ? [w[0] || '', ''] : [w.slice(0, -1).join(' '), w[w.length - 1]];
+};
+/** Disciplines a consultant or authority is picked from (subcontractor trades come from Settings). */
+const CONSULTANT_DISCIPLINES = ['Architect', 'Structural Engineer', 'Civil Engineer', 'MEP Engineer', 'Mechanical Engineer', 'Electrical Engineer', 'Plumbing Engineer', 'Geotechnical Engineer', 'Surveyor', 'Interior Designer', 'Landscape Architect', 'Hazmat', 'Energy / Title 24', 'Permit Expediter', 'Building Department', 'Fire Department', 'Planning Department', 'Utility'];
 
 /** What the directory stores for a person, composed from the form and the profile editor. */
 function personPayload(np: NewPerson, profile: PersonProfile): Record<string, any> {
@@ -46,7 +56,7 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
     name: np.name.trim(),
     role: np.role.trim() || np.kind,
     company: np.company.trim() || np.name.trim(),
-    contact: np.contact.trim() || undefined,
+    contact: (np.contactFirst !== undefined || np.contactLast !== undefined ? [np.contactFirst, np.contactLast].map((x) => (x || '').trim()).filter(Boolean).join(' ') : np.contact.trim()) || undefined,
     kind: np.kind,
     internalLevel: np.kind === 'Staff' ? np.internalLevel : '',
     tier: np.tier,
@@ -63,6 +73,26 @@ function personPayload(np: NewPerson, profile: PersonProfile): Record<string, an
   return payload;
 }
 const BLANK_PAYLOAD = personPayload(BLANK, normalizeProfile({}));
+
+/** Pick from a set list (trades, disciplines, companies) -- typing is the exception, behind "Other…". */
+function PickOrType({ value, options, onChange, placeholder, newLabel = 'Other…' }: { value: string; options: string[]; onChange: (v: string) => void; placeholder?: string; newLabel?: string }) {
+  const listed = options.includes(value);
+  const [typing, setTyping] = useState(!!value && !listed);
+  const box: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
+  if (typing) return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <input autoFocus={!value} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} style={box} />
+      {options.length > 0 && <button type="button" onClick={() => { setTyping(false); if (!options.includes(value)) onChange(''); }} title="Choose from the list" style={{ border: 0, background: 'transparent', color: 'var(--forest)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>List</button>}
+    </div>
+  );
+  return (
+    <select value={listed ? value : ''} onChange={(e) => { if (e.target.value === '__new') { setTyping(true); onChange(''); } else onChange(e.target.value); }} style={box}>
+      <option value="">Choose…</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      <option value="__new">{newLabel}</option>
+    </select>
+  );
+}
 
 function ComplyBadge({ comply, small }: { comply: Comply | null; small?: boolean }) {
   if (!comply) return <span style={{ fontSize: small ? 9.5 : 10.5, color: 'var(--muted)' }}>n/a</span>;
@@ -158,6 +188,48 @@ export function People() {
     { label: 'Needs Review', value: String(all.filter((p) => contactStatusOf(p) === 'review').length), sub: 'No activity in 12 months, or flagged', color: '#93520F' },
   ];
 
+  // The dashboard strip, on every layout (Oct 20): the compliance and review tiles filter the list.
+  const statsStrip = (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+      {stats.map((st) => {
+        const act = st.label === 'Compliance Alerts' ? () => setOnlyAlerts((v) => !v) : st.label === 'Needs Review' ? () => setSf(sf === 'review' ? '' : 'review') : undefined;
+        const on = (st.label === 'Compliance Alerts' && onlyAlerts) || (st.label === 'Needs Review' && sf === 'review');
+        return (
+          <div key={st.label} onClick={act} role={act ? 'button' : undefined} tabIndex={act ? 0 : undefined} onKeyDown={(e) => { if (act && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); act(); } }}
+            style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: on ? '1.5px solid ' + st.color : '1px solid rgba(var(--rgb-shade), 0.06)', padding: '15px 16px', cursor: act ? 'pointer' : 'default' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{st.label}</div>
+            <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7 }}>{st.value}</div>
+            <div style={{ fontSize: 10.5, color: st.color, fontWeight: 600, marginTop: 4 }}>{st.sub}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+  // Who is out of compliance, under the list, so nobody has to go looking.
+  const outOfCompliance = all.filter((p) => p.comply && !p.comply.ok);
+  const compliancePanel = outOfCompliance.length > 0 && !onlyAlerts ? (
+    <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid #F2DFD4', borderLeft: '4px solid #B8410F', padding: '14px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#8E2E0A' }}>Out of compliance · {outOfCompliance.length}</div>
+        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Insurance or licences expired or expiring soon</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" onClick={() => setOnlyAlerts(true)} style={{ border: 0, background: 'transparent', padding: 0, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Show only these</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 6 }}>
+        {outOfCompliance.map((p) => (
+          <div key={p.id} onClick={() => setSelectedId(p.id)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') setSelectedId(p.id); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 9, background: 'var(--panel)', cursor: 'pointer', minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{p.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', overflowWrap: 'anywhere' }}>{[p.company, typeOf(p)].filter(Boolean).join(' · ')}</div>
+            </div>
+            <ComplyBadge comply={p.comply} small />
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   const sel = all.find((p) => p.id === selectedId) || null;
   // Moving someone to Review or Expired asks why; back to Active needs no reason.
   const setContactStatus = async (p: Person, st: ContactStatus) => {
@@ -175,6 +247,11 @@ export function People() {
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
   };
   const [profile, setProfile] = useState<PersonProfile>(() => normalizeProfile({}));
+  // Trades come from Settings -> Subcontractor trades; companies from everyone already here.
+  const [tradeNames, setTradeNames] = useState<string[]>([]);
+  useEffect(() => {
+    api.subcontractorTrades.list().then((r: any) => setTradeNames((Array.isArray(r) ? r : []).filter((t: any) => t.active !== false).map((t: any) => String(t.name || '')).filter(Boolean))).catch(() => undefined);
+  }, []);
 
   const chip = (label: string, active: boolean, onClick: () => void) => (
     <div key={label} onClick={onClick} style={{ padding: '6px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: active ? 'var(--forest)' : 'var(--surface)', color: active ? 'white' : 'var(--muted)', border: '1px solid ' + (active ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.1)') }}>{label}</div>
@@ -219,11 +296,15 @@ export function People() {
   const openEdit = (p: Person) => {
     setSelectedId(null);
     // The person's own profile, not whatever the form held last -- saving used to overwrite it.
+    const [contactFirst, contactLast] = splitName(p.contact || '');
+    const prof = normalizeProfile(p as any);
+    // Older records hold one name: split it so first and last can be edited.
+    if (!['Consultant', 'Sub', 'Authority', 'Vendor'].includes(p.kind) && !prof.firstName && !prof.lastName) [prof.firstName, prof.lastName] = splitName(p.name);
     startPersonForm({
-      name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '',
+      name: p.name, kind: p.kind, role: p.role, company: p.company, contact: p.contact || '', contactFirst, contactLast,
       phone: p.phone === '—' ? '' : p.phone, email: p.email === '—' ? '' : p.email, tier: p.tier,
       projects: [...p.projects], complyDate: p.comply?.date || '', complyRef: p.comply?.extra || '', internalLevel: p.internalLevel || '',
-    }, normalizeProfile(p as any), p.id);
+    }, prof, p.id);
   };
   const closePersonForm = () => {
     if (personNameOk && personAuto.dirty && !(np.kind === 'Staff' && personIdRef.current == null)) void personAuto.saveNow();
@@ -264,32 +345,34 @@ export function People() {
     </div>
   );
 
-  const cols = '1.5fr 92px 1.3fr 1.4fr 132px 84px';
+  // Name, role, company, type, contact, compliance and tier (Oct 20): projects are a filter, not a column.
+  const cols = '1.4fr 1fr 1.1fr 92px 1.3fr 132px 84px';
   const { sorted: tableSorted, sort: tableSort, toggle: toggleTableSort } = useSort(shown, {
-    name: (p) => p.name, kind: (p) => p.kind, projects: (p) => p.projects.length, contact: (p) => p.email || p.phone,
+    name: (p) => p.name, role: (p) => p.role, company: (p) => p.company, kind: (p) => p.kind, contact: (p) => p.email || p.phone,
     comply: (p) => (p.comply ? (p.comply.ok ? 1 : 0) : null), tier: (p) => p.tier,
-  }, null, { projects: 'desc' });
+  }, null);
   const tableView = (
     <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 720 }}>
-        <SortHeader k="name" sort={tableSort} onSort={toggleTableSort}>Person / Company</SortHeader><SortHeader k="kind" sort={tableSort} onSort={toggleTableSort}>Kind</SortHeader>
-        <SortHeader k="projects" sort={tableSort} onSort={toggleTableSort}>Projects</SortHeader><SortHeader k="contact" sort={tableSort} onSort={toggleTableSort}>Contact</SortHeader>
+      <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '12px 18px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 860 }}>
+        <SortHeader k="name" sort={tableSort} onSort={toggleTableSort}>Name</SortHeader><SortHeader k="role" sort={tableSort} onSort={toggleTableSort}>Role</SortHeader>
+        <SortHeader k="company" sort={tableSort} onSort={toggleTableSort}>Company</SortHeader><SortHeader k="kind" sort={tableSort} onSort={toggleTableSort}>Type</SortHeader>
+        <SortHeader k="contact" sort={tableSort} onSort={toggleTableSort}>Contact</SortHeader>
         <SortHeader k="comply" sort={tableSort} onSort={toggleTableSort}>Compliance</SortHeader><SortHeader k="tier" sort={tableSort} onSort={toggleTableSort}>Tier</SortHeader>
       </div>
       {tableSorted.map((p) => {
         const ks = KIND_STYLE[p.kind];
         const ts = TIER_STYLE[p.tier];
         return (
-          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', minWidth: 720 }}>
+          <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '11px 18px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', minWidth: 860 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 999, background: ks.c, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>{initials(p.name)}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{contactStatusOf(p) !== 'active' && <span title={p.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(p)]} style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: contactStatusOf(p) === 'review' ? '#FBEFC9' : '#E6E3DE', color: contactStatusOf(p) === 'review' ? '#7A5A0B' : '#6B6660' }}>{CONTACT_STATUS_LABEL[contactStatusOf(p)]}</span>}</div>
-                <div style={{ fontSize: 10.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.role} · {p.company}</div>
               </div>
             </div>
+            <span style={{ fontSize: 12, color: 'var(--body)', overflowWrap: 'anywhere' }}>{p.role || '—'}</span>
+            <span style={{ fontSize: 12, color: 'var(--body)', overflowWrap: 'anywhere' }}>{p.company || '—'}</span>
             <span style={{ fontSize: 9.5, fontWeight: 700, background: ks.bg, color: ks.c, padding: '3px 8px', borderRadius: 999, textAlign: 'center' }}>{typeOf(p)}</span>
-            <ProjChips p={p} max={2} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink)' }}><PhoneLink phone={p.phone} /></div>
               <div style={{ fontSize: 10.5, color: 'var(--forest)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><EmailLink email={p.email} /></div>
@@ -376,6 +459,7 @@ export function People() {
 
   const tierFor: Record<string, Person['tier']> = { Staff: 'Internal', Client: 'Client', Consultant: 'Consultant', Sub: 'Consultant', Authority: 'Consultant', Vendor: 'Consultant' };
   const isCompany = ['Consultant', 'Sub', 'Authority', 'Vendor'].includes(np.kind);
+  const companyNames = [...new Set(all.map((p) => p.company).filter((c) => c && c !== '—'))].sort((a, b) => a.localeCompare(b));
   const needsComply = ['Consultant', 'Sub', 'Vendor'].includes(np.kind);
   const valid = np.name.trim().length > 1;
   const lbl = (t: string, hint?: string): ReactNode => (
@@ -384,6 +468,12 @@ export function People() {
       {hint && <span style={{ fontSize: 10, color: '#A8B5AF', marginLeft: 6 }}>{hint}</span>}
     </div>
   );
+  const textBox: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
+  const setPersonName = (patch: Partial<PersonProfile>) => {
+    const next = { ...profile, ...patch };
+    setProfile(next);
+    setNp({ ...np, name: personDisplayName(next) });
+  };
   const field = (label: string, key: keyof NewPerson, placeholder: string, hint?: string, span?: string) => (
     <div key={key} style={{ gridColumn: span || 'auto' }}>
       {lbl(label, hint)}
@@ -412,6 +502,7 @@ export function People() {
           </button>
         )}
       </div>
+      {statsStrip}
       <div className="pp-filters">
         {KINDS.filter((k) => k === 'All' || kindCount(k) > 0).map((k) => (
           <button type="button" key={k} className={'pp-chip' + (kf === k ? ' is-on' : '')} onClick={() => setKf(k)}>{kindLabel(k)} <small>{kindCount(k)}</small></button>
@@ -463,15 +554,7 @@ export function People() {
     <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: isNew ? 16 : 12 }}>
       {isNew ? newTop : <>
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-        {stats.map((st) => (
-          <div key={st.label} style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '15px 16px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.09em' }}>{st.label}</div>
-            <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7 }}>{st.value}</div>
-            <div style={{ fontSize: 10.5, color: st.color, fontWeight: 600, marginTop: 4 }}>{st.sub}</div>
-          </div>
-        ))}
-      </div>
+      {statsStrip}
 
       {/* View toggle + kind filter + project popover */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -526,6 +609,7 @@ export function People() {
               onPickAll={(on) => setPicked(on ? new Set(shown.map((p) => p.id)) : new Set())} />
           : tableView)
         : cardsView}
+      {compliancePanel}
 
       {/* Person drawer */}
       {sel && (
@@ -672,10 +756,19 @@ export function People() {
                   toast(r.filled.length ? `Filled in ${r.filled.join(', ')} — check them, then it saves with the card photos` : 'Card photos added — nothing new to fill in');
                 }} />
               </div>
-              {field(isCompany ? 'Company or firm name' : 'Full name', 'name', isCompany ? 'e.g. Kestrel Electric Co.' : 'e.g. Dana Whitfield', 'required', '1 / -1')}
-              {field(isCompany ? 'Trade or discipline' : 'Role or title', 'role', isCompany ? 'e.g. Electrical' : 'e.g. Project Coordinator')}
-              {field('Company shown in lists', 'company', isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build')}
-              {isCompany && field('Primary contact', 'contact', 'e.g. Dana Whitfield', 'the person you actually call', '1 / -1')}
+              {isCompany ? field('Company or firm name', 'name', 'e.g. Kestrel Electric Co.', 'required', '1 / -1') : <>
+                {/* A person's name is first and last (Oct 20): the directory shows them together. */}
+                <div>{lbl('First name', 'required')}<input value={profile.firstName} placeholder="e.g. Dana" aria-label="First name" onChange={(e) => setPersonName({ firstName: e.target.value })} style={textBox} /></div>
+                <div>{lbl('Last name')}<input value={profile.lastName} placeholder="e.g. Whitfield" aria-label="Last name" onChange={(e) => setPersonName({ lastName: e.target.value })} style={textBox} /></div>
+              </>}
+              {isCompany
+                ? <div>{lbl(np.kind === 'Sub' || np.kind === 'Vendor' ? 'Trade' : 'Discipline')}<PickOrType value={np.role} options={np.kind === 'Sub' || np.kind === 'Vendor' ? tradeNames : CONSULTANT_DISCIPLINES} placeholder="Type the trade" onChange={(role) => setNp({ ...np, role })} /></div>
+                : field('Role or title', 'role', 'e.g. Project Coordinator')}
+              <div>{lbl('Company shown in lists', isCompany ? 'same as above if left blank' : undefined)}<PickOrType value={np.company} options={companyNames} placeholder={isCompany ? 'Same as above if left blank' : 'e.g. Origami Design + Build'} newLabel="+ New company…" onChange={(company) => setNp({ ...np, company })} /></div>
+              {isCompany && <>
+                <div>{lbl('Primary contact · first name')}<input value={np.contactFirst ?? splitName(np.contact)[0]} placeholder="e.g. Dana" aria-label="Primary contact first name" onChange={(e) => setNp({ ...np, contactFirst: e.target.value, contactLast: np.contactLast ?? splitName(np.contact)[1] })} style={textBox} /></div>
+                <div>{lbl('Primary contact · last name')}<input value={np.contactLast ?? splitName(np.contact)[1]} placeholder="e.g. Whitfield" aria-label="Primary contact last name" onChange={(e) => setNp({ ...np, contactLast: e.target.value, contactFirst: np.contactFirst ?? splitName(np.contact)[0] })} style={textBox} /></div>
+              </>}
               {field('Phone', 'phone', '(415) 555 0000')}
               {field('Email', 'email', 'name@company.com')}
               <div style={{ gridColumn: '1 / -1' }}>

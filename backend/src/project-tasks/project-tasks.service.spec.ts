@@ -56,7 +56,7 @@ describe('ProjectTasksService', () => {
             repo.find.mockResolvedValue([{ id: 'T-2', parentId: 'T-1', completed: false, status: 'Not started' }] as any);
             await expect(service.update('T-1', { completed: true })).rejects.toThrow('Finish its 1 open subtask first.');
             repo.find.mockResolvedValue([{ id: 'T-2', parentId: 'T-1', completed: true, status: 'Done' }] as any);
-            await expect(service.update('T-1', { completed: true })).resolves.toMatchObject({ status: 'Done' });
+            await expect(service.update('T-1', { completed: true, completionNote: 'All done' })).resolves.toMatchObject({ status: 'Done' });
         });
 
         it("won't let a subtask's due date be cleared", async () => {
@@ -116,7 +116,7 @@ describe('ProjectTasksService', () => {
 
         it('lets collaborators know when the task is done, and about comments (with the assignee)', async () => {
             repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'X', status: 'In progress', assigneeId: 'U-AS', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [], comments: [] } as any);
-            await service.update('T-1', { status: 'Done' }, actor);
+            await service.update('T-1', { status: 'Done', completionNote: 'Sent to the client' }, actor);
             expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.anything(), ['U-AN'], { kind: 'done' });
             await service.addComment('T-1', 'Client sent the survey', actor);
             expect(notifications.taskFollowUp).toHaveBeenLastCalledWith(expect.anything(), ['U-AN', 'U-AS'], { kind: 'comment', comment: 'Client sent the survey' });

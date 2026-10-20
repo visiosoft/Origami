@@ -56,7 +56,7 @@ export class NotificationsService {
    * assignee too) that it moved: they were added, someone commented, or it's
    * done. Never the person who did it. Fire-and-forget like assignment mail.
    */
-  taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: { kind: 'added' | 'comment' | 'done'; comment?: string }): void {
+  taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: { kind: 'added' | 'comment' | 'done' | 'mention'; comment?: string }): void {
     const ids = Array.from(new Set(recipientIds.filter((id) => id && id !== notice.actor?.id)));
     for (const id of ids) {
       void this.sendAssignment({ ...notice, assigneeId: id }, follow).catch((err) => {
@@ -66,7 +66,7 @@ export class NotificationsService {
   }
 
   /** Separated from the fire-and-forget wrapper so the test endpoint can await it. */
-  async sendAssignment(notice: AssignmentNotice, follow?: { kind: 'added' | 'comment' | 'done'; comment?: string }): Promise<{ sent: boolean; reason?: string }> {
+  async sendAssignment(notice: AssignmentNotice, follow?: { kind: 'added' | 'comment' | 'done' | 'mention'; comment?: string }): Promise<{ sent: boolean; reason?: string }> {
     const skip = (reason: string) => {
       this.log.log(`No assignment email for ${notice.taskId}: ${reason}`);
       return { sent: false, reason };

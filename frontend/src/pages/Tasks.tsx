@@ -245,8 +245,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
                 <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{t.serial || t.id}</span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
                 <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{desc}</span>
-                  {(createdByText(t) || t.project || t.leadName) && <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[t.project, leadLabel(t.leadName), createdByText(t)].filter(Boolean).join(' · ')}</span>}
+                  <span style={{ fontSize: 13, fontWeight: 500, overflowWrap: 'anywhere' }}>{desc}</span>
+                  {(createdByText(t) || t.project || t.leadName) && <span style={{ fontSize: 11, color: 'var(--muted)', overflowWrap: 'anywhere' }}>{[t.project, leadLabel(t.leadName), createdByText(t)].filter(Boolean).join(' · ')}</span>}
                 </span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.c, textAlign: 'center' }}>{t.status}</span>
                 {t.assignedTo ? (

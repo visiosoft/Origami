@@ -79,8 +79,8 @@
 .tb-initials.is-on .tb-ini-text { opacity: 0; }
 .tb-initials.is-on::after { opacity: 1; color: #FDFCF9; }
 .tb-titlebox { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.tb-titlebox .tb-title { -webkit-line-clamp: 2; font-size: 14px; }
-.tb-sub { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-titlebox .tb-title { font-size: 14px; }
+.tb-sub { font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
 .tb-head2 .tb-prio { flex-shrink: 0; margin-top: 2px; padding: 2px 8px; font-size: 11px; }
 .tb-foot .tb-count { white-space: nowrap; }
 .tb-foot { flex-wrap: nowrap; min-width: 0; }
@@ -128,3 +128,14 @@
 .tb-board::-webkit-scrollbar, .tb-scroll::-webkit-scrollbar { height: 10px; }
 .tb-board::-webkit-scrollbar-thumb, .tb-scroll::-webkit-scrollbar-thumb { background: rgba(var(--rgb-shade), .3); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
 .tb-board::-webkit-scrollbar-track, .tb-scroll::-webkit-scrollbar-track { background: rgba(var(--rgb-shade), .05); border-radius: 999px; }
+
+/* Subtasks nested under their parent card (Oct 20 sync): a lighter tint, indented, one line each. */
+.tb-subtasks { list-style: none; margin: 0 0 0 40px; padding: 6px 8px; display: grid; gap: 4px; border-radius: 8px; background: var(--mint); border-left: 3px solid var(--forest); }
+.tb-subtasks li { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink); cursor: pointer; min-width: 0; }
+.tb-subtasks li:hover .tb-subtasks-title { text-decoration: underline; }
+.tb-subtasks-dot { width: 9px; height: 9px; flex-shrink: 0; border-radius: 3px; border: 1.5px solid var(--forest); }
+.tb-subtasks li.is-done .tb-subtasks-dot { background: var(--forest); }
+.tb-subtasks li.is-done .tb-subtasks-title { color: var(--muted); text-decoration: line-through; }
+.tb-subtasks-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.tb-subtasks-who { flex-shrink: 0; font-size: 11px; color: var(--muted); }
+.tb-subtasks-more { color: var(--forest) !important; font-weight: 700; }

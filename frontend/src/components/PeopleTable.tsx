@@ -31,9 +31,9 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
   const allOn = people.length > 0 && people.every((p) => picked.has(p.id));
   // Click a heading to sort by it, again to reverse.
   const { sorted, sort, toggle } = useSort(people, {
-    name: (p) => p.name, role: (p) => p.role, company: (p) => p.company, projects: (p) => p.projects.length,
+    name: (p) => p.name, role: (p) => p.role, company: (p) => p.company, comply: (p) => (p.comply ? (p.comply.ok ? 1 : 0) : null),
     since: (p) => (/^\d{4}-\d{2}-\d{2}/.test(p.since || '') ? p.since : ''), type: (p) => internalLevelOf(p) || p.kind,
-  }, null, { since: 'desc', projects: 'desc' });
+  }, null, { since: 'desc' });
   const H = (k: string, label: string) => <SortHeader k={k} sort={sort} onSort={toggle}>{label}</SortHeader>;
   return (
     <div className="pt-card">
@@ -44,7 +44,8 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
         <span>{H('name', 'Name')}</span>
         <span className="pt-hide-sm">{H('role', 'Role')}</span>
         <span className="pt-hide-md">{H('company', 'Company')}</span>
-        <span className="pt-hide-md">{H('projects', 'Projects')}</span>
+        {/* Projects are a filter (All projects ▾), not a column (Oct 20). */}
+        <span className="pt-hide-md">{H('comply', 'Compliance')}</span>
         <span className="pt-hide-sm">{H('since', 'Since')}</span>
         <span>{H('type', 'Type')}</span>
       </div>
@@ -73,7 +74,8 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
             <span className="pt-cell pt-hide-sm">{p.role}</span>
             <span className="pt-cell pt-hide-md">{p.company}</span>
             <span className="pt-cell pt-hide-md">
-              {p.projects.length === 0 ? <span className="pt-muted">—</span> : <>{p.projects[0]}{p.projects.length > 1 && <span className="pt-muted"> +{p.projects.length - 1}</span>}</>}
+              {!p.comply ? <span className="pt-muted">—</span>
+                : <span className={'pt-pill ' + (p.comply.ok ? 'is-staff' : 'is-alert')} title={p.comply.label || ''}><i />{p.comply.date}</span>}
             </span>
             <span className="pt-cell pt-hide-sm">{p.since || '—'}</span>
             <span className="pt-type">

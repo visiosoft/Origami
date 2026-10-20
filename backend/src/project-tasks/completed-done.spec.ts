@@ -33,7 +33,7 @@ describe('completed tasks are Done', () => {
   });
 
   it('a finished card dragged into In Review is back in work', async () => {
-    const svc = setup([{ id: 'A', projectId: 5, sectionId: 'S-done', status: 'Done', completed: true, activity: [] }]);
+    const svc = setup([{ id: 'A', projectId: 5, sectionId: 'S-done', status: 'Done', completed: true, assignee: 'Kai', assigneeId: 'U-KAI', activity: [] }]);
     const t = await svc.update('A', { sectionId: 'S-rev' }, me);
     expect(t).toMatchObject({ status: 'In progress', completed: false, sectionId: 'S-rev' });
   });

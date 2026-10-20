@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useApp } from '../AppContext';
 import { Avatar } from './Avatar';
 import type { ActivityEvent, TaskComment } from '../data/projectTasks';
@@ -45,6 +45,22 @@ export function ActivityFeed({
   const { currentUser, users } = useApp();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  // @mentions: typing "@an" offers matching people; picking one writes "@Andrea Castillo ".
+  const box = useRef<HTMLTextAreaElement>(null);
+  const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
+  const matches = mention ? users.filter((u) => u.status !== 'suspended' && u.name.toLowerCase().split(/\s+/).some((w) => w.startsWith(mention.query.toLowerCase()))).slice(0, 6) : [];
+  const track = (value: string, caret: number) => {
+    const m = /(^|\s)@([\p{L}'-]{0,20})$/u.exec(value.slice(0, caret));
+    setMention(m ? { start: caret - m[2].length - 1, query: m[2] } : null);
+  };
+  const pickMention = (name: string) => {
+    if (!mention) return;
+    const end = mention.start + 1 + mention.query.length;
+    const next = text.slice(0, mention.start) + '@' + name + ' ' + text.slice(end);
+    setText(next);
+    setMention(null);
+    requestAnimationFrame(() => { const at = mention.start + name.length + 2; box.current?.focus(); box.current?.setSelectionRange(at, at); });
+  };
 
   // Comments already appear as activity entries; render those and fold in any
   // comment that predates the activity log so nothing is lost.
@@ -82,11 +98,18 @@ export function ActivityFeed({
       {canManage && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 }}>
           <Avatar user={currentUser} name={currentUser?.name} size={26} />
+          <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
           <textarea
+            ref={box}
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
-            placeholder="Write a comment…"
+            onChange={(e) => { setText(e.target.value); track(e.target.value, e.target.selectionStart ?? e.target.value.length); }}
+            onBlur={() => setTimeout(() => setMention(null), 150)}
+            onKeyDown={(e) => {
+              if (mention && matches.length && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); pickMention(matches[0].name); return; }
+              if (e.key === 'Escape') setMention(null);
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
+            }}
+            placeholder="Write a comment… type @ to mention someone"
             rows={2}
             style={{
               flex: 1, boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9,
@@ -94,6 +117,17 @@ export function ActivityFeed({
               fontSize: 12.5, color: 'var(--ink)', outline: 'none', resize: 'vertical', lineHeight: 1.5,
             }}
           />
+          {mention && matches.length > 0 && (
+            <ul role="listbox" aria-label="Mention someone" style={{ position: 'absolute', left: 0, top: '100%', marginTop: 4, zIndex: 5, listStyle: 'none', padding: 4, minWidth: 200, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.12)', borderRadius: 10, boxShadow: '0 10px 28px rgba(var(--rgb-ink), 0.16)' }}>
+              {matches.map((u, i) => (
+                <li key={u.id} role="option" aria-selected={i === 0} onMouseDown={(e) => { e.preventDefault(); pickMention(u.name); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 7, cursor: 'pointer', fontSize: 12.5, color: 'var(--ink)', background: i === 0 ? 'var(--panel)' : 'transparent' }}>
+                  <Avatar user={u} name={u.name} size={20} />{u.name}
+                </li>
+              ))}
+            </ul>
+          )}
+          </div>
           <div
             onClick={submit}
             style={{

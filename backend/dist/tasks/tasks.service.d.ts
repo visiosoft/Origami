@@ -56,6 +56,7 @@ export declare class TasksService implements OnApplicationBootstrap {
     flushNotices(id: string): Promise<{
         sent: number;
     }>;
+    startDueTasks(): Promise<number>;
     flushOverdue(): Promise<void>;
     remove(id: string): Promise<{
         id: string;

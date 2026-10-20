@@ -169,15 +169,28 @@ export function ActionTrail({ sourceType, sourceId, sourceLabel, derived }: { so
 }
 
 /** "Originator: Sara Reyes · Oct 17, 2026 · RFI-004" -- at the top of every special action. */
-export function OriginatorLine({ by, at, number }: { by?: string | null; at?: string | null; number?: string | null }) {
+export function OriginatorLine({ by, at, number, label = 'Originator', project, source }: {
+  by?: string | null; at?: string | null; number?: string | null;
+  /** What "by" is called: Originator, or Assigner on tasks (whoever entered it, and confirms it). */
+  label?: string;
+  /** The project (or lead) it belongs to, so a task opened from All projects says where it lives. */
+  project?: string | null;
+  /** Tasks: who asked for it, when that's someone other than the assigner. */
+  source?: string | null;
+}) {
   const when = at && !Number.isNaN(Date.parse(at)) ? new Date(at.length > 10 ? at : at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  if (!by && !when) return null;
+  if (!by && !when && !project) return null;
+  const tag = { fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' } as const;
   return (
-    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline' }}>
-      <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Originator</span>
-      <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{by || '—'}</b>
-      {when && <span>· {when}</span>}
-      {number && <span>· {number}</span>}
+    <div style={{ fontSize: 12, color: 'var(--muted)', display: 'grid', gap: 3 }}>
+      {project && <div style={{ color: 'var(--forest)', fontWeight: 700, overflowWrap: 'anywhere' }}>{project}</div>}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline' }}>
+        <span style={tag}>{label}</span>
+        <b style={{ color: 'var(--ink)', fontWeight: 600 }}>{by || '—'}</b>
+        {source && source.trim().toLowerCase() !== String(by || '').trim().toLowerCase() && <><span style={{ ...tag, marginLeft: 4 }}>Source</span><b style={{ color: 'var(--ink)', fontWeight: 600 }}>{source}</b></>}
+        {when && <span>· {when}</span>}
+        {number && <span>· {number}</span>}
+      </div>
     </div>
   );
 }

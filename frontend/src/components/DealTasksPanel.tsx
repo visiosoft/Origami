@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { isLogClosed, useLogStatuses } from '../data/logStatuses';
 import { api } from '../api';
+import { useApp } from '../AppContext';
 import { DraftScope, SaveBar } from '../autosave';
 import { NewTaskDrawer } from './NewTaskDrawer';
 import { RequestLogTaskDrawer } from './RequestLogTaskDrawer';
+import { askCompletionNote } from './CompletionNote';
 import { logTaskDetails, logTaskTitle, type Task } from '../data/tasks';
 
 const input: React.CSSProperties = {
@@ -36,6 +38,7 @@ export function DealTasksPanel({
   openTaskId?: string | null;
 }) {
   const statuses = useLogStatuses();
+  const { toast } = useApp();
   // Opens over the lead, so reading a task never takes you out of the CRM.
   const [openId, setOpenId] = useState<string | null>(null);
   // A task made moments ago (from a note, or "+ Add task") opens in full, where files, labels and a checklist go.
@@ -61,9 +64,13 @@ export function DealTasksPanel({
 
   const sectionOf = (t: Task) => (t.labels || []).find((l) => l.startsWith(SECTION_PREFIX))?.slice(SECTION_PREFIX.length) || 'Other';
 
-  const setStatus = (t: Task, status: string) => {
+  const setStatus = async (t: Task, status: string) => {
+    // Marking it complete says what was done.
+    const completionNote = isLogClosed(status) && !isLogClosed(t.status) ? await askCompletionNote(logTaskTitle(t)) : undefined;
+    if (completionNote === null) return;
     setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: status as Task['status'] } : x)));
-    api.tasks.update(t.id, { status, dateClosed: isLogClosed(status) ? new Date().toISOString().slice(0, 10) : '' }).catch(() => load());
+    api.tasks.update(t.id, { status, dateClosed: isLogClosed(status) ? new Date().toISOString().slice(0, 10) : '', ...(completionNote ? { completionNote } : {}) })
+      .catch((e: Error) => { toast('⚠ ' + (e.message || 'Not saved')); load(); });
   };
 
   const remove = (t: Task) => {

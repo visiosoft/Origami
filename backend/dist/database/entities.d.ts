@@ -103,6 +103,7 @@ export declare class TaskEntity {
     topicType: string;
     subject: string;
     description: string;
+    completionNote: string;
     startDate: string;
     dueDate: string;
     dueTime: string;
@@ -456,6 +457,9 @@ export declare class ProjectTaskEntity {
     dependsOn: string[];
     createdById: string;
     createdByName: string;
+    requestedById: string;
+    requestedBy: string;
+    completionNote: string;
     confirmedAt: string;
     archivedAt: string;
 }

@@ -145,6 +145,8 @@ export class TaskEntity {
   /** The task's name. Older tasks have none: their first description line serves as the name. */
   @Column({ nullable: true }) subject!: string;
   @Column(TEXT) description!: string;
+  /** What was done -- required when it's marked complete. */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) completionNote!: string;
   /** Set the first time it goes In Progress (or by hand). */
   @Column({ nullable: true }) startDate!: string;
   @Column({ nullable: true }) dueDate!: string;
@@ -628,6 +630,11 @@ export class ProjectTaskEntity {
   /** Who created it -- the originator, who confirms it once complete. */
   @Column({ nullable: true }) createdById!: string;
   @Column({ nullable: true }) createdByName!: string;
+  /** Source: who asked for it (may differ from whoever entered it, the assigner). */
+  @Column({ nullable: true }) requestedById!: string;
+  @Column({ nullable: true }) requestedBy!: string;
+  /** What was done -- required when it's marked complete. */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) completionNote!: string;
   /** Moved to Confirmed by the originator; 7 days later it's archived. */
   @Column({ nullable: true }) confirmedAt!: string;
   @Column({ nullable: true }) archivedAt!: string;

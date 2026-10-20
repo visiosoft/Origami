@@ -42,6 +42,7 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     flushNotices(id: string, withSubtasks?: boolean): Promise<{
         sent: number;
     }>;
+    startDueTasks(): Promise<number>;
     flushOverdue(): Promise<void>;
     reorder(sectionId: string, ids: string[]): Promise<{
         sectionId: string;

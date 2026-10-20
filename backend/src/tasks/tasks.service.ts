@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { mentionedIds } from './mentions';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NO_ASSIGNEE_IN_PROGRESS } from './task-rules';
 import { SettingsService } from '../settings/settings.service';
 import { withAutoChecklists } from '../project-tasks/auto-checklist';
 import { backfillSerials, logSerialKind, nextSerial, serialYear } from '../database/serials';
@@ -55,6 +57,10 @@ export class TasksService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
     tick.unref?.();
+    // Start dates that arrive start their tasks (checked at boot and every 30 minutes).
+    const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + (e as Error).message)); }, 30 * 60_000);
+    starts.unref?.();
+    this.startDueTasks().catch(() => undefined);
     try {
       await backfillAssignees(this.repo, this.users, 'assignedToId', 'assignedTo', this.log);
     } catch (err) {
@@ -179,7 +185,16 @@ export class TasksService implements OnApplicationBootstrap {
     const cur = patch.status ?? task.status;
     if (cur === 'To Do' && assigned) patch.status = 'Assigned';
     if (cur === 'Assigned' && !assigned) patch.status = 'To Do';
-    const next = patch.status ?? task.status;
+    // A start date that has arrived starts the work; nothing is in progress without an assignee.
+    const pending = (s?: string | null) => !s || s === 'To Do' || s === 'Assigned';
+    if ('startDate' in patch && patch.startDate !== task.startDate && pending(patch.status ?? task.status) && startDue(patch.startDate, assigned)) {
+      patch.status = 'In Progress';
+    }
+    let next = patch.status ?? task.status;
+    if (isInProgress(next) && !isInProgress(task.status) && !assigned) {
+      if (!['Complete', 'Confirmed'].includes(task.status)) throw new BadRequestException(NO_ASSIGNEE_IN_PROGRESS);
+      patch.status = next = 'To Do';
+    }
     if (isInProgress(next) && !isInProgress(task.status) && !task.startDate && !patch.startDate) {
       patch.startDate = new Date().toISOString().slice(0, 10);
     }
@@ -315,6 +330,8 @@ export class TasksService implements OnApplicationBootstrap {
     // New entries start in To Do, or Assigned when someone is named.
     task.status = bucketOf(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
     if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim())) task.status = 'Assigned';
+    if ((task.status === 'To Do' || task.status === 'Assigned') && task.assignedTo && startDue(task.startDate, true)) task.status = 'In Progress';
+    if (isInProgress(task.status) && !(task.assignedToId || String(task.assignedTo || '').trim())) throw new BadRequestException(NO_ASSIGNEE_IN_PROGRESS);
     if (isInProgress(task.status) && !task.startDate) task.startDate = new Date().toISOString().slice(0, 10);
     task.serial = nextSerial(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), logSerialKind(task.topicType), serialYear());
 
@@ -360,6 +377,7 @@ export class TasksService implements OnApplicationBootstrap {
       patch.assignedToId = assignee.id ?? null;
     }
 
+    const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
     await this.bucketRules(task, patch, actor);
     if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
 
@@ -386,9 +404,16 @@ export class TasksService implements OnApplicationBootstrap {
       if (removed.length) collabEvents.push(event('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
     }
     const finished = closing && !wasClosed;
+    // Marking it complete says what was done (a resolution counts; closing it is the assigner's call).
+    const noteEvents: ActivityEvent[] = [];
+    if (finished && !closingNow && !note && !String(patch.resolution ?? '').trim()) throw new BadRequestException(NEEDS_COMPLETION_NOTE);
+    if (finished && note) {
+      patch.completionNote = note;
+      noteEvents.push(event('comment', actor, { text: `Completion note: ${note}` }));
+    }
 
     if (closingNow) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; }
-    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...noteEvents, ...(closingNow ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
       ? String(patch.assignedToId)
       : null;
@@ -436,6 +461,17 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   /** Emails held more than 15 minutes (the page was closed without Save) go out anyway. */
+  /** Assigned entries whose start date has arrived go In Progress. Returns how many moved. */
+  async startDueTasks() {
+    const rows = (await this.repo.find()).filter((t) => !t.archivedAt && (t.status === 'To Do' || t.status === 'Assigned')
+      && startDue(t.startDate, !!(t.assignedToId || String(t.assignedTo || '').trim())));
+    for (const t of rows) {
+      try { await this.update(t.id, { status: 'In Progress' }, { name: 'System' }); }
+      catch (e) { this.log.warn(`Start ${t.id}: ${(e as Error).message}`); }
+    }
+    return rows.length;
+  }
+
   async flushOverdue() {
     for (const t of (await this.repo.find()).filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id);
   }
@@ -581,7 +617,10 @@ export class TasksService implements OnApplicationBootstrap {
     task.activity = [...normalizeList<ActivityEvent>(task.activity), event('comment', actor, { text: comment.text })];
     const saved = await this.repo.save(task);
     // Everyone following the task hears about a comment (the assignee too), except its author.
-    const followers = [...normalizeCollaborators(saved.collaborators).map((c) => c.id), saved.assignedToId].filter(Boolean) as string[];
+    // @mentioned people hear they were mentioned; everyone else following hears about a comment.
+    const mentioned = mentionedIds(comment.text, await this.users.find());
+    const followers = [...normalizeCollaborators(saved.collaborators).map((c) => c.id), saved.assignedToId].filter((x) => x && !mentioned.includes(x)) as string[];
+    if (mentioned.length) this.notifications.taskFollowUp(this.notice(saved, actor), mentioned, { kind: 'mention', comment: comment.text });
     if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
     return this.hydrate(saved);
   }

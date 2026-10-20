@@ -18,7 +18,10 @@ export interface Task extends ActionTrailFields {
   /** Confirmed by whoever raised it; archived 7 days later. */
   confirmedAt?: string | null;
   archivedAt?: string | null;
+  /** Source: who asked for it (the assigner is whoever entered it). */
   originator: string;
+  /** What was done -- written when it's marked complete. */
+  completionNote?: string;
   topicType: 'Task' | 'FYI' | 'Observation' | 'Decision' | 'RFI';
   /** The meeting it was raised in, when it came from one. */
   meetingId?: string;

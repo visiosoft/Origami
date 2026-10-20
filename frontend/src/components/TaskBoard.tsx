@@ -19,6 +19,7 @@ import {
 } from '../data/projectTasks';
 import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
+import { askCompletionNote } from './CompletionNote';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { TaskLinkBadge } from './TaskLinkBadge';
 import { AvatarStack, taskPeople } from './AvatarStack';
@@ -57,7 +58,7 @@ function PriorityPill({ p }: { p?: Priority }) {
  * since the drawer resolves its task out of `tasks`.
  */
 /** The fields the task panel edits; they autosave together. */
-const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId', 'holdReason'];
+const BOARD_FIELDS: (keyof ProjectTask)[] = ['completed', 'title', 'assigneeId', 'assignee', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'sectionId', 'description', 'checklist', 'labels', 'leadId', 'holdReason', 'completionNote', 'requestedById', 'requestedBy'];
 
 /** "Q3 PRD draft" -> "QP": the card's tile. */
 const initialsOf = (title: string) => {
@@ -80,6 +81,8 @@ const normStatus = (s?: string | null): TaskStatus => {
 /** Completed means Done -- whatever an older status says. */
 const isFinished = (t: { completed?: boolean | null; status?: string | null }) => !!t.completed || normStatus(t.status) === 'Done' || normStatus(t.status) === 'Confirmed';
 const CLOSE_OPT = '__close';
+/** A column that finishes whatever lands in it. */
+const finishingColumn = (name?: string | null) => /^(done|complete|completed|confirmed)$/i.test(String(name || '').trim());
 const bucketCol = (t: { completed?: boolean | null; status?: string | null }) => {
   const st = normStatus(t.status);
   return 'B:' + (t.completed && st !== 'Confirmed' ? 'Done' : st);
@@ -167,8 +170,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   };
   useEffect(() => { setLoading(true); loadedProject.current = all ? -1 : projectId; load(); }, [projectId, leadId]);
   useEffect(() => {
-    if (all) api.projects.list().then((r: any) => setProjectNames(Object.fromEntries((Array.isArray(r) ? r : []).map((p: any) => [p.id, p.name])))).catch(() => { });
-  }, [all]);
+    api.projects.list().then((r: any) => setProjectNames(Object.fromEntries((Array.isArray(r) ? r : []).map((p: any) => [p.id, p.name])))).catch(() => { });
+  }, []);
   // Assignees come from useApp().users — already loaded app-wide, no fetch needed.
   useEffect(() => { api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false)); }, []);
 
@@ -189,11 +192,24 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
 
   // ---- task mutations (optimistic + persist) ----
   const patchLocal = (id: string, patch: Partial<ProjectTask>) => setTasks((prev) => prev.map((t) => (t.id === id ? inBucket({ ...t, ...patch, ...(all && patch.sectionId ? { homeSectionId: patch.sectionId, sectionId: t.sectionId } : {}) } as ProjectTask) : t)));
-  const updateTask = (id: string, patch: Partial<ProjectTask>) => {
+  /** Finishing a task asks what was done (Oct 20 SOP); null when they cancel. */
+  const needsNote = (t: ProjectTask | undefined, patch: Partial<ProjectTask>) => {
+    if (!t || isFinished(t) || patch.completionNote) return false;
+    const into = patch.sectionId ? sections.find((s) => s.id === patch.sectionId)?.name : '';
+    return patch.completed === true || (patch.status !== undefined && isFinished({ status: patch.status })) || finishingColumn(into);
+  };
+  const withCompletionNote = async (t: ProjectTask | undefined, patch: Partial<ProjectTask>): Promise<Partial<ProjectTask> | null> => {
+    if (!needsNote(t, patch)) return patch;
+    const note = await askCompletionNote(t!.title);
+    return note ? { ...patch, completionNote: note } : null;
+  };
+  const updateTask = async (id: string, raw: Partial<ProjectTask>) => {
     const before = tasks.find((x) => x.id === id);
-    const finishing = patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed';
+    const finishing = raw.completed === true || raw.status === 'Done' || raw.status === 'Confirmed';
     const openSubs = finishing && before && !before.parentId ? subtasksOf(tasks, id).filter((s) => !s.completed).length : 0;
     if (openSubs) { toast(`Finish its ${openSubs} open subtask${openSubs === 1 ? '' : 's'} first`); return; }
+    const patch = await withCompletionNote(before, raw);
+    if (!patch) return;
     patchLocal(id, patch);
     // The server keeps the status and its column together, and fills the start / confirmed dates.
     api.projectTasks.update(id, patch)
@@ -310,11 +326,14 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   };
 
   /** Persist a manual card order after a drag inside one column. */
-  const reorderIn = (sectionId: string, draggedId: string, index: number) => {
+  const reorderIn = async (sectionId: string, draggedId: string, index: number) => {
     if (all) { moveTask(draggedId, sectionId); return; }
     const current = topLevelBySection(tasks, sectionId).filter((t) => t.id !== draggedId);
     const dragged = tasks.find((t) => t.id === draggedId);
     if (!dragged) return;
+    // Dropped into Done: say what was done first (cancel leaves the card where it was).
+    const move = dragged.sectionId !== sectionId ? await withCompletionNote(dragged, { sectionId }) : null;
+    if (dragged.sectionId !== sectionId && !move) return;
     const next = [...current.slice(0, index), dragged, ...current.slice(index)];
     const ids = next.map((t) => t.id);
     setTasks((prev) => prev.map((t) => {
@@ -322,7 +341,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
       return at === -1 ? t : { ...t, order: at, sectionId };
     }));
     if (dragged.sectionId !== sectionId) {
-      api.projectTasks.update(draggedId, { sectionId }).catch(() => toast('⚠ Failed to move'));
+      api.projectTasks.update(draggedId, move!)
+        .then((res: any) => { if (res?.id) patchLocal(draggedId, { status: res.status, sectionId: res.sectionId, completed: res.completed, startDate: res.startDate, completionNote: res.completionNote }); })
+        .catch((e: Error) => { toast('⚠ ' + (e.message || 'Failed to move')); load(); });
     }
     api.projectTasks.reorder(sectionId, ids).catch(() => toast('⚠ Failed to reorder'));
   };
@@ -401,6 +422,19 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             </div>
             {t.priority && <span className={'tb-prio is-' + t.priority.toLowerCase()}>{t.priority}</span>}
           </div>
+          {/* Its subtasks, nested under it in their own tint: who has each, and whether it's done. */}
+          {subs.length > 0 && (
+            <ul className="tb-subtasks" aria-label="Subtasks">
+              {subs.slice(0, 6).map((s) => (
+                <li key={s.id} className={isFinished(s) ? 'is-done' : ''} onClick={(e) => { e.stopPropagation(); setSelectedId(s.id); }} title={`Open “${s.title}”`}>
+                  <span className="tb-subtasks-dot" aria-hidden />
+                  <span className="tb-subtasks-title">{s.title}</span>
+                  {s.assignee && <span className="tb-subtasks-who">{s.assignee.split(/\s+/)[0]}</span>}
+                </li>
+              ))}
+              {subs.length > 6 && <li className="tb-subtasks-more" onClick={(e) => { e.stopPropagation(); setSelectedId(t.id); }}>+{subs.length - 6} more</li>}
+            </ul>
+          )}
           {(t.parentId || subs.length > 0 || (t.labels?.length || 0) > 0 || (t.status && t.status !== 'Not started' && t.status !== 'Done')) && (
             <div className="tb-tags">
               {linkBadge(t)}
@@ -946,8 +980,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
         const set = (patch: Partial<ProjectTask>) => {
           const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subtasksOf(tasks, selected.id).filter((s) => !s.completed).length : 0;
           if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
-          setDraft(patch);
+          // Finishing it asks what was done; the note saves with the status.
+          if (!needsNote(d, patch)) { setDraft(patch); return; }
+          void withCompletionNote(d, patch).then((p) => { if (p) setDraft(p); });
         };
+        const assigned = !!(d.assigneeId || (d.assignee || '').trim());
+        const projectName = selected.projectId != null ? projectNames[selected.projectId] : null;
         // Portalled: a transformed ancestor would otherwise trap the fixed overlay inside the board.
         return createPortal(
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
@@ -965,7 +1003,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
             {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={selected.serial || '#' + selected.id} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={projectName || (selected.projectId == null ? (selected.leadName ? leadLabel(selected.leadName) : 'General Tasks') : `Project ${selected.projectId}`)} source={d.requestedBy} by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={selected.serial || '#' + selected.id} /></div>
                 {canManage && !selected.parentId && (selected.archivedAt
                   ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                   : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
@@ -983,7 +1021,18 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                   valueId={d.assigneeId}
                   valueName={d.assignee}
                   disabled={!canManage}
+                  project={projectName}
+                  internalOnly={selected.projectId == null}
                   onChange={(u) => set({ assigneeId: u?.id ?? '', assignee: u?.name ?? '' })}
+                />
+              </Field>
+              <Field label="Source (requested by)">
+                <AssigneePicker
+                  valueId={d.requestedById || undefined}
+                  valueName={d.requestedBy || undefined}
+                  disabled={!canManage}
+                  emptyLabel="— the assigner —"
+                  onChange={(u) => set({ requestedById: u?.id ?? '', requestedBy: u?.name ?? '' })}
                 />
               </Field>
               {(selected.sourceId || (selected.derivedRefs || []).length > 0) && (
@@ -999,10 +1048,18 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                   {TASK_STATUSES.map((st) => {
                     const originatorId = selected.createdById || createdByOf(selected)?.byId;
                     const canConfirm = !originatorId || originatorId === currentUser?.id || currentUser?.roleKey === 'admin';
-                    return <option key={st} value={st} disabled={st === 'Confirmed' && !canConfirm && d.status !== 'Confirmed'}>{statusLabel(st)}{st === 'Confirmed' && !canConfirm ? ' — the originator confirms' : ''}</option>;
+                    const noOne = st === 'In progress' && !assigned && d.status !== 'In progress';
+                    return <option key={st} value={st} disabled={(st === 'Confirmed' && !canConfirm && d.status !== 'Confirmed') || noOne}>{statusLabel(st)}{st === 'Confirmed' && !canConfirm ? ' — the assigner confirms' : noOne ? ' — assign someone first' : ''}</option>;
                   })}
                 </select>
               </Field>
+              {isFinished(d) && d.completionNote && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Field label="Completion note">
+                    <div style={{ padding: '9px 11px', borderRadius: 9, background: 'var(--mint)', fontSize: 13, color: 'var(--ink)', lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{d.completionNote}</div>
+                  </Field>
+                </div>
+              )}
               {d.status === 'On hold' && (
                 <div style={{ gridColumn: '1 / -1' }}>
                   <Field label="Why is it on hold?">

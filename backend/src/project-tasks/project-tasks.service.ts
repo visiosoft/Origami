@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { mentionedIds } from '../tasks/mentions';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NO_ASSIGNEE_IN_PROGRESS } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
 import { resolveLead } from '../tasks/lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
@@ -52,6 +54,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
     tick.unref?.();
+    // Start dates that arrive start their tasks (checked at boot and every 30 minutes).
+    const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + (e as Error).message)); }, 30 * 60_000);
+    starts.unref?.();
+    this.startDueTasks().catch(() => undefined);
     try {
       if ((await this.repo.count()) === 0) {
         await this.repo.save(DEFAULT_TASKS as unknown as ProjectTaskEntity[]);
@@ -220,7 +226,18 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (status === 'Not started' && assigned) patch.status = 'Assigned';
     if (status === 'Assigned' && !assigned) patch.status = 'Not started';
 
-    const next = patch.status ?? task.status;
+    // Board tasks (a phase's dates are its plan): a start date that has arrived starts the work.
+    const board = !(patch.phaseId ?? task.phaseId);
+    const pending = (s?: string | null) => !s || s === 'Not started' || s === 'Assigned';
+    if (board && 'startDate' in patch && patch.startDate !== task.startDate && pending(patch.status ?? task.status) && startDue(patch.startDate, assigned)) {
+      patch.status = 'In progress';
+    }
+    let next = patch.status ?? task.status;
+    // Nothing is in progress without someone doing it (a finished card reopened unassigned goes back to To Do).
+    if (board && next === 'In progress' && task.status !== 'In progress' && !assigned) {
+      if (!isDoneStatus(task.status)) throw new BadRequestException(NO_ASSIGNEE_IN_PROGRESS);
+      patch.status = next = 'Not started';
+    }
     if (next === 'In progress' && task.status !== 'In progress' && !task.startDate && !patch.startDate) {
       patch.startDate = new Date().toISOString().slice(0, 10);
     }
@@ -288,14 +305,19 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // Checklist templates marked "add automatically to" tasks (not subtasks).
     const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
     const checklist = withAutoChecklists(templates, { kind: 'task', labels: normalizeList<string>(dto.labels) }, normalizeList(dto.checklist));
+    const requester = dto.requestedById || dto.requestedBy ? await resolveAssignee(this.users, { id: dto.requestedById, name: dto.requestedBy }) : null;
     let status: string = dto.status || (dto.completed ? 'Done' : 'Not started');
     if (status === 'Not started' && assignee.name) status = 'Assigned';
+    const board = !dto.phaseId;
+    if (board && (status === 'Not started' || status === 'Assigned') && startDue(dto.startDate, !!assignee.name)) status = 'In progress';
+    if (board && status === 'In progress' && !assignee.name) throw new BadRequestException(NO_ASSIGNEE_IN_PROGRESS);
     const task = {
       order: 0, parentId: null, attachments: [], comments: [],
       createdAt: new Date().toISOString().slice(0, 10),
       ...dto,
       assignee: assignee.name,
       assigneeId: assignee.id ?? undefined,
+      ...(requester ? { requestedBy: requester.name, requestedById: requester.id ?? undefined } : {}),
       status,
       completed: isDoneStatus(status) || !!dto.completed,
       startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
@@ -346,6 +368,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       patch.assignee = assignee.name;
       patch.assigneeId = assignee.id ?? null;
     }
+    if ('requestedBy' in patch || 'requestedById' in patch) {
+      const src = await resolveAssignee(this.users, { id: patch.requestedById, name: patch.requestedBy });
+      patch.requestedBy = src.name;
+      patch.requestedById = src.id ?? null;
+    }
+    const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
     if ('status' in patch) patch.status = normalizeTaskStatus(patch.status);
     await this.syncBucketSection(task, patch);
     await this.syncStatus(task, patch, actor);
@@ -369,9 +397,18 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       if (removed.length) collabEvents.push(event('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
     }
     const finished = isDoneStatus(patch.status) && !isDoneStatus(task.status);
+    // Marking it complete says what was done (closing it is the assigner's call and needs none).
+    const noteEvents: ActivityEvent[] = [];
+    if (finished && !closing && !(patch.phaseId ?? task.phaseId)) {
+      if (!note) throw new BadRequestException(NEEDS_COMPLETION_NOTE);
+    }
+    if (finished && note) {
+      patch.completionNote = note;
+      noteEvents.push(event('comment', actor, { text: `Completion note: ${note}` }));
+    }
 
     if (closing) { const at = new Date().toISOString(); patch.archivedAt = at; patch.closedAt = at; patch.completed = true; }
-    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
+    const events = [...diffEvents(task, patch, actor), ...collabEvents, ...noteEvents, ...(closing ? [event('status', actor, { text: 'closed this task (archived)' })] : [])];
     const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
       ? String(patch.assigneeId)
       : null;
@@ -453,6 +490,17 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       sent += live.length;
     }
     return { sent };
+  }
+
+  /** Assigned board tasks whose start date has arrived go In Progress. Returns how many moved. */
+  async startDueTasks() {
+    const rows = (await this.repo.find()).filter((t) => !t.phaseId && !t.archivedAt && (!t.status || t.status === 'Not started' || t.status === 'Assigned')
+      && startDue(t.startDate, !!(t.assigneeId || (t.assignee || '').trim())));
+    for (const t of rows) {
+      try { await this.update(t.id, { status: 'In progress' }, { name: 'System' }); }
+      catch (e) { this.log.warn(`Start ${t.id}: ${(e as Error).message}`); }
+    }
+    return rows.length;
   }
 
   /** Emails held more than 15 minutes (the page was closed without Save) go out anyway. */
@@ -557,7 +605,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     task.activity = [...normalizeList<ActivityEvent>(task.activity), event('comment', actor, { text: comment.text })];
     const saved = await this.repo.save(task);
     // Everyone following the task hears about a comment (the assignee too), except its author.
-    const followers = [...normalizeCollaborators(saved.collaborators).map((c) => c.id), saved.assigneeId].filter(Boolean) as string[];
+    // @mentioned people hear they were mentioned; everyone else following hears about a comment.
+    const mentioned = mentionedIds(comment.text, await this.users.find());
+    const followers = [...normalizeCollaborators(saved.collaborators).map((c) => c.id), saved.assigneeId].filter((x) => x && !mentioned.includes(x)) as string[];
+    if (mentioned.length) this.notifications.taskFollowUp(this.notice(saved, actor), mentioned, { kind: 'mention', comment: comment.text });
     if (followers.length) this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
     return this.hydrate(saved);
   }
