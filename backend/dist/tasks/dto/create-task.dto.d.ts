@@ -15,6 +15,7 @@ export declare class CreateTaskDto {
     holdReason?: string;
     deferNotify?: boolean;
     description?: string;
+    startDate?: string;
     dueDate?: string;
     dueTime?: string;
     linkedFile?: string;

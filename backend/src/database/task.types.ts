@@ -151,6 +151,7 @@ export function event(
 export const TRACKED_FIELDS: Record<string, string> = {
   title: 'Title',
   description: 'Description',
+  startDate: 'Start date',
   dueDate: 'Due date',
   priority: 'Priority',
   status: 'Status',

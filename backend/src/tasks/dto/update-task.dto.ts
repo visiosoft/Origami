@@ -25,6 +25,7 @@ export class UpdateTaskDto {
   @IsBoolean() @IsOptional() deferNotify?: boolean;
   @IsBoolean() @IsOptional() close?: boolean;
   @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() startDate?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;
   @IsString() @IsOptional() dateClosed?: string;

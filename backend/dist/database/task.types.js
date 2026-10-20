@@ -74,6 +74,7 @@ function event(type, by, extra = {}) {
 exports.TRACKED_FIELDS = {
     title: 'Title',
     description: 'Description',
+    startDate: 'Start date',
     dueDate: 'Due date',
     priority: 'Priority',
     status: 'Status',

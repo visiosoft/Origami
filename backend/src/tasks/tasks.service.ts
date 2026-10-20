@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { SettingsService } from '../settings/settings.service';
 import { withAutoChecklists } from '../project-tasks/auto-checklist';
 import { backfillSerials, logSerialKind, nextSerial, serialYear } from '../database/serials';
-import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, parseLogStatuses, withBuckets, type LogStatus } from './log-statuses';
+import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, isInProgress, parseLogStatuses, withBuckets, type LogStatus } from './log-statuses';
 
 /** Confirmed Request Log tasks leave the list this many days later. */
 export const LOG_ARCHIVE_DAYS = 7;
@@ -169,6 +169,7 @@ export class TasksService implements OnApplicationBootstrap {
    * The bucket rules, as on the task board: old names map onto the buckets,
    * To Do and Assigned follow whether someone is assigned, and only whoever
    * raised it (or an admin) moves it to Confirmed -- it's archived 7 days later.
+   * The start date is set the first time it goes In Progress.
    */
   private async bucketRules(task: TaskEntity, patch: Record<string, any>, actor: UploadActor) {
     const assigned = 'assignedTo' in patch || 'assignedToId' in patch
@@ -179,6 +180,9 @@ export class TasksService implements OnApplicationBootstrap {
     if (cur === 'To Do' && assigned) patch.status = 'Assigned';
     if (cur === 'Assigned' && !assigned) patch.status = 'To Do';
     const next = patch.status ?? task.status;
+    if (isInProgress(next) && !isInProgress(task.status) && !task.startDate && !patch.startDate) {
+      patch.startDate = new Date().toISOString().slice(0, 10);
+    }
     if (next === 'Confirmed' && task.status !== 'Confirmed') {
       const by = this.raisedBy(task);
       const mine = (by.id && by.id === actor.id) || (!by.id && by.name && by.name.toLowerCase() === String(actor.name || '').toLowerCase());
@@ -311,6 +315,7 @@ export class TasksService implements OnApplicationBootstrap {
     // New entries start in To Do, or Assigned when someone is named.
     task.status = bucketOf(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
     if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim())) task.status = 'Assigned';
+    if (isInProgress(task.status) && !task.startDate) task.startDate = new Date().toISOString().slice(0, 10);
     task.serial = nextSerial(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), logSerialKind(task.topicType), serialYear());
 
     const at = new Date().toISOString();

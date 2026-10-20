@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-20a',
+    date: '2026-10-20',
+    title: 'Task activity newest first; start dates fill themselves',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'A task’s Activity now lists the newest entry at the top, with the comment box above it.', where: 'Tasks → open a task → Activity' },
+      { area: 'Tasks', kind: 'new', text: 'Request Log tasks now have a Start date. It fills in with today the first time the task goes In Progress, as board tasks already do, and can still be changed by hand. Moving it back and forth later keeps the first date.', where: 'Tasks → Request Log → open a task' },
+    ],
+  },
+  {
     id: '2026-10-18g',
     date: '2026-10-18',
     title: 'The PEOPLE ACCESS sheet is now the built-in default',

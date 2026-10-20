@@ -145,6 +145,8 @@ export class TaskEntity {
   /** The task's name. Older tasks have none: their first description line serves as the name. */
   @Column({ nullable: true }) subject!: string;
   @Column(TEXT) description!: string;
+  /** Set the first time it goes In Progress (or by hand). */
+  @Column({ nullable: true }) startDate!: string;
   @Column({ nullable: true }) dueDate!: string;
   // HH:mm, set when a task is created from a specific slot on My Calendar --
   // absent means "sometime that day", same as before this existed.

@@ -23,7 +23,7 @@ import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, taskHeadline, type Task }
 /** A badge colour, with a neutral fallback for a value the map doesn't know (e.g. imported tasks). */
 const tone = (map: Record<string, { bg: string; c: string }>, key?: string) => map[key || ''] || { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' };
 /** The fields edited in the drawer -- they autosave together; comments, files and delete act at once. */
-const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId', 'holdReason'] as const;
+const FIELDS = ['assignedToId', 'assignedTo', 'collaborators', 'status', 'startDate', 'dueDate', 'priority', 'subject', 'description', 'resolution', 'checklist', 'labels', 'project', 'leadId', 'holdReason'] as const;
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
@@ -204,6 +204,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginTop: 12 }}>
+            <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Start Date</div>
+              <input type="date" disabled={!canManage} value={t.startDate || ''} onChange={(e) => set({ startDate: e.target.value })} style={{ ...inputStyle, padding: '7px 9px' }} />
+              {!t.startDate && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Fills in when it goes In Progress</div>}
+            </div>
             <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Due Date</div>
               <input

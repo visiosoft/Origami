@@ -24,6 +24,9 @@ export function bucketOf(status: string | null | undefined, hasAssignee: boolean
   return status;
 }
 
+/** The In Progress bucket, however it's spelled. */
+export const isInProgress = (status: string | null | undefined) => /^in[\s-]*progress$/i.test(String(status || '').trim());
+
 /** A saved list from before the buckets, brought onto them: renamed, with the missing buckets added in order. */
 export function withBuckets(list: LogStatus[]): LogStatus[] {
   const renamed = list.map((s) => (s.name === 'Open' ? { ...s, name: 'To Do' } : s.name === 'Closed' ? { ...s, name: 'Complete', closed: true } : s));

@@ -15,6 +15,7 @@ export declare class UpdateTaskDto {
     deferNotify?: boolean;
     close?: boolean;
     description?: string;
+    startDate?: string;
     dueDate?: string;
     dueTime?: string;
     dateClosed?: string;

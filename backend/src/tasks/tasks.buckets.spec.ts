@@ -53,4 +53,15 @@ describe('Request Log task buckets', () => {
     expect((await svc.create({ subject: 'A', status: 'Open' }, { name: 'Sara' })).status).toBe('To Do');
     expect((await svc.create({ subject: 'B', assignedTo: 'Kai' }, { name: 'Sara' })).status).toBe('Assigned');
   });
+
+  it('fills the start date the first time it goes In Progress, and keeps it after', async () => {
+    const { svc } = setup();
+    const today = new Date().toISOString().slice(0, 10);
+    const t = await svc.update('T1', { status: 'In Progress' }, { name: 'Sara', id: 'U-SARA' });
+    expect(t.startDate).toBe(today);
+    expect(t.activity.some((e: any) => e.field === 'startDate' || /start date/i.test(e.text || ''))).toBe(true);
+    await svc.update('T1', { startDate: '2026-01-05' }, { name: 'Sara', id: 'U-SARA' });
+    await svc.update('T1', { status: 'On hold', holdReason: 'Waiting' }, { name: 'Sara', id: 'U-SARA' });
+    expect((await svc.update('T1', { status: 'In Progress' }, { name: 'Sara', id: 'U-SARA' })).startDate).toBe('2026-01-05');
+  });
 });

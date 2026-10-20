@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isClosedStatus = exports.LOG_BUCKETS = exports.LOG_START = exports.DEFAULT_LOG_STATUSES = exports.LOG_STATUSES_KEY = void 0;
+exports.isClosedStatus = exports.isInProgress = exports.LOG_BUCKETS = exports.LOG_START = exports.DEFAULT_LOG_STATUSES = exports.LOG_STATUSES_KEY = void 0;
 exports.bucketOf = bucketOf;
 exports.withBuckets = withBuckets;
 exports.parseLogStatuses = parseLogStatuses;
@@ -19,6 +19,8 @@ function bucketOf(status, hasAssignee) {
         return 'Complete';
     return status;
 }
+const isInProgress = (status) => /^in[\s-]*progress$/i.test(String(status || '').trim());
+exports.isInProgress = isInProgress;
 function withBuckets(list) {
     const renamed = list.map((s) => (s.name === 'Open' ? { ...s, name: 'To Do' } : s.name === 'Closed' ? { ...s, name: 'Complete', closed: true } : s));
     const extra = renamed.filter((s) => !exports.LOG_BUCKETS.includes(s.name));

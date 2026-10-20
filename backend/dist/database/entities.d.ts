@@ -103,6 +103,7 @@ export declare class TaskEntity {
     topicType: string;
     subject: string;
     description: string;
+    startDate: string;
     dueDate: string;
     dueTime: string;
     dateClosed: string;

@@ -176,6 +176,9 @@ let TasksService = class TasksService {
         if (cur === 'Assigned' && !assigned)
             patch.status = 'To Do';
         const next = patch.status ?? task.status;
+        if ((0, log_statuses_1.isInProgress)(next) && !(0, log_statuses_1.isInProgress)(task.status) && !task.startDate && !patch.startDate) {
+            patch.startDate = new Date().toISOString().slice(0, 10);
+        }
         if (next === 'Confirmed' && task.status !== 'Confirmed') {
             const by = this.raisedBy(task);
             const mine = (by.id && by.id === actor.id) || (!by.id && by.name && by.name.toLowerCase() === String(actor.name || '').toLowerCase());
@@ -292,6 +295,8 @@ let TasksService = class TasksService {
         task.status = (0, log_statuses_1.bucketOf)(task.status || 'To Do', !!(task.assignedToId || String(task.assignedTo || '').trim())) || 'To Do';
         if (task.status === 'To Do' && (task.assignedToId || String(task.assignedTo || '').trim()))
             task.status = 'Assigned';
+        if ((0, log_statuses_1.isInProgress)(task.status) && !task.startDate)
+            task.startDate = new Date().toISOString().slice(0, 10);
         task.serial = (0, serials_1.nextSerial)(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), (0, serials_1.logSerialKind)(task.topicType), (0, serials_1.serialYear)());
         const at = new Date().toISOString();
         const who = { id: actor.id, name: actor.name };

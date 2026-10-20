@@ -29,8 +29,7 @@ function describe(e: ActivityEvent): string {
 
 /**
  * The task history: comments people wrote and a record of what changed, merged
- * into one timeline. Replaces the placeholder activity box the Request Log used
- * to show.
+ * into one timeline, newest first, with the comment box above it.
  */
 export function ActivityFeed({
   comments,
@@ -55,7 +54,9 @@ export function ActivityFeed({
     const orphanComments = comments
       .filter((c) => !loggedTexts.has(c.text))
       .map((c) => ({ kind: 'comment' as const, at: c.date, comment: c }));
-    return [...fromActivity, ...orphanComments].sort((a, b) => Date.parse(a.at || '') - Date.parse(b.at || ''));
+    // Newest first; an entry without a readable time sorts as the oldest.
+    const t = (at?: string) => { const ms = Date.parse(at || ''); return Number.isNaN(ms) ? 0 : ms; };
+    return [...fromActivity, ...orphanComments].map((e, i) => ({ e, i })).sort((a, b) => t(b.e.at) - t(a.e.at) || b.i - a.i).map((x) => x.e);
   }, [comments, activity]);
 
   const userFor = (name?: string, id?: string) =>
@@ -78,11 +79,39 @@ export function ActivityFeed({
         Activity
       </div>
 
+      {canManage && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 }}>
+          <Avatar user={currentUser} name={currentUser?.name} size={26} />
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
+            placeholder="Write a comment…"
+            rows={2}
+            style={{
+              flex: 1, boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9,
+              border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontFamily: 'inherit',
+              fontSize: 12.5, color: 'var(--ink)', outline: 'none', resize: 'vertical', lineHeight: 1.5,
+            }}
+          />
+          <div
+            onClick={submit}
+            style={{
+              padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700,
+              cursor: busy || !text.trim() ? 'default' : 'pointer',
+              background: busy || !text.trim() ? 'var(--c-c9d4cc)' : 'var(--forest)', color: 'white', whiteSpace: 'nowrap',
+            }}
+          >
+            {busy ? '…' : 'Send'}
+          </div>
+        </div>
+      )}
+
       {entries.length === 0 && (
         <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', marginBottom: 12 }}>Nothing has happened on this task yet.</div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {entries.map((entry, i) => {
           if (entry.kind === 'comment' || entry.event?.type === 'comment') {
             const author = entry.kind === 'comment' ? entry.comment.author : entry.event.by;
@@ -113,33 +142,6 @@ export function ActivityFeed({
         })}
       </div>
 
-      {canManage && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <Avatar user={currentUser} name={currentUser?.name} size={26} />
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit(); }}
-            placeholder="Write a comment…"
-            rows={2}
-            style={{
-              flex: 1, boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9,
-              border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontFamily: 'inherit',
-              fontSize: 12.5, color: 'var(--ink)', outline: 'none', resize: 'vertical', lineHeight: 1.5,
-            }}
-          />
-          <div
-            onClick={submit}
-            style={{
-              padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700,
-              cursor: busy || !text.trim() ? 'default' : 'pointer',
-              background: busy || !text.trim() ? 'var(--c-c9d4cc)' : 'var(--forest)', color: 'white', whiteSpace: 'nowrap',
-            }}
-          >
-            {busy ? '…' : 'Send'}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

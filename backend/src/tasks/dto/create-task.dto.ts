@@ -20,6 +20,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() holdReason?: string;
   @IsBoolean() @IsOptional() deferNotify?: boolean;
   @IsString() @IsOptional() description?: string;
+  @IsString() @IsOptional() startDate?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() dueTime?: string;
   @IsString() @IsOptional() linkedFile?: string;

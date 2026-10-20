@@ -25,6 +25,8 @@ export interface Task extends ActionTrailFields {
   /** The task's name. Older tasks have none: their first description line serves as the name. */
   subject?: string;
   description: string;
+  /** Set the first time it goes In Progress (or by hand). */
+  startDate?: string;
   dueDate: string;
   /** HH:mm, set when created from a specific slot on My Calendar. */
   dueTime?: string;
