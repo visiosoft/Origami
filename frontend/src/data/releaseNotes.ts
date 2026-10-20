@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-20c',
+    date: '2026-10-20',
+    title: 'Notifications your way: text or email, now or in a daily / weekly digest',
+    items: [
+      { area: 'Notifications', kind: 'new', text: 'For each event — incoming lead, lead status changes, design and construction status changes, High Viz, task status, newly assigned tasks, comments, @mentions, coming due in 1 day, past due, and a Monday three-week look-ahead — tick how you want to hear: a text or an email as it happens, a text or an email daily digest, a weekly digest, or None.', where: 'Settings → My account → Notifications' },
+      { area: 'Notifications', kind: 'new', text: 'Add your mobile number for texts (your People record’s number is used until you do). If you pick texts with no number — or texting isn’t set up for the workspace — the page says so.', where: 'Settings → Notifications → Mobile number for texts' },
+      { area: 'Notifications', kind: 'new', text: 'Digests go out once a day at the reminder hour (weekly ones on Mondays), as one email and/or one text with a link. Everything you’re notified about is also listed on the new Notifications page.', where: 'Bell → All notifications' },
+      { area: 'Notifications', kind: 'new', text: 'High Viz: label a task “High Viz” and its moves go to everyone who follows High Viz — the team decides which work gets the label.' },
+      { area: 'Tasks', kind: 'improved', text: 'When a task moves status or is done, everyone on it hears — assignee, collaborators, the assigner and the source — the way each chose.' },
+    ],
+  },
+  {
     id: '2026-10-20b',
     date: '2026-10-20',
     title: 'From the Oct 20 sync: task rules, @mentions, People dashboard, design tabs',

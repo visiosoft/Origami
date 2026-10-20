@@ -25,6 +25,7 @@ import { FinanceHome } from './pages/FinanceHome';
 import { FinanceGuide } from './pages/FinanceGuide';
 import { Manpower } from './pages/Manpower';
 import { Settings } from './pages/Settings';
+import { NotificationsFeed } from './pages/NotificationsFeed';
 import { Admin } from './pages/Admin';
 import { Help } from './pages/Help';
 import { Auth } from './pages/Auth';
@@ -104,6 +105,7 @@ export default function App() {
         <Route path="/tasks" element={<TasksRouter />} />
         <Route path="/requests" element={<TasksRouter initialMode="log" />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/notifications" element={<NotificationsFeed />} />
         <Route path="/users" element={<Admin />} />
         <Route path="/design" element={<Design />} />
         <Route path="/design/:projectId" element={<DesignProject />} />

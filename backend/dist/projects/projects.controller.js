@@ -34,8 +34,8 @@ let ProjectsController = class ProjectsController {
     create(dto) {
         return this.projectsService.create(dto);
     }
-    update(id, dto) {
-        return this.projectsService.update(id, dto);
+    update(id, dto, claims) {
+        return this.projectsService.update(id, dto, { id: claims?.sub });
     }
     remove(id) {
         return this.projectsService.remove(id);
@@ -70,8 +70,9 @@ __decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], ProjectsController.prototype, "update", null);
 __decorate([

@@ -1,5 +1,6 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
 import { SectionsService } from './sections.service';
 import { type TaskAttachment } from '../database/task.types';
@@ -14,8 +15,9 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     private readonly notifications;
     private readonly checklistTemplates?;
     private readonly leads?;
+    private readonly hub?;
     private readonly log;
-    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined);
+    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, hub?: NotifyHub | undefined);
     adoptLead(leadId: string, projectId: number): Promise<number>;
     onApplicationBootstrap(): Promise<void>;
     private renameLegacyTitles;
@@ -37,6 +39,7 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     create(dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;
     private notice;
     update(id: string, dto: any, actor?: UploadActor): Promise<ProjectTaskEntity>;
+    private involved;
     fixCompleted(): Promise<number>;
     private sendNotices;
     flushNotices(id: string, withSubtasks?: boolean): Promise<{

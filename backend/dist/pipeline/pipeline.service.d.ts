@@ -1,5 +1,6 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -25,8 +26,11 @@ export declare class PipelineService implements OnApplicationBootstrap {
     private readonly projects;
     private readonly tasks?;
     private readonly boardTasks?;
+    private readonly hub?;
     private readonly log;
-    constructor(repo: Repository<DealEntity>, leads: Repository<LeadEntity>, projects: ProjectsService, tasks?: TasksService | undefined, boardTasks?: ProjectTasksService | undefined);
+    constructor(repo: Repository<DealEntity>, leads: Repository<LeadEntity>, projects: ProjectsService, tasks?: TasksService | undefined, boardTasks?: ProjectTasksService | undefined, hub?: NotifyHub | undefined);
+    private leadName;
+    private leadMoved;
     onApplicationBootstrap(): Promise<void>;
     private rehomeRetiredStages;
     setContractValue(dealId: string, amount: string): Promise<string | null>;

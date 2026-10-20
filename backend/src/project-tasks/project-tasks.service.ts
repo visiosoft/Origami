@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NO_ASSIGNEE_IN_PROGRESS } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
@@ -34,6 +35,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     private readonly notifications: NotificationsService,
     @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
     @Optional() @InjectRepository(LeadEntity) private readonly leads?: Repository<LeadEntity>,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
 
   /**
@@ -419,10 +421,15 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
     const at = new Date().toISOString();
     const who = { id: actor.id, name: actor.name };
+    // Any other status move tells everyone on the task (Oct 20: "All tasks status").
+    // (To Do <-> Assigned just follows the assignee, who hears about that already.)
+    const moved = !finished && !closing && 'status' in patch && patch.status !== task.status && !(patch.phaseId ?? task.phaseId)
+      && !(['Assigned', 'Not started'].includes(patch.status) && ('assigneeId' in patch || 'assignee' in patch));
     const notices: PendingNotice[] = [
       ...(reassignedTo ? [{ kind: 'assigned' as const, ids: [reassignedTo], actor: who, at }] : []),
       ...(joined.length ? [{ kind: 'added' as const, ids: joined.map((c) => c.id), actor: who, at }] : []),
       ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
+      ...(moved ? [{ kind: 'status' as const, ids: [], actor: who, at, status: patch.status }] : []),
     ];
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
@@ -432,7 +439,16 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // Its subtasks (all finished -- checked above) go into the archive with it.
     if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
     if (!defer) this.sendNotices(saved, notices);
+    // High Viz work: everyone who follows High Viz hears when it moves.
+    if ((moved || finished) && normalizeList<string>(saved.labels).some((l) => /^#?high[\s-]*vi[sz]/i.test(l))) {
+      void this.hub?.broadcast('high_viz', { title: `${saved.title} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}${saved.projectId != null ? `&project=${saved.projectId}` : ''}`, actorId: actor.id }).catch(() => undefined);
+    }
     return this.hydrate(saved);
+  }
+
+  /** Everyone on a task: assignee, collaborators, its assigner and its source. */
+  private involved(t: ProjectTaskEntity) {
+    return [t.assigneeId, ...normalizeCollaborators(t.collaborators).map((c) => c.id), t.createdById || this.createdByIdOf(t), t.requestedById].filter(Boolean) as string[];
   }
 
   /**
@@ -472,7 +488,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       const notice = this.notice(t, n.actor);
       if (n.kind === 'assigned') this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
       else if (n.kind === 'added') this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
-      else this.notifications.taskFollowUp(notice, normalizeCollaborators(t.collaborators).map((c) => c.id), { kind: 'done' });
+      else if (n.kind === 'status') this.notifications.taskFollowUp({ ...notice, status: n.status || t.status }, this.involved(t), { kind: 'status' });
+      else this.notifications.taskFollowUp(notice, this.involved(t), { kind: 'done' });
     }
   }
 
@@ -484,7 +501,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     const rows = [await this.repo.findOneBy({ id }), ...(withSubtasks ? await this.repo.findBy({ parentId: id }) : [])].filter(Boolean) as ProjectTaskEntity[];
     let sent = 0;
     for (const t of rows.filter((x) => x.pendingNotices?.length)) {
-      const live = stillTrue(t.pendingNotices, { assigneeId: t.assigneeId, collaboratorIds: normalizeCollaborators(t.collaborators).map((c) => c.id), done: isDoneStatus(t.status) });
+      const live = stillTrue(t.pendingNotices, { assigneeId: t.assigneeId, collaboratorIds: normalizeCollaborators(t.collaborators).map((c) => c.id), done: isDoneStatus(t.status), status: t.status });
       await this.repo.update({ id: t.id }, { pendingNotices: null } as any);
       this.sendNotices(t, live);
       sent += live.length;

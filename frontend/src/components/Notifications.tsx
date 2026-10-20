@@ -154,9 +154,15 @@ export function Notifications() {
             ))}
           </div>
 
-          <div onClick={() => { setOpen(false); navigate('/tasks'); }}
-               style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', textAlign: 'center' }}>
-            Open Tasks
+          <div style={{ display: 'flex', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+            <div onClick={() => { setOpen(false); navigate('/tasks'); }}
+                 style={{ flex: 1, padding: '10px 14px', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', textAlign: 'center' }}>
+              Open Tasks
+            </div>
+            <div onClick={() => { setOpen(false); navigate('/notifications'); }}
+                 style={{ flex: 1, padding: '10px 14px', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', textAlign: 'center', borderLeft: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+              All notifications
+            </div>
           </div>
         </div>
       )}

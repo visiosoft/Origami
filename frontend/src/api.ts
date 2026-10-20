@@ -1,5 +1,6 @@
 import type { ContractorBid } from './data/contractorBids';
 import type { CardScan } from './data/businessCard';
+import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -246,6 +247,11 @@ export const api = {
   notifications: {
     /** Sends the caller a sample assignment email, for checking the template. */
     test: () => request<{ sent: boolean; reason?: string }>('/notifications/test', { method: 'POST' }),
+    /** My notification settings: each event's channels, my phone, and what's missing. */
+    prefs: () => request<NotifyPrefs>('/notifications/prefs'),
+    /** matrix: event -> channels ([] = no notification); null = back to the defaults. */
+    setPrefs: (body: { matrix?: Record<string, string[]> | null; phone?: string }) => request<NotifyPrefs>('/notifications/prefs', { method: 'PUT', body: JSON.stringify(body) }),
+    feed: (digest?: 'daily' | 'weekly') => request<NotifyFeedItem[]>(`/notifications/feed${digest ? `?digest=${digest}` : ''}`),
   },
 
   google: {

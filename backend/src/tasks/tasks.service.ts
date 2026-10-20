@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from './mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NO_ASSIGNEE_IN_PROGRESS } from './task-rules';
 import { SettingsService } from '../settings/settings.service';
@@ -40,6 +41,7 @@ export class TasksService implements OnApplicationBootstrap {
     @Optional() @InjectRepository(LeadEntity) private readonly leads?: Repository<LeadEntity>,
     @Optional() @InjectRepository(DealEntity) private readonly deals?: Repository<DealEntity>,
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
 
   /** The Request Log's statuses -- the defaults, or the list an administrator set in Settings. */
@@ -404,6 +406,9 @@ export class TasksService implements OnApplicationBootstrap {
       if (removed.length) collabEvents.push(event('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
     }
     const finished = closing && !wasClosed;
+    // Any other status move tells everyone on the entry (To Do <-> Assigned just follows the assignee).
+    const moved = !finished && !closingNow && 'status' in patch && patch.status !== task.status
+      && !(['Assigned', 'To Do'].includes(patch.status) && ('assignedToId' in patch || 'assignedTo' in patch));
     // Marking it complete says what was done (a resolution counts; closing it is the assigner's call).
     const noteEvents: ActivityEvent[] = [];
     if (finished && !closingNow && !note && !String(patch.resolution ?? '').trim()) throw new BadRequestException(NEEDS_COMPLETION_NOTE);
@@ -427,6 +432,7 @@ export class TasksService implements OnApplicationBootstrap {
       ...(reassignedTo ? [{ kind: 'assigned' as const, ids: [reassignedTo], actor: who, at }] : []),
       ...(joined.length ? [{ kind: 'added' as const, ids: joined.map((c) => c.id), actor: who, at }] : []),
       ...(finished ? [{ kind: 'done' as const, ids: [], actor: who, at }] : []),
+      ...(moved ? [{ kind: 'status' as const, ids: [], actor: who, at, status: patch.status }] : []),
     ];
     Object.assign(task, patch, { id });
     task.activity = [...normalizeList<ActivityEvent>(task.activity), ...events];
@@ -436,17 +442,30 @@ export class TasksService implements OnApplicationBootstrap {
 
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
+    if ((moved || finished) && normalizeList<string>(saved.labels).some((l) => /^#?high[\s-]*vi[sz]/i.test(l))) {
+      void this.hub?.broadcast('high_viz', { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);
+    }
     return this.hydrate(saved);
   }
 
   /** Send task emails now. */
   private sendNotices(t: TaskEntity, notices: PendingNotice[]) {
-    for (const n of notices) {
-      const notice = this.notice(t, n.actor);
-      if (n.kind === 'assigned') this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
-      else if (n.kind === 'added') this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
-      else this.notifications.taskFollowUp(notice, normalizeCollaborators(t.collaborators).map((c) => c.id), { kind: 'done' });
-    }
+    void (async () => {
+      for (const n of notices) {
+        const notice = this.notice(t, n.actor);
+        if (n.kind === 'assigned') this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+        else if (n.kind === 'added') this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+        else if (n.kind === 'status') this.notifications.taskFollowUp({ ...notice, status: n.status || t.status }, await this.involved(t), { kind: 'status' });
+        else this.notifications.taskFollowUp(notice, await this.involved(t), { kind: 'done' });
+      }
+    })().catch((e) => this.log.warn('Task notices: ' + (e as Error).message));
+  }
+
+  /** Everyone on an entry: assignee, collaborators, whoever entered it (the assigner) and its source. */
+  private async involved(t: TaskEntity) {
+    const by = this.raisedBy(t);
+    const source = t.originator ? (await this.users.find()).find((u) => u.name.trim().toLowerCase() === t.originator.trim().toLowerCase()) : null;
+    return [t.assignedToId, ...normalizeCollaborators(t.collaborators).map((c) => c.id), by.id, source?.id].filter(Boolean) as string[];
   }
 
   /** Save pressed: send the emails held on this entry (the ones still true). */
@@ -454,7 +473,7 @@ export class TasksService implements OnApplicationBootstrap {
     const t = await this.repo.findOneBy({ id });
     if (!t?.pendingNotices?.length) return { sent: 0 };
     const closed = new Set((await this.statuses()).filter((s) => s.closed).map((s) => s.name));
-    const live = stillTrue(t.pendingNotices, { assigneeId: t.assignedToId, collaboratorIds: normalizeCollaborators(t.collaborators).map((c) => c.id), done: closed.has(t.status) });
+    const live = stillTrue(t.pendingNotices, { assigneeId: t.assignedToId, collaboratorIds: normalizeCollaborators(t.collaborators).map((c) => c.id), done: closed.has(t.status), status: t.status });
     await this.repo.update({ id }, { pendingNotices: null } as any);
     this.sendNotices(t, live);
     return { sent: live.length };

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity, UserEntity } from '../database/entities';
@@ -6,6 +6,10 @@ import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { loadEmailBrand } from '../email/shell';
 import { assignmentEmail } from './assignment.template';
+import { NotifyHub } from './notify-hub.service';
+
+/** Why a follower hears about a task: added as a collaborator, a comment, an @mention, it's done, or its status moved. */
+export type TaskFollow = { kind: 'added' | 'comment' | 'done' | 'mention' | 'status'; comment?: string };
 
 /** Which task surface a notification refers to — they have separate id spaces. */
 export type TaskSurface = 'board' | 'log';
@@ -36,6 +40,7 @@ export class NotificationsService {
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly settings: SettingsService,
     private readonly google: GoogleService,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
 
   /**
@@ -56,7 +61,7 @@ export class NotificationsService {
    * assignee too) that it moved: they were added, someone commented, or it's
    * done. Never the person who did it. Fire-and-forget like assignment mail.
    */
-  taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: { kind: 'added' | 'comment' | 'done' | 'mention'; comment?: string }): void {
+  taskFollowUp(notice: AssignmentNotice, recipientIds: string[], follow: TaskFollow): void {
     const ids = Array.from(new Set(recipientIds.filter((id) => id && id !== notice.actor?.id)));
     for (const id of ids) {
       void this.sendAssignment({ ...notice, assigneeId: id }, follow).catch((err) => {
@@ -65,8 +70,30 @@ export class NotificationsService {
     }
   }
 
-  /** Separated from the fire-and-forget wrapper so the test endpoint can await it. */
-  async sendAssignment(notice: AssignmentNotice, follow?: { kind: 'added' | 'comment' | 'done' | 'mention'; comment?: string }): Promise<{ sent: boolean; reason?: string }> {
+  /**
+   * Separated from the fire-and-forget wrapper so the test endpoint can await it.
+   * Each person's notification settings decide how they hear (text, email, a
+   * digest, or not at all); `sample` (the test button) always emails.
+   */
+  async sendAssignment(notice: AssignmentNotice, follow?: TaskFollow, sample = false): Promise<{ sent: boolean; reason?: string }> {
+    if (sample || !this.hub || !notice.assigneeId) return this.emailAssignment(notice, follow, sample);
+    const event = !follow || follow.kind === 'added' ? 'task_assigned' : follow.kind === 'comment' ? 'task_comment' : follow.kind === 'mention' ? 'mention' : 'task_status';
+    const who = notice.actor?.name || 'Someone';
+    const title = !follow ? `${who} assigned you: ${notice.title}`
+      : follow.kind === 'added' ? `${who} added you as a collaborator: ${notice.title}`
+      : follow.kind === 'comment' ? `${who} commented on: ${notice.title}`
+      : follow.kind === 'mention' ? `${who} mentioned you: ${notice.title}`
+      : follow.kind === 'done' ? `Done: ${notice.title}`
+      : `${notice.title} moved to ${notice.status || 'a new status'}`;
+    let result: { sent: boolean; reason?: string } = { sent: false, reason: 'not chosen in their notification settings' };
+    await this.hub.deliver([notice.assigneeId], event, { title, body: follow?.comment, path: this.taskUrl('', notice), actorId: notice.actor?.id }, {
+      email: async () => { result = await this.emailAssignment(notice, follow, false); },
+    });
+    return result;
+  }
+
+  /** The task email itself. */
+  private async emailAssignment(notice: AssignmentNotice, follow: TaskFollow | undefined, _sample: boolean): Promise<{ sent: boolean; reason?: string }> {
     const skip = (reason: string) => {
       this.log.log(`No assignment email for ${notice.taskId}: ${reason}`);
       return { sent: false, reason };
@@ -83,7 +110,6 @@ export class NotificationsService {
     if (!user) return skip(`no user ${notice.assigneeId}`);
     if (!user.email) return skip(`${user.id} has no email address`);
     if (user.status === 'suspended') return skip(`${user.email} is suspended`);
-    if (user.notifyOnAssignment === false) return skip(`${user.email} has these emails turned off`);
 
     if (!(await this.google.isConnected())) return skip('no Google account is connected');
 

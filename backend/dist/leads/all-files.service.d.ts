@@ -38,12 +38,12 @@ export declare class AllFilesService {
             scope: "lead-files" | "tasks" | "project-tasks" | "rfis" | "file-room";
             kind: string;
             source: FileSource;
+            url?: string | undefined;
             size?: number | undefined;
             mimeType?: string | undefined;
             uploadedBy?: string | undefined;
             where: string;
             ownerId: string;
-            url?: string | undefined;
             uploadedAt?: string | undefined;
             taskNumber?: string | undefined;
         }[];
@@ -59,12 +59,12 @@ export declare class AllFilesService {
             scope: "lead-files" | "tasks" | "project-tasks" | "rfis" | "file-room";
             kind: string;
             source: FileSource;
+            url?: string | undefined;
             size?: number | undefined;
             mimeType?: string | undefined;
             uploadedBy?: string | undefined;
             where: string;
             ownerId: string;
-            url?: string | undefined;
             uploadedAt?: string | undefined;
             taskNumber?: string | undefined;
         }[];

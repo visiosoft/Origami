@@ -7,6 +7,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PipelineModule = void 0;
+const notifications_module_1 = require("../notifications/notifications.module");
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const pipeline_controller_1 = require("./pipeline.controller");
@@ -21,7 +22,7 @@ let PipelineModule = class PipelineModule {
 exports.PipelineModule = PipelineModule;
 exports.PipelineModule = PipelineModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.DealEntity, entities_1.LeadEntity]), auth_module_1.AuthModule, projects_module_1.ProjectsModule, tasks_module_1.TasksModule, project_tasks_module_1.ProjectTasksModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.DealEntity, entities_1.LeadEntity]), auth_module_1.AuthModule, projects_module_1.ProjectsModule, tasks_module_1.TasksModule, project_tasks_module_1.ProjectTasksModule, notifications_module_1.NotificationsModule],
         controllers: [pipeline_controller_1.PipelineController],
         providers: [pipeline_service_1.PipelineService],
         exports: [pipeline_service_1.PipelineService],

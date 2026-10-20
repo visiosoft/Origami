@@ -1,5 +1,6 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { SettingsService } from '../settings/settings.service';
 import { type LogStatus } from './log-statuses';
 export declare const LOG_ARCHIVE_DAYS = 7;
@@ -18,8 +19,9 @@ export declare class TasksService implements OnApplicationBootstrap {
     private readonly leads?;
     private readonly deals?;
     private readonly projects?;
+    private readonly hub?;
     private readonly log;
-    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService, settings?: SettingsService | undefined, cos?: Repository<ChangeOrderEntity> | undefined, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, deals?: Repository<DealEntity> | undefined, projects?: Repository<ProjectEntity> | undefined);
+    constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService, settings?: SettingsService | undefined, cos?: Repository<ChangeOrderEntity> | undefined, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, deals?: Repository<DealEntity> | undefined, projects?: Repository<ProjectEntity> | undefined, hub?: NotifyHub | undefined);
     statuses(): Promise<LogStatus[]>;
     saveStatuses(list: unknown): Promise<LogStatus[]>;
     onApplicationBootstrap(): Promise<void>;
@@ -53,6 +55,7 @@ export declare class TasksService implements OnApplicationBootstrap {
     private notice;
     update(id: string, dto: any, actor: UploadActor): Promise<TaskEntity>;
     private sendNotices;
+    private involved;
     flushNotices(id: string): Promise<{
         sent: number;
     }>;

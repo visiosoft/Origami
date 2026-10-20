@@ -545,6 +545,8 @@ export declare class UserEntity {
     digestFrequency: string;
     notifyOnOverdue: boolean | null;
     notifyOnMilestone: boolean | null;
+    phone: string;
+    notificationMatrix: Record<string, string[]> | null;
     calendarRefreshToken: string;
     calendarEmail: string;
     calendarConnectedAt: string;
@@ -568,6 +570,17 @@ export declare class UserViewEntity {
     name: string;
     filters: Record<string, unknown> | null;
     createdAt: string;
+}
+export declare class NotificationItemEntity {
+    id: string;
+    userId: string;
+    event: string;
+    title: string;
+    body: string | null;
+    url: string | null;
+    at: string;
+    digests: string[] | null;
+    sent: string[] | null;
 }
 export declare class AppSettingEntity {
     key: string;

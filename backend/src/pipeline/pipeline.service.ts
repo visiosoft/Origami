@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -42,7 +43,22 @@ export class PipelineService implements OnApplicationBootstrap {
     private readonly projects: ProjectsService,
     @Optional() private readonly tasks?: TasksService,
     @Optional() private readonly boardTasks?: ProjectTasksService,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
+
+  /** A lead's name for a notification (it lives on the lead record). */
+  private async leadName(id: string, fallback?: string) {
+    const lead = await this.leads.findOneBy({ id }).catch(() => null);
+    return String((lead as any)?.leadName || (lead as any)?.name || fallback || id);
+  }
+
+  /** "Lead status changes": everyone who follows the CRM hears it their way (daily digest by default). */
+  private leadMoved(id: string, what: (name: string) => string, actor?: DealActor, fallbackName?: string) {
+    if (!this.hub) return;
+    void this.leadName(id, fallbackName)
+      .then((name) => this.hub!.broadcast('lead_status', { title: what(name), path: `/pipeline?open=${encodeURIComponent(id)}`, actorId: actor?.id }))
+      .catch((e) => this.log.warn(`Lead status notice for ${id}: ${(e as Error).message}`));
+  }
 
   /**
    * Stage indices moved when the hold and cold stages were inserted, so any
@@ -204,6 +220,13 @@ export class PipelineService implements OnApplicationBootstrap {
       throw new ConflictException(`A deal with id ${dto.id} already exists`);
     }
     const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+    // "Incoming lead": a text or an email straight away for whoever wants one.
+    if (this.hub) {
+      void this.leadName(deal.id, dto?.name).then((name) => this.hub!.broadcast('lead_new', {
+        title: `New lead: ${name}`, body: [dto?.source && `Source: ${dto.source}`, dto?.phone, dto?.email].filter(Boolean).join(' · ') || undefined,
+        path: `/pipeline?open=${encodeURIComponent(deal.id)}`,
+      })).catch((e) => this.log.warn(`New lead notice for ${deal.id}: ${(e as Error).message}`));
+    }
     // A Kickoff-stage placeholder project is created once the lead clears
     // Project Fit Review (see updateStage), not the moment it's created --
     // a brand-new, unreviewed lead shouldn't already have a project entry.
@@ -276,6 +299,7 @@ export class PipelineService implements OnApplicationBootstrap {
         this.log.warn(`Could not create the Kickoff-stage project for ${id}: ${(err as Error).message}`);
       }
     }
+    this.leadMoved(id, (name) => `${name} moved to ${stageName}`, actor);
     return saved;
   }
 
@@ -285,6 +309,7 @@ export class PipelineService implements OnApplicationBootstrap {
     deal.archived = archived;
     deal.archivedAt = archived ? new Date().toISOString() : '';
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(archived ? 'Archived' : 'Restored from archive', actor)];
+    this.leadMoved(id, (name) => `${name} ${archived ? 'archived' : 'restored from the archive'}`, actor);
     return this.repo.save(deal);
   }
 
@@ -329,6 +354,7 @@ export class PipelineService implements OnApplicationBootstrap {
         ? `Rejected — client declined${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
         : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
     return this.repo.save(deal);
   }
 
@@ -498,6 +524,7 @@ export class PipelineService implements OnApplicationBootstrap {
       this.log.warn(`Could not move ${deal.name}'s tasks onto project ${project.id}: ${(err as Error).message}`);
     }
 
+    this.leadMoved(id, (name) => `${name} became a project`, actor, deal.name);
     return { project, deal };
   }
 

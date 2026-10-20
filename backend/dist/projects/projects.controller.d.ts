@@ -9,7 +9,7 @@ export declare class ProjectsController {
     findAll(claims: SessionClaims | null): Promise<any[]>;
     findOne(id: string, claims: SessionClaims | null): Promise<import("../database/entities").ProjectEntity>;
     create(dto: CreateProjectDto): Promise<import("../database/entities").ProjectEntity>;
-    update(id: string, dto: Partial<CreateProjectDto>): Promise<import("../database/entities").ProjectEntity>;
+    update(id: string, dto: Partial<CreateProjectDto>, claims: SessionClaims | null): Promise<import("../database/entities").ProjectEntity>;
     remove(id: string): Promise<{
         id: number;
         deleted: boolean;

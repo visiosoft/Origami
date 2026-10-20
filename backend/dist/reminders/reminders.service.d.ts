@@ -8,7 +8,9 @@ export declare const DEFAULT_REMINDER_TIMEZONE = "America/Los_Angeles";
 export declare function addDays(date: string, n: number): string;
 export declare function isoDue(raw: string | null | undefined, today: string): string;
 export declare function bucketTasks(tasks: ReminderTask[], today: string): ReminderBuckets;
-export declare function wantsDigest(user: Pick<UserEntity, 'notifyByEmail' | 'digestFrequency'>, today: string): boolean;
+export declare function wantsDigest(user: Pick<UserEntity, 'notifyByEmail' | 'digestFrequency'> & {
+    notificationMatrix?: unknown;
+}, today: string): boolean;
 export declare class RemindersService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly projectTasks;
     private readonly tasks;

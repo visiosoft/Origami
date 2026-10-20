@@ -33,8 +33,8 @@ export class ProjectsController {
 
   @Tiers('internal')
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<CreateProjectDto>) {
-    return this.projectsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: Partial<CreateProjectDto>, @Claims() claims: SessionClaims | null) {
+    return this.projectsService.update(id, dto, { id: claims?.sub });
   }
 
   @Tiers('internal')

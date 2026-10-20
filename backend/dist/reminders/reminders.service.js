@@ -69,6 +69,8 @@ function bucketTasks(tasks, today) {
 function wantsDigest(user, today) {
     if (user.notifyByEmail === false)
         return false;
+    if (user.notificationMatrix)
+        return false;
     const freq = user.digestFrequency || 'daily';
     if (freq === 'off')
         return false;
@@ -265,7 +267,7 @@ let RemindersService = class RemindersService {
         const base = await this.settings.baseUrl();
         const brand = await (0, shell_1.loadEmailBrand)(this.settings);
         for (const user of data.users) {
-            if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false)
+            if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false || user.notificationMatrix)
                 continue;
             const overdue = bucketTasks(this.tasksFor(user, data, base), today).overdue;
             if (!overdue.length)

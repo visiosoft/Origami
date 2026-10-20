@@ -15,11 +15,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsController = void 0;
 const common_1 = require("@nestjs/common");
 const notifications_service_1 = require("./notifications.service");
+const notify_hub_service_1 = require("./notify-hub.service");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const claims_decorator_1 = require("../auth/guards/claims.decorator");
 let NotificationsController = class NotificationsController {
-    constructor(notifications) {
+    constructor(notifications, hub) {
         this.notifications = notifications;
+        this.hub = hub;
+    }
+    async prefs(claims) {
+        if (!claims)
+            throw new common_1.UnauthorizedException('Sign in first.');
+        return this.hub.prefs(claims.sub);
+    }
+    async setPrefs(claims, body) {
+        if (!claims)
+            throw new common_1.UnauthorizedException('Sign in first.');
+        return this.hub.setPrefs(claims.sub, body || {});
+    }
+    async feed(claims, digest) {
+        if (!claims)
+            throw new common_1.UnauthorizedException('Sign in first.');
+        return this.hub.feed(claims.sub, { digest });
     }
     async test(claims) {
         if (!claims)
@@ -36,10 +53,33 @@ let NotificationsController = class NotificationsController {
             status: 'Not started',
             assigneeId: claims.sub,
             actor: { name: 'Origami', id: undefined },
-        });
+        }, undefined, true);
     }
 };
 exports.NotificationsController = NotificationsController;
+__decorate([
+    (0, common_1.Get)('prefs'),
+    __param(0, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], NotificationsController.prototype, "prefs", null);
+__decorate([
+    (0, common_1.Put)('prefs'),
+    __param(0, (0, claims_decorator_1.Claims)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationsController.prototype, "setPrefs", null);
+__decorate([
+    (0, common_1.Get)('feed'),
+    __param(0, (0, claims_decorator_1.Claims)()),
+    __param(1, (0, common_1.Query)('digest')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], NotificationsController.prototype, "feed", null);
 __decorate([
     (0, roles_decorator_1.Roles)('admin'),
     (0, common_1.Post)('test'),
@@ -50,6 +90,6 @@ __decorate([
 ], NotificationsController.prototype, "test", null);
 exports.NotificationsController = NotificationsController = __decorate([
     (0, common_1.Controller)('notifications'),
-    __metadata("design:paramtypes", [notifications_service_1.NotificationsService])
+    __metadata("design:paramtypes", [notifications_service_1.NotificationsService, notify_hub_service_1.NotifyHub])
 ], NotificationsController);
 //# sourceMappingURL=notifications.controller.js.map

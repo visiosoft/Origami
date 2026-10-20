@@ -1,3 +1,4 @@
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PipelineController } from './pipeline.controller';
@@ -9,7 +10,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { ProjectTasksModule } from '../project-tasks/project-tasks.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DealEntity, LeadEntity]), AuthModule, ProjectsModule, TasksModule, ProjectTasksModule],
+  imports: [TypeOrmModule.forFeature([DealEntity, LeadEntity]), AuthModule, ProjectsModule, TasksModule, ProjectTasksModule, NotificationsModule],
   controllers: [PipelineController],
   providers: [PipelineService],
   exports: [PipelineService],

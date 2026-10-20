@@ -794,6 +794,10 @@ export class UserEntity {
   @Column({ nullable: true }) digestFrequency!: string; // 'daily' | 'weekly' | 'off'
   @Column({ type: 'bit', nullable: true }) notifyOnOverdue!: boolean | null;
   @Column({ type: 'bit', nullable: true }) notifyOnMilestone!: boolean | null;
+  /** For text notifications (falls back to their People record's phone). */
+  @Column({ nullable: true }) phone!: string;
+  /** Notification settings: event -> channels (text/email, now/daily/weekly). Null = the defaults. */
+  @Column({ type: 'simple-json', nullable: true }) notificationMatrix!: Record<string, string[]> | null;
   // A staff member's OWN Google Calendar -- separate from the one shared
   // workspace connection everything else in this file (mail, Drive, the
   // office-wide calendars checked while booking) uses. Scoped to
@@ -830,6 +834,24 @@ export class UserViewEntity {
   @Column() name!: string;
   @Column({ type: 'simple-json', nullable: true }) filters!: Record<string, unknown> | null;
   @Column() createdAt!: string;
+}
+
+/**
+ * One notification for one person: what happened, and which digests (daily /
+ * weekly, by email or text) it still goes into. Also their in-app feed.
+ */
+@Entity('notification_items')
+export class NotificationItemEntity {
+  @PrimaryColumn() id!: string;
+  @Column() userId!: string;
+  @Column() event!: string;
+  @Column({ type: 'nvarchar', length: 500 }) title!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) body!: string | null;
+  @Column({ nullable: true }) url!: string | null;
+  @Column() at!: string;
+  /** Digests it belongs in (email_daily, text_weekly, …) and the ones already sent. */
+  @Column({ type: 'simple-json', nullable: true }) digests!: string[] | null;
+  @Column({ type: 'simple-json', nullable: true }) sent!: string[] | null;
 }
 
 // Simple key/value store for workspace configuration (Google OAuth credentials,

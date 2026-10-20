@@ -23,12 +23,12 @@ export declare class LeadFilesController {
             scope: "lead-files" | "tasks" | "project-tasks" | "rfis" | "file-room";
             kind: string;
             source: import("./all-files.service").FileSource;
+            url?: string | undefined;
             size?: number | undefined;
             mimeType?: string | undefined;
             uploadedBy?: string | undefined;
             where: string;
             ownerId: string;
-            url?: string | undefined;
             uploadedAt?: string | undefined;
             taskNumber?: string | undefined;
         }[];
@@ -44,12 +44,12 @@ export declare class LeadFilesController {
             scope: "lead-files" | "tasks" | "project-tasks" | "rfis" | "file-room";
             kind: string;
             source: import("./all-files.service").FileSource;
+            url?: string | undefined;
             size?: number | undefined;
             mimeType?: string | undefined;
             uploadedBy?: string | undefined;
             where: string;
             ownerId: string;
-            url?: string | undefined;
             uploadedAt?: string | undefined;
             taskNumber?: string | undefined;
         }[];

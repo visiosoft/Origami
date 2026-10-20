@@ -114,10 +114,10 @@ describe('ProjectTasksService', () => {
             expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.objectContaining({ taskId: 'T-1' }), ['U-JL'], { kind: 'added' });
         });
 
-        it('lets collaborators know when the task is done, and about comments (with the assignee)', async () => {
-            repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'X', status: 'In progress', assigneeId: 'U-AS', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [], comments: [] } as any);
+        it('lets everyone on the task know when it is done (assignee, collaborators, assigner), and about comments', async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'X', status: 'In progress', assigneeId: 'U-AS', createdById: 'U-ED', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [], comments: [] } as any);
             await service.update('T-1', { status: 'Done', completionNote: 'Sent to the client' }, actor);
-            expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.anything(), ['U-AN'], { kind: 'done' });
+            expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.anything(), ['U-AS', 'U-AN', 'U-ED'], { kind: 'done' });
             await service.addComment('T-1', 'Client sent the survey', actor);
             expect(notifications.taskFollowUp).toHaveBeenLastCalledWith(expect.anything(), ['U-AN', 'U-AS'], { kind: 'comment', comment: 'Client sent the survey' });
         });

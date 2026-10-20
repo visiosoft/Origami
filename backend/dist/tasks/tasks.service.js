@@ -18,6 +18,7 @@ exports.taskTitle = taskTitle;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const notify_hub_service_1 = require("../notifications/notify-hub.service");
 const mentions_1 = require("./mentions");
 const task_rules_1 = require("./task-rules");
 const settings_service_1 = require("../settings/settings.service");
@@ -34,7 +35,7 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates, leads, deals, projects) {
+    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates, leads, deals, projects, hub) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
@@ -45,6 +46,7 @@ let TasksService = class TasksService {
         this.leads = leads;
         this.deals = deals;
         this.projects = projects;
+        this.hub = hub;
         this.log = new common_1.Logger('TasksService');
     }
     async statuses() {
@@ -386,6 +388,8 @@ let TasksService = class TasksService {
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
         const finished = closing && !wasClosed;
+        const moved = !finished && !closingNow && 'status' in patch && patch.status !== task.status
+            && !(['Assigned', 'To Do'].includes(patch.status) && ('assignedToId' in patch || 'assignedTo' in patch));
         const noteEvents = [];
         if (finished && !closingNow && !note && !String(patch.resolution ?? '').trim())
             throw new common_1.BadRequestException(task_rules_1.NEEDS_COMPLETION_NOTE);
@@ -410,6 +414,7 @@ let TasksService = class TasksService {
             ...(reassignedTo ? [{ kind: 'assigned', ids: [reassignedTo], actor: who, at }] : []),
             ...(joined.length ? [{ kind: 'added', ids: joined.map((c) => c.id), actor: who, at }] : []),
             ...(finished ? [{ kind: 'done', ids: [], actor: who, at }] : []),
+            ...(moved ? [{ kind: 'status', ids: [], actor: who, at, status: patch.status }] : []),
         ];
         Object.assign(task, patch, { id });
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), ...events];
@@ -420,25 +425,37 @@ let TasksService = class TasksService {
         const saved = await this.repo.save(task);
         if (!defer)
             this.sendNotices(saved, notices);
+        if ((moved || finished) && (0, task_types_1.normalizeList)(saved.labels).some((l) => /^#?high[\s-]*vi[sz]/i.test(l))) {
+            void this.hub?.broadcast('high_viz', { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);
+        }
         return this.hydrate(saved);
     }
     sendNotices(t, notices) {
-        for (const n of notices) {
-            const notice = this.notice(t, n.actor);
-            if (n.kind === 'assigned')
-                this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
-            else if (n.kind === 'added')
-                this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
-            else
-                this.notifications.taskFollowUp(notice, (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), { kind: 'done' });
-        }
+        void (async () => {
+            for (const n of notices) {
+                const notice = this.notice(t, n.actor);
+                if (n.kind === 'assigned')
+                    this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+                else if (n.kind === 'added')
+                    this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+                else if (n.kind === 'status')
+                    this.notifications.taskFollowUp({ ...notice, status: n.status || t.status }, await this.involved(t), { kind: 'status' });
+                else
+                    this.notifications.taskFollowUp(notice, await this.involved(t), { kind: 'done' });
+            }
+        })().catch((e) => this.log.warn('Task notices: ' + e.message));
+    }
+    async involved(t) {
+        const by = this.raisedBy(t);
+        const source = t.originator ? (await this.users.find()).find((u) => u.name.trim().toLowerCase() === t.originator.trim().toLowerCase()) : null;
+        return [t.assignedToId, ...(0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), by.id, source?.id].filter(Boolean);
     }
     async flushNotices(id) {
         const t = await this.repo.findOneBy({ id });
         if (!t?.pendingNotices?.length)
             return { sent: 0 };
         const closed = new Set((await this.statuses()).filter((s) => s.closed).map((s) => s.name));
-        const live = (0, pending_notices_1.stillTrue)(t.pendingNotices, { assigneeId: t.assignedToId, collaboratorIds: (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), done: closed.has(t.status) });
+        const live = (0, pending_notices_1.stillTrue)(t.pendingNotices, { assigneeId: t.assignedToId, collaboratorIds: (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), done: closed.has(t.status), status: t.status });
         await this.repo.update({ id }, { pendingNotices: null });
         this.sendNotices(t, live);
         return { sent: live.length };
@@ -608,6 +625,7 @@ exports.TasksService = TasksService = __decorate([
     __param(8, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
     __param(9, (0, common_1.Optional)()),
     __param(9, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __param(10, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
@@ -617,7 +635,8 @@ exports.TasksService = TasksService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        notify_hub_service_1.NotifyHub])
 ], TasksService);
 function cleanIds(v) {
     return [...new Set((0, task_types_1.normalizeList)(v).map((x) => String(x ?? '').trim()).filter(Boolean))];
