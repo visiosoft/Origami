@@ -440,8 +440,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (closing) for (const s of await this.repo.findBy({ parentId: id })) if (!s.archivedAt) await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt } as any);
     if (!defer) this.sendNotices(saved, notices);
     // High Viz work: everyone who follows High Viz hears when it moves.
-    if ((moved || finished) && normalizeList<string>(saved.labels).some((l) => /^#?high[\s-]*vi[sz]/i.test(l))) {
-      void this.hub?.broadcast('high_viz', { title: `${saved.title} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}${saved.projectId != null ? `&project=${saved.projectId}` : ''}`, actorId: actor.id }).catch(() => undefined);
+    if (moved || finished) {
+      void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectId: saved.projectId },
+        { title: `${saved.title} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}${saved.projectId != null ? `&project=${saved.projectId}` : ''}`, actorId: actor.id }).catch(() => undefined);
     }
     return this.hydrate(saved);
   }

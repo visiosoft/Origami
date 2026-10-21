@@ -90,11 +90,16 @@ export class ProjectsService implements OnApplicationBootstrap {
   private statusNotices(before: ProjectEntity, patch: Partial<ProjectEntity>, actor?: { id?: string }) {
     const send = (event: string, title: string, path: string) =>
       void this.hub!.broadcast(event, { title, path, actorId: actor?.id }, { projectName: before.name }).catch(() => undefined);
+    // A High Viz project's moves also go to everyone following High Viz.
+    const viz = (patch.highViz ?? before.highViz) === true;
+    if (patch.highViz === true && !before.highViz) send('high_viz', `${before.name} is now High Viz`, `/design/${before.id}`);
     if (patch.designPhase !== undefined && patch.designPhase && patch.designPhase !== before.designPhase) {
       send('design_status', `${before.name} moved to ${patch.designPhase}`, `/design/${before.id}`);
+      if (viz) send('high_viz', `${before.name} moved to ${patch.designPhase}`, `/design/${before.id}`);
     }
     if (patch.stage !== undefined && patch.stage && patch.stage !== before.stage) {
       send('construction_status', `${before.name} is now ${patch.stage}`, `/pm/${before.id}`);
+      if (viz) send('high_viz', `${before.name} is now ${patch.stage}`, `/pm/${before.id}`);
     }
   }
 

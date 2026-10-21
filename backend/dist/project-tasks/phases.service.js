@@ -327,6 +327,7 @@ let PhasesService = class PhasesService {
                 templateCategory,
                 designPhase: project.designPhase || null,
                 holdSince: project.holdSince || '',
+                highViz: !!project.highViz,
                 holdUntil: project.holdUntil || '',
                 holdReason: project.holdReason || '',
                 currentPhaseKey: current?.key ?? null,

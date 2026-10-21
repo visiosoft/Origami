@@ -18,6 +18,7 @@ export declare class ProjectEntity {
     imgColor: string;
     img: string;
     designPhase: string;
+    highViz: boolean | null;
     leadId: string;
     siteAccess: string;
     fileRoomSyncedAt: string;

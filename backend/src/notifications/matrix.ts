@@ -22,7 +22,7 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
   { key: 'lead_status', label: 'Lead status changes', group: 'CRM', module: 'pipeline', hint: 'A lead moves stage, is archived, rejected or converted to a project.', defaults: ['email_daily'] },
   { key: 'design_status', label: 'Design status changes', group: 'Projects', module: 'design', hint: 'A project moves to another design phase.', defaults: ['email_daily'] },
   { key: 'construction_status', label: 'Construction status changes', group: 'Projects', module: 'pm', hint: 'A project’s construction stage changes.', defaults: ['email_daily'] },
-  { key: 'high_viz', label: 'High Viz', group: 'Projects', module: 'tasks', hint: 'Anything on a task labelled “High Viz” — the team decides which work is High Viz.', defaults: ['email_now'] },
+  { key: 'high_viz', label: 'High Viz', group: 'Projects', module: 'tasks', hint: 'Projects marked High Viz (their status and every task move) and tasks labelled “High Viz” — the team decides which.', defaults: ['email_now'] },
   { key: 'task_status', label: 'All tasks status', group: 'Tasks', hint: 'A task you’re on (assignee, assigner, source or collaborator) changes status or is done.', defaults: ['email_daily'] },
   { key: 'task_assigned', label: 'Newly assigned tasks', group: 'Tasks', hint: 'You’re given a task, or added as a collaborator.', defaults: ['email_now'] },
   { key: 'task_comment', label: 'Comments on my tasks', group: 'Tasks', hint: 'Someone comments on a task you’re on.', defaults: ['email_now'] },

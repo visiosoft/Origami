@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy, Optional }
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { NotificationItemEntity, PersonEntity, ProjectTaskEntity, RoleEntity, TaskEntity, UserEntity } from '../database/entities';
+import { NotificationItemEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, RoleEntity, TaskEntity, UserEntity } from '../database/entities';
 import { SettingsService } from '../settings/settings.service';
 import { GoogleService } from '../google/google.service';
 import { SmsService } from '../sms/sms.service';
@@ -47,7 +47,21 @@ export class NotifyHub implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly settings: SettingsService,
     private readonly google: GoogleService,
     @Optional() private readonly sms?: SmsService,
+    @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
   ) {}
+
+  /**
+   * High Viz: a task labelled "High Viz", or any task on a project marked High
+   * Viz, moved -- everyone following High Viz hears it their way.
+   */
+  async highVizTask(task: { labels?: unknown; projectId?: number | null; projectName?: string | null }, item: NotifyItem) {
+    const labelled = (Array.isArray(task.labels) ? task.labels : []).some((l) => /^#?high[\s-]*vi[sz]/i.test(String(l)));
+    const p = this.projects && (task.projectId != null || task.projectName)
+      ? task.projectId != null ? await this.projects.findOneBy({ id: Number(task.projectId) }) : await this.projects.findOneBy({ name: String(task.projectName) })
+      : null;
+    // People who only see their own projects hear about this one only if it's theirs.
+    if (labelled || p?.highViz) await this.broadcast('high_viz', item, p ? { projectName: p.name } : {});
+  }
 
   onApplicationBootstrap() {
     this.timer = setInterval(() => { void this.tick(); }, HOUR);

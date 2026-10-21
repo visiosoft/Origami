@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-21a',
+    date: '2026-10-21',
+    title: 'High Viz projects',
+    items: [
+      { area: 'Notifications', kind: 'new', text: 'Mark a whole project High Viz with the ☆ High Viz button next to its name. From then on its design and construction status changes, and every task move on it, go to everyone following High Viz — the way each chose in their notification settings. Tasks labelled “High Viz” still work for one-off items.', where: 'Design / Construction → a project → ☆ High Viz' },
+      { area: 'Design & Construction', kind: 'improved', text: 'High Viz projects show a ★ HIGH VIZ badge on their board card.' },
+    ],
+  },
+  {
     id: '2026-10-20c',
     date: '2026-10-20',
     title: 'Notifications your way: text or email, now or in a daily / weekly digest',

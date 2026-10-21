@@ -4,6 +4,8 @@ export interface Project {
   id: number;
   /** The project doesn't use the Project Program workbook. */
   programOff?: boolean;
+  /** High Viz: everyone following High Viz hears about its status and task moves (Settings → Notifications). */
+  highViz?: boolean | null;
   priority: 'High' | 'Medium' | 'Low';
   name: string;
   location: string;

@@ -442,8 +442,9 @@ export class TasksService implements OnApplicationBootstrap {
 
     const saved = await this.repo.save(task);
     if (!defer) this.sendNotices(saved, notices);
-    if ((moved || finished) && normalizeList<string>(saved.labels).some((l) => /^#?high[\s-]*vi[sz]/i.test(l))) {
-      void this.hub?.broadcast('high_viz', { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);
+    if (moved || finished) {
+      void this.hub?.highVizTask({ labels: normalizeList<string>(saved.labels), projectName: saved.project || null },
+        { title: `${taskTitle(saved)} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}&type=log`, actorId: actor.id }).catch(() => undefined);
     }
     return this.hydrate(saved);
   }

@@ -411,6 +411,7 @@ export class PhasesService implements OnApplicationBootstrap {
         // Echoed so the board can mark a card as placed by hand.
         designPhase: project.designPhase || null,
         holdSince: project.holdSince || '',
+        highViz: !!project.highViz,
         holdUntil: project.holdUntil || '',
         holdReason: project.holdReason || '',
         currentPhaseKey: current?.key ?? null,

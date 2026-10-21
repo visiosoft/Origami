@@ -70,3 +70,21 @@ describe('NotifyHub', () => {
     expect(an!.matrix.task_assigned).toEqual(['email_now']);
   });
 });
+
+describe('High Viz', () => {
+  it('a task on a High Viz project, or labelled High Viz, goes to High Viz followers; others do not', async () => {
+    const sent: any[] = [];
+    const hub: any = Object.create(NotifyHub.prototype);
+    hub.projects = { findOneBy: async (w: any) => (w.id === 7 || w.name === 'Cole Valley' ? { id: 7, name: 'Cole Valley', highViz: true } : { id: 8, name: 'Other', highViz: null }) };
+    hub.broadcast = async (event: string, item: any, scope: any) => { sent.push([event, item.title, scope]); };
+    await hub.highVizTask({ labels: [], projectId: 7 }, { title: 'Demo — Done' });
+    await hub.highVizTask({ labels: [], projectName: 'Cole Valley' }, { title: 'Permit — In Progress' });
+    await hub.highVizTask({ labels: ['High Viz'], projectId: null }, { title: 'Website — Done' });
+    await hub.highVizTask({ labels: ['framing'], projectId: 8 }, { title: 'Nope' });
+    expect(sent).toEqual([
+      ['high_viz', 'Demo — Done', { projectName: 'Cole Valley' }],
+      ['high_viz', 'Permit — In Progress', { projectName: 'Cole Valley' }],
+      ['high_viz', 'Website — Done', {}],
+    ]);
+  });
+});

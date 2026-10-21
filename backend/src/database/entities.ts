@@ -25,6 +25,8 @@ export class ProjectEntity {
   // Set by dragging on the Design board. Overrides the phase derived from
   // task progress, so a team can park a project where they say it is.
   @Column({ nullable: true }) designPhase!: string;
+  /** High Viz (Oct 20): a project the team wants everyone following High Viz to hear about. */
+  @Column({ type: 'bit', nullable: true }) highViz!: boolean | null;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) siteAccess!: string; // lockbox / gate codes, how to get on site
   @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder

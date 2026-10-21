@@ -36,6 +36,8 @@ interface DesignProject {
   templateCategory?: 'design' | 'construction';
   designPhase?: string;
   holdSince?: string;
+  /** Marked High Viz on the project page. */
+  highViz?: boolean;
   holdUntil?: string;
   holdReason?: string;
   currentPhaseKey: string | null;
@@ -298,6 +300,7 @@ export function Design({ scope = 'design' }: { scope?: 'design' | 'construction'
 
                         <div style={{ padding: 12 }}>
                           {p.holdSince && <div style={{ marginBottom: 5 }}><HoldBadge project={{ ...p, id: p.projectId }} /></div>}
+                          {p.highViz && <div style={{ marginBottom: 5 }}><span title="High Viz project" style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: '#C2410C', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '0.05em' }}>★ HIGH VIZ</span></div>}
                           <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4, lineHeight: 1.3, color: 'var(--ink)' }}>{p.name}</div>
                           {p.location && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, color: 'var(--muted)', marginBottom: 7, minWidth: 0 }}>

@@ -43,6 +43,7 @@ export declare class PhasesService implements OnApplicationBootstrap {
         templateCategory: TemplateCategory;
         designPhase: string | null;
         holdSince: string;
+        highViz: boolean;
         holdUntil: string;
         holdReason: string;
         currentPhaseKey: string;

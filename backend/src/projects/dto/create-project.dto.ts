@@ -19,6 +19,7 @@ export class CreateProjectDto {
   @IsString() @IsOptional() imgColor?: string;
   @IsString() @IsOptional() img?: string;
   @IsString() @IsOptional() designPhase?: string;
+  @IsBoolean() @IsOptional() highViz?: boolean;
   @IsString() @IsOptional() leadId?: string;
   /** Gate / lockbox codes and how to get on site. */
   @IsString() @IsOptional() siteAccess?: string;

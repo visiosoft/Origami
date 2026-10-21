@@ -65,6 +65,7 @@ export declare class PhasesController {
         templateCategory: import("../seed-data/programme-template").TemplateCategory;
         designPhase: string | null;
         holdSince: string;
+        highViz: boolean;
         holdUntil: string;
         holdReason: string;
         currentPhaseKey: string;

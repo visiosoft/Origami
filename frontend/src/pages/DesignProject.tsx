@@ -43,6 +43,7 @@ interface Project {
   priority: string; typeOfWork: string; estStart: string; duration: string; scope: string;
   referral: string; designPhase?: string;
   holdSince?: string; holdUntil?: string; holdReason?: string;
+  highViz?: boolean | null;
 }
 
 /**
@@ -306,6 +307,22 @@ export function DesignProject() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
+          {/* High Viz: the team decides which projects everyone following High Viz hears about. */}
+          {(canManage || project.highViz) && (
+            <button type="button" disabled={!canManage} aria-pressed={!!project.highViz}
+              title={project.highViz ? 'High Viz — its status changes and task moves go to everyone following High Viz. Click to turn off.' : 'Mark High Viz — its status changes and task moves go to everyone following High Viz'}
+              onClick={() => {
+                const next = !project.highViz;
+                setProject({ ...project, highViz: next });
+                api.projects.update(project.id, { highViz: next })
+                  .then(() => toast(next ? 'Marked High Viz' : 'No longer High Viz'))
+                  .catch((e: Error) => { setProject({ ...project, highViz: !next }); toast('⚠ ' + (e.message || 'Not saved')); });
+              }}
+              style={{ padding: '5px 12px', borderRadius: 999, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 800, letterSpacing: '0.04em', cursor: canManage ? 'pointer' : 'default',
+                border: '1px solid ' + (project.highViz ? '#C2410C' : 'rgba(var(--rgb-shade), .18)'), background: project.highViz ? '#C2410C' : 'var(--surface)', color: project.highViz ? '#fff' : INK3 }}>
+              {project.highViz ? '★ HIGH VIZ' : '☆ High Viz'}
+            </button>
+          )}
           <span onClick={() => navigate(`/planroom?project=${id}`)} title="This project's folder in the Plan & File Room"
             style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .14)', background: 'var(--surface)', color: INK }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
