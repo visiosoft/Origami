@@ -849,7 +849,7 @@ export class NotificationItemEntity {
   @Column() event!: string;
   @Column({ type: 'nvarchar', length: 500 }) title!: string;
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) body!: string | null;
-  @Column({ nullable: true }) url!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) url!: string | null;
   @Column() at!: string;
   /** Digests it belongs in (email_daily, text_weekly, …) and the ones already sent. */
   @Column({ type: 'simple-json', nullable: true }) digests!: string[] | null;
