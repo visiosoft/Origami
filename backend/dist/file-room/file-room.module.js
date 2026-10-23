@@ -10,6 +10,7 @@ exports.FileRoomModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
+const markups_service_1 = require("./markups.service");
 const progress_photos_controller_1 = require("./progress-photos.controller");
 const progress_photos_service_1 = require("./progress-photos.service");
 const google_module_1 = require("../google/google.module");
@@ -22,12 +23,12 @@ exports.FileRoomModule = FileRoomModule;
 exports.FileRoomModule = FileRoomModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([entities_1.FileRoomFileEntity, entities_1.FileRoomFolderEntity, entities_1.FileRoomShareEntity, entities_1.ProjectEntity, entities_1.ProgressPhotoEntity, entities_1.ProgressNoteEntity]),
+            typeorm_1.TypeOrmModule.forFeature([entities_1.FileRoomFileEntity, entities_1.FileRoomFolderEntity, entities_1.FileRoomShareEntity, entities_1.PdfMarkupEntity, entities_1.ProjectEntity, entities_1.ProgressPhotoEntity, entities_1.ProgressNoteEntity]),
             google_module_1.GoogleModule,
             auth_module_1.AuthModule,
         ],
         controllers: [file_room_controller_1.FileRoomController, progress_photos_controller_1.ProgressPhotosController],
-        providers: [file_room_service_1.FileRoomService, progress_photos_service_1.ProgressPhotosService],
+        providers: [file_room_service_1.FileRoomService, progress_photos_service_1.ProgressPhotosService, markups_service_1.MarkupsService],
     })
 ], FileRoomModule);
 //# sourceMappingURL=file-room.module.js.map

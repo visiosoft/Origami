@@ -23,11 +23,43 @@ const file_room_service_1 = require("./file-room.service");
 const file_room_dto_1 = require("./dto/file-room.dto");
 const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
+const markups_service_1 = require("./markups.service");
 let FileRoomController = class FileRoomController {
-    constructor(service, auth, access) {
+    constructor(service, auth, access, markups) {
         this.service = service;
         this.auth = auth;
         this.access = access;
+        this.markups = markups;
+    }
+    async seeFile(fileId, claims) {
+        const f = await this.markups.file(fileId);
+        await this.access.assert(claims ?? null, f.projectId);
+        return f;
+    }
+    async listMarkups(id, claims) {
+        await this.seeFile(id, claims);
+        return this.markups.list(id, claims);
+    }
+    async addMarkup(id, body, claims) {
+        await this.seeFile(id, claims);
+        return this.markups.create(id, body, claims);
+    }
+    async editMarkup(mid, body, claims) {
+        return this.markups.update(mid, body, claims);
+    }
+    async removeMarkup(mid, claims) {
+        return this.markups.remove(mid, claims);
+    }
+    async markedUpPdf(id, res, claims, authors) {
+        await this.seeFile(id, claims);
+        const { file, pdf } = await this.markups.flatten(id, claims, authors ? authors.split(',').filter(Boolean) : undefined);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name.replace(/\.pdf$/i, '') + ' (marked up).pdf')}"`);
+        res.end(pdf);
+    }
+    async markedUpCopy(id, body, claims) {
+        await this.seeFile(id, claims);
+        return this.markups.saveCopy(id, claims, Array.isArray(body?.authors) ? body.authors.map(String) : undefined);
     }
     async list(projectId, claims) {
         const pid = Number(projectId);
@@ -128,6 +160,59 @@ let FileRoomController = class FileRoomController {
     }
 };
 exports.FileRoomController = FileRoomController;
+__decorate([
+    (0, common_1.Get)('files/:id/markups'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "listMarkups", null);
+__decorate([
+    (0, common_1.Post)('files/:id/markups'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "addMarkup", null);
+__decorate([
+    (0, common_1.Put)('markups/:mid'),
+    __param(0, (0, common_1.Param)('mid')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "editMarkup", null);
+__decorate([
+    (0, common_1.Delete)('markups/:mid'),
+    __param(0, (0, common_1.Param)('mid')),
+    __param(1, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "removeMarkup", null);
+__decorate([
+    (0, common_1.Get)('files/:id/markups/pdf'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
+    __param(3, (0, common_1.Query)('authors')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object, String]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "markedUpPdf", null);
+__decorate([
+    (0, common_1.Post)('files/:id/markups/copy'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], FileRoomController.prototype, "markedUpCopy", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('projectId')),
@@ -291,6 +376,7 @@ exports.FileRoomController = FileRoomController = __decorate([
     (0, common_1.Controller)('file-room'),
     __metadata("design:paramtypes", [file_room_service_1.FileRoomService,
         auth_service_1.AuthService,
-        project_access_service_1.ProjectAccessService])
+        project_access_service_1.ProjectAccessService,
+        markups_service_1.MarkupsService])
 ], FileRoomController);
 //# sourceMappingURL=file-room.controller.js.map

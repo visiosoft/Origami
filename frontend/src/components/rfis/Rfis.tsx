@@ -21,7 +21,7 @@ export interface Rfi extends ActionTrailFields {
   id: string; projectId: number; projectName?: string; number: string; subject: string;
   status: 'draft' | 'open' | 'answered' | 'closed' | 'void';
   priority?: string; question?: string; suggestion?: string; discipline?: string; specSection?: string; drawingRef?: string;
-  drawings?: { fileId: string; name: string }[] | null; to?: RfiContact | null; cc?: RfiContact[] | null;
+  drawings?: { fileId: string; name: string; markupId?: string; page?: number }[] | null; to?: RfiContact | null; cc?: RfiContact[] | null;
   ownerId?: string; ownerName?: string; dateSent?: string; dateDue?: string; dateAnswered?: string; dateClosed?: string;
   answer?: string; answeredBy?: string; costImpact?: string; costAmount?: number | null; scheduleImpact?: string; scheduleDays?: number | null;
   changeOrderId?: string; changeOrderNumber?: string; sourceTaskId?: string; sourceTaskType?: string; attachments?: Attachment[];
@@ -470,7 +470,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             {(draft.drawings || []).map((d) => (
               <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
-                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{d.name}</a>
+                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}${d.markupId ? `&markup=${encodeURIComponent(d.markupId)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{d.name}{d.page ? ` · p. ${d.page}` : ''}{d.markupId ? ' · markup' : ''}</a>
                 {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => x.fileId !== d.fileId) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
               </span>
             ))}

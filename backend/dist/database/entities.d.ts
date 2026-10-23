@@ -572,6 +572,20 @@ export declare class UserViewEntity {
     filters: Record<string, unknown> | null;
     createdAt: string;
 }
+export declare class PdfMarkupEntity {
+    id: string;
+    fileId: string;
+    page: number;
+    kind: string;
+    data: Record<string, unknown>;
+    authorId: string | null;
+    authorName: string;
+    private: boolean;
+    linkType: string | null;
+    linkId: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
 export declare class NotificationItemEntity {
     id: string;
     userId: string;
@@ -1565,6 +1579,8 @@ export declare class CostForecastEntity extends FinanceStamped {
 export interface RfiDrawingRef {
     fileId: string;
     name: string;
+    markupId?: string;
+    page?: number;
 }
 export interface RfiContact {
     name: string;

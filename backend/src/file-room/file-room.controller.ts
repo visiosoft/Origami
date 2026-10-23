@@ -12,6 +12,7 @@ import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-ro
 import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, EmailFilesDto, MoveFilesDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
+import { MarkupsService } from './markups.service';
 
 @Controller('file-room')
 export class FileRoomController {
@@ -19,7 +20,56 @@ export class FileRoomController {
     private readonly service: FileRoomService,
     private readonly auth: AuthService,
     private readonly access: ProjectAccessService,
+    private readonly markups: MarkupsService,
   ) {}
+
+  // ---------------------------------------------------------------- PDF markup
+
+  private async seeFile(fileId: string, claims: SessionClaims | null | undefined) {
+    const f = await this.markups.file(fileId);
+    await this.access.assert(claims ?? null, f.projectId);
+    return f;
+  }
+
+  /** The markups on a PDF: everyone's shared ones and your own private drafts. */
+  @Get('files/:id/markups')
+  async listMarkups(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.list(id, claims);
+  }
+
+  @Post('files/:id/markups')
+  async addMarkup(@Param('id') id: string, @Body() body: unknown, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.create(id, body, claims);
+  }
+
+  @Put('markups/:mid')
+  async editMarkup(@Param('mid') mid: string, @Body() body: unknown, @Claims() claims: SessionClaims | null) {
+    return this.markups.update(mid, body, claims);
+  }
+
+  @Delete('markups/:mid')
+  async removeMarkup(@Param('mid') mid: string, @Claims() claims: SessionClaims | null) {
+    return this.markups.remove(mid, claims);
+  }
+
+  /** Download the PDF with markups drawn in (?authors=U-1,U-2 for just those layers). */
+  @Get('files/:id/markups/pdf')
+  async markedUpPdf(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null, @Query('authors') authors?: string) {
+    await this.seeFile(id, claims);
+    const { file, pdf } = await this.markups.flatten(id, claims, authors ? authors.split(',').filter(Boolean) : undefined);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name.replace(/\.pdf$/i, '') + ' (marked up).pdf')}"`);
+    res.end(pdf);
+  }
+
+  /** Save a marked-up copy beside the drawing in the File Room. */
+  @Post('files/:id/markups/copy')
+  async markedUpCopy(@Param('id') id: string, @Body() body: { authors?: string[] }, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.saveCopy(id, claims, Array.isArray(body?.authors) ? body.authors.map(String) : undefined);
+  }
 
   /** Projects, categories, folders and files — everything the tree needs. */
   @Get()

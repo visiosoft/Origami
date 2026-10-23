@@ -38,7 +38,11 @@ export function cleanContact(c: any): RfiContact | null {
   return { name: name || email, ...(email ? { email } : {}), ...(c.company ? { company: cleanText(c.company, 200) } : {}), ...(Number(c.personId) ? { personId: Number(c.personId) } : {}) };
 }
 const cleanDrawings = (list: unknown): RfiDrawingRef[] =>
-  (Array.isArray(list) ? list : []).map((d: any) => ({ fileId: String(d?.fileId || '').slice(0, 100), name: cleanText(d?.name, 300) })).filter((d) => d.fileId && d.name).slice(0, 30);
+  (Array.isArray(list) ? list : []).map((d: any) => ({
+    fileId: String(d?.fileId || '').slice(0, 100), name: cleanText(d?.name, 300),
+    ...(d?.markupId ? { markupId: String(d.markupId).slice(0, 80) } : {}),
+    ...(Number(d?.page) >= 1 ? { page: Math.floor(Number(d.page)) } : {}),
+  })).filter((d) => d.fileId && d.name).slice(0, 30);
 
 /** Who has the next move -- shown in the log so nobody has to open each one. */
 export function ballInCourt(r: Pick<RfiEntity, 'status' | 'to' | 'ownerName'>) {

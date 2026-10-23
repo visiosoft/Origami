@@ -57,7 +57,11 @@ function cleanContact(c) {
         return null;
     return { name: name || email, ...(email ? { email } : {}), ...(c.company ? { company: cleanText(c.company, 200) } : {}), ...(Number(c.personId) ? { personId: Number(c.personId) } : {}) };
 }
-const cleanDrawings = (list) => (Array.isArray(list) ? list : []).map((d) => ({ fileId: String(d?.fileId || '').slice(0, 100), name: cleanText(d?.name, 300) })).filter((d) => d.fileId && d.name).slice(0, 30);
+const cleanDrawings = (list) => (Array.isArray(list) ? list : []).map((d) => ({
+    fileId: String(d?.fileId || '').slice(0, 100), name: cleanText(d?.name, 300),
+    ...(d?.markupId ? { markupId: String(d.markupId).slice(0, 80) } : {}),
+    ...(Number(d?.page) >= 1 ? { page: Math.floor(Number(d.page)) } : {}),
+})).filter((d) => d.fileId && d.name).slice(0, 30);
 function ballInCourt(r) {
     if (r.status === 'open')
         return r.to?.name || 'Recipient';

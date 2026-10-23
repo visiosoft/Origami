@@ -16,6 +16,18 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-23a',
+    date: '2026-10-23',
+    title: 'Mark up PDFs and drawings',
+    items: [
+      { area: 'Plan & File Room', kind: 'new', text: 'Open any PDF and press ✎ Mark up: pen, highlighter, text, line, arrow, box, ellipse and revision cloud, in seven colours and five thicknesses, with undo/redo. Each markup saves as you draw it; the drawing itself never changes.', where: 'Plan & File Room → a PDF → ✎ Mark up' },
+      { area: 'Plan & File Room', kind: 'new', text: 'Measure on the drawing: set the scale by drawing over a dimension you know (e.g. a 20\'-0" string or the scale bar) and typing its length, then measure lengths (ft-in or metres) and areas (sq ft or m²).', where: '✎ Mark up → ⇔ then 📏 / ⬠' },
+      { area: 'Plan & File Room', kind: 'new', text: 'Markups are layers: everyone on the project sees them, and each person’s layer can be shown or hidden. Tick “Private” to keep new markups to yourself until you share them.' },
+      { area: 'Plan & File Room', kind: 'new', text: 'Select a markup and press Create RFI or Create task: the RFI is drafted with the drawing and page linked, and the RFI or task links back to that exact spot on the sheet.' },
+      { area: 'Plan & File Room', kind: 'new', text: '“Download marked-up PDF” gives the drawing with the layers you’re showing drawn in; “Save marked-up copy” keeps one beside the drawing in the File Room (the clean drawing stays Current).' },
+    ],
+  },
+  {
     id: '2026-10-21a',
     date: '2026-10-21',
     title: 'High Viz projects',

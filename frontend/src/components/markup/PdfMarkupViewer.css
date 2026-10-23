@@ -1,0 +1,67 @@
+/* PDF markup viewer: full screen over the app. */
+.mk-shell { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; background: var(--panel); color: var(--ink); }
+.mk-top { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.mk-title { font-weight: 700; font-size: 14px; min-width: 0; max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-old { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--amber-light); color: var(--c-8a6d12); font-size: 11px; font-weight: 700; }
+.mk-pages, .mk-zoom { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; }
+.mk-pages input { width: 38px; text-align: center; padding: 4px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font: inherit; }
+.mk-spacer { flex: 1; }
+.mk-btn { min-width: 32px; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
+.mk-btn:disabled { opacity: 0.45; cursor: default; }
+.mk-btn.is-text { font-size: 12.5px; font-weight: 700; padding: 0 12px; }
+.mk-btn.is-dark { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.mk-btn.is-danger { color: #B42318; }
+.mk-body { flex: 1; min-height: 0; display: flex; }
+.mk-tools { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
+.mk-tools select { width: 52px; font: inherit; font-size: 11px; padding: 3px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.mk-tool { width: 36px; height: 36px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--ink); font-size: 17px; cursor: pointer; display: grid; place-items: center; }
+.mk-tool:hover { background: var(--panel); }
+.mk-tool.is-on { background: var(--ink); color: var(--surface); }
+.mk-sep { width: 26px; height: 1px; background: var(--border); margin: 4px 0; }
+.mk-swatch { width: 20px; height: 20px; border-radius: 999px; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
+.mk-swatch.is-on { box-shadow: 0 0 0 2px var(--ink); }
+.mk-private { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: var(--muted); gap: 2px; cursor: pointer; }
+.mk-scale { font-size: 10px; font-weight: 700; color: #7C3AED; text-align: center; }
+.mk-stage { flex: 1; min-width: 0; overflow: auto; padding: 16px; position: relative; }
+.mk-page { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 6px 24px rgba(var(--rgb-ink), 0.18); }
+.mk-page canvas { display: block; }
+.mk-page svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mk-msg { padding: 40px; text-align: center; color: var(--muted); font-size: 14px; }
+.mk-side-close { display: none; justify-self: end; }
+.mk-side { width: 300px; flex-shrink: 0; overflow-y: auto; background: var(--surface); border-left: 1px solid var(--border); padding: 12px 14px; display: grid; gap: 16px; align-content: start; }
+.mk-side h4 { margin: 0 0 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.mk-muted { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.mk-layer { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; }
+.mk-layer span { flex: 1; }
+.mk-layer small { color: var(--muted); }
+.mk-selected { padding: 10px; border-radius: 10px; background: var(--panel); }
+.mk-quote { margin: 6px 0 0; font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mk-selected a { font-size: 12.5px; font-weight: 700; color: var(--forest); }
+.mk-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mk-seg { margin-left: auto; display: inline-flex; gap: 2px; text-transform: none; letter-spacing: 0; }
+.mk-seg button { border: 1px solid var(--border); background: var(--surface); color: var(--muted); font: inherit; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; cursor: pointer; }
+.mk-seg button.is-on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.mk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.mk-list li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+.mk-list li:hover, .mk-list li.is-on { background: var(--panel); }
+.mk-list i { width: 10px; height: 10px; border-radius: 3px; margin-top: 4px; flex-shrink: 0; }
+.mk-list span { min-width: 0; overflow-wrap: anywhere; }
+.mk-list small { display: block; color: var(--muted); font-size: 11px; }
+.mk-ask-bg { position: fixed; inset: 0; z-index: 310; background: rgba(var(--rgb-shade), 0.45); display: grid; place-items: center; padding: 16px; }
+.mk-ask { width: min(420px, 100%); background: var(--surface); border-radius: var(--r-12); padding: 18px; display: grid; gap: 10px; box-shadow: 0 18px 50px rgba(var(--rgb-ink), 0.25); }
+.mk-ask h4 { margin: 0; font-size: 15px; }
+.mk-ask input, .mk-ask textarea, .mk-ask select { box-sizing: border-box; width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--border); background: var(--panel); color: var(--ink); font: inherit; font-size: 13px; }
+.mk-ask-row { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Phones: tools along the bottom, the list in a drawer from the right. */
+@media (max-width: 720px) {
+  .mk-body { flex-direction: column-reverse; }
+  .mk-tools { flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: 0; border-top: 1px solid var(--border); }
+  .mk-tools > * { flex-shrink: 0; }
+  .mk-side-close { display: block; }
+  .mk-sep { width: 1px; height: 26px; margin: 0 4px; }
+  .mk-private { flex-direction: row; }
+  .mk-side { position: fixed; top: 0; right: 0; bottom: 64px; z-index: 5; width: min(300px, 88vw); box-shadow: -10px 0 30px rgba(var(--rgb-ink), 0.18); }
+  .mk-title { max-width: 60vw; }
+  .mk-top .mk-btn.is-text { font-size: 11.5px; padding: 0 8px; }
+}

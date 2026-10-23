@@ -4,11 +4,25 @@ import type { Response } from 'express';
 import { FileRoomService } from './file-room.service';
 import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, EmailFilesDto, MoveFilesDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
+import { MarkupsService } from './markups.service';
 export declare class FileRoomController {
     private readonly service;
     private readonly auth;
     private readonly access;
-    constructor(service: FileRoomService, auth: AuthService, access: ProjectAccessService);
+    private readonly markups;
+    constructor(service: FileRoomService, auth: AuthService, access: ProjectAccessService, markups: MarkupsService);
+    private seeFile;
+    listMarkups(id: string, claims: SessionClaims | null): Promise<import("../database/entities").PdfMarkupEntity[]>;
+    addMarkup(id: string, body: unknown, claims: SessionClaims | null): Promise<import("../database/entities").PdfMarkupEntity>;
+    editMarkup(mid: string, body: unknown, claims: SessionClaims | null): Promise<import("../database/entities").PdfMarkupEntity>;
+    removeMarkup(mid: string, claims: SessionClaims | null): Promise<{
+        id: string;
+        deleted: boolean;
+    }>;
+    markedUpPdf(id: string, res: Response, claims: SessionClaims | null, authors?: string): Promise<void>;
+    markedUpCopy(id: string, body: {
+        authors?: string[];
+    }, claims: SessionClaims | null): Promise<import("../database/entities").FileRoomFileEntity>;
     list(projectId?: string, claims?: SessionClaims | null): Promise<{
         projects: {
             id: number;

@@ -839,6 +839,29 @@ export class UserViewEntity {
 }
 
 /**
+ * A markup drawn on one page of a PDF in the File Room (Oct 2026): a layer over
+ * the drawing, which itself never changes. Points are page-relative (0-1) as
+ * the page is shown, so they hold at any zoom; sizes are in PDF points.
+ */
+@Entity('pdf_markups')
+export class PdfMarkupEntity {
+  @PrimaryColumn() id!: string;
+  @Column() fileId!: string;
+  @Column('int') page!: number;
+  @Column({ type: 'nvarchar', length: 40 }) kind!: string;
+  @Column({ type: 'simple-json' }) data!: Record<string, unknown>;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) authorId!: string | null;
+  @Column({ type: 'nvarchar', length: 200 }) authorName!: string;
+  /** A private draft: only its author sees it. */
+  @Column({ type: 'bit', default: false }) private!: boolean;
+  /** An RFI or task made from it. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) linkType!: string | null;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) linkId!: string | null;
+  @Column() createdAt!: string;
+  @Column() updatedAt!: string;
+}
+
+/**
  * One notification for one person: what happened, and which digests (daily /
  * weekly, by email or text) it still goes into. Also their in-app feed.
  */
@@ -2160,7 +2183,8 @@ export class CostForecastEntity extends FinanceStamped {
 }
 
 /** A drawing / file in the File Room an RFI points at. */
-export interface RfiDrawingRef { fileId: string; name: string }
+/** A drawing an RFI points at -- and, when made from a markup, that markup (opens the drawing at it). */
+export interface RfiDrawingRef { fileId: string; name: string; markupId?: string; page?: number }
 /** Someone an RFI goes to or is copied to -- a People contact, a staff member, or just a name and email. */
 export interface RfiContact { name: string; email?: string; company?: string; personId?: number }
 export interface RfiEvent { at: string; by: string; action: string; note?: string }

@@ -1,6 +1,7 @@
 import type { ContractorBid } from './data/contractorBids';
 import type { CardScan } from './data/businessCard';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
+import type { Markup } from './data/markup';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -166,6 +167,19 @@ async function requestForm<T>(path: string, form: FormData): Promise<T> {
     throw Object.assign(new Error(msg || `Upload failed: ${res.status}`), { status: res.status });
   }
   return res.json();
+}
+
+/** A file's bytes, signed in (for the PDF markup viewer and marked-up downloads). */
+async function requestBytes(path: string): Promise<ArrayBuffer> {
+  const token = session.get();
+  const res = await fetch(`${API_BASE}${path}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    noteSignedOut(res.status, path, !!token);
+    throw Object.assign(new Error(msg || `Couldn’t load the file (${res.status})`), { status: res.status });
+  }
+  return res.arrayBuffer();
 }
 
 /** Build a FormData from a browser FileList / File[]. */
@@ -663,6 +677,15 @@ export const api = {
       request<{ sent: boolean; to: string }>(`/file-room/files/${id}/email`, { method: 'POST', body: JSON.stringify({ to, note }) }),
     sync: (projectId: number) =>
       request<{ added: number; updated: number; removed: number; folders: number; syncedAt?: string }>(`/file-room/sync?projectId=${projectId}`, { method: 'POST' }),
+    /** The PDF itself, for the markup viewer. */
+    bytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content`),
+    markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
+    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'>) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
+    editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
+    removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
+    /** The PDF with markups drawn in (just these people's layers, when given). */
+    markedUpPdf: (id: string, authors?: string[]) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/markups/pdf${authors?.length ? `?authors=${encodeURIComponent(authors.join(','))}` : ''}`),
+    saveMarkedUpCopy: (id: string, authors?: string[]) => request<{ id: string; name: string }>(`/file-room/files/${encodeURIComponent(id)}/markups/copy`, { method: 'POST', body: JSON.stringify({ authors }) }),
     /** Relative on purpose: works through the vite proxy and same-origin in prod. */
     contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
       const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');

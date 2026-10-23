@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
+import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
 import { api } from '../api';
 import { RecipientPicker } from '../components/RecipientPicker';
 import { ShareHistory } from '../components/ShareHistory';
@@ -16,6 +17,10 @@ const BG = 'var(--font-display)';
 const PREVIEWABLE = new Set(['pdf', 'doc', 'docx', 'rtf', 'odt', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp', 'txt']);
 const canPreview = (f: { ext?: string; mimeType?: string }) =>
   PREVIEWABLE.has((f.ext || '').toLowerCase().replace(/^\./, '')) || /^application\/vnd\.google-apps\.(document|spreadsheet|presentation)$/.test(f.mimeType || '');
+
+/** PDFs can be marked up (drawings, specs, submittals). */
+const isPdf = (f: { ext?: string; mimeType?: string; name?: string }) =>
+  (f.ext || '').toLowerCase().replace(/^\./, '') === 'pdf' || f.mimeType === 'application/pdf' || /\.pdf$/i.test(f.name || '');
 
 /** "Last synced 12 min ago" for the project's Drive folder. */
 function syncedLabel(iso?: string | null) {
@@ -97,6 +102,9 @@ export function FileRoom() {
   const linkedFile = params.get('file');
   // /planroom?project=<id> (the project page's Files button) opens that project's folder.
   const linkedProject = params.get('project');
+  // /planroom?file=<id>&markup=<id> (from an RFI or task made from a markup) opens the drawing at that markup.
+  const linkedMarkup = params.get('markup');
+  const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null } | null>(linkedFile && linkedMarkup ? { id: linkedFile, focus: linkedMarkup } : null);
   const load = () => {
     api.fileRoom.list()
       .then((d) => {
@@ -644,8 +652,14 @@ export function FileRoom() {
               <div style={{ padding: '16px 22px 0' }}>
                 <iframe key={selected.id} src={api.fileRoom.previewUrl(selected.id)} title={selected.name}
                         style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: 'var(--panel)' }} />
-                <a href={api.fileRoom.previewUrl(selected.id)} target="_blank" rel="noreferrer"
-                   style={{ display: 'inline-block', marginTop: 6, fontSize: 12, fontWeight: 700, color: 'var(--forest)' }}>Open full screen ↗</a>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
+                  {isPdf(selected) && (
+                    <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
+                      style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>✎ Mark up</button>
+                  )}
+                  <a href={api.fileRoom.previewUrl(selected.id)} target="_blank" rel="noreferrer"
+                     style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)' }}>Open full screen ↗</a>
+                </div>
               </div>
             )}
 
@@ -787,6 +801,20 @@ export function FileRoom() {
           </div>
         </div>
       )}
+      {markingUp && (() => {
+        const f = data.files.find((x) => x.id === markingUp.id);
+        if (!f) return null;
+        return (
+          <PdfMarkupViewer
+            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false }}
+            projectId={Number(f.projectId) || null}
+            projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
+            focusMarkupId={markingUp.focus || null}
+            onClose={() => setMarkingUp(null)}
+            onSavedCopy={load}
+          />
+        );
+      })()}
     </div>
   );
 }
