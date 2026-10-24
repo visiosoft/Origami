@@ -43,6 +43,23 @@ export declare class FinanceHubService {
         month: string;
         amount: number;
     }[]>;
+    billing(actor: Actor, months?: number): Promise<{
+        month: string;
+        invoiced: number;
+        collected: number;
+        pastDue: number;
+        withinTerms: number;
+        retention: number;
+        open: {
+            id: string;
+            number: string;
+            projectId: number;
+            project: string;
+            dueDate: string | null;
+            unpaid: number;
+            pastDue: boolean;
+        }[];
+    }[]>;
     audit(actor: Actor, q: {
         projectId?: string;
         entityType?: string;

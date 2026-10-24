@@ -2,6 +2,8 @@ import { CountUp } from '../components/CountUp';
 import { clip, logTaskTitle } from '../data/tasks';
 import { DashboardOverview } from '../components/DashboardOverview';
 import { useTheme } from '../theme';
+import { DashboardCharts } from '../components/DashboardCharts';
+import { projectBars, type BillingMonth } from '../data/dashboardCharts';
 import { tint } from '../theme';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { isLogClosed } from '../data/logStatuses';
@@ -95,6 +97,7 @@ export function Dashboard() {
   const [portfolio, setPortfolio] = useState<any[] | null>(null);
   const [collections, setCollections] = useState<{ month: string; amount: number }[] | null>(null);
   const [liveDeals, setLiveDeals] = useState<any[]>([]);
+  const [billing, setBilling] = useState<BillingMonth[] | null>(null);
 
   const narrow = winW < 620;
   const swallowDoc = useRef(false);
@@ -111,6 +114,7 @@ export function Dashboard() {
     api.tasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionLogTasks(r); }).catch(() => { });
     api.finance.portfolio().then((r: any) => setPortfolio(Array.isArray(r) ? r : null)).catch(() => setPortfolio(null));
     api.finance.collections(6).then((r: any) => setCollections(Array.isArray(r) ? r : null)).catch(() => setCollections(null));
+    api.finance.billing(6).then((r) => setBilling(Array.isArray(r) ? r : null)).catch(() => setBilling(null));
     api.pipeline.list().then((r: any) => setLiveDeals(Array.isArray(r) ? r : [])).catch(() => { });
     api.projects.list().then((r: any) => {
       if (!Array.isArray(r)) return;
@@ -407,7 +411,11 @@ export function Dashboard() {
 
   return (
     <div className="dashboard-page" style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {isNew ? <DashboardOverview {...overview} /> : <>
+      {isNew ? <>
+        <DashboardOverview {...overview} />
+        {/* The Classic look's money charts, on live figures (finance is role-gated: hidden without access). */}
+        {!isClient && !isCons && <DashboardCharts billing={billing} bars={portfolio ? projectBars(portfolio, allProjects) : null} go={(to) => navigate(to)} />}
+      </> : <>
       <section className="dashboard-intro">
         <div>
           <div className="dashboard-eyebrow">{isClient ? 'Project pulse' : isCons ? 'Your work queue' : 'Morning check'}</div>

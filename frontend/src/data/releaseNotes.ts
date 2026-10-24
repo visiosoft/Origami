@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-24a',
+    date: '2026-10-24',
+    title: 'Dashboard charts in the new look',
+    items: [
+      { area: 'Dashboard', kind: 'new', text: 'Invoiced vs Collected: the last six months of issued invoices against payments received, with what’s still open on each month’s invoices (past due in orange). Tiles add up past due, within terms and retention held; click a month to list its open invoices.', where: 'Dashboard' },
+      { area: 'Dashboard', kind: 'new', text: 'Budget & Time Used by Project: each project’s contract with what’s paid, billed but not paid, and left to bill, and a marker for how much of the planned time has gone (from the project’s start date and duration). A red ! marks projects where time is running well ahead of billing.', where: 'Dashboard' },
+      { area: 'Dashboard', kind: 'improved', text: 'Both use the live finance figures (the Classic look showed sample figures) and appear for anyone who can see Project Finance.' },
+    ],
+  },
+  {
     id: '2026-10-23a',
     date: '2026-10-23',
     title: 'Mark up PDFs and drawings',

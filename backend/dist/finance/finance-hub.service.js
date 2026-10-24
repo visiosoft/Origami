@@ -22,6 +22,7 @@ const financials_service_1 = require("./financials.service");
 const invoices_service_1 = require("./invoices.service");
 const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
+const billing_months_1 = require("./billing-months");
 let FinanceHubService = class FinanceHubService {
     constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries, payments, commitments, commitmentLines) {
         this.fin = fin;
@@ -186,6 +187,13 @@ let FinanceHubService = class FinanceHubService {
             totals.set(k, (totals.get(k) || 0) + (0, money_1.toCents)(Number(p.amount) * (Number(p.fxRate) || 1)));
         }
         return keys.map((month) => ({ month, amount: (0, money_1.fromCents)(totals.get(month) || 0) }));
+    }
+    async billing(actor, months = 6) {
+        await this.fin.need(actor, 'view');
+        const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+        const [invoices, payments, projects] = await Promise.all([this.invoices.find(), this.payments ? this.payments.find() : Promise.resolve([]), this.projects.find()]);
+        const names = new Map(projects.map((p) => [p.id, p.name]));
+        return (0, billing_months_1.billingMonths)(invoices, payments, { months: n, today: new Date().toISOString().slice(0, 10), projectName: (id) => names.get(id) || `Project ${id}` });
     }
     async audit(actor, q) {
         await this.fin.need(actor, 'view');

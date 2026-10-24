@@ -11,6 +11,7 @@ import { FinancialsService } from './financials.service';
 import { reimbursableBillC } from './invoices.service';
 import { CostsService } from './costs.service';
 import { fromCents, sumCents, toCents } from './money';
+import { billingMonths } from './billing-months';
 
 /** One thing waiting on someone's decision, wherever it lives. */
 export interface Pending {
@@ -198,6 +199,15 @@ export class FinanceHubService {
       totals.set(k, (totals.get(k) || 0) + toCents(Number(p.amount) * (Number(p.fxRate) || 1)));
     }
     return keys.map((month) => ({ month, amount: fromCents(totals.get(month) || 0) }));
+  }
+
+  /** Invoiced vs collected per month, with what's still open on each month's invoices (the dashboard chart). */
+  async billing(actor: Actor, months = 6) {
+    await this.fin.need(actor, 'view');
+    const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+    const [invoices, payments, projects] = await Promise.all([this.invoices.find(), this.payments ? this.payments.find() : Promise.resolve([]), this.projects.find()]);
+    const names = new Map(projects.map((p) => [p.id, p.name]));
+    return billingMonths(invoices as any, payments as any, { months: n, today: new Date().toISOString().slice(0, 10), projectName: (id) => names.get(id) || `Project ${id}` });
   }
 
   /** The finance audit trail across projects (or one), newest first. */

@@ -39,6 +39,23 @@ export declare class FinanceController {
         footerNote: string;
     }>;
     portfolio(a?: string): Promise<any[]>;
+    billing(months?: string, a?: string): Promise<{
+        month: string;
+        invoiced: number;
+        collected: number;
+        pastDue: number;
+        withinTerms: number;
+        retention: number;
+        open: {
+            id: string;
+            number: string;
+            projectId: number;
+            project: string;
+            dueDate: string | null;
+            unpaid: number;
+            pastDue: boolean;
+        }[];
+    }[]>;
     collections(months?: string, a?: string): Promise<{
         month: string;
         amount: number;

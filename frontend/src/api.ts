@@ -2,6 +2,7 @@ import type { ContractorBid } from './data/contractorBids';
 import type { CardScan } from './data/businessCard';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
+import type { BillingMonth } from './data/dashboardCharts';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -795,6 +796,8 @@ export const api = {
     // --- phase 2
     portfolio: () => request('/finance/portfolio'),
     /** Money received per month across projects, oldest first. */
+    /** Invoiced vs collected per month, with what's still open on each month's invoices. */
+    billing: (months = 6) => request<BillingMonth[]>(`/finance/billing?months=${months}`),
     collections: (months = 6) => request<{ month: string; amount: number }[]>(`/finance/collections?months=${months}`),
     approvals: () => request('/finance/approvals'),
     audit: (q: Record<string, string> = {}) => request(`/finance/audit?${new URLSearchParams(q).toString()}`),
