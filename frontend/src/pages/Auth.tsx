@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PasswordInput } from '../components/PasswordInput';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowWidth } from '../useWindowWidth';
@@ -9,6 +9,15 @@ import { AuthLayout, authInput, label as fieldLabel } from './AuthLayout';
 
 export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const navigate = useNavigate();
+  // Leave for the page someone was sent here from (an email's task link) exactly
+  // once: signing in also re-runs "already signed in?", which used to send them
+  // on again -- to the Dashboard, the link being used up by then.
+  const left = useRef(false);
+  const leave = () => {
+    if (left.current) return;
+    left.current = true;
+    navigate(takeReturnTo(), { replace: true });
+  };
   const [params] = useSearchParams();
   const width = useWindowWidth();
   const { signIn, authUser, authReady } = useApp();
@@ -36,12 +45,12 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
       return;
     }
     signIn(decodeURIComponent(match[1]));
-    navigate(takeReturnTo(), { replace: true });
+    leave();
   }, [signIn, navigate]);
 
   // Already signed in? Skip the form.
   useEffect(() => {
-    if (authReady && authUser) navigate(takeReturnTo(), { replace: true });
+    if (authReady && authUser) leave();
   }, [authReady, authUser, navigate]);
 
   const submit = () => {
@@ -54,7 +63,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     api.auth.login(email.trim(), password)
       .then((res) => {
         signIn(res.token, res.user as any);
-        navigate(takeReturnTo(), { replace: true });
+        leave();
       })
       .catch((e: Error) => setError(e.message || 'Sign in failed.'))
       .finally(() => setBusy(false));

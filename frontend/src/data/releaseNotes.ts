@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-25a',
+    date: '2026-10-25',
+    title: 'Email task links open the task after signing in',
+    items: [
+      { area: 'Tasks', kind: 'fixed', text: 'Opening a task or subtask link from an email while signed out (a phone, or a session that had expired) now opens that task once you sign in — it used to land on the Dashboard.' },
+    ],
+  },
+  {
     id: '2026-10-24a',
     date: '2026-10-24',
     title: 'Dashboard charts in the new look',
