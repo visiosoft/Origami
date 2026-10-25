@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PasswordInput } from '../components/PasswordInput';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowWidth } from '../useWindowWidth';
@@ -13,11 +13,11 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   // once: signing in also re-runs "already signed in?", which used to send them
   // on again -- to the Dashboard, the link being used up by then.
   const left = useRef(false);
-  const leave = () => {
+  const leave = useCallback(() => {
     if (left.current) return;
     left.current = true;
     navigate(takeReturnTo(), { replace: true });
-  };
+  }, [navigate]);
   const [params] = useSearchParams();
   const width = useWindowWidth();
   const { signIn, authUser, authReady } = useApp();
@@ -46,12 +46,12 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
     }
     signIn(decodeURIComponent(match[1]));
     leave();
-  }, [signIn, navigate]);
+  }, [signIn, leave]);
 
   // Already signed in? Skip the form.
   useEffect(() => {
     if (authReady && authUser) leave();
-  }, [authReady, authUser, navigate]);
+  }, [authReady, authUser, leave]);
 
   const submit = () => {
     if (!email.trim() || !password.trim()) {
