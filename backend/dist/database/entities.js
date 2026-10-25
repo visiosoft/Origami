@@ -89,6 +89,14 @@ __decorate([
     __metadata("design:type", Object)
 ], ProjectEntity.prototype, "highViz", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "pricing", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "labor", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "leadId", void 0);

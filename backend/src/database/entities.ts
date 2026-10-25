@@ -27,6 +27,9 @@ export class ProjectEntity {
   @Column({ nullable: true }) designPhase!: string;
   /** High Viz (Oct 20): a project the team wants everyone following High Viz to hear about. */
   @Column({ type: 'bit', nullable: true }) highViz!: boolean | null;
+  /** Pricing (LS, T&M, T&M NTE, CS) and labour (PW, CP) codes, shown as badges on the dashboard. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) pricing!: string | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) labor!: string | null;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
   @Column({ type: 'nvarchar', length: 1000, nullable: true }) siteAccess!: string; // lockbox / gate codes, how to get on site
   @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder

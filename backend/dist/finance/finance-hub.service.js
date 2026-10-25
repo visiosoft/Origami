@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FinanceHubService = void 0;
+exports.reimbursablesApprovedC = reimbursablesApprovedC;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -23,6 +24,15 @@ const invoices_service_1 = require("./invoices.service");
 const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
 const billing_months_1 = require("./billing-months");
+function reimbursablesApprovedC(rows) {
+    const out = new Map();
+    for (const r of rows) {
+        if (r.billable === false || (r.status !== 'approved' && r.status !== 'billed'))
+            continue;
+        out.set(r.projectId, (out.get(r.projectId) || 0) + (0, invoices_service_1.reimbursableBillC)(r));
+    }
+    return out;
+}
 let FinanceHubService = class FinanceHubService {
     constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries, payments, commitments, commitmentLines) {
         this.fin = fin;
@@ -156,6 +166,7 @@ let FinanceHubService = class FinanceHubService {
             for (const id of await this.costs.projectsWithCosts())
                 ids.add(id);
         const labor = showCosts ? await this.costs.laborAll() : [];
+        const approvedReimbC = reimbursablesApprovedC(await this.reimbs.find());
         const rows = [];
         for (const id of ids) {
             const p = byId.get(id);
@@ -163,7 +174,10 @@ let FinanceHubService = class FinanceHubService {
                 continue;
             const client = clientIds.has(id) ? (0, finance_calc_1.toDollars)((0, finance_calc_1.computeSov)((await this.fin.context(id)).input).summary) : {};
             const pay = showCosts ? await this.costs.payingSide(id, labor) : null;
-            rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? (0, finance_calc_1.toDollars)(pay) : {}) });
+            rows.push({
+                projectId: p.id, name: p.name, stage: p.stage, contractType: p.contractType || '', pricing: p.pricing || '', labor: p.labor || '',
+                hasClientContract: clientIds.has(id), ...client, reimbursablesApproved: (0, money_1.fromCents)(approvedReimbC.get(id) || 0), ...(pay ? (0, finance_calc_1.toDollars)(pay) : {}),
+            });
         }
         return rows.sort((a, b) => a.name.localeCompare(b.name));
     }

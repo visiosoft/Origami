@@ -20,6 +20,16 @@ export interface Pending {
   itemKind?: string;
 }
 
+/** Billable reimbursables approved for (or already on) an invoice, in cents, per project: the reimbursables part of a project's budget. */
+export function reimbursablesApprovedC(rows: { projectId: number; status: string; billable?: boolean | null; cost: number; markupPct: number }[]) {
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.billable === false || (r.status !== 'approved' && r.status !== 'billed')) continue;
+    out.set(r.projectId, (out.get(r.projectId) || 0) + reimbursableBillC(r));
+  }
+  return out;
+}
+
 /**
  * Finance across projects: the approvals inbox, the portfolio of project
  * financials, and the audit log.
@@ -165,13 +175,17 @@ export class FinanceHubService {
     const ids = new Set(clientIds);
     if (showCosts) for (const id of await this.costs!.projectsWithCosts()) ids.add(id);
     const labor = showCosts ? await this.costs!.laborAll() : [];
+    const approvedReimbC = reimbursablesApprovedC(await this.reimbs.find());
     const rows = [];
     for (const id of ids) {
       const p = byId.get(id);
       if (!p) continue;
       const client = clientIds.has(id) ? toDollars(computeSov((await this.fin.context(id)).input).summary) : {};
       const pay = showCosts ? await this.costs!.payingSide(id, labor) : null;
-      rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? toDollars(pay) : {}) });
+      rows.push({
+        projectId: p.id, name: p.name, stage: p.stage, contractType: p.contractType || '', pricing: p.pricing || '', labor: p.labor || '',
+        hasClientContract: clientIds.has(id), ...client, reimbursablesApproved: fromCents(approvedReimbC.get(id) || 0), ...(pay ? toDollars(pay) : {}),
+      });
     }
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   }

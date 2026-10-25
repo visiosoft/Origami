@@ -19,6 +19,8 @@ export declare class ProjectEntity {
     img: string;
     designPhase: string;
     highViz: boolean | null;
+    pricing: string | null;
+    labor: string | null;
     leadId: string;
     siteAccess: string;
     fileRoomSyncedAt: string;

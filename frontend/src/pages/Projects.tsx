@@ -25,6 +25,7 @@ import { RichTextEditor } from '../components/RichTextEditor';
 import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { api, persist } from '../api';
+import { LABOR_TYPES, PRICING_TYPES } from '../data/projectTypes';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 
@@ -34,6 +35,9 @@ const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%'
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const TASK_PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
 const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
+/** "LS — Lump sum", or — when unset. */
+const codeLabel = (list: readonly { code: string; label: string }[], v?: string | null) => (v ? `${v} — ${list.find((o) => o.code === v)?.label || v}` : '—');
+
 const BLANK: Partial<Project> = { name: '', priority: 'Medium', stage: 'Kickoff', location: '', typeOfWork: '', contractType: 'Design + Build', contractAmt: '', estStart: '', duration: '', scope: '', referral: '', contactedBy: '', progress: 0, imgColor: '#173326' };
 
 interface ProjectFilters { priority: string; contractType: string; typeOfWork: string; contactedBy: string; q: string; hold?: string }
@@ -41,7 +45,7 @@ interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
 /** The fields the project form edits; they autosave together. */
-const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
+const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
 const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels'];
 
@@ -518,6 +522,7 @@ export function Projects() {
   const fields = sel
     ? ([
         ['Priority', sel.priority], ['Stage', sel.stage], ['Contract Type', sel.contractType], ['Contract Amount', sel.contractAmt],
+        ['Pricing', codeLabel(PRICING_TYPES, sel.pricing)], ['Labour', codeLabel(LABOR_TYPES, sel.labor)],
         ['Est. Start', sel.estStart], ['Duration', sel.duration], ['Location', sel.location], ['Type of Work', sel.typeOfWork],
         ['Referral', sel.referral || '—'], ['Contacted By', sel.contactedBy], ['Website', sel.website || '—'],
       ] as [string, string][])
@@ -1385,6 +1390,8 @@ export function Projects() {
                 ['Type of work', 'typeOfWork', 'text'],
                 ['Contract type', 'contractType', 'text'],
                 ['Contract amount', 'contractAmt', 'text'],
+                ['Pricing', 'pricing', 'select-pricing'],
+                ['Labour', 'labor', 'select-labor'],
                 ['Est. start', 'estStart', 'text'],
                 ['Duration', 'duration', 'text'],
                 ['Referral', 'referral', 'text'],
@@ -1410,6 +1417,11 @@ export function Projects() {
                     <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>
                       <option value="">— None —</option>
                       {leads.map((l) => <option key={l.id} value={l.id}>{l.leadName}{l.projectCity ? ` · ${l.projectCity}` : ''}</option>)}
+                    </select>
+                  ) : kind === 'select-pricing' || kind === 'select-labor' ? (
+                    <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>
+                      <option value="">— Not set —</option>
+                      {(kind === 'select-pricing' ? PRICING_TYPES : LABOR_TYPES).map((o) => <option key={o.code} value={o.code}>{o.code} — {o.label}</option>)}
                     </select>
                   ) : kind === 'select-template' ? (
                     <select value={(np as any)[key as string] || ''} onChange={(e) => setNp({ ...np, [key as string]: e.target.value })} style={inputStyle}>

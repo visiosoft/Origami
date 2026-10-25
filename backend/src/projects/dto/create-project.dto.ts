@@ -9,6 +9,10 @@ export class CreateProjectDto {
   @IsString() @IsOptional() typeOfWork?: string;
   @IsString() @IsOptional() contractType?: string;
   @IsString() @IsOptional() contractAmt?: string;
+  /** LS | T&M | T&M NTE | CS, blank when unset. */
+  @IsString() @IsOptional() pricing?: string;
+  /** PW | CP, blank when unset. */
+  @IsString() @IsOptional() labor?: string;
   @IsString() @IsOptional() estStart?: string;
   @IsString() @IsOptional() duration?: string;
   @IsString() @IsOptional() scope?: string;

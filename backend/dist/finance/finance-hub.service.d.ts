@@ -15,6 +15,13 @@ export interface Pending {
     canAct: boolean;
     itemKind?: string;
 }
+export declare function reimbursablesApprovedC(rows: {
+    projectId: number;
+    status: string;
+    billable?: boolean | null;
+    cost: number;
+    markupPct: number;
+}[]): Map<number, number>;
 export declare class FinanceHubService {
     private readonly fin;
     private readonly projects;

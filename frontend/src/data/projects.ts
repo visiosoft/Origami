@@ -12,6 +12,10 @@ export interface Project {
   typeOfWork: string;
   contractType: string;
   contractAmt: string;
+  /** LS | T&M | T&M NTE | CS (PRICING_TYPES). */
+  pricing?: string | null;
+  /** PW | CP (LABOR_TYPES). */
+  labor?: string | null;
   estStart: string;
   duration: string;
   scope: string;

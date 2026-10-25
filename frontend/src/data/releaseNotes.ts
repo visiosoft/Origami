@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-25b',
+    date: '2026-10-25',
+    title: 'Budget & Time vs Used by Project, on live figures',
+    items: [
+      { area: 'Dashboard', kind: 'new', text: 'The Classic dashboard\'s Budget & Time vs Used by Project chart is in the new look, on real figures: each bar is the contract plus change orders plus approved reimbursables, filled with what\'s been billed, with a marker for time used. A second line compares time used with costs spent (for people who can see costs). Filter by DO / BO / DB / PDB; click a project for the breakdown.', where: 'Dashboard' },
+      { area: 'Projects', kind: 'new', text: 'Projects have Pricing (LS, T&M, T&M NTE, CS) and Labour (PW, CP), shown as badges on the dashboard chart.', where: 'Projects → Edit project' },
+    ],
+  },
+  {
     id: '2026-10-25a',
     date: '2026-10-25',
     title: 'Email task links open the task after signing in',

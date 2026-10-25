@@ -41,14 +41,61 @@
 .dc-due.is-late { color: #B42318; font-weight: 700; }
 .dc-more { font-size: 12px; color: var(--muted); padding: 4px 8px; }
 
-.dc-projects { display: grid; gap: 14px; }
-.dc-proj-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-.dc-proj-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
-.dc-proj-figs { font-size: 12px; color: var(--body); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.dc-proj.is-behind .dc-proj-figs b { color: #B42318; }
-.dc-flag { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 6px; border-radius: 999px; background: #B42318; color: #fff; font-size: 10.5px; font-weight: 800; }
-.dc-track { position: relative; height: 14px; border-radius: 999px; overflow: visible; display: flex; background: repeating-linear-gradient(-55deg, var(--surface) 0 6px, rgba(29, 29, 27, 0.1) 6px 7px); border: 1px solid var(--border); }
-.dc-seg { height: 100%; animation: growX 0.8s var(--ease-out, ease-out) both; transform-origin: left center; }
-.dc-seg:first-child { border-radius: 999px 0 0 999px; }
-.dc-time { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+/* Budget & Time vs Used by Project (the Classic chart, live). */
+.dc-budget-head { align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.dc-sub { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.dc-chips { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--panel); margin-left: auto; }
+.dc-chip { border: 0; background: transparent; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--muted); padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+.dc-chip.is-on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); }
+.dc-roll { position: relative; display: grid; gap: 18px; }
+.dc-grid { position: absolute; inset: 0; pointer-events: none; }
+.dc-grid i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); opacity: 0.6; }
+.dc-ticks { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; color: var(--muted); margin-bottom: -6px; font-variant-numeric: tabular-nums; }
+.dc-row { position: relative; }
+.dc-row-btn { display: grid; gap: 0; width: 100%; border: 0; background: transparent; padding: 0; font: inherit; text-align: left; color: inherit; cursor: pointer; }
+.dc-row-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; margin-bottom: 6px; }
+.dc-row .dc-proj-name { flex: 0 1 auto; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.dc-row-btn:hover .dc-proj-name { text-decoration: underline; }
+.dc-pill { font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 6px; border-radius: 4px; background: var(--panel); color: var(--body); }
+.dc-pill.is-del { background: rgba(47, 125, 74, 0.14); color: var(--success, #2F7D4A); }
+.dc-pill.is-price { background: rgba(47, 111, 104, 0.12); color: #2F6F68; }
+.dc-pill.is-labor { background: rgba(217, 140, 30, 0.16); color: #93520F; }
+.dc-row-pcts { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dc-muted { color: var(--muted); }
+.dc-sep { color: var(--border); }
+.dc-used { color: var(--success, #2F7D4A); }
+.dc-row.is-hot .dc-used { color: #B42318; }
+.dc-flag { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; background: #B42318; color: #fff; font-size: 10.5px; font-weight: 800; }
+.dc-bar-wrap { position: relative; display: block; width: var(--w); }
+.dc-main { display: flex; height: 17px; border-radius: 5px; overflow: hidden; background: rgba(47, 125, 74, 0.1); border: 1px solid rgba(47, 125, 74, 0.2); }
+.dc-sec { height: 100%; display: block; }
+.dc-sec + .dc-sec { border-left: 1px solid var(--surface); }
+.dc-fill { display: block; height: 100%; background: var(--success, #2F7D4A); animation: growX 0.8s var(--ease-out, ease-out) both; transform-origin: left center; }
+.dc-row.is-hot .dc-fill { background: #B42318; }
+.dc-marker { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); }
+.dc-marker::after { content: ''; position: absolute; top: 100%; left: -4px; border: 5px solid transparent; border-top: 0; border-bottom: 6px solid var(--ink); }
+.dc-line { display: flex; align-items: center; gap: 7px; width: max(var(--w), 340px); max-width: 100%; margin-top: 11px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.dc-line-bars { flex: 1; height: 13px; border-radius: 4px; overflow: hidden; background: var(--panel); display: flex; flex-direction: column; justify-content: center; }
+.dc-line-bars > span { display: block; height: 6.5px; }
+.dc-line-time { background: var(--muted); }
+.dc-line-spent { background: var(--success, #2F7D4A); }
+.dc-line-spent.is-hot { background: #B42318; }
+.dc-spent { color: var(--success, #2F7D4A); }
+.dc-spent.is-hot { color: #B42318; }
+.dc-foot { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; width: max(var(--w), 340px); max-width: 100%; margin-top: 8px; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.dc-foot b { color: var(--ink); font-weight: 700; }
+.dc-foot-right { margin-left: auto; color: var(--muted); }
+.dc-tip { margin-top: 10px; padding: 12px 14px; border-radius: var(--r-12, 12px); background: var(--panel); display: grid; gap: 5px; position: relative; z-index: 1; }
+.dc-tip-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--body); }
+.dc-tip-row b { color: var(--ink); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.dc-tip .dc-link { justify-self: start; margin-top: 4px; }
+.dc-budget-legend { padding-top: 12px; border-top: 1px solid var(--border); }
+.dc-legend .is-hot { background: #B42318; }
+.dc-legend .is-gray { background: var(--muted); }
+.dc-tri { width: 0; height: 0; border: 5px solid transparent; border-top: 0; border-bottom: 6px solid var(--ink); }
 .dc-all { justify-self: start; }
+@media (max-width: 640px) {
+  .dc-grid, .dc-ticks { display: none; }
+  .dc-bar-wrap, .dc-line, .dc-foot { width: 100%; min-width: 0; }
+  .dc-row-pcts { margin-left: 0; width: 100%; }
+}

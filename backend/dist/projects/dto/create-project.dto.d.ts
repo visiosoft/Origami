@@ -6,6 +6,8 @@ export declare class CreateProjectDto {
     typeOfWork?: string;
     contractType?: string;
     contractAmt?: string;
+    pricing?: string;
+    labor?: string;
     estStart?: string;
     duration?: string;
     scope?: string;
