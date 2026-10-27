@@ -13,6 +13,7 @@ const people_controller_1 = require("./people.controller");
 const people_service_1 = require("./people.service");
 const entities_1 = require("../database/entities");
 const contact_status_service_1 = require("./contact-status.service");
+const contact_activity_service_1 = require("./contact-activity.service");
 const google_module_1 = require("../google/google.module");
 const auth_module_1 = require("../auth/auth.module");
 const settings_module_1 = require("../settings/settings.module");
@@ -24,9 +25,9 @@ let PeopleModule = class PeopleModule {
 exports.PeopleModule = PeopleModule;
 exports.PeopleModule = PeopleModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity, entities_1.EmployeeEntity, entities_1.ContractorEntity, entities_1.ProjectEntity, entities_1.TaskEntity, entities_1.ProjectTaskEntity, entities_1.FileRoomShareEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule, settings_module_1.SettingsModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.ContactInteractionEntity, entities_1.ContractorBidEntity, entities_1.PersonEntity, entities_1.EmployeeEntity, entities_1.ContractorEntity, entities_1.ProjectEntity, entities_1.TaskEntity, entities_1.ProjectTaskEntity, entities_1.FileRoomShareEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule, settings_module_1.SettingsModule],
         controllers: [people_import_controller_1.PeopleImportController, people_controller_1.PeopleController],
-        providers: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync, contractor_directory_sync_1.ContractorDirectorySync, contact_status_service_1.ContactStatusService],
+        providers: [contact_activity_service_1.ContactActivityService, people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync, contractor_directory_sync_1.ContractorDirectorySync, contact_status_service_1.ContactStatusService],
         exports: [people_service_1.PeopleService, staff_directory_sync_1.StaffDirectorySync, contractor_directory_sync_1.ContractorDirectorySync],
     })
 ], PeopleModule);

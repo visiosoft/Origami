@@ -35,6 +35,8 @@ export interface Person {
   sameAsIds?: number[] | null;
   /** Connections: companies they used to work at (the record there, when it's in People). */
   formerCompanies?: FormerCompany[] | null;
+  /** The point of contact for their company (one per company). */
+  pointOfContact?: boolean | null;
 }
 
 export type ContactStatus = 'active' | 'review' | 'expired';
@@ -140,4 +142,16 @@ export const companyOf = (p: Pick<Person, 'kind' | 'name' | 'company'>) => (COMP
 export function formerPeopleOf(p: Person, all: Person[]): Person[] {
   const co = companyOf(p).toLowerCase();
   return all.filter((x) => x.id !== p.id && (x.formerCompanies || []).some((f) => f.personId === p.id || (!!co && f.company.trim().toLowerCase() === co)));
+}
+
+/** A call, email, meeting, site visit or note with a contact. */
+export interface ContactInteraction { id: string; personId: number; kind: 'call' | 'email' | 'meeting' | 'site_visit' | 'note'; at: string; note?: string | null; byName?: string | null; createdAt: string }
+export const INTERACTION_KINDS: [ContactInteraction['kind'], string][] = [['call', 'Call'], ['email', 'Email'], ['meeting', 'Meeting'], ['site_visit', 'Site visit'], ['note', 'Note']];
+export interface ContactAlert { kind: 'responsiveness' | 'interactions' | 'pulse'; text: string }
+export interface ContactActivity {
+  interactions: ContactInteraction[];
+  bids: import('./contractorBids').ContractorBid[];
+  lastInteractionAt: string | null;
+  alerts: ContactAlert[];
+  pointOfContact: { id: number; name: string } | null;
 }

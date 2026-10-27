@@ -1,12 +1,20 @@
 import { BadRequestException } from '@nestjs/common';
 
-/** What became of an estimate. "Declined" = asked to bid and didn't. */
-export const BID_OUTCOMES = ['pending', 'awarded', 'not_awarded', 'withdrawn', 'declined'] as const;
+/**
+ * Where an RFP / estimate stands. "Invited" = RFP sent, no reply yet;
+ * "Interested" = they said they'd bid but haven't sent a price; "Pending" =
+ * price in, awaiting our decision; "Declined" = asked to bid and didn't.
+ */
+export const BID_OUTCOMES = ['invited', 'interested', 'pending', 'awarded', 'not_awarded', 'withdrawn', 'declined'] as const;
+/** Not an estimate (yet): no price came in. */
+export const NOT_PRICED = ['invited', 'interested', 'declined'];
 export type BidOutcome = (typeof BID_OUTCOMES)[number];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface BidLike {
   projectId?: number | null; projectName?: string | null; dateReceived: string; outcome: string; outcomeDate?: string | null; amount?: number | null;
+  /** When the RFP closes (bids due). */
+  dueDate?: string | null;
 }
 
 export interface BidStats {
@@ -54,6 +62,11 @@ export function cleanBid(dto: any, partial = false) {
     if (!(BID_OUTCOMES as readonly string[]).includes(o)) throw new BadRequestException('Unknown outcome.');
     out.outcome = o;
   }
+  if (has('dueDate')) {
+    const d = String(dto.dueDate || '').slice(0, 10);
+    if (d && !ISO.test(d)) throw new BadRequestException('The bid due date is not a date.');
+    out.dueDate = d || null;
+  }
   if (has('outcomeDate')) {
     const d = String(dto.outcomeDate || '').slice(0, 10);
     if (d && !ISO.test(d)) throw new BadRequestException('The decision date is not a date.');
@@ -63,7 +76,7 @@ export function cleanBid(dto: any, partial = false) {
 }
 
 export function bidStats(bids: BidLike[]): BidStats {
-  const priced = bids.filter((b) => b.outcome !== 'declined');
+  const priced = bids.filter((b) => !NOT_PRICED.includes(b.outcome));
   const when = (b: BidLike) => b.outcomeDate || b.dateReceived;
   const awards = priced.filter((b) => b.outcome === 'awarded');
   const lastAwardAt = awards.reduce<string | null>((m, b) => (!m || when(b) > m ? when(b) : m), null);

@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27h',
+    date: '2026-10-27',
+    title: 'Contacts: Activity, point of contact and alerts',
+    items: [
+      { area: 'People', kind: 'new', text: 'Each contact has an Activity section: log calls, emails, meetings, site visits and notes; see their RFPs and proposals; and tick who is the point of contact for their company (one per company).', where: 'People → open a contact → Activity' },
+      { area: 'People', kind: 'new', text: 'Alerts move a contact to Review: no “interested” reply to the last 2 RFPs, no response after an RFP closed, said interested but never submitted, 3 proposals without an award (give feedback), or no known interaction in 12 months. Review lifts on its own when the alert clears.' },
+      { area: 'Contractors', kind: 'improved', text: 'Estimates & bids have two new outcomes — “RFP sent — no reply” and “Interested — not submitted” — and a Bids due date.', where: 'Manpower → Contractors → Estimates & bids' },
+    ],
+  },
+  {
     id: '2026-10-27g',
     date: '2026-10-27',
     title: 'Contacts: Connections',

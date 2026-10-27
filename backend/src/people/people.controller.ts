@@ -6,6 +6,9 @@ import type { Response } from 'express';
 import { Readable } from 'stream';
 import { Tiers } from '../auth/guards/roles.decorator';
 import { PeopleService } from './people.service';
+import { ContactActivityService } from './contact-activity.service';
+import { Claims } from '../auth/guards/claims.decorator';
+import type { SessionClaims } from '../auth/crypto.util';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES } from '../google/attachments.service';
@@ -17,6 +20,7 @@ export class PeopleController {
     private readonly peopleService: PeopleService,
     private readonly auth: AuthService,
     private readonly attachments: AttachmentsService,
+    private readonly activity: ContactActivityService,
   ) {}
 
   @Get()
@@ -67,6 +71,28 @@ export class PeopleController {
   @Get('duplicates')
   duplicates(@Query() q: Record<string, string>) {
     return this.peopleService.duplicates(q);
+  }
+
+  /** Activity: logged interactions, RFPs and estimates, the company's point of contact, and alerts. */
+  @Get(':id/activity')
+  activityOf(@Param('id') id: string) {
+    return this.activity.activity(id);
+  }
+
+  @Post(':id/interactions')
+  logInteraction(@Param('id') id: string, @Body() body: { kind?: string; at?: string; note?: string }, @Claims() claims: SessionClaims | null) {
+    return this.activity.log(id, body, claims ? { id: claims.sub, name: claims.name } : null);
+  }
+
+  @Delete(':id/interactions/:interactionId')
+  removeInteraction(@Param('id') id: string, @Param('interactionId') interactionId: string) {
+    return this.activity.removeInteraction(id, interactionId);
+  }
+
+  /** Point of contact for their company (one per company). */
+  @Put(':id/point-of-contact')
+  pointOfContact(@Param('id') id: string, @Body() body: { on?: boolean }) {
+    return this.activity.setPointOfContact(id, body?.on !== false);
   }
 
   /** "Same person": link two records (both ways), or unlink them. */

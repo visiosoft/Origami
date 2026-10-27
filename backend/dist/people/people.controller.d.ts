@@ -1,5 +1,7 @@
 import type { Response } from 'express';
 import { PeopleService } from './people.service';
+import { ContactActivityService } from './contact-activity.service';
+import type { SessionClaims } from '../auth/crypto.util';
 import { CreatePersonDto } from './dto/create-person.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
@@ -7,7 +9,8 @@ export declare class PeopleController {
     private readonly peopleService;
     private readonly auth;
     private readonly attachments;
-    constructor(peopleService: PeopleService, auth: AuthService, attachments: AttachmentsService);
+    private readonly activity;
+    constructor(peopleService: PeopleService, auth: AuthService, attachments: AttachmentsService, activity: ContactActivityService);
     findAll(project?: string): Promise<import("../database/entities").PersonEntity[]>;
     scanCard(files: {
         front?: any[];
@@ -51,6 +54,7 @@ export declare class PeopleController {
         contactStatusReason: string;
         lastActivityAt: string;
         sameAsIds: number[] | null;
+        pointOfContact: boolean | null;
         formerCompanies: {
             company: string;
             personId?: number | null;
@@ -97,6 +101,7 @@ export declare class PeopleController {
         contactStatusReason: string;
         lastActivityAt: string;
         sameAsIds: number[] | null;
+        pointOfContact: boolean | null;
         formerCompanies: {
             company: string;
             personId?: number | null;
@@ -119,6 +124,27 @@ export declare class PeopleController {
     duplicates(q: Record<string, string>): Promise<(import("./contact-duplicates").DupRow & {
         matchedOn: import("./contact-duplicates").MatchedOn[];
     })[]>;
+    activityOf(id: string): Promise<{
+        interactions: import("../database/entities").ContactInteractionEntity[];
+        bids: import("../database/entities").ContractorBidEntity[];
+        lastInteractionAt: string | null;
+        alerts: import("./contact-alerts").ContactAlert[];
+        pointOfContact: {
+            id: number;
+            name: string;
+        } | null;
+    }>;
+    logInteraction(id: string, body: {
+        kind?: string;
+        at?: string;
+        note?: string;
+    }, claims: SessionClaims | null): Promise<import("../database/entities").ContactInteractionEntity>;
+    removeInteraction(id: string, interactionId: string): Promise<{
+        deleted: boolean;
+    }>;
+    pointOfContact(id: string, body: {
+        on?: boolean;
+    }): Promise<import("../database/entities").PersonEntity>;
     link(id: string, otherId: string): Promise<{
         person: import("../database/entities").PersonEntity;
         other: import("../database/entities").PersonEntity;

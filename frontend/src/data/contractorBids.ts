@@ -1,8 +1,10 @@
 /** A subcontractor's estimate: what they priced, for which job, and whether they got it. */
-export type BidOutcome = 'pending' | 'awarded' | 'not_awarded' | 'withdrawn' | 'declined';
+export type BidOutcome = 'invited' | 'interested' | 'pending' | 'awarded' | 'not_awarded' | 'withdrawn' | 'declined';
 export interface ContractorBid {
   id: string; contractorId: string; projectId: number | null; projectName: string; tradeId?: string | null; scope?: string;
   dateReceived: string; amount: number | null; outcome: BidOutcome; outcomeDate?: string | null; notes?: string;
+  /** When the RFP closes (bids due). */
+  dueDate?: string | null;
   createdByName?: string; createdAt: string; updatedAt?: string;
 }
 export interface BidStats {
@@ -11,11 +13,12 @@ export interface BidStats {
   sinceLastAward: number; lastBidAt: string | null; lastAwardAt: string | null; winRate: number | null;
 }
 
+/** Invited = RFP sent, no reply; Interested = said they'd bid, no price yet; Pending = price in, awaiting a decision. */
 export const BID_OUTCOMES: [BidOutcome, string, 'grey' | 'green' | 'red' | 'amber'][] = [
-  ['pending', 'Pending', 'amber'], ['awarded', 'Awarded', 'green'], ['not_awarded', 'Not awarded', 'red'],
+  ['invited', 'RFP sent — no reply', 'grey'], ['interested', 'Interested — not submitted', 'amber'], ['pending', 'Submitted — pending', 'amber'], ['awarded', 'Awarded', 'green'], ['not_awarded', 'Not awarded', 'red'],
   ['withdrawn', 'Withdrawn', 'grey'], ['declined', 'Declined to bid', 'grey'],
 ];
-export const outcomeLabel = (o: string) => (BID_OUTCOMES.find(([k]) => k === o) || BID_OUTCOMES[0])[1];
+export const outcomeLabel = (o: string) => (BID_OUTCOMES.find(([k]) => k === o) || BID_OUTCOMES[2])[1];
 
 /** This many estimates in a row without a job and the sub is flagged "owed a job". */
 export const OWED_A_JOB = 3;

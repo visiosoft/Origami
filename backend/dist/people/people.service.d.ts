@@ -71,6 +71,7 @@ export declare class PeopleService {
         contactStatusReason: string;
         lastActivityAt: string;
         sameAsIds: number[] | null;
+        pointOfContact: boolean | null;
         formerCompanies: {
             company: string;
             personId?: number | null;
@@ -117,6 +118,7 @@ export declare class PeopleService {
         contactStatusReason: string;
         lastActivityAt: string;
         sameAsIds: number[] | null;
+        pointOfContact: boolean | null;
         formerCompanies: {
             company: string;
             personId?: number | null;

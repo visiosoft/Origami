@@ -36,4 +36,21 @@ describe('daily contact check', () => {
     expect(people.rows[2].lastActivityAt).toBe('2026-08-01T00:00:00.000Z');
     expect(people.rows[3].contactStatus).toBe('expired');
   });
+  it('applies the Activity alerts: unanswered RFPs move a sub to Review; a logged call counts as activity', async () => {
+    const people = table([
+      { id: 5, name: 'Kestrel Electric', email: 'k@x.com', contractorId: 'C-1', since: '2023-01-01', lastActivityAt: '2026-09-01T00:00:00Z' },
+      { id: 6, name: 'Quiet Co', email: 'q@x.com', since: '2023-01-01', lastActivityAt: '2024-01-01T00:00:00Z' },
+    ]);
+    const bids = table([
+      { id: 'b1', contractorId: 'C-1', projectName: 'Narvaes', dateReceived: '2026-09-01', outcome: 'invited', dueDate: '2026-10-01' },
+      { id: 'b2', contractorId: 'C-1', projectName: 'Hadland', dateReceived: '2026-09-15', outcome: 'declined' },
+    ]);
+    const calls = table([{ id: 'i1', personId: 6, kind: 'call', at: '2026-10-10' }]);
+    const s = new ContactStatusService(people, table([]), table([]), table([]), {} as any, bids, calls);
+    await s.sweep(now);
+    expect(people.rows[0].contactStatus).toBe('review');
+    expect(people.rows[0].contactStatusReason).toMatch(/^Alert: No “interested” reply to the last 2 RFPs; No response to “Narvaes”/);
+    expect(people.rows[1].contactStatus).toBeUndefined();
+    expect(people.rows[1].lastActivityAt).toBe('2026-10-10T00:00:00.000Z');
+  });
 });

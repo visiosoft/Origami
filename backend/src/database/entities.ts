@@ -98,6 +98,8 @@ export class PersonEntity {
   /** Other People records that are the same person (confirmed when the duplicate warning came up). Shown read-only under Reference. */
   @Column({ type: 'simple-json', nullable: true }) sameAsIds!: number[] | null;
   /** Connections: companies they used to work at (the record there, when it's in People). */
+  /** The point of contact for their company (one per company). */
+  @Column({ type: 'bit', nullable: true }) pointOfContact!: boolean | null;
   @Column({ type: 'simple-json', nullable: true }) formerCompanies!: { company: string; personId?: number | null; role?: string | null; until?: string | null }[] | null;
 
   // --- Profile ---
@@ -120,6 +122,25 @@ export class PersonEntity {
   @Column({ type: 'simple-json', nullable: true }) insurance!: Record<string, unknown>;
   // A designer who may take residential work but not commercial.
   @Column({ type: 'bit', nullable: true }) notLicensedDesigner!: boolean | null;
+}
+
+/**
+ * A call, email, meeting or note with a contact (Oct 27 backlog, Contacts:
+ * Activity). Logged by hand; keeps the contact's "last known interaction" honest.
+ */
+@Entity('contact_interactions')
+@Index('IX_contact_interactions_person', ['personId'])
+export class ContactInteractionEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') personId!: number;
+  /** call | email | meeting | site_visit | note */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  /** The day it happened (YYYY-MM-DD). */
+  @Column({ type: 'nvarchar', length: 10 }) at!: string;
+  @Column({ type: 'nvarchar', length: 2000, nullable: true }) note!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) byId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
 }
 
 @Entity('tasks')
@@ -2154,8 +2175,10 @@ export class ContractorBidEntity {
   @Column({ ...TEXT, nullable: true }) scope!: string;
   @Column() dateReceived!: string;
   @Column({ ...MONEY, nullable: true }) amount!: number | null;
-  /** pending | awarded | not_awarded | withdrawn | declined */
+  /** invited | interested | pending | awarded | not_awarded | withdrawn | declined */
   @Column({ default: 'pending' }) outcome!: string;
+  /** When the RFP closes (bids due); drives the contact's responsiveness alerts. */
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
   @Column({ nullable: true }) outcomeDate!: string;
   @Column({ ...TEXT, nullable: true }) notes!: string;
   @Column({ nullable: true }) createdByName!: string;

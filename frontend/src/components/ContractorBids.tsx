@@ -7,8 +7,8 @@ import { SortHeader, useSort } from './SortHeader';
 
 const usd = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }));
 const today = () => new Date().toISOString().slice(0, 10);
-type Draft = { projectId: string; projectName: string; tradeId: string; scope: string; dateReceived: string; amount: string; outcome: BidOutcome; notes: string };
-const EMPTY = (): Draft => ({ projectId: '', projectName: '', tradeId: '', scope: '', dateReceived: today(), amount: '', outcome: 'pending', notes: '' });
+type Draft = { projectId: string; projectName: string; tradeId: string; scope: string; dateReceived: string; dueDate: string; amount: string; outcome: BidOutcome; notes: string };
+const EMPTY = (): Draft => ({ projectId: '', projectName: '', tradeId: '', scope: '', dateReceived: today(), dueDate: '', amount: '', outcome: 'pending', notes: '' });
 const OTHER = 'other';
 
 function Stat({ label, value, sub, warn }: { label: string; value: string | number; sub?: string; warn?: boolean }) {
@@ -54,7 +54,7 @@ export function ContractorBids({ contractor, projects, subTrades, canManage, onC
     const other = adding.projectId === OTHER;
     const ok = await done(api.contractors.addBid(contractor.id, {
       projectId: other || !adding.projectId ? null : Number(adding.projectId), projectName: other ? adding.projectName : undefined,
-      tradeId: adding.tradeId || null, scope: adding.scope, dateReceived: adding.dateReceived, amount: (adding.amount === '' ? null : adding.amount) as any, outcome: adding.outcome, notes: adding.notes,
+      tradeId: adding.tradeId || null, scope: adding.scope, dateReceived: adding.dateReceived, dueDate: adding.dueDate || null, amount: (adding.amount === '' ? null : adding.amount) as any, outcome: adding.outcome, notes: adding.notes,
     }), 'Estimate added');
     if (ok) setAdding(null);
   };
@@ -99,7 +99,8 @@ export function ContractorBids({ contractor, projects, subTrades, canManage, onC
             </select>
           </label>
           <label style={{ fontSize: 11.5, color: MUTED }}>Scope<input value={adding.scope} onChange={(e) => set({ scope: e.target.value })} placeholder="e.g. Framing, levels 1–2" style={input} aria-label="Scope" /></label>
-          <label style={{ fontSize: 11.5, color: MUTED }}>Received<input type="date" value={adding.dateReceived} onChange={(e) => set({ dateReceived: e.target.value })} style={input} aria-label="Date received" /></label>
+          <label style={{ fontSize: 11.5, color: MUTED }}>{adding.outcome === 'invited' || adding.outcome === 'interested' ? 'RFP sent' : 'Received'}<input type="date" value={adding.dateReceived} onChange={(e) => set({ dateReceived: e.target.value })} style={input} aria-label="Date received" /></label>
+          <label style={{ fontSize: 11.5, color: MUTED }}>Bids due<input type="date" value={adding.dueDate} onChange={(e) => set({ dueDate: e.target.value })} style={input} aria-label="Bids due" /></label>
           <label style={{ fontSize: 11.5, color: MUTED }}>Amount ($)<input inputMode="decimal" value={adding.amount} onChange={(e) => set({ amount: e.target.value })} placeholder="0" style={input} aria-label="Amount" /></label>
           <label style={{ fontSize: 11.5, color: MUTED }}>Outcome
             <select value={adding.outcome} onChange={(e) => set({ outcome: e.target.value as BidOutcome })} style={input} aria-label="Outcome">
@@ -128,7 +129,7 @@ export function ContractorBids({ contractor, projects, subTrades, canManage, onC
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {sorted.map((b) => {
-              const tone = (BID_OUTCOMES.find(([k]) => k === b.outcome) || BID_OUTCOMES[0])[2];
+              const tone = (BID_OUTCOMES.find(([k]) => k === b.outcome) || BID_OUTCOMES[2])[2];
               return (
                 <div key={b.id} style={bodyRow(cols)}>
                   <span style={{ fontSize: 12.5 }}>{fmtDate(b.dateReceived)}</span>
@@ -142,6 +143,7 @@ export function ContractorBids({ contractor, projects, subTrades, canManage, onC
                       </select>
                     ) : <Badge tone={tone}>{outcomeLabel(b.outcome)}</Badge>}
                     {b.outcomeDate && b.outcome !== 'pending' && <div style={{ fontSize: 10.5, color: MUTED, marginTop: 2 }}>{fmtDate(b.outcomeDate)}</div>}
+                    {b.dueDate && (b.outcome === 'invited' || b.outcome === 'interested') && <div style={{ fontSize: 10.5, color: b.dueDate < today() ? '#B42318' : MUTED, marginTop: 2 }}>Due {fmtDate(b.dueDate)}</div>}
                   </span>
                   <span style={{ fontSize: 12, color: MUTED, minWidth: 0 }}>{b.notes || ''}</span>
                   {canManage && <span onClick={() => remove(b)} title="Delete" style={{ cursor: 'pointer', color: DANGER, fontSize: 16, textAlign: 'center' }}>×</span>}

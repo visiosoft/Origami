@@ -73,6 +73,7 @@ export declare class PersonEntity {
     contactStatusReason: string;
     lastActivityAt: string;
     sameAsIds: number[] | null;
+    pointOfContact: boolean | null;
     formerCompanies: {
         company: string;
         personId?: number | null;
@@ -90,6 +91,16 @@ export declare class PersonEntity {
     licenses: unknown[];
     insurance: Record<string, unknown>;
     notLicensedDesigner: boolean | null;
+}
+export declare class ContactInteractionEntity {
+    id: string;
+    personId: number;
+    kind: string;
+    at: string;
+    note: string | null;
+    byId: string | null;
+    byName: string | null;
+    createdAt: string;
 }
 export declare class TaskEntity {
     id: string;
@@ -1563,6 +1574,7 @@ export declare class ContractorBidEntity {
     dateReceived: string;
     amount: number | null;
     outcome: string;
+    dueDate: string | null;
     outcomeDate: string;
     notes: string;
     createdByName: string;

@@ -12,6 +12,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { DuplicateWarning, SameAsReference } from '../components/ContactDuplicates';
 import { ContactConnections } from '../components/ContactConnections';
+import { ContactActivity } from '../components/ContactActivity';
 import { askReason } from '../components/CompletionNote';
 import { api } from '../api';
 import { PersonProfileEditor } from '../components/PersonProfileEditor';
@@ -683,6 +684,7 @@ export function People() {
                 </div>
               ))}
             </div>
+            <ContactActivity person={sel} canManage={canManage} onChanged={reload} />
             <ContactConnections person={sel} people={all} canManage={canManage && !sel.employeeId} onOpen={(id) => setSelectedId(id)}
               onSave={async (formerCompanies) => {
                 try { const saved = await api.people.update(sel.id, { formerCompanies }) as Person; setPeople((prev) => prev.map((x) => (x.id === sel.id ? { ...x, ...saved } : x))); }

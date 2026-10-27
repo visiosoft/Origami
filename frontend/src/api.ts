@@ -1,6 +1,6 @@
 import type { ContractorBid } from './data/contractorBids';
 import type { CardScan } from './data/businessCard';
-import type { DupMatch } from './data/people';
+import type { ContactActivity, ContactInteraction, DupMatch } from './data/people';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
 import type { BillingMonth } from './data/dashboardCharts';
@@ -341,6 +341,11 @@ export const api = {
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
     /** Possible duplicates of a contact being added (same name, email or phone), Expired first. */
     duplicates: (q: Record<string, string>) => request<DupMatch[]>(`/people/duplicates?${new URLSearchParams(q).toString()}`),
+    /** Activity: logged interactions, RFPs / estimates, the company's point of contact, and alerts. */
+    activity: (id: number) => request<ContactActivity>(`/people/${id}/activity`),
+    logInteraction: (id: number, d: { kind: string; at: string; note?: string }) => request<ContactInteraction>(`/people/${id}/interactions`, { method: 'POST', body: JSON.stringify(d) }),
+    removeInteraction: (id: number, interactionId: string) => request(`/people/${id}/interactions/${interactionId}`, { method: 'DELETE' }),
+    setPointOfContact: (id: number, on: boolean) => request(`/people/${id}/point-of-contact`, { method: 'PUT', body: JSON.stringify({ on }) }),
     /** "Same person": link two records both ways (read-only Reference on each), or unlink. */
     link: (id: number, otherId: number) => request(`/people/${id}/same-as/${otherId}`, { method: 'POST' }),
     unlink: (id: number, otherId: number) => request(`/people/${id}/same-as/${otherId}`, { method: 'DELETE' }),

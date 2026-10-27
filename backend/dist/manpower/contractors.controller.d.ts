@@ -138,6 +138,7 @@ export declare class ContractorsController {
         dateReceived: string;
         amount: number | null;
         outcome: string;
+        dueDate: string | null;
         outcomeDate: string;
         notes: string;
         createdByName: string;
@@ -154,6 +155,7 @@ export declare class ContractorsController {
         dateReceived: string;
         amount: number | null;
         outcome: string;
+        dueDate: string | null;
         outcomeDate: string;
         notes: string;
         createdByName: string;
@@ -170,6 +172,7 @@ export declare class ContractorsController {
         dateReceived: string;
         amount: number | null;
         outcome: string;
+        dueDate: string | null;
         outcomeDate: string;
         notes: string;
         createdByName: string;
@@ -186,6 +189,7 @@ export declare class ContractorsController {
         dateReceived: string;
         amount: number | null;
         outcome: string;
+        dueDate: string | null;
         outcomeDate: string;
         notes: string;
         createdByName: string;
