@@ -31,6 +31,8 @@ import { buildPrefill } from '../data/projectProgram';
 import { ProposalPanel } from '../components/ProposalPanel';
 import { DealTasksPanel } from '../components/DealTasksPanel';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
+import { SiteVisitGuests } from '../components/SiteVisitGuests';
+import { inviteGuests, siteVisitDescription, zoningSections, type Guest } from '../data/siteVisitInvite';
 
 const BG = 'var(--font-display)';
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -127,6 +129,7 @@ interface NewLead {
   meetingType?: string;
   meetingAgenda?: string;
   meetingEventId?: string;
+  siteVisitEventId?: string;
   preferredContactMethodOfSecondContact: string; pronounsOfSecondContact: string;
   leadSourceReferrerName: string; leadSourceReferrerPhone: string; leadSourceEventDetail: string;
   otherDetails?: Record<string, string>;
@@ -474,6 +477,12 @@ export function Pipeline() {
   const [myEvents, setMyEvents] = useState<{ start: string; end: string; allDay: boolean }[] | null>(null);
   const [visitByDeal, setVisitByDeal] = useState<Record<string, { when: string }>>({});
   const [visitWhen, setVisitWhen] = useState('');
+  // The site visit invite: the default team (Settings -> Calendars), who's on this one, extra notes, zoning or not.
+  const [visitTeam, setVisitTeam] = useState<Guest[] | null>(null);
+  const [visitGuests, setVisitGuests] = useState<Guest[]>([]);
+  const [visitNotes, setVisitNotes] = useState('');
+  const [visitZoning, setVisitZoning] = useState(false);
+  const [creatingVisit, setCreatingVisit] = useState(false);
   const [scoringTemplate, setScoringTemplate] = useState<ScoringCriterion[]>([]);
   const [fitByDeal, setFitByDeal] = useState<Record<string, Record<string, string>>>({});
   const [panelWidth, setPanelWidth] = useState(420);
@@ -938,23 +947,54 @@ export function Pipeline() {
     }
   };
 
-  const scheduleSiteVisit = (deal: Deal, stageName: string) => {
+  /** The invite's description: scope, preliminary info, and the Zoning Analysis when ticked. */
+  const siteVisitText = (deal: Deal) => {
+    const ld = leadDetails[deal.id];
+    return siteVisitDescription({
+      lead: (ld || {}) as unknown as Record<string, unknown>, leadName: deal.name, address: leadAddress(ld), phone: deal.phone,
+      notes: visitNotes, zoning: visitZoning ? zoningSections(ZONING_FORM, parseZA(ld?.zoningAnalysis)) : undefined,
+      link: `${window.location.origin}/pipeline?lead=${encodeURIComponent(deal.id)}`,
+    });
+  };
+
+  /**
+   * Sends the real invite through the Calendar API -- each guest required or
+   * optional, the scope in the description. A reschedule updates the same
+   * event. Falls back to a Google Calendar tab only if the API call fails.
+   */
+  const scheduleSiteVisit = async (deal: Deal, stageName: string) => {
     if (!visitWhen) return;
     const ld = leadDetails[deal.id];
     const addr = leadAddress(ld);
     const start = new Date(visitWhen);
     const end = new Date(start.getTime() + 60 * 60000);
-    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-    const text = encodeURIComponent(`Site Visit — ${deal.name}`);
-    const details = encodeURIComponent('On-site visit scheduled via Origami CRM.');
-    const location = addr ? `&location=${encodeURIComponent(addr)}` : '';
-    const guests = deal.email ? `&add=${encodeURIComponent(deal.email)}` : '';
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}${location}${guests}&details=${details}`;
-    window.open(url, '_blank', 'noopener');
-    setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
-    setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}`, stageName, date: fmtWhen() }] }));
-    auditSave(deal, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen }, `Site visit scheduled for ${start.toLocaleString()}`);
-    toast('Site visit invite opened & saved');
+    const description = siteVisitText(deal);
+    const existing = ld?.siteVisitEventId;
+    const who = visitGuests.length ? ` with ${visitGuests.length} guest${visitGuests.length === 1 ? '' : 's'}` : '';
+    const logged = (via: string, eventId?: string) => {
+      setVisitByDeal((p) => ({ ...p, [deal.id]: { when: visitWhen } }));
+      setNotesByDeal((p) => ({ ...p, [deal.id]: [...(p[deal.id] || []), { id: String(Date.now()), text: `Site visit scheduled for ${start.toLocaleString()}${addr ? ` at ${addr}` : ''}${who}`, stageName, date: fmtWhen() }] }));
+      if (eventId) setLeadDetails((p) => ({ ...p, [deal.id]: { ...(p[deal.id] || baseLead(deal)), siteVisitEventId: eventId } as NewLead }));
+      auditSave(deal, { leadName: deal.name, phone: deal.phone || '', siteVisitAt: visitWhen, ...(eventId ? { siteVisitEventId: eventId } : {}) }, `Site visit scheduled for ${start.toLocaleString()}${who}${via}`);
+    };
+    setCreatingVisit(true);
+    try {
+      const res = await api.scheduling.createEvent({
+        eventId: existing, summary: `Site Visit — ${deal.name}`, description, start: start.toISOString(), end: end.toISOString(),
+        location: addr || undefined, attendees: visitGuests.map((g) => ({ email: g.email, optional: g.optional, name: g.name })),
+      });
+      logged('', res?.id);
+      toast(existing ? 'Site visit invite updated' : 'Site visit invite sent');
+    } catch {
+      const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const location = addr ? `&location=${encodeURIComponent(addr)}` : '';
+      const guests = visitGuests.length ? `&add=${encodeURIComponent(visitGuests.map((g) => g.email).join(','))}` : '';
+      window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Site Visit — ${deal.name}`)}&dates=${fmt(start)}/${fmt(end)}${location}${guests}&details=${encodeURIComponent(description)}`, '_blank', 'noopener');
+      logged(' — via Google Calendar popup');
+      toast('⚠ Could not send it directly — opened Google Calendar to finish it there (mark optional guests there)');
+    } finally {
+      setCreatingVisit(false);
+    }
   };
 
   // Persist the chosen time to the DB without opening Google Calendar.
@@ -1022,6 +1062,18 @@ export function Pipeline() {
   });
 
   const selected = selectedId ? data.find((d) => d.id === selectedId) : null;
+  // Opening a lead on Site Visit: its guests start as the client plus the default team.
+  const visitFor = selected?.stage === 'site_visit' ? selected : null;
+  useEffect(() => {
+    if (!visitFor) return;
+    let live = true;
+    const start = (team: Guest[]) => { if (live) setVisitGuests(inviteGuests(team, { name: visitFor.client || visitFor.name, email: visitFor.email })); };
+    setVisitNotes(''); setVisitZoning(false);
+    if (visitTeam) start(visitTeam);
+    else api.scheduling.siteVisitTeam().then((t) => { const team = Array.isArray(t) ? t : []; setVisitTeam(team); start(team); }).catch(() => start([]));
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per lead, not per edit
+  }, [visitFor?.id]);
   // Opening a different lead starts its trail at the most recent page.
   useEffect(() => { setAuditPage(0); }, [selectedId]);
   // The Programming tab only exists while the lead is on that stage -- if it
@@ -1795,12 +1847,31 @@ export function Pipeline() {
                       <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 10 }}>PC schedules the on-site visit. Full lead details are in the “Full Details” tab.</div>
                       <div style={{ fontSize: 11, fontWeight: 600, color: addr ? 'var(--forest)' : 'var(--c-9aa39d)', marginBottom: 8 }}>{addr ? <>Location: <MapLink address={addr} pin={false} /></> : 'No project address on file — add it in Full Details / Edit Lead.'}</div>
                       {visitByDeal[selected.id] && <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--forest)', marginBottom: 8 }}>Scheduled: {new Date(visitByDeal[selected.id].when).toLocaleString()}</div>}
-                      <input type="datetime-local" value={visitWhen} onChange={(e) => setVisitWhen(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
+                      <input type="datetime-local" value={visitWhen} onChange={(e) => setVisitWhen(e.target.value)} aria-label="Site visit date and time" style={{ ...inputStyle, marginBottom: 10 }} />
+                      <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 6 }}>Who's invited</div>
+                      <SiteVisitGuests guests={visitGuests} onChange={setVisitGuests} lockedEmail={selected.email} />
+                      <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', margin: '12px 0 6px' }}>Preliminary info (optional)</div>
+                      <textarea value={visitNotes} onChange={(e) => setVisitNotes(e.target.value)} rows={2} placeholder="Gate code, parking, what to bring…" aria-label="Preliminary info" style={{ ...inputStyle, resize: 'vertical' }} />
+                      {(() => {
+                        const filled = zoningSections(ZONING_FORM, parseZA(ld?.zoningAnalysis)).reduce((n, sec) => n + sec.rows.length, 0);
+                        return (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: filled ? 'var(--ink)' : 'var(--c-9aa39d)', margin: '10px 0', cursor: filled ? 'pointer' : 'default' }}>
+                            <input type="checkbox" checked={visitZoning && !!filled} disabled={!filled} onChange={(e) => setVisitZoning(e.target.checked)} />
+                            {filled ? `Include the Zoning Analysis (${filled} field${filled === 1 ? '' : 's'})` : 'Include the Zoning Analysis — none saved yet'}
+                          </label>
+                        );
+                      })()}
+                      <details style={{ marginBottom: 10 }}>
+                        <summary style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Preview the invite description</summary>
+                        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 11.5, lineHeight: 1.5, color: 'var(--body)', background: 'var(--surface)', borderRadius: 8, padding: 10, margin: '6px 0 0' }}>{siteVisitText(selected)}</pre>
+                      </details>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <div onClick={() => saveVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? 'var(--success)' : 'var(--c-d6ded8)', color: visitWhen ? 'white' : 'var(--c-9aa39d)' }}>Save schedule</div>
-                        <div onClick={() => scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: visitWhen ? 'pointer' : 'not-allowed', background: visitWhen ? 'var(--forest)' : 'var(--c-d6ded8)', color: visitWhen ? 'white' : 'var(--c-9aa39d)' }}>Save &amp; create invite</div>
+                        <button type="button" disabled={!visitWhen || creatingVisit} onClick={() => void scheduleSiteVisit(selected, selectedStage.name)} style={{ padding: '8px 14px', borderRadius: 999, border: 0, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: visitWhen && !creatingVisit ? 'pointer' : 'not-allowed', background: visitWhen ? 'var(--forest)' : 'var(--c-d6ded8)', color: visitWhen ? 'white' : 'var(--c-9aa39d)' }}>
+                          {creatingVisit ? 'Sending…' : ld?.siteVisitEventId ? 'Save & update invite' : 'Save & send invite'}
+                        </button>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6 }}>Opens Google Calendar with the lead invited and the project address as the location. Logged to Activity.</div>
+                      <div style={{ fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', marginTop: 6 }}>Sends a Google Calendar invite from your calendar to everyone above, with the project address as the location. Change the default team in Settings → Calendars. Logged to Activity.</div>
                     </div>
                   );
                 })()

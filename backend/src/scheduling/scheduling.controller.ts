@@ -4,6 +4,7 @@ import { SettingsService } from '../settings/settings.service';
 import { AuthService } from '../auth/auth.service';
 import { Tiers } from '../auth/guards/roles.decorator';
 import type { AuthedRequest } from '../auth/guards/session.guard';
+import { cleanTeam, parseTeam, SITE_VISIT_TEAM_KEY, type Guest, type TeamMember } from './site-visit-team';
 
 export interface ConfiguredCalendar { name: string; email: string }
 
@@ -38,6 +39,19 @@ export class SchedulingController {
     return clean;
   }
 
+  /** Who a site visit invite goes to by default, each required or optional. */
+  @Get('site-visit-team')
+  async siteVisitTeam(): Promise<TeamMember[]> {
+    return parseTeam(await this.settings.get(SITE_VISIT_TEAM_KEY));
+  }
+
+  @Post('site-visit-team')
+  async setSiteVisitTeam(@Body() body: TeamMember[]) {
+    const clean = cleanTeam(body);
+    await this.settings.set(SITE_VISIT_TEAM_KEY, JSON.stringify(clean));
+    return clean;
+  }
+
   /**
    * Busy blocks for the configured calendars (or an explicit ?emails=
    * override) across one window, so booking a time shows conflicts before
@@ -64,7 +78,7 @@ export class SchedulingController {
   @Post('events')
   async createEvent(@Req() req: AuthedRequest, @Body() body: {
     eventId?: string; summary: string; description?: string; start: string; end: string;
-    location?: string; attendees?: string[]; video?: boolean;
+    location?: string; attendees?: Guest[]; video?: boolean;
   }) {
     const userId = req.claims?.sub;
     if (!userId) throw new BadRequestException('Sign in to continue.');

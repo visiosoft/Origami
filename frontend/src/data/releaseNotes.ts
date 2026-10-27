@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27o',
+    date: '2026-10-27',
+    title: 'Site visit invites go out from the app',
+    items: [
+      { area: 'CRM', kind: 'improved', text: '“Save & send invite” on Schedule Site Visit now sends a real Google Calendar invite from your calendar to the client and the site visit team — Edward, Langston and Astrid by default. Mark each person Required or Optional, remove anyone, or add another guest by email.', where: 'CRM & Leads → a lead on Schedule Site Visit' },
+      { area: 'CRM', kind: 'new', text: 'The invite description carries the scope (project type, vision, budget, timing), any preliminary info you add, and — if you tick it — the lead’s Zoning Analysis. Preview it before sending. Rescheduling updates the same invite.' },
+      { area: 'Settings', kind: 'new', text: 'Set who is invited to site visits by default, each required or optional.', where: 'Settings → Calendars → Site visit team' },
+    ],
+  },
+  {
     id: '2026-10-27n',
     date: '2026-10-27',
     title: 'Assign and describe a task as you add it',

@@ -531,6 +531,8 @@ export class LeadEntity {
   // The real Calendar event id once one is created -- lets a re-save update
   // the same event instead of leaving duplicates on the calendar.
   @Column({ nullable: true }) meetingEventId!: string;
+  /** The site visit's Google Calendar event, so a reschedule updates it instead of sending a second invite. */
+  @Column({ nullable: true }) siteVisitEventId!: string;
   @Column({ type: 'int', nullable: true }) fitScore!: number;
   @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
   @Column({ ...TEXT, nullable: true }) zoningImages!: string; // JSON string of [{name,dataUrl}] (data URLs)

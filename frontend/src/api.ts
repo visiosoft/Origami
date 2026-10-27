@@ -668,8 +668,12 @@ export const api = {
     /** Create or update the real calendar event a booking represents. */
     createEvent: (payload: {
       eventId?: string; summary: string; description?: string; start: string; end: string;
-      location?: string; attendees?: string[]; video?: boolean;
+      location?: string; attendees?: (string | { email: string; optional?: boolean; name?: string })[]; video?: boolean;
     }) => request<{ id: string; htmlLink: string; meetLink?: string }>('/scheduling/events', { method: 'POST', body: JSON.stringify(payload) }),
+    /** Who a site visit invite goes to by default, each required or optional. */
+    siteVisitTeam: () => request<import('./data/siteVisitInvite').Guest[]>('/scheduling/site-visit-team'),
+    setSiteVisitTeam: (team: import('./data/siteVisitInvite').Guest[]) =>
+      request<import('./data/siteVisitInvite').Guest[]>('/scheduling/site-visit-team', { method: 'POST', body: JSON.stringify(team) }),
   },
   /** Construction -> Progress Photos: a project's photos by track and category (files live in its File Room). */
   progressPhotos: {

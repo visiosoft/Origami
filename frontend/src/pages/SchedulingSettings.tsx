@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { SiteVisitGuests } from '../components/SiteVisitGuests';
+import type { Guest } from '../data/siteVisitInvite';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -88,6 +90,42 @@ export function SchedulingSettings() {
           >
             {saving ? 'Saving…' : 'Save'}
           </div>
+        </div>
+      </div>
+      <SiteVisitTeam />
+    </div>
+  );
+}
+
+/** Who a site visit invite goes to unless changed on the invite itself. */
+function SiteVisitTeam() {
+  const { toast } = useApp();
+  const [team, setTeam] = useState<Guest[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    api.scheduling.siteVisitTeam().then((t) => setTeam(Array.isArray(t) ? t : [])).catch(() => setTeam([]));
+  }, []);
+  const save = () => {
+    if (!team) return;
+    setSaving(true);
+    api.scheduling.setSiteVisitTeam(team)
+      .then((t) => { setTeam(t); toast('Site visit team saved'); })
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Not saved')))
+      .finally(() => setSaving(false));
+  };
+  return (
+    <div style={{ marginTop: 26 }}>
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Site visit team</div>
+      <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', margin: '4px 0 14px', maxWidth: 640, lineHeight: 1.6 }}>
+        Invited to every site visit along with the client — each required or optional. Whoever schedules a visit can still change the list on that invite.
+      </div>
+      <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 18 }}>
+        {team === null ? <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div> : <SiteVisitGuests guests={team} onChange={setTeam} />}
+        <div style={{ display: 'flex', marginTop: 14 }}>
+          <button type="button" onClick={save} disabled={saving || !team}
+            style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 999, border: 0, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
+            {saving ? 'Saving…' : 'Save team'}
+          </button>
         </div>
       </div>
     </div>
