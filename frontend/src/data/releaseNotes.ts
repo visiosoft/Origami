@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27n',
+    date: '2026-10-27',
+    title: 'Assign and describe a task as you add it',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: '“+ Add task” on the board now asks who it’s for and any details before you add it — no need to open the task afterwards.', where: 'Task → Board, List or Timeline → + Add task' },
+      { area: 'Tasks', kind: 'improved', text: 'Subtasks take details too, when you add or edit one.' },
+      { area: 'Tasks', kind: 'fixed', text: 'Collaborators added to a Request Log entry are now saved (they were being dropped), and a Request Log entry’s resolution is kept when it’s created.' },
+    ],
+  },
+  {
     id: '2026-10-27m',
     date: '2026-10-27',
     title: 'Task numbers carry the project code',

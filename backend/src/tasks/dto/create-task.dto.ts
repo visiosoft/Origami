@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import type { Collaborator } from '../../database/task.types';
 
 // Matches the Request-Log task record (frontend data/tasks.ts Task).
 export class CreateTaskDto {
@@ -26,7 +27,11 @@ export class CreateTaskDto {
   @IsString() @IsOptional() dueTime?: string;
   @IsString() @IsOptional() linkedFile?: string;
   @IsString() @IsOptional() project?: string;
+  @IsString() @IsOptional() resolution?: string;
+  @IsString() @IsOptional() dateClosed?: string;
   @IsArray() @IsOptional() labels?: string[];
+  /** Cleaned by normalizeCollaborators; without this line the picker's choice was stripped. */
+  @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];
   /** FOR RECORD links: the tasks and change orders (ids) this entry drove or is attached to. */
   @IsArray() @IsOptional() @IsString({ each: true }) linkedTaskIds?: string[];

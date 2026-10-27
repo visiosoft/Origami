@@ -5,7 +5,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { ProjectTasksService } from './project-tasks.service';
-import { CreateProjectTaskDto, ReorderDto } from './dto/create-project-task.dto';
+import { CreateProjectTaskDto, ReorderDto, UpdateProjectTaskDto } from './dto/create-project-task.dto';
 import { AddCommentDto, AddLinkDto } from '../tasks/dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
@@ -83,7 +83,7 @@ export class ProjectTasksController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: Partial<CreateProjectTaskDto>, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
+  async update(@Param('id') id: string, @Body() dto: UpdateProjectTaskDto, @Headers('authorization') auth?: string, @Claims() claims?: SessionClaims | null) {
     await this.mayTouch(id, claims ?? null);
     return this.service.update(id, dto, await this.auth.actor(auth));
   }

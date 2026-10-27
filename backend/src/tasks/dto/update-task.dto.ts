@@ -1,4 +1,5 @@
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import type { Collaborator } from '../../database/task.types';
 
 /**
  * Every field optional — this is a patch.
@@ -34,6 +35,7 @@ export class UpdateTaskDto {
   @IsString() @IsOptional() linkedFile?: string;
   @IsString() @IsOptional() project?: string;
   @IsArray() @IsOptional() labels?: string[];
+  @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];
   /** FOR RECORD links: the tasks and change orders (ids) this entry drove or is attached to. */
   @IsArray() @IsOptional() @IsString({ each: true }) linkedTaskIds?: string[];

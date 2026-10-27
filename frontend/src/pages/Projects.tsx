@@ -1348,9 +1348,9 @@ export function Projects() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {subtasksOf(boardTasks as any, live.id).map((st: any) => editingPtSub === st.id ? (
                           <div key={st.id} style={{ padding: 8, background: 'var(--panel)', borderRadius: 8 }}>
-                            <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: st.title, assigneeId: st.assigneeId, assignee: st.assignee || '', dueDate: st.dueDate || '' }}
+                            <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: st.title, assigneeId: st.assigneeId, assignee: st.assignee || '', dueDate: st.dueDate || '', description: st.description || '' }}
                               onCancel={() => setEditingPtSub(null)}
-                              onAdd={(v) => api.projectTasks.update(st.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, deferNotify: true })
+                              onAdd={(v) => api.projectTasks.update(st.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, description: v.description, deferNotify: true })
                                 .then((res: any) => { if (res) putTask(res); setEditingPtSub(null); })
                                 .catch((e: Error) => toast('⚠ ' + (e.message || 'Subtask not saved')))} />
                           </div>

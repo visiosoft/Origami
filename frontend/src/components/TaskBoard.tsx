@@ -23,6 +23,7 @@ import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
 import { askCompletionNote, askHoldReason } from './CompletionNote';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
+import { QuickAddTask, quickTaskFields } from './QuickAddTask';
 import { TaskLinkBadge } from './TaskLinkBadge';
 import { AvatarStack, taskPeople } from './AvatarStack';
 import { Attachments } from './Attachments';
@@ -158,7 +159,6 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   // Which parents are expanded, plus the inline subtask composer.
   const [openTasks, setOpenTasks] = useState<Record<string, boolean>>({});
   const [addingSubIn, setAddingSubIn] = useState<string | null>(null);
-  const [addDraft, setAddDraft] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -257,7 +257,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         toast('⚠ ' + (e.message || 'Failed to save'));
       });
   };
-  const addTask = (sectionId: string, title: string, parentId: string | null = null, extra: Partial<NewSubtask> = {}) => {
+  const addTask = (sectionId: string, title: string, parentId: string | null = null, extra: Partial<NewSubtask> & { description?: string } = {}) => {
     const t = title.trim(); if (!t) return;
     const order = tasks.filter((x) => x.sectionId === sectionId && !x.parentId).length;
     // Adding while filtered to "My tasks" assigns it to you — otherwise the new
@@ -585,16 +585,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             <div className="tb-col-body">
               {secTasks.map((t, i) => renderCard(t, i))}
               {addingIn === sec.id ? (
-                <div className="tb-adding">
-                  <textarea autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)} placeholder="Task title…" rows={2}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(sec.id, addDraft); setAddDraft(''); } }} />
-                  <div className="tb-adding-row">
-                    <button type="button" className="tb-btn is-dark" onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }}>Add task</button>
-                    <button type="button" className="tb-btn" onClick={() => { setAddingIn(null); setAddDraft(''); }}>Cancel</button>
-                  </div>
-                </div>
+                <QuickAddTask className="tb-adding" onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} />
               ) : canAdd && (
-                <button type="button" className="tb-add" onClick={() => { setAddingIn(sec.id); setAddDraft(''); }}>+ Add task</button>
+                <button type="button" className="tb-add" onClick={() => { setAddingIn(sec.id); }}>+ Add task</button>
               )}
             </div>
           </div>
@@ -633,15 +626,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
               {secTasks.map((t, i) => renderCard(t, i))}
               {addingIn === sec.id ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <textarea autoFocus value={addDraft} onChange={(e) => setAddDraft(e.target.value)} placeholder="Task title…" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(sec.id, addDraft); setAddDraft(''); } }} />
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Add</div>
-                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
-                  </div>
-                </div>
+                <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} />
               ) : canAdd && (
-                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>+ Add task</div>
+                <div onClick={() => { setAddingIn(sec.id); }} style={{ padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>+ Add task</div>
               )}
             </div>
           </div>
@@ -742,25 +729,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
               {sortRows(secTasks, LIST_BY, listSort).map((t) => listRow(t, 0))}
               {canAdd && (addingIn === sec.id ? (
-                <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>
-                  <input
-                    autoFocus
-                    value={addDraft}
-                    onChange={(e) => setAddDraft(e.target.value)}
-                    placeholder="Task title"
-                    style={inputStyle}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { addTask(sec.id, addDraft); setAddDraft(''); }
-                      if (e.key === 'Escape') { setAddingIn(null); setAddDraft(''); }
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <div onClick={() => { addTask(sec.id, addDraft); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Add</div>
-                    <div onClick={() => { setAddingIn(null); setAddDraft(''); }} style={{ padding: '5px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
-                  </div>
-                </div>
+                <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }} />
               ) : (
-                <div onClick={() => { setAddingIn(sec.id); setAddDraft(''); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', fontSize: 12, color: 'var(--c-9aa39d)', cursor: 'pointer' }}>
+                <div onClick={() => { setAddingIn(sec.id); }} style={{ padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', fontSize: 12, color: 'var(--c-9aa39d)', cursor: 'pointer' }}>
                   + Add task
                 </div>
               ))}
@@ -1147,16 +1118,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {subtasksOf(tasks, selected.id).map((s) => editingSub === s.id ? (
                   <div key={s.id} style={{ padding: 8, background: 'var(--panel)', borderRadius: 8 }}>
-                    <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: s.title, assigneeId: s.assigneeId, assignee: s.assignee || '', dueDate: s.dueDate || '' }}
+                    <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: s.title, assigneeId: s.assigneeId, assignee: s.assignee || '', dueDate: s.dueDate || '', description: s.description || '' }}
                       onCancel={() => setEditingSub(null)}
-                      onAdd={(v) => api.projectTasks.update(s.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, deferNotify: true })
+                      onAdd={(v) => api.projectTasks.update(s.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, description: v.description, deferNotify: true })
                         .then((res: any) => { if (res) replaceTask(res as ProjectTask); setEditingSub(null); })
                         .catch((e: Error) => toast('⚠ ' + (e.message || 'Subtask not saved')))} />
                   </div>
                 ) : (
                   <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--panel)', borderRadius: 8 }}>
                     <input type="checkbox" checked={s.completed} disabled={!canManage} onChange={() => toggleSub(s)} />
-                    <span onClick={() => setSelectedId(s.id)} title="Open the subtask" style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
+                    <span onClick={() => setSelectedId(s.id)} title={s.description || 'Open the subtask'} style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer', textDecoration: s.completed ? 'line-through' : 'none', opacity: s.completed ? 0.6 : 1 }}>{s.title}</span>
                     {s.dueDate && <span style={{ fontSize: 11, color: !s.completed && s.dueDate < todayIso ? '#9A4318' : 'var(--muted)', flexShrink: 0 }}>{dueText(s.dueDate)}</span>}
                     {s.assignee && <Avatar user={users.find((u) => u.id === s.assigneeId)} name={s.assignee} size={20} title={s.assignee} />}
                     <span onClick={() => setSelectedId(s.id)} title="Open the subtask in full" aria-label="Open subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Open</span>
