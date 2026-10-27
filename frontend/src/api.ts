@@ -5,6 +5,7 @@ import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
 import type { BillingMonth } from './data/dashboardCharts';
 import type { AuditRow } from './data/audit';
+import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo } from './data/contracts';
 import type { PriorityDef } from './data/priority';
 const API_BASE = '/api';
 
@@ -611,6 +612,34 @@ export const api = {
         request('/proposals/public/sign', { method: 'POST', body: JSON.stringify({ token, name, email, image, reviewedAllPages, slot }) }),
       /** A real, scrollable PDF -- for an <iframe>/<embed>, not a fetch call. */
       pdfUrl: (token: string) => `${API_BASE}/proposals/public/pdf?token=${encodeURIComponent(token)}`,
+    },
+  },
+  /** Contracts signed inside ODIN: templates, drafts, sending, counter-signing, the signed PDF. */
+  contracts: {
+    types: () => request<{ types: ContractTypeInfo[]; mergeFields: [string, string][] }>('/contracts/types'),
+    templates: () => request<ContractTemplate[]>('/contracts/templates'),
+    createTemplate: (d: Partial<ContractTemplate>) => request<ContractTemplate>('/contracts/templates', { method: 'POST', body: JSON.stringify(d) }),
+    saveTemplate: (id: string, d: Partial<ContractTemplate>) => request<ContractTemplate>(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeTemplate: (id: string) => request(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    list: (q: Record<string, string> = {}) => request<Contract[]>(`/contracts?${new URLSearchParams(q).toString()}`),
+    get: (id: string) => request<Contract>(`/contracts/${encodeURIComponent(id)}`),
+    create: (d: Record<string, unknown>) => request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: Record<string, unknown>) => request<Contract>(`/contracts/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/contracts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    send: (id: string, d: { note?: string; resendKeys?: string[] } = {}) => request<{ sent: string[] }>(`/contracts/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
+    countersign: (id: string, d: { name: string; initials: string; image: string; initialled: number; reviewed: boolean }) => request<Contract>(`/contracts/${encodeURIComponent(id)}/countersign`, { method: 'POST', body: JSON.stringify(d) }),
+    void: (id: string, reason: string) => request<Contract>(`/contracts/${encodeURIComponent(id)}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    /** The contract as a PDF (signed once it is), for viewing or downloading. */
+    pdf: async (id: string) => new Blob([await requestBytes(`/contracts/${encodeURIComponent(id)}/pdf`)], { type: 'application/pdf' }),
+    /** File Room files on a project that can go with a contract (estimates, drawings, specs). */
+    files: (projectId: number) => request<{ id: string; name: string; folderPath: string[] }[]>(`/contracts/files?projectId=${projectId}`),
+    /** A project's change orders and subcontracts / POs, for a contract to be about. */
+    links: (projectId: number) => request<{ changeOrders: { id: string; number: string; title: string; amount: number | null; status: string }[]; commitments: { id: string; number: string; title: string; vendorName: string; contractorId?: string | null; type: string }[] }>(`/contracts/links?projectId=${projectId}`),
+    public: {
+      get: (token: string) => request<ContractSigningView>(`/contracts/public?token=${encodeURIComponent(token)}`),
+      sign: (token: string, d: { name: string; initials: string; image: string; initialled: number; reviewed: boolean }) => request<ContractSigningView>('/contracts/public/sign', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
+      pdfUrl: (token: string, download = false) => `${API_BASE}/contracts/public/pdf?token=${encodeURIComponent(token)}${download ? '&download=1' : ''}`,
+      fileUrl: (token: string, fileId: string) => `${API_BASE}/contracts/public/file?token=${encodeURIComponent(token)}&fileId=${encodeURIComponent(fileId)}`,
     },
   },
   guestAccess: {

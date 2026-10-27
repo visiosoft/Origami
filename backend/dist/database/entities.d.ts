@@ -238,6 +238,59 @@ export declare class ProposalEntity {
     signerIp2: string;
     signerUserAgent2: string;
 }
+export declare class ContractEntity {
+    id: string;
+    number: string;
+    projectId: number | null;
+    type: string;
+    title: string;
+    html: string;
+    amount: string | null;
+    status: string;
+    parties: {
+        key: string;
+        role: string;
+        label: string;
+        name: string;
+        email: string;
+        personId?: number | null;
+        internal?: boolean;
+        sentAt?: string | null;
+        viewedAt?: string | null;
+        signedAt?: string | null;
+        signedName?: string | null;
+        initials?: string | null;
+        signatureImage?: string | null;
+        ip?: string | null;
+        userAgent?: string | null;
+    }[];
+    attachments: {
+        fileId: string;
+        name: string;
+        kind: string;
+    }[] | null;
+    templateId: string | null;
+    changeOrderId: string | null;
+    commitmentId: string | null;
+    sentAt: string | null;
+    signedAt: string | null;
+    signedFileId: string | null;
+    voidedAt: string | null;
+    voidReason: string | null;
+    createdById: string | null;
+    createdByName: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+}
+export declare class ContractTemplateEntity {
+    id: string;
+    type: string;
+    name: string;
+    html: string;
+    isDefault: boolean | null;
+    updatedAt: string | null;
+    updatedBy: string | null;
+}
 export declare class InvoiceEntity {
     pk: number;
     invId: string;

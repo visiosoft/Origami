@@ -46,6 +46,8 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },
     { label: 'Task', route: 'tasks', icon: 'check', desc: 'The task board and the Request Log: manage, track and create tasks' },
     { label: 'Change Orders', route: 'changeorders', icon: 'swap', desc: 'Manage, track and create change orders' },
+    // Seen by whoever sees change orders (same permission).
+    { label: 'Contracts', route: 'contracts', perm: 'changeorders', icon: 'clip', desc: 'GC, owner, sub and consultant contracts and change orders, signed in ODIN' },
     { label: 'Approvals', route: 'approvals', icon: 'check', personal: true, desc: 'Contracts and change orders waiting for approval (and everything else waiting on a decision)' },
   ] },
   { key: 'crm', label: 'CRM', items: [

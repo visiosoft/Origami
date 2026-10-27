@@ -65,6 +65,8 @@ export const PUBLIC_KEYS = [
   'brand.phone',
   'brand.email',
   'brand.website',
+  // Our contractor licence number, printed on contracts.
+  'brand.license',
   'brand.footerNote',
   'brand.signatureName',
   'brand.signatureTitle',

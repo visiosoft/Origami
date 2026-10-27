@@ -351,6 +351,55 @@ export class ProposalEntity {
   @Column({ nullable: true }) signerUserAgent2!: string;
 }
 
+/**
+ * A contract signed inside ODIN (Oct 27 backlog): GC, owner, sub, consultant,
+ * and change orders with the owner or a sub. Each party signs from their own
+ * link (initials on every marked section, then a signature); Origami signs
+ * last, in the app. The signed PDF goes to the project's File Room.
+ */
+@Entity('contracts')
+@Index('IX_contracts_project', ['projectId'])
+export class ContractEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  /** CT-2026-0001 */
+  @Column({ type: 'nvarchar', length: 30 }) number!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  /** gc | owner | sub | consultant | co_owner | co_sub */
+  @Column({ type: 'nvarchar', length: 20 }) type!: string;
+  @Column({ type: 'nvarchar', length: 300 }) title!: string;
+  @Column({ type: 'nvarchar', length: 'MAX' }) html!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) amount!: string | null;
+  /** draft | sent | countersign | signed | void */
+  @Column({ type: 'nvarchar', length: 20 }) status!: string;
+  @Column({ type: 'simple-json' }) parties!: { key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean; sentAt?: string | null; viewedAt?: string | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null; ip?: string | null; userAgent?: string | null }[];
+  @Column({ type: 'simple-json', nullable: true }) attachments!: { fileId: string; name: string; kind: string }[] | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) templateId!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) changeOrderId!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) commitmentId!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) signedAt!: string | null;
+  /** The signed PDF in the project's File Room. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) signedFileId!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) voidedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) voidReason!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) createdById!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) createdByName!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
+/** Settings -> Contract templates: the starting wording for each contract type, with {{merge}} fields and {{initials}} boxes. */
+@Entity('contract_templates')
+export class ContractTemplateEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 20 }) type!: string;
+  @Column({ type: 'nvarchar', length: 200 }) name!: string;
+  @Column({ type: 'nvarchar', length: 'MAX' }) html!: string;
+  @Column({ type: 'bit', nullable: true }) isDefault!: boolean | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
+}
+
 @Entity('invoices')
 export class InvoiceEntity {
   @PrimaryGeneratedColumn() pk!: number;

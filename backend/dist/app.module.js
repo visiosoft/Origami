@@ -29,6 +29,7 @@ const dashboard_module_1 = require("./dashboard/dashboard.module");
 const seed_module_1 = require("./database/seed.module");
 const settings_module_1 = require("./settings/settings.module");
 const audit_module_1 = require("./audit/audit.module");
+const contracts_module_1 = require("./contracts/contracts.module");
 const google_module_1 = require("./google/google.module");
 const auth_module_1 = require("./auth/auth.module");
 const reminders_module_1 = require("./reminders/reminders.module");
@@ -74,6 +75,7 @@ exports.AppModule = AppModule = __decorate([
             seed_module_1.SeedModule,
             settings_module_1.SettingsModule,
             audit_module_1.AuditModule,
+            contracts_module_1.ContractsModule,
             google_module_1.GoogleModule,
             auth_module_1.AuthModule,
             reminders_module_1.RemindersModule,

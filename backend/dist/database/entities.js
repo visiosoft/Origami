@@ -9,8 +9,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomShareEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.ProgressPhotoEntity = exports.ProgressNoteEntity = exports.AppSettingEntity = exports.NotificationItemEntity = exports.PdfMarkupEntity = exports.UserViewEntity = exports.ChecklistTemplateEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.MeetingEntity = exports.TaskEntity = exports.ContactInteractionEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
-exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.ContractorBidEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.AuditEventEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyReportTemplateEntity = exports.DailyLogEntity = exports.CsiCodeEntity = void 0;
+exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomShareEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.ProgressPhotoEntity = exports.ProgressNoteEntity = exports.AppSettingEntity = exports.NotificationItemEntity = exports.PdfMarkupEntity = exports.UserViewEntity = exports.ChecklistTemplateEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ContractTemplateEntity = exports.ContractEntity = exports.ProposalEntity = exports.DealEntity = exports.MeetingEntity = exports.TaskEntity = exports.ContactInteractionEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.ContractorBidEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.AuditEventEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyReportTemplateEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -864,6 +864,135 @@ __decorate([
 exports.ProposalEntity = ProposalEntity = __decorate([
     (0, typeorm_1.Entity)('proposals')
 ], ProposalEntity);
+let ContractEntity = class ContractEntity {
+};
+exports.ContractEntity = ContractEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 30 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "number", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 300 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX' }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "html", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Array)
+], ContractEntity.prototype, "parties", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "attachments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "templateId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "changeOrderId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "commitmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "sentAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "signedFileId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "voidedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 500, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "voidReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "updatedAt", void 0);
+exports.ContractEntity = ContractEntity = __decorate([
+    (0, typeorm_1.Entity)('contracts'),
+    (0, typeorm_1.Index)('IX_contracts_project', ['projectId'])
+], ContractEntity);
+let ContractTemplateEntity = class ContractTemplateEntity {
+};
+exports.ContractTemplateEntity = ContractTemplateEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200 }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX' }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "html", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], ContractTemplateEntity.prototype, "isDefault", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractTemplateEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], ContractTemplateEntity.prototype, "updatedBy", void 0);
+exports.ContractTemplateEntity = ContractTemplateEntity = __decorate([
+    (0, typeorm_1.Entity)('contract_templates')
+], ContractTemplateEntity);
 let InvoiceEntity = class InvoiceEntity {
 };
 exports.InvoiceEntity = InvoiceEntity;

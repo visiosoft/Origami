@@ -17,7 +17,7 @@ const card: React.CSSProperties = {
 /** Every branding value, all stored as plain settings. */
 type Brand = Record<
   | 'brand.companyName' | 'brand.tagline' | 'brand.logoDataUrl' | 'brand.accentColor'
-  | 'brand.address' | 'brand.phone' | 'brand.email' | 'brand.website' | 'brand.footerNote'
+  | 'brand.address' | 'brand.phone' | 'brand.email' | 'brand.website' | 'brand.footerNote' | 'brand.license'
   | 'brand.signatureName' | 'brand.signatureTitle' | 'brand.signatureDataUrl'
   | 'brand.footerLogoDataUrl' | 'brand.aboutUsText' | 'brand.team' | 'brand.coverPhotoDataUrl',
   string
@@ -27,7 +27,7 @@ export interface TeamMember { name: string; title: string; photoDataUrl: string;
 
 const EMPTY: Brand = {
   'brand.companyName': '', 'brand.tagline': '', 'brand.logoDataUrl': '', 'brand.accentColor': '#232321',
-  'brand.address': '', 'brand.phone': '', 'brand.email': '', 'brand.website': '', 'brand.footerNote': '',
+  'brand.address': '', 'brand.phone': '', 'brand.email': '', 'brand.website': '', 'brand.footerNote': '', 'brand.license': '',
   'brand.signatureName': '', 'brand.signatureTitle': '', 'brand.signatureDataUrl': '',
   'brand.footerLogoDataUrl': '', 'brand.aboutUsText': '', 'brand.team': '[]', 'brand.coverPhotoDataUrl': '',
 };
@@ -172,6 +172,7 @@ export function BrandingSettings() {
           {field('Phone', 'brand.phone', '(415) 555 0100')}
           {field('Email', 'brand.email', 'hello@origamidb.com')}
           {field('Website', 'brand.website', 'origamidb.com')}
+          {field('Contractor licence no.', 'brand.license', 'CSLB 1234567')}
           {field('Footer note', 'brand.footerNote', 'Licence #123456', 'A last line — licence number, registration, anything standing')}
         </div>
       </div>

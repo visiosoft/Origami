@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27j',
+    date: '2026-10-27',
+    title: 'Contracts signed in ODIN',
+    items: [
+      { area: 'Contracts', kind: 'new', text: 'Draft GC, owner, sub and consultant contracts and change orders (with the owner or a sub) from templates that fill in the project, the people and the change order. Attach the estimate, drawings and specs from the File Room.', where: 'Special Actions → Contracts' },
+      { area: 'Contracts', kind: 'new', text: 'Each signer gets their own link: they read the contract and its attachments, initial every marked section and sign — no account needed. Origami signs last, in ODIN. The signed PDF is saved to the project’s File Room (Contracts folder) and can be downloaded by everyone who signed.' },
+      { area: 'Contracts', kind: 'new', text: 'A change order with the owner signed this way is marked approved by the owner automatically.' },
+      { area: 'Admin', kind: 'new', text: 'Edit the wording for each kind of contract, with fields to fill in and {{initials}} boxes. The starting wording should be reviewed by counsel. Add your contractor licence number under Branding.', where: 'Settings → Workspace → Contract templates' },
+    ],
+  },
+  {
     id: '2026-10-27i',
     date: '2026-10-27',
     title: 'Contacts: import from a phone, Gmail or Outlook',

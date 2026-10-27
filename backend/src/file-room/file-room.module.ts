@@ -17,5 +17,6 @@ import { FileRoomService } from './file-room.service';
   ],
   controllers: [FileRoomController, ProgressPhotosController],
   providers: [FileRoomService, ProgressPhotosService, MarkupsService],
+  exports: [FileRoomService],
 })
 export class FileRoomModule {}

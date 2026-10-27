@@ -29,6 +29,7 @@ exports.FileRoomModule = FileRoomModule = __decorate([
         ],
         controllers: [file_room_controller_1.FileRoomController, progress_photos_controller_1.ProgressPhotosController],
         providers: [file_room_service_1.FileRoomService, progress_photos_service_1.ProgressPhotosService, markups_service_1.MarkupsService],
+        exports: [file_room_service_1.FileRoomService],
     })
 ], FileRoomModule);
 //# sourceMappingURL=file-room.module.js.map

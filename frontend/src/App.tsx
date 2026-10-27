@@ -38,6 +38,8 @@ import { MyProjectProgram } from './pages/MyProjectProgram';
 import { ConsultantMatrix } from './pages/ConsultantMatrix';
 import { MyCalendar } from './pages/MyCalendar';
 import { SignProposal } from './pages/SignProposal';
+import { SignContract } from './pages/SignContract';
+import { Contracts } from './pages/Contracts';
 import { GuestEntry } from './pages/GuestEntry';
 import { Portal } from './pages/Portal';
 import { DailyReport } from './pages/DailyReport';
@@ -87,6 +89,7 @@ export default function App() {
       <Route path="/terms" element={<PublicPage file="terms" />} />
       {/* Public on purpose — a prospect signs a proposal from an emailed link, no account. */}
       <Route path="/sign-proposal" element={<SignProposal />} />
+      <Route path="/sign-contract" element={<SignContract />} />
       {/* Public on purpose — where a guest access link logs a client/consultant in. */}
       <Route path="/guest" element={<GuestEntry />} />
       {/* Public on purpose — a client uploads their documents from the welcome email's private link. */}
@@ -123,6 +126,7 @@ export default function App() {
         <Route path="/help/finance" element={<FinanceGuide />} />
         <Route path="/fin_project" element={<FinanceHome />} />
         <Route path="/changeorders" element={<FinanceHome initial="changes" />} />
+        <Route path="/contracts" element={<Contracts />} />
         <Route path="/reimbursement" element={<FinanceHome initial="reimbursables" />} />
         <Route path="/rfis" element={<RfisPage />} />
         <Route path="/fin_business" element={<BusinessFinance />} />

@@ -57,6 +57,7 @@ exports.PUBLIC_KEYS = [
     'brand.phone',
     'brand.email',
     'brand.website',
+    'brand.license',
     'brand.footerNote',
     'brand.signatureName',
     'brand.signatureTitle',
