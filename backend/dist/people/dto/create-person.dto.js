@@ -89,6 +89,11 @@ __decorate([
     __metadata("design:type", Number)
 ], CreatePersonDto.prototype, "sameAsId", void 0);
 __decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreatePersonDto.prototype, "formerCompanies", void 0);
+__decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)

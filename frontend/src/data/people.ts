@@ -33,6 +33,8 @@ export interface Person {
   lastActivityAt?: string | null;
   /** Other records confirmed as the same person (shown read-only under Reference). */
   sameAsIds?: number[] | null;
+  /** Connections: companies they used to work at (the record there, when it's in People). */
+  formerCompanies?: FormerCompany[] | null;
 }
 
 export type ContactStatus = 'active' | 'review' | 'expired';
@@ -126,4 +128,16 @@ export function internalLevelOf(p: Pick<Person, 'kind' | 'role' | 'internalLevel
 export interface DupMatch {
   id: number; name: string; company?: string | null; kind?: string | null; email?: string | null; phone?: string | null;
   contactStatus?: string | null; contactStatusReason?: string | null; lastActivityAt?: string | null; matchedOn: ('name' | 'email' | 'phone')[];
+}
+
+export interface FormerCompany { company: string; personId?: number | null; role?: string | null; until?: string | null }
+
+const COMPANY_KINDS = ['Consultant', 'Sub', 'Authority', 'Vendor'];
+/** The company a record stands for: a firm's own name, or the company a person works at. */
+export const companyOf = (p: Pick<Person, 'kind' | 'name' | 'company'>) => (COMPANY_KINDS.includes(p.kind) ? p.name : p.company || '').trim();
+
+/** People who used to work at this record's company (or were linked to this record) -- and are elsewhere now. */
+export function formerPeopleOf(p: Person, all: Person[]): Person[] {
+  const co = companyOf(p).toLowerCase();
+  return all.filter((x) => x.id !== p.id && (x.formerCompanies || []).some((f) => f.personId === p.id || (!!co && f.company.trim().toLowerCase() === co)));
 }

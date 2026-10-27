@@ -73,6 +73,12 @@ export declare class PersonEntity {
     contactStatusReason: string;
     lastActivityAt: string;
     sameAsIds: number[] | null;
+    formerCompanies: {
+        company: string;
+        personId?: number | null;
+        role?: string | null;
+        until?: string | null;
+    }[] | null;
     firstName: string;
     lastName: string;
     goByName: string;

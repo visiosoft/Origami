@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeopleService = void 0;
 const common_1 = require("@nestjs/common");
+const connections_1 = require("./connections");
 const contact_duplicates_1 = require("./contact-duplicates");
 const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
 const contractor_directory_sync_1 = require("../manpower/contractor-directory.sync");
@@ -153,6 +154,8 @@ let PeopleService = class PeopleService {
         dto = { ...dto };
         const sameAsId = Number(dto.sameAsId) || null;
         delete dto.sameAsId;
+        if (dto.formerCompanies)
+            dto.formerCompanies = (0, connections_1.cleanFormer)(dto.formerCompanies);
         await this.applyCardToken(dto);
         const id = Number(dto.id) || (await this.nextId());
         const now = new Date().toISOString();
@@ -178,6 +181,8 @@ let PeopleService = class PeopleService {
             throw new common_1.BadRequestException('A contact can\'t be linked to itself.');
         a.sameAsIds = (0, contact_duplicates_1.withLink)(a.sameAsIds, b.id, a.id);
         b.sameAsIds = (0, contact_duplicates_1.withLink)(b.sameAsIds, a.id, b.id);
+        a.formerCompanies = (0, connections_1.formerFromExpired)(a, b);
+        b.formerCompanies = (0, connections_1.formerFromExpired)(b, a);
         await this.repo.save([a, b]);
         return { person: a, other: b };
     }
@@ -199,6 +204,8 @@ let PeopleService = class PeopleService {
         const now = new Date().toISOString();
         const patch = { ...dto };
         delete patch.lastActivityAt;
+        if ('formerCompanies' in patch)
+            patch.formerCompanies = (0, connections_1.cleanFormer)(patch.formerCompanies);
         await this.applyCardToken(patch, person);
         if ('contactStatus' in patch) {
             const next = String(patch.contactStatus || 'active').toLowerCase();

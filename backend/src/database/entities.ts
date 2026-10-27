@@ -97,6 +97,8 @@ export class PersonEntity {
   @Column({ nullable: true }) lastActivityAt!: string;
   /** Other People records that are the same person (confirmed when the duplicate warning came up). Shown read-only under Reference. */
   @Column({ type: 'simple-json', nullable: true }) sameAsIds!: number[] | null;
+  /** Connections: companies they used to work at (the record there, when it's in People). */
+  @Column({ type: 'simple-json', nullable: true }) formerCompanies!: { company: string; personId?: number | null; role?: string | null; until?: string | null }[] | null;
 
   // --- Profile ---
   // `name` stays the display name; these are the parts it is composed from.

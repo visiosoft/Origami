@@ -20,6 +20,8 @@ export class CreatePersonDto {
   @IsString() @IsOptional() businessCardToken?: string;
   /** "Same person" chosen on the duplicate warning: link the new record to this one. */
   @IsNumber() @IsOptional() sameAsId?: number;
+  /** Connections: companies they used to work at. */
+  @IsArray() @IsOptional() formerCompanies?: unknown[];
   @IsString() @IsOptional() role?: string;
   @IsString() @IsOptional() company?: string;
   @IsString() @IsOptional() contact?: string;

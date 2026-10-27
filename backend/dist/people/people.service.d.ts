@@ -71,6 +71,12 @@ export declare class PeopleService {
         contactStatusReason: string;
         lastActivityAt: string;
         sameAsIds: number[] | null;
+        formerCompanies: {
+            company: string;
+            personId?: number | null;
+            role?: string | null;
+            until?: string | null;
+        }[] | null;
         firstName: string;
         lastName: string;
         goByName: string;
@@ -111,6 +117,12 @@ export declare class PeopleService {
         contactStatusReason: string;
         lastActivityAt: string;
         sameAsIds: number[] | null;
+        formerCompanies: {
+            company: string;
+            personId?: number | null;
+            role?: string | null;
+            until?: string | null;
+        }[] | null;
         firstName: string;
         lastName: string;
         goByName: string;

@@ -14,6 +14,7 @@ export declare class CreatePersonDto {
     notLicensedDesigner?: boolean;
     businessCardToken?: string;
     sameAsId?: number;
+    formerCompanies?: unknown[];
     role?: string;
     company?: string;
     contact?: string;

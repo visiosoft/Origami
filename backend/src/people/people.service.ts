@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { cleanFormer, formerFromExpired } from './connections';
 import { findDuplicates, withLink, withoutLink, type DupRow } from './contact-duplicates';
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
 import { ContractorDirectorySync, isSubCompany } from '../manpower/contractor-directory.sync';
@@ -163,6 +164,7 @@ export class PeopleService {
     dto = { ...dto };
     const sameAsId = Number(dto.sameAsId) || null;
     delete dto.sameAsId;
+    if (dto.formerCompanies) dto.formerCompanies = cleanFormer(dto.formerCompanies);
     await this.applyCardToken(dto);
     const id = Number(dto.id) || (await this.nextId());
     const now = new Date().toISOString();
@@ -189,6 +191,9 @@ export class PeopleService {
     if (a.id === b.id) throw new BadRequestException('A contact can\'t be linked to itself.');
     a.sameAsIds = withLink(a.sameAsIds, b.id, a.id);
     b.sameAsIds = withLink(b.sameAsIds, a.id, b.id);
+    // Someone now at a new company: the old (expired) record's company joins their history.
+    a.formerCompanies = formerFromExpired(a, b);
+    b.formerCompanies = formerFromExpired(b, a);
     await this.repo.save([a, b]);
     return { person: a, other: b };
   }
@@ -209,6 +214,7 @@ export class PeopleService {
     const now = new Date().toISOString();
     const patch: Record<string, any> = { ...dto };
     delete patch.lastActivityAt;
+    if ('formerCompanies' in patch) patch.formerCompanies = cleanFormer(patch.formerCompanies);
     await this.applyCardToken(patch, person);
     // Status changes are recorded with when and why; any other edit, or setting it Active, counts as activity.
     if ('contactStatus' in patch) {

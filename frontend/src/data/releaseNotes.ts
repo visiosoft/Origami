@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27g',
+    date: '2026-10-27',
+    title: 'Contacts: Connections',
+    items: [
+      { area: 'People', kind: 'new', text: 'Connections on every contact: the companies they used to work at (with their role and when), and on a company, the people who used to work there and where they are now. Linking an expired record as the same person adds its old company automatically.', where: 'People → open a contact → Connections' },
+    ],
+  },
+  {
     id: '2026-10-27f',
     date: '2026-10-27',
     title: 'Contacts: duplicate check and a reason for Expired',

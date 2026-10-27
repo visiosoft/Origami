@@ -263,6 +263,10 @@ __decorate([
     __metadata("design:type", Object)
 ], PersonEntity.prototype, "sameAsIds", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "formerCompanies", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], PersonEntity.prototype, "firstName", void 0);
