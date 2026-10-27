@@ -15,6 +15,16 @@ export const PRIORITY_HINT: Record<Priority, string> = {
   Low: 'Due in more than a month',
 };
 
+/** What a priority means (Settings -> Task priorities). Mirrors backend tasks/priority-definitions.ts. */
+export interface PriorityDef { priority: Priority; window: string; meaning: string }
+
+export const DEFAULT_PRIORITY_DEFS: PriorityDef[] = [
+  { priority: 'Urgent', window: PRIORITY_HINT.Urgent, meaning: 'Work on site, a client or someone\'s safety is stopped or at risk, or money or a permit is on the line. Drop other work and deal with it today.' },
+  { priority: 'High', window: PRIORITY_HINT.High, meaning: 'Holds up the schedule, a client decision or someone else\'s work if it slips. Get it done this week.' },
+  { priority: 'Medium', window: PRIORITY_HINT.Medium, meaning: 'Normal project work with a real deadline. Plan it into the next few weeks.' },
+  { priority: 'Low', window: PRIORITY_HINT.Low, meaning: 'Useful, but nothing is waiting on it. Do it when there\'s time.' },
+];
+
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parse = (s: string) => new Date(s + 'T12:00:00');
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };

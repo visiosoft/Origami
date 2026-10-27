@@ -14,6 +14,10 @@ export declare class TasksController {
     saveStatuses(body: {
         statuses?: unknown;
     }): Promise<import("./log-statuses").LogStatus[]>;
+    priorities(): Promise<import("./priority-definitions").PriorityDef[]>;
+    savePriorities(body: {
+        definitions?: unknown;
+    }): Promise<import("./priority-definitions").PriorityDef[]>;
     linkTargets(auth?: string): Promise<{
         projects: {
             id: any;

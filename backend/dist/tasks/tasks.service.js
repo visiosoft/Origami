@@ -24,6 +24,7 @@ const task_rules_1 = require("./task-rules");
 const settings_service_1 = require("../settings/settings.service");
 const auto_checklist_1 = require("../project-tasks/auto-checklist");
 const serials_1 = require("../database/serials");
+const priority_definitions_1 = require("./priority-definitions");
 const log_statuses_1 = require("./log-statuses");
 exports.LOG_ARCHIVE_DAYS = 7;
 const entities_1 = require("../database/entities");
@@ -48,6 +49,14 @@ let TasksService = class TasksService {
         this.projects = projects;
         this.hub = hub;
         this.log = new common_1.Logger('TasksService');
+    }
+    async priorityDefinitions() {
+        return (0, priority_definitions_1.parsePriorityDefs)(this.settings ? await this.settings.get(priority_definitions_1.PRIORITY_DEFS_KEY).catch(() => null) : null);
+    }
+    async savePriorityDefinitions(list) {
+        const clean = (0, priority_definitions_1.parsePriorityDefs)(list);
+        await this.settings.set(priority_definitions_1.PRIORITY_DEFS_KEY, (0, priority_definitions_1.storePriorityDefs)(clean));
+        return clean;
     }
     async statuses() {
         if (!this.settings)

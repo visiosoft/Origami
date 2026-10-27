@@ -39,6 +39,12 @@ let TasksController = class TasksController {
     saveStatuses(body) {
         return this.tasksService.saveStatuses(body?.statuses);
     }
+    priorities() {
+        return this.tasksService.priorityDefinitions();
+    }
+    savePriorities(body) {
+        return this.tasksService.savePriorityDefinitions(body?.definitions);
+    }
     async linkTargets(auth) {
         const claims = await this.auth.verify(auth);
         if (!claims || (0, viewer_util_1.isRestrictedViewer)(claims))
@@ -120,6 +126,20 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TasksController.prototype, "saveStatuses", null);
+__decorate([
+    (0, common_1.Get)('priorities'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TasksController.prototype, "priorities", null);
+__decorate([
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, common_1.Put)('priorities'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], TasksController.prototype, "savePriorities", null);
 __decorate([
     (0, common_1.Get)('link-targets'),
     __param(0, (0, common_1.Headers)('authorization')),

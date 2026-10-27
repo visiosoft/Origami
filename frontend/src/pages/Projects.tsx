@@ -1,4 +1,5 @@
 import { tint, useTheme } from '../theme';
+import { PriorityHelp } from '../components/PriorityHelp';
 import { SubtaskForm, type NewSubtask } from '../components/SubtaskForm';
 import { LeadSummary } from '../components/LeadSummary';
 import { SiteAccess } from '../components/SiteAccess';
@@ -1146,6 +1147,7 @@ export function Projects() {
                         {TASK_PRIORITIES.map((pr) => <option key={pr} value={pr}>{pr} — {PRIORITY_HINT[pr].replace('Due ', '')}</option>)}
                       </select>
                       {ptAutoPD.current[live?.id || ''] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
+                      <PriorityHelp value={d.priority} />
                     </>
                   ))}
                   {fieldBox('Role', (

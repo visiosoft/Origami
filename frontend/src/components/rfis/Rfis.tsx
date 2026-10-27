@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { PriorityHelp } from '../PriorityHelp';
 import { api } from '../../api';
 import { SavedViews } from '../SavedViews';
 import { AkStats } from '../ActionKit';
@@ -536,7 +537,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
               {autoPD.current === 'due' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the priority</div>}</div>
             <div><div style={lbl}>Priority</div>
               <PrioritySelect disabled={ro} value={draft.priority} style={input} onChange={(p) => { const r = linkPriorityDue({ priority: draft.priority as Priority, dueDate: draft.dateDue, auto: autoPD.current }, { priority: p }); autoPD.current = r.auto; set({ priority: r.priority, dateDue: r.dueDate }); }} />
-              {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the date</div>}</div>
+              {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the date</div>}
+              <PriorityHelp value={draft.priority} /></div>
             <div><div style={lbl}>Sent</div><div style={{ fontSize: 13, padding: '9px 0', color: 'var(--body)' }}>{rec.dateSent ? rfiDay(rec.dateSent) : 'Not yet'}{daysOpen(rec) != null ? ` · ${daysOpen(rec)} day${daysOpen(rec) === 1 ? '' : 's'} open` : ''}</div></div>
           </div>
         </>)}

@@ -2,6 +2,7 @@ import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { SettingsService } from '../settings/settings.service';
+import { type PriorityDef } from './priority-definitions';
 import { type LogStatus } from './log-statuses';
 export declare const LOG_ARCHIVE_DAYS = 7;
 import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity, DealEntity, LeadEntity, ProjectEntity } from '../database/entities';
@@ -22,6 +23,8 @@ export declare class TasksService implements OnApplicationBootstrap {
     private readonly hub?;
     private readonly log;
     constructor(repo: Repository<TaskEntity>, users: Repository<UserEntity>, attachments: AttachmentsService, notifications: NotificationsService, settings?: SettingsService | undefined, cos?: Repository<ChangeOrderEntity> | undefined, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, deals?: Repository<DealEntity> | undefined, projects?: Repository<ProjectEntity> | undefined, hub?: NotifyHub | undefined);
+    priorityDefinitions(): Promise<PriorityDef[]>;
+    savePriorityDefinitions(list: unknown): Promise<PriorityDef[]>;
     statuses(): Promise<LogStatus[]>;
     saveStatuses(list: unknown): Promise<LogStatus[]>;
     onApplicationBootstrap(): Promise<void>;

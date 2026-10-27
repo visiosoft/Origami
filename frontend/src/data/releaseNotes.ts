@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27b',
+    date: '2026-10-27',
+    title: 'What each priority means',
+    items: [
+      { area: 'Tasks', kind: 'new', text: 'Every priority picker (tasks, Request Log, phase tasks, RFIs) shows what the chosen priority means, with "What do priorities mean?" for all four and their due windows.' },
+      { area: 'Admin', kind: 'new', text: 'Admins can change the wording of each priority\'s meaning. The due-date windows stay as they are.', where: 'Settings → Workspace → Task priorities' },
+    ],
+  },
+  {
     id: '2026-10-27a',
     date: '2026-10-27',
     title: 'Audit log across the app',

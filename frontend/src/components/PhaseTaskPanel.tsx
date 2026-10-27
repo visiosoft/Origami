@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PriorityHelp } from './PriorityHelp';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
@@ -163,6 +164,7 @@ export function PhaseTaskPanel({
               {PRIORITIES.map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p].replace('Due ', '')}</option>)}
             </select>
             {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
+            <PriorityHelp value={draft.priority} />
           </div>
           <div style={{ gridColumn: '1 / -1' }}>
             {label('Role')}

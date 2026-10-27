@@ -43,6 +43,19 @@ export class TasksController {
     return this.tasksService.saveStatuses(body?.statuses);
   }
 
+  /** What each priority means (every priority picker shows these). */
+  @Get('priorities')
+  priorities() {
+    return this.tasksService.priorityDefinitions();
+  }
+
+  /** Settings -> Task priorities (administrators): the wording only; due windows are fixed. */
+  @Roles('admin')
+  @Put('priorities')
+  savePriorities(@Body() body: { definitions?: unknown }) {
+    return this.tasksService.savePriorityDefinitions(body?.definitions);
+  }
+
   /** Projects and open leads a task can be linked to (for the pickers). */
   @Get('link-targets')
   async linkTargets(@Headers('authorization') auth?: string) {

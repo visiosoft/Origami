@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PriorityHelp } from './PriorityHelp';
 import { createdByText } from '../data/projectTasks';
 import { LOG_STATUS_HINT, useLogStatuses } from '../data/logStatuses';
 import { ActionMenu, ActionTrail, OriginatorLine } from './ActionTools';
@@ -246,6 +247,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               <PrioritySelect disabled={!canManage} value={t.priority} style={{ ...inputStyle, padding: '7px 9px' }}
                 onChange={(p) => { const r = linkPriorityDue({ priority: t.priority as Priority, dueDate: t.dueDate, auto: autoPD.current }, { priority: p }); autoPD.current = r.auto; set({ priority: r.priority, dueDate: r.dueDate }); }} />
               {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
+              <PriorityHelp value={t.priority} />
             </div>
             {([['Date Closed', t.dateClosed || '—'], ['Days Open', t.daysOpen > 0 ? t.daysOpen + ' days' : '—']] as [string, string][]).map((r) => (
               <div key={r[0]} style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10 }}>

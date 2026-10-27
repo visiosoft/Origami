@@ -7,6 +7,7 @@ import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NO_ASSIGNEE_IN_PR
 import { SettingsService } from '../settings/settings.service';
 import { withAutoChecklists } from '../project-tasks/auto-checklist';
 import { backfillSerials, logSerialKind, nextSerial, serialYear } from '../database/serials';
+import { PRIORITY_DEFS_KEY, parsePriorityDefs, storePriorityDefs, type PriorityDef } from './priority-definitions';
 import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, isInProgress, parseLogStatuses, withBuckets, type LogStatus } from './log-statuses';
 
 /** Confirmed Request Log tasks leave the list this many days later. */
@@ -43,6 +44,17 @@ export class TasksService implements OnApplicationBootstrap {
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
     @Optional() private readonly hub?: NotifyHub,
   ) {}
+
+  /** What each priority means: the defaults, or the wording an administrator set in Settings. */
+  async priorityDefinitions(): Promise<PriorityDef[]> {
+    return parsePriorityDefs(this.settings ? await this.settings.get(PRIORITY_DEFS_KEY).catch(() => null) : null);
+  }
+
+  async savePriorityDefinitions(list: unknown): Promise<PriorityDef[]> {
+    const clean = parsePriorityDefs(list);
+    await this.settings!.set(PRIORITY_DEFS_KEY, storePriorityDefs(clean));
+    return clean;
+  }
 
   /** The Request Log's statuses -- the defaults, or the list an administrator set in Settings. */
   async statuses(): Promise<LogStatus[]> {

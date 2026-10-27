@@ -4,6 +4,7 @@ import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
 import type { BillingMonth } from './data/dashboardCharts';
 import type { AuditRow } from './data/audit';
+import type { PriorityDef } from './data/priority';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -375,6 +376,9 @@ export const api = {
     linkTargets: () => request<import('./data/linkTargets').LinkTargets>('/tasks/link-targets'),
     /** The Request Log's statuses (Settings -> Request Log statuses). */
     statuses: () => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses'),
+    /** What each priority means (Settings -> Task priorities). */
+    priorities: () => request<PriorityDef[]>('/tasks/priorities'),
+    savePriorities: (definitions: PriorityDef[]) => request<PriorityDef[]>('/tasks/priorities', { method: 'PUT', body: JSON.stringify({ definitions }) }),
     saveStatuses: (statuses: unknown) => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses', { method: 'PUT', body: JSON.stringify({ statuses }) }),
     list: (tab?: string, project?: string) => {
       const params = new URLSearchParams();

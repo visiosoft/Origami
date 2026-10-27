@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PriorityHelp } from './PriorityHelp';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../theme';
 import './TaskBoard.css';
@@ -1079,6 +1080,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
                   <option value="">None</option>{['Urgent', 'High', 'Medium', 'Low'].map((p) => <option key={p} value={p}>{p} — {PRIORITY_HINT[p as Priority].replace('Due ', '')}</option>)}
                 </select>
                 {autoPD.current[selected.id] === 'priority' && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Set from the due date</div>}
+                <PriorityHelp value={d.priority} />
               </Field>
               <Field label="Due date">
                 <input type="date" disabled={!canManage} value={d.dueDate || ''}
