@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
+import { NEEDS_INTAKE, missingIntake } from './lead-intake';
 import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -246,6 +247,11 @@ export class PipelineService implements OnApplicationBootstrap {
     // nothing to review at design fit or zoning. Enforced here rather than only
     // in the UI, so the rule holds however the move is made.
     const lead = await this.leads.findOneBy({ id });
+    // Leaving New Lead for the active funnel needs the intake complete: every field answered or N/A (Oct 27 backlog).
+    if (deal.stage === 'new_lead' && NEEDS_INTAKE.includes(stage)) {
+      const missing = missingIntake(lead as unknown as Record<string, unknown>);
+      if (missing.length) throw new BadRequestException(`Finish the New Lead intake first — ${missing.length} field${missing.length === 1 ? '' : 's'} still need an answer or N/A: ${missing.slice(0, 6).map((f) => f.label).join(', ')}${missing.length > 6 ? '…' : ''}.`);
+    }
     if (stageBlockedFor(lead?.contractType, stage)) {
       throw new BadRequestException(
         `${stageName} does not apply to a ${deliveryCode(lead?.contractType)} lead.`,

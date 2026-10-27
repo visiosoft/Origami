@@ -1,5 +1,6 @@
 import { stageLabel } from '../data/projects';
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { NOT_APPLICABLE as NA_VALUE, isAnswered as intakeAnswered, isNA, missingIntake } from '../data/leadIntake';
 import { AllFiles } from '../components/AllFiles';
 import { ClientWelcomeCard, LeadFilesTab, LeadStageFiles, useLeadFiles } from '../components/LeadFiles';
 import { EmailLink, MapLink, PhoneLink } from '../components/ContactLinks';
@@ -2266,12 +2267,19 @@ export function Pipeline() {
             <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
               {/* Left section nav */}
               <div style={{ width: 180, flexShrink: 0, borderRight: '1px solid rgba(var(--rgb-shade), 0.06)', overflowY: 'auto', padding: '12px 0' }}>
-                {TABS.map((t) => (
-                  <div key={t.id} onClick={() => setFormTab(t.id)} style={{ padding: '10px 20px', fontSize: 12, fontWeight: formTab === t.id ? 700 : 500, cursor: 'pointer', color: formTab === t.id ? 'var(--forest)' : 'var(--muted)', background: formTab === t.id ? 'var(--mist)' : 'transparent', borderLeft: formTab === t.id ? '3px solid var(--success)' : '3px solid transparent', transition: 'all 0.15s' }}>{t.label}</div>
-                ))}
+                {TABS.map((t) => {
+                  const left = missingIntake(nl as unknown as Record<string, unknown>).filter((f) => f.tab === t.id).length;
+                  return (
+                    <div key={t.id} onClick={() => setFormTab(t.id)} style={{ padding: '10px 20px', fontSize: 12, fontWeight: formTab === t.id ? 700 : 500, cursor: 'pointer', color: formTab === t.id ? 'var(--forest)' : 'var(--muted)', background: formTab === t.id ? 'var(--mist)' : 'transparent', borderLeft: formTab === t.id ? '3px solid var(--success)' : '3px solid transparent', transition: 'all 0.15s', display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ flex: 1 }}>{t.label}</span>
+                      {left > 0 && <span title={`${left} still to answer`} style={{ fontSize: 10, fontWeight: 700, minWidth: 16, textAlign: 'center', padding: '1px 5px', borderRadius: 999, background: '#F2DFD4', color: '#8E2E0A' }}>{left}</span>}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Right form content */}
+              <IntakeCtx.Provider value={{ value: (k) => (nl as unknown as Record<string, unknown>)[k], set: (k, v) => setField(k as never, v as never) }}>
               <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
                 {formTab === 1 && (<>
                   <SectionTitle>1. Contact Information</SectionTitle>
@@ -2281,14 +2289,14 @@ export function Pipeline() {
                         <input value={nl.leadName} onChange={(e) => setField('leadName', e.target.value)} placeholder="e.g. Perez Cottage or 1311 Countryside Ct" style={inputStyle} />
                       </FormField>
                     </div>
-                    <FormField label="First Name" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
-                    <FormField label="Last Name" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
-                    <FormField label="Go-By Name" hint="What they prefer to be called, if it isn't their first name."><input value={nl.goByName} onChange={(e) => setField('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
-                    <FormField label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronouns} onChange={(e) => setField('pronouns', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.pronouns} field="pronouns" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                    <FormField label="Name Pronunciation" hint="Phonetic spelling if difficult to pronounce."><input value={nl.namePronunciation} onChange={(e) => setField('namePronunciation', e.target.value)} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
-                    <FormField label="Phone Number" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
-                    <FormField label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
-                    <FormField label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField field="firstName" label="First Name" hint="Given name of the primary person who contacted us."><input value={nl.firstName} onChange={(e) => setField('firstName', e.target.value)} placeholder="First name" style={inputStyle} /></FormField>
+                    <FormField field="lastName" label="Last Name" hint="Family name."><input value={nl.lastName} onChange={(e) => setField('lastName', e.target.value)} placeholder="Last name" style={inputStyle} /></FormField>
+                    <FormField field="goByName" label="Go-By Name" hint="What they prefer to be called, if it isn't their first name."><input value={nl.goByName} onChange={(e) => setField('goByName', e.target.value)} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
+                    <FormField field="pronouns" label="Pronouns" hint="How to refer to them in writing."><select value={nl.pronouns} onChange={(e) => setField('pronouns', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.pronouns} field="pronouns" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="namePronunciation" label="Name Pronunciation" hint="Phonetic spelling if difficult to pronounce."><input value={nl.namePronunciation} onChange={(e) => setField('namePronunciation', e.target.value)} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
+                    <FormField field="phone" label="Phone Number" hint="Primary lead's best phone number."><input type="tel" value={nl.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
+                    <FormField field="email" label="Email" hint="Primary lead's preferred email address."><input type="email" value={nl.email} onChange={(e) => setField('email', e.target.value)} placeholder="email@example.com" style={inputStyle} /></FormField>
+                    <FormField field="primaryPointOfContact" label="Primary Point of Contact"><select value={nl.primaryPointOfContact} onChange={(e) => setField('primaryPointOfContact', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.primaryPointOfContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                     <div style={{ gridColumn: '1 / -1' }}><ContactMethodMatrix value={nl.preferredContactMatrix} onChange={(mx) => setField('preferredContactMatrix', mx)} /></div>
                     <RoleAssignmentTable
                       assignments={nl.roleAssignments || {}}
@@ -2297,7 +2305,25 @@ export function Pipeline() {
                     />
                   </FormGrid>
 
-                  {(nl.additionalContacts || []).map((c, i) => (
+                  {/* Secondary contact (Oct 27 backlog): the section stays closed unless there is one. */}
+                  <div style={{ marginTop: 16 }}>
+                    <FormGrid>
+                      <FormField field="secondPointOfContact" label="Is there a secondary contact?" hint="A spouse, partner, owner's rep or anyone else we should talk to.">
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {['Yes', 'No'].map((o) => (
+                            <button type="button" key={o} aria-pressed={nl.secondPointOfContact === o}
+                              onClick={() => { setField('secondPointOfContact', o as never); if (o === 'Yes' && !(nl.additionalContacts || []).length) addContact(); }}
+                              style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', border: '1px solid ' + (nl.secondPointOfContact === o ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'), background: nl.secondPointOfContact === o ? 'var(--forest)' : 'var(--surface)', color: nl.secondPointOfContact === o ? 'white' : 'var(--ink)' }}>{o}</button>
+                          ))}
+                        </div>
+                      </FormField>
+                    </FormGrid>
+                    {nl.secondPointOfContact !== 'Yes' && (nl.additionalContacts || []).length > 0 && (
+                      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>{(nl.additionalContacts || []).length} more contact{(nl.additionalContacts || []).length === 1 ? '' : 's'} on file — choose Yes to see {(nl.additionalContacts || []).length === 1 ? 'it' : 'them'}.</div>
+                    )}
+                  </div>
+
+                  {nl.secondPointOfContact === 'Yes' && (nl.additionalContacts || []).map((c, i) => (
                     <div key={c.id} style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Additional Contact {i + 1}</div>
@@ -2321,29 +2347,31 @@ export function Pipeline() {
                       </FormGrid>
                     </div>
                   ))}
-                  <div onClick={addContact} style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
-                    + Add another contact
-                  </div>
+                  {nl.secondPointOfContact === 'Yes' && (
+                    <div onClick={addContact} style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
+                      + Add another contact
+                    </div>
+                  )}
                   <SectionExtras {...sectionExtrasProps('contact')} />
                 </>)}
                 {formTab === 2 && (<>
                   <SectionTitle>2. Source</SectionTitle>
                   <FormGrid>
-                    <FormField label="Lead Source" hint="How the lead first heard about or was referred to us."><select value={nl.leadSource} onChange={(e) => setField('leadSource', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.leadSource, nl.leadSource).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.leadSource} field="leadSource" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="leadSource" label="Lead Source" hint="How the lead first heard about or was referred to us."><select value={nl.leadSource} onChange={(e) => setField('leadSource', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.leadSource, nl.leadSource).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.leadSource} field="leadSource" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     {(() => {
                       const d = sourceDetailLabel(nl.leadSource);
                       return (
                         <>
-                          <FormField label={d.label} hint={d.hint}>
+                          <FormField field="leadSourceReferrerName" label={d.label} hint={d.hint}>
                             <input value={nl.leadSourceReferrerName} onChange={(e) => setField('leadSourceReferrerName', e.target.value)} placeholder={d.ph} style={inputStyle} />
                           </FormField>
                           {isReferralSource(nl.leadSource) && (
-                            <FormField label="Referrer Phone" hint="How to reach the person who referred them.">
+                            <FormField field="leadSourceReferrerPhone" label="Referrer Phone" hint="How to reach the person who referred them.">
                               <input type="tel" value={nl.leadSourceReferrerPhone} onChange={(e) => setField('leadSourceReferrerPhone', e.target.value)} placeholder="(555) 123-4567" style={inputStyle} />
                             </FormField>
                           )}
                           {isEventSource(nl.leadSource) && (
-                            <FormField label="Where It Was" hint="Which event, or where the networking happened.">
+                            <FormField field="leadSourceEventDetail" label="Where It Was" hint="Which event, or where the networking happened.">
                               <input value={nl.leadSourceEventDetail} onChange={(e) => setField('leadSourceEventDetail', e.target.value)} placeholder="Event or networking group" style={inputStyle} />
                             </FormField>
                           )}
@@ -2365,24 +2393,24 @@ export function Pipeline() {
                       </select>
                     </FormField>
                     <div />
-                    <FormField label="Project Street Address" hint="Street number. Leave blank if no exact address."><input value={nl.projectStreetAddress} onChange={(e) => setField('projectStreetAddress', e.target.value)} placeholder="Street number" style={inputStyle} /></FormField>
-                    <FormField label="Project Street Name"><input value={nl.projectStreetName} onChange={(e) => setField('projectStreetName', e.target.value)} placeholder="Street name" style={inputStyle} /></FormField>
-                    <FormField label="Address 2" hint="Unit, suite or floor."><input value={nl.projectAddress2} onChange={(e) => setField('projectAddress2', e.target.value)} placeholder="e.g. Suite 400" style={inputStyle} /></FormField>
-                    <FormField label="Project City">
+                    <FormField field="projectStreetAddress" label="Project Street Address" hint="Street number. Leave blank if no exact address."><input value={nl.projectStreetAddress} onChange={(e) => setField('projectStreetAddress', e.target.value)} placeholder="Street number" style={inputStyle} /></FormField>
+                    <FormField field="projectStreetName" label="Project Street Name"><input value={nl.projectStreetName} onChange={(e) => setField('projectStreetName', e.target.value)} placeholder="Street name" style={inputStyle} /></FormField>
+                    <FormField field="projectAddress2" label="Address 2" hint="Unit, suite or floor."><input value={nl.projectAddress2} onChange={(e) => setField('projectAddress2', e.target.value)} placeholder="e.g. Suite 400" style={inputStyle} /></FormField>
+                    <FormField field="projectCity" label="Project City">
                       <select value={nl.projectCity} onChange={(e) => setField('projectCity', e.target.value)} style={inputStyle}>
                         <option value="">Select city...</option>
                         {OPT.projectCity.filter((o) => regionFilter === 'All' || regionForCounty(countyForCity(o)) === regionFilter).map((o) => <option key={o}>{o}</option>)}
                       </select>
                     </FormField>
-                    <FormField label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
-                    <FormField label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
-                    <FormField label="County">
+                    <FormField field="projectZipCode" label="Project ZIP Code"><input value={nl.projectZipCode} onChange={(e) => setField('projectZipCode', e.target.value)} placeholder="5-digit ZIP" maxLength={5} style={inputStyle} /></FormField>
+                    <FormField field="hasHOA" label="Property has an HOA" hint="Work in an HOA needs association approval."><label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink)', cursor: 'pointer', padding: '9px 0' }}><input type="checkbox" checked={nl.hasHOA === 'Yes'} onChange={(e) => setField('hasHOA', e.target.checked ? 'Yes' : 'No')} />Yes, this property is in an HOA</label></FormField>
+                    <FormField field="countyLocation" label="County">
                       <select value={nl.countyLocation} onChange={(e) => setField('countyLocation', e.target.value)} style={inputStyle}>
                         <option value="">Select county...</option>
                         {OPT.countyLocation.filter((o) => regionFilter === 'All' || REGION_BY_COUNTY[o.replace(/^County of /, '')] === regionFilter).map((o) => <option key={o}>{o}</option>)}
                       </select>
                     </FormField>
-                    <FormField label="Owner or Tenant" hint="Who the client is to the property. It decides whose approval the work needs."><select value={nl.occupancyStatus} onChange={(e) => setField('occupancyStatus', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.occupancyStatus.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.occupancyStatus} field="occupancyStatus" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="occupancyStatus" label="Owner or Tenant" hint="Who the client is to the property. It decides whose approval the work needs."><select value={nl.occupancyStatus} onChange={(e) => setField('occupancyStatus', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.occupancyStatus.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.occupancyStatus} field="occupancyStatus" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                   </FormGrid>
 
                   <SectionTitle>Business Mailing Address</SectionTitle>
@@ -2425,10 +2453,10 @@ export function Pipeline() {
                 {formTab === 4 && (<>
                   <SectionTitle>4. Project Details</SectionTitle>
                   <FormGrid>
-                    <FormField label="Property Type"><select value={nl.propertyType} onChange={(e) => setField('propertyType', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.propertyType.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.propertyType} field="propertyType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                    <FormField label="Potential Project Type" hint="Sets the property type and fills in the standard scope for that code."><select value={nl.potentialProjectType} onChange={(e) => setField('potentialProjectType', e.target.value)} style={inputStyle}><option value="">Select...</option>{PROJECT_TYPE_GROUPS.map((g) => (<optgroup key={g} label={g}>{PROJECT_TYPES.filter((t) => t.group === g).map((t) => <option key={t.code} value={projectTypeLabel(t)}>{projectTypeLabel(t)}</option>)}</optgroup>))}</select><OtherDetail value={nl.potentialProjectType} field="potentialProjectType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                    <FormField label="Contract Type" hint={findContractType(nl.contractType)?.detail || 'How the work is delivered: design only, build only, or design-build.'}><select value={nl.contractType} onChange={(e) => setField('contractType', e.target.value)} style={inputStyle}><option value="">Select...</option>{CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{contractTypeLabel(c)}</option>)}</select></FormField>
-                    <FormField label="Website" hint="Project or business website, if there is one."><input value={nl.website || ''} onChange={(e) => setField('website', e.target.value)} placeholder="https://example.com" style={inputStyle} /></FormField>
+                    <FormField field="propertyType" label="Property Type"><select value={nl.propertyType} onChange={(e) => setField('propertyType', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.propertyType.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.propertyType} field="propertyType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="potentialProjectType" label="Potential Project Type" hint="Sets the property type and fills in the standard scope for that code."><select value={nl.potentialProjectType} onChange={(e) => setField('potentialProjectType', e.target.value)} style={inputStyle}><option value="">Select...</option>{PROJECT_TYPE_GROUPS.map((g) => (<optgroup key={g} label={g}>{PROJECT_TYPES.filter((t) => t.group === g).map((t) => <option key={t.code} value={projectTypeLabel(t)}>{projectTypeLabel(t)}</option>)}</optgroup>))}</select><OtherDetail value={nl.potentialProjectType} field="potentialProjectType" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="contractType" label="Contract Type" hint={findContractType(nl.contractType)?.detail || 'How the work is delivered: design only, build only, or design-build.'}><select value={nl.contractType} onChange={(e) => setField('contractType', e.target.value)} style={inputStyle}><option value="">Select...</option>{CONTRACT_TYPES.map((c) => <option key={c.code} value={contractTypeLabel(c)}>{contractTypeLabel(c)}</option>)}</select></FormField>
+                    <FormField field="website" label="Website" hint="Project or business website, if there is one."><input value={nl.website || ''} onChange={(e) => setField('website', e.target.value)} placeholder="https://example.com" style={inputStyle} /></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Homework Completed</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -2438,7 +2466,7 @@ export function Pipeline() {
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Project Vision / Scope</div>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4 }}>Project Vision / Scope<IntakeMark field="projectVision" /></div>
                         {findProjectType(nl.potentialProjectType) && (
                           // Appends rather than replaces, so nothing already written is lost.
                           <span
@@ -2449,7 +2477,7 @@ export function Pipeline() {
                           </span>
                         )}
                       </div>
-                      <textarea value={nl.projectVision} onChange={(e) => setField('projectVision', e.target.value)} placeholder="Describe what the client wants to accomplish..." rows={5} style={{ ...inputStyle, resize: 'vertical', minHeight: 96 }} />
+                      {isNA(nl.projectVision) ? <NaBox field="projectVision" /> : <textarea value={nl.projectVision} onChange={(e) => setField('projectVision', e.target.value)} placeholder="Describe what the client wants to accomplish..." rows={5} style={{ ...inputStyle, resize: 'vertical', minHeight: 96 }} />}
                       <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 4 }}>The standard scope for the selected project type is filled in automatically. Add the specifics for this client.</div>
                     </div>
                   </FormGrid>
@@ -2458,32 +2486,42 @@ export function Pipeline() {
                 {formTab === 5 && (<>
                   <SectionTitle>5. Budget & Timeline</SectionTitle>
                   <FormGrid>
-                    <FormField label="Reason for Project"><select value={nl.reasonForProject} onChange={(e) => setField('reasonForProject', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.reasonForProject.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.reasonForProject} field="reasonForProject" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
-                    <FormField label="Budget Position" hint="How the client currently thinks about budget."><select value={nl.budgetPosition} onChange={(e) => setField('budgetPosition', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.budgetPosition.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Funding Status" hint="How prepared the client is to fund the project."><select value={nl.fundingStatus} onChange={(e) => setField('fundingStatus', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.fundingStatus.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Desired Start"><select value={nl.desiredStart} onChange={(e) => setField('desiredStart', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.desiredStart.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Expected Duration" hint="Client's expectation, not our estimated schedule."><select value={nl.expectedDuration} onChange={(e) => setField('expectedDuration', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedDuration.map((o) => <option key={o}>{o}</option>)}</select></FormField>
-                    <FormField label="Expected Length of Ownership"><select value={nl.expectedLengthOfOwnership} onChange={(e) => setField('expectedLengthOfOwnership', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedLengthOfOwnership.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField field="reasonForProject" label="Reason for Project"><select value={nl.reasonForProject} onChange={(e) => setField('reasonForProject', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.reasonForProject.map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.reasonForProject} field="reasonForProject" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="budgetPosition" label="Budget Position" hint="How the client currently thinks about budget."><select value={nl.budgetPosition} onChange={(e) => setField('budgetPosition', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.budgetPosition.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField field="fundingStatus" label="Funding Status" hint="How prepared the client is to fund the project."><select value={nl.fundingStatus} onChange={(e) => setField('fundingStatus', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.fundingStatus.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField field="desiredStart" label="Desired Start"><select value={nl.desiredStart} onChange={(e) => setField('desiredStart', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.desiredStart.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField field="expectedDuration" label="Expected Duration" hint="Client's expectation, not our estimated schedule."><select value={nl.expectedDuration} onChange={(e) => setField('expectedDuration', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedDuration.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                    <FormField field="expectedLengthOfOwnership" label="Expected Length of Ownership"><select value={nl.expectedLengthOfOwnership} onChange={(e) => setField('expectedLengthOfOwnership', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.expectedLengthOfOwnership.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                   </FormGrid>
                   <SectionExtras {...sectionExtrasProps('budget')} />
                 </>)}
                 {formTab === 6 && (<>
                   <SectionTitle>6. Client Profile</SectionTitle>
                   <FormGrid>
-                    <FormField label="Decision Makers" hint="Who makes final decisions about scope, budget, and design."><select value={nl.decisionMakers} onChange={(e) => setField('decisionMakers', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.decisionMakers, nl.decisionMakers).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.decisionMakers} field="decisionMakers" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
+                    <FormField field="decisionMakers" label="Decision Makers" hint="Who makes final decisions about scope, budget, and design."><select value={nl.decisionMakers} onChange={(e) => setField('decisionMakers', e.target.value)} style={inputStyle}><option value="">Select...</option>{optionsWith(OPT.decisionMakers, nl.decisionMakers).map((o) => <option key={o}>{o}</option>)}</select><OtherDetail value={nl.decisionMakers} field="decisionMakers" details={nl.otherDetails} onChange={(d) => setField('otherDetails', d)} /></FormField>
                     <div style={{ gridColumn: '1 / -1' }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Client Personality</div>
-                      <select value={nl.clientPersonality} onChange={(e) => setField('clientPersonality', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.clientPersonality.map((o) => <option key={o}>{o}</option>)}</select>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>Client Personality<IntakeMark field="clientPersonality" /></div>
+                      {isNA(nl.clientPersonality) ? <NaBox field="clientPersonality" /> : <select value={nl.clientPersonality} onChange={(e) => setField('clientPersonality', e.target.value)} style={inputStyle}><option value="">Select...</option>{OPT.clientPersonality.map((o) => <option key={o}>{o}</option>)}</select>}
                       <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 6 }}>Based on the first conversation, select the personality style that most closely reflects how the client communicates and makes decisions.</div>
                     </div>
                   </FormGrid>
                   <SectionExtras {...sectionExtrasProps('clientProfile')} />
                 </>)}
               </div>
+              </IntakeCtx.Provider>
             </div>
 
             {/* Footer */}
             <div style={{ padding: '14px 28px 18px', borderTop: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', flexShrink: 0 }}>
+              {(() => {
+                const missing = missingIntake(nl as unknown as Record<string, unknown>);
+                return missing.length ? (
+                  <button type="button" onClick={() => setFormTab(missing[0].tab)} title={`Every field needs an answer or N/A before the lead moves past New Lead: ${missing.map((f) => f.label).join(', ')}`}
+                    style={{ border: 0, background: 'transparent', padding: 0, font: 'inherit', fontSize: 12, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer', textAlign: 'left' }}>
+                    {missing.length} to answer or N/A →
+                  </button>
+                ) : <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>Intake complete</span>;
+              })()}
               <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={leadAuto} blocked={leadNameOk ? undefined : 'Add a project name (2+ letters) to save'} /></div>
               <div onClick={closeLeadForm} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)' }}>{leadAuto.dirty && !leadNameOk && !editingId ? 'Discard' : 'Done'}</div>
             </div>
@@ -2497,7 +2535,42 @@ export function Pipeline() {
 const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 function SectionTitle({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--forest)', marginBottom: 14, paddingBottom: 8, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>{children}</div>; }
 function FormGrid({ children }: { children: React.ReactNode }) { return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px' }}>{children}</div>; }
-function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) { return (<div><div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{label}</div>{children}{hint && <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}</div>); }
+/** The New Lead intake's values, for the required marks and N/A buttons (Oct 27 backlog). */
+const IntakeCtx = createContext<{ value: (k: string) => unknown; set: (k: string, v: unknown) => void } | null>(null);
+
+/** Required mark and the N/A switch for one intake field. */
+function IntakeMark({ field }: { field: string }) {
+  const ctx = useContext(IntakeCtx);
+  if (!ctx) return null;
+  const v = ctx.value(field);
+  const na = isNA(v);
+  return (
+    <>
+      {!intakeAnswered(v) && <span title="Needs an answer, or N/A" style={{ color: '#8E2E0A' }}> *</span>}
+      <button type="button" onClick={() => ctx.set(field, na ? '' : NA_VALUE)} title={na ? 'Clear N/A' : 'Not applicable to this lead'} aria-pressed={na}
+        style={{ marginLeft: 'auto', fontSize: 9.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, cursor: 'pointer', textTransform: 'none', letterSpacing: 0, border: '1px solid ' + (na ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'), background: na ? 'var(--forest)' : 'var(--surface)', color: na ? 'white' : 'var(--muted)' }}>
+        N/A
+      </button>
+    </>
+  );
+}
+
+const NaBox = ({ field }: { field: string }) => {
+  const ctx = useContext(IntakeCtx);
+  return <div style={{ padding: '9px 11px', borderRadius: 9, background: 'var(--panel)', fontSize: 13, color: 'var(--muted)' }}>Not applicable <button type="button" onClick={() => ctx?.set(field, '')} style={{ border: 0, background: 'transparent', padding: 0, marginLeft: 6, font: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Answer it</button></div>;
+};
+
+function FormField({ label, hint, field, children }: { label: string; hint?: string; field?: string; children: React.ReactNode }) {
+  const ctx = useContext(IntakeCtx);
+  const na = !!field && !!ctx && isNA(ctx.value(field));
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>{label}{field && <IntakeMark field={field} />}</div>
+      {na ? <NaBox field={field!} /> : children}
+      {hint && !na && <div style={{ fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic', marginTop: 4 }}>{hint}</div>}
+    </div>
+  );
+}
 
 /**
  * One row per role: either the primary contact holds it too, or someone

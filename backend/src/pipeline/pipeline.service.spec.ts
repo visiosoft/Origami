@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { INTAKE_FIELDS } from './lead-intake';
 import { Repository } from 'typeorm';
 import { MAX_FOLLOW_UPS, PipelineService } from './pipeline.service';
 import { DealEntity, LeadEntity } from '../database/entities';
@@ -143,9 +144,17 @@ describe('PipelineService', () => {
         it('does not create a Kickoff-stage project for a move within the pre-approval stages', async () => {
             const deal = { id: 'PL-1', stage: 'new_lead', stageIdx: 0, timeline: [] } as unknown as DealEntity;
             dealsRepo.findOneBy.mockResolvedValue(deal);
-            leadsRepo.findOneBy.mockResolvedValue(null);
+            // A finished intake: every field answered or N/A.
+            leadsRepo.findOneBy.mockResolvedValue(Object.fromEntries(INTAKE_FIELDS.map((f) => [f.key, 'N/A'])) as unknown as LeadEntity);
             await service.updateStage('PL-1', 'contact_attempted');
             expect(projects.ensureForLead).not.toHaveBeenCalled();
+        });
+
+        it('keeps a lead in New Lead until every intake field has an answer or N/A (holds and closing are fine)', async () => {
+            dealsRepo.findOneBy.mockImplementation(async () => ({ id: 'PL-1', stage: 'new_lead', stageIdx: 0, timeline: [] }) as unknown as DealEntity);
+            leadsRepo.findOneBy.mockResolvedValue({ firstName: 'Kai' } as unknown as LeadEntity);
+            await expect(service.updateStage('PL-1', 'contact_attempted')).rejects.toThrow(/Finish the New Lead intake first — \d+ fields still need an answer or N\/A: Last Name/);
+            await expect(service.updateStage('PL-1', 'hold_3m')).resolves.toBeTruthy();
         });
 
         it('does not create a Kickoff-stage project when a lead is rejected instead of approved', async () => {

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27l',
+    date: '2026-10-27',
+    title: 'New Lead: every field answered or N/A',
+    items: [
+      { area: 'CRM', kind: 'improved', text: 'Every field on the New Lead intake is required, with an N/A button for anything that doesn’t apply. You can still save as you go; the lead can’t move past New Lead (except to a hold or closed) until every field is answered or N/A. Each section shows how many are left.', where: 'CRM & Leads → New Lead' },
+      { area: 'CRM', kind: 'improved', text: '“Is there a secondary contact?” Yes / No: the extra contacts only open when there is one.' },
+    ],
+  },
+  {
     id: '2026-10-27k',
     date: '2026-10-27',
     title: 'Lead contacts: spouse and partner kept apart',

@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PipelineService = exports.MAX_FOLLOW_UPS = void 0;
 const common_1 = require("@nestjs/common");
+const lead_intake_1 = require("./lead-intake");
 const lead_address_1 = require("../leads/lead-address");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -178,6 +179,11 @@ let PipelineService = class PipelineService {
         const stageName = target?.name ?? stage;
         const deal = await this.findOne(id);
         const lead = await this.leads.findOneBy({ id });
+        if (deal.stage === 'new_lead' && lead_intake_1.NEEDS_INTAKE.includes(stage)) {
+            const missing = (0, lead_intake_1.missingIntake)(lead);
+            if (missing.length)
+                throw new common_1.BadRequestException(`Finish the New Lead intake first — ${missing.length} field${missing.length === 1 ? '' : 's'} still need an answer or N/A: ${missing.slice(0, 6).map((f) => f.label).join(', ')}${missing.length > 6 ? '…' : ''}.`);
+        }
         if ((0, pipeline_1.stageBlockedFor)(lead?.contractType, stage)) {
             throw new common_1.BadRequestException(`${stageName} does not apply to a ${(0, pipeline_1.deliveryCode)(lead?.contractType)} lead.`);
         }
