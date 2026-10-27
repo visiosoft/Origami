@@ -1,3 +1,4 @@
+import { AuditLogSettings } from './AuditLogSettings';
 import { CostCodesSettings } from '../components/CostCodes';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -51,6 +52,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
     { key: 'daily-log-backup', label: 'Daily log backup' },
     { key: 'request-log-statuses', label: 'Request Log statuses' },
     { key: 'checklists', label: 'Checklist templates' },
+    { key: 'audit-log', label: 'Audit log' },
   ] },
   { group: 'Integrations', items: [
     { key: 'google', label: 'Google Workspace' },
@@ -59,14 +61,15 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
 ];
 
 export function Settings() {
-  const { can } = useApp();
+  const { can, authUser } = useApp();
+  const isAdmin = authUser?.roleKey === 'admin';
   const isMobile = useWindowWidth() < 768;
   const [params] = useSearchParams();
   // OAuth callbacks (Google Workspace, My Calendar) land back here with ?tab=<key>.
   const tabParam = params.get('tab');
   // (It used to open on a "lead-scoring" section that no longer exists, so the page started blank.)
   const [active, setActive] = useState(
-    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' ? tabParam : 'notifications',
+    tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' || tabParam === 'audit-log' ? tabParam : 'notifications',
   );
   const [theme] = useTheme();
   if (theme === 'coterie') {
@@ -82,6 +85,7 @@ export function Settings() {
       { key: 'checklists', tab: 'workspace', label: 'Checklist templates', hint: 'Checklists to add to tasks', render: () => <ChecklistTemplateSettings /> },
       { key: 'notice', tab: 'workspace', label: 'System notice', hint: 'A banner shown to everyone', render: () => <SystemNoticeSettings /> },
       { key: 'daily-log-backup', tab: 'workspace', label: 'Daily log backup', hint: 'Copies of daily logs to Drive', render: () => <DailyLogBackupSettings /> },
+      ...(isAdmin ? [{ key: 'audit-log', tab: 'workspace' as SettingsTab, label: 'Audit log', hint: 'Who changed what, across the app', render: () => <AuditLogSettings /> }] : []),
       { key: 'google', tab: 'integrations', label: 'Google Workspace', hint: 'Email, Drive and sign-in', render: () => <GoogleSettings /> },
       { key: 'sms', tab: 'integrations', label: 'SMS', hint: 'Text messages through Twilio', render: () => <SmsSettings /> },
     ];
@@ -95,7 +99,7 @@ export function Settings() {
       {SECTIONS.map((sec) => (
         <div key={sec.group} style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', padding: '0 12px 8px' }}>{sec.group}</div>
-          {sec.items.map((it) => {
+          {sec.items.filter((it) => it.key !== 'audit-log' || isAdmin).map((it) => {
             const on = active === it.key;
             return (
               <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--ink)' : 'var(--body)', background: on ? 'var(--c-e7f0e8)' : 'transparent', borderLeft: '3px solid ' + (on ? 'var(--success)' : 'transparent'), marginBottom: 2, lineHeight: 1.3 }}>{it.label}</div>
@@ -124,6 +128,7 @@ export function Settings() {
           {active === 'daily-log-backup' && <DailyLogBackupSettings />}
           {active === 'request-log-statuses' && <RequestLogStatusSettings />}
           {active === 'checklists' && <ChecklistTemplateSettings />}
+          {active === 'audit-log' && isAdmin && <AuditLogSettings />}
           {active === 'cost-codes' && <CostCodesSettings canManage={can('settings', 'manage') || can('manpower_con', 'manage')} />}
         </div>
       </div>

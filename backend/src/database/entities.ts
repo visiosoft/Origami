@@ -1887,6 +1887,29 @@ export class FinanceActivityEntity {
   @Column() at!: string;
 }
 
+/**
+ * The app-wide audit log (Oct 2026): one row per change someone saved -- who,
+ * when, which record, and what changed (before / after for the main records).
+ * Finance keeps its own detailed log (finance_activity); the log page reads both.
+ */
+@Entity('audit_events')
+@Index('IX_audit_events_at', ['at'])
+@Index('IX_audit_events_entity', ['entityType', 'entityId'])
+export class AuditEventEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 40 }) at!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) userId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) userName!: string | null;
+  @Column({ type: 'nvarchar', length: 60 }) entityType!: string;
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) entityId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) label!: string | null;
+  @Column({ type: 'nvarchar', length: 80 }) action!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ type: 'nvarchar', length: 10 }) method!: string;
+  @Column({ type: 'nvarchar', length: 300 }) path!: string;
+  @Column({ type: 'simple-json', nullable: true }) changes!: { field: string; from: string | null; to: string | null }[] | null;
+}
+
 // ------------------------------------------------------------------ financials, phase 2
 
 /**

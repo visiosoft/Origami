@@ -144,21 +144,40 @@ export const MT_COLORS: Record<string, { bg: string; c: string }> = {
 
 export interface AuditEntry { what: string; by: string; when: string; chip: string; chipBg: string; chipC: string; dot: string }
 
-export function getLeadTime(t: Task) {
-  const digits = (String(t.id).match(/\d/g) || []).reduce((a, d) => a + Number(d), 0);
+const dayMs = 86400000;
+const toDay = (v?: string | null) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? new Date(v.slice(0, 10) + 'T12:00:00') : null);
+const shortDate = (v?: string | null) => { const d = toDay(v); return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; };
+
+/**
+ * Lead time, open days and the due-date history of a Request Log task. Open
+ * days run from the meeting date to today (or the day it closed); the history
+ * is the task's own recorded due-date changes (Oct 2026: it used to show
+ * made-up approvals).
+ */
+export function getLeadTime(t: Task, today = new Date()) {
   const leadMap: Record<string, number> = { Task: 14, RFI: 7, FYI: 5 };
   const leadTime = leadMap[t.topicType] || 14;
-  const openDays = t.daysOpen > 0 ? t.daysOpen : (digits % 26) + 2;
-  const variance = openDays - leadTime;
   const closed = isLogClosed(t.status);
+  const start = toDay(t.meetingDate);
+  const end = (closed && toDay(t.dateClosed)) || today;
+  const openDays = t.daysOpen > 0 ? t.daysOpen : start ? Math.max(0, Math.round((end.getTime() - start.getTime()) / dayMs)) : 0;
+  const variance = openDays - leadTime;
   const ok = variance <= 0;
   const label = closed ? (ok ? 'Closed on time' : 'Closed ' + variance + ' days late') : ok ? 'Within lead time' : variance + ' days over lead time';
   const source = (leadMap[t.topicType] ? t.topicType : 'Task') + ' template · ' + leadTime + '-day default';
-  const audit: AuditEntry[] = [
-    { what: 'Due date set from template (+' + leadTime + ' days)', by: 'System', when: t.meetingDate, chip: 'Auto', chipBg: 'var(--c-efede8)', chipC: 'var(--body)', dot: 'var(--muted)' },
-  ];
-  if (variance > 3) audit.unshift({ what: 'Due date moved out by ' + Math.min(variance, 10) + ' days', by: (t.assignedTo || 'Unassigned') + ' → approved by Edward M.', when: 'Approved ' + (t.dueDate || 'pending'), chip: 'Approved', chipBg: 'var(--c-d2ead3)', chipC: 'var(--success-deep)', dot: 'var(--success)' });
-  if (!closed && variance > 8) audit.unshift({ what: 'Second extension requested', by: t.assignedTo || 'Unassigned', when: 'Awaiting owner approval', chip: 'Pending', chipBg: 'var(--amber-light)', chipC: '#93520F', dot: '#D2822E' });
+  const when = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const moves = (t.activity || []).filter((e) => e.type === 'field' && e.field === 'dueDate');
+  const audit: AuditEntry[] = moves.map((e) => {
+    const from = toDay(e.from), to = toDay(e.to);
+    const days = from && to ? Math.round((to.getTime() - from.getTime()) / dayMs) : null;
+    const what = !e.from ? `Due date set to ${shortDate(e.to)}` : !e.to ? `Due date cleared (was ${shortDate(e.from)})`
+      : `Due date moved ${days != null && days < 0 ? 'in' : 'out'} ${days != null ? Math.abs(days) + ' day' + (Math.abs(days) === 1 ? '' : 's') : ''} · ${shortDate(e.from)} → ${shortDate(e.to)}`;
+    const late = days != null && days > 0;
+    return { what, by: e.by || 'Someone', when: when(e.at), chip: !e.from ? 'Set' : late ? 'Extended' : 'Moved', chipBg: late ? 'var(--amber-light)' : 'var(--c-efede8)', chipC: late ? '#93520F' : 'var(--body)', dot: late ? '#D2822E' : 'var(--muted)' };
+  }).reverse();
+  if (t.dueDate && !moves.some((e) => !e.from)) {
+    audit.push({ what: `Due date ${shortDate(moves[0]?.from || t.dueDate)}`, by: 'When the task was created', when: shortDate(t.meetingDate), chip: 'Original', chipBg: 'var(--c-efede8)', chipC: 'var(--body)', dot: 'var(--muted)' });
+  }
   return { leadTime, openDays, variance, source, audit, label, bg: ok ? 'var(--c-d2ead3)' : '#F2DFD4', color: ok ? 'var(--success-deep)' : '#8E2E0A' };
 }
 

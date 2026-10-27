@@ -1379,6 +1379,24 @@ export declare class FinanceActivityEntity {
     byId: string;
     at: string;
 }
+export declare class AuditEventEntity {
+    id: string;
+    at: string;
+    userId: string | null;
+    userName: string | null;
+    entityType: string;
+    entityId: string | null;
+    label: string | null;
+    action: string;
+    projectId: number | null;
+    method: string;
+    path: string;
+    changes: {
+        field: string;
+        from: string | null;
+        to: string | null;
+    }[] | null;
+}
 export declare class ChangeOrderEntity extends FinanceStamped {
     id: string;
     sourceType: string;

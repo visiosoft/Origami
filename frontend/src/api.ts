@@ -3,6 +3,7 @@ import type { CardScan } from './data/businessCard';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
 import type { BillingMonth } from './data/dashboardCharts';
+import type { AuditRow } from './data/audit';
 const API_BASE = '/api';
 
 /** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
@@ -768,6 +769,10 @@ export const api = {
     photoUrl: (id: string, version?: string) => `${API_BASE}/employees/${encodeURIComponent(id)}/photo${version ? `?v=${encodeURIComponent(version)}` : ''}`,
   },
   /** Project financials: contract, schedule of values, earned value, invoices and payments. */
+  /** The app-wide audit log (admins): who changed what, newest first. */
+  audit: {
+    list: (q: Record<string, string> = {}) => request<AuditRow[]>(`/audit?${new URLSearchParams(q).toString()}`),
+  },
   finance: {
     access: () => request('/finance/access'),
     brand: () => request('/finance/brand'),

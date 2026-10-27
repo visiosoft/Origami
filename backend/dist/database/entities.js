@@ -10,7 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomShareEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.ProgressPhotoEntity = exports.ProgressNoteEntity = exports.AppSettingEntity = exports.NotificationItemEntity = exports.PdfMarkupEntity = exports.UserViewEntity = exports.ChecklistTemplateEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.MeetingEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
-exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.ContractorBidEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyReportTemplateEntity = exports.DailyLogEntity = void 0;
+exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.ContractorBidEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.AuditEventEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyReportTemplateEntity = exports.DailyLogEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -5015,6 +5015,62 @@ exports.FinanceActivityEntity = FinanceActivityEntity = __decorate([
     (0, typeorm_1.Entity)('finance_activity'),
     (0, typeorm_1.Index)('IX_finance_activity_project', ['projectId'])
 ], FinanceActivityEntity);
+let AuditEventEntity = class AuditEventEntity {
+};
+exports.AuditEventEntity = AuditEventEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "userName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 60 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "entityType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 100, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "entityId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "label", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 80 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "action", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 10 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "method", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 300 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "path", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "changes", void 0);
+exports.AuditEventEntity = AuditEventEntity = __decorate([
+    (0, typeorm_1.Entity)('audit_events'),
+    (0, typeorm_1.Index)('IX_audit_events_at', ['at']),
+    (0, typeorm_1.Index)('IX_audit_events_entity', ['entityType', 'entityId'])
+], AuditEventEntity);
 let ChangeOrderEntity = class ChangeOrderEntity extends FinanceStamped {
 };
 exports.ChangeOrderEntity = ChangeOrderEntity;

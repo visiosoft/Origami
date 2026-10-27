@@ -325,6 +325,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           <div style={{ marginTop: 16 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Date Change Audit Trail</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {lt.audit.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '6px 2px' }}>No due date yet.</div>}
               {lt.audit.map((au, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'var(--panel)', borderRadius: 9 }}>
                   <div style={{ width: 7, height: 7, borderRadius: 999, background: au.dot, flexShrink: 0 }} />
@@ -337,7 +338,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               ))}
             </div>
           </div>
-          <div style={{ marginTop: 10, padding: '11px 13px', background: 'var(--mist)', borderRadius: 10, fontSize: 10.5, color: 'var(--body)', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Moving a due date needs approval from the task owner, and every change is logged above.</div>
+          <div style={{ marginTop: 10, padding: '11px 13px', background: 'var(--mist)', borderRadius: 10, fontSize: 10.5, color: 'var(--body)', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Every due-date change, with who made it, is listed above.</div>
         </div>
 
         {/* Activity — real comments and a record of what changed */}

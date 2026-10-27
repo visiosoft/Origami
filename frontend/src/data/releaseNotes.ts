@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27a',
+    date: '2026-10-27',
+    title: 'Audit log across the app',
+    items: [
+      { area: 'Admin', kind: 'new', text: 'An audit log of every change saved anywhere in the app — who made it, when, which record, and what changed (before and after for projects, contacts, users, roles, tasks, leads, deals and RFIs). Finance changes are included from Finance\'s own log. Search, filter by person, record, project and dates, and export to CSV. Admins only.', where: 'Settings → Workspace → Audit log' },
+      { area: 'Tasks', kind: 'fixed', text: 'A Request Log task\'s Date Change Audit Trail now lists the real due-date changes and who made them (it showed example entries before), and Open Days counts from the meeting date.' },
+    ],
+  },
+  {
     id: '2026-10-25b',
     date: '2026-10-25',
     title: 'Budget & Time vs Used by Project, on live figures',

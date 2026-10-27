@@ -19,6 +19,7 @@ import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
 import { SettingsModule } from './settings/settings.module';
+import { AuditModule } from './audit/audit.module';
 import { GoogleModule } from './google/google.module';
 import { AuthModule } from './auth/auth.module';
 import { RemindersModule } from './reminders/reminders.module';
@@ -64,6 +65,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     }),
     SeedModule,
     SettingsModule,
+    AuditModule,
     GoogleModule,
     AuthModule,
     RemindersModule,
