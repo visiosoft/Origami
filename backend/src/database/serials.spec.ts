@@ -24,3 +24,22 @@ describe('serials', () => {
     ]);
   });
 });
+
+import { baseProjectCode, cleanProjectCode, newTaskId, projectCodes, taskNumber } from './serials';
+describe('task numbers with a project prefix', () => {
+  it('makes a code from the name, numbers clashes, keeps codes set by hand', () => {
+    expect(baseProjectCode('Narvaes Residence (91-1062 Kuhina St, Ewa Beach)')).toBe('NARV');
+    expect(baseProjectCode('The Hadland House')).toBe('HADL');
+    expect(baseProjectCode('1311 Countryside Ct')).toBe('1311');
+    const codes = projectCodes([{ id: 2, name: 'Narvaes Cottage' }, { id: 1, name: 'Narvaes Residence' }, { id: 3, name: 'Hadland', code: 'narv' }]);
+    expect([codes.get(1), codes.get(2), codes.get(3)]).toEqual(['NARV2', 'NARV3', 'NARV']);
+    expect(cleanProjectCode(' k-1 ')).toBe('K1');
+    expect(cleanProjectCode('x')).toBe('');
+    expect(taskNumber('T-2026-0007', 'NARV')).toBe('NARV-T-2026-0007');
+    expect(taskNumber('T-2026-0007', null)).toBe('GEN-T-2026-0007');
+  });
+  it('task ids never repeat, even in the same millisecond', () => {
+    const ids = new Set(Array.from({ length: 2000 }, newTaskId));
+    expect(ids.size).toBe(2000);
+  });
+});

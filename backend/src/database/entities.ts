@@ -27,6 +27,8 @@ export class ProjectEntity {
   @Column({ nullable: true }) designPhase!: string;
   /** High Viz (Oct 20): a project the team wants everyone following High Viz to hear about. */
   @Column({ type: 'bit', nullable: true }) highViz!: boolean | null;
+  /** Prefix for its task numbers (NARV-T-2026-0001); blank = made from the name (see database/serials.ts). */
+  @Column({ type: 'nvarchar', length: 12, nullable: true }) code!: string | null;
   /** Pricing (LS, T&M, T&M NTE, CS) and labour (PW, CP) codes, shown as badges on the dashboard. */
   @Column({ type: 'nvarchar', length: 20, nullable: true }) pricing!: string | null;
   @Column({ type: 'nvarchar', length: 20, nullable: true }) labor!: string | null;

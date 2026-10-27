@@ -8,8 +8,12 @@ export declare class ProjectsService implements OnApplicationBootstrap {
     private readonly log;
     constructor(repo: Repository<ProjectEntity>, hub?: NotifyHub | undefined);
     onApplicationBootstrap(): Promise<void>;
-    findAll(): Promise<ProjectEntity[]>;
-    findOne(id: string): Promise<ProjectEntity>;
+    findAll(): Promise<(ProjectEntity & {
+        taskCode: string | undefined;
+    })[]>;
+    findOne(id: string): Promise<ProjectEntity & {
+        taskCode: string | undefined;
+    }>;
     create(dto: any): Promise<ProjectEntity>;
     findByLeadId(leadId: string): Promise<ProjectEntity | null>;
     ensureForLead(deal: {
@@ -23,7 +27,9 @@ export declare class ProjectsService implements OnApplicationBootstrap {
     update(id: string, dto: any, actor?: {
         id?: string;
         name?: string;
-    }): Promise<ProjectEntity>;
+    }): Promise<ProjectEntity & {
+        taskCode: string | undefined;
+    }>;
     private statusNotices;
     remove(id: string): Promise<{
         id: number;

@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
-import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
 import { resolveLead } from '../tasks/lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
 import { withAutoChecklists } from './auto-checklist';
@@ -18,7 +18,7 @@ import {
 import { backfillAssignees, resolveAssignee } from '../database/assignee.util';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { backfillSerials, nextSerial, serialYear } from '../database/serials';
+import { backfillSerials, newTaskId, nextSerial, serialYear } from '../database/serials';
 
 /** Days a Confirmed task stays on the board before it's archived. */
 export const ARCHIVE_AFTER_DAYS = 7;
@@ -36,6 +36,8 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     @Optional() @InjectRepository(ChecklistTemplateEntity) private readonly checklistTemplates?: Repository<ChecklistTemplateEntity>,
     @Optional() @InjectRepository(LeadEntity) private readonly leads?: Repository<LeadEntity>,
     @Optional() private readonly hub?: NotifyHub,
+    @Optional() @InjectRepository(TaskEntity) private readonly logTasks?: Repository<TaskEntity>,
+    @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
   ) {}
 
   /**
@@ -290,7 +292,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     // A subtask's emails wait until its parent is saved (as do any the editor asks to hold).
     const defer = !!dto.parentId || !!dto.deferNotify;
     dto = { ...dto }; delete dto.deferNotify; delete dto.pendingNotices;
-    const id = dto.id || 'T-' + String(Date.now());
+    // Ids are made here (never by the client) and are unique even in the same millisecond -- the old
+    // 'T-' + Date.now() could repeat, and saving a repeat overwrote the other task.
+    const id = newTaskId();
+    delete dto.id;
     if (dto.status) {
       dto = { ...dto, status: normalizeTaskStatus(dto.status) };
       const p: Record<string, any> = { status: dto.status };
@@ -333,7 +338,10 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       id,
     };
     const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
-    task.serial = nextSerial(peers.map((t) => t.serial), 'task', serialYear());
+    // One counter per project for the board and the Request Log, so a number never appears twice in a project.
+    const projectName = task.projectId != null && this.projects ? (await this.projects.findOneBy({ id: task.projectId }))?.name : null;
+    const logPeers = projectName && this.logTasks ? await this.logTasks.find({ where: { project: projectName }, select: { id: true, serial: true } }) : [];
+    task.serial = nextSerial([...peers.map((t) => t.serial), ...logPeers.map((t) => t.serial)], 'task', serialYear());
     const at = new Date().toISOString();
     const who = { id: actor.id, name: actor.name };
     const followers = normalizeCollaborators(task.collaborators);

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../theme';
@@ -122,6 +123,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   initialTaskId?: string | null;
 }) {
   const all = projectId === 'all';
+  const numberOf = useTaskNumber();
   const { can, toast, users, authUser } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
@@ -205,7 +207,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const doneColId = all ? undefined : sections.find((s) => /^(done|complete|completed)$/i.test(s.name.trim()))?.id;
   const inDoneCol = (id: string) => /^(done|complete|completed|confirmed)$/i.test(sections.find((s) => s.id === id)?.name.trim() || '');
   const placed = (t: ProjectTask): ProjectTask => (doneColId && !t.parentId && isFinished(t) && !inDoneCol(t.sectionId) ? { ...t, sectionId: doneColId } : t);
-  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query)).map(placed);
+  // Search also finds the task's full number (NARV-T-2026-0007).
+  const visibleTasks = scopeFilter(inScopeOfBoard).filter((t) => matchesQuery(t, query) || (!!query.trim() && numberOf(t).toLowerCase().includes(query.trim().toLowerCase()))).map(placed);
   const phaseTaskCount = tasks.filter((t) => t.phaseId && !t.parentId).length;
   // Counts are absolute, not relative to the active scope.
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
@@ -450,7 +453,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             </button>
             <div className="tb-titlebox">
               <div className="tb-title">{t.title}</div>
-              {(all || t.serial || t.leadName) && <div className="tb-sub">{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
+              {(all || t.serial || t.leadName) && <div className="tb-sub">{[numberOf(t), all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
               {t.status === 'On hold' && t.holdReason && <div className="tb-sub" style={{ color: 'var(--c-8a6d12)' }}>On hold: {t.holdReason}</div>}
               {subs.length > 0 && <div className="tb-sub">{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
               {t.parentId && <div className="tb-sub">Subtask of {tasks.find((x) => x.id === t.parentId)?.title || 'another task'}</div>}
@@ -525,7 +528,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
           <input type="checkbox" checked={t.completed} disabled={!canManage} onClick={(e) => e.stopPropagation()} onChange={() => updateTask(t.id, { completed: !t.completed })} style={{ marginTop: 2, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}>{t.title}</div>
-            {(all || t.serial || t.leadName) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[t.serial, all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
+            {(all || t.serial || t.leadName) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{[numberOf(t), all && (t.projectId != null ? projectNames[t.projectId] || `Project ${t.projectId}` : t.leadName ? '' : 'General Tasks'), !leadId && leadLabel(t.leadName)].filter(Boolean).join(' · ')}</div>}
             {t.status === 'On hold' && t.holdReason && <div style={{ fontSize: 11, color: 'var(--c-8a6d12)', marginTop: 2 }}>On hold: {t.holdReason}</div>}
             {subs.length > 0 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{subs.filter((s) => s.completed).length} of {subs.length} subtask{subs.length === 1 ? '' : 's'}</div>}
             {(t.labels?.length || 0) > 0 && (
@@ -1039,7 +1042,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={projectName || (selected.projectId == null ? (selected.leadName ? leadLabel(selected.leadName) : 'General Tasks') : `Project ${selected.projectId}`)} source={d.requestedBy} by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={selected.serial || '#' + selected.id} /></div>
+                <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={projectName || (selected.projectId == null ? (selected.leadName ? leadLabel(selected.leadName) : 'General Tasks') : `Project ${selected.projectId}`)} source={d.requestedBy} by={selected.createdByName || createdByOf(selected)?.by} at={createdByOf(selected)?.at || selected.createdAt} number={numberOf(selected) || '#' + selected.id} /></div>
                 {canManage && !selected.parentId && (selected.archivedAt
                   ? <button type="button" onClick={() => reopenTask(selected.id)} title="Bring it back onto the board" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                   : <button type="button" onClick={() => closeTask(selected.id)} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}

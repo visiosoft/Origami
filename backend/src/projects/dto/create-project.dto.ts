@@ -8,6 +8,8 @@ export class CreateProjectDto {
   @IsString() @IsOptional() location?: string;
   @IsString() @IsOptional() typeOfWork?: string;
   @IsString() @IsOptional() contractType?: string;
+  /** Task-number prefix (2-8 letters or digits); blank = made from the name. */
+  @IsString() @IsOptional() code?: string;
   @IsString() @IsOptional() contractAmt?: string;
   /** LS | T&M | T&M NTE | CS, blank when unset. */
   @IsString() @IsOptional() pricing?: string;

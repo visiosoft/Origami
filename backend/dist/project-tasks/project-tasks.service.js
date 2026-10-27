@@ -32,7 +32,7 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const serials_1 = require("../database/serials");
 exports.ARCHIVE_AFTER_DAYS = 7;
 let ProjectTasksService = class ProjectTasksService {
-    constructor(repo, users, sections, attachments, notifications, checklistTemplates, leads, hub) {
+    constructor(repo, users, sections, attachments, notifications, checklistTemplates, leads, hub, logTasks, projects) {
         this.repo = repo;
         this.users = users;
         this.sections = sections;
@@ -41,6 +41,8 @@ let ProjectTasksService = class ProjectTasksService {
         this.checklistTemplates = checklistTemplates;
         this.leads = leads;
         this.hub = hub;
+        this.logTasks = logTasks;
+        this.projects = projects;
         this.log = new common_1.Logger('ProjectTasksService');
     }
     async adoptLead(leadId, projectId) {
@@ -263,7 +265,8 @@ let ProjectTasksService = class ProjectTasksService {
         dto = { ...dto };
         delete dto.deferNotify;
         delete dto.pendingNotices;
-        const id = dto.id || 'T-' + String(Date.now());
+        const id = (0, serials_1.newTaskId)();
+        delete dto.id;
         if (dto.status) {
             dto = { ...dto, status: (0, task_types_1.normalizeTaskStatus)(dto.status) };
             const p = { status: dto.status };
@@ -311,7 +314,9 @@ let ProjectTasksService = class ProjectTasksService {
             id,
         };
         const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
-        task.serial = (0, serials_1.nextSerial)(peers.map((t) => t.serial), 'task', (0, serials_1.serialYear)());
+        const projectName = task.projectId != null && this.projects ? (await this.projects.findOneBy({ id: task.projectId }))?.name : null;
+        const logPeers = projectName && this.logTasks ? await this.logTasks.find({ where: { project: projectName }, select: { id: true, serial: true } }) : [];
+        task.serial = (0, serials_1.nextSerial)([...peers.map((t) => t.serial), ...logPeers.map((t) => t.serial)], 'task', (0, serials_1.serialYear)());
         const at = new Date().toISOString();
         const who = { id: actor.id, name: actor.name };
         const followers = (0, task_types_1.normalizeCollaborators)(task.collaborators);
@@ -614,6 +619,10 @@ exports.ProjectTasksService = ProjectTasksService = __decorate([
     __param(6, (0, common_1.Optional)()),
     __param(6, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
     __param(7, (0, common_1.Optional)()),
+    __param(8, (0, common_1.Optional)()),
+    __param(8, (0, typeorm_1.InjectRepository)(entities_1.TaskEntity)),
+    __param(9, (0, common_1.Optional)()),
+    __param(9, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         sections_service_1.SectionsService,
@@ -621,6 +630,8 @@ exports.ProjectTasksService = ProjectTasksService = __decorate([
         notifications_service_1.NotificationsService,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        notify_hub_service_1.NotifyHub])
+        notify_hub_service_1.NotifyHub,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
 ], ProjectTasksService);
 //# sourceMappingURL=project-tasks.service.js.map

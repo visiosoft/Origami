@@ -12,7 +12,7 @@ import { DEFAULT_LOG_STATUSES, LOG_STATUSES_KEY, bucketOf, isClosedStatus, isInP
 
 /** Confirmed Request Log tasks leave the list this many days later. */
 export const LOG_ARCHIVE_DAYS = 7;
-import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity, DealEntity, LeadEntity, ProjectEntity } from '../database/entities';
+import { ChangeOrderEntity, TaskEntity, UserEntity, ChecklistTemplateEntity, DealEntity, LeadEntity, ProjectEntity, ProjectTaskEntity } from '../database/entities';
 import { isLeadId, leadDisplayName, resolveLead } from './lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
 import {
@@ -43,6 +43,7 @@ export class TasksService implements OnApplicationBootstrap {
     @Optional() @InjectRepository(DealEntity) private readonly deals?: Repository<DealEntity>,
     @Optional() @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
     @Optional() private readonly hub?: NotifyHub,
+    @Optional() @InjectRepository(ProjectTaskEntity) private readonly boardTasks?: Repository<ProjectTaskEntity>,
   ) {}
 
   /** What each priority means: the defaults, or the wording an administrator set in Settings. */
@@ -304,7 +305,12 @@ export class TasksService implements OnApplicationBootstrap {
       rows
         .filter((t) => String(t.id).startsWith(dateStr + '-'))
         .reduce((max, t) => Math.max(max, parseInt(String(t.id).split('-')[1], 10) || 0), 0) + 1;
-    const id = dto.id || `${dateStr}-${String(seq).padStart(2, '0')}`;
+    // Made here, never by the client: the day's next number that nobody has (two saves at once used to get the same id).
+    const taken = new Set(rows.map((t) => String(t.id)));
+    let n = seq;
+    while (taken.has(`${dateStr}-${String(n).padStart(2, '0')}`)) n++;
+    const id = `${dateStr}-${String(n).padStart(2, '0')}`;
+    delete dto.id;
 
     if (!String(dto.subject || '').trim() && !String(dto.description || '').trim()) throw new BadRequestException('Give the task a subject.');
     dto = { ...dto, ...(await this.leadFields(dto)) };
@@ -347,7 +353,10 @@ export class TasksService implements OnApplicationBootstrap {
     if ((task.status === 'To Do' || task.status === 'Assigned') && task.assignedTo && startDue(task.startDate, true)) task.status = 'In Progress';
     if (isInProgress(task.status) && !(task.assignedToId || String(task.assignedTo || '').trim())) throw new BadRequestException(NO_ASSIGNEE_IN_PROGRESS);
     if (isInProgress(task.status) && !task.startDate) task.startDate = new Date().toISOString().slice(0, 10);
-    task.serial = nextSerial(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), logSerialKind(task.topicType), serialYear());
+    // One counter per project for the Request Log and the board, so a number never appears twice in a project.
+    const projectId = task.project && this.projects ? (await this.projects.findOneBy({ name: task.project }))?.id : undefined;
+    const boardPeers = projectId != null && this.boardTasks ? await this.boardTasks.find({ where: { projectId }, select: { id: true, serial: true } }) : [];
+    task.serial = nextSerial([...rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), ...boardPeers.map((t) => t.serial)], logSerialKind(task.topicType), serialYear());
 
     const at = new Date().toISOString();
     const who = { id: actor.id, name: actor.name };

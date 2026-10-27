@@ -1,4 +1,5 @@
-import { Injectable, Optional, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { cleanProjectCode, projectCodes } from '../database/serials';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
@@ -26,14 +27,18 @@ export class ProjectsService implements OnApplicationBootstrap {
     }
   }
 
-  findAll() {
-    return this.repo.find({ order: { id: 'ASC' } });
+  /** Every project, with `taskCode`: the prefix its task numbers carry (set by hand, or made from the name). */
+  async findAll() {
+    const rows = await this.repo.find({ order: { id: 'ASC' } });
+    const codes = projectCodes(rows);
+    return rows.map((p) => Object.assign(p, { taskCode: codes.get(p.id) }));
   }
 
   async findOne(id: string) {
     const project = await this.repo.findOneBy({ id: Number(id) });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
-    return project;
+    const codes = projectCodes(await this.repo.find({ select: { id: true, name: true, code: true } }));
+    return Object.assign(project, { taskCode: codes.get(project.id) });
   }
 
   async create(dto: any) {
@@ -80,6 +85,16 @@ export class ProjectsService implements OnApplicationBootstrap {
     const patch = { ...(dto || {}) };
     for (const k of ['holdSince', 'holdUntil', 'holdReason', 'holdBy', 'holdTaskId', 'holdHistory']) delete patch[k];
     if (!Object.keys(patch).length) return this.findOne(id);
+    // The task-number prefix: clean, and not another project's (blank goes back to the one made from the name).
+    if ('code' in patch) {
+      const code = cleanProjectCode(patch.code);
+      if (patch.code && !code) throw new BadRequestException('A project code is 2 to 8 letters or digits.');
+      if (code) {
+        const others = (await this.repo.find({ select: { id: true, name: true, code: true } })).filter((p) => p.id !== Number(id));
+        if (projectCodes(others).size && [...projectCodes(others).values()].includes(code)) throw new BadRequestException(`${code} is already another project's code.`);
+      }
+      patch.code = code || null;
+    }
     const before = this.hub ? await this.repo.findOneBy({ id: Number(id) }) : null;
     await this.repo.update({ id: Number(id) }, patch as Partial<ProjectEntity>);
     if (before) this.statusNotices(before, patch, actor);

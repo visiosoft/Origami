@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27m',
+    date: '2026-10-27',
+    title: 'Task numbers carry the project code',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Task numbers now start with the project’s code — NARV-T-2026-0007 — so the same number never means two tasks. Tasks on no project use GEN. The code is made from the project name; change it under Edit project → Task number prefix.', where: 'Projects → Edit project' },
+      { area: 'Tasks', kind: 'fixed', text: 'A project’s board tasks and Request Log entries now share one number sequence, and task ids are made so two saves at the same moment can no longer collide (that could overwrite a task).' },
+    ],
+  },
+  {
     id: '2026-10-27l',
     date: '2026-10-27',
     title: 'New Lead: every field answered or N/A',

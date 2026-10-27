@@ -16,6 +16,9 @@ export interface Project {
   pricing?: string | null;
   /** PW | CP (LABOR_TYPES). */
   labor?: string | null;
+  /** Task-number prefix set by hand (blank = made from the name); `taskCode` is the one in use. */
+  code?: string | null;
+  taskCode?: string;
   estStart: string;
   duration: string;
   scope: string;

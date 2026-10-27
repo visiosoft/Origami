@@ -21,7 +21,7 @@ let TasksModule = class TasksModule {
 exports.TasksModule = TasksModule;
 exports.TasksModule = TasksModule = __decorate([
     (0, common_1.Module)({
-        imports: [notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.TaskEntity, entities_1.UserEntity, entities_1.ChangeOrderEntity, entities_1.ChecklistTemplateEntity, entities_1.LeadEntity, entities_1.DealEntity, entities_1.ProjectEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule, settings_module_1.SettingsModule],
+        imports: [notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.TaskEntity, entities_1.UserEntity, entities_1.ChangeOrderEntity, entities_1.ChecklistTemplateEntity, entities_1.LeadEntity, entities_1.DealEntity, entities_1.ProjectEntity, entities_1.ProjectTaskEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule, settings_module_1.SettingsModule],
         controllers: [tasks_controller_1.TasksController],
         providers: [tasks_service_1.TasksService],
         exports: [tasks_service_1.TasksService],

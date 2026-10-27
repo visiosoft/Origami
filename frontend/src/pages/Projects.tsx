@@ -1,4 +1,5 @@
 import { tint, useTheme } from '../theme';
+import { loadProjectCodes, useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from '../components/PriorityHelp';
 import { SubtaskForm, type NewSubtask } from '../components/SubtaskForm';
 import { LeadSummary } from '../components/LeadSummary';
@@ -48,7 +49,7 @@ interface SavedView { name: string; filters: ProjectFilters }
 const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWork: '', contactedBy: '', q: '' };
 
 /** The fields the project form edits; they autosave together. */
-const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
+const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'code', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
 const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'holdReason'];
 
@@ -96,6 +97,7 @@ export function Projects() {
   // Per task: which of priority / due date was filled in automatically from the other.
   const ptAutoPD = useRef<Record<string, 'priority' | 'due' | null>>({});
   const [editingPtSub, setEditingPtSub] = useState<string | null>(null);
+  const numberOf = useTaskNumber();
 
   const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
   useEffect(() => {
@@ -438,9 +440,11 @@ export function Projects() {
       }
       const id = projIdRef.current;
       const patch = 'progress' in changes ? { ...changes, progress: num(changes.progress) } : changes;
-      await api.projects.update(id, patch);
+      const saved: any = await api.projects.update(id, patch);
       // Keep the list in step without reloading every project.
-      setProjects((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } as Project : x)));
+      setProjects((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch, ...(saved?.taskCode ? { taskCode: saved.taskCode } : {}) } as Project : x)));
+      // A new task-number prefix shows on every task straight away.
+      if ('code' in patch) void loadProjectCodes(true);
       return { ...draft };
     },
     onSaved: (row, sent) => setNp((cur) => mergeSaved(cur, row, sent)),
@@ -527,6 +531,7 @@ export function Projects() {
     ? ([
         ['Priority', sel.priority], ['Stage', sel.stage], ['Contract Type', sel.contractType], ['Contract Amount', sel.contractAmt],
         ['Pricing', codeLabel(PRICING_TYPES, sel.pricing)], ['Labour', codeLabel(LABOR_TYPES, sel.labor)],
+        ['Task number prefix', (sel as any).taskCode || '—'],
         ['Est. Start', sel.estStart], ['Duration', sel.duration], ['Location', sel.location], ['Type of Work', sel.typeOfWork],
         ['Referral', sel.referral || '—'], ['Contacted By', sel.contactedBy], ['Website', sel.website || '—'],
       ] as [string, string][])
@@ -1091,7 +1096,7 @@ export function Projects() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
                   <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{pt.title}</div>
-                  {live && <div style={{ marginTop: 6 }}><OriginatorLine label="Assigner" project={sel?.name} by={(live as any).createdByName || createdByOf(live as any)?.by} at={createdByOf(live as any)?.at || (live as any).createdAt} number={(live as any).serial || null} /></div>}
+                  {live && <div style={{ marginTop: 6 }}><OriginatorLine label="Assigner" project={sel?.name} by={(live as any).createdByName || createdByOf(live as any)?.by} at={createdByOf(live as any)?.at || (live as any).createdAt} number={numberOf(live as any) || null} /></div>}
                 </div>
                 <div onClick={() => setSelPt(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
               </div>
@@ -1421,6 +1426,7 @@ export function Projects() {
                 ['Contract amount', 'contractAmt', 'text'],
                 ['Pricing', 'pricing', 'select-pricing'],
                 ['Labour', 'labor', 'select-labor'],
+                ['Task number prefix', 'code', 'text'],
                 ['Est. start', 'estStart', 'text'],
                 ['Duration', 'duration', 'text'],
                 ['Referral', 'referral', 'text'],

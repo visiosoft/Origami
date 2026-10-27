@@ -1,7 +1,7 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
-import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
+import { ChecklistTemplateEntity, LeadEntity, ProjectEntity, ProjectTaskEntity, TaskEntity, UserEntity } from '../database/entities';
 import { SectionsService } from './sections.service';
 import { type TaskAttachment } from '../database/task.types';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
@@ -16,8 +16,10 @@ export declare class ProjectTasksService implements OnApplicationBootstrap {
     private readonly checklistTemplates?;
     private readonly leads?;
     private readonly hub?;
+    private readonly logTasks?;
+    private readonly projects?;
     private readonly log;
-    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, hub?: NotifyHub | undefined);
+    constructor(repo: Repository<ProjectTaskEntity>, users: Repository<UserEntity>, sections: SectionsService, attachments: AttachmentsService, notifications: NotificationsService, checklistTemplates?: Repository<ChecklistTemplateEntity> | undefined, leads?: Repository<LeadEntity> | undefined, hub?: NotifyHub | undefined, logTasks?: Repository<TaskEntity> | undefined, projects?: Repository<ProjectEntity> | undefined);
     adoptLead(leadId: string, projectId: number): Promise<number>;
     onApplicationBootstrap(): Promise<void>;
     private renameLegacyTitles;

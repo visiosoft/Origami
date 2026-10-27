@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
 import { createdByText } from '../data/projectTasks';
 import { LOG_STATUS_HINT, useLogStatuses } from '../data/logStatuses';
@@ -59,6 +60,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   useEffect(() => { api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => setStorageReady(false)); }, []);
 
   /** Edits stay in the draft until Save, or 3 seconds after typing stops; only changed fields are sent. */
+  const numberOf = useTaskNumber();
   const auto = useAutosave<Task>({
     draft: t, saved: task, fields: [...FIELDS], enabled: canManage, label: 'task',
     // Emails (assigned, added as a collaborator, done) wait for the Save button.
@@ -133,7 +135,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
         <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', background: 'var(--panel)', padding: '3px 10px', borderRadius: 6 }}>{task.serial || t.id}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums', background: 'var(--panel)', padding: '3px 10px', borderRadius: 6 }}>{numberOf(task) || t.id}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(ST_COLORS, t.status).bg, color: tone(ST_COLORS, t.status).c }}>{t.status}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(TT_COLORS, t.topicType).bg, color: tone(TT_COLORS, t.topicType).c }}>{t.topicType}</span>
               <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: tone(MT_COLORS, t.meetingType).bg, color: tone(MT_COLORS, t.meetingType).c }}>{t.meetingType}</span>
@@ -143,7 +145,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               style={{ width: '100%', boxSizing: 'border-box', border: '1px solid transparent', background: 'transparent', padding: '4px 6px', marginLeft: -6, borderRadius: 8, fontFamily: BG, fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.4, color: 'var(--ink)', outline: 'none' }}
               onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--rgb-shade), 0.15)'; }} onBlur={(e) => { e.currentTarget.style.borderColor = 'transparent'; }} />
             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={t.project || (t.leadName ? leadLabel(t.leadName) : 'General (no project)')} source={t.originator} by={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || t.originator} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={task.serial || '#' + t.id} /></div>
+              <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={t.project || (t.leadName ? leadLabel(t.leadName) : 'General (no project)')} source={t.originator} by={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || t.originator} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={numberOf(task) || '#' + t.id} /></div>
               {canManage && (task.archivedAt
                 ? <button type="button" onClick={reopen} title="Bring it back into the Request Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                 : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}

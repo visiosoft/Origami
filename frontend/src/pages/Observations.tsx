@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTaskNumber } from '../data/taskNumbers';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -37,6 +38,7 @@ export const raisedOn = (t: Task) => {
  */
 export function Observations() {
   const { can } = useApp();
+  const numberOf = useTaskNumber();
   const [params] = useSearchParams();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [cos, setCos] = useState<any[]>([]);
@@ -123,7 +125,7 @@ export function Observations() {
             <AkRow key={t.id} index={i} muted={isLogClosed(t.status)} onClick={() => setOpenId(t.id)}
               lead={<AkDate iso={raisedOn(t)} />}
               title={logTaskTitle(t)}
-              sub={[t.serial, t.project || (t.leadName ? '' : 'No project'), leadLabel(t.leadName), t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
+              sub={[numberOf(t), t.project || (t.leadName ? '' : 'No project'), leadLabel(t.leadName), t.originator && 'from ' + t.originator, t.assignedTo && 'to ' + t.assignedTo, t.meetingId ? 'from a meeting' : t.meetingType && t.meetingType !== 'Internal' ? t.meetingType + ' meeting' : ''].filter(Boolean).join(' · ')}
               right={<>
                 {nT + nC > 0 && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[nT && `${nT} ${nT === 1 ? 'task' : 'tasks'}`, nC && `${nC} CO`].filter(Boolean).join(' · ')}</span>}
                 <AkPill tone={RECORD_TONE[t.topicType] || 'soft'}>{t.topicType}</AkPill>
@@ -151,6 +153,7 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
 }) {
   const navigate = useNavigate();
   const { users, toast } = useApp();
+  const numberOf = useTaskNumber();
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<'task' | 'co'>('task');
   const [subject, setSubject] = useState('');
@@ -210,7 +213,7 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
           <span className="mt-muted">{[item.project || 'No project', raisedOn(item) && 'raised ' + akDay(raisedOn(item)), item.originator && 'by ' + item.originator].filter(Boolean).join(' · ')}</span>
         </div>
         {item.subject && item.description && <p className="mt-muted" style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--ink)' }}>{item.description}</p>}
-        <OriginatorLine by={item.originator || (item.activity || []).find((e) => e.type === 'created')?.by} at={(item.activity || []).find((e) => e.type === 'created')?.at || raisedOn(item)} number={item.serial || '#' + item.id} />
+        <OriginatorLine by={item.originator || (item.activity || []).find((e) => e.type === 'created')?.by} at={(item.activity || []).find((e) => e.type === 'created')?.at || raisedOn(item)} number={numberOf(item) || '#' + item.id} />
         <ActionTrail sourceType={item.sourceType} sourceId={item.sourceId} sourceLabel={item.sourceLabel} derived={item.derivedRefs} />
         <div className="mt-row">
           <button type="button" className="ak-btn" onClick={() => navigate(`/tasks?task=${encodeURIComponent(item.id)}&type=log`)}>Open in the Request Log</button>

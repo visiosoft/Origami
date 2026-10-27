@@ -36,7 +36,7 @@ const notifications_service_1 = require("../notifications/notifications.service"
 const attachments_service_1 = require("../google/attachments.service");
 const SCOPE = 'Request Log';
 let TasksService = class TasksService {
-    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates, leads, deals, projects, hub) {
+    constructor(repo, users, attachments, notifications, settings, cos, checklistTemplates, leads, deals, projects, hub, boardTasks) {
         this.repo = repo;
         this.users = users;
         this.attachments = attachments;
@@ -48,6 +48,7 @@ let TasksService = class TasksService {
         this.deals = deals;
         this.projects = projects;
         this.hub = hub;
+        this.boardTasks = boardTasks;
         this.log = new common_1.Logger('TasksService');
     }
     async priorityDefinitions() {
@@ -282,7 +283,12 @@ let TasksService = class TasksService {
         const seq = rows
             .filter((t) => String(t.id).startsWith(dateStr + '-'))
             .reduce((max, t) => Math.max(max, parseInt(String(t.id).split('-')[1], 10) || 0), 0) + 1;
-        const id = dto.id || `${dateStr}-${String(seq).padStart(2, '0')}`;
+        const taken = new Set(rows.map((t) => String(t.id)));
+        let n = seq;
+        while (taken.has(`${dateStr}-${String(n).padStart(2, '0')}`))
+            n++;
+        const id = `${dateStr}-${String(n).padStart(2, '0')}`;
+        delete dto.id;
         if (!String(dto.subject || '').trim() && !String(dto.description || '').trim())
             throw new common_1.BadRequestException('Give the task a subject.');
         dto = { ...dto, ...(await this.leadFields(dto)) };
@@ -326,7 +332,9 @@ let TasksService = class TasksService {
             throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
         if ((0, log_statuses_1.isInProgress)(task.status) && !task.startDate)
             task.startDate = new Date().toISOString().slice(0, 10);
-        task.serial = (0, serials_1.nextSerial)(rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), (0, serials_1.logSerialKind)(task.topicType), (0, serials_1.serialYear)());
+        const projectId = task.project && this.projects ? (await this.projects.findOneBy({ name: task.project }))?.id : undefined;
+        const boardPeers = projectId != null && this.boardTasks ? await this.boardTasks.find({ where: { projectId }, select: { id: true, serial: true } }) : [];
+        task.serial = (0, serials_1.nextSerial)([...rows.filter((r) => (r.project || '') === (task.project || '')).map((r) => r.serial), ...boardPeers.map((t) => t.serial)], (0, serials_1.logSerialKind)(task.topicType), (0, serials_1.serialYear)());
         const at = new Date().toISOString();
         const who = { id: actor.id, name: actor.name };
         const followers = (0, task_types_1.normalizeCollaborators)(task.collaborators);
@@ -637,6 +645,8 @@ exports.TasksService = TasksService = __decorate([
     __param(9, (0, common_1.Optional)()),
     __param(9, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __param(10, (0, common_1.Optional)()),
+    __param(11, (0, common_1.Optional)()),
+    __param(11, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         attachments_service_1.AttachmentsService,
@@ -647,7 +657,8 @@ exports.TasksService = TasksService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        notify_hub_service_1.NotifyHub])
+        notify_hub_service_1.NotifyHub,
+        typeorm_2.Repository])
 ], TasksService);
 function cleanIds(v) {
     return [...new Set((0, task_types_1.normalizeList)(v).map((x) => String(x ?? '').trim()).filter(Boolean))];

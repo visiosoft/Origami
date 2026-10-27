@@ -5,6 +5,7 @@ export declare class CreateProjectDto {
     location?: string;
     typeOfWork?: string;
     contractType?: string;
+    code?: string;
     contractAmt?: string;
     pricing?: string;
     labor?: string;

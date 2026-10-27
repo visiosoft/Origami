@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTaskNumber } from '../data/taskNumbers';
 import { createdByText } from '../data/projectTasks';
 import { logStatusTone } from '../data/logStatuses';
 import { useSearchParams } from 'react-router-dom';
@@ -28,6 +29,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const { can, users } = useApp();
   const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
   const [query, setQuery] = useState('');
+  const numberOf = useTaskNumber();
   const canManage = can('tasks', 'manage');
   const [tab, setTab] = useState<TaskTab>('internal');
   const [pf, setPf] = useState('All projects');
@@ -129,7 +131,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const archivedCount = logTasks.filter((x) => x.archivedAt).length;
   TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(liveLog.filter((x) => (x as any).tab === t))).length; });
   const inTab = byProject(liveLog.filter((x) => (x as any).tab === tab));
-  const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: [t.serial, t.subject, t.description].filter(Boolean).join(' ') }, query));
+  const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: [numberOf(t), t.subject, t.description].filter(Boolean).join(' ') }, query));
   const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
   const { sorted, sort, setSort, toggle } = useSort(tasks, {
     id: (t) => t.id, type: (t) => t.topicType, subject: (t) => logTaskTitle(t), status: (t) => t.status, who: (t) => t.assignedTo, date: (t) => t.meetingDate, due: (t) => t.dueDate,
@@ -233,7 +235,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
             const desc = logTaskTitle(t);
             return (
               <div key={t.id} onClick={() => setSelectedId(t.id)} style={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', gap: 10, minWidth: 760 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{t.serial || t.id}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{numberOf(t) || t.id}</span>
                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: tc.bg, color: tc.c, textAlign: 'center' }}>{t.topicType}</span>
                 <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 13, fontWeight: 500, overflowWrap: 'anywhere' }}>{desc}</span>

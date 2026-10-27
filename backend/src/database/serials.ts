@@ -42,3 +42,48 @@ export function backfillSerials<R extends { id: string; serial?: string | null }
   }
   return out;
 }
+
+// ------------------------------------------------------------------ ids and project codes (Oct 27 backlog)
+
+/** A board task's id: unique even when two are made in the same millisecond (the old 'T-' + Date.now() could collide). */
+export function newTaskId(): string {
+  return `T-${Date.now().toString(36)}${Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, '0')}`;
+}
+
+/** "Narvaes Residence (91-1062 Kuhina St)" -> "NARV"; numbers kept, so "1311 Countryside" -> "1311". */
+export function baseProjectCode(name: string): string {
+  const words = String(name || '').replace(/\(.*?\)/g, ' ').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+  const first = words.find((w) => !['THE', 'A', 'AN'].includes(w)) || words[0] || 'PRJ';
+  return first.slice(0, 4).padEnd(3, 'X');
+}
+
+/** A clean, typed code (2-8 letters or digits), or '' when it can't be one. */
+export const cleanProjectCode = (v: unknown) => {
+  const c = String(v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return c.length >= 2 ? c.slice(0, 8) : '';
+};
+
+/**
+ * Every project's code: the one set on it, else made from its name; a clash
+ * gets a number (NARV, NARV2), oldest project first so codes don't shift.
+ */
+export function projectCodes(projects: { id: number; name: string; code?: string | null }[]): Map<number, string> {
+  const out = new Map<number, string>();
+  const used = new Set<string>();
+  const sorted = [...projects].sort((a, b) => a.id - b.id);
+  for (const p of sorted) { const c = cleanProjectCode(p.code); if (c) { out.set(p.id, c); used.add(c); } }
+  for (const p of sorted) {
+    if (out.has(p.id)) continue;
+    const base = baseProjectCode(p.name);
+    let c = base;
+    for (let n = 2; used.has(c); n++) c = `${base}${n}`;
+    out.set(p.id, c);
+    used.add(c);
+  }
+  return out;
+}
+
+/** Tasks on no project. */
+export const GENERAL_CODE = 'GEN';
+/** "NARV-T-2026-0007" */
+export const taskNumber = (serial: string | null | undefined, code: string | null | undefined) => (serial ? `${code || GENERAL_CODE}-${serial}` : '');

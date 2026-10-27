@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
 import { CollaboratorPicker } from './CollaboratorPicker';
 import { api } from '../api';
@@ -60,6 +61,7 @@ export function PhaseTaskPanel({
   const [draft, setDraft] = useState<any>(task);
   // Which of priority / due date was filled in automatically from the other.
   const autoPD = useRef<'priority' | 'due' | null>(null);
+  const numberOf = useTaskNumber();
 
   // Another task opened in the panel starts fresh; replies for this one merge in.
   useEffect(() => { setDraft(task); autoPD.current = null; }, [task.id]);
@@ -131,7 +133,7 @@ export function PhaseTaskPanel({
           <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
-            <div style={{ marginBottom: 6 }}><OriginatorLine label="Assigner" by={task.createdByName || createdByOf(task)?.by} at={createdByOf(task)?.at || task.createdAt} number={task.serial || null} /></div>
+            <div style={{ marginBottom: 6 }}><OriginatorLine label="Assigner" by={task.createdByName || createdByOf(task)?.by} at={createdByOf(task)?.at || task.createdAt} number={numberOf(task) || null} /></div>
             {parentTask && (
               <div style={{ fontSize: 11.5, color: 'var(--c-9aa39d)', marginBottom: 4 }}>Subtask of <span style={{ color: 'var(--body)', fontWeight: 600 }}>{parentTask.title}</span></div>
             )}

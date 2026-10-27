@@ -29,7 +29,7 @@ let ProjectTasksModule = class ProjectTasksModule {
 exports.ProjectTasksModule = ProjectTasksModule;
 exports.ProjectTasksModule = ProjectTasksModule = __decorate([
     (0, common_1.Module)({
-        imports: [settings_module_1.SettingsModule, notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.ProjectPhaseEntity, entities_1.ProjectEntity, entities_1.UserEntity, entities_1.ChecklistTemplateEntity, entities_1.LeadEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
+        imports: [settings_module_1.SettingsModule, notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.ProjectPhaseEntity, entities_1.ProjectEntity, entities_1.UserEntity, entities_1.ChecklistTemplateEntity, entities_1.LeadEntity, entities_1.TaskEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
         controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController, phases_controller_1.PhasesController, project_hold_controller_1.ProjectHoldController, checklist_templates_controller_1.ChecklistTemplatesController],
         providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService, phases_service_1.PhasesService, project_hold_service_1.ProjectHoldService, checklist_templates_service_1.ChecklistTemplatesService],
         exports: [project_hold_service_1.ProjectHoldService, project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService],
