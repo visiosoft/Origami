@@ -18,6 +18,7 @@ const calendar_service_1 = require("../google/calendar.service");
 const settings_service_1 = require("../settings/settings.service");
 const auth_service_1 = require("../auth/auth.service");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const site_visit_team_1 = require("./site-visit-team");
 let SchedulingController = class SchedulingController {
     constructor(calendar, settings, auth) {
         this.calendar = calendar;
@@ -41,6 +42,14 @@ let SchedulingController = class SchedulingController {
             .filter((c) => c?.email?.trim())
             .map((c) => ({ name: String(c.name || '').trim(), email: String(c.email).trim() }));
         await this.settings.set('scheduling.calendars', JSON.stringify(clean));
+        return clean;
+    }
+    async siteVisitTeam() {
+        return (0, site_visit_team_1.parseTeam)(await this.settings.get(site_visit_team_1.SITE_VISIT_TEAM_KEY));
+    }
+    async setSiteVisitTeam(body) {
+        const clean = (0, site_visit_team_1.cleanTeam)(body);
+        await this.settings.set(site_visit_team_1.SITE_VISIT_TEAM_KEY, JSON.stringify(clean));
         return clean;
     }
     async availability(from, to, emails) {
@@ -75,6 +84,19 @@ __decorate([
     __metadata("design:paramtypes", [Array]),
     __metadata("design:returntype", Promise)
 ], SchedulingController.prototype, "setCalendars", null);
+__decorate([
+    (0, common_1.Get)('site-visit-team'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], SchedulingController.prototype, "siteVisitTeam", null);
+__decorate([
+    (0, common_1.Post)('site-visit-team'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", Promise)
+], SchedulingController.prototype, "setSiteVisitTeam", null);
 __decorate([
     (0, common_1.Get)('availability'),
     __param(0, (0, common_1.Query)('from')),

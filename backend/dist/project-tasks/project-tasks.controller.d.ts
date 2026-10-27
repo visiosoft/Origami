@@ -1,6 +1,6 @@
 import type { Response } from 'express';
 import { ProjectTasksService } from './project-tasks.service';
-import { CreateProjectTaskDto, ReorderDto } from './dto/create-project-task.dto';
+import { CreateProjectTaskDto, ReorderDto, UpdateProjectTaskDto } from './dto/create-project-task.dto';
 import { AddCommentDto, AddLinkDto } from '../tasks/dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
@@ -24,7 +24,7 @@ export declare class ProjectTasksController {
         ordered: number;
     }>;
     create(dto: CreateProjectTaskDto, auth?: string): Promise<import("../database/entities").ProjectTaskEntity>;
-    update(id: string, dto: Partial<CreateProjectTaskDto>, auth?: string, claims?: SessionClaims | null): Promise<import("../database/entities").ProjectTaskEntity>;
+    update(id: string, dto: UpdateProjectTaskDto, auth?: string, claims?: SessionClaims | null): Promise<import("../database/entities").ProjectTaskEntity>;
     notify(id: string, claims?: SessionClaims | null): Promise<{
         sent: number;
     }>;

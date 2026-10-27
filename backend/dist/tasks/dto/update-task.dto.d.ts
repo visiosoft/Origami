@@ -1,3 +1,4 @@
+import type { Collaborator } from '../../database/task.types';
 export declare class UpdateTaskDto {
     tab?: string;
     meetingType?: string;
@@ -24,6 +25,7 @@ export declare class UpdateTaskDto {
     linkedFile?: string;
     project?: string;
     labels?: string[];
+    collaborators?: Collaborator[];
     checklist?: {
         id: string;
         item: string;

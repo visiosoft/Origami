@@ -9,8 +9,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReorderDto = exports.CreateProjectTaskDto = void 0;
+exports.ReorderDto = exports.UpdateProjectTaskDto = exports.CreateProjectTaskDto = void 0;
 const class_validator_1 = require("class-validator");
+const mapped_types_1 = require("@nestjs/mapped-types");
 class CreateProjectTaskDto {
 }
 exports.CreateProjectTaskDto = CreateProjectTaskDto;
@@ -122,6 +123,11 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
+], CreateProjectTaskDto.prototype, "collaborators", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
 ], CreateProjectTaskDto.prototype, "checklist", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
@@ -173,6 +179,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateProjectTaskDto.prototype, "dependsOn", void 0);
+class UpdateProjectTaskDto extends (0, mapped_types_1.PartialType)(CreateProjectTaskDto) {
+}
+exports.UpdateProjectTaskDto = UpdateProjectTaskDto;
 class ReorderDto {
 }
 exports.ReorderDto = ReorderDto;

@@ -151,7 +151,7 @@ __decorate([
     __param(2, (0, common_1.Headers)('authorization')),
     __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, String, Object]),
+    __metadata("design:paramtypes", [String, create_project_task_dto_1.UpdateProjectTaskDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "update", null);
 __decorate([

@@ -1,3 +1,4 @@
+import { type Guest } from '../scheduling/site-visit-team';
 import { GoogleService } from './google.service';
 export interface MyCalendarEvent {
     id: string;
@@ -23,7 +24,7 @@ export interface ScheduleEventInput {
     start: string;
     end: string;
     location?: string;
-    attendees?: string[];
+    attendees?: Guest[];
     video?: boolean;
 }
 export declare class CalendarService {

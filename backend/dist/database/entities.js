@@ -1325,6 +1325,10 @@ __decorate([
     __metadata("design:type", String)
 ], LeadEntity.prototype, "meetingEventId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "siteVisitEventId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'int', nullable: true }),
     __metadata("design:type", Number)
 ], LeadEntity.prototype, "fitScore", void 0);

@@ -383,6 +383,7 @@ export declare class LeadEntity {
     meetingType: string;
     meetingAgenda: string;
     meetingEventId: string;
+    siteVisitEventId: string;
     fitScore: number;
     fitSelections: Record<string, string>;
     zoningImages: string;

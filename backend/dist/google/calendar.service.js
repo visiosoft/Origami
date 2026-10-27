@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CalendarService = void 0;
 const common_1 = require("@nestjs/common");
+const site_visit_team_1 = require("../scheduling/site-visit-team");
 const google_service_1 = require("./google.service");
 const FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
 const EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
@@ -71,7 +72,7 @@ let CalendarService = class CalendarService {
         if (input.location)
             body.location = input.location;
         if (input.attendees?.length)
-            body.attendees = input.attendees.map((email) => ({ email }));
+            body.attendees = (0, site_visit_team_1.guestList)(input.attendees);
         if (input.video) {
             body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
         }
@@ -137,7 +138,7 @@ let CalendarService = class CalendarService {
         if (input.location)
             body.location = input.location;
         if (input.attendees?.length)
-            body.attendees = input.attendees.map((email) => ({ email }));
+            body.attendees = (0, site_visit_team_1.guestList)(input.attendees);
         if (input.video) {
             body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
         }

@@ -35,11 +35,22 @@ jobs:
           npm run build --if-present
           npm run test --if-present
 
+      # Only what the server runs: drop the build/test tools (jest, typescript,
+      # the Nest CLI...) from backend/node_modules -- about half its files.
+      - name: Keep production packages only
+        run: npm --prefix backend prune --omit=dev --legacy-peer-deps
+
+      # The server runs backend/dist with backend/client (the built SPA, copied
+      # there by scripts/copy-client.mjs) and backend/node_modules. The
+      # frontend's own node_modules is never used at runtime. A smaller package
+      # makes the Azure deploy quicker, so it's less likely to be cut off midway.
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: |
+            .
+            !frontend/node_modules
 
   deploy:
     runs-on: ubuntu-latest

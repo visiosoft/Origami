@@ -1,3 +1,4 @@
+import type { Collaborator } from '../../database/task.types';
 export declare class CreateTaskDto {
     id?: string;
     tab?: string;
@@ -21,7 +22,10 @@ export declare class CreateTaskDto {
     dueTime?: string;
     linkedFile?: string;
     project?: string;
+    resolution?: string;
+    dateClosed?: string;
     labels?: string[];
+    collaborators?: Collaborator[];
     checklist?: {
         id: string;
         item: string;
