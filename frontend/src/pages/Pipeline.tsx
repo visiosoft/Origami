@@ -76,6 +76,8 @@ const DOT = '·';
  */
 interface AdditionalContact {
   id: string; firstName: string; lastName: string; goByName: string; pronouns: string;
+  /** Their relationship to the lead: Spouse, Partner, Business Partner, ... (Oct 27: spouse and partner kept apart). */
+  relationship?: string;
   namePronunciation: string; phone: string; email: string; preferredContactMethod: string;
   /** Same Primary/Secondary/No matrix as the primary contact; preferredContactMethod is derived from it. */
   preferredContactMatrix?: Record<string, string>;
@@ -1584,7 +1586,7 @@ export function Pipeline() {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                       {([
                                         ['First Name', 'firstName', 'text'], ['Last Name', 'lastName', 'text'],
-                                        ['Go-By Name', 'goByName', 'text'], ['Pronouns', 'pronouns', 'select'],
+                                        ['Go-By Name', 'goByName', 'text'], ['Pronouns', 'pronouns', 'select'], ['Relationship to the lead', 'relationship', 'select'],
                                         ['Name Pronunciation', 'namePronunciation', 'text'], ['Phone Number', 'phone', 'tel'],
                                         ['Email', 'email', 'email'],
                                       ] as [string, keyof AdditionalContact, string][]).map(([label, key, kind]) => (
@@ -1597,7 +1599,7 @@ export function Pipeline() {
                                               style={inputStyle}
                                             >
                                               <option value="">Select…</option>
-                                              {(key === 'pronouns' ? OPT.pronouns : OPT.preferredContactMethod).map((o) => <option key={o}>{o}</option>)}
+                                              {(key === 'pronouns' ? OPT.pronouns : key === 'relationship' ? OPT.relationshipOfSecondContact : OPT.preferredContactMethod).map((o) => <option key={o}>{o}</option>)}
                                             </select>
                                           ) : (
                                             <input
@@ -2306,6 +2308,7 @@ export function Pipeline() {
                         <FormField label="Last Name"><input value={c.lastName} onChange={(e) => updateContact(c.id, { lastName: e.target.value })} placeholder="Last name" style={inputStyle} /></FormField>
                         <FormField label="Go-By Name"><input value={c.goByName} onChange={(e) => updateContact(c.id, { goByName: e.target.value })} placeholder="e.g. Kate for Katherine" style={inputStyle} /></FormField>
                         <FormField label="Pronouns"><select value={c.pronouns} onChange={(e) => updateContact(c.id, { pronouns: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.pronouns.map((o) => <option key={o}>{o}</option>)}</select></FormField>
+                        <FormField label="Relationship to the lead"><select value={c.relationship || ''} onChange={(e) => updateContact(c.id, { relationship: e.target.value })} style={inputStyle}><option value="">Select...</option>{OPT.relationshipOfSecondContact.map((o) => <option key={o}>{o}</option>)}</select></FormField>
                         <FormField label="Name Pronunciation"><input value={c.namePronunciation} onChange={(e) => updateContact(c.id, { namePronunciation: e.target.value })} placeholder="e.g. Mah-REE-ah" style={inputStyle} /></FormField>
                         <FormField label="Phone Number"><input type="tel" value={c.phone} onChange={(e) => updateContact(c.id, { phone: e.target.value })} placeholder="(555) 123-4567" style={inputStyle} /></FormField>
                         <FormField label="Email"><input type="email" value={c.email} onChange={(e) => updateContact(c.id, { email: e.target.value })} placeholder="email@example.com" style={inputStyle} /></FormField>

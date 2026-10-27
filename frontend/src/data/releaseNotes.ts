@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27k',
+    date: '2026-10-27',
+    title: 'Lead contacts: spouse and partner kept apart',
+    items: [
+      { area: 'CRM', kind: 'improved', text: 'Every extra contact on a lead has “Relationship to the lead” — Spouse, Partner, Business Partner, Family Member and more — separate from their job title. Older contacts with “Spouse” typed as their title show it as the relationship.', where: 'CRM & Leads → a lead → contacts' },
+    ],
+  },
+  {
     id: '2026-10-27j',
     date: '2026-10-27',
     title: 'Contracts signed in ODIN',

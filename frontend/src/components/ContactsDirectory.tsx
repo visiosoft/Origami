@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LEAD_DROPDOWN_OPTIONS as OPT } from '../data/leads';
 import { saveLeadWithAudit } from '../data/leadAudit';
 import {
-  CONTACT_ROLES, blankContact, contactName, holdersOf, missingRoles, roleLabel,
+  CONTACT_ROLES, blankContact, contactName, holdersOf, missingRoles, relationshipOf, roleLabel,
   toggleRole, type LeadContact,
 } from '../data/leadContacts';
 
@@ -119,7 +119,7 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{contactName(c)}</div>
                   <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2 }}>
-                    {[c.title, c.company].filter(Boolean).join(' · ') || 'No title or company'}
+                    {[relationshipOf(c, OPT.relationshipOfSecondContact), OPT.relationshipOfSecondContact.includes(c.title.trim()) ? '' : c.title, c.company].filter(Boolean).join(' · ') || 'No title or company'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '46%' }}>
@@ -143,7 +143,16 @@ export function ContactsDirectory({ leadId, contacts, onChange, leadName, phone,
                         {OPT.pronouns.map((o) => <option key={o}>{o}</option>)}
                       </select>
                     </div>
-                    {field(c, 'title', 'Title / Relationship', 'e.g. Owner’s Rep')}
+                    <div>
+                      <label style={label}>Relationship to the lead</label>
+                      <select value={relationshipOf(c, OPT.relationshipOfSecondContact)}
+                        // A relationship used to be typed into the title; moving it here clears that copy.
+                        onChange={(e) => update(c.id, { relationship: e.target.value, ...(OPT.relationshipOfSecondContact.includes(c.title.trim()) ? { title: '' } : {}) })} style={{ ...input, marginTop: 3 }}>
+                        <option value="">Select…</option>
+                        {OPT.relationshipOfSecondContact.map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                    {field(c, 'title', 'Title / Role', 'e.g. Owner’s Rep')}
                     {field(c, 'company', 'Company', 'Company')}
                     {field(c, 'phone', 'Phone', '(555) 123-4567')}
                     {field(c, 'email', 'Email', 'email@example.com')}
