@@ -6,6 +6,7 @@ export declare class ImportPeopleDto {
     rows: Record<string, unknown>[];
     dryRun?: boolean;
     update?: boolean;
+    defaultKind?: string;
 }
 export declare class PeopleImportController {
     private readonly people;

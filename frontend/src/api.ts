@@ -368,7 +368,7 @@ export const api = {
     /** Bulk import (People -> Import): the template's columns, Excel -> CSV, and preview / apply. */
     importColumns: () => request('/people/import/columns'),
     importConvert: (file: File) => { const f = new FormData(); f.append('file', file, file.name); return requestForm('/people/import/convert', f); },
-    importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update }) }),
+    importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean, defaultKind?: string) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update, ...(defaultKind ? { defaultKind } : {}) }) }),
   },
   meetings: {
     list: () => request<import('./data/meetings').Meeting[]>('/meetings'),

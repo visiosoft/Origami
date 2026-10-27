@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27i',
+    date: '2026-10-27',
+    title: 'Contacts: import from a phone, Gmail or Outlook',
+    items: [
+      { area: 'People', kind: 'new', text: 'Import contacts exported from a phone (.vcf vCard), Google Contacts / Gmail or Outlook (CSV or vCard). Pick what kind of contacts they are; for firms, the person becomes the primary contact.', where: 'People → Import' },
+      { area: 'People', kind: 'improved', text: 'Imports skip anyone who looks like a contact already here — same name, email or phone, expired contacts included — and say who they matched.' },
+    ],
+  },
+  {
     id: '2026-10-27h',
     date: '2026-10-27',
     title: 'Contacts: Activity, point of contact and alerts',

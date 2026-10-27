@@ -1,4 +1,5 @@
 import type { PersonEntity } from '../database/entities';
+import { findDuplicates, type DupRow } from './contact-duplicates';
 
 /**
  * The spreadsheet columns for importing People (F8) -- also the template the
@@ -54,7 +55,13 @@ export function isoDate(v: string): string {
 export function mapHeaders(row: Record<string, unknown>): Record<string, string> {
   const byNorm = new Map(IMPORT_COLUMNS.map((c) => [norm(c.header), c.key]));
   // a few common alternative headings
-  for (const [alt, key] of [['fullname', 'name'], ['companyname', 'name'], ['type', 'kind'], ['category', 'kind'], ['mobile', 'phone'], ['phonenumber', 'phone'], ['emailaddress', 'email'], ['trade', 'role'], ['title', 'role'], ['address', 'street'], ['zipcode', 'zip'], ['postalcode', 'zip'], ['contact', 'contact'], ['contactperson', 'contact']] as [string, string][]) {
+  for (const [alt, key] of [['fullname', 'name'], ['companyname', 'name'], ['type', 'kind'], ['category', 'kind'], ['mobile', 'phone'], ['phonenumber', 'phone'], ['emailaddress', 'email'], ['trade', 'role'], ['title', 'role'], ['address', 'street'], ['zipcode', 'zip'], ['postalcode', 'zip'], ['contact', 'contact'], ['contactperson', 'contact'],
+    // Google Contacts CSV export
+    ['givenname', 'firstName'], ['familyname', 'lastName'], ['organizationname', 'company'], ['organization1name', 'company'], ['organizationtitle', 'role'], ['organization1title', 'role'],
+    ['email1value', 'email'], ['phone1value', 'phone'], ['address1street', 'street'], ['address1city', 'city'], ['address1region', 'state'], ['address1postalcode', 'zip'],
+    // Outlook CSV export
+    ['mobilephone', 'phone'], ['businessphone', 'phone'], ['primaryphone', 'phone'], ['email1address', 'email'], ['jobtitle', 'role'], ['businessstreet', 'street'], ['businesscity', 'city'], ['businessstate', 'state'], ['businesspostalcode', 'zip'],
+  ] as [string, string][]) {
     if (!byNorm.has(alt)) byNorm.set(alt, key);
   }
   const out: Record<string, string> = {};
@@ -77,17 +84,23 @@ export interface ImportPlanRow {
  * there (same email, or same kind and name when there's no email), skipped,
  * or unusable. Unknown project names are dropped with a note.
  */
-export function planImport(rows: Record<string, unknown>[], existing: Pick<PersonEntity, 'id' | 'name' | 'kind' | 'email'>[], projectNames: string[], opts: { update: boolean }): ImportPlanRow[] {
+export function planImport(rows: Record<string, unknown>[], existing: (Pick<PersonEntity, 'id' | 'name' | 'kind' | 'email'> & Partial<DupRow>)[], projectNames: string[], opts: { update: boolean; defaultKind?: string }): ImportPlanRow[] {
   const projectByNorm = new Map(projectNames.map((n) => [n.trim().toLowerCase(), n]));
   const seenEmail = new Set<string>();
   const seenName = new Set<string>();
   return rows.map((raw, i) => {
     const r = mapHeaders(raw);
     const issues: string[] = [];
-    const kind = KIND_ALIASES[(r.kind || '').toLowerCase()] || '';
+    // Phone and email exports don't say who's a client or a sub: the import page picks one for them.
+    const kind = KIND_ALIASES[(r.kind || opts.defaultKind || '').toLowerCase()] || '';
     const first = r.firstName || '';
     const last = r.lastName || '';
-    const name = r.name || [first, last].filter(Boolean).join(' ');
+    let name = r.name || [first, last].filter(Boolean).join(' ');
+    // A phone / email export is a person; for a firm kind it becomes the firm, with them as the primary contact.
+    if (!r.kind && COMPANY_KINDS.includes(kind) && r.company && name && name.toLowerCase() !== r.company.toLowerCase()) {
+      if (!r.contact) r.contact = name;
+      name = r.company;
+    }
     const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email || '') ? r.email!.toLowerCase() : '';
     const base = { row: i + 2, name, kind, email };
     if (!Object.values(r).some(Boolean)) return { ...base, action: 'skip', issues: ['Empty row'] };
@@ -134,6 +147,12 @@ export function planImport(rows: Record<string, unknown>[], existing: Pick<Perso
 
     const match = existing.find((p) => email && String(p.email || '').trim().toLowerCase() === email)
       || (!email ? existing.find((p) => p.kind === kind && String(p.name || '').trim().toLowerCase() === name.toLowerCase()) : undefined);
+    // Someone who looks like a contact already here (same name, email or phone, Expired ones too) isn't added twice.
+    const alike = !match ? findDuplicates({ name, firstName: first, lastName: last, email, phone: r.phone }, existing as DupRow[])[0] : undefined;
+    if (alike) {
+      const st = alike.contactStatus === 'expired' ? ', expired' : alike.contactStatus === 'review' ? ', in review' : '';
+      return { ...base, action: 'skip', matchId: alike.id, issues: [...issues, `Looks like “${alike.name}”${st} — same ${alike.matchedOn.join(' and ')}. Add them by hand if they're someone else`] };
+    }
     if (match) {
       if (!opts.update) return { ...base, action: 'skip', matchId: match.id, issues: [...issues, `Already in People as “${match.name}” — tick “Update existing” to overwrite`] };
       return { ...base, action: 'update', matchId: match.id, issues, person };

@@ -1,4 +1,5 @@
 import type { PersonEntity } from '../database/entities';
+import { type DupRow } from './contact-duplicates';
 export declare const IMPORT_COLUMNS: {
     key: string;
     header: string;
@@ -16,6 +17,7 @@ export interface ImportPlanRow {
     issues: string[];
     person?: Record<string, unknown>;
 }
-export declare function planImport(rows: Record<string, unknown>[], existing: Pick<PersonEntity, 'id' | 'name' | 'kind' | 'email'>[], projectNames: string[], opts: {
+export declare function planImport(rows: Record<string, unknown>[], existing: (Pick<PersonEntity, 'id' | 'name' | 'kind' | 'email'> & Partial<DupRow>)[], projectNames: string[], opts: {
     update: boolean;
+    defaultKind?: string;
 }): ImportPlanRow[];

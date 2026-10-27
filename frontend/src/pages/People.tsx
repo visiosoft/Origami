@@ -624,7 +624,7 @@ export function People() {
       {/* Count + New */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>Showing {shown.length} of {all.length} records{pf === 'All projects' ? '' : ' on ' + pf}</div>
-        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import from spreadsheet</div>}
+        {canManage && <div onClick={() => setImporting(true)} style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--surface)' }}>Import contacts</div>}
         {importing && <PeopleImport onClose={() => setImporting(false)} onDone={() => reload()} />}
         {canManage && (
           <div onClick={openNew} style={{ marginLeft: canManage ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(var(--rgb-forest), 0.22)' }}>

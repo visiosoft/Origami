@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { IsArray, IsBoolean, IsOptional } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString } from 'class-validator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tiers } from '../auth/guards/roles.decorator';
@@ -13,6 +13,8 @@ export class ImportPeopleDto {
   @IsArray() rows: Record<string, unknown>[];
   @IsBoolean() @IsOptional() dryRun?: boolean;
   @IsBoolean() @IsOptional() update?: boolean;
+  /** Kind for rows that don't say (phone / Google / Outlook contact exports). */
+  @IsString() @IsOptional() defaultKind?: string;
 }
 
 /**
@@ -54,7 +56,7 @@ export class PeopleImportController {
   async import(@Body() dto: ImportPeopleDto) {
     const rows = (dto.rows || []).slice(0, 2000);
     const [existing, projects] = await Promise.all([this.repo.find(), this.projects.find()]);
-    const plan = planImport(rows, existing, projects.map((p) => p.name), { update: !!dto.update });
+    const plan = planImport(rows, existing, projects.map((p) => p.name), { update: !!dto.update, defaultKind: dto.defaultKind });
     const summary = () => ({
       create: plan.filter((p) => p.action === 'create').length, update: plan.filter((p) => p.action === 'update').length,
       skip: plan.filter((p) => p.action === 'skip').length, error: plan.filter((p) => p.action === 'error').length,

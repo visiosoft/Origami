@@ -40,6 +40,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], ImportPeopleDto.prototype, "update", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], ImportPeopleDto.prototype, "defaultKind", void 0);
 let PeopleImportController = class PeopleImportController {
     constructor(people, google, repo, projects) {
         this.people = people;
@@ -65,7 +70,7 @@ let PeopleImportController = class PeopleImportController {
     async import(dto) {
         const rows = (dto.rows || []).slice(0, 2000);
         const [existing, projects] = await Promise.all([this.repo.find(), this.projects.find()]);
-        const plan = (0, people_import_1.planImport)(rows, existing, projects.map((p) => p.name), { update: !!dto.update });
+        const plan = (0, people_import_1.planImport)(rows, existing, projects.map((p) => p.name), { update: !!dto.update, defaultKind: dto.defaultKind });
         const summary = () => ({
             create: plan.filter((p) => p.action === 'create').length, update: plan.filter((p) => p.action === 'update').length,
             skip: plan.filter((p) => p.action === 'skip').length, error: plan.filter((p) => p.action === 'error').length,
