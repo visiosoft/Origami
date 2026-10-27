@@ -17,6 +17,8 @@ import { DailyLogBackupSettings } from './DailyLogBackupSettings';
 import { RequestLogStatusSettings } from './RequestLogStatusSettings';
 import { ChecklistTemplateSettings } from './ChecklistTemplateSettings';
 import { mergeTokens } from '../data/clientPersonality';
+import { hasUnfilled, KNOWN_TOKENS, unknownTokens } from '../data/placeholders';
+import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
 import { RichTextEditor } from '../components/RichTextEditor';
 import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
@@ -181,7 +183,7 @@ export function ScoringTemplateEditor() {
     setSaving(true);
     api.scoring.saveTemplate(criteria)
       .then((res) => { if (Array.isArray(res)) setCriteria(res as ScoringCriterion[]); toast('Scoring template saved'); })
-      .catch(() => toast('⚠ Failed to save template'))
+      .catch((e: Error) => toast('⚠ ' + (e?.message || 'Failed to save template')))
       .finally(() => setSaving(false));
   };
 
@@ -290,12 +292,14 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
 
   const save = () => {
     if (!draft || !draft.name.trim() || !draft.body.trim()) { toast('Name and body are required'); return; }
+    const bad = unknownTokens(draft.subject, draft.body);
+    if (bad.length) { toast(bad[0]); return; }
     setSaving(true);
     const req = isNew
       ? api.emailTemplates.create({ name: draft.name, subject: draft.subject, body: draft.body, kind: draft.kind || 'email', category: draft.category })
       : api.emailTemplates.update(draft.id, { name: draft.name, subject: draft.subject, body: draft.body, kind: draft.kind, category: draft.category });
     req.then((res: any) => { toast('Template saved'); setIsNew(false); reload(res?.id || draft.id); })
-      .catch(() => toast('⚠ Failed to save template'))
+      .catch((e: Error) => toast('⚠ ' + (e?.message || 'Failed to save template')))
       .finally(() => setSaving(false));
   };
 
@@ -384,6 +388,15 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
                   One segment is 160 characters, or 70 if any character is outside the GSM set. Longer messages are sent as several segments and billed as several.
                 </div>
               )}
+              {(() => {
+                const bad = unknownTokens(draft.subject, draft.body);
+                return (
+                  <div style={{ fontSize: 11, marginTop: 6, lineHeight: 1.5, color: 'var(--muted)' }}>
+                    {bad.map((b) => <div key={b} role="alert" style={{ color: '#8E2E0A', fontWeight: 600 }}>{b}</div>)}
+                    Merge fields: {KNOWN_TOKENS.map((k) => `{{${k}}}`).join(' ')} — {'{client_name}'} style works too.
+                  </div>
+                );
+              })()}
             </div>
           </div>
           {canManage && (
@@ -423,16 +436,17 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
 
 /** Fills in a template's merge fields and emails it on the letterhead, as a one-off PDF -- no lead/project link required. */
 function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onClose: () => void }) {
-  const { toast } = useApp();
+  const { toast, currentUser } = useApp();
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
   const [clientName, setClientName] = useState('');
+  const [projectTitle, setProjectTitle] = useState('');
   const [subject, setSubject] = useState(template.subject || template.name);
   const [body, setBody] = useState(template.body);
   const [sending, setSending] = useState(false);
 
   const fill = () => {
-    const tokens = { clientName: clientName || 'there', clientEmail: to, date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) };
+    const tokens = { clientName: clientName || 'there', clientEmail: to, projectTitle, senderName: currentUser?.name || '', senderEmail: currentUser?.email || '', date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) };
     setSubject(mergeTokens(template.subject || template.name, tokens));
     setBody(mergeTokens(template.body, tokens));
   };
@@ -440,8 +454,10 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
 
   const isRich = isRichKind(template.kind);
 
+  const blocked = hasUnfilled(subject, body);
   const send = () => {
     if (!to.trim()) { toast('Who should it go to?'); return; }
+    if (blocked) { toast('Fill in the highlighted merge fields first'); return; }
     setSending(true);
     api.google.sendLetter({
       to: to.trim(), cc: cc.trim() || undefined, subject: subject.trim() || template.name,
@@ -473,6 +489,10 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
               <input value={clientName} onChange={(e) => setClientName(e.target.value)} onBlur={fill} placeholder="Fills {{clientName}}" style={inputStyle} />
             </div>
             <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>Project</div>
+              <input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} onBlur={fill} placeholder="Fills {{projectTitle}}" aria-label="Project" style={inputStyle} />
+            </div>
+            <div>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>CC</div>
               <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Optional" style={inputStyle} />
             </div>
@@ -490,12 +510,13 @@ function SendTemplateModal({ template, onClose }: { template: EmailTemplate; onC
             )}
           </div>
         </div>
+        <UnfilledPlaceholders texts={[subject, body]} />
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
           <div onClick={onClose} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)' }}>Cancel</div>
-          <div onClick={sending ? undefined : send} style={{ padding: '10px 18px', borderRadius: 999, fontSize: 13.5, fontWeight: 700, cursor: sending ? 'default' : 'pointer', background: sending ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
+          <button type="button" onClick={send} disabled={sending || blocked} style={{ padding: '10px 18px', borderRadius: 999, border: 0, fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, cursor: sending || blocked ? 'default' : 'pointer', background: sending || blocked ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
             {sending ? 'Sending…' : 'Send'}
-          </div>
+          </button>
         </div>
       </div>
     </div>

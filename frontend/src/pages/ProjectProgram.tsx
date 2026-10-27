@@ -7,6 +7,8 @@ import {
   type PSection, type PField, type ProgramData,
 } from '../data/projectProgram';
 import { PERSONALITY_TEMPLATE, templateKeyForPersonality, mergeTokens } from '../data/clientPersonality';
+import { hasUnfilled } from '../data/placeholders';
+import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -44,7 +46,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   contractApproved?: boolean;
   onToggleTask?: (id: string, done: boolean) => void;
 }) {
-  const { can, toast } = useApp();
+  const { can, toast, currentUser } = useApp();
   const canManage = can('projects', 'manage');
   const [data, setData] = useState<ProgramData>({});
   const [stepIdx, setStepIdx] = useState(0);
@@ -107,7 +109,8 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
       projectTitle: projectName || '',
       projectScope: String(data.title?.['main.projectScope'] || ''),
       date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-      senderName: '',
+      senderName: currentUser?.name || '',
+      senderEmail: currentUser?.email || '',
     }).trim());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templates, tone, clientPersonality]);
@@ -276,6 +279,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   const sendToClient = async () => {
     if (!to.trim()) { toast('⚠ Who should it go to?'); return; }
     if (!includeProgram && !extraFiles.length) { toast('⚠ Include the program or attach at least one file'); return; }
+    if (hasUnfilled(subject, note)) { toast('⚠ Fill in the highlighted merge fields first'); return; }
     setSending(true);
     try {
       const html = note.trim()
@@ -628,6 +632,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
                 </div>
               </div>
             </div>
+            <UnfilledPlaceholders texts={[subject, note]} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <div
                 onClick={sending ? undefined : sendToClient}

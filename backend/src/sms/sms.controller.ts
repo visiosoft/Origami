@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { SmsService } from './sms.service';
 import { Roles, Tiers } from '../auth/guards/roles.decorator';
+import { assertFilled } from '../email-templates/placeholders';
 
 @Tiers('internal')
 @Controller('sms')
@@ -15,6 +16,7 @@ export class SmsController {
 
   @Post('send')
   send(@Body() body: { to: string; body: string }) {
+    assertFilled(body?.body);
     return this.sms.send({ to: body?.to, body: body?.body });
   }
 

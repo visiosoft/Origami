@@ -7,6 +7,7 @@ import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, safeFilename } from '../documents/letterhead';
 import { buildProgramHtml, type DocStep } from '../documents/program-document';
 import type { AuthedRequest } from '../auth/guards/session.guard';
+import { assertFilled } from '../email-templates/placeholders';
 
 /** Who did it, off the verified session -- never off anything the client claims. */
 const actorFrom = (req: AuthedRequest): ProgramActor => ({ id: req.claims?.sub, name: req.claims?.name });
@@ -110,6 +111,7 @@ export class ProjectProgramController {
     },
     @Req() req: AuthedRequest,
   ) {
+    assertFilled(body?.subject, body?.html);
     const attachments: { filename: string; mimeType: string; content: Buffer }[] = [];
     let filename = '';
     if (body.includeProgram !== false) {

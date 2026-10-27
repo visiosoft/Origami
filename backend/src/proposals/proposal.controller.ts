@@ -7,6 +7,7 @@ import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import type { AuthedRequest } from '../auth/guards/session.guard';
+import { assertFilled } from '../email-templates/placeholders';
 
 @Controller('proposals')
 export class ProposalController {
@@ -59,6 +60,7 @@ export class ProposalController {
     @Req() req: AuthedRequest,
   ) {
     const doc = await this.service.get(body.dealId);
+    assertFilled(doc.subject, doc.html);
     const link = await this.service.signingLink(body.dealId);
     const { pdf, filename } = await this.renderPdf(doc.subject, doc.html, doc.amount, doc.dealName);
     const attachments = [{ filename, mimeType: 'application/pdf', content: pdf }];

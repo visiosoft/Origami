@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27p',
+    date: '2026-10-27',
+    title: 'No more “Hi {client_name}” emails',
+    items: [
+      { area: 'Email', kind: 'fixed', text: 'Emails, letters, proposals and texts can’t be sent while a merge field is still unfilled — the compose box lists what’s missing (e.g. project title) and Send waits until it’s filled.' },
+      { area: 'Email', kind: 'improved', text: 'Merge fields can be written {{clientName}} or {client_name} — both fill in. Your name and email now fill {{senderName}} and {{senderEmail}}, and the template Send window has a Project field.' },
+      { area: 'Templates', kind: 'improved', text: 'Saving a template with a misspelt merge field is refused with a suggestion (“{{client_nme}} isn’t a merge field — did you mean {{clientName}}?”). The editor lists the fields you can use.', where: 'Library → Email, SMS & Documents / Agreements' },
+    ],
+  },
+  {
     id: '2026-10-27o',
     date: '2026-10-27',
     title: 'Site visit invites go out from the app',

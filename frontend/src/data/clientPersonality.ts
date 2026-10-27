@@ -1,3 +1,5 @@
+import { canonical, PLACEHOLDER_RE } from './placeholders';
+
 // The intake asks how a client communicates and decides. That answer chooses
 // which version of a message goes out.
 //
@@ -21,10 +23,13 @@ export function templateKeyForPersonality(personality?: string): string {
   return PERSONALITY_TEMPLATE[String(personality || '').trim()] || 'client_email_neutral';
 }
 
-/** Fill {{token}} merge fields, leaving unknown tokens visible rather than blank. */
+/**
+ * Fill merge fields -- {{clientName}}, {{ clientName }} or {client_name} --
+ * leaving unknown or unfilled ones visible (the send check then names them).
+ */
 export function mergeTokens(text: string, values: Record<string, string>): string {
-  return String(text || '').replace(/\{\{(\w+)\}\}/g, (whole, name) => {
-    const v = values[name];
-    return v === undefined ? whole : v;
+  return String(text || '').replace(PLACEHOLDER_RE, (whole, a?: string, b?: string) => {
+    const v = values[canonical(a || b || '')];
+    return v === undefined || v === '' ? whole : v;
   });
 }

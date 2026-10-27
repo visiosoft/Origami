@@ -3,6 +3,8 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { mergeTokens } from '../data/clientPersonality';
 import { RichTextEditor } from './RichTextEditor';
+import { hasUnfilled } from '../data/placeholders';
+import { UnfilledPlaceholders } from './UnfilledPlaceholders';
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -36,7 +38,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
   /** The saved amount is also the lead's contract amount (card and project) -- tell the board. */
   onAmountSaved?: (value: string) => void;
 }) {
-  const { toast } = useApp();
+  const { toast, currentUser } = useApp();
   const [subject, setSubject] = useState('');
   const [html, setHtml] = useState('');
   const [amount, setAmount] = useState('');
@@ -103,8 +105,10 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
   const tokens = useMemo(() => ({
     clientName: dealName || 'there',
     projectTitle: dealName || '',
+    senderName: currentUser?.name || '',
+    senderEmail: currentUser?.email || '',
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-  }), [dealName]);
+  }), [dealName, currentUser?.name, currentUser?.email]);
 
   const applyTemplate = (id: string) => {
     setTemplateId(id);
@@ -179,6 +183,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
 
   const send = () => {
     if (!to.trim()) { toast('Who should it go to?'); return; }
+    if (hasUnfilled(subject, html)) { toast('⚠ Fill in the highlighted merge fields first'); return; }
     setSending(true);
     Promise.all(files.map(async (f) => ({ filename: f.name, mimeType: f.type || 'application/octet-stream', contentBase64: await fileToBase64(f) })))
       .then((extraAttachments) => api.proposals.save(dealId, { subject, html, amount })
@@ -285,6 +290,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
         </div>
       </div>
 
+      <UnfilledPlaceholders texts={[subject, html]} />
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <div onClick={previewing ? undefined : preview} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: previewing ? 'default' : 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', background: 'var(--surface)' }}>
           {previewing ? 'Rendering…' : '👁 Preview PDF'}

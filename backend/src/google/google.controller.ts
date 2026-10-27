@@ -10,6 +10,7 @@ import { Public } from '../auth/guards/public.decorator';
 import { Roles } from '../auth/guards/roles.decorator';
 import { SESSION_COOKIE, sessionCookieOptions } from '../auth/guards/cookie.util';
 import type { AuthedRequest } from '../auth/guards/session.guard';
+import { assertFilled } from '../email-templates/placeholders';
 
 @Controller('google')
 export class GoogleController {
@@ -176,6 +177,7 @@ export class GoogleController {
   /** Send an email as the connected workspace account (intro letters, etc.). */
   @Post('send')
   send(@Body() body: { to: string; subject: string; html: string; cc?: string; bcc?: string }) {
+    assertFilled(body?.subject, body?.html);
     return this.google.sendMail(body);
   }
 
@@ -206,6 +208,7 @@ export class GoogleController {
     /** A short email note, sent instead of pasting the whole letter into the email body. */
     noteHtml?: string;
   }) {
+    assertFilled(body?.subject, body?.html, body?.noteHtml, body?.docTitle, body?.subtitle);
     const pdf = await this.renderLetter(body);
     const filename = safeFilename(body.filename || body.subject || 'Letter') + '.pdf';
     await this.google.sendMail({

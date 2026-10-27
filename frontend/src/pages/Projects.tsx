@@ -32,6 +32,9 @@ import { askHoldReason } from '../components/CompletionNote';
 import { LABOR_TYPES, PRICING_TYPES } from '../data/projectTypes';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
+import { mergeTokens } from '../data/clientPersonality';
+import { hasUnfilled } from '../data/placeholders';
+import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
 
 const BG = 'var(--font-display)';
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
@@ -54,7 +57,7 @@ const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'locatio
 const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'holdReason'];
 
 export function Projects() {
-  const { can, toast } = useApp();
+  const { can, toast, currentUser } = useApp();
   const navigate = useNavigate();
   const canManage = can('projects', 'manage');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -263,8 +266,10 @@ export function Projects() {
       projectTitle: sel?.name || '',
       projectScope: sel?.scope || introLead?.projectVision || '',
       date: new Date().toLocaleDateString(),
+      senderName: currentUser?.name || '',
+      senderEmail: currentUser?.email || '',
     };
-    return (text || '').replace(/\{\{(\w+)\}\}/g, (m, k) => (k in map ? map[k] : m));
+    return mergeTokens(text, map);
   };
   const applyTemplate = (id: string) => {
     const t = templates.find((x) => x.id === id);
@@ -395,6 +400,7 @@ export function Projects() {
   const sendIntroLetter = () => {
     if (!sel) return;
     if (!emailTo.trim()) { toast('⚠ Add a recipient first'); return; }
+    if (hasUnfilled(emailSubject, emailBody)) { toast('⚠ Fill in the highlighted merge fields first'); return; }
     setSendingLetter(true);
     api.google.sendLetter(letterInput())
       .then(() => { markIntroSent(); toast(`Sent to ${emailTo.trim()} with the letter attached — step complete`); })
@@ -1302,6 +1308,7 @@ export function Projects() {
                       <div>
                         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>Letter (goes into the attached PDF, not the email body)</div>
                         <RichTextEditor value={emailBody} onChange={setEmailBody} minHeight={280} />
+                        <UnfilledPlaceholders texts={[emailSubject, emailBody]} />
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <div onClick={savingDraft ? undefined : saveIntroDraft} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: savingDraft ? 'default' : 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.14)', color: 'var(--forest)' }}>{savingDraft ? 'Saving…' : 'Save draft'}</div>
