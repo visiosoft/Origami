@@ -63,6 +63,23 @@ export class PeopleController {
     Readable.fromWeb(file.body).pipe(res);
   }
 
+  /** Possible duplicates of a contact being added: ?name / firstName / lastName / email / phone, and exclude=<id>. */
+  @Get('duplicates')
+  duplicates(@Query() q: Record<string, string>) {
+    return this.peopleService.duplicates(q);
+  }
+
+  /** "Same person": link two records (both ways), or unlink them. */
+  @Post(':id/same-as/:otherId')
+  link(@Param('id') id: string, @Param('otherId') otherId: string) {
+    return this.peopleService.link(id, otherId);
+  }
+
+  @Delete(':id/same-as/:otherId')
+  unlink(@Param('id') id: string, @Param('otherId') otherId: string) {
+    return this.peopleService.unlink(id, otherId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.peopleService.findOne(id);

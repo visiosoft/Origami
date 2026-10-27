@@ -31,6 +31,8 @@ export interface Person {
   contactStatusAt?: string | null;
   contactStatusReason?: string | null;
   lastActivityAt?: string | null;
+  /** Other records confirmed as the same person (shown read-only under Reference). */
+  sameAsIds?: number[] | null;
 }
 
 export type ContactStatus = 'active' | 'review' | 'expired';
@@ -118,4 +120,10 @@ export function internalLevelOf(p: Pick<Person, 'kind' | 'role' | 'internalLevel
   if (p.kind !== 'Staff') return null;
   const set = (INTERNAL_LEVELS as readonly string[]).includes(p.internalLevel || '') ? p.internalLevel as InternalLevel : null;
   return set || levelFromRole(p.role);
+}
+
+/** A possible duplicate of a contact being added (GET /people/duplicates). */
+export interface DupMatch {
+  id: number; name: string; company?: string | null; kind?: string | null; email?: string | null; phone?: string | null;
+  contactStatus?: string | null; contactStatusReason?: string | null; lastActivityAt?: string | null; matchedOn: ('name' | 'email' | 'phone')[];
 }

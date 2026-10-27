@@ -10,6 +10,8 @@ import { EmailLink, PhoneLink } from '../components/ContactLinks';
 import { SaveBar, useAutosave } from '../autosave';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
+import { DuplicateWarning, SameAsReference } from '../components/ContactDuplicates';
+import { askReason } from '../components/CompletionNote';
 import { api } from '../api';
 import { PersonProfileEditor } from '../components/PersonProfileEditor';
 import { normalizeProfile, personDisplayName, missingFields, type PersonProfile } from '../data/personProfile';
@@ -17,7 +19,7 @@ import { BusinessCardPhotos, BusinessCardScan } from '../components/BusinessCard
 import { fillFromCard } from '../data/businessCard';
 import {
   KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, INTERNAL_LEVELS, initials, internalLevelOf, levelFromRole, type Person, type Comply,
-  CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus,
+  CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus, type DupMatch,
 } from '../data/people';
 
 const BG = 'var(--font-display)';
@@ -235,8 +237,13 @@ export function People() {
   const setContactStatus = async (p: Person, st: ContactStatus) => {
     if (st === contactStatusOf(p)) return;
     let reason = '';
-    if (st !== 'active') {
-      const r = window.prompt(st === 'review' ? `Why should ${p.name} be reviewed? (optional)` : `Why is ${p.name} no longer current? (optional)`, '');
+    if (st === 'expired') {
+      // Expired needs a reason (Oct 27 backlog).
+      const r = await askReason({ label: 'Why is this contact expired', heading: `Why is ${p.name} expired?`, why: 'A reason is needed, so anyone who finds this contact later knows why it is no longer current.', placeholder: 'e.g. Left Lono Builders in 2025; now at Kestrel Electric', button: 'Mark expired' });
+      if (!r) return;
+      reason = r;
+    } else if (st === 'review') {
+      const r = window.prompt(`Why should ${p.name} be reviewed? (optional)`, '');
       if (r === null) return;
       reason = r.trim();
     }
@@ -264,13 +271,35 @@ export function People() {
   const personIdRef = useRef<number | null>(null);
   const personDraft = useMemo(() => personPayload(np, profile), [np, profile]);
   const personNameOk = String(personDraft.name || '').trim().length > 1;
+  // A new contact is checked against everyone already here (same name, email or phone; Expired ones
+  // first) before it's added. "Same person" links the two; "Not a duplicate" adds it as is.
+  const [dup, setDup] = useState<{ matches: DupMatch[]; decision: 'same' | 'not' | null; sameAs: number | null }>({ matches: [], decision: null, sameAs: null });
+  const dupPending = personIdRef.current == null && dup.matches.length > 0 && !dup.decision;
+  const dupKey = [personDraft.name, profile.firstName, profile.lastName, np.email, np.phone].join('|');
+  useEffect(() => {
+    if (!showNew || personIdRef.current != null) return;
+    const q: Record<string, string> = {};
+    if (profile.firstName || profile.lastName) { q.firstName = profile.firstName || ''; q.lastName = profile.lastName || ''; } else if (np.name.trim()) q.name = np.name.trim();
+    if (np.email.trim()) q.email = np.email.trim();
+    if (np.phone.trim()) q.phone = np.phone.trim();
+    if (!Object.values(q).some((v) => v.trim())) { setDup({ matches: [], decision: null, sameAs: null }); return; }
+    const t = setTimeout(() => {
+      api.people.duplicates(q).then((m) => setDup((cur) => {
+        const list = Array.isArray(m) ? m : [];
+        // A decision stands while the same records keep matching.
+        const same = list.length === cur.matches.length && list.every((x, i) => x.id === cur.matches[i]?.id);
+        return same ? { ...cur, matches: list } : { matches: list, decision: null, sameAs: null };
+      })).catch(() => undefined);
+    }, 450);
+    return () => clearTimeout(t);
+  }, [dupKey, showNew]); // eslint-disable-line react-hooks/exhaustive-deps
   const personAuto = useAutosave<Record<string, any>>({
     draft: personDraft, saved: personSaved ?? BLANK_PAYLOAD, resetKey: 'person-' + personSession,
     // New staff go through the employee form (one record), so this form doesn't create them.
-    enabled: showNew && personNameOk && !(np.kind === 'Staff' && personIdRef.current == null), label: 'person',
+    enabled: showNew && personNameOk && !(np.kind === 'Staff' && personIdRef.current == null) && !dupPending, label: 'person',
     save: async (changes, { draft }) => {
       if (personIdRef.current == null) {
-        const created: any = await api.people.create(draft);
+        const created: any = await api.people.create(dup.decision === 'same' && dup.sameAs ? { ...draft, sameAsId: dup.sameAs } : draft);
         personIdRef.current = created?.id ?? null;
         setEditingId(created?.id ?? null);
         reload();
@@ -290,6 +319,7 @@ export function People() {
     personIdRef.current = id;
     setPersonSaved(id != null ? personPayload(form, prof) : null);
     setPersonSession((n) => n + 1);
+    setDup({ matches: [], decision: null, sameAs: null });
     setShowNew(true);
   };
   const openNew = () => startPersonForm(BLANK, normalizeProfile({}), null);
@@ -652,6 +682,11 @@ export function People() {
                 </div>
               ))}
             </div>
+            {!!sel.sameAsIds?.length && (
+              <SameAsReference ids={sel.sameAsIds} people={all} canManage={canManage}
+                onOpen={(id) => setSelectedId(id)}
+                onUnlink={(id) => api.people.unlink(sel.id, id).then(() => { reload(); toast('Unlinked'); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Not saved')))} />
+            )}
             <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Projects ({sel.projects.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -801,6 +836,15 @@ export function People() {
               <div style={{ padding: '12px 14px', background: 'var(--panel)', borderRadius: 10, fontSize: 11, color: 'var(--body)', lineHeight: 1.55 }}>{np.tier === 'Internal' ? 'Internal tier sees every project, every task and all financials.' : np.tier === 'Client' ? 'Client tier sees only the projects selected above — no internal tasks, costs or margins.' : 'Consultant tier sees only the projects selected above, and only the tasks and files shared with them.'}</div>
             </div>
             </div>
+            {editingId == null && dup.matches.length > 0 && (
+              // Beside Save, so it's seen wherever the name was typed.
+              <div style={{ padding: '12px 26px 0', borderTop: '1px solid rgba(var(--rgb-shade), 0.07)', flexShrink: 0, maxHeight: '40vh', overflowY: 'auto', display: 'grid' }}>
+                <DuplicateWarning matches={dup.matches} decision={dup.decision} sameAs={dup.sameAs}
+                  onSame={(id) => setDup({ ...dup, decision: 'same', sameAs: id })}
+                  onNot={() => setDup({ ...dup, decision: 'not', sameAs: null })}
+                  onUndo={() => setDup({ ...dup, decision: null, sameAs: null })} />
+              </div>
+            )}
             <div style={{ padding: '16px 26px 22px', borderTop: '1px solid rgba(var(--rgb-shade), 0.07)', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, background: 'var(--surface)' }}>
               <span style={{ marginRight: 'auto', fontSize: 11, fontWeight: 600, color: !valid ? '#8E2E0A' : missingFields(profile).length ? '#93520F' : 'var(--success)' }}>
                 {!valid
@@ -809,7 +853,7 @@ export function People() {
                     ? `${missingFields(profile).length} required field(s) outstanding`
                     : 'Record complete'}
               </span>
-              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={np.kind === 'Staff' && personIdRef.current == null ? 'Staff are added as employees (button above)' : personNameOk ? undefined : 'Add a name to save'} /></div>
+              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={np.kind === 'Staff' && personIdRef.current == null ? 'Staff are added as employees (button above)' : !personNameOk ? 'Add a name to save' : dupPending ? 'Is it the same person? Choose above' : undefined} /></div>
               <div onClick={closePersonForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>{personAuto.dirty && !personNameOk && editingId == null ? 'Discard' : 'Done'}</div>
 
             </div>

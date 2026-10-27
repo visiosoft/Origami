@@ -1,3 +1,4 @@
+import { type DupRow } from './contact-duplicates';
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
 import { ContractorDirectorySync } from '../manpower/contractor-directory.sync';
 import { Repository } from 'typeorm';
@@ -69,6 +70,7 @@ export declare class PeopleService {
         contactStatusAt: string;
         contactStatusReason: string;
         lastActivityAt: string;
+        sameAsIds: number[] | null;
         firstName: string;
         lastName: string;
         goByName: string;
@@ -108,6 +110,7 @@ export declare class PeopleService {
         contactStatusAt: string;
         contactStatusReason: string;
         lastActivityAt: string;
+        sameAsIds: number[] | null;
         firstName: string;
         lastName: string;
         goByName: string;
@@ -122,6 +125,21 @@ export declare class PeopleService {
     }>;
     cardPhoto(id: string, side: Side): Promise<TaskAttachment>;
     create(dto: any): Promise<PersonEntity>;
+    duplicates(q: {
+        name?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+        exclude?: string;
+    }): Promise<(DupRow & {
+        matchedOn: import("./contact-duplicates").MatchedOn[];
+    })[]>;
+    link(id: string, otherId: string): Promise<{
+        person: PersonEntity;
+        other: PersonEntity;
+    }>;
+    unlink(id: string, otherId: string): Promise<PersonEntity>;
     update(id: string, dto: any): Promise<PersonEntity>;
     remove(id: string): Promise<{
         id: number;

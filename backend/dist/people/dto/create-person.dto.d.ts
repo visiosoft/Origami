@@ -13,6 +13,7 @@ export declare class CreatePersonDto {
     insurance?: Record<string, unknown>;
     notLicensedDesigner?: boolean;
     businessCardToken?: string;
+    sameAsId?: number;
     role?: string;
     company?: string;
     contact?: string;

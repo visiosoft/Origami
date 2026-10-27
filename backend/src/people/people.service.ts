@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { findDuplicates, withLink, withoutLink, type DupRow } from './contact-duplicates';
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
 import { ContractorDirectorySync, isSubCompany } from '../manpower/contractor-directory.sync';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -160,6 +161,8 @@ export class PeopleService {
 
   async create(dto: any) {
     dto = { ...dto };
+    const sameAsId = Number(dto.sameAsId) || null;
+    delete dto.sameAsId;
     await this.applyCardToken(dto);
     const id = Number(dto.id) || (await this.nextId());
     const now = new Date().toISOString();
@@ -169,7 +172,34 @@ export class PeopleService {
     if (saved.kind === 'Staff' && !saved.employeeId && this.staff) await this.staff.employeeForPerson(saved);
     // A sub company is a contractor too -- one record in People and Manpower -> Contractors.
     if (isSubCompany(saved) && this.subs) await this.subs.contractorForPerson(saved);
+    if (sameAsId) return (await this.link(String(saved.id), String(sameAsId))).person;
     return saved;
+  }
+
+  /** People who may be the same as the one being added (same name, email or phone). */
+  async duplicates(q: { name?: string; firstName?: string; lastName?: string; email?: string; phone?: string; exclude?: string }) {
+    const rows = await this.repo.find({ select: { id: true, name: true, firstName: true, lastName: true, email: true, phone: true, company: true, kind: true, contactStatus: true, contactStatusReason: true, lastActivityAt: true } });
+    return findDuplicates(q, rows as DupRow[], q.exclude ? Number(q.exclude) : null).slice(0, 10);
+  }
+
+  /** Mark two records as the same person (both ways). Each keeps its own details. */
+  async link(id: string, otherId: string) {
+    const [a, b] = await Promise.all([this.repo.findOneBy({ id: Number(id) }), this.repo.findOneBy({ id: Number(otherId) })]);
+    if (!a || !b) throw new NotFoundException('Contact not found.');
+    if (a.id === b.id) throw new BadRequestException('A contact can\'t be linked to itself.');
+    a.sameAsIds = withLink(a.sameAsIds, b.id, a.id);
+    b.sameAsIds = withLink(b.sameAsIds, a.id, b.id);
+    await this.repo.save([a, b]);
+    return { person: a, other: b };
+  }
+
+  async unlink(id: string, otherId: string) {
+    const [a, b] = await Promise.all([this.repo.findOneBy({ id: Number(id) }), this.repo.findOneBy({ id: Number(otherId) })]);
+    if (!a) throw new NotFoundException('Contact not found.');
+    a.sameAsIds = withoutLink(a.sameAsIds, Number(otherId));
+    if (b) b.sameAsIds = withoutLink(b.sameAsIds, a.id);
+    await this.repo.save(b ? [a, b] : [a]);
+    return a;
   }
 
   async update(id: string, dto: any) {
@@ -184,6 +214,8 @@ export class PeopleService {
     if ('contactStatus' in patch) {
       const next = String(patch.contactStatus || 'active').toLowerCase();
       if (!(CONTACT_STATUSES as readonly string[]).includes(next)) throw new BadRequestException('Status is Active, Review or Expired.');
+      // Expired needs a reason (Oct 27 backlog): why this contact is no longer current.
+      if (next === 'expired' && next !== person.contactStatus && !String(patch.contactStatusReason || '').trim()) throw new BadRequestException('Say why this contact is expired.');
       if (next !== (person.contactStatus || 'active')) Object.assign(patch, { contactStatus: next, contactStatusAt: now, contactStatusReason: String(patch.contactStatusReason || '').trim().slice(0, 300) || null });
       else delete patch.contactStatusReason;
       if (next === 'active') patch.lastActivityAt = now;

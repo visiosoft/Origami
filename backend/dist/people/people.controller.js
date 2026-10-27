@@ -58,6 +58,15 @@ let PeopleController = class PeopleController {
         res.setHeader('Cache-Control', 'private, max-age=300');
         stream_1.Readable.fromWeb(file.body).pipe(res);
     }
+    duplicates(q) {
+        return this.peopleService.duplicates(q);
+    }
+    link(id, otherId) {
+        return this.peopleService.link(id, otherId);
+    }
+    unlink(id, otherId) {
+        return this.peopleService.unlink(id, otherId);
+    }
     findOne(id) {
         return this.peopleService.findOne(id);
     }
@@ -116,6 +125,29 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], PeopleController.prototype, "cardContent", null);
+__decorate([
+    (0, common_1.Get)('duplicates'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "duplicates", null);
+__decorate([
+    (0, common_1.Post)(':id/same-as/:otherId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('otherId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "link", null);
+__decorate([
+    (0, common_1.Delete)(':id/same-as/:otherId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('otherId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "unlink", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

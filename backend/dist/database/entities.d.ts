@@ -72,6 +72,7 @@ export declare class PersonEntity {
     contactStatusAt: string;
     contactStatusReason: string;
     lastActivityAt: string;
+    sameAsIds: number[] | null;
     firstName: string;
     lastName: string;
     goByName: string;

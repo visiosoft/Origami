@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27f',
+    date: '2026-10-27',
+    title: 'Contacts: duplicate check and a reason for Expired',
+    items: [
+      { area: 'People', kind: 'new', text: 'Adding a contact checks for someone already here with the same name, email or phone — expired contacts first. Choose "Same person" to link the two records (each shows the other under Reference, read-only) or "Not a duplicate" to add it on its own.', where: 'People → Add' },
+      { area: 'People', kind: 'improved', text: 'Marking a contact Expired asks why; the reason is required and shows wherever the status does.' },
+    ],
+  },
+  {
     id: '2026-10-27e',
     date: '2026-10-27',
     title: 'Task filters: All by default, sorting, saved boards',

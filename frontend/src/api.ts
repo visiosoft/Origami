@@ -1,5 +1,6 @@
 import type { ContractorBid } from './data/contractorBids';
 import type { CardScan } from './data/businessCard';
+import type { DupMatch } from './data/people';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
 import type { BillingMonth } from './data/dashboardCharts';
@@ -338,6 +339,11 @@ export const api = {
     create: (data: unknown) => request('/people', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/people/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
+    /** Possible duplicates of a contact being added (same name, email or phone), Expired first. */
+    duplicates: (q: Record<string, string>) => request<DupMatch[]>(`/people/duplicates?${new URLSearchParams(q).toString()}`),
+    /** "Same person": link two records both ways (read-only Reference on each), or unlink. */
+    link: (id: number, otherId: number) => request(`/people/${id}/same-as/${otherId}`, { method: 'POST' }),
+    unlink: (id: number, otherId: number) => request(`/people/${id}/same-as/${otherId}`, { method: 'DELETE' }),
     /** Read a business card (front and/or back photo): fields to review, and a token that keeps the photos with the contact. */
     scanCard: (front?: File | null, back?: File | null) => {
       const f = new FormData();

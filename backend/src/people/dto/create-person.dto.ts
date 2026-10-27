@@ -18,6 +18,8 @@ export class CreatePersonDto {
   @IsBoolean() @IsOptional() notLicensedDesigner?: boolean;
   /** From a business-card scan: puts the card photos on the contact (see PeopleService.scanCard). */
   @IsString() @IsOptional() businessCardToken?: string;
+  /** "Same person" chosen on the duplicate warning: link the new record to this one. */
+  @IsNumber() @IsOptional() sameAsId?: number;
   @IsString() @IsOptional() role?: string;
   @IsString() @IsOptional() company?: string;
   @IsString() @IsOptional() contact?: string;

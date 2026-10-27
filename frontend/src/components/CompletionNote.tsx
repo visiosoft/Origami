@@ -15,7 +15,12 @@ export function askHoldReason(title?: string): Promise<string | null> {
   return ask(title, HOLD);
 }
 
-interface Copy { label: string; heading: string; why: string; placeholder: string; button: string }
+/** A required reason for something else (e.g. a contact going Expired). */
+export function askReason(copy: Copy, title?: string): Promise<string | null> {
+  return ask(title, copy);
+}
+
+export interface Copy { label: string; heading: string; why: string; placeholder: string; button: string }
 const COMPLETION: Copy = {
   label: 'Completion note', heading: 'What was done?', why: 'A short note is needed to mark a task complete. The assigner reads it before confirming.',
   placeholder: 'e.g. Sent to the client on Oct 20; they have the revised drawings', button: 'Mark complete',

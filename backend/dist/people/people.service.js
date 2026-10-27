@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeopleService = void 0;
 const common_1 = require("@nestjs/common");
+const contact_duplicates_1 = require("./contact-duplicates");
 const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
 const contractor_directory_sync_1 = require("../manpower/contractor-directory.sync");
 const typeorm_1 = require("@nestjs/typeorm");
@@ -150,6 +151,8 @@ let PeopleService = class PeopleService {
     }
     async create(dto) {
         dto = { ...dto };
+        const sameAsId = Number(dto.sameAsId) || null;
+        delete dto.sameAsId;
         await this.applyCardToken(dto);
         const id = Number(dto.id) || (await this.nextId());
         const now = new Date().toISOString();
@@ -159,7 +162,34 @@ let PeopleService = class PeopleService {
             await this.staff.employeeForPerson(saved);
         if ((0, contractor_directory_sync_1.isSubCompany)(saved) && this.subs)
             await this.subs.contractorForPerson(saved);
+        if (sameAsId)
+            return (await this.link(String(saved.id), String(sameAsId))).person;
         return saved;
+    }
+    async duplicates(q) {
+        const rows = await this.repo.find({ select: { id: true, name: true, firstName: true, lastName: true, email: true, phone: true, company: true, kind: true, contactStatus: true, contactStatusReason: true, lastActivityAt: true } });
+        return (0, contact_duplicates_1.findDuplicates)(q, rows, q.exclude ? Number(q.exclude) : null).slice(0, 10);
+    }
+    async link(id, otherId) {
+        const [a, b] = await Promise.all([this.repo.findOneBy({ id: Number(id) }), this.repo.findOneBy({ id: Number(otherId) })]);
+        if (!a || !b)
+            throw new common_1.NotFoundException('Contact not found.');
+        if (a.id === b.id)
+            throw new common_1.BadRequestException('A contact can\'t be linked to itself.');
+        a.sameAsIds = (0, contact_duplicates_1.withLink)(a.sameAsIds, b.id, a.id);
+        b.sameAsIds = (0, contact_duplicates_1.withLink)(b.sameAsIds, a.id, b.id);
+        await this.repo.save([a, b]);
+        return { person: a, other: b };
+    }
+    async unlink(id, otherId) {
+        const [a, b] = await Promise.all([this.repo.findOneBy({ id: Number(id) }), this.repo.findOneBy({ id: Number(otherId) })]);
+        if (!a)
+            throw new common_1.NotFoundException('Contact not found.');
+        a.sameAsIds = (0, contact_duplicates_1.withoutLink)(a.sameAsIds, Number(otherId));
+        if (b)
+            b.sameAsIds = (0, contact_duplicates_1.withoutLink)(b.sameAsIds, a.id);
+        await this.repo.save(b ? [a, b] : [a]);
+        return a;
     }
     async update(id, dto) {
         const numId = Number(id);
@@ -174,6 +204,8 @@ let PeopleService = class PeopleService {
             const next = String(patch.contactStatus || 'active').toLowerCase();
             if (!contact_status_1.CONTACT_STATUSES.includes(next))
                 throw new common_1.BadRequestException('Status is Active, Review or Expired.');
+            if (next === 'expired' && next !== person.contactStatus && !String(patch.contactStatusReason || '').trim())
+                throw new common_1.BadRequestException('Say why this contact is expired.');
             if (next !== (person.contactStatus || 'active'))
                 Object.assign(patch, { contactStatus: next, contactStatusAt: now, contactStatusReason: String(patch.contactStatusReason || '').trim().slice(0, 300) || null });
             else

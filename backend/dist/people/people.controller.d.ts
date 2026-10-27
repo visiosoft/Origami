@@ -50,6 +50,7 @@ export declare class PeopleController {
         contactStatusAt: string;
         contactStatusReason: string;
         lastActivityAt: string;
+        sameAsIds: number[] | null;
         firstName: string;
         lastName: string;
         goByName: string;
@@ -89,6 +90,7 @@ export declare class PeopleController {
         contactStatusAt: string;
         contactStatusReason: string;
         lastActivityAt: string;
+        sameAsIds: number[] | null;
         firstName: string;
         lastName: string;
         goByName: string;
@@ -102,6 +104,14 @@ export declare class PeopleController {
         notLicensedDesigner: boolean | null;
     }>;
     cardContent(id: string, side: string, thumb: string, res: Response): Promise<void>;
+    duplicates(q: Record<string, string>): Promise<(import("./contact-duplicates").DupRow & {
+        matchedOn: import("./contact-duplicates").MatchedOn[];
+    })[]>;
+    link(id: string, otherId: string): Promise<{
+        person: import("../database/entities").PersonEntity;
+        other: import("../database/entities").PersonEntity;
+    }>;
+    unlink(id: string, otherId: string): Promise<import("../database/entities").PersonEntity>;
     findOne(id: string): Promise<import("../database/entities").PersonEntity>;
     create(dto: CreatePersonDto): Promise<import("../database/entities").PersonEntity>;
     update(id: string, dto: Partial<CreatePersonDto>): Promise<import("../database/entities").PersonEntity>;

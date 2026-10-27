@@ -95,6 +95,8 @@ export class PersonEntity {
   @Column({ nullable: true }) contactStatusReason!: string;
   /** Last time anything touched this contact: an edit, a task, a file sent to them. */
   @Column({ nullable: true }) lastActivityAt!: string;
+  /** Other People records that are the same person (confirmed when the duplicate warning came up). Shown read-only under Reference. */
+  @Column({ type: 'simple-json', nullable: true }) sameAsIds!: number[] | null;
 
   // --- Profile ---
   // `name` stays the display name; these are the parts it is composed from.
