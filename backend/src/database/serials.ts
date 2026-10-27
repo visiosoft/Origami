@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 /**
  * Serial numbers on special actions (Oct 16): one sequence per kind, per
  * project, per year -- T-2026-0142 (tasks), FR-2026-0031 (FOR RECORD),
@@ -47,7 +48,8 @@ export function backfillSerials<R extends { id: string; serial?: string | null }
 
 /** A board task's id: unique even when two are made in the same millisecond (the old 'T-' + Date.now() could collide). */
 export function newTaskId(): string {
-  return `T-${Date.now().toString(36)}${Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, '0')}`;
+  // 48 random bits: a short suffix (4 base-36 chars) still collided, by the birthday odds, when many were made at once.
+  return `T-${Date.now().toString(36)}${randomBytes(6).toString('hex')}`;
 }
 
 /** "Narvaes Residence (91-1062 Kuhina St)" -> "NARV"; numbers kept, so "1311 Countryside" -> "1311". */

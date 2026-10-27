@@ -39,7 +39,7 @@ describe('task numbers with a project prefix', () => {
     expect(taskNumber('T-2026-0007', null)).toBe('GEN-T-2026-0007');
   });
   it('task ids never repeat, even in the same millisecond', () => {
-    const ids = new Set(Array.from({ length: 2000 }, newTaskId));
-    expect(ids.size).toBe(2000);
+    const ids = new Set(Array.from({ length: 20000 }, newTaskId));
+    expect(ids.size).toBe(20000);
   });
 });
