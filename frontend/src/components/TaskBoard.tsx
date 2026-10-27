@@ -94,8 +94,29 @@ const bucketCol = (t: { completed?: boolean | null; status?: string | null }) =>
  * projectId: a project, null for General Tasks, or 'all' -- every task across
  * every project and General, in bucket columns (moving a card sets its status).
  */
-export function TaskBoard({ projectId, leadId, initialTaskId }: {
+const SORT_OPTIONS: [string, string][] = [['', 'Board order'], ['due', 'Due date'], ['priority', 'Priority'], ['status', 'Status'], ['name', 'Name'], ['who', 'Assignee'], ['created', 'Created']];
+
+/** Sort the cards in every column (Board, Timeline and List); "Board order" keeps the drag order. */
+function TaskSort({ sort, onChange }: { sort: SortState | null; onChange: (s: SortState | null) => void }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <select aria-label="Sort tasks" value={sort?.key || ''} onChange={(e) => onChange(e.target.value ? { key: e.target.value, dir: sort?.dir || 'asc' } : null)}
+        style={{ padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 600, color: sort ? 'var(--ink)' : 'var(--muted)' }}>
+        {SORT_OPTIONS.map(([k, l]) => <option key={k} value={k}>{k ? `Sort: ${l}` : l}</option>)}
+      </select>
+      {sort && (
+        <button type="button" aria-label={sort.dir === 'asc' ? 'Ascending — switch to descending' : 'Descending — switch to ascending'} title={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
+          onClick={() => onChange({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
+          style={{ width: 28, height: 28, borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', cursor: 'pointer', fontSize: 12, color: 'var(--ink)' }}>{sort.dir === 'asc' ? '↑' : '↓'}</button>
+      )}
+    </span>
+  );
+}
+
+export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   projectId: number | null | 'all';
+  /** The Task page's board picker, so a saved view remembers which board it was made on. */
+  board?: { value: string; set: (v: string) => void };
   /** A lead's tasks: the General board's columns, showing (and adding) only tasks linked to this lead. */
   leadId?: string | null;
   initialTaskId?: string | null;
@@ -150,6 +171,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   const LIST_BY: Record<string, (t: ProjectTask) => string | number | null | undefined> = {
     name: (t) => t.title, due: (t) => t.dueDate, who: (t) => t.assignee, status: (t) => statusLabel(t.status),
     priority: (t) => (t.priority ? PRIORITY_ORDER.indexOf(t.priority) : null),
+    created: (t) => t.createdAt,
   };
   const loadedProject = useRef<number | null>(null);
   // The emailed task opens once, not again on every reload.
@@ -339,7 +361,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
 
   /** Persist a manual card order after a drag inside one column. */
   const reorderIn = async (sectionId: string, draggedId: string, index: number) => {
-    if (all) { moveTask(draggedId, sectionId); return; }
+    // All projects, or sorted (the column's order is the sort's): only the column changes.
+    if (all || listSort) { moveTask(draggedId, sectionId); return; }
     const current = topLevelBySection(tasks, sectionId).filter((t) => t.id !== draggedId);
     const dragged = tasks.find((t) => t.id === draggedId);
     if (!dragged) return;
@@ -537,7 +560,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   const boardViewNew = (
     <div className="tb-board">
       {sections.map((sec, si) => {
-        const secTasks = topLevelBySection(visibleTasks, sec.id);
+        const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
         return (
           <div key={sec.id} className={'tb-col' + (dragOver === sec.id ? ' is-over' : '')}
             onDragOver={(e) => { if (canManage) { e.preventDefault(); if (dragOver !== sec.id) setDragOver(sec.id); } }}
@@ -580,7 +603,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
   const boardView = isNew ? boardViewNew : (
     <div className="tb-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8, minWidth: 0 }}>
       {sections.map((sec) => {
-        const secTasks = topLevelBySection(visibleTasks, sec.id);
+        const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
         const isOver = dragOver === sec.id;
         return (
           <div key={sec.id}
@@ -706,7 +729,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
       </div>
 
       {sections.map((sec) => {
-        const secTasks = topLevelBySection(visibleTasks, sec.id);
+        const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
         return (
           <div key={sec.id}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--forest)', marginBottom: 8 }}>
@@ -758,7 +781,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
 
     const rangesBySection = sections.map((sec) => ({
       sec,
-      rows: topLevelBySection(visibleTasks, sec.id).map((t) => {
+      rows: sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort).map((t) => {
         const due = parseDate(t.dueDate);
         const start = parseDate(t.startDate);
         if (!due && !start) return { t, start: null as Date | null, end: null as Date | null };
@@ -952,6 +975,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} />
+        {view !== 'dashboard' && <TaskSort sort={listSort} onChange={setListSort} />}
         {(archivedCount > 0 || showArchived) && (
           <div onClick={() => setShowArchived((v) => !v)} title="Confirmed tasks move to the archive 7 days after they're confirmed"
             style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.14)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)' }}>
@@ -971,9 +995,9 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
       </div>
       {!restricted && (
         <div style={{ marginBottom: 14 }}>
-          <SavedViews page="tasks.board" value={{ query, scope, person, showArchived, showPhaseTasks, sort: sortToString(listSort) }}
-            defaults={{ query: '', scope: 'all', person: '', showArchived: false, showPhaseTasks: false, sort: '' }}
-            onApply={(v) => { setQuery(String(v.query || '')); setScope(v.scope as TaskScopeKind); setPerson(String(v.person || '')); setShowArchived(!!v.showArchived); setShowPhaseTasks(!!v.showPhaseTasks); setListSort(sortFromString(v.sort)); }} />
+          <SavedViews page="tasks.board" value={{ query, scope, person, showArchived, showPhaseTasks, sort: sortToString(listSort), ...(board ? { board: board.value } : {}) }}
+            defaults={{ query: '', scope: 'all', person: '', showArchived: false, showPhaseTasks: false, sort: '', ...(board ? { board: 'all' } : {}) }}
+            onApply={(v) => { setQuery(String(v.query || '')); setScope(v.scope as TaskScopeKind); setPerson(String(v.person || '')); setShowArchived(!!v.showArchived); setShowPhaseTasks(!!v.showPhaseTasks); setListSort(sortFromString(v.sort)); if (board && v.board != null) board.set(String(v.board)); }} />
         </div>
       )}
 

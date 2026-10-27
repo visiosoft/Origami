@@ -17,7 +17,6 @@ import { leadLabel, useLinkTargets } from '../data/linkTargets';
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 /** The board project is remembered so coming back lands on the same one. */
-const PROJECT_KEY = 'origami.tasksProjectId';
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 
 /** initialMode 'log' opens on the Request Log (Special Actions → Task). */
@@ -40,16 +39,10 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   // 'general' is a real, standing selection (the General Tasks board -- work
   // not tied to any client project), not an absence-of-choice placeholder.
-  // First view (Oct 16): every task -- all projects and internal -- unless a board was chosen before.
-  const [boardProjectId, setBoardProjectId] = useState<BoardSel>(() => {
-    try {
-      const stored = localStorage.getItem(PROJECT_KEY);
-      if (stored === 'general') return 'general';
-      if (stored?.startsWith('lead:')) return stored as BoardSel;
-      const n = Number(stored);
-      return Number.isFinite(n) && n > 0 ? n : 'all';
-    } catch { return 'all'; }
-  });
+  // The Task page always opens on every task, everyone's (Oct 27 backlog: "Filters for task").
+  // A saved view brings back a board and filters someone uses often.
+  const [boardProjectId, setBoardProjectId] = useState<BoardSel>('all');
+  useEffect(() => { if (!restricted) setScope('all'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const boardLead = typeof boardProjectId === 'string' && boardProjectId.startsWith('lead:') ? boardProjectId.slice(5) : null;
   const targets = useLinkTargets();
   const [logTasks, setLogTasks] = useState<Task[]>([]);
@@ -65,10 +58,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   // The linked board task, kept after the URL is tidied so the board can open it once it has loaded.
   const [deepTask] = useState<string | null>(() => (params.get('type') === 'log' ? null : params.get('task')));
 
-  const selectBoardProject = (id: BoardSel) => {
-    setBoardProjectId(id);
-    try { localStorage.setItem(PROJECT_KEY, String(id)); } catch { /* ignore */ }
-  };
+  const selectBoardProject = (id: BoardSel) => setBoardProjectId(id);
 
   const reloadLog = () => { api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
   useEffect(() => {
@@ -177,7 +167,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       </div>
 
       {mode === 'board' ? (
-        <TaskBoard projectId={boardProjectId === 'general' || boardLead ? null : boardProjectId as number | 'all'} leadId={boardLead} initialTaskId={deepTask} />
+        <TaskBoard projectId={boardProjectId === 'general' || boardLead ? null : boardProjectId as number | 'all'} leadId={boardLead} initialTaskId={deepTask}
+          board={{ value: String(boardProjectId), set: (v) => selectBoardProject(v === 'all' || v === 'general' || v.startsWith('lead:') ? v as BoardSel : (Number(v) || 'all')) }} />
       ) : (
       <>
       {/* Tabs + filter + new */}

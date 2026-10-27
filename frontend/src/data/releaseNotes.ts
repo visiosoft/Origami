@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27e',
+    date: '2026-10-27',
+    title: 'Task filters: All by default, sorting, saved boards',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Special Actions → Task always opens on all tasks, everyone\'s. Saved views bring back the board and filters you use often.', where: 'Special Actions → Task' },
+      { area: 'Tasks', kind: 'new', text: 'Sort the Board, Timeline and List views by due date, priority, status, name, assignee or created date (or keep the board\'s own order). Saved views remember the sort and which board they were made on.' },
+    ],
+  },
+  {
     id: '2026-10-27d',
     date: '2026-10-27',
     title: 'On hold needs a reason; project task panels match the board',

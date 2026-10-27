@@ -87,6 +87,7 @@ export function fromMe(
 /** Everyone, My tasks, From me, Assigned (to a person), From (a person). */
 export type TaskScope = 'all' | 'mine' | 'fromMe' | 'assigned' | 'from';
 const SCOPES: TaskScope[] = ['all', 'mine', 'fromMe', 'assigned', 'from'];
+const SCOPE_EVENT = 'origami:task-scope';
 
 /**
  * Whose tasks to show -- Everyone (the default), My tasks, From me (what I
@@ -111,6 +112,13 @@ export function useTaskScope() {
   const setScope = useCallback((next: TaskScope) => {
     setScopeState(next);
     try { localStorage.setItem(KEY, next); } catch { /* ignore */ }
+    // Every task surface on the page follows (the Task page and its board share one choice).
+    window.dispatchEvent(new CustomEvent(SCOPE_EVENT, { detail: next }));
+  }, []);
+  useEffect(() => {
+    const on = (e: Event) => { const v = (e as CustomEvent<TaskScope>).detail; if (SCOPES.includes(v)) setScopeState(v); };
+    window.addEventListener(SCOPE_EVENT, on);
+    return () => window.removeEventListener(SCOPE_EVENT, on);
   }, []);
 
   useEffect(() => { if (restricted && scope !== 'mine') setScope('mine'); }, [restricted, scope, setScope]);
