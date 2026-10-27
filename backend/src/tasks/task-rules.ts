@@ -2,7 +2,8 @@
  * Task rules shared by the board and the Request Log (Oct 20 sync):
  * - a start date that has arrived moves an assigned task to In Progress;
  * - nothing goes In Progress without an assignee;
- * - marking a task complete needs a note saying what was done.
+ * - marking a task complete needs a note saying what was done;
+ * - putting a task on hold needs a reason (Oct 27 backlog: "On Hold = blocked, reason required").
  */
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -20,3 +21,17 @@ export function cleanCompletionNote(v: unknown) {
 
 export const NO_ASSIGNEE_IN_PROGRESS = 'Assign someone before moving this to In Progress.';
 export const NEEDS_COMPLETION_NOTE = 'Add a note saying what was done before marking this complete.';
+export const NEEDS_HOLD_REASON = 'Say why it is on hold before putting it on hold.';
+
+const isHold = (s: unknown) => /^on[\s-]*hold$/i.test(String(s || '').trim());
+
+/**
+ * Whether a save would leave a task on hold with no reason: moving it to On
+ * hold without one, or clearing the reason while it stays on hold.
+ */
+export function holdReasonMissing(before: { status?: string | null; holdReason?: string | null }, patch: { status?: string | null; holdReason?: string | null }) {
+  const next = patch.status ?? before.status;
+  if (!isHold(next)) return false;
+  const reason = 'holdReason' in patch ? patch.holdReason : before.holdReason;
+  return !String(reason ?? '').trim();
+}

@@ -403,6 +403,8 @@ let ProjectTasksService = class ProjectTasksService {
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)
             : null;
+        if ((0, task_rules_1.holdReasonMissing)(task, patch))
+            throw new common_1.BadRequestException(task_rules_1.NEEDS_HOLD_REASON);
         const nextStatus = patch.status ?? task.status;
         if (nextStatus !== 'On hold' && task.holdReason)
             patch.holdReason = null;

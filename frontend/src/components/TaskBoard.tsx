@@ -20,7 +20,7 @@ import {
 } from '../data/projectTasks';
 import { Avatar } from './Avatar';
 import { AssigneePicker } from './AssigneePicker';
-import { askCompletionNote } from './CompletionNote';
+import { askCompletionNote, askHoldReason } from './CompletionNote';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { TaskLinkBadge } from './TaskLinkBadge';
 import { AvatarStack, taskPeople } from './AvatarStack';
@@ -83,6 +83,7 @@ const normStatus = (s?: string | null): TaskStatus => {
 const isFinished = (t: { completed?: boolean | null; status?: string | null }) => !!t.completed || normStatus(t.status) === 'Done' || normStatus(t.status) === 'Confirmed';
 const CLOSE_OPT = '__close';
 /** A column that finishes whatever lands in it. */
+const holdColumn = (name?: string | null) => /^(on[\s-]*hold|blocked)$/i.test(String(name || '').trim());
 const finishingColumn = (name?: string | null) => /^(done|complete|completed|confirmed)$/i.test(String(name || '').trim());
 const bucketCol = (t: { completed?: boolean | null; status?: string | null }) => {
   const st = normStatus(t.status);
@@ -199,7 +200,17 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
     const into = patch.sectionId ? sections.find((s) => s.id === patch.sectionId)?.name : '';
     return patch.completed === true || (patch.status !== undefined && isFinished({ status: patch.status })) || finishingColumn(into);
   };
+  /** Putting a task on hold (status, or dragged into an On hold column) asks why. */
+  const needsHoldReason = (t: ProjectTask | undefined, patch: Partial<ProjectTask>) => {
+    if (!t || t.status === 'On hold' || (patch.holdReason || '').trim()) return false;
+    const into = patch.sectionId ? sections.find((s) => s.id === patch.sectionId)?.name : '';
+    return patch.status === 'On hold' || holdColumn(into);
+  };
   const withCompletionNote = async (t: ProjectTask | undefined, patch: Partial<ProjectTask>): Promise<Partial<ProjectTask> | null> => {
+    if (needsHoldReason(t, patch)) {
+      const reason = await askHoldReason(t!.title);
+      return reason ? { ...patch, holdReason: reason } : null;
+    }
     if (!needsNote(t, patch)) return patch;
     const note = await askCompletionNote(t!.title);
     return note ? { ...patch, completionNote: note } : null;
@@ -982,7 +993,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
           const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subtasksOf(tasks, selected.id).filter((s) => !s.completed).length : 0;
           if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
           // Finishing it asks what was done; the note saves with the status.
-          if (!needsNote(d, patch)) { setDraft(patch); return; }
+          if (!needsNote(d, patch) && !needsHoldReason(d, patch)) { setDraft(patch); return; }
           void withCompletionNote(d, patch).then((p) => { if (p) setDraft(p); });
         };
         const assigned = !!(d.assigneeId || (d.assignee || '').trim());
@@ -1063,7 +1074,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId }: {
               )}
               {d.status === 'On hold' && (
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <Field label="Why is it on hold?">
+                  <Field label="Why is it on hold? (required)">
                     <textarea value={d.holdReason || ''} disabled={!canManage} onChange={(e) => set({ holdReason: e.target.value })} rows={2} placeholder="e.g. Waiting on the client’s tile selection" aria-label="Why is it on hold"
                       style={{ ...inputStyle, width: '100%', resize: 'vertical', background: 'var(--amber-light)' }} />
                   </Field>

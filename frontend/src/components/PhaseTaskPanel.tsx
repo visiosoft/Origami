@@ -10,9 +10,11 @@ import { Attachments, filesFromClipboard, nameClipboardFile } from './Attachment
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
-import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
+import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
+import { OriginatorLine } from './ActionTools';
+import { askHoldReason } from './CompletionNote';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -22,7 +24,7 @@ const input: React.CSSProperties = {
 };
 const PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
 /** Fields edited in the panel: they autosave together. Subtasks, files and comments act at once. */
-const FIELDS = ['title', 'description', 'assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'checklist', 'labels'];
+const FIELDS = ['title', 'description', 'assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'checklist', 'labels', 'holdReason'];
 
 /**
  * A phase task, opened from whichever board you were looking at.
@@ -76,12 +78,24 @@ export function PhaseTaskPanel({
 
   const auto = useAutosave<any>({
     draft, saved: task, fields: FIELDS, enabled: canManage, label: 'task',
-    save: (changes) => api.projectTasks.update(draft.id, changes),
+    // Emails (assigned, added, done) wait for the Save button, as on the Task Board.
+    save: (changes) => api.projectTasks.update(draft.id, { ...changes, deferNotify: true }),
     onSaved: (row, sent) => { setDraft((cur: any) => mergeSaved(cur, row, sent)); onSaved(row); },
   });
   /** A reply to an upload or comment: take it, but keep edits the autosave still owes. */
   const applied = (next: any) => { setDraft((cur: any) => keepEdits(cur, next, FIELDS)); onSaved(next); };
-  const set = (patch: any) => setDraft((prev: any) => ({ ...prev, ...patch }));
+  const put = (patch: any) => setDraft((prev: any) => ({ ...prev, ...patch }));
+  // Putting it on hold asks why (the reason is required).
+  const set = (patch: any) => {
+    if (patch.status === 'On hold' && draft.status !== 'On hold' && !(patch.holdReason || '').trim()) {
+      void askHoldReason(draft.title).then((reason) => { if (reason) put({ ...patch, holdReason: reason }); });
+      return;
+    }
+    put(patch);
+  };
+  const [editingSub, setEditingSub] = useState<string | null>(null);
+  /** Save pressed: send the emails held on this task and its subtasks, then close. */
+  const done = () => { void api.projectTasks.notify(draft.id).catch(() => undefined); onClose(); };
 
   const addSubtask = async (sub: NewSubtask) => {
     try {
@@ -89,7 +103,7 @@ export function PhaseTaskPanel({
       // that have a phaseId -- a subtask created without one would save fine
       // but then vanish from every reload, making "Add" look broken even
       // though it worked.
-      await api.projectTasks.create({ projectId: draft.projectId, sectionId: draft.sectionId, phaseId: draft.phaseId, ...sub, parentId: draft.id });
+      await api.projectTasks.create({ projectId: draft.projectId, sectionId: draft.sectionId, phaseId: draft.phaseId, ...sub, parentId: draft.id, deferNotify: true });
       onReload?.();
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
@@ -110,13 +124,14 @@ export function PhaseTaskPanel({
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 96vw)', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)', animation: 'scaleIn 0.2s ease' }}>
         {canManage && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} onDone={onClose} />
+            <SaveBar auto={auto} onDone={done} />
           </div>
         )}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
           <div style={{ width: 9, height: 9, borderRadius: 3, background: phaseColor, marginTop: 6, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
+            <div style={{ marginBottom: 6 }}><OriginatorLine label="Assigner" by={task.createdByName || createdByOf(task)?.by} at={createdByOf(task)?.at || task.createdAt} number={task.serial || null} /></div>
             {parentTask && (
               <div style={{ fontSize: 11.5, color: 'var(--c-9aa39d)', marginBottom: 4 }}>Subtask of <span style={{ color: 'var(--body)', fontWeight: 600 }}>{parentTask.title}</span></div>
             )}
@@ -151,6 +166,13 @@ export function PhaseTaskPanel({
               {TASK_STATUSES.map((st) => <option key={st} value={st}>{statusLabel(st)}</option>)}
             </select>
           </div>
+          {draft.status === 'On hold' && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              {label('Why is it on hold? (required)')}
+              <textarea value={draft.holdReason || ''} disabled={!canManage} onChange={(e) => put({ holdReason: e.target.value })} rows={2} placeholder="e.g. Waiting on the client’s tile selection" aria-label="Why is it on hold"
+                style={{ ...input, resize: 'vertical', background: 'var(--amber-light)' }} />
+            </div>
+          )}
           <div>
             {label('Due date')}
             <input type="date" disabled={!canManage} value={draft.dueDate || ''} onChange={(e) => { const r = linkPriorityDue({ priority: draft.priority, dueDate: draft.dueDate, auto: autoPD.current }, { dueDate: e.target.value }); autoPD.current = r.auto; set({ dueDate: r.dueDate, priority: r.priority }); }} style={input} />
@@ -200,7 +222,15 @@ export function PhaseTaskPanel({
         <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
           {label('Subtasks')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {subtasksOf(tasks as any, draft.id).map((st: any) => (
+            {subtasksOf(tasks as any, draft.id).map((st: any) => editingSub === st.id ? (
+              <div key={st.id} style={{ padding: 8, background: 'var(--panel)', borderRadius: 8 }}>
+                <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: st.title, assigneeId: st.assigneeId, assignee: st.assignee || '', dueDate: st.dueDate || '' }}
+                  onCancel={() => setEditingSub(null)}
+                  onAdd={(v) => api.projectTasks.update(st.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, deferNotify: true })
+                    .then((res: any) => { if (res) onSaved(res); setEditingSub(null); onReload?.(); })
+                    .catch((e: Error) => toast('⚠ ' + (e.message || 'Subtask not saved')))} />
+              </div>
+            ) : (
               <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--panel)', borderRadius: 8 }}>
                 <input
                   type="checkbox"
@@ -209,7 +239,8 @@ export function PhaseTaskPanel({
                   onChange={() => api.projectTasks.update(st.id, { completed: !st.completed }).then(onSaved).catch(() => onReload?.())}
                 />
                 <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
-                {canManage && <span onClick={() => removeTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
+                {canManage && <span onClick={() => setEditingSub(st.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
+                {canManage && <span onClick={() => removeTask(st.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
               </div>
             ))}
             {canManage && (

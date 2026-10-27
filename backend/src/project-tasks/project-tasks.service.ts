@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from '../tasks/mentions';
-import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NO_ASSIGNEE_IN_PROGRESS } from '../tasks/task-rules';
+import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
 import { ChecklistTemplateEntity, LeadEntity, ProjectTaskEntity, UserEntity } from '../database/entities';
 import { resolveLead } from '../tasks/lead-link';
 import { holdNotices, overdue, stillTrue, type PendingNotice } from '../notifications/pending-notices';
@@ -415,6 +415,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       ? String(patch.assigneeId)
       : null;
 
+    if (holdReasonMissing(task, patch)) throw new BadRequestException(NEEDS_HOLD_REASON);
     // Off hold: the reason goes with it (it stays in the history).
     const nextStatus = patch.status ?? task.status;
     if (nextStatus !== 'On hold' && task.holdReason) patch.holdReason = null;

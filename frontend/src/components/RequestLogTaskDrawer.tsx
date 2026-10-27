@@ -14,7 +14,7 @@ import { isMine, raisedBy } from './TaskScope';
 import { api } from '../api';
 import { SaveBar, keepEdits, mergeSaved, useAutosave } from '../autosave';
 import { AssigneePicker } from './AssigneePicker';
-import { askCompletionNote } from './CompletionNote';
+import { askCompletionNote, askHoldReason } from './CompletionNote';
 import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
@@ -69,6 +69,11 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
   // Marking it complete (or confirmed straight away) asks what was done; the note saves with the status.
   const closedNames = new Set(statuses.filter((s) => s.closed).map((s) => s.name));
   const set = (patch: Partial<Task>) => {
+    // Putting it on hold asks why (the reason is required).
+    if (patch.status === 'On hold' && t.status !== 'On hold' && !(patch.holdReason || '').trim()) {
+      void askHoldReason(logTaskTitle(t)).then((reason) => { if (reason) put({ ...patch, holdReason: reason }); });
+      return;
+    }
     if (!patch.status || !closedNames.has(patch.status) || closedNames.has(t.status)) { put(patch); return; }
     void askCompletionNote(logTaskTitle(t)).then((note) => { if (note) put({ ...patch, completionNote: note }); });
   };
@@ -199,7 +204,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             </div>
             {t.status === 'On hold' && (
               <div style={{ padding: '12px 14px', background: 'var(--amber-light)', borderRadius: 10, gridColumn: '1 / -1' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-8a6d12)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Why is it on hold?</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--c-8a6d12)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Why is it on hold? (required)</div>
                 <textarea value={t.holdReason || ''} disabled={!canManage} onChange={(e) => set({ holdReason: e.target.value })} rows={2} placeholder="e.g. Waiting on the client’s tile selection" aria-label="Why is it on hold"
                   style={{ ...inputStyle, width: '100%', resize: 'vertical', boxSizing: 'border-box' }} />
               </div>

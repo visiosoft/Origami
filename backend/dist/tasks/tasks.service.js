@@ -415,6 +415,8 @@ let TasksService = class TasksService {
         const reassignedTo = 'assignedToId' in patch && patch.assignedToId && patch.assignedToId !== task.assignedToId
             ? String(patch.assignedToId)
             : null;
+        if ((0, task_rules_1.holdReasonMissing)(task, patch))
+            throw new common_1.BadRequestException(task_rules_1.NEEDS_HOLD_REASON);
         if ((patch.status ?? task.status) !== 'On hold' && task.holdReason)
             patch.holdReason = null;
         const at = new Date().toISOString();

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27d',
+    date: '2026-10-27',
+    title: 'On hold needs a reason; project task panels match the board',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Putting a task on hold — from its status, or by dragging it into an On Hold column — asks why. The reason is required and shows on the card.' },
+      { area: 'Tasks', kind: 'improved', text: 'Task panels opened from a project\'s phase board work like the Task Board: emails go out when you press Save, subtasks can be edited in place, and the assigner and task number show at the top.' },
+    ],
+  },
+  {
     id: '2026-10-27c',
     date: '2026-10-27',
     title: 'Pick a role\'s type',

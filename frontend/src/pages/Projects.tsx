@@ -23,9 +23,11 @@ import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
-import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
+import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { api, persist } from '../api';
+import { OriginatorLine } from '../components/ActionTools';
+import { askHoldReason } from '../components/CompletionNote';
 import { LABOR_TYPES, PRICING_TYPES } from '../data/projectTypes';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
@@ -48,7 +50,7 @@ const BLANK_FILTERS: ProjectFilters = { priority: '', contractType: '', typeOfWo
 /** The fields the project form edits; they autosave together. */
 const PROJECT_FIELDS: (keyof Project)[] = ['name', 'priority', 'stage', 'location', 'typeOfWork', 'contractType', 'contractAmt', 'pricing', 'labor', 'estStart', 'duration', 'referral', 'contactedBy', 'progress', 'leadId', 'templateKey', 'scope', 'contractApproved'] as (keyof Project)[];
 /** The fields the phase-task panel edits; they autosave together. */
-const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels'];
+const PT_FIELDS = ['assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'description', 'checklist', 'labels', 'holdReason'];
 
 export function Projects() {
   const { can, toast } = useApp();
@@ -93,6 +95,7 @@ export function Projects() {
   const introInitFor = useRef<string | null>(null);
   // Per task: which of priority / due date was filled in automatically from the other.
   const ptAutoPD = useRef<Record<string, 'priority' | 'due' | null>>({});
+  const [editingPtSub, setEditingPtSub] = useState<string | null>(null);
 
   const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
   useEffect(() => {
@@ -211,7 +214,7 @@ export function Projects() {
       // loadBoard reads through the phaseId-filtered phase board endpoint --
       // a subtask created without phaseId would save fine, then vanish on
       // the next reload.
-      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, phaseId: parent.phaseId, ...sub, parentId: parent.id });
+      await api.projectTasks.create({ projectId: sel.id, sectionId: parent.sectionId, phaseId: parent.phaseId, ...sub, parentId: parent.id, deferNotify: true });
       loadBoard(sel.id);
     } catch (e: any) { toast('⚠ ' + (e.message || 'Could not add the subtask')); }
   };
@@ -1074,13 +1077,13 @@ export function Projects() {
         // once with Save; closing the panel or opening another task saves too.
         return (
           <DraftScope key={live?.id || 'demo'} record={live} fields={PT_FIELDS} enabled={canManage} label="task"
-            save={(changes) => api.projectTasks.update(live.id, changes)} onSaved={putTask}>
+            save={(changes) => api.projectTasks.update(live.id, { ...changes, deferNotify: true })} onSaved={putTask}>
           {({ draft: d, set, auto, applied }) => (
           <div onClick={() => setSelPt(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(440px, 96vw)', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)', animation: 'scaleIn 0.2s ease' }}>
               {live && canManage && (
                 <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-                  <SaveBar auto={auto} onDone={() => setSelPt(null)} />
+                  <SaveBar auto={auto} onDone={() => { void api.projectTasks.notify(live.id).catch(() => undefined); setSelPt(null); }} />
                 </div>
               )}
               <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -1088,6 +1091,7 @@ export function Projects() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{phaseName}</div>
                   <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{pt.title}</div>
+                  {live && <div style={{ marginTop: 6 }}><OriginatorLine label="Assigner" project={sel?.name} by={(live as any).createdByName || createdByOf(live as any)?.by} at={createdByOf(live as any)?.at || (live as any).createdAt} number={(live as any).serial || null} /></div>}
                 </div>
                 <div onClick={() => setSelPt(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
               </div>
@@ -1129,10 +1133,24 @@ export function Projects() {
                     ))}
                   </div>
                   {fieldBox('Status', (
-                    <select disabled={!canManage} value={d.status || 'Not started'} title={STATUS_HINT[(d.status || 'Not started') as TaskStatus]} onChange={(e) => set({ status: e.target.value, completed: isTaskDone({ status: e.target.value }) })} style={inputStyle}>
+                    <select disabled={!canManage} value={d.status || 'Not started'} title={STATUS_HINT[(d.status || 'Not started') as TaskStatus]} style={inputStyle}
+                      onChange={(e) => {
+                        const patch = { status: e.target.value, completed: isTaskDone({ status: e.target.value }) };
+                        // Putting it on hold asks why (the reason is required).
+                        if (patch.status === 'On hold' && d.status !== 'On hold') { void askHoldReason(pt.title).then((holdReason) => { if (holdReason) set({ ...patch, holdReason }); }); return; }
+                        set(patch);
+                      }}>
                       {TASK_STATUSES.map((st) => <option key={st} value={st}>{statusLabel(st)}</option>)}
                     </select>
                   ))}
+                  {d.status === 'On hold' && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      {fieldBox('Why is it on hold? (required)', (
+                        <textarea value={d.holdReason || ''} disabled={!canManage} onChange={(e) => set({ holdReason: e.target.value })} rows={2} placeholder="e.g. Waiting on the client’s tile selection" aria-label="Why is it on hold"
+                          style={{ ...inputStyle, width: '100%', resize: 'vertical', background: 'var(--amber-light)' }} />
+                      ))}
+                    </div>
+                  )}
                   {fieldBox('Due date', (
                     <>
                       <input type="date" disabled={!canManage} value={d.dueDate || ''} onChange={(e) => { const k = live?.id || ''; const r = linkPriorityDue({ priority: d.priority, dueDate: d.dueDate, auto: ptAutoPD.current[k] }, { dueDate: e.target.value }); ptAutoPD.current[k] = r.auto; set({ dueDate: r.dueDate, priority: r.priority }); }} style={inputStyle} />
@@ -1323,11 +1341,20 @@ export function Projects() {
                   <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                     {fieldBox('Subtasks', (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {subtasksOf(boardTasks as any, live.id).map((st: any) => (
+                        {subtasksOf(boardTasks as any, live.id).map((st: any) => editingPtSub === st.id ? (
+                          <div key={st.id} style={{ padding: 8, background: 'var(--panel)', borderRadius: 8 }}>
+                            <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: st.title, assigneeId: st.assigneeId, assignee: st.assignee || '', dueDate: st.dueDate || '' }}
+                              onCancel={() => setEditingPtSub(null)}
+                              onAdd={(v) => api.projectTasks.update(st.id, { title: v.title, assigneeId: v.assigneeId || '', assignee: v.assignee, dueDate: v.dueDate, deferNotify: true })
+                                .then((res: any) => { if (res) putTask(res); setEditingPtSub(null); })
+                                .catch((e: Error) => toast('⚠ ' + (e.message || 'Subtask not saved')))} />
+                          </div>
+                        ) : (
                           <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'var(--panel)', borderRadius: 8 }}>
                             <input type="checkbox" checked={!!st.completed} disabled={!canManage} onChange={() => saveTask(st.id, { completed: !st.completed })} />
                             <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)', textDecoration: st.completed ? 'line-through' : 'none', opacity: st.completed ? 0.6 : 1 }}>{st.title}</span>
-                            {canManage && <span onClick={() => deleteTask(st.id)} style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
+                            {canManage && <span onClick={() => setEditingPtSub(st.id)} title="Edit the subtask" aria-label="Edit subtask" style={{ fontSize: 12, color: 'var(--forest)', cursor: 'pointer', fontWeight: 700 }}>Edit</span>}
+                            {canManage && <span onClick={() => deleteTask(st.id)} title="Delete the subtask" style={{ fontSize: 12, color: '#8E2E0A', cursor: 'pointer' }}>×</span>}
                           </div>
                         ))}
                         {canManage && (
