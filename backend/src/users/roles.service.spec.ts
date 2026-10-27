@@ -32,3 +32,26 @@ describe('RolesService.trimSiteSuper', () => {
     expect(roles.rows[0].permissions.rfis.view).toBe(true);
   });
 });
+
+describe('RolesService: changing a role\'s type', () => {
+  const setup = (holders: number) => {
+    const roles = repoOf([{ key: 'role_1', name: 'Owner rep', tier: 'internal', isSystem: false }, { key: 'pm', name: 'Project Manager', tier: 'internal', isSystem: true }]);
+    const users = { count: jest.fn(async () => holders) };
+    return { roles, svc: new RolesService(roles as any, repoOf([]) as any, users as any) };
+  };
+  it('changes the type while nobody has the role', async () => {
+    const { roles, svc } = setup(0);
+    await svc.update('role_1', { name: 'Owner rep', tier: 'client' });
+    expect(roles.rows[0].tier).toBe('client');
+  });
+  it('refuses while people have it, for built-in roles, and for unknown types', async () => {
+    await expect(setup(2).svc.update('role_1', { tier: 'client' })).rejects.toThrow('2 people have the Owner rep role');
+    await expect(setup(0).svc.update('pm', { tier: 'client' })).rejects.toThrow('built-in role');
+    await expect(setup(0).svc.update('role_1', { tier: 'vendor' })).rejects.toThrow('Pick Internal, Client or Third Party');
+  });
+  it('a save that keeps the type is not a type change', async () => {
+    const { roles, svc } = setup(5);
+    await svc.update('role_1', { name: 'Owner rep 2', tier: 'internal' });
+    expect(roles.rows[0].name).toBe('Owner rep 2');
+  });
+});

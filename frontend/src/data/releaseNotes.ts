@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-27c',
+    date: '2026-10-27',
+    title: 'Pick a role\'s type',
+    items: [
+      { area: 'Users & Roles', kind: 'new', text: 'New role asks for its type — Internal, Client or Third Party — instead of using the tab you were on. A role\'s type can be changed in Edit role while nobody has the role; built-in roles keep theirs.', where: 'User Access & Roles → Roles → + Role' },
+      { area: 'Users & Roles', kind: 'improved', text: '"Third-party" is now written "Third Party" everywhere.' },
+    ],
+  },
+  {
     id: '2026-10-27b',
     date: '2026-10-27',
     title: 'What each priority means',

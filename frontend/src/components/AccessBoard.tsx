@@ -34,6 +34,13 @@ const BLANK: Partial<User> = { name: '', email: '', tier: 'internal', roleKey: '
  * can do -- one column per role, one switch per module (no access, view,
  * manage). Grid edits collect until "Save changes".
  */
+/** What each role type is for, in the New / Edit role dialog. */
+const TIER_HINT: Record<Tier, string> = {
+  internal: 'Origami staff',
+  client: 'Owners and their representatives',
+  consultant: 'Subcontractors, consultants and vendors',
+};
+
 export function AccessBoard({ readOnly }: { readOnly: boolean }) {
   const { users, roles, refreshAccess, toast } = useApp();
 
@@ -84,7 +91,7 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
   const [drafts, setDrafts] = useState<Record<string, Perms>>({});
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [savingRoles, setSavingRoles] = useState(false);
-  const [roleModal, setRoleModal] = useState<{ key: string | null; name: string; description: string } | null>(null);
+  const [roleModal, setRoleModal] = useState<{ key: string | null; name: string; description: string; tier: Tier } | null>(null);
 
   const tierRoles = rolesForTier(tier);
   const permsOf = (r: Role): Perms => drafts[r.key] ?? r.permissions ?? {};
@@ -132,9 +139,10 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
     if (!roleModal) return;
     const name = roleModal.name.trim(); if (!name) { toast('⚠ Give the role a name'); return; }
     const req = roleModal.key
-      ? (() => { const r = roles.find((x) => x.key === roleModal.key)!; return api.roles.update(r.key, { ...r, name, description: roleModal.description }); })()
-      : api.roles.create({ name, description: roleModal.description, tier, permissions: {} });
-    req.then(() => { toast(roleModal.key ? 'Role updated' : 'Role created'); setRoleModal(null); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
+      ? (() => { const r = roles.find((x) => x.key === roleModal.key)!; return api.roles.update(r.key, { ...r, name, description: roleModal.description, tier: roleModal.tier }); })()
+      : api.roles.create({ name, description: roleModal.description, tier: roleModal.tier, permissions: {} });
+    // Show the role where it now lives.
+    req.then(() => { toast(roleModal.key ? 'Role updated' : 'Role created'); setTier(roleModal.tier); setRoleModal(null); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
   };
   const deleteRole = (r: Role) => {
     if (r.isSystem) { toast('System roles cannot be deleted'); return; }
@@ -275,7 +283,7 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
               <h2>What each role can do</h2>
               <span className="ab-sub">Administrators can do everything. {levelRoles.length ? 'Roles from the access sheet have levels — Block … Full edit — and an extent (A assigned projects, P portfolio); “↳” follows the overall access. Others: click a switch for off, view, manage.' : 'Click a switch to change it: off, view, manage.'}</span>
             </div>
-            {!readOnly && <button type="button" className="ab-btn" onClick={() => setRoleModal({ key: null, name: '', description: '' })}>+ Role</button>}
+            {!readOnly && <button type="button" className="ab-btn" onClick={() => setRoleModal({ key: null, name: '', description: '', tier })}>+ Role</button>}
           </div>
           <div className="ab-tools">
             <div className="ab-seg">
@@ -294,7 +302,7 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
                   {tierRoles.map((r) => (
                     <th key={r.key}>
                       <button type="button" className="ab-role-head" disabled={readOnly && r.key !== 'admin'}
-                        onClick={() => r.key !== 'admin' && !readOnly && setRoleModal({ key: r.key, name: r.name, description: r.description || '' })}
+                        onClick={() => r.key !== 'admin' && !readOnly && setRoleModal({ key: r.key, name: r.name, description: r.description || '', tier: r.tier as Tier })}
                         title={r.description || r.name}>
                         <span>{r.name}</span>
                         <small>{users.filter((u) => u.roleKey === r.key).length} people</small>
@@ -397,11 +405,30 @@ export function AccessBoard({ readOnly }: { readOnly: boolean }) {
       {roleModal && (
         <div className="ab-modal-bg" onClick={() => setRoleModal(null)}>
           <div className="ab-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={roleModal.key ? 'Edit role' : 'New role'}>
-            <h3>{roleModal.key ? 'Edit role' : `New ${TIER_STYLE[tier].label.toLowerCase()} role`}</h3>
+            <h3>{roleModal.key ? 'Edit role' : 'New role'}</h3>
             {(() => { const r = roleModal.key ? roles.find((x) => x.key === roleModal.key) : null; return (
               <>
                 <label>Name<input value={roleModal.name} disabled={!!r?.isSystem} onChange={(e) => setRoleModal({ ...roleModal, name: e.target.value })} autoFocus /></label>
                 {r?.isSystem && <small className="ab-sub">Built-in role — its name can't change.</small>}
+                {(() => {
+                  const holders = r ? users.filter((u) => u.roleKey === r.key).length : 0;
+                  const locked = !!r?.isSystem || holders > 0;
+                  return (
+                    <>
+                      <fieldset className="ab-type" disabled={locked} aria-label="Role type">
+                        <legend>Type</legend>
+                        {TIERS.map((t) => (
+                          <label key={t} className={roleModal.tier === t ? 'is-on' : ''}>
+                            <input type="radio" name="role-tier" value={t} checked={roleModal.tier === t} onChange={() => setRoleModal({ ...roleModal, tier: t })} />
+                            <b>{TIER_STYLE[t].label}</b><small>{TIER_HINT[t]}</small>
+                          </label>
+                        ))}
+                      </fieldset>
+                      {r?.isSystem ? <small className="ab-sub">Built-in role — its type can't change.</small>
+                        : holders > 0 ? <small className="ab-sub">{holders} {holders === 1 ? 'person has' : 'people have'} this role. Give them another role before changing its type.</small> : null}
+                    </>
+                  );
+                })()}
                 <label>Description<input value={roleModal.description} onChange={(e) => setRoleModal({ ...roleModal, description: e.target.value })} placeholder="What this role is for" /></label>
                 {!roleModal.key && <small className="ab-sub">It starts with no access; switch on what it needs in the grid.</small>}
                 <div className="ab-modal-foot">

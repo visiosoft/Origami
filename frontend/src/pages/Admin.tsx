@@ -232,11 +232,14 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
   const save = () => {
     if (!draft) return;
     setSaving(true);
-    api.roles.update(draft.key, draft).then(() => { toast('Role saved'); refreshAccess(); }).catch(() => toast('⚠ Failed to save role')).finally(() => setSaving(false));
+    api.roles.update(draft.key, draft).then(() => { toast('Role saved'); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to save role'))).finally(() => setSaving(false));
   };
+  // New role: a name and its type (Internal / Client / Third Party).
+  const [adding, setAdding] = useState<{ name: string; tier: Tier } | null>(null);
   const addRole = () => {
-    const name = prompt('New role name?'); if (!name) return;
-    api.roles.create({ name, tier: 'internal', permissions: {} }).then(() => { toast('Role created'); refreshAccess(); }).catch(() => toast('⚠ Failed'));
+    if (!adding) return;
+    const name = adding.name.trim(); if (!name) { toast('⚠ Give the role a name'); return; }
+    api.roles.create({ name, tier: adding.tier, permissions: {} }).then(() => { toast('Role created'); setAdding(null); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
   };
   const delRole = (r: Role) => { if (r.isSystem) { toast('System roles cannot be deleted'); return; } if (confirm(`Delete role "${r.name}"?`)) api.roles.remove(r.key).then(() => { toast('Role deleted'); setSelectedKey(null); setDraft(null); refreshAccess(); }).catch(() => toast('⚠ Failed')); };
 
@@ -244,8 +247,18 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Roles &amp; Permissions</div>
-        {!readOnly && <div onClick={addRole} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'var(--c-d2ead3)', color: 'var(--forest)' }}>+ Add role</div>}
+        {!readOnly && !adding && <div onClick={() => setAdding({ name: '', tier: 'internal' })} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'var(--c-d2ead3)', color: 'var(--forest)' }}>+ Add role</div>}
       </div>
+      {adding && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14, padding: 12, borderRadius: 10, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)' }}>
+          <input autoFocus value={adding.name} placeholder="Role name" aria-label="Role name" onChange={(e) => setAdding({ ...adding, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addRole()} style={{ ...inputStyle, flex: '1 1 200px' }} />
+          <select value={adding.tier} aria-label="Role type" onChange={(e) => setAdding({ ...adding, tier: e.target.value as Tier })} style={{ ...inputStyle, width: 160 }}>
+            {TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}
+          </select>
+          <div onClick={addRole} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Create role</div>
+          <div onClick={() => setAdding(null)} style={{ padding: '9px 10px', fontSize: 13, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* role list grouped by tier */}
@@ -277,7 +290,11 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
                   <input disabled={readOnly || selected.isSystem} value={selected.name} onChange={(e) => draft && setDraft({ ...draft, name: e.target.value })} style={{ ...inputStyle, width: '100%', fontWeight: 700, fontSize: 15 }} />
                   <input disabled={readOnly} value={selected.description || ''} placeholder="Description" onChange={(e) => draft && setDraft({ ...draft, description: e.target.value })} style={{ ...inputStyle, width: '100%', marginTop: 6, color: 'var(--c-5c6b65)' }} />
                 </div>
-                {pill(TIER_STYLE[selected.tier].bg, TIER_STYLE[selected.tier].color, TIER_STYLE[selected.tier].label)}
+                {readOnly || selected.isSystem
+                  ? pill(TIER_STYLE[selected.tier].bg, TIER_STYLE[selected.tier].color, TIER_STYLE[selected.tier].label)
+                  : <select value={selected.tier} aria-label="Role type" title="Its type can change while nobody has the role" onChange={(e) => draft && setDraft({ ...draft, tier: e.target.value as Tier })} style={{ ...inputStyle, width: 150 }}>
+                      {TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}
+                    </select>}
               </div>
 
               {selected.key === 'admin' ? (

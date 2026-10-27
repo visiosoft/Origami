@@ -1,10 +1,12 @@
-import { Injectable, OnApplicationBootstrap, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AppSettingEntity, RoleEntity } from '../database/entities';
+import { AppSettingEntity, RoleEntity, UserEntity } from '../database/entities';
 import { DEFAULT_ROLES, SITE_SUPER_PERMISSIONS } from '../seed-data/users';
 
 /** Marks the one-time trim of the Site Superintendent role (v3: 2026-09-28, projects and File Room dropped). */
+const TIERS = ['internal', 'client', 'consultant'];
+
 export const SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed.v3';
 
 @Injectable()
@@ -14,6 +16,7 @@ export class RolesService implements OnApplicationBootstrap {
   constructor(
     @InjectRepository(RoleEntity) private readonly repo: Repository<RoleEntity>,
     @InjectRepository(AppSettingEntity) private readonly settings: Repository<AppSettingEntity>,
+    @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
   ) {}
 
   async onApplicationBootstrap() {
@@ -59,9 +62,21 @@ export class RolesService implements OnApplicationBootstrap {
 
   async update(key: string, dto: any) {
     let role = await this.repo.findOneBy({ key });
+    if (role && dto?.tier !== undefined && dto.tier !== role.tier) await this.checkTypeChange(role, dto.tier);
     if (!role) role = this.repo.create({ key } as Partial<RoleEntity>);
     Object.assign(role, dto, { key });
     return this.repo.save(role);
+  }
+
+  /**
+   * A role's type (Internal / Client / Third Party) decides which people it
+   * can be given to. It can change while nobody has the role; built-in roles keep theirs.
+   */
+  private async checkTypeChange(role: RoleEntity, tier: unknown) {
+    if (!TIERS.includes(tier as string)) throw new BadRequestException('Pick Internal, Client or Third Party.');
+    if (role.isSystem) throw new BadRequestException(`${role.name} is a built-in role; its type can't change.`);
+    const n = this.users ? await this.users.count({ where: { roleKey: role.key } }) : 0;
+    if (n) throw new BadRequestException(`${n} ${n === 1 ? 'person has' : 'people have'} the ${role.name} role. Give them another role first, then change its type.`);
   }
 
   async remove(key: string) {

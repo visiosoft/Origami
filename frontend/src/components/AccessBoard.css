@@ -143,7 +143,7 @@
 .ab-savebar .ab-btn:not(.is-yellow) { background: transparent; color: #FDFCF9; border-color: rgba(253, 252, 249, 0.3); }
 
 .ab-modal-bg { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 16px; background: rgba(29, 29, 27, 0.35); animation: fadeIn 0.15s ease; }
-.ab-modal { width: min(440px, 100%); display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-pop); animation: riseIn 0.3s var(--ease-out) both; }
+.ab-modal { width: min(520px, 100%); display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-pop); animation: riseIn 0.3s var(--ease-out) both; }
 .ab-modal h3 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 400; font-size: 24px; letter-spacing: -0.02em; }
 .ab-modal-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 
@@ -185,3 +185,15 @@
 .ab-acc-def { color: var(--muted); font-size: 11.5px; }
 .ab-acc-now { font-size: 11px; font-weight: 700; color: var(--muted); text-align: right; }
 @media (max-width: 720px) { .ab-acc-row { grid-template-columns: 1fr 1fr; } .ab-acc-def, .ab-acc-now { display: none; } }
+
+/* New / Edit role: the role's type (Internal / Client / Third Party). */
+.ab-type { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ab-type legend { padding: 0; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--body); }
+.ab-modal .ab-type label { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 13px; }
+.ab-type label.is-on { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.ab-type input { position: absolute; opacity: 0; pointer-events: none; }
+.ab-type label:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ab-type small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.ab-type:disabled label { cursor: not-allowed; opacity: 0.6; }
+.ab-type:disabled label.is-on { opacity: 1; }
+@media (max-width: 520px) { .ab-type { grid-template-columns: 1fr; } }
