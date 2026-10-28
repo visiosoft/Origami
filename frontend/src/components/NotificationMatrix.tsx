@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { CHANNELS, toggleChannel, type ChannelKey, type NotifyPrefs } from '../data/notifications';
+import { Skeleton } from './Skeleton';
 
 const cell: React.CSSProperties = { padding: '9px 6px', textAlign: 'center', borderTop: '1px solid rgba(var(--rgb-shade), 0.07)' };
 
@@ -37,7 +38,7 @@ export function NotificationMatrix() {
   };
 
   if (error && !prefs) return <div style={{ fontSize: 13, color: '#8E2E0A' }}>{error}</div>;
-  if (!prefs) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (!prefs) return <Skeleton label="Loading…" />;
   const groups = [...new Set(prefs.events.map((e) => e.group))];
 
   return (

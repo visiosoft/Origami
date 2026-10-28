@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akToday } from '../components/ActionKit';
 import { WeeklyReport } from '../components/dailyReport/WeeklyReport';
+import { Skeleton } from '../components/Skeleton';
 
 interface LogRow {
   id: string; projectId: number; date: string; supervisorName?: string; notes?: string; status: string;
@@ -86,7 +87,7 @@ export function DailyReports() {
       </div>
 
       <section className="ak-card">
-        {logs === null && <div className="ak-empty">Loading…</div>}
+        {logs === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {logs && !shown.length && <div className="ak-empty">{all.length ? 'No reports match these filters.' : 'No daily reports yet. They appear here once a superintendent fills in Daily Report (field).'}</div>}
         {shown.map((l, i) => {
           const st = STATUS[l.status] || STATUS.draft;

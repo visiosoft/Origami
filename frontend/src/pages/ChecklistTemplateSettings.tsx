@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type ChecklistTemplate } from '../api';
 import { useApp } from '../AppContext';
 import { loadChecklistTemplates } from '../components/Checklist';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--ink)', width: '100%' };
@@ -52,7 +53,7 @@ export function ChecklistTemplateSettings() {
       <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, marginBottom: 16, lineHeight: 1.6 }}>
         Checklists made in advance. On any task, <b>Add from template</b> adds the items, unticked; <b>Save as template</b> turns a task’s checklist into one. Mark a checklist <b>Add automatically to</b> and new tasks or FOR RECORD entries of that kind start with it — people can still remove items or add more.
       </div>
-      {!rows ? <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div> : (
+      {!rows ? <Skeleton label="Loading…" /> : (
         <div style={{ display: 'grid', gap: 8 }}>
           {!rows.length && !edit && <div style={{ fontSize: 13, color: 'var(--muted)' }}>No checklist templates yet.</div>}
           {rows.map((t) => (

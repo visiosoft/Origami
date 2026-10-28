@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Suspense, useState, useEffect, useMemo } from 'react';
+import { BusyWhileMounted, PageSkeleton, TopProgress } from './Skeleton';
 import { releaseSeen } from '../data/releaseNotes';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
@@ -210,11 +211,12 @@ export function AppShell() {
         </header>
 
         <ServerStatusBanner />
+        <TopProgress />
 
         <main className="content">
           <div className="content-inner">
             {/* The sidebar stays put while a page's code downloads. */}
-            <Suspense fallback={<div role="status" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>}><Outlet /></Suspense>
+            <Suspense fallback={<><BusyWhileMounted /><PageSkeleton label="Loading the page…" /></>}><Outlet /></Suspense>
           </div>
         </main>
       </div>

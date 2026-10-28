@@ -16,6 +16,7 @@ import { SavedViews } from '../components/SavedViews';
 import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionTools';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
+import { Skeleton } from '../components/Skeleton';
 
 type View = 'upcoming' | 'past' | 'all';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
@@ -148,7 +149,7 @@ export function Meetings() {
         onApply={(v) => { setView(v.view as View); setStatus(v.status as StatusFilter); setWhere(v.where as WhereFilter); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
-        {meetings === null && <div className="ak-empty">Loading…</div>}
+        {meetings === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {meetings && !shown.length && (
           <div className="ak-empty">
             {view === 'upcoming' && status === 'all' ? 'Nothing scheduled.' : 'No meetings here.'}

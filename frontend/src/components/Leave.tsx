@@ -6,6 +6,7 @@ import {
   ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, localISO, money, todayISO,
   type Assignment, type PayrollSettings, type Project,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 export interface LeaveType { id: string; name: string; paid: boolean; trackBalance: boolean; annualDays: number; carryForwardMax: number; encashable: boolean; color?: string; active: boolean; order: number }
 interface LeaveRequest {
@@ -84,7 +85,7 @@ function LeaveRequests({ employees, types, canManage, onOpenEmployee, employeeId
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: employeeId ? 600 : 780 }}>
             <div style={headRow(cols)}>{!employeeId && <span>Employee</span>}<span>Type</span><span>Dates</span><span>Days</span><span>Status</span></div>
-            {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {shown.map((r) => {
               const t = typeById.get(r.leaveTypeId);
               const s = STATUS[r.status] || STATUS.pending;
@@ -319,7 +320,7 @@ function BalancesOverview({ employees, onOpenEmployee }: { employees: Employee[]
       <div style={{ ...card, overflow: 'auto' }}>
         <div style={{ minWidth: 170 + typesShown.length * 120 }}>
           <div style={headRow(cols)}><span>Employee</span>{typesShown.map((b) => <span key={b.leaveTypeId}>{b.name}</span>)}</div>
-          {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+          {rows === null && <Skeleton label="Loading…" />}
           {shown.map((r) => (
             <div key={r.employeeId} onClick={() => onOpenEmployee(r.employeeId)} style={{ ...bodyRow(cols), cursor: 'pointer' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: INK }}>{empById.get(r.employeeId)?.name || r.employeeId}</span>
@@ -380,7 +381,7 @@ export function EmployeeLeavePanel({ employee, employees, canManage, currency }:
           {[year - 1, year, year + 1].map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
-      {balances === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : (
+      {balances === null ? <Skeleton label="Loading…" /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 10 }}>
           {tracked.map((b) => (
             <div key={b.leaveTypeId} style={{ ...card, padding: '12px 14px' }}>
@@ -569,7 +570,7 @@ export function EmployeeTimeOffCard({ employee, canManage }: { employee: Employe
   return (
     <div style={{ ...card, padding: '16px 18px', display: 'grid', gap: 12, alignContent: 'start' }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>Time off · {year}</div>
-      {balances === null ? <div style={{ fontSize: 12, color: MUTED }}>Loading…</div> : (
+      {balances === null ? <Skeleton label="Loading…" /> : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {KINDS.map(([id, label]) => {
             const b = balances.find((x) => x.leaveTypeId === id);

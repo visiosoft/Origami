@@ -12,6 +12,7 @@ import { usd, usd0, type Rights } from '../components/finance/financeUi';
 import { FinanceReports } from '../components/finance/Reports';
 import { ReimbursementBoard } from '../components/finance/ReimbursementBoard';
 import { useTheme } from '../theme';
+import { Skeleton } from '../components/Skeleton';
 
 const PAPER = 'var(--panel)';
 type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
@@ -54,7 +55,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
     <div style={{ padding: '28px 32px', background: PAPER, minHeight: '100%' }}>
       <h1 style={{ fontFamily: BG, fontWeight: 700, fontSize: 24, color: INK, margin: 0 }}>{title}</h1>
       <p style={{ margin: '6px 0 0', fontSize: 13, color: MUTED }}>{blurb} <span onClick={() => navigate('/help/finance')} style={{ color: ACCENT, fontWeight: 700, cursor: 'pointer' }}>New to this? Read the Finance guide →</span></p>
-      {!rights ? <div style={{ marginTop: 20, fontSize: 13, color: MUTED }}>Loading…</div> : !tabs.length ? (
+      {!rights ? <Skeleton label="Loading…" /> : !tabs.length ? (
         <div style={{ ...card, padding: 20, marginTop: 20, fontSize: 13, color: MUTED }}>Your role doesn't include project finance, change orders or reimbursables.</div>
       ) : (
         <>
@@ -114,7 +115,7 @@ function Approvals({ rights, onProject }: { rights: Rights; onProject: (p: { id:
               <SortHeader k="what" sort={aSort} onSort={aToggle}>What</SortHeader><SortHeader k="amount" sort={aSort} onSort={aToggle} align="right">Amount</SortHeader>
               <SortHeader k="since" sort={aSort} onSort={aToggle}>Waiting since</SortHeader><span />
             </div>
-            {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {aSorted.map((p) => (
               <div key={p.type + p.id} onClick={() => open(p)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><Badge tone={TYPE_LABEL[p.type][1]}>{TYPE_LABEL[p.type][0]}</Badge></span>
@@ -175,7 +176,7 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
               {([['revisedContract', 'Client contract'], ['contractWorkInvoiced', 'Billed'], ['paid', 'Received'], ['arOutstanding', 'Client owes'], ['unbilledEarned', 'Done, not billed'], ['committed', 'Committed to subs'], ['paidOut', 'Paid out'], ['stillToPay', 'Still to pay']] as [string, string][])
                 .map(([k, t]) => <SortHeader key={k} k={k} sort={pSort} onSort={pToggle} align="right">{t}</SortHeader>)}
             </div>
-            {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {pSorted.map((r) => (
               <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{stageLabel(r.stage)}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
@@ -227,7 +228,7 @@ function Audit() {
         <span style={{ fontSize: 12, color: MUTED, alignSelf: 'center' }}>{rows ? `${rows.length} entries${rows.length >= 500 ? ' (latest 500)' : ''}` : ''}</span>
       </div>
       <div style={{ ...card, overflow: 'hidden' }}>
-        {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+        {rows === null && <Skeleton label="Loading…" />}
         {(rows || []).map((a) => (
           <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
             <span style={{ width: 150, color: MUTED, flexShrink: 0 }}>{new Date(a.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>

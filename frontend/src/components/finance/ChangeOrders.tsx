@@ -13,6 +13,7 @@ import {
   ApprovalTrail, CO_REASONS, CoBadge, ReasonBox, failed, label, usd, usd0,
   type ChangeOrder, type ChangeOrderItem, type Overview, type Rights,
 } from './financeUi';
+import { Skeleton } from '../Skeleton';
 
 /** Where a change can land: existing milestones and tasks, or new ones created when it's approved. */
 interface Targets { phases: { id: string; name: string }[]; tasks: { id: string; name: string; phaseId: string | null }[] }
@@ -140,7 +141,7 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
               <SortHeader k="requested" sort={sort} onSort={toggle}>Requested</SortHeader><SortHeader k="days" sort={sort} onSort={toggle} align="right">Days</SortHeader>
               <SortHeader k="status" sort={sort} onSort={toggle}>Status</SortHeader>
             </div>
-            {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {sorted.map((c) => (
               <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: c.status === 'cancelled' ? 0.55 : 1 }}>
                 <b style={{ color: ACCENT }}>{c.number}</b>
@@ -241,7 +242,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
   useEffect(() => { load(); api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, [id]);
   useEffect(() => { if (!co) return; if (overview && overview.project.id === co.projectId) setTargets(targetsFrom(overview)); else loadTargets(co.projectId).then(setTargets); }, [co?.projectId]);
 
-  if (!co) return <Drawer title="Change order" width={1000} onClose={onClose}><div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div></Drawer>;
+  if (!co) return <Drawer title="Change order" width={1000} onClose={onClose}><Skeleton label="Loading…" /></Drawer>;
   const editable = co.status === 'draft' && rights.editChangeOrders;
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
   const patch = (i: number, p: Partial<ChangeOrderItem>) => setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x)));

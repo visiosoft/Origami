@@ -27,6 +27,7 @@ import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import { useTheme } from '../theme';
 import { SettingsBoard, type SettingsSection, type SettingsTab } from '../components/SettingsBoard';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -209,7 +210,7 @@ export function ScoringTemplateEditor() {
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading template…</div>
+        <Skeleton label="Loading template…" />
       ) : (
         <>
           {criteria.map((c, ci) => (
@@ -323,7 +324,7 @@ export function EmailTemplatesEditor({ filterKind, sendable }: { filterKind?: st
       </div>
 
       {loading ? (
-        <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading templates…</div>
+        <Skeleton label="Loading templates…" />
       ) : draft ? (
         <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)', borderRadius: 'var(--r-14)', padding: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>

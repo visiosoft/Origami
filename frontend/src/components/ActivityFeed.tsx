@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import { Avatar } from './Avatar';
 import { Pager } from './Pager';
 import type { ActivityEvent, TaskComment } from '../data/projectTasks';
+import { Skeleton } from './Skeleton';
 
 /** "3 min ago" / "2 days ago" — falls back to the raw string if unparseable. */
 export function relativeTime(value: string): string {
@@ -182,7 +183,7 @@ export function ActivityFeed({
       )}
 
       {source && !remote && loading && (
-        <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', marginBottom: 12 }}>Loading history…</div>
+        <Skeleton label="Loading history…" />
       )}
       {entries.length === 0 && !(source && !remote) && (
         <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', marginBottom: 12 }}>Nothing has happened on this task yet.</div>

@@ -12,6 +12,7 @@ import {
   extStyle, isImage, pathKey, prettySize, shortDate, subfoldersOf,
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 /** Documents Drive can show as a PDF (images have their own preview). */
@@ -327,7 +328,7 @@ export function FileRoom() {
   const act = (p: Promise<unknown>, ok: string) =>
     p.then(() => { toast(ok); load(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
 
-  if (loading) return <div style={{ padding: 24, fontSize: 13, color: 'var(--muted)' }}>Loading File Room…</div>;
+  if (loading) return <Skeleton label="Loading File Room…" />;
 
   // ---- tree ---------------------------------------------------------------
 

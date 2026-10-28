@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { Logo } from '../components/Logo';
 import { ACCENT, ACCENT_BG, BG, DANGER, INK, LINE, MUTED, Badge, Label, btn, card, fmtDate, input, todayISO } from '../components/manpowerUi';
+import { Skeleton } from '../components/Skeleton';
 
 // ------------------------------------------------------------------ shapes
 
@@ -80,7 +81,7 @@ export function Portal() {
             <div style={{ color: MUTED }}>{error}</div>
           </div>
         ) : !ov ? (
-          <div style={{ fontSize: 13, color: MUTED }}>Loading…</div>
+          <Skeleton label="Loading…" />
         ) : (
           <Routes>
             <Route index element={<Home ov={ov} />} />
@@ -209,7 +210,7 @@ function SubcontractPage() {
   const [openM, setOpenM] = useState<string | null>(null);
   useEffect(() => { setD(null); api.portal.subcontract(id).then((r: any) => setD(r)).catch((e: any) => setError(e.message || 'Could not load')); }, [id]);
   if (error) return <div style={{ ...card, padding: 20, fontSize: 13, color: MUTED }}>{error} <Link to="/portal" style={{ color: ACCENT, fontWeight: 700 }}>Back</Link></div>;
-  if (!d) return <div style={{ fontSize: 13, color: MUTED }}>Loading…</div>;
+  if (!d) return <Skeleton label="Loading…" />;
   const cols = 'minmax(200px,2fr) repeat(4, minmax(96px,1fr)) minmax(120px,1.1fr)';
   return (
     <div>
@@ -323,7 +324,7 @@ function InvoicesPage() {
           return <div key={k} onClick={() => setFilter(k)} style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: filter === k ? ACCENT : 'var(--surface)', color: filter === k ? '#fff' : ACCENT, border: '1px solid ' + (filter === k ? ACCENT : 'rgba(var(--rgb-shade), .14)') }}>{k === 'all' ? 'All' : STATUS[k][0].split(' ·')[0]} · {n}</div>;
         })}
       </div>
-      {rows === null ? <div style={{ fontSize: 13, color: MUTED }}>Loading…</div> : <InvoiceList rows={shown} empty="No invoices here." />}
+      {rows === null ? <Skeleton label="Loading…" /> : <InvoiceList rows={shown} empty="No invoices here." />}
     </div>
   );
 }
@@ -454,7 +455,7 @@ function NewInvoice({ ov, onSent }: { ov: Overview; onSent: () => void }) {
 
         <div>
           <Label text="What you’re billing" />
-          {!d ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading milestones…</div> : (
+          {!d ? <Skeleton label="Loading milestones…" /> : (
             <div style={{ border: '1px solid ' + LINE, borderRadius: 10, overflow: 'hidden' }}>
               {d.milestones.map((m, i) => {
                 const v = amounts[m.id] || '';

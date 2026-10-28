@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { SignaturePad } from '../components/SignaturePad';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -74,7 +75,7 @@ export function SignProposal() {
   // just-submitted signature shows immediately instead of the cached blank copy.
   const pdfUrl = token ? `${api.proposals.public.pdfUrl(token)}&v=${encodeURIComponent((doc?.signedAt || '0') + (doc?.signedAt2 || ''))}` : '';
 
-  if (loading) return shell(<div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>);
+  if (loading) return shell(<Skeleton label="Loading…" />);
   if (!doc) return shell(<div style={{ fontSize: 13.5, color: '#8E2E0A', fontWeight: 600 }}>{error || 'This proposal could not be found.'}</div>);
 
   return shell(

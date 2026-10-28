@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { SaveBar, useAutosave } from '../autosave';
+import { Skeleton } from './Skeleton';
 
 const MUTED = 'var(--muted)';
 const INK = 'var(--ink)';
@@ -42,7 +43,7 @@ export function DirectoryAccessCard({ employee, contractorId, canManage }: { emp
     draft, saved, resetKey: 'dir-' + key + (person?.id ?? ''), enabled: canManage && !!person, label: 'directory',
     save: async (changes, { draft: d }) => { await api.people.update(person.id, changes); setSaved(d); return d; },
   });
-  if (person === undefined) return <div style={card}><div style={title}>Directory &amp; access</div><div style={{ fontSize: 12, color: MUTED }}>Loading…</div></div>;
+  if (person === undefined) return <div style={card}><div style={title}>Directory &amp; access</div><Skeleton label="Loading…" /></div>;
   if (!person) return <div style={card}><div style={title}>Directory &amp; access</div><div style={{ fontSize: 12, color: MUTED }}>Their People entry is being set up — refresh in a moment.</div></div>;
   const toggle = (name: string) => setDraft((d) => ({ ...d, projects: d.projects.includes(name) ? d.projects.filter((x) => x !== name) : [...d.projects, name] }));
   const company = !!contractorId && !employee;

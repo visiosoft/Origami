@@ -13,6 +13,7 @@ import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionToo
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 import { leadLabel } from '../data/linkTargets';
+import { Skeleton } from '../components/Skeleton';
 
 type Kind = 'all' | (typeof FOR_RECORD_TOPICS)[number];
 type Pill = 'soft' | 'yellow' | 'dark' | 'outline' | 'green';
@@ -111,7 +112,7 @@ export function Observations() {
         onApply={(v) => { setKind(v.kind as Kind); setState(v.state as 'open' | 'closed' | 'all'); setProject(String(v.project || '')); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
-        {rows === null && <div className="ak-empty">Loading…</div>}
+        {rows === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {rows && !shown.length && (
           <div className="ak-empty">
             {all.length ? 'Nothing matches these filters.' : 'Nothing on record yet.'}

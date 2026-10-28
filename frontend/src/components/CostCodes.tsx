@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, card, headRow, input } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 export interface CostCode { id: string; code: string; division: string; description?: string; active: boolean; order: number }
 
@@ -52,7 +53,7 @@ export function CostCodesSettings({ canManage, onChanged }: { canManage: boolean
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 760 }}>
             <div style={headRow(cols)}><span>Code</span><span>Name</span><span>Standard verbiage / scope</span><span>Active</span><span /></div>
-            {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {shown.map((c) => {
               const div = isDivision(c.code);
               return (

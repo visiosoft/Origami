@@ -35,6 +35,7 @@ import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { SiteVisitGuests } from '../components/SiteVisitGuests';
 import { TextClient } from '../components/TextClient';
 import { inviteGuests, siteVisitDescription, zoningSections, type Guest } from '../data/siteVisitInvite';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const OPT = LEAD_DROPDOWN_OPTIONS;
@@ -427,6 +428,8 @@ export function Pipeline() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [deals, setDeals] = useState<Deal[]>([]);
+  // False until the first list arrives, so the columns show placeholders rather than "No deals".
+  const [dealsLoaded, setDealsLoaded] = useState(false);
   // /pipeline?open=<dealId> (global search) opens that deal once it has loaded.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
@@ -589,7 +592,7 @@ export function Pipeline() {
       const rows = res as Deal[];
       setDeals(rows);
       setNotesByDeal(Object.fromEntries(rows.map((d) => [d.id, ((d as any).stageNotes || []) as LeadNote[]])));
-    }).catch(() => { });
+    }).catch(() => { }).finally(() => setDealsLoaded(true));
   }, [showArchived]);
 
   useEffect(() => {
@@ -1353,7 +1356,7 @@ export function Pipeline() {
                         </div>
                       );
                     })}
-                    {cards.length === 0 && <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No deals</div>}
+                    {cards.length === 0 && (dealsLoaded ? <div style={{ padding: '16px 8px', textAlign: 'center', fontSize: 10, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No deals</div> : <Skeleton rows={2} height={48} label="Loading leads…" />)}
                   </div>
                 </div>
               );

@@ -4,6 +4,7 @@ import { useApp } from '../AppContext';
 import { BID_OUTCOMES, OWED_A_JOB, outcomeLabel, type BidOutcome, type BidStats, type ContractorBid } from '../data/contractorBids';
 import { BG, DANGER, INK, MUTED, Badge, bodyRow, btn, card, fmtDate, headRow, input, type Contractor, type Project, type SubcontractorTrade } from './manpowerUi';
 import { SortHeader, useSort } from './SortHeader';
+import { Skeleton } from './Skeleton';
 
 const usd = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }));
 const today = () => new Date().toISOString().slice(0, 10);
@@ -127,7 +128,7 @@ export function ContractorBids({ contractor, projects, subTrades, canManage, onC
               <span>Notes</span>
               {canManage && <span />}
             </div>
-            {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {sorted.map((b) => {
               const tone = (BID_OUTCOMES.find(([k]) => k === b.outcome) || BID_OUTCOMES[2])[2];
               return (

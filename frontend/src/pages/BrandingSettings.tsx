@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -95,7 +96,7 @@ export function BrandingSettings() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   const accent = form['brand.accentColor'] || '#232321';
 

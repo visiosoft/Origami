@@ -10,6 +10,7 @@ import {
   ATTACH_KINDS, CONTRACT_TYPES, STATUS_LABEL, STATUS_TONE, sanitizeHtml, typeLabel, waitingOn,
   type Contract, type ContractAttachment, type ContractParty, type ContractTemplate, type ContractType,
 } from '../data/contracts';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = { width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)', outline: 'none' };
@@ -60,7 +61,7 @@ export function Contracts() {
         <select aria-label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })} style={{ ...input, width: 200 }}><option value="">Any status</option>{(Object.keys(STATUS_LABEL) as Contract['status'][]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select>
       </div>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
-        {rows === null && <div style={{ padding: 16, fontSize: 13, color: 'var(--muted)' }}>Loading…</div>}
+        {rows === null && <Skeleton label="Loading…" />}
         {rows && !rows.length && <div style={{ padding: 18, fontSize: 13, color: 'var(--muted)' }}>No contracts yet. Start one with “New contract”.</div>}
         {(rows || []).map((c) => (
           <button type="button" key={c.id} onClick={() => open(c.id)} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', width: '100%', padding: '12px 16px', border: 0, borderTop: '1px solid var(--border)', background: 'transparent', font: 'inherit', textAlign: 'left', cursor: 'pointer', color: 'var(--ink)' }}>
@@ -185,7 +186,7 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
   useEffect(() => { if (c?.projectId) api.contracts.files(c.projectId).then(setFiles).catch(() => setFiles([])); }, [c?.projectId]);
   const isDraft = c?.status === 'draft';
   const dirty = useMemo(() => !!c && !!draft && (draft.title !== c.title || draft.amount !== (c.amount || '') || draft.html !== (c.html || '') || JSON.stringify(draft.parties) !== JSON.stringify(c.parties) || JSON.stringify(draft.attachments) !== JSON.stringify(c.attachments || [])), [c, draft]);
-  if (!c || !draft) return <Drawer title="Contract" onClose={onClose}><div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div></Drawer>;
+  if (!c || !draft) return <Drawer title="Contract" onClose={onClose}><Skeleton label="Loading…" /></Drawer>;
 
   const run = async (label: string, fn: () => Promise<unknown>, ok: string) => {
     setBusy(label);

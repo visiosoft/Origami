@@ -6,6 +6,7 @@ import {
   ACCENT, ACCENT_BG, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow,
   input, todayISO, type Assignment, type Project,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
 export const lifecycle = (e: Employee) => e.employmentStatus || (e.status === 'inactive' ? 'resigned' : 'active');
@@ -183,7 +184,7 @@ export function DeploymentBoard(props: Ctx & { canManage: boolean; reload: () =>
             <div style={{ overflowX: 'auto' }}>
               <div style={{ minWidth: 820 }}>
                 <div style={headRow(cols)}><span>Worker</span><span>Project</span><span>Work area</span><span>Period</span><span>Outcome</span><span>By</span></div>
-                {history === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+                {history === null && <Skeleton label="Loading…" />}
                 {rows.map((a) => {
                   const r = END_REASON[a.endReason || ''] || { label: 'Ended', tone: 'grey' as const };
                   return (
@@ -428,7 +429,7 @@ export function EmployeeDeploymentPanel(props: Ctx & { employee: Employee; canMa
         {canManage && isDeployable(employee) && <div onClick={() => setAssigning(true)} style={btn(!hasRegular)}>{hasRegular ? '+ Temporary cover' : '+ Deploy to project'}</div>}
         {canManage && !isLeft(employee) && current.length > 0 && <div onClick={demobilize} style={{ ...btn(), color: DANGER }}>Demobilize</div>}
       </div>
-      {rows === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : current.length ? current.map((a) => (
+      {rows === null ? <Skeleton label="Loading…" /> : current.length ? current.map((a) => (
         <div key={a.id} style={{ ...card, padding: '14px 16px', marginBottom: 10, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{projectName(a.projectId)}{a.workArea ? ` · ${a.workArea}` : ''}</div>

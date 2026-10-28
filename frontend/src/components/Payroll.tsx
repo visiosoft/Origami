@@ -6,6 +6,7 @@ import {
   ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, localISO, methodLabel, money, PAYMENT_METHODS, todayISO,
   type PayComponent, type PayrollSettings,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 interface PayLine { id: string; name: string; kind: 'earning' | 'deduction'; source: string; amount: number; note?: string; refIds?: string[] }
 interface Payslip {
@@ -98,7 +99,7 @@ export function PayrollRuns({ employees, currency, canManage, canFinance }: {
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1000 }}>
             <div style={headRow(cols)}><span>Run</span><span>Period</span><span>Who</span><span>People</span><span>Gross</span><span>Net</span><span>Paid</span><span>Status</span></div>
-            {runs === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {runs === null && <Skeleton label="Loading…" />}
             {all.map((r) => {
               const s = RUN_STATUS[r.status] || RUN_STATUS.draft;
               const t = r.totals || { headcount: 0, gross: 0, net: 0, paid: 0, deductions: 0 };
@@ -193,7 +194,7 @@ function RunDetail({ runId, employees, currency, canManage, canFinance, onBack }
   const load = () => api.payroll.run(runId).then((r: any) => setRun(r)).catch((e: Error) => toast('⚠ ' + e.message));
   useEffect(() => { load(); }, [runId]);
 
-  if (!run) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>;
+  if (!run) return <Skeleton label="Loading…" />;
   const t = run.totals || { headcount: 0, gross: 0, deductions: 0, net: 0, paid: 0 };
   const slips = (run.payslips || []).filter((p) => !query.trim() || String(p.employee?.name || '').toLowerCase().includes(query.trim().toLowerCase()));
   const s = RUN_STATUS[run.status] || RUN_STATUS.draft;
@@ -622,7 +623,7 @@ export function EmployeePayPanel({ employee, settings, canManage, canFinance, on
                 <span style={{ fontSize: 11.5, color: MUTED }}>{unit(c)}{values[c.id] === undefined || values[c.id] === '' ? (c.defaultValue ? ' · company value' : '') : ' · this employee'}</span>
               </div>
             ))}
-            {components === null && <div style={{ padding: 12, fontSize: 12, color: MUTED }}>Loading…</div>}
+            {components === null && <Skeleton label="Loading…" />}
             {components && !relevant.length && <div style={{ padding: 12, fontSize: 12, color: MUTED }}>No active components for this pay basis — add them under Setup → Payroll setup.</div>}
           </div>
         </div>
@@ -632,7 +633,7 @@ export function EmployeePayPanel({ employee, settings, canManage, canFinance, on
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px 8px', fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK }}>Payslips</div>
         <div style={headRow(cols)}><span>Period</span><span>Status</span><span>Gross</span><span>Net</span><span>Paid</span></div>
-        {slips === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+        {slips === null && <Skeleton label="Loading…" />}
         {(slips || []).map((s) => (
           <div key={s.id} onClick={() => setOpen(s)} style={{ ...bodyRow(cols), cursor: 'pointer' }}>
             <span style={{ fontSize: 12.5, color: INK }}>{runOf(s)?.label} <span style={{ fontSize: 11, color: MUTED }}>{fmtDate(runOf(s)?.periodStart)} – {fmtDate(runOf(s)?.periodEnd)}</span></span>

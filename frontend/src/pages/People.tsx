@@ -26,6 +26,7 @@ import {
   KIND_STYLE, TIER_STYLE, KIND_C, COMPANY_META, INTERNAL_LEVELS, initials, internalLevelOf, levelFromRole, type Person, type Comply,
   CONTACT_STATUS_HINT, CONTACT_STATUS_LABEL, contactStatusOf, type ContactStatus, type DupMatch,
 } from '../data/people';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 // Internal people are split by level (Executive … Labor); everyone else by kind.
@@ -127,6 +128,8 @@ export function People() {
   const { toast, can } = useApp();
   const canManage = can('people', 'manage');
   const [people, setPeople] = useState<Person[]>([]);
+  // False until the directory arrives, so the list shows placeholders rather than "No one matches".
+  const [loaded, setLoaded] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [kf, setKf] = useState('All');
   const [pf, setPf] = useState('All projects');
@@ -161,7 +164,7 @@ export function People() {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
-  const reload = () => { api.people.list().then((r) => { if (Array.isArray(r)) setPeople(r as Person[]); }).catch(() => { }); };
+  const reload = () => { api.people.list().then((r) => { if (Array.isArray(r)) setPeople(r as Person[]); }).catch(() => { }).finally(() => setLoaded(true)); };
   useEffect(() => { reload(); }, []);
 
   const all: Person[] = people;
@@ -645,13 +648,14 @@ export function People() {
 
       </>}
 
-      {view === 'company' ? addressBook
+      {!loaded ? <div className="sk-card"><Skeleton rows={8} label="Loading people…" /></div>
+        : view === 'company' ? addressBook
         : view === 'table' ? (isNew
           ? <PeopleTable people={shown} picked={picked} onPick={togglePick} onOpen={(id) => setSelectedId(id)} page={Math.min(pg, pages)} size={pgSize}
               onPickAll={(on) => setPicked(on ? new Set(shown.map((p) => p.id)) : new Set())} />
           : tableView)
         : cardsView}
-      {view !== 'company' && <Pager page={Math.min(pg, pages)} pages={pages} total={shown.length} size={pgSize} onPage={setPg} onSize={setPgSize} />}
+      {loaded && view !== 'company' && <Pager page={Math.min(pg, pages)} pages={pages} total={shown.length} size={pgSize} onPage={setPg} onSize={setPgSize} />}
       {compliancePanel}
 
       {/* Person drawer */}

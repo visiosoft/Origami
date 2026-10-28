@@ -7,6 +7,7 @@ import {
   ApprovalTrail, InvoiceBadge, PAYMENT_METHODS, ReasonBox, failed, pct, usd,
   type Invoice, type InvoiceLine, type Overview, type Reimbursable, type Row,
 } from './financeUi';
+import { Skeleton } from '../Skeleton';
 
 type LineKind = InvoiceLine['kind'];
 
@@ -67,7 +68,7 @@ export function InvoiceDrawer({ invoiceId, overview, onClose, onChanged }: { inv
   return (
     <Drawer title={title} subtitle={subtitle} width={1060} onClose={onClose}>
       {error && <div style={{ fontSize: 13, color: DANGER }}>{error}</div>}
-      {!inv && !error && <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>}
+      {!inv && !error && <Skeleton label="Loading…" />}
       {inv && inv.creditFor && <div onClick={() => setCurrentId(inv.creditFor!.id)} style={{ fontSize: 12.5, color: ACCENT, cursor: 'pointer', marginBottom: 12 }}>← Back to {inv.creditFor.issuedNumber}</div>}
       {inv && inv.status === 'draft' && <DraftEditor key={inv.id} inv={inv} overview={overview} onSaved={apply} onFail={fail} onDeleted={() => { onChanged(); if (inv.creditFor) setCurrentId(inv.creditFor.id); else onClose(); }} />}
       {inv && inv.status !== 'draft' && <IssuedView key={inv.id} inv={inv} overview={overview} onChanged={apply} onFail={fail} onOpen={setCurrentId} />}

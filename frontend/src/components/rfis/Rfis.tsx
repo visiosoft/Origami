@@ -16,6 +16,7 @@ import { AssigneePicker } from '../AssigneePicker';
 import { Attachments } from '../Attachments';
 import type { Attachment } from '../../data/projectTasks';
 import type { ActionTrailFields } from '../../api';
+import { Skeleton } from '../Skeleton';
 
 // ------------------------------------------------------------------ types & looks
 
@@ -213,7 +214,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
 
       {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: '#F7E4DB', fontSize: 12.5, fontWeight: 600, color: '#8E2E0A', marginBottom: 12 }}>{error}</div>}
 
-      {loading ? <div style={{ fontSize: 13, color: MUTED, padding: 12 }}>Loading RFIs…</div>
+      {loading ? <Skeleton label="Loading RFIs…" />
         : !shown.length ? (
           <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
             {data?.any ? 'No RFIs match.' : 'No RFIs yet. When something on the drawings needs an answer from the architect, engineer or owner, start one here — or use “Convert to RFI” on a task.'}

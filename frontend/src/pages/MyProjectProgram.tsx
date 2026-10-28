@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { SignaturePad } from '../components/SignaturePad';
 import { PROGRAM_STEPS, num, rangeText, type ProgramData } from '../data/projectProgram';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -58,7 +59,7 @@ export function MyProjectProgram() {
       .finally(() => setSubmitting(false));
   };
 
-  if (loading) return <div style={{ padding: 28, fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
   if (error) return (
     <div style={{ padding: 28 }}>
       <div style={{ fontSize: 13, color: '#8E2E0A', marginBottom: 10 }}>{error}</div>

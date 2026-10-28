@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel } from '../data/projectTypes';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -201,7 +202,7 @@ export function ProgrammeTemplate() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   const totalTasks = phases.reduce((sum, p) => sum + p.tasks.length, 0);
 

@@ -6,6 +6,7 @@ import { useApp } from '../AppContext';
 import { isMine } from '../components/TaskScope';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import type { Task } from '../data/tasks';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -178,7 +179,7 @@ export function MyCalendar() {
     ? weekStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
     : `${weekStart.toLocaleDateString(undefined, { month: 'short' })} – ${addDays(weekStart, 6).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
 
-  if (connected === null) return <div style={{ padding: 28, fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (connected === null) return <Skeleton label="Loading…" />;
 
   if (!connected) {
     return (

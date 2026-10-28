@@ -4,6 +4,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats } from '../components/ActionKit';
 import { SortSelect, useSort } from '../components/SortHeader';
+import { Skeleton } from '../components/Skeleton';
 
 /** One thing waiting on a decision, from whichever module holds it. */
 interface Waiting {
@@ -124,7 +125,7 @@ export function Approvals() {
       </div>
 
       <section className="ak-card">
-        {rows === null && <div className="ak-empty">Loading…</div>}
+        {rows === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {rows && !shown.length && <div className="ak-empty">Nothing is waiting{mine ? ' on you' : ''}.</div>}
         {sorted.map((r, i) => (
           <AkRow key={r.key} index={i} onClick={() => navigate(r.to)}

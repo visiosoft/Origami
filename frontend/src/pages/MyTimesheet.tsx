@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { RecentTimesheets, TimesheetEditor, mondayOf, type CsiCode } from '../components/Timesheets';
 import { BG, INK, MUTED, card, todayISO, type Project } from '../components/manpowerUi';
+import { Skeleton } from '../components/Skeleton';
 
 /** Every internal user's own weekly timesheet: fill in, submit, see what was approved. */
 export function MyTimesheet() {
@@ -25,7 +26,7 @@ export function MyTimesheet() {
       <p style={{ margin: '6px 0 18px', fontSize: 13, color: MUTED }}>
         Log the hours you spend on each project and on internal work, add notes, mark any leave, and submit the week for approval. Approved hours go to payroll.
       </p>
-      {me === undefined && <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>}
+      {me === undefined && <Skeleton label="Loading…" />}
       {me === null && (
         <div style={{ ...card, padding: '18px 20px', maxWidth: 640, fontSize: 13, color: INK, lineHeight: 1.7 }}>
           <b>Your login isn't linked to an employee record yet.</b><br />

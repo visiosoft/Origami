@@ -12,6 +12,7 @@ import { ChangeOrderList } from './ChangeOrders';
 import { ReimbursableList } from './Reimbursables';
 import { RetentionPanel } from './Retention';
 import { JobCostPanel, ProfitabilityPanel } from './JobCost';
+import { Skeleton } from '../Skeleton';
 
 type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity';
 type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
@@ -61,7 +62,7 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
   };
 
   if (error) return <div style={{ ...card, padding: 18, fontSize: 13, color: DANGER }}>{error}</div>;
-  if (!data) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading financials…</div>;
+  if (!data) return <Skeleton label="Loading financials…" />;
   const { summary: s } = data.sov;
   const r = data.rights;
 
@@ -612,7 +613,7 @@ function InvoiceList({ invoices, canManage, busy, billableNow, onOpen, onNew }: 
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1050 }}>
             <div style={headRow(cols)}><span>Invoice</span><span>Date</span><span>Due</span><span>Description</span><span style={{ textAlign: 'right' }}>Contract work</span><span style={{ textAlign: 'right' }}>Total</span><span style={{ textAlign: 'right' }}>Paid</span><span style={{ textAlign: 'right' }}>Outstanding</span><span>Status</span></div>
-            {invoices === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {invoices === null && <Skeleton label="Loading…" />}
             {(invoices || []).map((i) => (
               <div key={i.id} onClick={() => onOpen(i.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', opacity: i.status === 'void' ? 0.55 : 1 }}>
                 <b style={{ fontSize: 12.5, color: ACCENT }}>{i.issuedNumber || 'Draft'}</b>

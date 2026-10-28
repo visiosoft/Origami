@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
 import { ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, Label, btn, card, fmtDate, input, todayISO, type Project } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 interface Rider { id: string; routeId: string; employeeId: string; pickupPoint?: string; startDate: string; endDate?: string | null; byName?: string }
 interface Route {
@@ -38,7 +39,7 @@ export function TransportModule({ employees, projects, canManage, onOpenEmployee
         <div style={{ flex: 1, fontSize: 12, color: MUTED, alignSelf: 'center' }}>Company buses and vans taking staff between camps and sites.</div>
         {canManage && <div onClick={() => setEditing('new')} style={btn(true)}>+ Add route</div>}
       </div>
-      {rows === null && <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>}
+      {rows === null && <Skeleton label="Loading…" />}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {all.map((r) => {
           const full = r.capacity > 0 && r.riderCount >= r.capacity;
@@ -211,7 +212,7 @@ export function EmployeeTransportCard({ employee, canManage }: { employee: Emplo
         <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK, flex: 1 }}>Transport</div>
         {canManage && routes.some((r) => r.status === 'active') && !assigning && <div onClick={() => setAssigning(true)} style={btn(!current)}>{current ? 'Change route' : '+ Assign route'}</div>}
       </div>
-      {rows === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : current ? (
+      {rows === null ? <Skeleton label="Loading…" /> : current ? (
         <div style={{ fontSize: 12.5, color: INK, lineHeight: 1.8 }}>
           <b>{current.route?.name}</b>{current.pickupPoint ? ` · picked up at ${current.pickupPoint}` : ''} · since {fmtDate(current.startDate)}
           {current.route?.departureTime && <div style={{ color: MUTED }}>Leaves {current.route.departureTime}{current.route.returnTime ? `, returns ${current.route.returnTime}` : ''}{current.route.vehicle ? ` · ${current.route.vehicle}` : ''}</div>}

@@ -6,6 +6,7 @@ import {
   ACCENT, DANGER, INK, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, localISO, money, todayISO,
   type PayrollSettings, type Project,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 interface OT {
   id: string; employeeId: string; projectId?: number; date: string; hours: number; otType: string; rate?: number; reason?: string;
@@ -73,7 +74,7 @@ export function OvertimePanel({ employees, projects, settings, canManage, employ
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: employeeId ? 640 : 860 }}>
             <div style={headRow(cols)}>{!employeeId && <span>Employee</span>}<span>Date</span><span>Project</span><span>Hours</span><span>Type</span><span>Amount</span><span>Status</span></div>
-            {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {shown.map((o) => {
               const s = statusOf(o);
               return (

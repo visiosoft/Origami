@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { EmailLink, PhoneLink } from './ContactLinks';
 import type { Person } from '../data/people';
+import { Skeleton } from './Skeleton';
 
 /** Who shows first: our team, the client, then everyone else. */
 const ORDER: Person['kind'][] = ['Staff', 'Client', 'Consultant', 'Sub', 'Vendor', 'Authority'];
@@ -20,7 +21,7 @@ export function ProjectPeople({ projectName }: { projectName: string }) {
       .catch(() => { if (live) setPeople([]); });
     return () => { live = false; };
   }, [projectName]);
-  if (!people) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading people…</div>;
+  if (!people) return <Skeleton label="Loading people…" />;
   if (!people.length) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>No one is attached to {projectName} yet. Add them to the project in People.</div>;
   const kinds = [...ORDER, ...[...new Set(people.map((p) => p.kind))].filter((k) => !ORDER.includes(k))];
   return (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, type GoogleStatus, type DriveFile } from '../api';
 import { useApp } from '../AppContext';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 
@@ -106,7 +107,7 @@ export function GoogleSettings() {
 
   const ready = !!form['google.clientId'] && !!form['app.baseUrl'];
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   return (
     <div>

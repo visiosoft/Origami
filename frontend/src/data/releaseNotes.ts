@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28p',
+    date: '2026-10-28',
+    title: 'You can always see when something is loading',
+    items: [
+      { area: 'General', kind: 'improved', text: 'A thin bar runs along the top of the screen while a page or its data is on the way, so a slow first open no longer looks frozen.', where: 'Everywhere' },
+      { area: 'General', kind: 'improved', text: 'Pages and panels show shimmering placeholders until their data arrives, instead of a blank space or a misleading “0” / “No one matches” (Dashboard, Projects, People, CRM & Leads and every list).', where: 'Everywhere' },
+    ],
+  },
+  {
     id: '2026-10-28o',
     date: '2026-10-28',
     title: 'Task panel: actions first, history in pages',

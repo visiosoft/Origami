@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { TaskBoard } from './TaskBoard';
 import { RfiLog, isOverdue as rfiOverdue, type Rfi } from './rfis/Rfis';
+import { Skeleton } from './Skeleton';
 
 const MUTED = 'var(--muted)';
 const INK = 'var(--ink)';
@@ -50,7 +51,7 @@ export function WorkGlance({ projectId, showRfis, onTasks, onRfis }: { projectId
   return (
     <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
       <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED, marginBottom: 10 }}>Tasks & RFIs</div>
-      {!c ? <div style={{ fontSize: 12, color: MUTED }}>Loading…</div> : (
+      {!c ? <Skeleton label="Loading…" /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 8 }}>
           {tile('Open tasks', c.open, c.overdue ? `${c.overdue} overdue` : 'None overdue', onTasks, c.overdue ? DANGER : undefined)}
           {showRfis && tile('Open RFIs', c.rfiOpen, c.rfiOverdue ? `${c.rfiOverdue} overdue` : 'None overdue', onRfis, c.rfiOverdue ? DANGER : undefined)}

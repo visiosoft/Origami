@@ -21,6 +21,7 @@ import { TransportModule } from '../components/Transport';
 import { TimesheetsModule } from '../components/Timesheets';
 import { CostCodesSettings } from '../components/CostCodes';
 import { SampleDataPanel, SubcontractorTradesSetup } from '../components/SubcontractorTrades';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const INK = 'var(--ink)';
@@ -336,7 +337,7 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
       {!projectId ? (
         <div style={{ fontSize: 12.5, color: MUTED, padding: '18px 0' }}>Pick a project and a date to view or start that day's log.</div>
       ) : loading ? (
-        <div style={{ fontSize: 12.5, color: MUTED, padding: '18px 0' }}>Loading…</div>
+        <Skeleton label="Loading…" />
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .09)', borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, padding: '9px 14px', background: 'var(--c-f7f3ea)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>

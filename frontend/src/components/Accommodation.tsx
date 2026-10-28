@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
 import { ACCENT, ACCENT_BG, BG, DANGER, INK, MUTED, Badge, Drawer, Label, btn, card, fmtDate, input, todayISO } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 type Level = 'camp' | 'building' | 'floor' | 'room' | 'bed';
 interface Unit { id: string; parentId?: string | null; level: Level; name: string; notes?: string; active: boolean }
@@ -40,7 +41,7 @@ export function AccommodationModule({ employees, canManage, onOpenEmployee }: { 
   const load = () => api.accommodation.overview().then((r: any) => setData(r?.units ? r : { units: [], allocations: [], issues: [] })).catch(() => setData({ units: [], allocations: [], issues: [] }));
   useEffect(() => { load(); }, []);
 
-  if (!data) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>;
+  if (!data) return <Skeleton label="Loading…" />;
   const today = todayISO();
   const { units, allocations, issues } = data;
   const kids = (id: string | null) => units.filter((u) => (u.parentId || null) === id).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
@@ -322,7 +323,7 @@ export function EmployeeHousingCard({ employee, employees, canManage }: { employ
         <div style={{ fontFamily: BG, fontSize: 15, fontWeight: 700, color: INK, flex: 1 }}>Accommodation</div>
         {canManage && data && data.units.length > 0 && <div onClick={() => setMode('allocate')} style={btn(!current)}>{current ? 'Move' : '+ Allocate bed'}</div>}
       </div>
-      {history === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : (
+      {history === null ? <Skeleton label="Loading…" /> : (
         <div style={{ fontSize: 12.5, color: INK, lineHeight: 1.8 }}>
           {current ? <div><b>{current.location}</b> since {fmtDate(current.checkIn)}
             {canManage && <span onClick={checkout} style={{ marginLeft: 10, fontSize: 12, fontWeight: 700, color: DANGER, cursor: 'pointer' }}>Check out</span>}

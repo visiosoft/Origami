@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { EmailLink, PhoneLink } from './ContactLinks';
+import { Skeleton } from './Skeleton';
 
 const INK = 'var(--ink)';
 const MUTED = 'var(--muted)';
@@ -53,7 +54,7 @@ export function ProjectSubcontractors({ projectId, onAddSubcontract }: { project
   }, [projectId]);
 
   if (error) return <div style={{ padding: 16, fontSize: 13, color: DANGER }}>{error}</div>;
-  if (!v) return <div style={{ padding: 16, fontSize: 13, color: MUTED }}>Loading subcontractors…</div>;
+  if (!v) return <Skeleton label="Loading subcontractors…" />;
 
   const live = v.rows.flatMap((r) => r.subcontracts).filter((s) => s.status === 'approved');
   const committed = live.reduce((a, s) => a + (s.total || 0), 0);

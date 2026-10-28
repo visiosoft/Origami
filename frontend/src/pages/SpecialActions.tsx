@@ -8,6 +8,7 @@ import { raisedOn } from './Observations';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
 import { SavedViews } from '../components/SavedViews';
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
+import { Skeleton } from '../components/Skeleton';
 
 export type Phase = 'design' | 'construction';
 type Kind = 'all' | 'meeting' | 'rfi' | 'task' | 'obs' | 'co';
@@ -148,7 +149,7 @@ export function SpecialActions({ phase }: { phase: Phase }) {
         onApply={(v) => { setKind(v.kind as Kind); setOpenOnly(!!v.openOnly); setProject(v.project === '' ? '' : Number(v.project)); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
 
       <section className="ak-card">
-        {loading && <div className="ak-empty">Loading…</div>}
+        {loading && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {!loading && !shown.length && <div className="ak-empty">{projects?.length ? (openOnly ? 'Nothing open here.' : 'Nothing here yet.') : 'No projects are in this phase right now.'}</div>}
         {!loading && sorted.map((i, n) => (
           <AkRow key={i.key} index={n} muted={!i.open} onClick={() => navigate(i.to)}

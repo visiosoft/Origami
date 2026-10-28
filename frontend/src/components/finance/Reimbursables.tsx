@@ -5,6 +5,7 @@ import { Attachments } from '../Attachments';
 import { SortHeader, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input, todayISO } from '../manpowerUi';
 import { ApprovalTrail, REIMB_CATEGORIES, ReasonBox, ReimbBadge, failed, label, usd, usd0, type Overview, type Reimbursable, type Rights } from './financeUi';
+import { Skeleton } from '../Skeleton';
 
 /**
  * Reimbursable expenses -- one project's, or every project's (the Reimbursement
@@ -70,7 +71,7 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
               {onBill && <span />}{H('number', 'No.')}{!projectId && H('project', 'Project')}{H('date', 'Date')}{H('desc', 'Expense')}{H('category', 'Category')}
               {H('cost', 'Cost', true)}{H('bill', 'To bill', true)}{H('status', 'Status')}
             </div>
-            {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {sorted.map((r) => {
               const pickable = r.status === 'approved' && r.billable && !r.invoiceId;
               return (

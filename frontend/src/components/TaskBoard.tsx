@@ -36,6 +36,7 @@ import { leadLabel } from '../data/linkTargets';
 import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope as TaskScopeKind } from './TaskScope';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { filesFromClipboard, nameClipboardFile } from './Attachments';
+import { Skeleton } from './Skeleton';
 
 const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = {
@@ -428,7 +429,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     api.projectTasks.reorder(sectionId, ids).catch(() => toast('⚠ Failed to reorder'));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)', padding: 20 }}>Loading tasks…</div>;
+  if (loading) return <Skeleton label="Loading tasks…" />;
 
   // ---- task card ----
   // Card JSX is inlined (not a nested component) so a re-render during drag

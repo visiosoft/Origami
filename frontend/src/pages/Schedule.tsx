@@ -4,6 +4,7 @@ import { api } from '../api';
 import { stageLabel } from '../data/projects';
 import { AkPage, AkSeg, AkStats, akDay, akToday } from '../components/ActionKit';
 import './Schedule.css';
+import { Skeleton } from '../components/Skeleton';
 
 interface SPhase { id: string; key: string; name: string; color?: string; progress: number; complete: boolean; total: number; start: string | null; end: string | null }
 interface SRow {
@@ -111,7 +112,7 @@ export function Schedule() {
       </div>
 
       <section className="ak-card sc-card">
-        {rows === null ? <div className="ak-empty">Loading…</div> : !dated.length && !undated.length ? <div className="ak-empty">No projects here yet.</div> : (
+        {rows === null ? <div style={{ padding: 16 }}><Skeleton rows={4} /></div> : !dated.length && !undated.length ? <div className="ak-empty">No projects here yet.</div> : (
           <div className="sc-grid" style={{ ['--months' as any]: months.length }}>
             <div className="sc-head">
               <span className="sc-name-h">Project</span>

@@ -16,6 +16,7 @@ import {
 import { STAGES } from '../data/pipeline';
 import { stageLabel } from '../data/projects';
 import './Dashboard.css';
+import { PageSkeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const ocRamp = ['#C7D8CB', '#8AAE95', '#3E8558', '#173326'];
@@ -84,6 +85,8 @@ export function Dashboard() {
   // static demo fixture data (DEADLINES), not anything actually happening.
   // The task cards' figures, worked out on the server (a few numbers and short lists, not every task).
   const [summary, setSummary] = useState<TasksSummary | null>(null);
+  // The task summary drives most of the overview: placeholders until it has answered (or failed).
+  const [summaryDone, setSummaryDone] = useState(false);
   type CalEvent = { id: string; summary: string; start: string; end?: string; allDay: boolean; htmlLink?: string };
   const [weekMeetings, setWeekMeetings] = useState<CalEvent[]>([]);
   const [calConnected, setCalConnected] = useState<boolean | null>(null);
@@ -105,7 +108,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (isClient) return;
-    { const d = new Date(); api.dashboard.tasksSummary(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`).then(setSummary).catch(() => { }); }
+    { const d = new Date(); api.dashboard.tasksSummary(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`).then(setSummary).catch(() => { }).finally(() => setSummaryDone(true)); }
     api.finance.portfolio().then((r: any) => setPortfolio(Array.isArray(r) ? r : null)).catch(() => setPortfolio(null));
     api.finance.collections(6).then((r: any) => setCollections(Array.isArray(r) ? r : null)).catch(() => setCollections(null));
     api.finance.billing(6).then((r) => setBilling(Array.isArray(r) ? r : null)).catch(() => setBilling(null));
@@ -381,7 +384,7 @@ export function Dashboard() {
   return (
     <div className="dashboard-page" style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
       {isNew ? <>
-        <DashboardOverview {...overview} />
+        {summaryDone || isClient ? <DashboardOverview {...overview} /> : <PageSkeleton label="Loading your dashboard…" />}
         {/* The Classic look's money charts, on live figures (finance is role-gated: hidden without access). */}
         {!isClient && !isCons && <DashboardCharts billing={billing} bars={portfolio ? projectBars(portfolio, allProjects) : null} go={(to) => navigate(to)} />}
       </> : <>

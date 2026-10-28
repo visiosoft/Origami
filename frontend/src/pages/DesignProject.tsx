@@ -12,6 +12,7 @@ import { isTaskDone, statusLabel, subtasksOf, type ProjectTask } from '../data/p
 import { TaskLinkBadge } from '../components/TaskLinkBadge';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
+import { Skeleton } from '../components/Skeleton';
 
 const HEADING = 'var(--font-display)';
 
@@ -185,7 +186,7 @@ export function DesignProject() {
       });
   };
 
-  if (loading) return <div style={{ padding: 32, fontSize: 13, color: INK3 }}>Loading project…</div>;
+  if (loading) return <Skeleton label="Loading project…" />;
   if (error || !project) {
     return (
       <div style={{ padding: '32px 36px', background: PAPER, minHeight: '100%' }}>

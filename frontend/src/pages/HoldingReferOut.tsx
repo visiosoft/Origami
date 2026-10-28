@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { STAGES, type Deal } from '../data/pipeline';
 import { AkDate, AkPage, AkPill, AkRow, AkSeg, AkStats, akDay, akDaysFrom, akToday } from '../components/ActionKit';
+import { Skeleton } from '../components/Skeleton';
 
 type View = 'hold' | 'referred' | 'closed';
 const stageOf = (k: string) => STAGES.find((s) => s.key === k);
@@ -70,7 +71,7 @@ export function HoldingReferOut() {
       </div>
 
       <section className="ak-card">
-        {deals === null && <div className="ak-empty">Loading…</div>}
+        {deals === null && <div style={{ padding: 16 }}><Skeleton rows={4} /></div>}
         {deals && !list.length && <div className="ak-empty">{needle ? 'No lead matches.' : view === 'hold' ? 'No leads on hold.' : view === 'referred' ? 'No leads referred out.' : 'No cold or cancelled leads.'}</div>}
         {list.map((d, i) => (
           <AkRow key={d.id} index={i} muted={d.archived} onClick={() => navigate(`/pipeline?open=${encodeURIComponent(d.id)}`)}

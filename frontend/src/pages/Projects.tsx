@@ -39,6 +39,7 @@ import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM
 import { mergeTokens } from '../data/clientPersonality';
 import { hasUnfilled } from '../data/placeholders';
 import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
@@ -65,6 +66,8 @@ export function Projects() {
   const navigate = useNavigate();
   const canManage = can('projects', 'manage');
   const [projects, setProjects] = useState<Project[]>([]);
+  // False until the first list arrives, so the board shows placeholders rather than "0" and empty columns.
+  const [loaded, setLoaded] = useState(false);
   const [filters, setFilters] = useState<ProjectFilters>(BLANK_FILTERS);
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [activeView, setActiveView] = useState('');
@@ -106,7 +109,7 @@ export function Projects() {
   const [editingPtSub, setEditingPtSub] = useState<string | null>(null);
   const numberOf = useTaskNumber();
 
-  const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }); };
+  const reload = () => { api.projects.list().then((r) => { if (Array.isArray(r)) setProjects(r as Project[]); }).catch(() => { }).finally(() => setLoaded(true)); };
   useEffect(() => {
     reload();
     api.leads.list().then((r: any) => { if (Array.isArray(r)) setLeads(r); }).catch(() => { });
@@ -626,7 +629,7 @@ export function Projects() {
                   onDragLeave={() => { if (dragOver === st.name) setDragOver(null); }}
                   onDrop={(e) => { e.preventDefault(); const id = Number(e.dataTransfer.getData('text/plain')); if (id) moveProject(id, st.name); setDragOver(null); setDragId(null); }}
                 >
-                  {stageProjects.length === 0 && <div className="pc-col-empty">{canManage ? 'Drop a project here' : 'No projects'}</div>}
+                  {stageProjects.length === 0 && (loaded ? <div className="pc-col-empty">{canManage ? 'Drop a project here' : 'No projects'}</div> : <Skeleton rows={2} height={64} label="Loading projects…" />)}
                   {stageProjects.map((p, i) => (
                     <ProjectCard
                       key={p.id}

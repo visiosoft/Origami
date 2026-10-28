@@ -6,6 +6,7 @@ import {
   ACCENT, ADVANCE_TYPES, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, methodLabel, money, PAYMENT_METHODS, todayISO,
   type PayrollSettings,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 interface Approval { stage: string; decision: string; byName: string; byId?: string; at: string; note?: string }
 interface Repayment { id: string; date: string; amount: number; method: string; runId?: string; byName?: string; note?: string }
@@ -93,7 +94,7 @@ export function AdvancesPanel({ employees, settings, canManage, canFinance, empl
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: employeeId ? 700 : 880 }}>
             <div style={headRow(cols)}>{!employeeId && <span>Employee</span>}<span>Type</span><span>Amount</span><span>Recovery</span><span>Outstanding</span><span>Status</span></div>
-            {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {shown.map((a) => {
               const s = STATUS[a.status] || STATUS.pending_manager;
               return (

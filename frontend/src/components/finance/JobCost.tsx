@@ -4,6 +4,7 @@ import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input, todayISO } from '../manpowerUi';
 import { COMMITMENT_TYPES, COST_TYPES, CostBadge, ReasonBox, downloadCsv, failed, label, usd, usd0, type Overview } from './financeUi';
+import { Skeleton } from '../Skeleton';
 
 // ------------------------------------------------------------------ shapes
 
@@ -124,7 +125,7 @@ export function JobCostPanel({ projectId, overview, initialSub }: { projectId: n
   const load = () => api.finance.costs(projectId).then((r: any) => setV(r)).catch((e: any) => failed(toast, e));
   useEffect(() => { load(); }, [projectId]);
   const pick = usePickers(overview);
-  if (!v) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading job cost…</div>;
+  if (!v) return <Skeleton label="Loading job cost…" />;
   const t = v.totals;
   const paidOut = v.entries.filter((e) => e.status === 'paid').reduce((a, e) => a + e.amount, 0);
   const unpaidBills = v.entries.filter((e) => e.status === 'recorded' || e.status === 'approved').reduce((a, e) => a + e.amount, 0);
@@ -570,7 +571,7 @@ export function ProfitabilityPanel({ projectId }: { projectId: number }) {
   const { toast } = useApp();
   const [v, setV] = useState<CostsView | null>(null);
   useEffect(() => { api.finance.costs(projectId).then((r: any) => setV(r)).catch((e: any) => failed(toast, e)); }, [projectId]);
-  if (!v) return <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div>;
+  if (!v) return <Skeleton label="Loading…" />;
   const p = v.profitability;
   const pctTone = (n: number) => (n < 0 ? DANGER : n < 10 ? 'var(--c-8a6d12)' : 'var(--c-1e6b36)');
   if (!p.projectedCost && !p.costToDate) {

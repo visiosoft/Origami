@@ -169,6 +169,28 @@ export const cacheableRead = (path: string, options?: RequestInit) =>
 export function clearReadCache() { readCache.clear(); readsInFlight.clear(); }
 const copy = <T,>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
 
+// ---- Busy count: how many reads (and page downloads) are in flight, for the top loading bar ----
+let busyCount = 0;
+const busyListeners = new Set<(n: number) => void>();
+/** Hear the in-flight count change; returns the unsubscribe. */
+export function onBusy(fn: (n: number) => void): () => void {
+  busyListeners.add(fn);
+  fn(busyCount);
+  return () => { busyListeners.delete(fn); };
+}
+/** Count one more thing loading; call the returned function when it's done (safe to call twice). */
+export function markBusy(): () => void {
+  busyCount++;
+  busyListeners.forEach((fn) => fn(busyCount));
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    busyCount = Math.max(0, busyCount - 1);
+    busyListeners.forEach((fn) => fn(busyCount));
+  };
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!cacheableRead(path, options)) {
     try { return await send<T>(path, options); }
@@ -190,6 +212,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 async function send<T>(path: string, options?: RequestInit): Promise<T> {
   const token = session.get();
+  // Reads drive the top loading bar; writes have their own Saving… states.
+  const done = (options?.method || 'GET').toUpperCase() === 'GET' ? markBusy() : () => { };
+  try { return await sendNow<T>(path, options, token); } finally { done(); }
+}
+
+async function sendNow<T>(path: string, options: RequestInit | undefined, token: string | null | undefined): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {

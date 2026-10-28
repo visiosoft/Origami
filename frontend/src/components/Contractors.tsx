@@ -12,6 +12,7 @@ import {
 import { TradeChips, TradePicker, useSubcontractorTrades } from './SubcontractorTrades';
 import { ContractorBids } from './ContractorBids';
 import { bidSummary, owedAJob, OWED_A_JOB } from '../data/contractorBids';
+import { Skeleton } from './Skeleton';
 
 const STATUSES: [string, string, 'green' | 'amber' | 'grey'][] = [['active', 'Active', 'green'], ['suspended', 'Suspended', 'amber'], ['ended', 'Ended', 'grey']];
 const statusBadge = (s: string) => { const m = STATUSES.find(([k]) => k === s) || STATUSES[0]; return <Badge tone={m[2]}>{m[1]}</Badge>; };
@@ -133,7 +134,7 @@ export function Contractors({ employees, trades, projects, assignments, canManag
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1170 }}>
             <div style={headRow(cols)}><span>Company</span><span>Trades</span><span>Contact</span><span>Contract ends</span><span>Insurance</span><span>Bids</span><span>Workers</span><span>Status</span></div>
-            {contractors === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {contractors === null && <Skeleton label="Loading…" />}
             {shown.map((c) => (
               <div key={c.id} onClick={() => setOpenId(c.id)} style={{ ...bodyRow(cols), cursor: 'pointer' }}>
                 <span style={{ minWidth: 0 }}>
@@ -454,7 +455,7 @@ function ContractorLoginCard({ contractor, onChanged }: { contractor: Contractor
 export function SubContractorSummary({ contractorId, onOpen }: { contractorId: string; onOpen: () => void }) {
   const [c, setC] = useState<any | null | undefined>(undefined);
   useEffect(() => { api.contractors.list().then((r: any) => setC((Array.isArray(r) ? r : []).find((x: any) => x.id === contractorId) || null)).catch(() => setC(null)); }, [contractorId]);
-  if (c === undefined) return <div style={{ fontSize: 12, color: MUTED }}>Loading the contractor record…</div>;
+  if (c === undefined) return <Skeleton label="Loading the contractor record…" />;
   if (!c) return <div style={{ fontSize: 12, color: MUTED }}>The contractor record is being set up — refresh in a moment.</div>;
   const day = (d?: string) => (d ? fmtDate(d.slice(0, 10)) : '');
   const today = new Date().toISOString().slice(0, 10);

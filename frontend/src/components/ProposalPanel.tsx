@@ -6,6 +6,7 @@ import { mergeTokens } from '../data/clientPersonality';
 import { RichTextEditor } from './RichTextEditor';
 import { hasUnfilled } from '../data/placeholders';
 import { UnfilledPlaceholders } from './UnfilledPlaceholders';
+import { Skeleton } from './Skeleton';
 
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
@@ -200,7 +201,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
       .finally(() => setSending(false));
   };
 
-  if (loading) return <div style={{ padding: '14px 20px', fontSize: 12, color: 'var(--c-9aa39d)' }}>Loading…</div>;
+  if (loading) return <Skeleton label="Loading…" />;
 
   return (
     <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', background: 'var(--mist)' }}>

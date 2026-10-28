@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import type { Employee } from './EmployeeDirectory';
 import { ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, money, todayISO } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 interface AssetIssue {
   id: string; assetId: string; employeeId: string; issuedAt: string; expectedReturn?: string; status: 'open' | 'returned' | 'lost';
@@ -75,7 +76,7 @@ export function AssetRegister({ employees, canManage, currency, onOpenEmployee }
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 780 }}>
             <div style={headRow(cols)}><span>Tag</span><span>Asset</span><span>Category</span><span>With</span><span>Condition</span><span>Status</span></div>
-            {rows === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {rows === null && <Skeleton label="Loading…" />}
             {shown.map((a) => {
               const s = STATUS[a.status] || STATUS.available;
               return (
@@ -296,7 +297,7 @@ export function EmployeeAssetsPanel({ employee, employees, canManage, currency }
       {mode?.kind === 'issue' && <IssueForm employees={employees} fixedEmployeeId={employee.id} onCancel={() => setMode(null)} onDone={() => done('Issued')} />}
       {mode && mode.kind !== 'issue' && <CloseForm lost={mode.kind === 'lost'} issue={mode.issue} asset={mode.issue.asset} currency={currency} onCancel={() => setMode(null)} onDone={() => done(mode.kind === 'lost' ? 'Recorded as lost' : 'Return recorded')} />}
       <div style={{ ...card, overflow: 'hidden' }}>
-        {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+        {rows === null && <Skeleton label="Loading…" />}
         {holding.map((i) => (
           <div key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: ACCENT, width: 80 }}>{i.asset?.assetTag}</span>

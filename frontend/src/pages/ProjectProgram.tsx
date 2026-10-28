@@ -9,6 +9,7 @@ import {
 import { PERSONALITY_TEMPLATE, templateKeyForPersonality, mergeTokens } from '../data/clientPersonality';
 import { hasUnfilled } from '../data/placeholders';
 import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
+import { Skeleton } from '../components/Skeleton';
 
 const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
@@ -314,7 +315,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
   const totals = stepTotals(step, values);
   const hasTotals = !!step.totalOf;
 
-  if (loading) return <div style={{ padding: 28, fontSize: 12.5, color: 'var(--muted)' }}>Loading the program…</div>;
+  if (loading) return <Skeleton label="Loading the program…" />;
 
   const label = (text: string, hint?: string) => (
     <div style={{ marginBottom: 5 }}>
@@ -676,7 +677,7 @@ export function ProjectProgram({ projectId, leadId, projectName, defaultTo, init
             </div>
             <div style={{ padding: '10px 14px' }}>
               {loadingVersions ? (
-                <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', padding: '14px 8px' }}>Loading…</div>
+                <Skeleton label="Loading…" />
               ) : versions.length === 0 ? (
                 <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', padding: '14px 8px' }}>No saves recorded yet — this becomes populated the next time it's saved.</div>
               ) : (

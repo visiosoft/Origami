@@ -7,6 +7,7 @@ import {
   ACCENT, BG, DANGER, INK, LINE, MUTED, Badge, Drawer, Label, bodyRow, btn, card, fmtDate, headRow, input, todayISO,
   type Assignment, type Project,
 } from './manpowerUi';
+import { Skeleton } from './Skeleton';
 
 interface Line { id?: string; tradeId: string; designation?: string; quantity: number; allocated?: number; available?: number; shortage?: number; surplus?: number }
 interface WorkforceRequest {
@@ -84,7 +85,7 @@ export function WorkforceRequests(props: Ctx & { canManage: boolean; reloadAssig
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 820 }}>
             <div style={headRow(cols)}><span>Project</span><span>Needed by</span><span>Workforce</span><span>Allocated</span><span>Status</span></div>
-            {requests === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
+            {requests === null && <Skeleton label="Loading…" />}
             {shown.map((r) => {
               const pct = r.totals.required ? Math.round((r.totals.allocated / r.totals.required) * 100) : 0;
               const s = STATUS[r.status] || STATUS.draft;
@@ -418,7 +419,7 @@ export function MyWorkforceRequests({ projectNames }: { projectNames: Record<num
         </div>
         <span onClick={newOne} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ Request workers</span>
       </div>
-      {requests === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div> : !shown.length ? (
+      {requests === null ? <Skeleton label="Loading…" /> : !shown.length ? (
         <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>Need more people on site? Request workers by trade — HR approves and assigns them to the project.</div>
       ) : (
         <div style={{ display: 'grid', gap: 8 }}>
