@@ -173,3 +173,54 @@ export function boundsOf(m: Pick<Markup, 'kind' | 'data'>, textW = 0.15, textH =
   if (m.kind === 'text') { box.x1 += textW; box.y1 += textH * Math.max(1, (m.data.text || '').split('\n').length); }
   return box;
 }
+
+// ------------------------------------------------------------------ text size, search, rendering
+
+/** Text sizes offered (PDF points). */
+export const TEXT_SIZES = [8, 10, 12, 14, 18, 24, 36] as const;
+
+/** The next size up (dir 1) or down (-1) from `size`, stopping at the ends. */
+export function nextSize(size: number, dir: 1 | -1): number {
+  if (dir > 0) return TEXT_SIZES.find((s) => s > size) ?? TEXT_SIZES[TEXT_SIZES.length - 1];
+  return [...TEXT_SIZES].reverse().find((s) => s < size) ?? TEXT_SIZES[0];
+}
+
+/** One run of a page's text, as a box in page-relative (0-1, as shown) coordinates. */
+export interface TextRun { str: string; x0: number; y0: number; x1: number; y1: number }
+export interface TextHit { box: { x0: number; y0: number; x1: number; y1: number }; context: string }
+
+/**
+ * Where `query` appears in a page's text runs, case-insensitive. The box is
+ * narrowed to the matched characters (pro rata across the run's width).
+ */
+export function textMatches(runs: TextRun[], query: string): TextHit[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const out: TextHit[] = [];
+  for (const r of runs) {
+    const s = r.str.toLowerCase();
+    let i = s.indexOf(q);
+    while (i >= 0) {
+      const n = r.str.length || 1;
+      const w = r.x1 - r.x0;
+      out.push({
+        box: { x0: r.x0 + (w * i) / n, x1: r.x0 + (w * (i + q.length)) / n, y0: r.y0, y1: r.y1 },
+        context: r.str.trim().slice(0, 80),
+      });
+      i = s.indexOf(q, i + q.length);
+    }
+  }
+  return out;
+}
+
+/** Most pixels a rendered page may have: beyond this browsers slow down or draw nothing. */
+export const MAX_RENDER_PIXELS = 16_000_000;
+const MAX_SIDE = 16_000;
+
+/** The pdf.js render scale for a w x h (points) page at `scale`, sharp for the screen but within the canvas limits. */
+export function capRenderScale(w: number, h: number, scale: number, dpr: number): number {
+  const want = scale * dpr;
+  const byArea = Math.sqrt(MAX_RENDER_PIXELS / (w * h));
+  const bySide = MAX_SIDE / Math.max(w, h);
+  return Math.min(want, byArea, bySide);
+}

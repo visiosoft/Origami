@@ -24,7 +24,7 @@
 .mk-scale { font-size: 10px; font-weight: 700; color: #7C3AED; text-align: center; }
 .mk-stage { flex: 1; min-width: 0; overflow: auto; padding: 16px; position: relative; }
 .mk-page { position: relative; margin: 0 auto; background: #fff; box-shadow: 0 6px 24px rgba(var(--rgb-ink), 0.18); }
-.mk-page canvas { display: block; }
+.mk-page canvas { display: block; width: 100%; height: 100%; }
 .mk-page svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .mk-msg { padding: 40px; text-align: center; color: var(--muted); font-size: 14px; }
 .mk-side-close { display: none; justify-self: end; }
@@ -70,6 +70,20 @@
 .mk-ask input, .mk-ask textarea, .mk-ask select { box-sizing: border-box; width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--border); background: var(--panel); color: var(--ink); font: inherit; font-size: 13px; }
 .mk-ask-row { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* Quick fixes: close, saved note, text size, search */
+.mk-close span { font-weight: 700; }
+.mk-saved { font-size: 11.5px; font-weight: 700; color: #047857; white-space: nowrap; }
+.mk-btn.is-on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.mk-size { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.mk-search { position: sticky; top: 0; left: 0; z-index: 4; margin: -8px auto 12px; width: min(560px, 100%); box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px rgba(var(--rgb-ink), 0.18); }
+.mk-search input { flex: 1; min-width: 160px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--ink); font: inherit; font-size: 13px; }
+.mk-search-count { font-size: 12px; color: var(--muted); min-width: 64px; text-align: right; }
+.mk-search p { flex-basis: 100%; margin: 2px 4px; font-size: 12px; }
+.mk-search-list { flex-basis: 100%; list-style: none; margin: 0; padding: 0; max-height: 180px; overflow-y: auto; font-size: 12.5px; }
+.mk-search-list li { padding: 5px 8px; border-radius: 6px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-search-list li:hover, .mk-search-list li.is-on { background: var(--panel); }
+.mk-hit { fill: #FACC15; fill-opacity: 0.35; stroke: #CA8A04; stroke-width: 1.5; pointer-events: none; }
+
 /* Phones: tools along the bottom, the list in a drawer from the right. */
 @media (max-width: 720px) {
   .mk-body { flex-direction: column-reverse; }
@@ -80,5 +94,6 @@
   .mk-private { flex-direction: row; }
   .mk-side { position: fixed; top: 0; right: 0; bottom: 64px; z-index: 5; width: min(300px, 88vw); box-shadow: -10px 0 30px rgba(var(--rgb-ink), 0.18); }
   .mk-title { max-width: 60vw; }
+  .mk-close span, .mk-saved { display: none; }
   .mk-top .mk-btn.is-text { font-size: 11.5px; padding: 0 8px; }
 }

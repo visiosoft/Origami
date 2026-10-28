@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
-import { layerKey, layersOf } from './markup';
+import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, nextSize, textMatches } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -45,5 +45,29 @@ describe('named layers', () => {
     expect(ls.map((l) => [l.name, l.count, l.named])).toEqual([['Electrical walk', 2, true], ['Andrea', 1, false], ['Edward (you)', 1, false]]);
     expect(layerKey(marks[1])).toBe(ls[0].key);
     expect(ls[1].authorId).toBe('U-2');
+  });
+});
+
+describe('markup quick fixes', () => {
+  it('steps text sizes and stops at both ends', () => {
+    expect(nextSize(12, 1)).toBe(14);
+    expect(nextSize(12, -1)).toBe(10);
+    expect(nextSize(36, 1)).toBe(36);
+    expect(nextSize(8, -1)).toBe(8);
+    expect(nextSize(13, 1)).toBe(14);
+  });
+  it('finds text case-insensitively, boxed to the match', () => {
+    const hits = textMatches([{ str: 'SHEET A-201 FLOOR PLAN', x0: 0.1, y0: 0.1, x1: 0.32, y1: 0.12 }], 'floor plan');
+    expect(hits).toHaveLength(1);
+    expect(hits[0].box.x0).toBeCloseTo(0.1 + 0.22 * 12 / 22);
+    expect(hits[0].box.x1).toBeCloseTo(0.32);
+    expect(textMatches([{ str: 'aa aa', x0: 0, y0: 0, x1: 1, y1: 1 }], 'AA')).toHaveLength(2);
+    expect(textMatches([{ str: 'x', x0: 0, y0: 0, x1: 1, y1: 1 }], '  ')).toEqual([]);
+  });
+  it('keeps the rendered page within the canvas limits', () => {
+    expect(capRenderScale(612, 792, 1, 2)).toBe(2);
+    const s = capRenderScale(1224, 792, 8, 2);
+    expect(1224 * s * 792 * s).toBeLessThanOrEqual(MAX_RENDER_PIXELS + 1);
+    expect(1224 * s).toBeLessThanOrEqual(16_000);
   });
 });

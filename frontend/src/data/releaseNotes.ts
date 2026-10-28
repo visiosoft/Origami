@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28i',
+    date: '2026-10-28',
+    title: 'Drawing markup: text size, search, clearer closing, faster',
+    items: [
+      { area: 'Files', kind: 'improved', text: 'Pick the text size (8–36 pt) before adding text, and make a selected text bigger or smaller with A− / A+.', where: 'All Files → a PDF → Mark up → T' },
+      { area: 'Files', kind: 'new', text: 'Search a drawing (🔍 or Ctrl+F): room names, notes and sheet titles across every page, plus the notes on markups and pins. Each match is highlighted; Enter goes to the next.', where: 'All Files → a PDF → Mark up → 🔍' },
+      { area: 'Files', kind: 'improved', text: 'Closing is clearer: “✕ Close drawing” closes it, “Hide list” only hides the side list, and Esc just backs out of what you’re doing — it no longer closes the drawing. Markups save as you draw (“✓ Saved”).', where: 'All Files → a PDF → Mark up' },
+      { area: 'Files', kind: 'improved', text: 'Faster on big sheets: zooming no longer redraws on every step, pages you’ve just seen come back instantly, and zooming far in on a large drawing no longer leaves the page blank.', where: 'All Files → a PDF → Mark up' },
+    ],
+  },
+  {
     id: '2026-10-28h',
     date: '2026-10-28',
     title: 'Drawing markup: pins with site photos, and named layers',
