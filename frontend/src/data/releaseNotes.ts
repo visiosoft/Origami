@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28z',
+    date: '2026-10-28',
+    title: 'Client score on every client',
+    items: [
+      { area: 'CRM', kind: 'new', text: 'The client score — the Project Fit score from the lead’s Project Fit Review — shows on the lead (header and Client Card), is filled into the Pass dialog, and shows on the project Overview. Green from 70%, amber from 40%.', where: 'CRM & Leads; Projects → Overview' },
+    ],
+  },
+  {
     id: '2026-10-28y',
     date: '2026-10-28',
     title: 'Projects: tabs by phase — CRM, Design, Precon, Build',

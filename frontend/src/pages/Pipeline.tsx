@@ -10,6 +10,7 @@ import { ClientBackgroundPanel, type ClientBackground } from '../components/Clie
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { askDeadReason } from '../components/DeadReasonDialog';
 import { askPerson } from '../components/AskPerson';
+import { ClientScore } from '../components/ClientScore';
 import { LeadFullDetails } from '../components/LeadFullDetails';
 import { deadReasonLabels, type DeadKind, type DeadReason } from '../data/deadReasons';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
@@ -801,7 +802,7 @@ export function Pipeline() {
       if (deal && target?.isHold && deal.stage !== o.stage) void askWatcher(deal, 'follow_up');
       return;
     }
-    void askDeadReason(deal.name, dead, kind).then((why) => {
+    void askDeadReason(deal.name, dead, kind, (leadDetails[deal.id] as any)?.fitScore).then((why) => {
       if (!why) return;
       applyOverrideNow(id, o);
       saveDeadReason(id, why);
@@ -864,7 +865,7 @@ export function Pipeline() {
    */
   const confirmReject = async (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
     // We pass, or it was cancelled: say why (Oct 26 review notes).
-    const why = type === 'referred' ? null : await askDeadReason(deal.name, 'rejected', type === 'internal' ? 'pass' : 'cancelled');
+    const why = type === 'referred' ? null : await askDeadReason(deal.name, 'rejected', type === 'internal' ? 'pass' : 'cancelled', (leadDetails[deal.id] as any)?.fitScore);
     if (type !== 'referred' && !why) return;
     // A referral isn't a dead end -- it goes to its own stage so it doesn't
     // read as closed like a true rejection does.
@@ -1482,6 +1483,7 @@ export function Pipeline() {
               {selected.archived && (
                 <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: 'var(--c-efede8)', color: 'var(--muted)' }}>Archived</span>
               )}
+              <ClientScore compact score={(leadDetails[selected.id] as any)?.fitScore} />
             </div>
           </div>
 
@@ -1502,6 +1504,8 @@ export function Pipeline() {
           </div>
 
           {detailTab === 'client' ? (
+            <>
+            <div style={{ padding: '14px 20px 0' }}><ClientScore score={(leadDetails[selected.id] as any)?.fitScore} /></div>
             <ClientBackgroundPanel
               leadId={selected.id}
               clientName={(leadDetails[selected.id]?.firstName || '').trim() ? `${leadDetails[selected.id]?.firstName} ${leadDetails[selected.id]?.lastName || ''}`.trim() : selected.client || selected.name}
@@ -1509,6 +1513,7 @@ export function Pipeline() {
               version={() => leadStamp(selected.id, leadDetailsRef.current[selected.id]?.updatedAt)}
               onSaved={(bg, updatedAt) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), clientBackground: bg, ...(updatedAt ? { updatedAt } : {}) } as NewLead }))}
             />
+            </>
           ) : detailTab === 'notes' ? (
             <>
             <div role="tablist" aria-label="Special actions" style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>

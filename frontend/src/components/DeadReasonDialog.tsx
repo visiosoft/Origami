@@ -9,13 +9,13 @@ import { DEAD_KINDS, KINDS_FOR_STAGE, deadReasonMissing, type DeadKind, type Dea
  * conversation date for Cold, where a bad review was found for Reputation).
  * Resolves with the answer, or null when cancelled (the move doesn't happen).
  */
-export function askDeadReason(name: string, stage: 'cold' | 'rejected', kind?: DeadKind): Promise<DeadReason | null> {
+export function askDeadReason(name: string, stage: 'cold' | 'rejected', kind?: DeadKind, fitScore?: number | null): Promise<DeadReason | null> {
   return new Promise((resolve) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
     const done = (v: DeadReason | null) => { root.unmount(); host.remove(); resolve(v); };
-    root.render(<DeadReasonDialog name={name} stage={stage} initialKind={kind} onDone={done} />);
+    root.render(<DeadReasonDialog name={name} stage={stage} initialKind={kind} fitScore={fitScore} onDone={done} />);
   });
 }
 
@@ -26,14 +26,15 @@ const chip = (on: boolean) => ({
 const field = { boxSizing: 'border-box' as const, width: '100%', padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--panel)', fontFamily: 'inherit', fontSize: 13, color: 'var(--ink)' };
 const small = { fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.06em' };
 
-function DeadReasonDialog({ name, stage, initialKind, onDone }: { name: string; stage: 'cold' | 'rejected'; initialKind?: DeadKind; onDone: (v: DeadReason | null) => void }) {
+function DeadReasonDialog({ name, stage, initialKind, fitScore, onDone }: { name: string; stage: 'cold' | 'rejected'; initialKind?: DeadKind; fitScore?: number | null; onDone: (v: DeadReason | null) => void }) {
   const kinds = KINDS_FOR_STAGE[stage];
   const [kind, setKind] = useState<DeadKind>(initialKind && kinds.includes(initialKind) ? initialKind : kinds[0]);
   const [reasons, setReasons] = useState<string[]>([]);
   const [note, setNote] = useState('');
   const [lastContactAt, setLastContactAt] = useState('');
   const [reviewWhere, setReviewWhere] = useState('');
-  const [clientScore, setClientScore] = useState('');
+  // The client score is the Project Fit score, filled in when the lead has one.
+  const [clientScore, setClientScore] = useState(fitScore != null && Number.isFinite(Number(fitScore)) ? String(fitScore) : '');
   const def = DEAD_KINDS[kind];
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onDone(null); };

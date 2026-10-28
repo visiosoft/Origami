@@ -14,6 +14,7 @@ import { ProjectPeople } from '../components/ProjectPeople';
 import { ProjectAuditTrail } from '../components/ProjectAuditTrail';
 import { MoneyGlance, TasksAndRfis, WorkGlance, type ActionView } from '../components/ProjectGlance';
 import { ProjectCrmPhase } from '../components/ProjectCrmPhase';
+import { ClientScore } from '../components/ClientScore';
 import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
 import { CollaboratorPicker } from '../components/CollaboratorPicker';
@@ -776,6 +777,7 @@ export function Projects() {
                   </div>
                 </div>
                 <SiteAccess key={sel.id} value={sel.siteAccess || ''} canEdit={canManage} onSave={saveSiteAccess} />
+                {introLead && <div style={{ padding: '14px 28px 0' }}><ClientScore score={(introLead as any).fitScore} /></div>}
                 {introLead && <LeadSummary lead={introLead} />}
                 <div style={{ padding: '20px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Scope of Work</div>
