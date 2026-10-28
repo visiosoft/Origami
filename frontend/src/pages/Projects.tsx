@@ -13,6 +13,7 @@ import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { ProjectPeople } from '../components/ProjectPeople';
 import { ProjectAuditTrail } from '../components/ProjectAuditTrail';
 import { MoneyGlance, TasksAndRfis, WorkGlance, type ActionView } from '../components/ProjectGlance';
+import { ProjectCrmPhase } from '../components/ProjectCrmPhase';
 import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
 import { CollaboratorPicker } from '../components/CollaboratorPicker';
@@ -72,7 +73,8 @@ export function Projects() {
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [activeView, setActiveView] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'rfis' | 'subs' | 'files' | 'financial' | 'guests'>('overview');
+  // Oct 26 review notes: Overview · Special Actions · CRM · Design (phases = its board, program) · Precon · Build · Financials · People · Files.
+  const [tab, setTab] = useState<'overview' | 'phases' | 'program' | 'tasks' | 'rfis' | 'subs' | 'files' | 'financial' | 'guests' | 'crm' | 'precon' | 'build'>('overview');
   // The Financial tab can open on Job cost -> Subcontracts & POs (from "+ Subcontract").
   const [finStart, setFinStart] = useState<'sov' | 'subcontracts'>('sov');
   // Whether this user's role includes project financials (the server decides; can() is permissive for non-admins).
@@ -170,8 +172,11 @@ export function Projects() {
   const [applying, setApplying] = useState(false);
   // Phases a project doesn't use (hidden from its board) stay out of the board and its progress until shown again.
   const [showHiddenPhases, setShowHiddenPhases] = useState(false);
-  const hiddenPhaseCount = boardPhases.filter((p) => p.hiddenAt).length;
-  const workflow = computeWorkflow(showHiddenPhases ? boardPhases : boardPhases.filter((p) => !p.hiddenAt), boardTasks);
+  const hiddenPhaseCount = boardPhases.filter((p) => p.hiddenAt && (p.category === 'construction') === (tab === 'build')).length;
+  // Design shows the design phases, Build the construction ones (from the programme template's category).
+  const boardCat: 'design' | 'construction' = tab === 'build' ? 'construction' : 'design';
+  const catPhases = boardPhases.filter((p) => (p.category === 'construction') === (boardCat === 'construction'));
+  const workflow = computeWorkflow(showHiddenPhases ? catPhases : catPhases.filter((p) => !p.hiddenAt), boardTasks);
   const setPhaseHidden = (phaseId: string, hidden: boolean) => {
     const hiddenAt = hidden ? new Date().toISOString() : null;
     setBoardPhases((prev) => prev.map((p) => (p.id === phaseId ? { ...p, hiddenAt } : p)));
@@ -677,7 +682,7 @@ export function Projects() {
       {/* Project detail drawer */}
       {sel && (
         <div onClick={() => setSelectedId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: tab === 'financial' ? 'min(1400px, 98vw)' : tab === 'tasks' || tab === 'rfis' || tab === 'subs' || tab === 'files' || tab === 'phases' || tab === 'program' || tab === 'crm' || tab === 'precon' || tab === 'build' ? 'min(1100px, 96vw)' : 'min(560px, 95vw)', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease', transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column' }}>
             {/* Header — compact bar (stage color) with title, location & amount inline */}
             <div style={{ background: `linear-gradient(135deg, ${sel.imgColor}, ${tint(sel.imgColor, 'cc')})`, padding: '14px 20px', position: 'relative', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -714,48 +719,47 @@ export function Projects() {
               onSaved={(u) => setProjects((prev) => prev.map((x) => (x.id === u.id ? { ...x, ...u } as Project : x)))}
             />
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 20px', flexShrink: 0 }}>
-              <div onClick={() => setTab('overview')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'overview' ? 'var(--forest)' : 'transparent'), color: tab === 'overview' ? 'var(--ink)' : 'var(--muted)' }}>Overview</div>
-              <div onClick={() => openWork(workView)} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? 'var(--forest)' : 'transparent'), color: tab === 'tasks' ? 'var(--ink)' : 'var(--muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
-                  Special Actions
-                </span>
-              </div>
-              <div onClick={() => setTab('phases')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'phases' ? 'var(--forest)' : 'transparent'), color: tab === 'phases' ? 'var(--ink)' : 'var(--muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x={3} y={3} width={7} height={7} /><rect x={14} y={3} width={7} height={7} /><rect x={3} y={14} width={7} height={7} /><rect x={14} y={14} width={7} height={7} /></svg>
-                  Phase Board
-                </span>
-              </div>
-              {!sel.programOff && <div onClick={() => setTab('program')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'program' ? 'var(--forest)' : 'transparent'), color: tab === 'program' ? 'var(--ink)' : 'var(--muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1={16} y1={13} x2={8} y2={13} /><line x1={16} y1={17} x2={8} y2={17} /></svg>
-                  Project Program
-                </span>
-              </div>}
-              <div onClick={() => setTab('subs')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'subs' ? 'var(--forest)' : 'transparent'), color: tab === 'subs' ? 'var(--ink)' : 'var(--muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M2 18h20" /><path d="M4 18v-3a8 8 0 0 1 16 0v3" /><path d="M10 7V4h4v3" /></svg>
-                  Project People
-                </span>
-              </div>
-              {finView && (
-                <div onClick={() => { setFinStart('sov'); setTab('financial'); }} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'financial' ? 'var(--forest)' : 'transparent'), color: tab === 'financial' ? 'var(--ink)' : 'var(--muted)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={12} y1={1} x2={12} y2={23} /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
-                    Financial
-                  </span>
+            {/* Tabs (Oct 26 review notes) */}
+            {(() => {
+              const tabs: { key: string; label: string; title: string; on: boolean; go: () => void; show?: boolean }[] = [
+                { key: 'overview', label: 'Overview', title: 'Project details, site access, money and special actions at a glance', on: tab === 'overview', go: () => setTab('overview') },
+                { key: 'tasks', label: 'Special Actions', title: 'Tasks, RFIs, meetings, FOR RECORD, change orders and approvals for this project', on: tab === 'tasks' || tab === 'rfis', go: () => openWork(workView) },
+                { key: 'crm', label: 'CRM', title: 'The lead this project came from: its history, notes and files (read-only)', on: tab === 'crm', go: () => setTab('crm') },
+                { key: 'design', label: 'Design', title: 'The design phases on the Phase Board, and the Project Program', on: tab === 'phases' || tab === 'program', go: () => setTab('phases') },
+                { key: 'precon', label: 'Precon', title: 'Schedule, estimating and selections for this project', on: tab === 'precon', go: () => setTab('precon') },
+                { key: 'build', label: 'Build', title: 'The construction phases on the Phase Board, and daily reports', on: tab === 'build', go: () => setTab('build') },
+                { key: 'financial', label: 'Financials', title: 'Contract, change orders, billing and job cost', on: tab === 'financial', go: () => { setFinStart('sov'); setTab('financial'); }, show: finView },
+                { key: 'subs', label: 'People', title: 'Everyone on the project by phase, subcontracts and guest access', on: tab === 'subs' || tab === 'guests', go: () => setTab('subs') },
+                { key: 'files', label: 'Files', title: "Every file on this project -- its lead's, the client's, its tasks', RFIs' and the Plan & File Room", on: tab === 'files', go: () => setTab('files') },
+              ];
+              return (
+                <div role="tablist" aria-label="Project" style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 12px', flexShrink: 0, overflowX: 'auto', scrollbarWidth: 'thin' }}>
+                  {tabs.filter((t) => t.show !== false).map((t) => (
+                    <div key={t.key} role="tab" aria-selected={t.on} title={t.title} onClick={t.go}
+                      style={{ flexShrink: 0, padding: '11px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '2px solid ' + (t.on ? 'var(--forest)' : 'transparent'), color: t.on ? 'var(--ink)' : 'var(--muted)' }}>{t.label}</div>
+                  ))}
                 </div>
-              )}
-              <div onClick={() => setTab('files')} title="Every file on this project -- its lead's, the client's, its tasks', RFIs' and the Plan & File Room" style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'files' ? 'var(--forest)' : 'transparent'), color: tab === 'files' ? 'var(--ink)' : 'var(--muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-                  Files
-                </span>
+              );
+            })()}
+            {/* Design and Build each hold a Phase Board (their own phases) and their other tools. */}
+            {(tab === 'phases' || tab === 'program' || tab === 'build' || tab === 'precon') && (
+              <div role="tablist" aria-label="Phase tools" style={{ display: 'flex', gap: 6, padding: '12px 24px 0', flexWrap: 'wrap' }}>
+                {(tab === 'build'
+                  ? [['build', 'Phase Board', true], ['reports', 'Daily reports', true]] as const
+                  : tab === 'precon' ? [] as const
+                    : [['phases', 'Phase Board', true], ['program', 'Project Program', !sel.programOff]] as const
+                ).filter(([, , show]) => show).map(([k, label]) => {
+                  const on = k === tab;
+                  return (
+                    <button key={k} type="button" role="tab" aria-selected={on}
+                      onClick={() => { if (k === 'reports') navigate(`/daily_reports?project=${sel.id}`); else setTab(k as typeof tab); }}
+                      style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: on ? 'var(--forest)' : 'var(--surface)', color: on ? '#fff' : 'var(--body)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      {label}{k === 'reports' ? ' ↗' : ''}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            )}
 
             {tab === 'overview' ? (
               <div>
@@ -796,6 +800,27 @@ export function Projects() {
                   {canManage && sel.programOff && <div onClick={() => setProgramOff(false)} title="This project doesn't use the Project Program workbook. Its answers were kept." style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px dashed rgba(var(--rgb-shade), 0.2)', color: 'var(--muted)', background: 'var(--surface)' }}>Project Program off · Turn on</div>}
                   {canManage && <div onClick={() => deleteProject(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid #D08A6A', color: '#8E2E0A', background: 'var(--surface)', marginLeft: 'auto' }}>Delete</div>}
                 </div>
+              </div>
+            ) : tab === 'crm' ? (
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                <ProjectCrmPhase leadId={sel.leadId || null} onOpen={() => sel.leadId && navigate(`/pipeline?open=${encodeURIComponent(sel.leadId)}`)} />
+              </div>
+            ) : tab === 'precon' ? (
+              <div style={{ padding: '16px 24px 20px', flex: 1, overflowY: 'auto', display: 'grid', gap: 12, alignContent: 'start' }}>
+                <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Pre-construction for {sel.name}: the schedule, estimating and selections.</div>
+                {[
+                  { title: 'Schedule', body: 'Every phase of this project on the timeline, with its dates.', action: 'Open the schedule', to: `/schedule?project=${sel.id}`, ready: true },
+                  { title: 'Estimating', body: 'Estimating tools for design and build work. Not built in ODIN yet — the page says what it will hold.', action: 'Open Estimating', to: '/estimating', ready: false },
+                  { title: 'Selections & Specifications', body: 'The library, selections, orders and tracking. Not built in ODIN yet.', action: 'Open Selections', to: '/selections', ready: false },
+                ].map((c) => (
+                  <div key={c.title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{c.title}{!c.ready && <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: 'var(--c-efede8)', color: 'var(--muted)' }}>Coming</span>}</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>{c.body}</div>
+                    </div>
+                    <button type="button" onClick={() => navigate(c.to)} style={{ padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>{c.action} →</button>
+                  </div>
+                ))}
               </div>
             ) : tab === 'program' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>

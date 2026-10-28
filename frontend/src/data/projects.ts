@@ -164,7 +164,7 @@ export interface ComputedPhase extends WfPhase {
 }
 
 /** A phase row as the board needs it, built from the project's real data. */
-export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; dependsOn?: string[]; weeks?: number; hiddenAt?: string | null }
+export interface BoardPhase { id: string; key: string; name: string; color: string; order: number; gated?: boolean; dependsOn?: string[]; weeks?: number; hiddenAt?: string | null; /** From the programme template: design, construction or other. */ category?: 'design' | 'construction' | 'other' }
 export interface BoardTask {
   id: string; phaseId?: string; title: string; status?: string; completed?: boolean; order?: number;
   assignee?: string; team?: string; auto?: boolean; autoLabel?: string;

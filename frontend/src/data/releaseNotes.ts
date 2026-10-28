@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28y',
+    date: '2026-10-28',
+    title: 'Projects: tabs by phase — CRM, Design, Precon, Build',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'A project’s tabs are now Overview, Special Actions, CRM, Design, Precon, Build, Financials, People and Files. CRM shows the lead it came from (stage history, FYI notes, files) read-only. Design holds the design phases of the Phase Board and the Project Program; Build holds the construction phases and daily reports; Precon links the schedule (estimating and selections are still to come).', where: 'Projects → open a project' },
+    ],
+  },
+  {
     id: '2026-10-28x',
     date: '2026-10-28',
     title: 'Project People: who works on which phase',
