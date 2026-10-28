@@ -1,6 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../api';
 import { useApp } from '../AppContext';
 import { Avatar } from './Avatar';
+import { Pager } from './Pager';
 import type { ActivityEvent, TaskComment } from '../data/projectTasks';
 
 /** "3 min ago" / "2 days ago" — falls back to the raw string if unparseable. */
@@ -27,6 +29,11 @@ function describe(e: ActivityEvent): string {
   }
 }
 
+type Entry = { kind: 'event'; at: string; event: ActivityEvent } | { kind: 'comment'; at: string; comment: TaskComment };
+/** One page of a task's history as the server sends it (GET …/:id/activity). */
+export interface HistoryPage { rows: Entry[]; total: number; page: number; size: number; pages: number }
+const FEED_SIZES = [10, 20, 50];
+
 /**
  * The task history: comments people wrote and a record of what changed, merged
  * into one timeline, newest first, with the comment box above it.
@@ -36,11 +43,17 @@ export function ActivityFeed({
   activity,
   canManage,
   onComment,
+  source,
+  version = 0,
 }: {
-  comments: TaskComment[];
-  activity: ActivityEvent[];
+  comments?: TaskComment[];
+  activity?: ActivityEvent[];
   canManage: boolean;
   onComment: (text: string) => Promise<void>;
+  /** Read the history a page at a time from the server instead of from comments/activity. */
+  source?: { kind: 'board' | 'log'; id: string };
+  /** Bump after anything that adds to the history (a comment, a save) to reload page 1. */
+  version?: number | string;
 }) {
   const { currentUser, users } = useApp();
   const [text, setText] = useState('');
@@ -64,16 +77,43 @@ export function ActivityFeed({
 
   // Comments already appear as activity entries; render those and fold in any
   // comment that predates the activity log so nothing is lost.
-  const entries = useMemo(() => {
-    const fromActivity = activity.map((e) => ({ kind: 'event' as const, at: e.at, event: e }));
-    const loggedTexts = new Set(activity.filter((e) => e.type === 'comment').map((e) => e.text));
-    const orphanComments = comments
+  const local = useMemo(() => {
+    if (source) return [] as Entry[];
+    const fromActivity = (activity ?? []).map((e) => ({ kind: 'event' as const, at: e.at, event: e }));
+    const loggedTexts = new Set((activity ?? []).filter((e) => e.type === 'comment').map((e) => e.text));
+    const orphanComments = (comments ?? [])
       .filter((c) => !loggedTexts.has(c.text))
       .map((c) => ({ kind: 'comment' as const, at: c.date, comment: c }));
     // Newest first; an entry without a readable time sorts as the oldest.
     const t = (at?: string) => { const ms = Date.parse(at || ''); return Number.isNaN(ms) ? 0 : ms; };
     return [...fromActivity, ...orphanComments].map((e, i) => ({ e, i })).sort((a, b) => t(b.e.at) - t(a.e.at) || b.i - a.i).map((x) => x.e);
-  }, [comments, activity]);
+  }, [comments, activity, source]);
+
+  // A page at a time: from the server when there's a source, else from the list above.
+  const [pg, setPg] = useState(1);
+  const [size, setSize] = useState(20);
+  const [remote, setRemote] = useState<HistoryPage | null>(null);
+  const [loading, setLoading] = useState(false);
+  const srcKey = source ? `${source.kind}:${source.id}` : '';
+  useEffect(() => { setPg(1); }, [srcKey, version, size]);
+  useEffect(() => {
+    if (!source) return;
+    let live = true;
+    setLoading(true);
+    const get = source.kind === 'board' ? api.projectTasks.activity : api.tasks.activity;
+    get(source.id, { page: pg, size })
+      .then((r) => { if (live) setRemote(r); })
+      .catch(() => { if (live) setRemote(null); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [srcKey, version, pg, size]);
+  const pageInfo = source
+    ? remote
+    : { rows: [], total: local.length, page: Math.min(pg, Math.max(1, Math.ceil(local.length / size))), size, pages: Math.max(1, Math.ceil(local.length / size)) };
+  const entries: Entry[] = source
+    ? (remote?.rows ?? [])
+    : local.slice(((pageInfo?.page ?? 1) - 1) * size, (pageInfo?.page ?? 1) * size);
 
   const userFor = (name?: string, id?: string) =>
     users.find((u) => (id && u.id === id) || (name && u.name === name));
@@ -141,7 +181,10 @@ export function ActivityFeed({
         </div>
       )}
 
-      {entries.length === 0 && (
+      {source && !remote && loading && (
+        <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', marginBottom: 12 }}>Loading history…</div>
+      )}
+      {entries.length === 0 && !(source && !remote) && (
         <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', marginBottom: 12 }}>Nothing has happened on this task yet.</div>
       )}
 
@@ -176,6 +219,10 @@ export function ActivityFeed({
         })}
       </div>
 
+      {pageInfo && pageInfo.total > FEED_SIZES[0] && (
+        <Pager page={pageInfo.page} pages={pageInfo.pages} total={pageInfo.total} size={size} loading={loading}
+          onPage={setPg} onSize={setSize} sizes={FEED_SIZES} />
+      )}
     </div>
   );
 }

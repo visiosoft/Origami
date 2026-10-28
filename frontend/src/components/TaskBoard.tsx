@@ -1241,18 +1241,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               />
             </div>
 
-            {/* Activity — comments plus a record of what changed */}
-            <div style={{ padding: '16px 22px' }}>
-              <ActivityFeed
-                comments={selected.comments ?? []}
-                activity={selected.activity ?? []}
-                canManage={canManage}
-                onComment={addComment}
-              />
-            </div>
-
             {canManage && (
-              <div style={{ padding: '0 22px 24px' }}>
+              <div style={{ padding: '16px 22px 4px' }}>
                 <div style={{ marginBottom: 12 }}>
                   <ActionMenu kind="board" id={selected.id} projectId={selected.projectId} onMade={(made) => {
                     // Copies onto this board appear at once; the task's own history now notes them.
@@ -1263,6 +1253,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
                 <div onClick={() => deleteTask(selected.id)} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
               </div>
             )}
+
+            {/* Activity — comments plus a record of what changed, a page at a time from the server */}
+            <div style={{ padding: '16px 22px 24px' }}>
+              <ActivityFeed
+                source={{ kind: 'board', id: selected.id }}
+                version={`${selected.activity?.length ?? 0}:${selected.comments?.length ?? 0}:${selected.commentCount ?? 0}`}
+                canManage={canManage}
+                onComment={addComment}
+              />
+            </div>
           </div>
         </div>,
         document.body);

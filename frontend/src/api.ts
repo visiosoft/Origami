@@ -492,6 +492,8 @@ export const api = {
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/tasks/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    /** One page of a log entry's comments and history from the server, newest first. */
+    activity: (id: string, q: { page?: number; size?: number } = {}) => request<import('./components/ActivityFeed').HistoryPage>(`/tasks/${encodeURIComponent(id)}/activity?page=${q.page ?? 1}&size=${q.size ?? 20}`, { cache: 'no-store' }),
     addComment: (id: string, text: string) => request(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
     /** FOR RECORD: attach an entry to a task or a change order, or detach it. */
     link: (id: string, kind: 'task' | 'changeOrder', targetId: string) => request<any>(`/tasks/${encodeURIComponent(id)}/links`, { method: 'POST', body: JSON.stringify({ kind, targetId }) }),
@@ -639,6 +641,8 @@ export const api = {
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/project-tasks/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/project-tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/project-tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    /** One page of a task's comments and history from the server, newest first. */
+    activity: (id: string, q: { page?: number; size?: number } = {}) => request<import('./components/ActivityFeed').HistoryPage>(`/project-tasks/${encodeURIComponent(id)}/activity?page=${q.page ?? 1}&size=${q.size ?? 20}`, { cache: 'no-store' }),
     addComment: (id: string, text: string) => request(`/project-tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
   },
   projectProgram: {

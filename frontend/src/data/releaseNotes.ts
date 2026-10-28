@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28o',
+    date: '2026-10-28',
+    title: 'Task panel: actions first, history in pages',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Duplicate…, Convert to and Delete task now sit above the comments, so you don’t scroll past the whole history to reach them.', where: 'Open any task' },
+      { area: 'Tasks', kind: 'improved', text: 'A task’s comments and history show 20 at a time with page numbers, loaded from the server a page at a time, so long histories open quickly.', where: 'Open any task → Activity' },
+    ],
+  },
+  {
     id: '2026-10-28n',
     date: '2026-10-28',
     title: 'Faster pages: smaller downloads, pages, and quick back-and-forth',

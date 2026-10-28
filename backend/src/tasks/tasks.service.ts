@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
+import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
@@ -293,6 +294,13 @@ export class TasksService implements OnApplicationBootstrap {
     const task = await this.repo.findOneBy({ id });
     if (!task) throw new NotFoundException(`Task ${id} not found`);
     return this.hydrate(task);
+  }
+
+  /** One page of a log entry's history, reading only what the access check and the history need. */
+  async activityPage(id: string, q: { page?: unknown; size?: unknown }) {
+    const t = await this.repo.findOne({ where: { id }, select: { id: true, assignedTo: true, assignedToId: true, collaborators: true, comments: true, activity: true } });
+    if (!t) throw new NotFoundException(`Task ${id} not found`);
+    return { task: { assignedTo: t.assignedTo, assignedToId: t.assignedToId, collaborators: t.collaborators }, page: activityPage(t.comments, t.activity, q) };
   }
 
   private async load(id: string) {

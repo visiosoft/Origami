@@ -349,26 +349,26 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
           <div style={{ marginTop: 10, padding: '11px 13px', background: 'var(--mist)', borderRadius: 10, fontSize: 10.5, color: 'var(--body)', lineHeight: 1.55 }}>Lead time is inherited from the task template ({lt.source}). Every due-date change, with who made it, is listed above.</div>
         </div>
 
-        {/* Activity — real comments and a record of what changed */}
-        <div style={{ padding: '20px 28px' }}>
-          <ActivityFeed
-            comments={t.comments ?? []}
-            activity={t.activity ?? []}
-            canManage={canManage}
-            onComment={(text) => addComment(text)}
-          />
-        </div>
-
         {canManage && (
-          <div style={{ padding: '0 28px 14px' }}>
+          <div style={{ padding: '20px 28px 0' }}>
             <ActionMenu kind="log" id={t.id} topicType={t.topicType} projectName={t.project} onMade={refreshTrail} />
           </div>
         )}
         {canDelete && (
-          <div style={{ padding: '0 28px 26px' }}>
+          <div style={{ padding: '12px 28px 0' }}>
             <div onClick={() => deleteTask()} style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete task</div>
           </div>
         )}
+
+        {/* Activity — real comments and a record of what changed, a page at a time from the server */}
+        <div style={{ padding: '20px 28px 26px' }}>
+          <ActivityFeed
+            source={{ kind: 'log', id: t.id }}
+            version={`${t.activity?.length ?? 0}:${t.comments?.length ?? 0}`}
+            canManage={canManage}
+            onComment={(text) => addComment(text)}
+          />
+        </div>
       </div>
     </div>
   );

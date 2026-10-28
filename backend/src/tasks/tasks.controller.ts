@@ -88,6 +88,15 @@ export class TasksController {
     return this.tasksService.linkTargets();
   }
 
+  /** One page of a log entry's comments and history, newest first (?page=&size=, 20 a page). */
+  @Get(':id/activity')
+  async activity(@Param('id') id: string, @Query() q: Record<string, string>, @Headers('authorization') auth?: string) {
+    const claims = await this.auth.verify(auth);
+    const { task, page } = await this.tasksService.activityPage(id, q);
+    if (claims && isRestrictedViewer(claims) && !assignedTo(task as any, claims)) throw new NotFoundException(`Task ${id} not found`);
+    return page;
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);

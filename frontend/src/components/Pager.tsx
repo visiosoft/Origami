@@ -22,9 +22,9 @@ const btn = (on: boolean, disabled = false): CSSProperties => ({
 });
 
 /** « 1 … 4 5 6 … 20 » with "Showing 151–200 of 987" and a page-size picker. */
-export function Pager({ page, pages, total, size, onPage, onSize, loading }: {
+export function Pager({ page, pages, total, size, onPage, onSize, loading, sizes = PAGE_SIZES }: {
   page: number; pages: number; total: number; size: number;
-  onPage: (p: number) => void; onSize?: (s: number) => void; loading?: boolean;
+  onPage: (p: number) => void; onSize?: (s: number) => void; loading?: boolean; sizes?: number[];
 }) {
   if (!total) return null;
   const from = (page - 1) * size + 1;
@@ -42,7 +42,7 @@ export function Pager({ page, pages, total, size, onPage, onSize, loading }: {
       {onSize && (
         <select aria-label="Rows per page" value={size} onChange={(e) => onSize(Number(e.target.value))}
           style={{ height: 32, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', color: 'var(--body)', fontFamily: 'inherit', fontSize: 12.5, padding: '0 6px' }}>
-          {PAGE_SIZES.map((s) => <option key={s} value={s}>{s} per page</option>)}
+          {sizes.map((s) => <option key={s} value={s}>{s} per page</option>)}
         </select>
       )}
     </nav>

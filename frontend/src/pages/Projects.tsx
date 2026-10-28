@@ -1396,8 +1396,8 @@ export function Projects() {
 
                   <div style={{ padding: '16px 22px' }}>
                     <ActivityFeed
-                      comments={d.comments ?? []}
-                      activity={d.activity ?? []}
+                      source={{ kind: 'board', id: live.id }}
+                      version={`${d.activity?.length ?? 0}:${d.comments?.length ?? 0}`}
                       canManage={canManage}
                       onComment={async (text: string) => { applied(await api.projectTasks.addComment(live.id, text)); }}
                     />

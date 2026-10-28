@@ -276,8 +276,8 @@ export function PhaseTaskPanel({
 
         <div style={{ padding: '16px 22px 26px' }}>
           <ActivityFeed
-            comments={draft.comments ?? []}
-            activity={draft.activity ?? []}
+            source={{ kind: 'board', id: draft.id }}
+            version={`${draft.activity?.length ?? 0}:${draft.comments?.length ?? 0}`}
             canManage={canManage}
             onComment={async (text: string) => { applied(await api.projectTasks.addComment(draft.id, text)); }}
           />
