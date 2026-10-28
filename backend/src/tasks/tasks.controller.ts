@@ -11,6 +11,7 @@ import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
 import { scopeTasks, isRestrictedViewer, assignedTo } from '../database/viewer.util';
 import { Roles } from '../auth/guards/roles.decorator';
+import { queryLog, type Scope } from './task-query';
 
 @Controller('tasks')
 export class TasksController {
@@ -30,6 +31,26 @@ export class TasksController {
     // ?slim=1: without each entry's comments and history (the drawer loads those when it opens).
     const rows = await this.tasksService.findAll(tab, project, { slim: slim === '1' });
     return scopeTasks(rows, await this.auth.verify(auth));
+  }
+
+  /**
+   * One page of the Special Actions Log, filtered, searched and sorted here,
+   * with the tab and scope counts and the project / label pickers' options.
+   */
+  @Get('page')
+  async page(@Query() q: Record<string, string>, @Headers('authorization') auth?: string) {
+    const claims = await this.auth.verify(auth);
+    const rows = scopeTasks(await this.tasksService.findAll(undefined, undefined, { slim: true }), claims);
+    const viewer = { id: claims?.sub || '', name: claims?.name || '' };
+    const person = q.person ? await this.tasksService.person(q.person) : undefined;
+    const partList = (q.parts || 'assigned,collab,originated').split(',');
+    return queryLog(rows, viewer, {
+      tab: q.tab, pf: q.pf, archived: q.archived === '1', q: q.q,
+      scope: (q.scope as Scope) || 'all', person: person ?? undefined,
+      parts: { assigned: partList.includes('assigned'), collab: partList.includes('collab'), originated: partList.includes('originated') },
+      restricted: !!claims && isRestrictedViewer(claims),
+      sort: q.sort, dir: q.dir === 'desc' ? 'desc' : 'asc', page: q.page, size: q.size,
+    });
   }
 
   /** The Request Log's statuses, for every screen that lists or picks one. */

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { downloadCsv } from '../components/finance/financeUi';
-import { auditCsvRows, changeText, headline, typeLabel, typesIn, type AuditRow } from '../data/audit';
+import { auditCsvRows, changeText, headline, typeLabel, type AuditRow } from '../data/audit';
+import { Pager } from '../components/Pager';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)',
@@ -20,29 +21,41 @@ export function AuditLogSettings() {
   const toastRef = useRef(toast);
   toastRef.current = toast;
   const [f, setF] = useState({ from: '', to: '', type: '', user: '', projectId: '', q: '' });
-  const [limit, setLimit] = useState(500);
+  // One page at a time; the CSV export fetches everything matching the filters.
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(50);
+  const [data, setData] = useState<{ total: number; page: number; size: number; pages: number; capped: boolean } | null>(null);
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [types, setTypes] = useState<string[]>([]);
 
   useEffect(() => { api.projects.list().then((r: any) => setProjects(Array.isArray(r) ? r.map((p: any) => ({ id: p.id, name: p.name })) : [])).catch(() => undefined); }, []);
+  const filterQuery = () => { const q: Record<string, string> = {}; for (const [k, v] of Object.entries(f)) if (v.trim()) q[k] = v.trim(); return q; };
+  // A changed filter goes back to page 1.
+  const filterKey = JSON.stringify(f) + '|' + size;
+  const lastKey = useRef(filterKey);
   useEffect(() => {
+    const changed = lastKey.current !== filterKey;
+    lastKey.current = filterKey;
+    if (changed && page !== 1) { setPage(1); return; }
     const t = setTimeout(() => {
-      const q: Record<string, string> = { limit: String(limit) };
-      for (const [k, v] of Object.entries(f)) if (v.trim()) q[k] = v.trim();
-      api.audit.list(q)
-        .then((r) => { const list = Array.isArray(r) ? r : []; setRows(list); setTypes((prev) => [...new Set([...prev, ...typesIn(list)])].sort()); })
+      api.audit.page({ ...filterQuery(), page: String(page), size: String(size) })
+        .then((r) => { setRows(r.rows || []); setTypes(r.types || []); setData(r); })
         .catch((e: any) => { setRows([]); toastRef.current('⚠ ' + (e?.message || 'Could not load the audit log')); });
     }, 250);
     return () => clearTimeout(t);
-  }, [f, limit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, page]);
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   const filtered = !!Object.values(f).some((v) => v);
   const list = rows || [];
-  const csv = () => downloadCsv(`audit-log-${new Date().toISOString().slice(0, 10)}`,
-    [['at', 'When'], ['who', 'Who'], ['type', 'Type'], ['record', 'Record'], ['action', 'Action'], ['project', 'Project'], ['changes', 'Changes']], auditCsvRows(list));
+  // Everything matching the filters (up to 5,000 entries), not just the page showing.
+  const csv = () => api.audit.list({ ...filterQuery(), limit: '5000' })
+    .then((all) => downloadCsv(`audit-log-${new Date().toISOString().slice(0, 10)}`,
+      [['at', 'When'], ['who', 'Who'], ['type', 'Type'], ['record', 'Record'], ['action', 'Action'], ['project', 'Project'], ['changes', 'Changes']], auditCsvRows(Array.isArray(all) ? all : [])))
+    .catch((e: any) => toastRef.current('⚠ ' + (e?.message || 'Could not export')));
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
@@ -64,7 +77,7 @@ export function AuditLogSettings() {
         <label style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', gap: 6, alignItems: 'center' }}>To <input type="date" value={f.to} onChange={set('to')} style={input} /></label>
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', fontSize: 12, color: 'var(--muted)' }}>
-        <span>{rows ? `${list.length} ${list.length === 1 ? 'entry' : 'entries'}${list.length >= limit ? ` (latest ${limit})` : ''}` : 'Loading…'}</span>
+        <span>{data ? `${data.total} ${data.total === 1 ? 'entry' : 'entries'}${data.capped ? ' (searched the latest 20,000)' : ''}` : 'Loading…'}</span>
         {filtered && <button type="button" onClick={() => setF({ from: '', to: '', type: '', user: '', projectId: '', q: '' })} style={linkBtn}>Clear all filters</button>}
         <button type="button" onClick={csv} disabled={!list.length} style={{ ...linkBtn, marginLeft: 'auto' }}>Export CSV</button>
       </div>
@@ -92,7 +105,7 @@ export function AuditLogSettings() {
         })}
         {rows && !list.length && <div style={{ padding: 16, fontSize: 12.5, color: 'var(--muted)' }}>{filtered ? 'Nothing matches these filters.' : 'Nothing recorded yet. Changes appear here as people save them.'}</div>}
       </div>
-      {rows && list.length >= limit && limit < 5000 && <button type="button" onClick={() => setLimit(Math.min(5000, limit * 2))} style={{ ...linkBtn, justifySelf: 'start' }}>Show older entries</button>}
+      {data && <Pager page={data.page} pages={data.pages} total={data.total} size={data.size} onPage={setPage} onSize={setSize} />}
     </div>
   );
 }

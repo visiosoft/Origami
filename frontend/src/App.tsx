@@ -1,50 +1,60 @@
-import { Approvals } from './pages/Approvals';
-import { MyTimesheet } from './pages/MyTimesheet';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { ClientUpload } from './pages/ClientUpload';
-import { RfisPage } from './pages/Rfis';
 import { AppShell } from './components/AppShell';
-import { DashboardRouter } from './pages/DashboardRouter';
-import { Pipeline } from './pages/Pipeline';
-import { Projects } from './pages/Projects';
-import { People } from './pages/People';
-import { Tasks } from './pages/Tasks';
-import { SuperintendentTasks, isSiteSuper } from './pages/SuperintendentHome';
-import { ModuleSpec } from './pages/ModuleSpec';
-import { ProgressPhotos } from './pages/ProgressPhotos';
-import { PublicPage } from './pages/PublicPage';
-import { HoldingReferOut } from './pages/HoldingReferOut';
-import { Observations } from './pages/Observations';
-import { DailyReports } from './pages/DailyReports';
-import { SpecialActions } from './pages/SpecialActions';
-import { BusinessFinance } from './pages/BusinessFinance';
-import { Schedule } from './pages/Schedule';
-import { Meetings } from './pages/Meetings';
-import { FinanceHome } from './pages/FinanceHome';
-import { FinanceGuide } from './pages/FinanceGuide';
-import { Manpower } from './pages/Manpower';
-import { Settings } from './pages/Settings';
-import { NotificationsFeed } from './pages/NotificationsFeed';
-import { Admin } from './pages/Admin';
-import { Help } from './pages/Help';
+import { isSiteSuper } from './data/siteSuper';
 import { Auth } from './pages/Auth';
-import { SetPassword } from './pages/SetPassword';
-import { Design } from './pages/Design';
-import { DesignProject } from './pages/DesignProject';
-import { Library } from './pages/Library';
-import { FileRoom } from './pages/FileRoom';
-import { MyProjectProgram } from './pages/MyProjectProgram';
-import { ConsultantMatrix } from './pages/ConsultantMatrix';
-import { MyCalendar } from './pages/MyCalendar';
-import { SignProposal } from './pages/SignProposal';
-import { SignContract } from './pages/SignContract';
-import { Contracts } from './pages/Contracts';
-import { GuestEntry } from './pages/GuestEntry';
-import { Portal } from './pages/Portal';
-import { DailyReport } from './pages/DailyReport';
 import { useApp } from './AppContext';
 import { rememberReturnTo } from './returnTo';
+import { Suspense, lazy, type ComponentType } from 'react';
+
+/**
+ * Each page's code is downloaded the first time it's opened, not all up front:
+ * the app shell and the page you land on load first, the rest when needed.
+ */
+function page<T extends Record<string, unknown>>(load: () => Promise<T>, name: keyof T & string) {
+  return lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType<any> })));
+}
+const Approvals = page(() => import('./pages/Approvals'), 'Approvals');
+const MyTimesheet = page(() => import('./pages/MyTimesheet'), 'MyTimesheet');
+const ClientUpload = page(() => import('./pages/ClientUpload'), 'ClientUpload');
+const RfisPage = page(() => import('./pages/Rfis'), 'RfisPage');
+const DashboardRouter = page(() => import('./pages/DashboardRouter'), 'DashboardRouter');
+const Pipeline = page(() => import('./pages/Pipeline'), 'Pipeline');
+const Projects = page(() => import('./pages/Projects'), 'Projects');
+const People = page(() => import('./pages/People'), 'People');
+const Tasks = page(() => import('./pages/Tasks'), 'Tasks');
+const SuperintendentTasks = page(() => import('./pages/SuperintendentHome'), 'SuperintendentTasks');
+const ModuleSpec = page(() => import('./pages/ModuleSpec'), 'ModuleSpec');
+const ProgressPhotos = page(() => import('./pages/ProgressPhotos'), 'ProgressPhotos');
+const PublicPage = page(() => import('./pages/PublicPage'), 'PublicPage');
+const HoldingReferOut = page(() => import('./pages/HoldingReferOut'), 'HoldingReferOut');
+const Observations = page(() => import('./pages/Observations'), 'Observations');
+const DailyReports = page(() => import('./pages/DailyReports'), 'DailyReports');
+const SpecialActions = page(() => import('./pages/SpecialActions'), 'SpecialActions');
+const BusinessFinance = page(() => import('./pages/BusinessFinance'), 'BusinessFinance');
+const Schedule = page(() => import('./pages/Schedule'), 'Schedule');
+const Meetings = page(() => import('./pages/Meetings'), 'Meetings');
+const FinanceHome = page(() => import('./pages/FinanceHome'), 'FinanceHome');
+const FinanceGuide = page(() => import('./pages/FinanceGuide'), 'FinanceGuide');
+const Manpower = page(() => import('./pages/Manpower'), 'Manpower');
+const Settings = page(() => import('./pages/Settings'), 'Settings');
+const NotificationsFeed = page(() => import('./pages/NotificationsFeed'), 'NotificationsFeed');
+const Admin = page(() => import('./pages/Admin'), 'Admin');
+const Help = page(() => import('./pages/Help'), 'Help');
+const SetPassword = page(() => import('./pages/SetPassword'), 'SetPassword');
+const Design = page(() => import('./pages/Design'), 'Design');
+const DesignProject = page(() => import('./pages/DesignProject'), 'DesignProject');
+const Library = page(() => import('./pages/Library'), 'Library');
+const FileRoom = page(() => import('./pages/FileRoom'), 'FileRoom');
+const MyProjectProgram = page(() => import('./pages/MyProjectProgram'), 'MyProjectProgram');
+const ConsultantMatrix = page(() => import('./pages/ConsultantMatrix'), 'ConsultantMatrix');
+const MyCalendar = page(() => import('./pages/MyCalendar'), 'MyCalendar');
+const SignProposal = page(() => import('./pages/SignProposal'), 'SignProposal');
+const SignContract = page(() => import('./pages/SignContract'), 'SignContract');
+const Contracts = page(() => import('./pages/Contracts'), 'Contracts');
+const GuestEntry = page(() => import('./pages/GuestEntry'), 'GuestEntry');
+const Portal = page(() => import('./pages/Portal'), 'Portal');
+const DailyReport = page(() => import('./pages/DailyReport'), 'DailyReport');
 
 /** Sends anyone without a valid session to the log-in screen. */
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -77,8 +87,14 @@ function NotPortal({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Shown for the moment a page's code is downloading. */
+export function PageLoading() {
+  return <div role="status" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>;
+}
+
 export default function App() {
   return (
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route path="/login" element={<Auth mode="login" />} />
       <Route path="/signup" element={<Auth mode="signup" />} />
@@ -143,6 +159,7 @@ export default function App() {
         <Route path="/:slug" element={<ModuleSpec />} />
       </Route>
     </Routes>
+    </Suspense>
   );
 }
 

@@ -283,6 +283,12 @@ export class TasksService implements OnApplicationBootstrap {
     return rows.map((t) => this.hydrate(t));
   }
 
+  /** A user's id and name, for the "Assigned to" / "From" person filter. */
+  async person(id: string) {
+    const u = await this.users.findOne({ where: { id }, select: { id: true, name: true } });
+    return u ? { id: u.id, name: u.name } : null;
+  }
+
   async findOne(id: string) {
     const task = await this.repo.findOneBy({ id });
     if (!task) throw new NotFoundException(`Task ${id} not found`);

@@ -142,6 +142,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
 
   const [sections, setSections] = useState<ProjectSection[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  // How many cards each board column shows (see the board view).
+  const [colLimit, setColLimit] = useState<Record<string, number>>({});
   // Subtasks by parent and tasks by id, built once per change to the list -- each
   // card looks these up, and scanning the whole list per card got slow as tasks grew.
   const { subsByParent, taskById } = useMemo(() => {
@@ -600,6 +602,15 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   };
 
   // ---- board view ----
+  // A long column shows its first 25 cards; "Show more" adds 25 at a time (counts stay the whole column).
+  const COL_PAGE = 25;
+  const limitOf = (secId: string) => colLimit[secId] ?? COL_PAGE;
+  const moreButton = (secId: string, total: number, className?: string) => total > limitOf(secId) && (
+    <button type="button" className={className} onClick={() => setColLimit((m) => ({ ...m, [secId]: limitOf(secId) + COL_PAGE }))}
+      style={className ? undefined : { padding: '8px 10px', borderRadius: 8, border: '1px dashed rgba(var(--rgb-shade), 0.18)', background: 'transparent', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>
+      Show {Math.min(COL_PAGE, total - limitOf(secId))} more ({total - limitOf(secId)} hidden)
+    </button>
+  );
   // Each view is built only when it's the one showing.
   const boardViewNew = () => (
     <div className="tb-board">
@@ -624,7 +635,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {canShape && <button type="button" className="tb-col-x" onClick={() => deleteSection(sec.id)} title="Delete section" aria-label="Delete section">×</button>}
             </div>
             <div className="tb-col-body">
-              {secTasks.map((t, i) => renderCard(t, i))}
+              {secTasks.slice(0, limitOf(sec.id)).map((t, i) => renderCard(t, i))}
+              {moreButton(sec.id, secTasks.length, 'tb-add')}
               {addingIn === sec.id ? (
                 <QuickAddTask className="tb-adding" onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} />
               ) : canAdd && (
@@ -670,7 +682,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {canShape && <span onClick={() => deleteSection(sec.id)} title="Delete section" style={{ fontSize: 13, color: '#B99', cursor: 'pointer' }}>×</span>}
             </div>
             <div style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
-              {secTasks.map((t, i) => renderCard(t, i))}
+              {secTasks.slice(0, limitOf(sec.id)).map((t, i) => renderCard(t, i))}
+              {moreButton(sec.id, secTasks.length)}
               {addingIn === sec.id ? (
                 <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} />
               ) : canAdd && (
@@ -773,7 +786,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             </div>
             <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflow: 'hidden' }}>
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
-              {sortRows(secTasks, LIST_BY, listSort).map((t) => listRow(t, 0))}
+              {sortRows(secTasks, LIST_BY, listSort).slice(0, limitOf(sec.id)).map((t) => listRow(t, 0))}
+              {secTasks.length > limitOf(sec.id) && <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>{moreButton(sec.id, secTasks.length)}</div>}
               {canAdd && (addingIn === sec.id ? (
                 <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }} />
               ) : (

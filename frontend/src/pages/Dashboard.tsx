@@ -1,18 +1,14 @@
 import { CountUp } from '../components/CountUp';
-import { clip, logTaskTitle } from '../data/tasks';
 import { DashboardOverview } from '../components/DashboardOverview';
 import { useTheme } from '../theme';
 import { DashboardCharts } from '../components/DashboardCharts';
 import { projectBars, type BillingMonth } from '../data/dashboardCharts';
 import { tint } from '../theme';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../AppContext';
-import { api } from '../api';
+import { api, type TasksSummary } from '../api';
 import { MyTasks } from '../components/MyTasks';
-import type { ProjectTask } from '../data/projectTasks';
-import type { Task as LogTask } from '../data/tasks';
 import {
   FINANCE, INVOICES, REVENUE_BASE, FUNNEL, TEAM, DEADLINES, ACTIVITY, HELP_CONTENT,
   enrichInvoices, money, type EnrichedInvoice,
@@ -86,9 +82,8 @@ export function Dashboard() {
   // Real overdue/due-today tasks (both task systems) and today's scheduled
   // Google Meetings, for the "Needs attention" strip -- this used to be
   // static demo fixture data (DEADLINES), not anything actually happening.
-  const [attentionBoardTasks, setAttentionBoardTasks] = useState<ProjectTask[]>([]);
-  const [attentionLogTasks, setAttentionLogTasks] = useState<LogTask[]>([]);
-  const [attentionProjects, setAttentionProjects] = useState<Record<number, string>>({});
+  // The task cards' figures, worked out on the server (a few numbers and short lists, not every task).
+  const [summary, setSummary] = useState<TasksSummary | null>(null);
   type CalEvent = { id: string; summary: string; start: string; end?: string; allDay: boolean; htmlLink?: string };
   const [weekMeetings, setWeekMeetings] = useState<CalEvent[]>([]);
   const [calConnected, setCalConnected] = useState<boolean | null>(null);
@@ -110,8 +105,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (isClient) return;
-    api.projectTasks.list(undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setAttentionBoardTasks(r); }).catch(() => { });
-    api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setAttentionLogTasks(r); }).catch(() => { });
+    { const d = new Date(); api.dashboard.tasksSummary(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`).then(setSummary).catch(() => { }); }
     api.finance.portfolio().then((r: any) => setPortfolio(Array.isArray(r) ? r : null)).catch(() => setPortfolio(null));
     api.finance.collections(6).then((r: any) => setCollections(Array.isArray(r) ? r : null)).catch(() => setCollections(null));
     api.finance.billing(6).then((r) => setBilling(Array.isArray(r) ? r : null)).catch(() => setBilling(null));
@@ -119,9 +113,6 @@ export function Dashboard() {
     api.projects.list().then((r: any) => {
       if (!Array.isArray(r)) return;
       setAllProjects(r);
-      const m: Record<number, string> = {};
-      r.forEach((p: any) => { m[p.id] = p.name; });
-      setAttentionProjects(m);
     }).catch(() => { });
     // This week's events (Monday to Sunday) from the user's own Google Calendar.
     api.google.myCalendar.status().then((res: any) => {
@@ -265,12 +256,7 @@ export function Dashboard() {
     return days <= 0 ? 'Today' : days === 1 ? '1 day ago' : `${days} days ago`;
   };
   const attentionItems = [
-    ...attentionBoardTasks
-      .filter((t) => !t.completed && t.status !== 'Done' && t.dueDate && t.dueDate <= todayStr)
-      .map((t) => ({ task: t.title, project: t.projectId == null ? 'General Tasks' : (attentionProjects[t.projectId] || `Project ${t.projectId}`), due: daysAgoLabel(t.dueDate!), past: t.dueDate! < todayStr })),
-    ...attentionLogTasks
-      .filter((t) => !isLogClosed(t.status) && t.dueDate && t.dueDate <= todayStr)
-      .map((t) => ({ task: clip(logTaskTitle(t), 60), project: t.project || 'General task', due: daysAgoLabel(t.dueDate), past: t.dueDate < todayStr })),
+    ...(summary?.attention || []).map((a) => ({ task: a.task, project: a.project, due: daysAgoLabel(a.dueDate), past: a.dueDate < todayStr })),
     ...todayMeetings
       .filter((m) => !m.allDay)
       .map((m) => ({ task: `Meeting: ${m.summary}`, project: 'Google Calendar', due: new Date(m.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), past: new Date(m.start).getTime() < Date.now() })),
@@ -304,27 +290,16 @@ export function Dashboard() {
   );
 
   // ── New-look overview: every figure from the live system ──
-  const me = { id: currentUser?.id || '', name: (currentUser?.name || '').trim() };
-  const mineBoard = (t: ProjectTask) => !!me.id && (t.assigneeId === me.id || (!!me.name && t.assignee === me.name));
-  const mineLog = (t: LogTask) => !!me.id && (t.assignedToId === me.id || (!!me.name && t.assignedTo === me.name));
-  const boardOpen = (t: ProjectTask) => !t.completed && t.status !== 'Done';
-  const projName = (id: number | null) => (id == null ? 'General Tasks' : attentionProjects[id] || `Project ${id}`);
-  const lastTouched = (t: { activity?: { at: string }[]; updatedAt?: string }) => t.updatedAt || (t.activity && t.activity.length ? t.activity[t.activity.length - 1].at : '') || '';
-  type MyTask = { key: string; title: string; project: string; due?: string; open: boolean; touched: string; to: string };
-  const myTasks: MyTask[] = [
-    ...attentionBoardTasks.filter(mineBoard).map((t) => ({ key: 'b' + t.id, title: t.title, project: projName(t.projectId), due: t.dueDate, open: boardOpen(t), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId ?? 'null'}` })),
-    ...attentionLogTasks.filter(mineLog).map((t) => ({ key: 'l' + t.id, title: logTaskTitle(t), project: t.project || 'Special Actions Log', due: t.dueDate, open: !isLogClosed(t.status), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&type=log` })),
-  ];
-  const myOpen = myTasks.filter((t) => t.open);
-  const myOverdue = myOpen.filter((t) => t.due && t.due < todayStr);
-  const myToday = myOpen.filter((t) => t.due === todayStr);
+  // My tasks: the server's counts and short lists.
+  const mine = summary?.mine;
+  const myOpenN = mine?.open ?? 0, myOverdueN = mine?.overdue ?? 0, myTodayN = mine?.today ?? 0, myTotalN = mine?.total ?? 0;
   const dueLabel = (d?: string) => {
     if (!d) return 'No due date';
     const days = Math.round((new Date(d + 'T12:00:00').getTime() - new Date(todayStr + 'T12:00:00').getTime()) / 86400000);
     return days < -1 ? `${-days} days overdue` : days === -1 ? '1 day overdue' : days === 0 ? 'Due today' : days === 1 ? 'Due tomorrow' : `Due ${new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   };
   // Your latest open tasks (most recently created or touched first), overdue ones flagged.
-  const myLatest = [...myOpen].sort((a, b) => b.touched.localeCompare(a.touched)).slice(0, 5)
+  const myLatest = (mine?.latest || [])
     .map((t) => ({ task: t.title, project: t.project, due: dueLabel(t.due), past: !!t.due && t.due < todayStr, to: t.to }));
 
   const sumP = (k: string) => (portfolio || []).reduce((a, r) => a + (Number(r[k]) || 0), 0);
@@ -337,17 +312,11 @@ export function Dashboard() {
   const funnelReal = STAGES.filter((st) => !st.isHold && !st.isClosed).map((st) => ({ label: st.name, count: liveLeads.filter((d) => d.stage === st.key).length }));
   const funnelMax = Math.max(1, ...funnelReal.map((f) => f.count));
   // Who has what open, across both task lists.
-  const load = new Map<string, { open: number; done: number }>();
-  const tally = (who: string | undefined, open: boolean) => { const k = (who || '').trim(); if (!k) return; const v = load.get(k) || { open: 0, done: 0 }; if (open) v.open++; else v.done++; load.set(k, v); };
-  attentionBoardTasks.forEach((t) => tally(t.assignee, boardOpen(t)));
-  attentionLogTasks.forEach((t) => tally(t.assignedTo, !isLogClosed(t.status)));
-  const teamReal = [...load.entries()].sort((a, b) => b[1].open - a[1].open).slice(0, 7)
+  const teamReal = (summary?.team || []).map((v) => [v.name, v] as const)
     .map(([name, v]) => ({ name, role: `${v.open} open`, tasks: v.open + v.done, done: v.done, av: name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() }));
   // The project most worth a look: most overdue invoices, else most overdue tasks, else the latest active one.
-  const overdueTasksBy = new Map<number, number>();
-  attentionBoardTasks.forEach((t) => { if (t.projectId != null && boardOpen(t) && t.dueDate && t.dueDate < todayStr) overdueTasksBy.set(t.projectId, (overdueTasksBy.get(t.projectId) || 0) + 1); });
   const byOverdueMoney = [...(portfolio || [])].filter((r) => Number(r.overdue) > 0).sort((a, b) => Number(b.overdue) - Number(a.overdue))[0];
-  const byOverdueTasks = [...overdueTasksBy.entries()].sort((a, b) => b[1] - a[1])[0];
+  const byOverdueTasks = summary?.overdueByProject[0];
   const featuredProject = byOverdueMoney ? allProjects.find((p) => p.id === byOverdueMoney.projectId)
     : byOverdueTasks ? allProjects.find((p) => p.id === byOverdueTasks[0]) : activeProjects[activeProjects.length - 1];
   const featuredFin = featuredProject && (portfolio || []).find((r) => r.projectId === featuredProject.id);
@@ -368,27 +337,27 @@ export function Dashboard() {
       { label: 'Work done', pct: pct(earned, contract), style: 'dark' as const },
       { label: 'Invoiced', pct: pct(workInvoiced, contract), style: 'yellow' as const },
       { label: 'Collected', pct: pct(paid, invoiced), style: 'hatch' as const },
-      { label: 'My overdue', pct: pct(myOverdue.length, myOpen.length), style: 'outline' as const },
+      { label: 'My overdue', pct: pct(myOverdueN, myOpenN), style: 'outline' as const },
     ] : [
-      { label: 'My tasks done', pct: pct(myTasks.length - myOpen.length, myTasks.length), style: 'dark' as const },
-      { label: 'Due today', pct: pct(myToday.length, myOpen.length), style: 'yellow' as const },
-      { label: 'My overdue', pct: pct(myOverdue.length, myOpen.length), style: 'outline' as const },
+      { label: 'My tasks done', pct: pct(myTotalN - myOpenN, myTotalN), style: 'dark' as const },
+      { label: 'Due today', pct: pct(myTodayN, myOpenN), style: 'yellow' as const },
+      { label: 'My overdue', pct: pct(myOverdueN, myOpenN), style: 'outline' as const },
     ],
     numbers: [
       { label: 'Active projects', value: String(activeProjects.length), icon: 'projects' as const },
-      { label: 'My open tasks', value: String(myOpen.length), icon: 'tasks' as const },
+      { label: 'My open tasks', value: String(myOpenN), icon: 'tasks' as const },
       { label: 'Live leads', value: String(liveLeads.length), icon: 'leads' as const },
     ],
     featured,
     collections: collections ? collections.map((c) => ({ month: c.month, value: c.amount })) : null,
     ring: hasFinance ? { title: 'Billing', pct: pct(invoiced, contract), label: 'of contracts invoiced', sub: `${money(invoiced)} of ${money(contract)} · ${money(outstanding)} outstanding`, to: '/fin_project' } : null,
     attentionTitle: 'My latest tasks',
-    attentionCount: myOpen.length,
+    attentionCount: myOpenN,
     attention: myLatest,
     attentionSplit: [
-      { label: 'Overdue', n: myOverdue.length, of: myOpen.length },
-      { label: 'Today', n: myToday.length, of: myOpen.length },
-      { label: 'Done', n: myTasks.length - myOpen.length, of: myTasks.length },
+      { label: 'Overdue', n: myOverdueN, of: myOpenN },
+      { label: 'Today', n: myTodayN, of: myOpenN },
+      { label: 'Done', n: myTotalN - myOpenN, of: myTotalN },
     ],
     funnel: funnelReal.filter((f) => f.count > 0).map((f) => ({ label: f.label, n: String(f.count), v: (f.count / funnelMax) * 100 })),
     team: teamReal,
@@ -399,7 +368,7 @@ export function Dashboard() {
         time: m.allDay ? 'All day' : new Date(m.start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(':00', '').replace(' ', '').toLowerCase(),
         sort: m.allDay ? '' : m.start, project: 'Google Calendar', link: m.htmlLink,
       })),
-      ...myTasks.filter((t) => t.due && t.due >= wsIso && t.due <= weIso).map((t) => ({ id: t.key, kind: 'task' as const, title: t.title, date: t.due!, project: t.project, done: !t.open, sort: '~', to: t.to })),
+      ...(mine?.dated || []).filter((t) => t.due && t.due >= wsIso && t.due <= weIso).map((t) => ({ id: t.key, kind: 'task' as const, title: t.title, date: t.due!, project: t.project, done: !t.open, sort: '~', to: t.to })),
     ],
     calendarConnected: calConnected,
     go: (to: string) => navigate(to),

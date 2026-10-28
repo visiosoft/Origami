@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { releaseSeen } from '../data/releaseNotes';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
@@ -213,7 +213,8 @@ export function AppShell() {
 
         <main className="content">
           <div className="content-inner">
-            <Outlet />
+            {/* The sidebar stays put while a page's code downloads. */}
+            <Suspense fallback={<div role="status" style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>}><Outlet /></Suspense>
           </div>
         </main>
       </div>

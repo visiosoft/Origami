@@ -6,16 +6,20 @@ import { useSearchParams } from 'react-router-dom';
 import { useApp } from '../AppContext';
 import { api } from '../api';
 import { Avatar } from '../components/Avatar';
-import { useTaskScope, TaskScopeToggle, PersonFilter, TaskSearch, matchesQuery, isMine, type TaskScope } from '../components/TaskScope';
+import { useTaskScope, useMineParts, TaskScopeToggle, PersonFilter, TaskSearch, type TaskScope } from '../components/TaskScope';
+import { Pager } from '../components/Pager';
 import { TaskBoard } from '../components/TaskBoard';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { RequestLogTaskDrawer } from '../components/RequestLogTaskDrawer';
 import { TT_COLORS, logTaskTitle, type Task, type TaskTab } from '../data/tasks';
 import { SavedViews } from '../components/SavedViews';
-import { SortHeader, sortFromString, sortToString, useSort } from '../components/SortHeader';
+import { SortHeader, sortFromString, sortToString, type SortState } from '../components/SortHeader';
 import { leadLabel, useLinkTargets } from '../data/linkTargets';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
+
+/** One page of the Special Actions Log, with its tab and scope counts and picker options. */
+type LogPage = Awaited<ReturnType<typeof api.tasks.page>>;
 const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 /** The board project is remembered so coming back lands on the same one. */
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
@@ -23,11 +27,11 @@ const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owne
 /** initialMode 'log' opens on the Special Actions Log (Special Actions → Task). */
 /** The board picker: a project, General, everything, or a lead's tasks ('lead:<id>'). */
 type BoardSel = number | 'general' | 'all' | `lead:${string}`;
-const LEAD_PF = 'Lead · ';
 
 export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log' } = {}) {
   const { can, users } = useApp();
-  const { scope, setScope, filter: scopeFilter, restricted, currentUser, person, setPerson, users: allUsers, counts: scopeCounts } = useTaskScope();
+  const { scope, setScope, restricted, currentUser, person, setPerson, users: allUsers } = useTaskScope();
+  const [mineParts] = useMineParts();
   const [query, setQuery] = useState('');
   const numberOf = useTaskNumber();
   const canManage = can('tasks', 'manage');
@@ -47,8 +51,17 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   useEffect(() => { if (!restricted) setScope('all'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const boardLead = typeof boardProjectId === 'string' && boardProjectId.startsWith('lead:') ? boardProjectId.slice(5) : null;
   const targets = useLinkTargets();
-  const [logTasks, setLogTasks] = useState<Task[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  // The log comes a page at a time: filtered, searched and sorted on the server.
+  const [logPage, setLogPage] = useState<LogPage | null>(null);
+  const [logLoading, setLogLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(50);
+  const [sort, setSort] = useState<SortState | null>(null);
+  const toggle = (key: string) => setSort((s) => (s?.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' ? 'desc' : 'asc' }));
+  const [reloadTick, setReloadTick] = useState(0);
+  // The open entry, in full (comments, history); it may not be on the page showing.
+  const [sel, setSel] = useState<Task | null>(null);
 
   // Deep link from an assignment email or the notification bell:
   //   /tasks?task=<id>&project=<id>   board
@@ -62,8 +75,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
 
   const selectBoardProject = (id: BoardSel) => setBoardProjectId(id);
 
-  // Slim: each entry's comments and history come with it when it's opened (below).
-  const reloadLog = () => { api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
+  const reloadLog = () => setReloadTick((n) => n + 1);
   useEffect(() => {
     api.projects.list().then((r: any) => {
       // A lead gets a placeholder row the moment it exists so it has a place
@@ -83,13 +95,36 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
       });
     }).catch(() => { });
   }, []);
-  // The Special Actions Log's own list is fetched only once that tab is open; the board doesn't use it.
-  const logLoaded = useRef(false);
+  // Typing searches after a short pause, not on every key.
+  const [q, setQ] = useState('');
+  useEffect(() => { const t = window.setTimeout(() => setQ(query), 300); return () => window.clearTimeout(t); }, [query]);
+  // A different filter starts again from page 1.
+  const filterKey = [tab, pf, showArchived, q, scope, person, JSON.stringify(mineParts), sort?.key, sort?.dir, size].join('|');
+  const lastFilter = useRef(filterKey);
   useEffect(() => {
-    if (mode !== 'log' || logLoaded.current) return;
-    logLoaded.current = true;
-    reloadLog();
-  }, [mode]);
+    if (mode !== 'log') return;
+    const filterChanged = lastFilter.current !== filterKey;
+    lastFilter.current = filterKey;
+    if (filterChanged && page !== 1) { setPage(1); return; }
+    let live = true;
+    setLogLoading(true);
+    const parts = (Object.keys(mineParts) as (keyof typeof mineParts)[]).filter((k) => mineParts[k]).join(',');
+    api.tasks.page({ tab, pf, archived: showArchived, q, scope, person, parts, sort: sort?.key, dir: sort?.dir, page, size })
+      .then((r) => { if (live) setLogPage(r); })
+      .catch(() => { })
+      .finally(() => { if (live) setLogLoading(false); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, filterKey, page, reloadTick]);
+  useEffect(() => {
+    if (!selectedId) { setSel(null); return; }
+    let live = true;
+    // Show the row straight away, then the full entry.
+    setSel((cur) => (cur?.id === selectedId ? cur : (logPage?.rows.find((x) => x.id === selectedId) as Task | undefined) ?? null));
+    api.tasks.get(selectedId).then((full: any) => { if (live && full?.id) setSel(full as Task); }).catch(() => { });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   /**
    * Apply a deep link once. The task id is cleared from the URL afterwards so
@@ -120,42 +155,19 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   }, []);
 
   // Labels already in use, offered as suggestions.
-  const allLabels = Array.from(new Set(logTasks.flatMap((t) => t.labels ?? []))).sort();
+  const allLabels = logPage?.facets.labels ?? [];
 
   const openNew = () => setShowNew(true);
 
   const GENERAL_PF = 'General (no project)';
-  const taskProjects: string[] = [];
-  logTasks.forEach((x) => { if (x.project && !taskProjects.includes(x.project)) taskProjects.push(x.project); });
-  // Leads come after the projects, as "Lead · name".
-  logTasks.forEach((x) => { const l = leadLabel(x.leadName); if (l && !taskProjects.includes(l)) taskProjects.push(l); });
-  const hasGeneral = logTasks.some((x) => !x.project && !x.leadId);
-  const byProject = (list: Task[]) =>
-    pf === 'All projects' ? list : pf === GENERAL_PF ? list.filter((x) => !x.project && !x.leadId) : pf.startsWith(LEAD_PF) ? list.filter((x) => leadLabel(x.leadName) === pf) : list.filter((x) => x.project === pf);
-  const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0 };
+  const taskProjects = logPage?.facets.projects ?? [];
+  const hasGeneral = !!logPage?.facets.hasGeneral;
+  const tabCounts: Record<TaskTab, number> = { internal: 0, owner: 0, subcontractor: 0, ...(logPage?.counts.tabs as Record<TaskTab, number> | undefined) };
   // Confirmed entries leave the list a week later; "Archived" shows them.
-  const liveLog = logTasks.filter((x) => (showArchived ? !!x.archivedAt : !x.archivedAt));
-  const archivedCount = logTasks.filter((x) => x.archivedAt).length;
-  TABS.forEach((t) => { tabCounts[t] = scopeFilter(byProject(liveLog.filter((x) => (x as any).tab === t))).length; });
-  const inTab = byProject(liveLog.filter((x) => (x as any).tab === tab));
-  const tasks = scopeFilter(inTab).filter((t) => matchesQuery({ ...t, title: [numberOf(t), t.subject, t.description].filter(Boolean).join(' ') }, query));
-  const logMineCount = inTab.filter((t) => isMine(t, currentUser)).length;
-  const { sorted, sort, setSort, toggle } = useSort(tasks, {
-    id: (t) => t.id, type: (t) => t.topicType, subject: (t) => logTaskTitle(t), status: (t) => t.status, who: (t) => t.assignedTo, date: (t) => t.meetingDate, due: (t) => t.dueDate,
-  }, null, { date: 'desc' });
+  const archivedCount = logPage?.counts.archived ?? 0;
+  const tasks = (logPage?.rows ?? []) as Task[];
+  const logMineCount = logPage?.counts.mine ?? 0;
   const viewValue = { tab, pf, query, scope, person, sort: sortToString(sort) };
-
-  const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
-  const fetchingFull = useRef<string | null>(null);
-  useEffect(() => {
-    if (!sel || sel.comments !== undefined || fetchingFull.current === sel.id) return;
-    const id = sel.id;
-    fetchingFull.current = id;
-    api.tasks.get(id)
-      .then((full: any) => setLogTasks((cur) => cur.map((t) => (t.id === id ? { ...t, ...full } : t))))
-      .catch(() => { })
-      .finally(() => { if (fetchingFull.current === id) fetchingFull.current = null; });
-  }, [sel]);
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -204,8 +216,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
           setScope={setScope}
           restricted={restricted}
           mineCount={logMineCount}
-          allCount={inTab.length}
-          counts={scopeCounts(inTab as any[])}
+          allCount={logPage?.counts.scope.all ?? 0}
+          counts={logPage?.counts.scope}
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
@@ -243,9 +255,9 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
           {([['id', 'Task #'], ['type', 'Type'], ['subject', 'Subject'], ['status', 'Status'], ['who', 'Assigned To'], ['date', 'Date'], ['due', 'Due']] as [string, string][]).map(([k, h]) => <SortHeader key={k} k={k} sort={sort} onSort={toggle}>{h}</SortHeader>)}
         </div>
         {tasks.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>No tasks in this category.</div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>{!logPage || (logLoading && !tasks.length) ? 'Loading…' : 'No tasks in this category.'}</div>
         ) : (
-          sorted.map((t) => {
+          tasks.map((t) => {
             const sc = logStatusTone(t.status);
             const tc = TT_COLORS[t.topicType];
             const assignedUser = users.find((u) => (t.assignedToId && u.id === t.assignedToId) || u.name === t.assignedTo);
@@ -275,14 +287,19 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         )}
       </div>
 
+      {logPage && <Pager page={logPage.page} pages={logPage.pages} total={logPage.total} size={logPage.size} loading={logLoading}
+        onPage={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onSize={setSize} />}
+
       {/* Task detail — the same drawer the CRM opens */}
       {sel && (
         <RequestLogTaskDrawer
+          // Opened from a list row, then filled in once the full entry (comments, history) arrives.
+          key={sel.id + (sel.comments ? ':full' : '')}
           task={sel}
           allLabels={allLabels}
           onClose={() => setSelectedId(null)}
-          onChanged={(res) => setLogTasks((prev) => prev.map((x) => (x.id === res.id ? res : x)))}
-          onDeleted={(id) => setLogTasks((prev) => prev.filter((x) => x.id !== id))}
+          onChanged={(res) => { setSel(res); setLogPage((p) => (p ? { ...p, rows: p.rows.map((x) => (x.id === res.id ? res : x)) } : p)); }}
+          onDeleted={() => { setSelectedId(null); reloadLog(); }}
         />
       )}
 

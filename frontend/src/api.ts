@@ -3,6 +3,18 @@ import type { CardScan } from './data/businessCard';
 import type { ContactActivity, ContactInteraction, DupMatch } from './data/people';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
+
+/** GET /dashboard/tasks-summary */
+export interface TasksSummary {
+  attention: { task: string; project: string; dueDate: string }[];
+  mine: {
+    total: number; open: number; overdue: number; today: number;
+    latest: { key: string; title: string; project: string; due?: string; open: boolean; touched: string; to: string }[];
+    dated: { key: string; title: string; project: string; due?: string; open: boolean; to: string }[];
+  };
+  team: { name: string; open: number; done: number }[];
+  overdueByProject: [number, number][];
+}
 import type { BillingMonth } from './data/dashboardCharts';
 import type { AuditRow } from './data/audit';
 import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo } from './data/contracts';
@@ -133,7 +145,50 @@ export const session = {
   },
 };
 
+/**
+ * A short read cache for going back and forth between pages: a list read in
+ * the last minute comes from memory instead of the server. Only reads are
+ * cached --
+ *  - a save, delete or upload (any non-GET) clears the whole cache, so your
+ *    own changes always show at once;
+ *  - a single record opened to view or edit (a path ending in its id) is
+ *    always fetched fresh, as is anything asked for with `cache: 'no-store'`;
+ *  - sign-in, the server status and the notification bell are never cached.
+ * Someone else's change shows within READ_TTL_MS. Each answer is a copy, so a
+ * screen sorting or editing what it got can't change what's cached.
+ */
+export const READ_TTL_MS = 60_000;
+const readCache = new Map<string, { at: number; value: unknown }>();
+const readsInFlight = new Map<string, Promise<unknown>>();
+const NEVER_CACHE = /^\/(auth\/|status\b|notifications\/my-tasks|google\/status)/;
+/** The last path segment is a record id (it has a digit), e.g. /tasks/T-2026-0007, /people/42. */
+const isRecordPath = (path: string) => /\d/.test(path.split('?')[0].split('/').filter(Boolean).pop() || '');
+export const cacheableRead = (path: string, options?: RequestInit) =>
+  (options?.method || 'GET').toUpperCase() === 'GET' && options?.cache !== 'no-store' && !NEVER_CACHE.test(path) && !isRecordPath(path);
+/** Drop every cached read (after a change, or on signing in or out). */
+export function clearReadCache() { readCache.clear(); readsInFlight.clear(); }
+const copy = <T,>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!cacheableRead(path, options)) {
+    try { return await send<T>(path, options); }
+    finally { if ((options?.method || 'GET').toUpperCase() !== 'GET') clearReadCache(); }
+  }
+  const key = (session.get() || '') + ' ' + path;
+  const hit = readCache.get(key);
+  if (hit && Date.now() - hit.at < READ_TTL_MS) return copy(hit.value as T);
+  let pending = readsInFlight.get(key) as Promise<T> | undefined;
+  if (!pending) {
+    pending = send<T>(path, options).then((value) => {
+      if (readsInFlight.get(key) === pending) readCache.set(key, { at: Date.now(), value });
+      return value;
+    }).finally(() => { if (readsInFlight.get(key) === pending) readsInFlight.delete(key); });
+    readsInFlight.set(key, pending);
+  }
+  return copy(await pending);
+}
+
+async function send<T>(path: string, options?: RequestInit): Promise<T> {
   const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -161,6 +216,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
  * multipart boundary itself, while keeping the Authorization header.
  */
 async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  // An upload changes data: cached reads are dropped before and after it.
+  clearReadCache();
+  try { return await sendForm<T>(path, form); } finally { clearReadCache(); }
+}
+
+async function sendForm<T>(path: string, form: FormData): Promise<T> {
   const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
@@ -326,6 +387,10 @@ export const api = {
     },
   },
   dashboard: {
+    /** The Dashboard's task cards, worked out on the server (today = the viewer's YYYY-MM-DD). */
+    tasksSummary: (today: string) => request<TasksSummary>(`/dashboard/tasks-summary?today=${encodeURIComponent(today)}`),
+    /** "My Tasks": my open work (assigned or collaborating), soonest due first -- `limit` rows and the total. */
+    myTasks: (limit = 8) => request<{ total: number; rows: { key: string; title: string; context: string; dueDate?: string; priority?: string; where: 'board' | 'log'; to: string }[] }>(`/dashboard/my-tasks?limit=${limit}`),
     kpis: () => request('/dashboard/kpis'),
     budgetVsSpend: () => request('/dashboard/budget-vs-spend'),
     revenueByMonth: () => request('/dashboard/revenue-by-month'),
@@ -411,6 +476,16 @@ export const api = {
       return request(`/tasks${qs ? `?${qs}` : ''}`);
     },
     get: (id: string) => request(`/tasks/${id}`),
+    /** One page of the Special Actions Log -- filtered, searched and sorted on the server. */
+    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '' && v !== false) params.set(k, v === true ? '1' : String(v));
+      return request<{
+        rows: import('./data/tasks').Task[]; total: number; page: number; size: number; pages: number;
+        counts: { tabs: Record<string, number>; archived: number; mine: number; scope: { all: number; mine: number; fromMe: number; assigned: number } };
+        facets: { projects: string[]; hasGeneral: boolean; labels: string[] };
+      }>(`/tasks/page?${params}`);
+    },
     create: (data: unknown) => request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/tasks/${id}`, { method: 'DELETE' }),
@@ -494,6 +569,13 @@ export const api = {
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
+    /** One page of the RFI log, filtered and sorted on the server, with its counts and stat cards. */
+    page: (o: { projectId?: number; status?: string; q?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '') params.set(k, String(v));
+      return request<{ rows: any[]; total: number; page: number; size: number; pages: number; any: boolean;
+        counts: { open: number; overdue: number; answered: number }; stats: { draft: number; avg: number | null; cost: number; closed: number } }>(`/rfis/page?${params}`);
+    },
     get: (id: string) => request<any>(`/rfis/${encodeURIComponent(id)}`),
     create: (data: unknown) => request<any>('/rfis', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request<any>(`/rfis/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -719,6 +801,25 @@ export const api = {
   },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
+    /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
+    tree: () => request<{
+      projects: { id: number; name: string; syncedAt?: string | null }[]; categories: string[]; folders: any[];
+      counts: Record<string, Record<string, number>>; totals: { total: number; recent: number; bytes: number };
+    }>('/file-room/tree'),
+    /** One page of files: a folder's (projectId + path) or every file's; q, latest, dir. */
+    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; page?: number; size?: number }) => {
+      const params = new URLSearchParams();
+      if (o.projectId) params.set('projectId', String(o.projectId));
+      if (o.path) params.set('path', o.path.join('>'));
+      if (o.q) params.set('q', o.q);
+      if (o.latest) params.set('latest', '1');
+      if (o.dir) params.set('dir', o.dir);
+      params.set('page', String(o.page || 1));
+      params.set('size', String(o.size || 50));
+      return request<{ rows: import('./data/fileRoom').FileRoomFile[]; total: number; page: number; size: number; pages: number }>(`/file-room/files/page?${params}`);
+    },
+    /** One file and all its revisions (fresh: it's the file being looked at). */
+    meta: (id: string) => request<{ file: import('./data/fileRoom').FileRoomFile; versions: import('./data/fileRoom').FileRoomFile[] }>(`/file-room/files/${encodeURIComponent(id)}/meta`, { cache: 'no-store' }),
     upload: (projectId: number, path: string[], files: File[] | FileList) => {
       const form = new FormData();
       form.append('projectId', String(projectId));
@@ -855,6 +956,8 @@ export const api = {
   },
   audit: {
     list: (q: Record<string, string> = {}) => request<AuditRow[]>(`/audit?${new URLSearchParams(q).toString()}`),
+    /** One page of the audit log, with the total and every record type to filter by. */
+    page: (q: Record<string, string> = {}) => request<{ rows: AuditRow[]; total: number; page: number; size: number; pages: number; types: string[]; capped: boolean }>(`/audit/page?${new URLSearchParams(q).toString()}`),
     /** One project's trail (internal staff; no finance entries). */
     project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
   },
@@ -896,6 +999,13 @@ export const api = {
     returnDraft: (id: string, d: unknown) => request(`/finance/invoices/${id}/return`, { method: 'POST', body: JSON.stringify(d) }),
     createCredit: (invoiceId: string, d: unknown) => request(`/finance/invoices/${invoiceId}/credit`, { method: 'POST', body: JSON.stringify(d) }),
     allChangeOrders: () => request('/finance/change-orders'),
+    /** One page of the change order log (a project's with projectId), with its summary cards; rows carry no line items. */
+    changeOrderPage: (o: { projectId?: number; status?: string; q?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '') params.set(k, String(v));
+      type Sum = { total: number; count: number };
+      return request<{ rows: any[]; total: number; page: number; size: number; pages: number; any: boolean; summary: { pending: Sum; submitted: Sum; approved: Sum; closed: Sum } }>(`/finance/change-orders/page?${params}`);
+    },
     changeOrders: (projectId: number) => request(`/finance/projects/${projectId}/change-orders`),
     createChangeOrder: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/change-orders`, { method: 'POST', body: JSON.stringify(d) }),
     changeOrder: (id: string) => request(`/finance/change-orders/${id}`),

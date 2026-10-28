@@ -96,6 +96,35 @@ export class FileRoomController {
     return this.markups.saveCopy(id, claims, list(body?.authors), list(body?.layers));
   }
 
+  /** Which projects this account may see files of. */
+  private async seeProject(claims?: SessionClaims | null) {
+    if (this.access.isStaff(claims ?? null)) return () => true;
+    const allowed = await this.access.allowedIds(claims ?? null);
+    return (id: unknown) => allowed === 'all' || allowed.has(Number(id));
+  }
+
+  /** The tree without the files: projects, folders, file counts per folder and totals. */
+  @Get('tree')
+  async tree(@Claims() claims?: SessionClaims | null) {
+    return this.service.tree(await this.seeProject(claims));
+  }
+
+  /** One page of files: ?projectId=&path=a>b (a folder) or neither (all files); q, latest=1, dir, page, size. */
+  @Get('files/page')
+  async filesPage(@Query() q: Record<string, string>, @Claims() claims?: SessionClaims | null) {
+    const pid = Number(q.projectId);
+    if (Number.isFinite(pid) && pid > 0) await this.access.assert(claims ?? null, pid);
+    return this.service.filesPage(q, await this.seeProject(claims));
+  }
+
+  /** One file and its revisions. */
+  @Get('files/:id/meta')
+  async fileMeta(@Param('id') id: string, @Claims() claims?: SessionClaims | null) {
+    const r = await this.service.fileWithVersions(id);
+    await this.access.assert(claims ?? null, r.file.projectId);
+    return r;
+  }
+
   /** Projects, categories, folders and files — everything the tree needs. */
   @Get()
   async list(@Query('projectId') projectId?: string, @Claims() claims?: SessionClaims | null) {

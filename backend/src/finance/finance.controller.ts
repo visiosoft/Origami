@@ -55,6 +55,11 @@ export class FinanceController {
   @Get('collections') async collections(@Query('months') months?: string, @Headers('authorization') a?: string) { return this.hub.collections(await this.actor(a), Number(months) || 6); }
   @Get('approvals') async pending(@Headers('authorization') a?: string) { return this.hub.pending(await this.actor(a)); }
   @Get('audit') async audit(@Query() q: any, @Headers('authorization') a?: string) { return this.hub.audit(await this.actor(a), q || {}); }
+  /** One page of the change order log (?projectId= for one project), with its summary cards. */
+  @Get('change-orders/page') async cosPage(@Query() q: Record<string, string>, @Headers('authorization') a?: string) {
+    const pid = Number(q.projectId);
+    return this.cos.page(Number.isFinite(pid) && pid > 0 ? pid : undefined, await this.actor(a), q);
+  }
   @Get('change-orders') async allCos(@Headers('authorization') a?: string) { return this.cos.all(await this.actor(a)); }
   @Get('reimbursables') async allReimbs(@Headers('authorization') a?: string) { return this.reimbs.all(await this.actor(a)); }
 

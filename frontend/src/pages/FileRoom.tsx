@@ -5,10 +5,11 @@ import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
 import { api } from '../api';
 import { RecipientPicker } from '../components/RecipientPicker';
 import { ShareHistory } from '../components/ShareHistory';
+import { Pager } from '../components/Pager';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
-  extStyle, filesIn, filesUnder, isImage, pathKey, prettySize, shortDate, subfoldersOf,
+  extStyle, isImage, pathKey, prettySize, shortDate, subfoldersOf,
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
 
@@ -62,7 +63,26 @@ export function FileRoom() {
   const canManage = can('planroom', 'manage') || (window.location.pathname === '/allfiles' && can('allfiles', 'manage'));
   const isNarrow = useWindowWidth() < 900;
 
-  const [data, setData] = useState<FileRoomData>(EMPTY);
+  // The tree comes first (folders and how many files each holds); files come a page at a time.
+  type Tree = Awaited<ReturnType<typeof api.fileRoom.tree>>;
+  const [treeData, setTreeData] = useState<Tree | null>(null);
+  // Every file seen so far (pages, opened files), for the details panel and the markup viewer.
+  const [known, setKnown] = useState<Record<string, FileRoomFile>>({});
+  const remember = (list: FileRoomFile[]) => setKnown((k) => { const n = { ...k }; list.forEach((f) => { n[f.id] = f; }); return n; });
+  // Stand-ins for the folder paths that hold files, so subfoldersOf() can find folders implied by files.
+  const data: FileRoomData = useMemo(() => ({
+    ...EMPTY,
+    projects: (treeData?.projects || []) as FileRoomData['projects'],
+    categories: treeData?.categories || [],
+    folders: treeData?.folders || [],
+    files: Object.entries(treeData?.counts || {}).flatMap(([pid, byPath]) => Object.keys(byPath).map((k) => ({ id: `${pid}:${k}`, projectId: Number(pid), folderPath: k ? k.split('>') : [], name: '', ext: '', size: 0 } as FileRoomFile))),
+  }), [treeData]);
+  /** Files at or below a folder (all of a project's when folder is empty). */
+  const countUnder = (pid: number, folder: string[]) => {
+    const byPath = treeData?.counts[String(pid)] || {};
+    const k = pathKey(folder);
+    return Object.entries(byPath).reduce((n, [p, c]) => n + (!folder.length || p === k || p.startsWith(k + '>') ? c : 0), 0);
+  };
   const [loading, setLoading] = useState(true);
   const [storageReady, setStorageReady] = useState(false);
 
@@ -105,14 +125,13 @@ export function FileRoom() {
   // /planroom?file=<id>&markup=<id> (from an RFI or task made from a markup) opens the drawing at that markup.
   const linkedMarkup = params.get('markup');
   const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null; page?: number; from?: { id: string; page?: number; name: string }[] } | null>(linkedFile && linkedMarkup ? { id: linkedFile, focus: linkedMarkup } : null);
+  const [filesTick, setFilesTick] = useState(0);
   const load = () => {
-    api.fileRoom.list()
-      .then((d) => {
-        const next = { ...EMPTY, ...(d as FileRoomData) };
-        setData(next);
-        const hit = linkedFile ? next.files.find((f) => f.id === linkedFile) : null;
-        if (hit && !selectedFileId) { setPath([String(hit.projectId), ...(hit.folderPath || [])]); setSelectedFileId(hit.id); }
-        else if (linkedProject && next.projects.some((p) => String(p.id) === linkedProject)) {
+    setFilesTick((n) => n + 1);
+    api.fileRoom.tree()
+      .then((t) => {
+        setTreeData(t);
+        if (linkedProject && !linkedFile && t.projects.some((p) => String(p.id) === linkedProject)) {
           setPath((cur) => (cur[0] === 'all' ? [linkedProject] : cur));
           setOpenProjects((o) => ({ ...o, [linkedProject]: true }));
         }
@@ -120,10 +139,36 @@ export function FileRoom() {
       .catch(() => { })
       .finally(() => setLoading(false));
   };
+  // A link to one file opens its folder with it selected.
+  useEffect(() => {
+    if (!linkedFile) return;
+    api.fileRoom.meta(linkedFile).then(({ file, versions }) => {
+      remember(versions);
+      setPath([String(file.projectId), ...(file.folderPath || [])]);
+      setSelectedFileId(file.id);
+    }).catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedFile]);
   useEffect(() => {
     load();
     api.google.status().then((s) => setStorageReady(!!s?.connected)).catch(() => setStorageReady(false));
   }, []);
+
+  // The markup viewer needs the drawing, its revisions and its project's other files (for links).
+  const [viewer, setViewer] = useState<{ versions: FileRoomFile[]; projectFiles: FileRoomFile[] }>({ versions: [], projectFiles: [] });
+  useEffect(() => {
+    if (!markingUp) return;
+    let live = true;
+    api.fileRoom.meta(markingUp.id).then(async ({ file, versions }) => {
+      if (!live) return;
+      remember([file, ...versions]);
+      const all: any = await api.fileRoom.list(Number(file.projectId)).catch(() => null);
+      const projectFiles = Array.isArray(all?.files) ? (all.files as FileRoomFile[]) : [];
+      if (live) setViewer({ versions: file.groupId ? versions : [], projectFiles });
+    }).catch(() => { if (live) toast('That file is no longer in the File Room'); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markingUp?.id]);
 
   const atRoot = path[0] === 'all';
   const projectId = atRoot ? null : Number(path[0]);
@@ -132,45 +177,60 @@ export function FileRoom() {
 
   // ---- what the current folder holds -------------------------------------
 
-  const visibleFiles = useMemo(() => {
-    const base = atRoot
-      ? data.files
-      : filesIn(data.files, projectId as number, folder);
-    const q = search.trim().toLowerCase();
-    return base
-      .filter((f) => (latestOnly ? f.isLatest !== false : true))
-      .filter((f) => (q ? f.name.toLowerCase().includes(q) : true))
-      .sort((a, b) => (sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)));
-  }, [data, atRoot, projectId, folder, search, latestOnly, sortDir]);
+  // This folder's files (or every file, at the top), one page at a time.
+  const [filesPg, setFilesPg] = useState(1);
+  const [filesSize, setFilesSize] = useState(50);
+  const [pageData, setPageData] = useState<{ total: number; page: number; size: number; pages: number } | null>(null);
+  const [visibleFiles, setVisibleFiles] = useState<FileRoomFile[]>([]);
+  const [searchQ, setSearchQ] = useState('');
+  useEffect(() => { const t = window.setTimeout(() => setSearchQ(search.trim()), 300); return () => window.clearTimeout(t); }, [search]);
+  const filesKey = [pathKey(path), searchQ, latestOnly, sortDir, filesSize].join('|');
+  const lastFilesKey = useRef(filesKey);
+  useEffect(() => {
+    const changed = lastFilesKey.current !== filesKey;
+    lastFilesKey.current = filesKey;
+    if (changed && filesPg !== 1) { setFilesPg(1); return; }
+    let live = true;
+    api.fileRoom.filesPage({ projectId: atRoot ? undefined : (projectId as number), path: atRoot ? undefined : folder, q: searchQ, latest: latestOnly, dir: sortDir, page: filesPg, size: filesSize })
+      .then((r) => { if (!live) return; setVisibleFiles(r.rows); setPageData(r); remember(r.rows); })
+      .catch(() => { if (live) { setVisibleFiles([]); setPageData(null); } });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filesKey, filesPg, filesTick]);
 
   const visibleFolders = useMemo(() => {
     if (atRoot) {
       return data.projects
-        .map((p) => ({ key: String(p.id), name: p.name, count: filesUnder(data.files, p.id, []).length }))
+        .map((p) => ({ key: String(p.id), name: p.name, count: countUnder(p.id, []) }))
         .sort((a, b) => (sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)));
     }
     return subfoldersOf(data, projectId as number, folder)
       .map((name) => ({
         key: name,
         name,
-        count: filesUnder(data.files, projectId as number, [...folder, name]).length,
+        count: countUnder(projectId as number, [...folder, name]),
       }))
       .sort((a, b) => (sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)));
   }, [data, atRoot, projectId, folder, sortDir]);
 
-  const selected = data.files.find((f) => f.id === selectedFileId) || null;
+  const selected = (selectedFileId && known[selectedFileId]) || null;
+  // The selected file's revisions, asked for when it's opened.
+  const [versionList, setVersionList] = useState<FileRoomFile[]>([]);
+  useEffect(() => {
+    if (!selectedFileId) { setVersionList([]); return; }
+    let live = true;
+    api.fileRoom.meta(selectedFileId).then(({ file, versions }) => { if (!live) return; remember(versions); setVersionList(versions.length ? versions : [file]); }).catch(() => { });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFileId, filesTick]);
   const versions = useMemo(
-    () => (selected?.groupId ? data.files.filter((f) => f.groupId === selected.groupId) : selected ? [selected] : [])
-      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
-    [data.files, selected],
+    () => (versionList.length ? versionList : selected ? [selected] : []).slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))),
+    [versionList, selected],
   );
 
-  const stats = useMemo(() => {
-    const week = Date.now() - 7 * 864e5;
-    const recent = data.files.filter((f) => Date.parse(f.updatedAt || '') > week).length;
-    const bytes = data.files.reduce((n, f) => n + (Number(f.size) || 0), 0);
-    return { total: data.files.length, recent, storage: prettySize(bytes) };
-  }, [data.files]);
+  const stats = useMemo(() => ({
+    total: treeData?.totals.total || 0, recent: treeData?.totals.recent || 0, storage: prettySize(treeData?.totals.bytes || 0),
+  }), [treeData]);
 
   // ---- actions ------------------------------------------------------------
 
@@ -297,14 +357,14 @@ export function FileRoom() {
 
   const tree = (
     <div style={{ ...card, width: isNarrow ? '100%' : 250, flexShrink: 0, padding: 10, maxHeight: isNarrow ? 260 : 'calc(100vh - 210px)', overflowY: 'auto' }}>
-      {treeRow('All Files', data.files.length, atRoot, () => setPath(['all']))}
+      {treeRow('All Files', treeData?.totals.total || 0, atRoot, () => setPath(['all']))}
       <div style={{ height: 1, background: 'rgba(var(--rgb-shade), 0.06)', margin: '8px 2px' }} />
       {data.projects.map((p) => {
         const open = !!openProjects[p.id];
         const isActive = projectId === p.id && folder.length === 0;
         return (
           <div key={p.id}>
-            {treeRow(p.name, filesUnder(data.files, p.id, []).length, isActive, () => setPath([String(p.id)]), {
+            {treeRow(p.name, countUnder(p.id, []), isActive, () => setPath([String(p.id)]), {
               chevron: open ? 'open' : 'closed',
               onChevron: () => setOpenProjects((s) => ({ ...s, [p.id]: !s[p.id] })),
             })}
@@ -312,7 +372,7 @@ export function FileRoom() {
               <>
                 {subfoldersOf(data, p.id, []).map((name) =>
                   <div key={name}>
-                    {treeRow(name, filesUnder(data.files, p.id, [name]).length,
+                    {treeRow(name, countUnder(p.id, [name]),
                       projectId === p.id && pathKey(folder) === name,
                       () => setPath([String(p.id), name]), { indent: 26 })}
                   </div>)}
@@ -562,7 +622,8 @@ export function FileRoom() {
               No Google account connected — uploads are unavailable until one is linked under Settings → Integrations.
             </div>
           )}
-
+          {view === 'grid' ? gridView : listView}
+          {pageData && pageData.total > 0 && <Pager page={pageData.page} pages={pageData.pages} total={pageData.total} size={pageData.size} onPage={setFilesPg} onSize={setFilesSize} />}
           {view === 'grid' ? gridView : listView}
         </div>
       </div>
@@ -578,7 +639,7 @@ export function FileRoom() {
               <div onClick={() => setHistoryOpen(false)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
             </div>
             <ShareHistory projectId={projectId} refreshKey={sharesTick}
-              onOpenFile={(id) => { const f = data.files.find((x) => x.id === id); if (!f) { toast('That file is no longer in the File Room'); return; } setHistoryOpen(false); setPath([String(f.projectId), ...(f.folderPath || [])]); setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }} />
+              onOpenFile={(id) => { api.fileRoom.meta(id).then(({ file: f, versions: vs }) => { remember(vs); setHistoryOpen(false); setPath([String(f.projectId), ...(f.folderPath || [])]); setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }).catch(() => toast('That file is no longer in the File Room')); }} />
           </div>
         </div>,
         document.body,
@@ -802,8 +863,9 @@ export function FileRoom() {
         </div>
       )}
       {markingUp && (() => {
-        const f = data.files.find((x) => x.id === markingUp.id);
+        const f = known[markingUp.id];
         if (!f) return null;
+        const viewerVersions = viewer.versions;
         return (
           <PdfMarkupViewer
             key={f.id}
@@ -812,14 +874,14 @@ export function FileRoom() {
             projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
             focusMarkupId={markingUp.focus || null}
             initialPage={markingUp.page || null}
-            projectFiles={data.files.filter((x) => Number(x.projectId) === Number(f.projectId))}
+            projectFiles={viewer.projectFiles}
             // A link to another drawing opens it here; Back returns to this one.
             onOpenFile={(id, page, fromPage) => setMarkingUp({ id, page, from: [...(markingUp.from || []), { id: f.id, name: f.name, page: fromPage }] })}
             back={markingUp.from?.length ? (() => { const prev = markingUp.from[markingUp.from.length - 1]; return { label: prev.name, go: () => setMarkingUp({ id: prev.id, page: prev.page, from: markingUp.from!.slice(0, -1) }) }; })() : null}
             onClose={() => setMarkingUp(null)}
             onSavedCopy={load}
             onUploaded={load}
-            revisions={f.groupId ? data.files.filter((x) => x.groupId === f.groupId && (/\.pdf$/i.test(x.name) || x.mimeType === 'application/pdf')).map((x) => ({ id: x.id, name: x.name, updatedAt: x.updatedAt, isLatest: x.isLatest !== false })) : []}
+            revisions={viewerVersions.filter((x) => /\.pdf$/i.test(x.name) || x.mimeType === 'application/pdf').map((x) => ({ id: x.id, name: x.name, updatedAt: x.updatedAt, isLatest: x.isLatest !== false }))}
           />
         );
       })()}
