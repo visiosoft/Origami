@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28u',
+    date: '2026-10-28',
+    title: 'Change orders: what drives them, their category, and who raised and approves them',
+    items: [
+      { area: 'Change Orders', kind: 'new', text: '“Drives the change” is one of: force majeure, unknown site conditions, authority driven, procurement, client request, design E&O, builder, or sub / third-party driven. Older change orders keep their reason.', where: 'Change Orders → open one' },
+      { area: 'Change Orders', kind: 'new', text: 'Category: tick one or more of additive, deductive or zero-sum, on dollar, timeline or scope. Originator and approver: internal, client or third party.', where: 'Change Orders → open one' },
+    ],
+  },
+  {
     id: '2026-10-28t',
     date: '2026-10-28',
     title: 'Projects: every special action on the project, and a blink when something changes',

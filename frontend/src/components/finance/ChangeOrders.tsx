@@ -10,7 +10,7 @@ import { SortHeader, sortFromString, sortToString, type SortState } from '../Sor
 import { Pager } from '../Pager';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import {
-  ApprovalTrail, CO_REASONS, CoBadge, ReasonBox, failed, label, usd, usd0,
+  ApprovalTrail, CO_DRIVERS, CO_EFFECT_KINDS, CO_EFFECT_ON, CO_PARTIES, CO_REASONS, CoBadge, ReasonBox, failed, label, usd, usd0,
   type ChangeOrder, type ChangeOrderItem, type Overview, type Rights,
 } from './financeUi';
 import { Skeleton } from '../Skeleton';
@@ -90,7 +90,7 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
     const pid = projectId || Number(v.projectId);
     if (!pid) { toast('⚠ Choose the project'); return; }
     try {
-      const co = await api.finance.createChangeOrder(pid, { title: v.title, reason: v.reason || 'client_request', requestedBy: v.requestedBy }) as ChangeOrder;
+      const co = await api.finance.createChangeOrder(pid, { title: v.title, reason: v.reason || 'client_request', originatorType: v.originatorType || undefined, requestedBy: v.requestedBy }) as ChangeOrder;
       setAdding(false); await load(); setOpen(co.id); onChanged?.();
     } catch (e) { failed(toast, e); }
   };
@@ -127,6 +127,8 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
           fields={[
             ...(projectId ? [] : [{ key: 'projectId', label: 'Project', required: true, options: projects.map((p) => [String(p.id), p.name] as [string, string]) }]),
             { key: 'title', label: 'Title', required: true, placeholder: 'e.g. Owner-requested kitchen upgrades' },
+            { key: 'reason', label: 'Drives the change', options: CO_DRIVERS },
+            { key: 'originatorType', label: 'Originator', options: CO_PARTIES },
             { key: 'requestedBy', label: 'Requested by', placeholder: 'Client, architect, site…' },
           ]}
         />
@@ -136,7 +138,7 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
           <div style={{ minWidth: projectId ? 880 : 1060 }}>
             <div style={headRow(cols)}>
               <SortHeader k="number" sort={sort} onSort={toggle}>No.</SortHeader>{!projectId && <SortHeader k="project" sort={sort} onSort={toggle}>Project</SortHeader>}
-              <SortHeader k="title" sort={sort} onSort={toggle}>Title</SortHeader><SortHeader k="reason" sort={sort} onSort={toggle}>Reason</SortHeader>
+              <SortHeader k="title" sort={sort} onSort={toggle}>Title</SortHeader><SortHeader k="reason" sort={sort} onSort={toggle}>Driver</SortHeader>
               <SortHeader k="amount" sort={sort} onSort={toggle} align="right">Amount</SortHeader>
               <SortHeader k="requested" sort={sort} onSort={toggle}>Requested</SortHeader><SortHeader k="days" sort={sort} onSort={toggle} align="right">Days</SortHeader>
               <SortHeader k="status" sort={sort} onSort={toggle}>Status</SortHeader>
@@ -170,7 +172,7 @@ type Step = null | 'return' | 'reject' | 'cancel' | 'client' | 'email';
 type CoForm = Record<string, any> & { items: ChangeOrderItem[] };
 /** The editable part of a change order, as the drawer holds it (numbers as typed text). */
 const formOf = (c: ChangeOrder): CoForm => ({
-  title: c.title, reason: c.reason, requestedBy: c.requestedBy || '', dateRequested: c.dateRequested || '', scheduleImpactDays: String(c.scheduleImpactDays || 0), description: c.description || '', notes: c.notes || '',
+  title: c.title, reason: c.reason, effects: c.effects || [], originatorType: c.originatorType || '', approverType: c.approverType || '', requestedBy: c.requestedBy || '', dateRequested: c.dateRequested || '', scheduleImpactDays: String(c.scheduleImpactDays || 0), description: c.description || '', notes: c.notes || '',
   items: c.items.map((i) => ({ ...i, amount: String(i.amount), cost: i.cost == null ? '' : String(i.cost), quantity: i.quantity == null ? '' : String(i.quantity), rate: i.rate == null ? '' : String(i.rate) })),
 });
 const amountOf = (it: ChangeOrderItem) => (it.quantity !== '' && it.quantity != null && it.rate !== '' && it.rate != null ? Number(it.quantity) * Number(it.rate) : Number(it.amount) || 0);
@@ -305,7 +307,27 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
           <div style={{ gridColumn: 'span 2' }}><Label text="Title" /><input disabled={!editable} value={f.title} onChange={set('title')} style={input} /></div>
-          <div><Label text="Reason" /><select disabled={!editable} value={f.reason} onChange={set('reason')} style={input}>{CO_REASONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+          <div><Label text="Drives the change" /><select disabled={!editable} value={f.reason} onChange={set('reason')} style={input}>
+            {CO_DRIVERS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            {!CO_DRIVERS.some(([k]) => k === f.reason) && <option value={f.reason}>{label(CO_REASONS, f.reason)} (older reason)</option>}
+          </select></div>
+          <div><Label text="Originator" /><select disabled={!editable} value={f.originatorType || ''} onChange={set('originatorType')} style={input}><option value="">—</option>{CO_PARTIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+          <div><Label text="Approver" /><select disabled={!editable} value={f.approverType || ''} onChange={set('approverType')} style={input}><option value="">—</option>{CO_PARTIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Label text="Category (one or more)" />
+            <div role="group" aria-label="Category" style={{ display: 'grid', gridTemplateColumns: 'max-content repeat(3, 72px)', gap: '6px 14px', alignItems: 'center', fontSize: 12.5 }}>
+              <span />{CO_EFFECT_ON.map(([on, l]) => <span key={on} style={{ fontSize: 11, fontWeight: 700, color: MUTED }}>{l}</span>)}
+              {CO_EFFECT_KINDS.map(([k, kl]) => [
+                <span key={k} style={{ fontWeight: 600 }}>{kl}</span>,
+                ...CO_EFFECT_ON.map(([on, ol]) => { const code = `${k}.${on}`; const list: string[] = f.effects || []; return (
+                  <label key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <input type="checkbox" aria-label={`${kl} ${ol}`} disabled={!editable} checked={list.includes(code)}
+                      onChange={(e) => setF((cur) => ({ ...cur, effects: e.target.checked ? [...(cur.effects || []), code] : (cur.effects || []).filter((x: string) => x !== code) }))} />
+                  </label>
+                ); }),
+              ])}
+            </div>
+          </div>
           <div><Label text="Requested by" /><input disabled={!editable} value={f.requestedBy} onChange={set('requestedBy')} style={input} /></div>
           <div><Label text="Date requested" /><input disabled={!editable} type="date" value={f.dateRequested} onChange={set('dateRequested')} style={input} /></div>
           <div><Label text="Schedule impact (days)" /><input disabled={!editable} type="number" value={f.scheduleImpactDays} onChange={set('scheduleImpactDays')} style={input} /></div>

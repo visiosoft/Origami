@@ -2107,8 +2107,17 @@ export class ChangeOrderEntity extends FinanceStamped {
   @Column() number!: string;
   @Column() title!: string;
   @Column({ ...TEXT, nullable: true }) description!: string;
-  /** client_request | design_change | unforeseen | scope_addition | scope_reduction | allowance | code_requirement | other */
+  /**
+   * What drives it (Oct 26 review notes): force_majeure | unknown_site | authority | procurement |
+   * client_request | design_eo | builder | sub_third_party. Older rows may hold design_change,
+   * unforeseen, scope_addition, scope_reduction, allowance, code_requirement or other.
+   */
   @Column({ default: 'client_request' }) reason!: string;
+  /** Its category, one or more of additive / deductive / zero_sum on dollar, time or scope: e.g. "additive.dollar". */
+  @Column({ type: 'simple-json', nullable: true }) effects!: string[] | null;
+  /** Who raised it and who approves it: internal | client | third_party. */
+  @Column({ nullable: true }) originatorType!: string;
+  @Column({ nullable: true }) approverType!: string;
   @Column({ nullable: true }) requestedBy!: string;
   /** draft | internal_review | submitted | approved | rejected | cancelled */
   @Column({ default: 'draft' }) status!: string;
