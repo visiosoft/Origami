@@ -145,7 +145,50 @@ export const session = {
   },
 };
 
+/**
+ * A short read cache for going back and forth between pages: a list read in
+ * the last minute comes from memory instead of the server. Only reads are
+ * cached --
+ *  - a save, delete or upload (any non-GET) clears the whole cache, so your
+ *    own changes always show at once;
+ *  - a single record opened to view or edit (a path ending in its id) is
+ *    always fetched fresh, as is anything asked for with `cache: 'no-store'`;
+ *  - sign-in, the server status and the notification bell are never cached.
+ * Someone else's change shows within READ_TTL_MS. Each answer is a copy, so a
+ * screen sorting or editing what it got can't change what's cached.
+ */
+export const READ_TTL_MS = 60_000;
+const readCache = new Map<string, { at: number; value: unknown }>();
+const readsInFlight = new Map<string, Promise<unknown>>();
+const NEVER_CACHE = /^\/(auth\/|status\b|notifications\/my-tasks|google\/status)/;
+/** The last path segment is a record id (it has a digit), e.g. /tasks/T-2026-0007, /people/42. */
+const isRecordPath = (path: string) => /\d/.test(path.split('?')[0].split('/').filter(Boolean).pop() || '');
+export const cacheableRead = (path: string, options?: RequestInit) =>
+  (options?.method || 'GET').toUpperCase() === 'GET' && options?.cache !== 'no-store' && !NEVER_CACHE.test(path) && !isRecordPath(path);
+/** Drop every cached read (after a change, or on signing in or out). */
+export function clearReadCache() { readCache.clear(); readsInFlight.clear(); }
+const copy = <T,>(v: T): T => (v === undefined || v === null ? v : structuredClone(v));
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!cacheableRead(path, options)) {
+    try { return await send<T>(path, options); }
+    finally { if ((options?.method || 'GET').toUpperCase() !== 'GET') clearReadCache(); }
+  }
+  const key = (session.get() || '') + ' ' + path;
+  const hit = readCache.get(key);
+  if (hit && Date.now() - hit.at < READ_TTL_MS) return copy(hit.value as T);
+  let pending = readsInFlight.get(key) as Promise<T> | undefined;
+  if (!pending) {
+    pending = send<T>(path, options).then((value) => {
+      if (readsInFlight.get(key) === pending) readCache.set(key, { at: Date.now(), value });
+      return value;
+    }).finally(() => { if (readsInFlight.get(key) === pending) readsInFlight.delete(key); });
+    readsInFlight.set(key, pending);
+  }
+  return copy(await pending);
+}
+
+async function send<T>(path: string, options?: RequestInit): Promise<T> {
   const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -173,6 +216,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
  * multipart boundary itself, while keeping the Authorization header.
  */
 async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  // An upload changes data: cached reads are dropped before and after it.
+  clearReadCache();
+  try { return await sendForm<T>(path, form); } finally { clearReadCache(); }
+}
+
+async function sendForm<T>(path: string, form: FormData): Promise<T> {
   const token = session.get();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
