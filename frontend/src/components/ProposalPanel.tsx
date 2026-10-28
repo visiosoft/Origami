@@ -1,3 +1,4 @@
+import { OpenedBadge, type Opened } from './OpenedBadge';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
@@ -47,6 +48,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [sentAt, setSentAt] = useState('');
+  const [opened, setOpened] = useState<Opened | null>(null);
   const [sentTo, setSentTo] = useState('');
   const [signedAt, setSignedAt] = useState('');
   const [signedByName, setSignedByName] = useState('');
@@ -77,6 +79,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
           : rawHtml);
         setAmount(res?.amount || '');
         setSentAt(res?.sentAt || '');
+        setOpened(res?.firstViewedAt ? { firstOpenedAt: res.firstViewedAt, lastOpenedAt: res.lastViewedAt, opens: res.viewCount } : null);
         setSentTo(res?.sentTo || '');
         setSignedAt(res?.signedAt || '');
         setSignedByName(res?.signedByName || '');
@@ -227,6 +230,7 @@ export function ProposalPanel({ dealId, dealName, dealEmail, onAmountSaved }: {
       ) : sentAt ? (
         <div style={{ padding: '10px 12px', borderRadius: 9, background: 'var(--amber-light)', color: 'var(--c-8a6d12)', fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
           Sent to {sentTo} on {new Date(sentAt).toLocaleString()} — awaiting signature.
+          <div style={{ marginTop: 6 }}><OpenedBadge opened={opened} /></div>
         </div>
       ) : null}
 

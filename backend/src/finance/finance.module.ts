@@ -1,3 +1,5 @@
+import { ChangeOrderPublicController } from './co-public.controller';
+import { TrackingModule } from '../tracking/tracking.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -48,8 +50,9 @@ import {
     AuthModule,
     GoogleModule,
     SettingsModule,
+    TrackingModule,
   ],
-  controllers: [FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
+  controllers: [ChangeOrderPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
   providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService],
   exports: [ChangeOrdersService, FinancialsService],

@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, ProjectEntity } from '../database/entities';
@@ -81,7 +82,14 @@ export class FileRoomService {
     private readonly google: GoogleService,
     private readonly settings: SettingsService,
     @InjectRepository(FileRoomShareEntity) private readonly shares: Repository<FileRoomShareEntity>,
+    @Optional() private readonly tracking?: TrackingService,
   ) {}
+
+  /** The link to put in the email: tracked when tracking is on (Oct 27 backlog item 12), so the share shows when it was opened. */
+  private async emailLink(url: string, o: { shareId: string; to: string; projectId: number | null; name: string }) {
+    if (!this.tracking) return url;
+    return this.tracking.link({ kind: 'share', refId: o.shareId, target: url, recipient: o.to, projectId: o.projectId, label: o.name }).catch(() => url);
+  }
 
   /** The standard folders every project gets: one path per line, '/' for subfolders. */
   async folderTemplate(): Promise<string[][]> {
@@ -336,7 +344,9 @@ export class FileRoomService {
   async email(id: string, to: string, note: string, actor: UploadActor) {
     const file = await this.load(id);
     to = recipients(to);
-    const { url } = await this.shareLink(id);
+    const { url: driveUrl } = await this.shareLink(id);
+    const shareId = subId('frs');
+    const url = await this.emailLink(driveUrl, { shareId, to, projectId: Number(file.projectId) || null, name: file.name });
     const project = await this.projectName(Number(file.projectId));
     const html = `
       <p>${actor.name} shared a file with you from the Origami File Room.</p>
@@ -345,8 +355,8 @@ export class FileRoomService {
       <p><a href="${url}">Open ${file.name}</a></p>
       <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
     await this.google.sendMail({ to, subject: `${file.name} — shared from Origami`, html });
-    await this.logShare([file], to, note, actor);
-    return { sent: true, to, url };
+    await this.logShare([file], to, note, actor, shareId);
+    return { sent: true, to, url: driveUrl };
   }
 
   /** View links for several files at once. */
@@ -363,6 +373,8 @@ export class FileRoomService {
     if (!links.length) throw new BadRequestException('Pick at least one file.');
     if (links.length === 1) return this.email(links[0].id, to, note, actor);
     const files = await Promise.all(links.map((l) => this.load(l.id)));
+    const shareId = subId('frs');
+    for (const [i, l] of links.entries()) l.url = await this.emailLink(l.url, { shareId, to, projectId: Number(files[i].projectId) || null, name: l.name });
     const projects = Array.from(new Set(await Promise.all(files.map((f) => this.projectName(Number(f.projectId))))));
     const html = `
       <p>${actor.name} shared ${links.length} files with you from the Origami File Room${projects.length === 1 ? ` (${escapeText(projects[0])})` : ''}.</p>
@@ -370,14 +382,14 @@ export class FileRoomService {
       <ul>${links.map((l) => `<li style="margin-bottom:6px;"><a href="${l.url}">${escapeText(l.name)}</a></li>`).join('')}</ul>
       <p style="color:#7E9B93;font-size:12px;">Anyone with these links can view the files.</p>`;
     await this.google.sendMail({ to, subject: `${links.length} files — shared from Origami`, html });
-    await this.logShare(files, to, note, actor);
+    await this.logShare(files, to, note, actor, shareId);
     return { sent: true, to, count: links.length };
   }
 
-  private async logShare(files: FileRoomFileEntity[], to: string, note: string, actor: UploadActor) {
+  private async logShare(files: FileRoomFileEntity[], to: string, note: string, actor: UploadActor, id = subId('frs')) {
     const projectIds = Array.from(new Set(files.map((f) => Number(f.projectId))));
     await this.shares.save(this.shares.create({
-      id: subId('frs'),
+      id,
       projectId: projectIds.length === 1 ? projectIds[0] : null,
       files: files.map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath ?? [] })),
       to, note: note?.trim() || null, sentById: actor.id, sentByName: actor.name || 'Someone', sentAt: new Date().toISOString(),
@@ -389,7 +401,10 @@ export class FileRoomService {
     const rows = (await this.shares.find())
       .filter((s) => (opts.projectId ? Number(s.projectId) === opts.projectId : true))
       .filter((s) => (opts.fileId ? (s.files || []).some((f) => f.id === opts.fileId) : true));
-    return rows.sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt))).slice(0, 500);
+    const list = rows.sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt))).slice(0, 500);
+    // When each share was opened (Oct 27 backlog item 12) -- shares sent before tracking have none.
+    const opened = this.tracking ? await this.tracking.summary('share', list.map((s) => s.id)).catch(() => ({} as Record<string, OpenSummary>)) : {};
+    return list.map((s) => ({ ...s, opened: opened[s.id] || null }));
   }
 
   /** Move several files (each with its versions) into one folder. */

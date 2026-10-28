@@ -1,3 +1,4 @@
+import { OpenedBadge } from './OpenedBadge';
 import { useEffect, useState } from 'react';
 import { api, type FileShare } from '../api';
 
@@ -22,6 +23,7 @@ export function ShareHistory({ projectId, fileId, refreshKey = 0, onOpenFile, em
           <div style={{ fontSize: 12.5, color: 'var(--ink)', lineHeight: 1.45 }}>
             <b>{s.sentByName}</b> emailed {fileId ? 'this file' : `${s.files.length} file${s.files.length === 1 ? '' : 's'}`} to <b style={{ wordBreak: 'break-word' }}>{s.to}</b>
           </div>
+          {s.opened !== undefined && <div><OpenedBadge compact opened={s.opened} /></div>}
           <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{when(s.sentAt)}{fileId && s.files.length > 1 ? ` · with ${s.files.length - 1} other file${s.files.length === 2 ? '' : 's'}` : ''}</div>
           {!fileId && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>

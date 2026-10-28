@@ -45,7 +45,9 @@ export interface ChecklistTemplate { id: string; name: string; items: { item: st
 export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
 
 /** One email of File Room files: what went to whom, when, from whom. */
-export type FileShare = { id: string; projectId: number | null; files: { id: string; name: string; folderPath?: string[] }[]; to: string; note?: string | null; sentByName: string; sentAt: string };
+export type FileShare = { id: string; projectId: number | null; files: { id: string; name: string; folderPath?: string[] }[]; to: string; note?: string | null; sentByName: string; sentAt: string;
+  /** When it was opened (null = not yet; absent = sent before tracking). */
+  opened?: import('./components/OpenedBadge').Opened | null };
 
 /** A letter rendered on the company letterhead — previewed and sent as a PDF. */
 export interface LetterInput {
@@ -828,6 +830,10 @@ export const api = {
   },
   /** Project financials: contract, schedule of values, earned value, invoices and payments. */
   /** The app-wide audit log (admins): who changed what, newest first. */
+  /** Who opened a change order or a share we emailed (Oct 27 backlog item 12). */
+  tracking: {
+    list: (kind: 'co' | 'share', refId: string) => request<{ kind: string; refId: string; recipient?: string | null; createdAt: string; firstOpenedAt?: string | null; lastOpenedAt?: string | null; opens?: number | null }[]>(`/tracking/${kind}/${encodeURIComponent(refId)}`),
+  },
   audit: {
     list: (q: Record<string, string> = {}) => request<AuditRow[]>(`/audit?${new URLSearchParams(q).toString()}`),
     /** One project's trail (internal staff; no finance entries). */

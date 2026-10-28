@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28g',
+    date: '2026-10-28',
+    title: 'See when a client opened what you sent',
+    items: [
+      { area: 'CRM', kind: 'new', text: 'A sent proposal shows “Opened Oct 28, 9:12 AM · 3 views” or “Not opened yet”, and the lead’s timeline and your notifications say when the client first opens it.', where: 'CRM & Leads → a lead on Proposal' },
+      { area: 'Contracts', kind: 'improved', text: 'Each signer shows when they opened their contract and how many times.', where: 'Contracts → a contract' },
+      { area: 'Finance', kind: 'new', text: 'Change orders emailed to the client now include a “View the change order” button (the PDF is still attached); the change order shows when they opened it.', where: 'Change Orders → a change order' },
+      { area: 'Files', kind: 'new', text: 'Files emailed from the File Room show whether they’ve been opened. Opens count people only — email security scanners that check every link are left out.', where: 'All Files → Shared' },
+    ],
+  },
+  {
     id: '2026-10-28f',
     date: '2026-10-28',
     title: 'Text a client from a template, through Quo',

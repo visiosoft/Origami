@@ -105,8 +105,10 @@ export class ProposalController {
 
   @Public()
   @Get('public')
-  getByToken(@Query('token') token: string) {
-    return this.service.getByToken(token);
+  async getByToken(@Query('token') token: string) {
+    const doc = await this.service.getByToken(token);
+    void this.service.recordView(token).catch(() => undefined);
+    return doc;
   }
 
   /** The document as a real, scrollable PDF -- the client's own signature (once captured) rendered in place, not pasted into an email or a plain HTML block. */

@@ -497,6 +497,19 @@ export class PipelineService implements OnApplicationBootstrap {
   }
 
   /** Append a note or any other audited action to the trail. */
+  /** Something the client did (opened the proposal...): on the timeline, and a notice to the team. */
+  async clientEvent(id: string, what: (name: string) => string) {
+    try {
+      const deal = await this.findOne(id);
+      const text = what(deal.name);
+      deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(text, { name: 'Client' })];
+      await this.repo.save(deal);
+      this.leadMoved(id, () => text, undefined, deal.name);
+    } catch (e) {
+      this.log.warn(`Client event for ${id}: ${(e as Error).message}`);
+    }
+  }
+
   async addEvent(id: string, action: string, actor?: DealActor, type: 'auto' | 'pc' | 'pm' = 'auto') {
     const deal = await this.findOne(id);
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(action, actor, type)];

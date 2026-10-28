@@ -4,7 +4,7 @@ export type ContractStatus = 'draft' | 'sent' | 'countersign' | 'signed' | 'void
 export interface ContractTypeInfo { key: ContractType; label: string; counterparty: string; counterpartyLabel: string }
 export interface ContractParty {
   key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean;
-  sentAt?: string | null; viewedAt?: string | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null;
+  sentAt?: string | null; viewedAt?: string | null; lastViewedAt?: string | null; views?: number | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null;
 }
 export interface ContractAttachment { fileId: string; name: string; kind: 'estimate' | 'drawings' | 'specs' | 'other' }
 export interface Contract {

@@ -32,6 +32,9 @@ export interface ContractParty {
   internal?: boolean;
   sentAt?: string | null;
   viewedAt?: string | null;
+  /** The latest view and how many (Oct 27 backlog item 12). */
+  lastViewedAt?: string | null;
+  views?: number | null;
   signedAt?: string | null;
   signedName?: string | null;
   initials?: string | null;

@@ -276,7 +276,12 @@ export class ContractsService implements OnApplicationBootstrap {
   /** What a signer's page shows: the document, the attachments, and what's theirs to do. */
   async publicView(token: string) {
     const { row, party } = await this.readToken(token);
-    if (!party.viewedAt) { party.viewedAt = now(); await this.contracts.save(row); }
+    // First and latest view, and a count (Oct 27 backlog item 12). The page's own request -- scanners don't run it.
+    const at = now();
+    if (!party.viewedAt) party.viewedAt = at;
+    party.lastViewedAt = at;
+    party.views = (party.views || 0) + 1;
+    await this.contracts.save(row);
     return {
       number: row.number, title: row.title, amount: row.amount, status: row.status, html: row.html, initialsNeeded: countInitials(row.html),
       attachments: (row.attachments || []).map((a) => ({ fileId: a.fileId, name: a.name, kind: a.kind })),

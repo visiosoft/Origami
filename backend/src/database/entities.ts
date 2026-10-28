@@ -170,6 +170,30 @@ export class SmsMessageEntity {
   @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
 }
 
+/**
+ * A link in an email we track (Oct 27 backlog item 12): /api/d/:token counts
+ * the open and forwards to the real target -- a change order's PDF, a shared
+ * file. Scanner hits are counted apart, so "Opened" means a person.
+ */
+@Entity('tracked_links')
+@Index('IX_tracked_links_ref', ['kind', 'refId'])
+export class TrackedLinkEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) token!: string;
+  /** co | share */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  @Column({ type: 'nvarchar', length: 64 }) refId!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) recipient!: string | null;
+  @Column({ type: 'nvarchar', length: 2000 }) target!: string;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) label!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) firstOpenedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) lastOpenedAt!: string | null;
+  @Column({ type: 'int', nullable: true }) opens!: number | null;
+  @Column({ type: 'int', nullable: true }) scannerHits!: number | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) lastUserAgent!: string | null;
+}
+
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
@@ -378,6 +402,10 @@ export class ProposalEntity {
   @Column('nvarchar', { length: 'MAX', nullable: true }) signatureImage2!: string;
   @Column({ nullable: true }) signerIp2!: string;
   @Column({ nullable: true }) signerUserAgent2!: string;
+  /** When the client opened their signing page (Oct 27 backlog item 12): first, latest, and how many times. */
+  @Column({ nullable: true }) firstViewedAt!: string;
+  @Column({ nullable: true }) lastViewedAt!: string;
+  @Column({ type: 'int', nullable: true }) viewCount!: number | null;
 }
 
 /**
@@ -400,7 +428,7 @@ export class ContractEntity {
   @Column({ type: 'nvarchar', length: 40, nullable: true }) amount!: string | null;
   /** draft | sent | countersign | signed | void */
   @Column({ type: 'nvarchar', length: 20 }) status!: string;
-  @Column({ type: 'simple-json' }) parties!: { key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean; sentAt?: string | null; viewedAt?: string | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null; ip?: string | null; userAgent?: string | null }[];
+  @Column({ type: 'simple-json' }) parties!: { key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean; sentAt?: string | null; viewedAt?: string | null; lastViewedAt?: string | null; views?: number | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null; ip?: string | null; userAgent?: string | null }[];
   @Column({ type: 'simple-json', nullable: true }) attachments!: { fileId: string; name: string; kind: string }[] | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) templateId!: string | null;
   @Column({ type: 'nvarchar', length: 64, nullable: true }) changeOrderId!: string | null;

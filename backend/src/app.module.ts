@@ -28,6 +28,7 @@ import { RfisModule } from './rfis/rfis.module';
 import { FileRoomModule } from './file-room/file-room.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SmsModule } from './sms/sms.module';
+import { TrackingModule } from './tracking/tracking.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
 import { ProposalModule } from './proposals/proposal.module';
 import { GuestAccessModule } from './guest-access/guest-access.module';
@@ -93,6 +94,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     DashboardModule,
     NotificationsModule,
     SmsModule,
+    TrackingModule,
     ManpowerModule,
     FinanceModule,
     ViewsModule,

@@ -1,3 +1,4 @@
+import { OpenedBadge } from '../components/OpenedBadge';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -232,7 +233,7 @@ function ContractDrawer({ id, onClose, onChanged }: { id: string; onClose: () =>
             </> : <>
               <span style={{ fontSize: 13, color: 'var(--ink)' }}><b>{p.label}</b> · {p.signedName || p.name}{!p.internal && p.email ? <span style={{ color: 'var(--muted)' }}> · {p.email}</span> : null}</span>
               <span style={{ fontSize: 12, color: p.signedAt ? 'var(--success-deep)' : 'var(--body)', display: 'flex', gap: 10, alignItems: 'center' }}>
-                {p.signedAt ? `Signed ${day(p.signedAt)}` : p.internal ? 'Signs last' : p.viewedAt ? `Opened ${day(p.viewedAt)}` : p.sentAt ? `Sent ${day(p.sentAt)}` : 'Not sent'}
+                {p.signedAt ? `Signed ${day(p.signedAt)}` : p.internal ? 'Signs last' : p.sentAt ? <>{`Sent ${day(p.sentAt)}`} <OpenedBadge compact opened={{ firstOpenedAt: p.viewedAt, lastOpenedAt: p.lastViewedAt, opens: p.views ?? (p.viewedAt ? 1 : 0) }} /></> : 'Not sent'}
                 {!p.internal && !p.signedAt && c.status !== 'void' && <button type="button" onClick={() => void resend(p.key)} style={{ border: 0, background: 'transparent', padding: 0, font: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Resend</button>}
               </span>
             </>}

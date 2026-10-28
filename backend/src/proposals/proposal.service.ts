@@ -140,6 +140,23 @@ export class ProposalService implements OnApplicationBootstrap {
   }
 
   /**
+   * The client opened their signing page (Oct 27 backlog item 12): first and
+   * latest view and a count. Called by the page's own data request only -- not
+   * the PDF it embeds, and not an internal preview -- so a mail scanner, which
+   * doesn't run the page, never counts.
+   */
+  async recordView(token: string) {
+    const parsed = await this.readToken(token);
+    if (!parsed) return;
+    const row = await this.repo.findOneBy({ dealId: parsed.dealId });
+    if (!row || !row.sentAt) return;
+    const at = new Date().toISOString();
+    const first = !row.firstViewedAt;
+    await this.repo.update({ dealId: row.dealId }, { firstViewedAt: row.firstViewedAt || at, lastViewedAt: at, viewCount: (row.viewCount || 0) + 1 });
+    if (first) void this.pipeline.clientEvent(row.dealId, (name) => `The client opened the proposal for ${name}`);
+  }
+
+  /**
    * Record the e-signature and, the moment it lands, migrate the lead into a
    * real project -- the CRM strategy is to do this immediately on contract
    * signature rather than wait for someone to notice and convert it by hand.

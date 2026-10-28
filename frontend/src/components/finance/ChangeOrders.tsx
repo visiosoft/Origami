@@ -1,3 +1,4 @@
+import { OpenedBadge, type Opened } from '../OpenedBadge';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
@@ -166,6 +167,18 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
   const [busy, setBusy] = useState(false);
   // The client's email for "Email to client" -- the project's bill-to, read when that step opens.
   const [billTo, setBillTo] = useState<string | undefined>(undefined);
+  // Whether the client opened the emailed change order (Oct 27 backlog item 12), across every time it was sent.
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const emailedCount = (co?.approvals || []).filter((a) => a.decision === 'sent_to_client').length;
+  useEffect(() => {
+    if (!emailedCount) { setOpened(null); return; }
+    api.tracking.list('co', id).then((rows) => {
+      const list = Array.isArray(rows) ? rows : [];
+      const firsts = list.map((r) => r.firstOpenedAt).filter(Boolean) as string[];
+      const lasts = list.map((r) => r.lastOpenedAt).filter(Boolean) as string[];
+      setOpened({ firstOpenedAt: firsts.sort()[0] || null, lastOpenedAt: lasts.sort().pop() || null, opens: list.reduce((n, r) => n + (r.opens || 0), 0) });
+    }).catch(() => setOpened(null));
+  }, [id, emailedCount]);
   const openEmail = (projectId: number) => {
     const known = overview && overview.project.id === projectId ? overview.settings.billToEmail : undefined;
     if (known !== undefined) { setBillTo(known || ''); setStep('email'); return; }
@@ -359,6 +372,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
             <div onClick={() => setStep('reject')} style={{ ...btn(), color: DANGER }}>Reject</div>
             <div onClick={busy ? undefined : async () => { if (await act('approve_internal')) openEmail(co.projectId); }} style={btn(true, busy)} title="Moves it to Under client review, then lets you email it with the PDF">Approve &amp; send to client</div>
           </>}
+          {emailedCount > 0 && <OpenedBadge opened={opened} />}
           {co.status === 'submitted' && rights.approveChangeOrders && <>
             <div onClick={() => openEmail(co.projectId)} style={btn()} title="The change order as a PDF, with signature blocks">{(co.approvals || []).some((a) => a.decision === 'sent_to_client') ? 'Email again' : 'Email to client'}</div>
             <div onClick={() => setStep('return')} style={btn()}>Return</div>
