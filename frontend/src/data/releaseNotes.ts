@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28d',
+    date: '2026-10-28',
+    title: 'One Save & close, one close button',
+    items: [
+      { area: 'Everywhere', kind: 'improved', text: 'Editing panels now end the same way: “Save & close” saves and closes in one press, and the × at the top right closes (your edits are kept). The separate “Done” buttons on the People and Project forms are gone; “Discard” appears only for a new record you haven’t named yet.', where: 'Tasks, Special Actions Log, Phase Board, Projects, People, RFIs, Change orders' },
+    ],
+  },
+  {
     id: '2026-10-28c',
     date: '2026-10-28',
     title: 'Same task columns on every board',

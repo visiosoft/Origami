@@ -1,3 +1,4 @@
+import { CloseButton } from '../components/CloseButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PeopleImport } from '../components/PeopleImport';
 import { PeopleTable } from '../components/PeopleTable';
@@ -655,7 +656,7 @@ export function People() {
                 <div style={{ fontSize: 12, color: 'var(--body)', fontWeight: 600, marginTop: 1 }}>{sel.company}</div>
                 {sel.contact && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Primary contact: {sel.contact}</div>}
               </div>
-              <div onClick={() => setSelectedId(null)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>×</div>
+              <CloseButton onClick={() => setSelectedId(null)} />
             </div>
             <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'grid', gap: 6 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -760,7 +761,7 @@ export function People() {
                 <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{editingId != null ? 'Edit person or company' : 'Add to People'}</div>
                 <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 3 }}>One record serves the directory, the address book and access control.</div>
               </div>
-              <div onClick={closePersonForm} style={{ width: 32, height: 32, borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', fontSize: 15, flexShrink: 0 }}>×</div>
+              <CloseButton onClick={closePersonForm} />
             </div>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             <div style={{ padding: '20px 26px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -861,8 +862,8 @@ export function People() {
                     ? `${missingFields(profile).length} required field(s) outstanding`
                     : 'Record complete'}
               </span>
-              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={np.kind === 'Staff' && personIdRef.current == null ? 'Staff are added as employees (button above)' : !personNameOk ? 'Add a name to save' : dupPending ? 'Is it the same person? Choose above' : undefined} /></div>
-              <div onClick={closePersonForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>{personAuto.dirty && !personNameOk && editingId == null ? 'Discard' : 'Done'}</div>
+              <div style={{ minWidth: 0 }}><SaveBar auto={personAuto} blocked={np.kind === 'Staff' && personIdRef.current == null ? 'Staff are added as employees (button above)' : !personNameOk ? 'Add a name to save' : dupPending ? 'Is it the same person? Choose above' : undefined} onDone={closePersonForm} /></div>
+              {personAuto.dirty && !personNameOk && editingId == null && <button type="button" onClick={closePersonForm} style={{ padding: '11px 18px', background: 'var(--surface)', fontFamily: 'inherit', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>Discard</button>}
 
             </div>
           </div>

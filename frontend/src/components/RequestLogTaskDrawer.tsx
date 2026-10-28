@@ -1,3 +1,4 @@
+import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
@@ -152,9 +153,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             </div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>
           </div>
-          <div onClick={() => onClose()} style={{ width: 34, height: 34, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)', marginLeft: 16, flexShrink: 0 }}>
-            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" style={{ stroke: 'var(--muted)' }} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
-          </div>
+          <span style={{ marginLeft: 16 }}><CloseButton onClick={onClose} /></span>
         </div>
 
         {/* Meta */}

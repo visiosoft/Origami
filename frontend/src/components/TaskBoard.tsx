@@ -1,3 +1,4 @@
+import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
@@ -1032,7 +1033,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <input type="checkbox" checked={!!d.completed} disabled={!canManage} onChange={() => set({ completed: !d.completed })} style={{ marginTop: 5 }} />
               <textarea value={d.title || ''} disabled={!canManage} onChange={(e) => set({ title: e.target.value })} rows={1} style={{ flex: 1, border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', background: 'transparent' }} />
-              <div onClick={() => setSelectedId(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
+              <CloseButton onClick={() => setSelectedId(null)} />
             </div>
             {/* Who raised it, when, and its number -- at the top (Oct 2026). */}
             <div style={{ padding: '10px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>

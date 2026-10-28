@@ -351,7 +351,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           {editable && !co.submittedAt && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete draft</div>}
           {rights.editChangeOrders && ['draft', 'internal_review', 'submitted'].includes(co.status) && <div onClick={() => setStep('cancel')} style={{ ...btn(), color: DANGER }}>Cancel CO</div>}
           <div style={{ flex: 1 }} />
-          {editable && <SaveBar auto={auto} />}
+          {editable && <SaveBar auto={auto} onDone={onClose} />}
           {editable && <div onClick={busy ? undefined : () => act('submit')} style={btn(!rights.approveChangeOrders, busy)}>Submit for internal review</div>}
           {co.status === 'draft' && rights.approveChangeOrders && <div onClick={() => setStep('client')} style={btn(true)} title="The client has already signed it">Record signed approval</div>}
           {co.status === 'internal_review' && rights.approveChangeOrders && <>

@@ -1,3 +1,4 @@
+import { CloseButton } from '../CloseButton';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PriorityHelp } from '../PriorityHelp';
 import { api } from '../../api';
@@ -358,7 +359,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
       <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {editable && (
           <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
-            <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} />
+            <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} onDone={onClose} />
           </div>
         )}
 
@@ -368,9 +369,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: 'var(--forest)' }}>{rec.number}</span>
             <StatusPill r={rec} />
             <span style={{ fontSize: 12, color: MUTED }}>{rec.projectName}</span>
-            <div onClick={onClose} style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.08)' }}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" style={{ stroke: MUTED }} strokeWidth={2} strokeLinecap="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
-            </div>
+            <span style={{ marginLeft: 'auto' }}><CloseButton onClick={onClose} /></span>
           </div>
           {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
             : <input value={draft.subject || ''} onChange={(e) => set({ subject: e.target.value })} style={{ ...input, fontFamily: BG, fontSize: 18, fontWeight: 700, border: '1px solid transparent', padding: '4px 6px', marginLeft: -6 }} />}

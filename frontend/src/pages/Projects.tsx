@@ -1,3 +1,4 @@
+import { CloseButton } from '../components/CloseButton';
 import { tint, useTheme } from '../theme';
 import { loadProjectCodes, useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from '../components/PriorityHelp';
@@ -1104,7 +1105,7 @@ export function Projects() {
                   <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.3 }}>{pt.title}</div>
                   {live && <div style={{ marginTop: 6 }}><OriginatorLine label="Assigner" project={sel?.name} by={(live as any).createdByName || createdByOf(live as any)?.by} at={createdByOf(live as any)?.at || (live as any).createdAt} number={numberOf(live as any) || null} /></div>}
                 </div>
-                <div onClick={() => setSelPt(null)} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
+                <CloseButton onClick={() => setSelPt(null)} />
               </div>
 
               <div style={{ padding: '16px 22px', display: 'flex', gap: 6, flexWrap: 'wrap', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
@@ -1420,7 +1421,7 @@ export function Projects() {
           <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16, boxShadow: '0 24px 60px rgba(var(--rgb-shade), 0.24)', animation: 'scaleIn 0.18s ease' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700 }}>{editingId != null ? 'Edit project' : 'New project'}</div>
-              <div onClick={closeProjectForm} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)' }}>×</div>
+              <CloseButton onClick={closeProjectForm} />
             </div>
             <div style={{ padding: '18px 24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
@@ -1479,8 +1480,8 @@ export function Projects() {
               ))}
             </div>
             <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(var(--rgb-shade), 0.07)', display: 'flex', gap: 9, alignItems: 'center' }}>
-              <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={projAuto} blocked={projNameOk ? undefined : 'Add a project name (2+ letters) to save'} /></div>
-              <div onClick={closeProjectForm} style={{ padding: '11px 18px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>{projAuto.dirty && !projNameOk && editingId == null ? 'Discard' : 'Done'}</div>
+              <div style={{ flex: 1, minWidth: 0 }}><SaveBar auto={projAuto} blocked={projNameOk ? undefined : 'Add a project name (2+ letters) to save'} onDone={closeProjectForm} /></div>
+              {projAuto.dirty && !projNameOk && editingId == null && <button type="button" onClick={closeProjectForm} style={{ padding: '11px 18px', background: 'var(--surface)', fontFamily: 'inherit', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>Discard</button>}
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { CloseButton } from './CloseButton';
 import { useEffect, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
@@ -145,7 +146,7 @@ export function PhaseTaskPanel({
               style={{ width: '100%', border: 'none', outline: 'none', resize: 'none', fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)', background: 'transparent', lineHeight: 1.3 }}
             />
           </div>
-          <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div style={{ padding: '16px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
