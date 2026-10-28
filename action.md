@@ -45,7 +45,7 @@ Working rules:
 
 | # | Slide asks | Today | Action | Status |
 |---|---|---|---|---|
-| D1 | **SOP for outside meetings** (city on Teams, someone else's invite). | Not covered. | Add a "Outside meeting" type: paste the invite or link, organiser, platform; the same review flow afterwards. Write the SOP as a doc. | ⬜ |
+| D1 | **SOP for outside meetings** (city on Teams, someone else's invite). | Not covered. | Add a "Outside meeting" type: paste the invite or link, organiser, platform; the same review flow afterwards. Write the SOP as a doc. | ✅ (SOP below and in the app) |
 | D2 | **Import meeting data** from Google Meet docs: recording, transcript, full notes, quick notes. | Transcript and recording links are typed in by hand. | "Import from Google Doc": paste the Gemini notes doc link → read it through the connected Google account (Docs API) → fill the recording link, transcript, full notes and quick notes. | ⬜ ❓ (D2a) |
 | D3 | **Quick notes summary → FOR RECORD** as Observation / FYI / Decision, convertible to other special actions. Each heading is the **title**, and **each bullet becomes its own item** (title repeated per bullet). Each keeps its source ("Hom Cafe Weekly Sync – 2026/10/24 12:45 PDT"). | Review step lets you add items by hand. | Parser: headings → title, bullets → one FOR RECORD item each (default type Observation, changeable), source = meeting title and time. Shown as a checklist to accept, edit or drop before saving. | ✅ done: “Turn notes into items” (81c2b3cf) |
 | D4 | **Next steps → Tasks**: `[Name]` → assignee (changeable), "Title: detail" → title and description, a due date read from the text ("Monday", "Tuesday the 27th"); no date → priority High until changed. Source kept. | Not automatic. | Parser for next-step lines: match the bracketed name to a person; read relative dates against the meeting date; create tasks on the project board with `source`. Same review checklist as D3. | ✅ done (same commit) |
@@ -66,7 +66,7 @@ Colour key: red = not done, to discuss · orange = 50% · cyan = 90%, minor twea
 
 ---
 
-Done and on staging: A1, A2 (tiles), A3–A6, B1–B7, C1, C2, D3, D4, D5, plus the loading states. Next: D1 (outside meetings). Waiting on answers: D2, D6; A2's design/build contract split.
+Done and on staging: A1, A2 (tiles), A3–A6, B1–B7, C1, C2, D1, D3, D4, D5, plus the loading states. Waiting on answers: D2, D6; A2's design/build contract split.
 Done and on staging: A2 (tiles), A3, A5, A6, B1–B6, C2, D3, D4, plus the loading states. Waiting on answers: A1, B7, C1, D2, D5, D6 (questions below); A2's design/build contract split.
 
 ## Order of work (each one a small commit with tests, a browser check and a release note)
@@ -104,3 +104,11 @@ Done and on staging: A2 (tiles), A3, A5, A6, B1–B6, C2, D3, D4, plus the loadi
 - **D2a**: Are the Gemini notes docs owned by the account that's connected in Settings → Google? Reading them needs the Docs read scope.
 - **D5a**: Tags (multi-select) as listed, or a fixed "audience" plus phase tags?
 - **D6a**: Does Quo's API expose tasks? Its public API lists messages, calls and contacts; if tasks aren't there, the fallback is a "Create ODIN task" from a Quo message link pasted into ODIN.
+
+## SOP: outside meetings (D1)
+For a meeting someone else set up — the city on Teams, a consultant's Zoom, a sub's call.
+1. **When the invite arrives**: Special Actions → Meetings → + Meeting → Type **Outside**. Paste the invite and press *Fill in from the invite*. Check the title, date, time, organiser, their company and platform; pick the project.
+2. **Who goes**: add our attendees. Accept the invite in your own calendar as usual — ODIN doesn't reply to it.
+3. **During**: take notes in *Notes / minutes*. If they record it, ask for the recording or transcript.
+4. **Afterwards**: paste their notes, the transcript or the recording link (or ours), set the status to *Occurred*, then *Review notes & transcript for special actions* — tasks, FOR RECORD items, RFIs and change orders, the same as our own meetings.
+5. **Done**: the meeting turns *Complete* by itself once everything raised from it is done.

@@ -2,7 +2,9 @@ import { Type } from 'class-transformer';
 import { IsArray, IsIn, IsInt, IsOptional, IsString, MaxLength, ValidateNested } from 'class-validator';
 import { MEETING_LOCATION_TYPES, MEETING_STATUSES } from './meeting-status';
 
-export const MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site'];
+export const MEETING_TYPES = ['Internal', 'Client', 'Consultant', 'Subcontractor', 'Site', 'Outside'];
+/** Where an outside meeting is held (the invite's platform). */
+export const MEETING_PLATFORMS = ['teams', 'zoom', 'meet', 'webex', 'phone', 'other'];
 export { MEETING_LOCATION_TYPES, MEETING_STATUSES };
 /** What can be raised from a meeting as a Request Log entry: a task, or a FOR RECORD item. */
 export const MEETING_ACTION_TOPICS = ['Task', 'FYI', 'Observation', 'Decision'];
@@ -22,6 +24,10 @@ export class MeetingDto {
   @IsString() @IsOptional() time?: string;
   @IsString() @IsOptional() location?: string;
   @IsString() @IsOptional() @IsIn([...MEETING_LOCATION_TYPES]) locationType?: string;
+  @IsString() @IsOptional() @MaxLength(200) organizer?: string;
+  @IsString() @IsOptional() @MaxLength(200) organizerOrg?: string;
+  @IsString() @IsOptional() @IsIn(['', ...MEETING_PLATFORMS]) platform?: string;
+  @IsString() @IsOptional() @MaxLength(20000) invite?: string;
   @IsArray() @IsOptional() @ValidateNested({ each: true }) @Type(() => AttendeeDto) attendees?: AttendeeDto[];
   @IsString() @IsOptional() agenda?: string;
   @IsString() @IsOptional() minutes?: string;

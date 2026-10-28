@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28zc',
+    date: '2026-10-28',
+    title: 'Outside meetings',
+    items: [
+      { area: 'Meetings', kind: 'new', text: 'A new “Outside” meeting type for someone else’s invite — the city on Teams, a consultant’s Zoom. Paste their invite and it fills in the link, platform, organiser, their company, the date, time and title; the meeting ID and passcode stay on the meeting.', where: 'Special Actions → Meetings → + Meeting → Type: Outside' },
+      { area: 'Meetings', kind: 'new', text: 'Outside meetings carry the steps to follow: paste the invite, add who’s going, add their notes or ours afterwards, then review for special actions like any meeting.' },
+    ],
+  },
+  {
     id: '2026-10-28zb',
     date: '2026-10-28',
     title: 'Change events, sub pricing and sub change orders',

@@ -294,7 +294,12 @@ export class MeetingEntity {
   /** History: created, converted / duplicated, links. */
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[] | null;
   @Column() title!: string;
-  @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site
+  @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site | Outside
+  /** Outside meetings (someone else's invite -- the city on Teams, a consultant's Zoom): who set it up, their company, the platform, and the invite as pasted. */
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) organizer!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) organizerOrg!: string | null;
+  @Column({ type: 'nvarchar', length: 30, nullable: true }) platform!: string | null;
+  @Column({ ...TEXT, nullable: true }) invite!: string | null;
   @Column({ type: 'int', nullable: true }) projectId!: number | null;
   /** The project's name, as the Request Log stores it on each entry. */
   @Column({ nullable: true }) project!: string;

@@ -110,7 +110,8 @@ export class MeetingsService implements OnApplicationBootstrap {
         patch.reviewedAt = new Date().toISOString();
       }
     }
-    for (const k of ['recordingUrl', 'transcriptUrl'] as const) if (typeof patch[k] === 'string') patch[k] = patch[k]!.trim();
+    for (const k of ['recordingUrl', 'transcriptUrl', 'organizer', 'organizerOrg'] as const) if (typeof patch[k] === 'string') patch[k] = patch[k]!.trim();
+    if (patch.platform === '') patch.platform = null;
     Object.assign(m, patch, { updatedAt: new Date().toISOString() });
     const saved = await this.repo.save(m);
     return (await this.settle([saved]))[0];

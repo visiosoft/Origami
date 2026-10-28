@@ -36,6 +36,14 @@ describe('MeetingsService', () => {
     expect(m).toMatchObject({ title: 'OAC meeting', status: 'scheduled', type: 'Internal', locationType: 'virtual', createdBy: 'Sara R.' });
   });
 
+  it('keeps an outside meeting’s organiser, company, platform and invite', async () => {
+    const { svc } = setup();
+    const m = await svc.create({ title: 'Plan check', date: '2026-11-04', type: 'Outside', organizer: 'Jane Ortiz', platform: 'teams', invite: 'Microsoft Teams meeting…' }, { name: 'A' });
+    expect(m).toMatchObject({ type: 'Outside', organizer: 'Jane Ortiz', platform: 'teams', invite: 'Microsoft Teams meeting…' });
+    const u = await svc.update(m.id, { organizer: '  Jane O. ', organizerOrg: ' LA City ', platform: '' }, { name: 'A' });
+    expect(u).toMatchObject({ organizer: 'Jane O.', organizerOrg: 'LA City', platform: null });
+  });
+
   it('raises an action as a Request Log entry carrying the meeting', async () => {
     const { svc, created } = setup();
     const m = await svc.create({ title: 'Site walk', date: '2026-10-08', type: 'Site', project: 'Chelliah Residence', projectId: 2 }, { name: 'A' });

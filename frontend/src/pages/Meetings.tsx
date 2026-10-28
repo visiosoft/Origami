@@ -19,6 +19,7 @@ import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
 import { MeetingNotesImport } from '../components/MeetingNotesImport';
 import { TagPicker } from '../components/TagPicker';
+import { OutsideMeeting } from '../components/OutsideMeeting';
 
 type View = 'upcoming' | 'past' | 'all';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
@@ -244,6 +245,7 @@ function NewMeeting({ projects, onClose, onCreated }: { projects: { id: number; 
           <label className="is-wide">Title<input autoFocus value={m.title} onChange={(e) => setM({ ...m, title: e.target.value })} placeholder="e.g. Weekly OAC meeting" onKeyDown={(e) => { if (e.key === 'Enter') create(); }} /></label>
           <label>Type<select value={m.type} onChange={(e) => setM({ ...m, type: e.target.value })}>{MEETING_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
           <label>Project<ProjectSelect projects={projects} value={m.projectId ?? null} onChange={(id, name) => setM({ ...m, projectId: id, project: name })} /></label>
+          {m.type === 'Outside' && <OutsideMeeting m={m} today={akToday()} onChange={(p) => setM((cur) => ({ ...cur, ...p }))} />}
           <label>Date<input type="date" value={m.date} onChange={(e) => setM({ ...m, date: e.target.value })} /></label>
           <label>Time<input type="time" value={m.time} onChange={(e) => setM({ ...m, time: e.target.value })} /></label>
           <div className="is-wide mt-field"><span>How it’s held <em>required</em></span><LocationTypePick value={m.locationType} onChange={(v) => setM({ ...m, locationType: v })} /></div>
@@ -356,6 +358,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
             <div className="mt-form">
               <label>Type<select disabled={!editable} value={draft.type} onChange={(e) => set({ type: e.target.value })}>{MEETING_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
               <label>Project<ProjectSelect disabled={!editable} projects={projects} value={draft.projectId ?? null} onChange={(id, name) => set({ projectId: id, project: name })} /></label>
+              {draft.type === 'Outside' && <OutsideMeeting m={draft} today={akToday()} disabled={!editable} onChange={set} />}
               <label>Date<input disabled={!editable} type="date" value={draft.date || ''} onChange={(e) => e.target.value && set({ date: e.target.value })} /></label>
               <label>Time<input disabled={!editable} type="time" value={draft.time || ''} onChange={(e) => set({ time: e.target.value })} /></label>
               <div className="is-wide mt-field"><span>How it’s held{!draft.locationType && editable && <em>choose one</em>}</span><LocationTypePick disabled={!editable} value={draft.locationType} onChange={(v) => set({ locationType: v })} /></div>
