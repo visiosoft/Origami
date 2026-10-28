@@ -827,6 +827,8 @@ export const api = {
   /** The app-wide audit log (admins): who changed what, newest first. */
   audit: {
     list: (q: Record<string, string> = {}) => request<AuditRow[]>(`/audit?${new URLSearchParams(q).toString()}`),
+    /** One project's trail (internal staff; no finance entries). */
+    project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
   },
   finance: {
     access: () => request('/finance/access'),

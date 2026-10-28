@@ -9,6 +9,8 @@ import { ProjectCard } from '../components/ProjectCard';
 import { useEffect, useRef, useState } from 'react';
 import { AllFiles } from '../components/AllFiles';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
+import { ProjectPeople } from '../components/ProjectPeople';
+import { ProjectAuditTrail } from '../components/ProjectAuditTrail';
 import { MoneyGlance, TasksAndRfis, WorkGlance } from '../components/ProjectGlance';
 import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
@@ -732,7 +734,7 @@ export function Projects() {
               <div onClick={() => setTab('subs')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'subs' ? 'var(--forest)' : 'transparent'), color: tab === 'subs' ? 'var(--ink)' : 'var(--muted)' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M2 18h20" /><path d="M4 18v-3a8 8 0 0 1 16 0v3" /><path d="M10 7V4h4v3" /></svg>
-                  Subcontractors
+                  Project People
                 </span>
               </div>
               {finView && (
@@ -749,14 +751,6 @@ export function Projects() {
                   Files
                 </span>
               </div>
-              {canManage && (
-                <div onClick={() => setTab('guests')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'guests' ? 'var(--forest)' : 'transparent'), color: tab === 'guests' ? 'var(--ink)' : 'var(--muted)' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx={12} cy={7} r={4} /></svg>
-                    Guest Access
-                  </span>
-                </div>
-              )}
             </div>
 
             {tab === 'overview' ? (
@@ -789,6 +783,7 @@ export function Projects() {
                   </div>
                 )}
                 {finView && <MoneyGlance projectId={sel.id} onOpen={() => setTab('financial')} />}
+                <ProjectAuditTrail key={'audit-' + sel.id} projectId={sel.id} />
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'var(--forest)', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
                   <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>Open Phase Board</div>
@@ -832,17 +827,16 @@ export function Projects() {
                 </div>
                 <AllFiles projectId={sel.id} />
               </div>
-            ) : tab === 'subs' ? (
-              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+            ) : tab === 'subs' || tab === 'guests' ? (
+              // Project People (Oct 27 sync): who's on the project -- consultants, subs, client -- their subcontracts, and guest access, in one place.
+              <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'grid', gap: 18, alignContent: 'start' }}>
+                <ProjectPeople projectName={sel.name} />
                 <ProjectSubcontractors projectId={sel.id} onAddSubcontract={finView ? () => { setFinStart('subcontracts'); setTab('financial'); } : undefined} />
+                {canManage && <div style={{ margin: '0 -24px' }}><GuestAccessPanel projectId={sel.id} /></div>}
               </div>
             ) : tab === 'financial' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', background: 'var(--panel)' }}>
                 <ProjectFinancials key={`${sel.id}-${finStart}`} projectId={sel.id} initialView={finStart} />
-              </div>
-            ) : tab === 'guests' ? (
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                <GuestAccessPanel projectId={sel.id} />
               </div>
             ) : (
               <div style={{ padding: '20px 16px', overflowX: 'auto', flex: 1 }}>

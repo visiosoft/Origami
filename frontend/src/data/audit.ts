@@ -31,8 +31,11 @@ export function auditCsvRows(rows: AuditRow[]) {
   }));
 }
 
-/** The record types present, for the filter. */
 /** What a stored type is called now: the Request Log was renamed the Special Actions Log (Oct 27). */
 export const typeLabel = (t: string) => (t === 'Request Log task' ? 'Special Actions Log task' : t);
 
+/** The record types present, for the filter. */
 export const typesIn = (rows: AuditRow[]) => [...new Set(rows.map((r) => r.entityType))].sort();
+
+/** Entries newer than the last time this person opened the trail -- shown as New. */
+export const unseen = (rows: AuditRow[], seenAt: string | null) => (seenAt ? rows.filter((r) => r.at > seenAt) : []);

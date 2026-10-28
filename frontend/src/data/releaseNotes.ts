@@ -18,8 +18,10 @@ export const RELEASES: Release[] = [
   {
     id: '2026-10-28d',
     date: '2026-10-28',
-    title: 'One Save & close, one close button',
+    title: 'Save & close everywhere; Project People; audit trail on the Overview',
     items: [
+      { area: 'Projects', kind: 'new', text: 'The project Overview has its audit trail back — who changed what and when. Changes since you last looked are marked New and highlighted.', where: 'Projects → a project → Overview' },
+      { area: 'Projects', kind: 'improved', text: 'The Subcontractors tab is now Project People: who is on the project (consultants, subs, client), their subcontracts, and guest access, in one place. The separate Guest Access tab is folded in.', where: 'Projects → a project → Project People' },
       { area: 'Everywhere', kind: 'improved', text: 'Editing panels now end the same way: “Save & close” saves and closes in one press, and the × at the top right closes (your edits are kept). The separate “Done” buttons on the People and Project forms are gone; “Discard” appears only for a new record you haven’t named yet.', where: 'Tasks, Special Actions Log, Phase Board, Projects, People, RFIs, Change orders' },
     ],
   },
