@@ -1,6 +1,7 @@
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Pager } from '../components/Pager';
 import { PeopleImport } from '../components/PeopleImport';
 import { PeopleTable } from '../components/PeopleTable';
 import { SortHeader, useSort } from '../components/SortHeader';
@@ -177,6 +178,13 @@ export function People() {
   const alertCount = all.filter((p) => p.comply && !p.comply.ok).length;
   const kindCount = (k: string) => all.filter((p) => matchKind(p, k)).length;
   const pickedShown = shown.filter((p) => picked.has(p.id));
+  // Cards and the table show 50 at a time with page numbers (the address book groups everyone).
+  const [pg, setPg] = useState(1);
+  const [pgSize, setPgSize] = useState(50);
+  const pageKey = [kf, pf, onlyAlerts, sf, qn, view, pgSize].join('|');
+  useEffect(() => { setPg(1); }, [pageKey]);
+  const pages = Math.max(1, Math.ceil(shown.length / pgSize));
+  const onPage = <T,>(list: T[]) => list.slice((Math.min(pg, pages) - 1) * pgSize, Math.min(pg, pages) * pgSize);
   const togglePick = (id: number) => setPicked((s0) => { const n = new Set(s0); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const exportPicked = () => {
     const rows = [['Name', 'Type', 'Role', 'Company', 'Phone', 'Email', 'Projects', 'Since'],
@@ -355,7 +363,7 @@ export function People() {
 
   const cardsView = (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: 10 }}>
-      {shown.map((p) => {
+      {onPage(shown).map((p) => {
         const ks = KIND_STYLE[p.kind];
         return (
           <div key={p.id} onClick={() => setSelectedId(p.id)} style={{ background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)', padding: 16, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -393,7 +401,7 @@ export function People() {
         <SortHeader k="contact" sort={tableSort} onSort={toggleTableSort}>Contact</SortHeader>
         <SortHeader k="comply" sort={tableSort} onSort={toggleTableSort}>Compliance</SortHeader><SortHeader k="tier" sort={tableSort} onSort={toggleTableSort}>Tier</SortHeader>
       </div>
-      {tableSorted.map((p) => {
+      {onPage(tableSorted).map((p) => {
         const ks = KIND_STYLE[p.kind];
         const ts = TIER_STYLE[p.tier];
         return (
@@ -639,10 +647,11 @@ export function People() {
 
       {view === 'company' ? addressBook
         : view === 'table' ? (isNew
-          ? <PeopleTable people={shown} picked={picked} onPick={togglePick} onOpen={(id) => setSelectedId(id)}
+          ? <PeopleTable people={shown} picked={picked} onPick={togglePick} onOpen={(id) => setSelectedId(id)} page={Math.min(pg, pages)} size={pgSize}
               onPickAll={(on) => setPicked(on ? new Set(shown.map((p) => p.id)) : new Set())} />
           : tableView)
         : cardsView}
+      {view !== 'company' && <Pager page={Math.min(pg, pages)} pages={pages} total={shown.length} size={pgSize} onPage={setPg} onSize={setPgSize} />}
       {compliancePanel}
 
       {/* Person drawer */}

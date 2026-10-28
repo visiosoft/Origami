@@ -21,11 +21,14 @@ const TYPE_PILL: Record<Person['kind'], string> = {
  * tick box per row (ticked rows turn yellow) and a pill for the record type.
  * Clicking a row opens the person.
  */
-export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
+export function PeopleTable({ people, picked, onPick, onPickAll, onOpen, page = 1, size = Infinity }: {
   people: Person[];
   picked: Set<number>;
   onPick: (id: number) => void;
   onPickAll: (on: boolean) => void;
+  /** Show one page of the sorted list (page numbers below the table). */
+  page?: number;
+  size?: number;
   onOpen: (id: number) => void;
 }) {
   const allOn = people.length > 0 && people.every((p) => picked.has(p.id));
@@ -50,7 +53,7 @@ export function PeopleTable({ people, picked, onPick, onPickAll, onOpen }: {
         <span>{H('type', 'Type')}</span>
       </div>
       {people.length === 0 && <div className="pt-empty">No one matches.</div>}
-      {sorted.map((p, i) => {
+      {sorted.slice((page - 1) * size, page * size).map((p, i) => {
         const on = picked.has(p.id);
         const alert = p.comply && !p.comply.ok;
         return (
