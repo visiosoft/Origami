@@ -6,7 +6,7 @@ import { Skeleton } from './Skeleton';
 import { Meetings } from '../pages/Meetings';
 import { Observations } from '../pages/Observations';
 import { Approvals } from '../pages/Approvals';
-import { ChangeOrderList } from './finance/ChangeOrders';
+import { ChangeOrderWorkspace } from './finance/ChangeEvents';
 
 /** The special actions a project shows (Oct 26 review notes). */
 export type ActionView = 'tasks' | 'rfis' | 'meetings' | 'record' | 'changes' | 'approvals';
@@ -189,7 +189,7 @@ export function TasksAndRfis({ projectId, projectName, showRfis, view, onView, s
         : cur === 'rfis' ? <RfiLog projectId={projectId} projectName={projectName} compact />
           : cur === 'meetings' ? <Meetings projectName={projectName} />
             : cur === 'record' ? <Observations projectName={projectName} />
-              : cur === 'changes' ? (canChanges ? <ChangeOrderList projectId={projectId} rights={rights} /> : <Skeleton rows={4} />)
+              : cur === 'changes' ? (canChanges ? <ChangeOrderWorkspace projectId={projectId} rights={rights} /> : <Skeleton rows={4} />)
                 : <Approvals projectName={projectName} />}
     </div>
   );

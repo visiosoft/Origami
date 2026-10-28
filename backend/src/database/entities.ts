@@ -2122,6 +2122,8 @@ export class ChangeOrderEntity extends FinanceStamped {
   /** Who raised it and who approves it: internal | client | third_party. */
   @Column({ nullable: true }) originatorType!: string;
   @Column({ nullable: true }) approverType!: string;
+  /** The change events (and their CORs) this owner change order (PCCO) was made from. */
+  @Column({ type: 'simple-json', nullable: true }) changeEventIds!: string[] | null;
   @Column({ nullable: true }) requestedBy!: string;
   /** draft | internal_review | submitted | approved | rejected | cancelled */
   @Column({ default: 'draft' }) status!: string;
@@ -2146,6 +2148,108 @@ export class ChangeOrderEntity extends FinanceStamped {
   @Column({ nullable: true }) cancelledAt!: string;
   @Column({ nullable: true }) cancelledBy!: string;
   @Column({ ...TEXT, nullable: true }) closedReason!: string;
+}
+
+/**
+ * A change event (Oct 26 review notes): the field issue or request that may
+ * shift cost, time or scope. It goes out as a PCO -- a request for pricing --
+ * to the subs it touches; their CORs come back, are validated, held or
+ * rejected, and validated ones are rolled into an owner change order (PCCO).
+ * A CCD / DCD directive lets the work start before the price is agreed.
+ */
+@Entity('change_events')
+@Index('IX_change_events_project', ['projectId'])
+@Index('UQ_change_events_number', ['projectId', 'number'], { unique: true })
+export class ChangeEventEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** CE-001, per project. */
+  @Column() number!: string;
+  @Column() title!: string;
+  @Column({ ...TEXT, nullable: true }) description!: string;
+  /** What drives it (same list as a change order's). */
+  @Column({ default: 'client_request' }) reason!: string;
+  @Column({ nullable: true }) originatorType!: string;
+  /** open | pricing | priced | closed | void */
+  @Column({ default: 'open' }) status!: string;
+  /** The PCO: when pricing was asked for, by when, and what was asked. */
+  @Column({ nullable: true }) pcoSentAt!: string;
+  @Column({ nullable: true }) pcoDue!: string;
+  @Column({ ...TEXT, nullable: true }) pcoNote!: string;
+  /** A construction / design change directive: ccd | dcd, how it was given (signature | verbal | email), by whom, when. */
+  @Column({ nullable: true }) directiveType!: string;
+  @Column({ nullable: true }) directiveMethod!: string;
+  @Column({ nullable: true }) directiveSigner!: string;
+  @Column({ nullable: true }) directiveDate!: string;
+  @Column({ ...TEXT, nullable: true }) directiveNote!: string;
+  @Column({ nullable: true }) directiveBy!: string;
+  /** Owner change orders (PCCOs) made from it. */
+  @Column({ type: 'simple-json', nullable: true }) changeOrderIds!: string[] | null;
+}
+
+/** A change order request (COR): one party's priced proposal for a change event -- ours (prime) or a sub's. */
+@Entity('change_order_requests')
+@Index('IX_cors_project', ['projectId'])
+@Index('IX_cors_event', ['changeEventId'])
+@Index('UQ_cors_number', ['projectId', 'number'], { unique: true })
+export class ChangeOrderRequestEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column() changeEventId!: string;
+  /** COR-001, per project. */
+  @Column() number!: string;
+  /** prime | sub */
+  @Column({ default: 'sub' }) partyType!: string;
+  /** The sub's subcontract or PO on this project, and their contractor record, when known. */
+  @Column({ nullable: true }) commitmentId!: string;
+  @Column({ nullable: true }) contractorId!: string;
+  @Column() partyName!: string;
+  @Column({ nullable: true }) partyEmail!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  /** Their price (our cost); null until they send it. */
+  @Column({ ...MONEY, nullable: true }) amount!: number | null;
+  @Column({ type: 'int', default: 0 }) scheduleImpactDays!: number;
+  /** requested | submitted | validated | hold | rejected */
+  @Column({ default: 'requested' }) status!: string;
+  @Column({ nullable: true }) requestedAt!: string;
+  @Column({ nullable: true }) submittedAt!: string;
+  @Column({ nullable: true }) decidedAt!: string;
+  @Column({ nullable: true }) decidedBy!: string;
+  @Column({ ...TEXT, nullable: true }) decisionNote!: string;
+  /** The owner change order (PCCO) it was rolled into. */
+  @Column({ nullable: true }) changeOrderId!: string;
+}
+
+/**
+ * A commitment change order (CCO): the change to one sub's subcontract, made
+ * when the owner approves the PCCO. Only that sub sees its cost; signing it
+ * adds the change to their subcontract's schedule of values.
+ */
+@Entity('commitment_change_orders')
+@Index('IX_ccos_project', ['projectId'])
+@Index('IX_ccos_pcco', ['changeOrderId'])
+@Index('UQ_ccos_number', ['projectId', 'number'], { unique: true })
+export class CommitmentChangeOrderEntity extends FinanceStamped {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** CCO-001, per project. */
+  @Column() number!: string;
+  @Column() changeOrderId!: string;
+  @Column() corId!: string;
+  @Column({ nullable: true }) commitmentId!: string;
+  @Column() partyName!: string;
+  @Column({ nullable: true }) partyEmail!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  @Column({ ...MONEY }) amount!: number;
+  @Column({ type: 'int', default: 0 }) scheduleImpactDays!: number;
+  /** draft | sent | signed | void */
+  @Column({ default: 'draft' }) status!: string;
+  @Column({ nullable: true }) sentAt!: string;
+  @Column({ nullable: true }) signedAt!: string;
+  @Column({ nullable: true }) signer!: string;
+  @Column({ nullable: true }) signedReference!: string;
+  /** The subcontract line added when it was signed. */
+  @Column({ nullable: true }) commitmentLineId!: string;
 }
 
 /** One priced change inside a change order, and the schedule-of-values item it changes. */

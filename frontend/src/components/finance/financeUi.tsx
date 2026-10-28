@@ -178,7 +178,7 @@ const CO_STATUS: Record<ChangeOrder['status'], [string, 'grey' | 'amber' | 'blue
   // Edward's three phases: Pending (costing it internally), Under client review, Approved / Rejected.
   draft: ['Pending', 'grey'], internal_review: ['Pending · internal review', 'amber'], submitted: ['Under client review', 'blue'], approved: ['Approved', 'green'], rejected: ['Rejected', 'red'], cancelled: ['Cancelled', 'grey'],
 };
-export const CoBadge = ({ s }: { s: ChangeOrder['status'] }) => <Badge tone={CO_STATUS[s][1]}>{CO_STATUS[s][0]}</Badge>;
+export const CoBadge = ({ s }: { s: ChangeOrder['status'] }) => { const [l, t] = CO_STATUS[s] || [String(s || '—'), 'grey' as const]; return <Badge tone={t}>{l}</Badge>; };
 const RE_STATUS: Record<Reimbursable['status'], [string, 'grey' | 'amber' | 'blue' | 'green' | 'red']> = {
   submitted: ['Awaiting approval', 'amber'], approved: ['Approved · to bill', 'blue'], rejected: ['Rejected', 'red'], billed: ['Billed', 'green'],
 };
@@ -227,16 +227,16 @@ export function ReasonBox({ title, fields, confirm, tone, onCancel, onSubmit }: 
           <div key={f.key} style={{ gridColumn: f.type === 'textarea' ? '1 / -1' : undefined }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{f.label}{f.required ? ' *' : ''}</div>
             {f.options
-              ? <select value={v[f.key]} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT}><option value="">Choose…</option>{f.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+              ? <select aria-label={f.label} value={v[f.key]} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT}><option value="">Choose…</option>{f.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               : f.type === 'textarea'
-              ? <textarea rows={2} value={v[f.key]} placeholder={f.placeholder} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={{ ...INPUT, resize: 'vertical' }} />
-              : <input type={f.type || 'text'} value={v[f.key]} placeholder={f.placeholder} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT} />}
+              ? <textarea aria-label={f.label} rows={2} value={v[f.key]} placeholder={f.placeholder} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={{ ...INPUT, resize: 'vertical' }} />
+              : <input aria-label={f.label} type={f.type || 'text'} value={v[f.key]} placeholder={f.placeholder} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT} />}
           </div>
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <div onClick={ok ? () => onSubmit(v) : undefined} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: ok ? 'pointer' : 'default', background: ok ? (tone === 'danger' ? '#8E2E0A' : 'var(--forest)') : '#C9D3CE', color: 'white' }}>{confirm}</div>
-        <div onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .12)' }}>Cancel</div>
+        <div role="button" aria-disabled={!ok} onClick={ok ? () => onSubmit(v) : undefined} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: ok ? 'pointer' : 'default', background: ok ? (tone === 'danger' ? '#8E2E0A' : 'var(--forest)') : '#C9D3CE', color: 'white' }}>{confirm}</div>
+        <div role="button" onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .12)' }}>Cancel</div>
       </div>
     </div>
   );

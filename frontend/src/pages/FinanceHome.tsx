@@ -6,13 +6,14 @@ import { api } from '../api';
 import { useApp } from '../AppContext';
 import { ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, card, fmtDate, headRow, input } from '../components/manpowerUi';
 import { ProjectFinancials, ACTION_LABEL } from '../components/finance/ProjectFinancials';
-import { ChangeOrderDrawer, ChangeOrderList } from '../components/finance/ChangeOrders';
+import { ChangeOrderDrawer } from '../components/finance/ChangeOrders';
 import { ReimbursableDrawer, ReimbursableList } from '../components/finance/Reimbursables';
 import { usd, usd0, type Rights } from '../components/finance/financeUi';
 import { FinanceReports } from '../components/finance/Reports';
 import { ReimbursementBoard } from '../components/finance/ReimbursementBoard';
 import { useTheme } from '../theme';
 import { Skeleton } from '../components/Skeleton';
+import { ChangeOrderWorkspace } from '../components/finance/ChangeEvents';
 
 const PAPER = 'var(--panel)';
 type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
@@ -67,7 +68,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
           {tab === 'approvals' && <Approvals rights={rights} onProject={setProject} />}
           {tab === 'portfolio' && <Portfolio onProject={setProject} />}
           {tab === 'reports' && <FinanceReports rights={rights} onProject={setProject} />}
-          {tab === 'changes' && <ChangeOrderList rights={rights} openId={params.get('co')} />}
+          {tab === 'changes' && <ChangeOrderWorkspace rights={rights} openId={params.get('co')} />}
           {tab === 'reimbursables' && (theme === 'coterie' ? <ReimbursementBoard rights={rights} /> : <ReimbursableList rights={rights} />)}
           {tab === 'audit' && <Audit />}
         </>

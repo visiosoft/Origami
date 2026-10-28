@@ -7,7 +7,7 @@ import {
   ProgressUpdateEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity,
   ProjectSectionEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, RoleEntity, TaskFinancialEntity,
   CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity, TimesheetEntity, TimesheetLineEntity,
-  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity, RfiEntity,
+  DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity, PersonEntity, SubcontractorTradeEntity, RfiEntity, ChangeEventEntity, ChangeOrderRequestEntity, CommitmentChangeOrderEntity,
 } from '../database/entities';
 import { ProjectSubsService } from './project-subs.service';
 import { DailyReportSummaryService } from './daily-report-summary.service';
@@ -19,6 +19,7 @@ import { ManpowerAccess } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
 import { InvoicesService } from './invoices.service';
 import { ChangeOrdersService } from './change-orders.service';
+import { ChangeEventsService } from './change-events.service';
 import { ReimbursablesService } from './reimbursables.service';
 import { RetentionService } from './retention.service';
 import { FinanceHubService } from './finance-hub.service';
@@ -42,7 +43,7 @@ import {
       ProjectEntity, LeadEntity, ProjectPhaseEntity, ProjectTaskEntity, ProjectSectionEntity, RoleEntity,
       ProjectFinancialEntity, PhaseFinancialEntity, TaskFinancialEntity, ProgressUpdateEntity,
       ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, FinanceSequenceEntity, FinanceActivityEntity,
-      ChangeOrderEntity, ChangeOrderItemEntity, ReimbursableEntity, RetentionReleaseEntity, FinancialApprovalEntity,
+      ChangeOrderEntity, ChangeOrderItemEntity, ChangeEventEntity, ChangeOrderRequestEntity, CommitmentChangeOrderEntity, ReimbursableEntity, RetentionReleaseEntity, FinancialApprovalEntity,
       CostBudgetLineEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, CostForecastEntity,
       TimesheetEntity, TimesheetLineEntity, DailyLogEntity, LaborLogEntryEntity, EmployeeEntity, CsiCodeEntity, ContractorEntity, UserEntity,
       PersonEntity, SubcontractorTradeEntity, RfiEntity,
@@ -54,7 +55,7 @@ import {
   ],
   controllers: [ChangeOrderPublicController, FinanceController, FinanceInvoiceFilesController, FinanceChangeOrderFilesController, FinanceReimbursableFilesController, FinanceCostFilesController,
     PortalController, PortalAccessController, SharedWithVendorFilesController, DailyReportSummaryController],
-  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService],
+  providers: [ManpowerAccess, FinancialsService, InvoicesService, ChangeOrdersService, ChangeEventsService, ReimbursablesService, RetentionService, FinanceHubService, CostsService, ReportsService, PortalService, ProjectSubsService, DailyReportSummaryService],
   exports: [ChangeOrdersService, FinancialsService],
 })
 export class FinanceModule {}

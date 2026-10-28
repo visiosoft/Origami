@@ -38,7 +38,7 @@ Working rules:
 
 | # | Slide asks | Today | Action | Status |
 |---|---|---|---|---|
-| C1 | **Workflow**: CE (change event) → PCO (potential CO, sent to the relevant subs like an RFP) → COR (formal proposal from prime or sub; internal Validated / Hold / Rejected; several CORs can be lumped into one PCCO) → **PCCO** (prime contract CO, owner signs; everyone sees scope and time, not cost) → **CCO** (commitment CO to each sub; only that sub sees its cost; signed). Plus a **CCD/DCD** directive path that proceeds before pricing (signature, or verbal/email noted). Approved PCCO updates the prime contract schedule of values; CCO updates the subcontract SOV. | One change order record: draft → submitted → approved/rejected, with client email and signature. | A change-event pipeline: new `change_events` (CE → PCO) with linked `cor` rows per sub; COR validation; group CORs into a PCCO (the existing CO becomes the PCCO); per-sub CCOs generated from the CORs, visible only to that sub; CCD/DCD as a directive flag on a CE that lets work start. SOV updates on approval. | ⬜ (large) ❓ (C1a) |
+| C1 | **Workflow**: CE (change event) → PCO (potential CO, sent to the relevant subs like an RFP) → COR (formal proposal from prime or sub; internal Validated / Hold / Rejected; several CORs can be lumped into one PCCO) → **PCCO** (prime contract CO, owner signs; everyone sees scope and time, not cost) → **CCO** (commitment CO to each sub; only that sub sees its cost; signed). Plus a **CCD/DCD** directive path that proceeds before pricing (signature, or verbal/email noted). Approved PCCO updates the prime contract schedule of values; CCO updates the subcontract SOV. | One change order record: draft → submitted → approved/rejected, with client email and signature. | A change-event pipeline: new `change_events` (CE → PCO) with linked `cor` rows per sub; COR validation; group CORs into a PCCO (the existing CO becomes the PCCO); per-sub CCOs generated from the CORs, visible only to that sub; CCD/DCD as a directive flag on a CE that lets work start. SOV updates on approval. | ✅ |
 | C2 | **Drivers and categories** (slide 18): driven by Force Majeure, Unknown site conditions, Authority, Procurement, Client request, Design E&O, Builder, Sub/third party. Category is one or more of Additive / Deductive / Zero-sum (dollar, time, scope). Originator and approver: Internal / Client / Third party. | `category` free text. | Add `driver` (picklist), `effects` (multi: additive/deductive/zero-sum × dollar/time/scope), `originator` and `approver` type. Filter by them on the CO list. | ✅ done (b9ca6e13) |
 
 ## D. Meetings (slides 19–27)
@@ -66,7 +66,7 @@ Colour key: red = not done, to discuss · orange = 50% · cyan = 90%, minor twea
 
 ---
 
-## Progress (Oct 28)
+Done and on staging: A1, A2 (tiles), A3–A6, B1–B7, C1, C2, D3, D4, D5, plus the loading states. Next: D1 (outside meetings). Waiting on answers: D2, D6; A2's design/build contract split.
 Done and on staging: A2 (tiles), A3, A5, A6, B1–B6, C2, D3, D4, plus the loading states. Waiting on answers: A1, B7, C1, D2, D5, D6 (questions below); A2's design/build contract split.
 
 ## Order of work (each one a small commit with tests, a browser check and a release note)
@@ -89,6 +89,13 @@ Done and on staging: A2 (tiles), A3, A5, A6, B1–B6, C2, D3, D4, plus the loadi
 16. **C1** full CE → PCO → COR → PCCO → CCO flow (needs C1a).
 17. **D6** Quo tasks in and close-back (needs D6a).
 18. **B7** client score everywhere (needs B7a).
+
+## Answers (Oct 28)
+- A1a: yes, all nine tabs (CRM Phase read-only lead history; Design = Phase Board design phases + Program; Precon = Estimating, Selections, Schedule; Build = construction phases + daily reports / QA).
+- C1a: everything in one release (CE, PCO, COR, PCCO, CCO per sub, CCD/DCD, SOV updates).
+- B7a: the client score is the Project Fit score.
+- D5a: multi-select tags; Financial forces Internal.
+- Still open: D2a (Google Docs access), D6a (Quo tasks API).
 
 ## Questions to settle before building those items
 - **A1a**: Should the project tabs be exactly Overview · Special Actions · CRM Phase · Design Phase · Precon Phase · Build Phase · Financials · People · Files? And what goes into Precon Phase: Estimating, Selections and the Schedule for this project?

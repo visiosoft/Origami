@@ -58,6 +58,9 @@ interface ItemDto {
  */
 @Injectable()
 export class ChangeOrdersService {
+  /** Run after an owner change order is approved (the change events workflow makes its subs' CCOs). */
+  readonly onApproved: ((co: ChangeOrderEntity, actor: Actor) => Promise<void>)[] = [];
+
   constructor(
     @InjectRepository(ChangeOrderEntity) private readonly cos: Repository<ChangeOrderEntity>,
     @InjectRepository(ChangeOrderItemEntity) private readonly items: Repository<ChangeOrderItemEntity>,
@@ -491,6 +494,7 @@ export class ChangeOrdersService {
       await this.fin.approval(m, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, decision: 'client_approved', signer: c.signer, amount: fromCents(totalC), comment: [c.reference, c.comment].filter(Boolean).join(' · ') }, actor);
       await this.fin.log(m, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, action: 'co_approved', changes: { status: { from: before, to: 'approved' }, amount: { from: null, to: fromCents(totalC) } } }, actor);
     });
+    for (const fn of this.onApproved) await fn(co, actor);
     return this.get(co.id, actor);
   }
 

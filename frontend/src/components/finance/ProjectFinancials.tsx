@@ -8,11 +8,11 @@ import {
   type Group, type Invoice, type Overview, type Payment, type Row, type Settings,
 } from './financeUi';
 import { InvoiceDrawer } from './InvoiceDrawer';
-import { ChangeOrderList } from './ChangeOrders';
 import { ReimbursableList } from './Reimbursables';
 import { RetentionPanel } from './Retention';
 import { JobCostPanel, ProfitabilityPanel } from './JobCost';
 import { Skeleton } from '../Skeleton';
+import { ChangeOrderWorkspace } from './ChangeEvents';
 
 type View = 'sov' | 'changes' | 'reimbursables' | 'retention' | 'invoices' | 'payments' | 'jobcost' | 'profit' | 'activity';
 type Filter = 'all' | 'design' | 'construction' | 'other' | 'unphased';
@@ -123,7 +123,7 @@ export function ProjectFinancials({ projectId, category, initialView }: { projec
             catch (e: any) { failed(toast, e); }
           }} />
       )}
-      {view === 'changes' && <ChangeOrderList projectId={projectId} overview={data} rights={r} onChanged={load} />}
+      {view === 'changes' && <ChangeOrderWorkspace projectId={projectId} rights={r} onChanged={load} />}
       {view === 'reimbursables' && <ReimbursableList key={tick} projectId={projectId} overview={data} rights={r} onChanged={load} onBill={(ids) => newInvoice(false, ids)} />}
       {view === 'jobcost' && <JobCostPanel key={tick} projectId={projectId} overview={data} initialSub={initialView === 'subcontracts' ? 'commitments' : undefined} />}
       {view === 'profit' && <ProfitabilityPanel key={tick} projectId={projectId} />}

@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28zb',
+    date: '2026-10-28',
+    title: 'Change events, sub pricing and sub change orders',
+    items: [
+      { area: 'Change orders', kind: 'new', text: 'Start a change as a change event (CE) before anyone has a price. Ask the subs it touches for pricing (PCO) — each gets a change order request (COR), emailed if they have an address.', where: 'Change Orders → Change events; a project → Financials → Change orders' },
+      { area: 'Change orders', kind: 'new', text: 'Enter each sub’s price, then validate, hold or reject it (hold and reject need a note). Tick the validated CORs and create one owner change order (PCCO) at cost plus your markup.', where: 'Change events → open an event' },
+      { area: 'Change orders', kind: 'new', text: 'When the owner approves a PCCO, each sub gets their own change order (CCO) — mark it sent, record their signature (it adds to their subcontract), void it or print it.', where: 'Change Orders → Sub change orders (CCO)' },
+      { area: 'Change orders', kind: 'new', text: 'Record a directive (CCD / DCD) on a change event to let work start before the price is agreed — signed, verbal or by email.', where: 'Change events → open an event → Directive' },
+    ],
+  },
+  {
     id: '2026-10-28za',
     date: '2026-10-28',
     title: 'Access tags on special actions',
