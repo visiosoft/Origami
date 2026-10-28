@@ -5,7 +5,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  linkLabel, type LinkTarget, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  linkLabel, overlayPixels, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 
@@ -58,7 +58,7 @@ type Ask =
  * person's markups are a layer over it, saved one by one as they're drawn.
  * Team-visible by default; "Private draft" keeps new ones to yourself.
  */
-export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, initialPage, projectFiles, onOpenFile, back, onClose, onSavedCopy, onUploaded }: {
+export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, initialPage, projectFiles, onOpenFile, back, onClose, onSavedCopy, onUploaded, revisions }: {
   file: { id: string; name: string; isLatest?: boolean; folderPath?: string[] };
   projectId?: number | null;
   projectName?: string | null;
@@ -74,6 +74,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   onClose: () => void;
   onSavedCopy?: () => void;
   onUploaded?: () => void;
+  /** Every revision of this drawing (this one included), for comparing. */
+  revisions?: Revision[];
 }) {
   const { toast, currentUser, authUser } = useApp();
   const navigate = useNavigate();
@@ -144,6 +146,25 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, focusMarkupId]);
 
+  // ---------------------------------------------------------------- comparing revisions
+  type Compare = { rev: Revision; doc: PdfDoc | null; show: CompareShow; dx: number; dy: number; error?: string };
+  const [compare, setCompare] = useState<Compare | null>(null);
+  const [comparePick, setComparePick] = useState(false);
+  const [compareMissing, setCompareMissing] = useState(false);
+  const otherRevisions = (revisions || []).filter((r) => r.id !== file.id);
+  const thisRev = (revisions || []).find((r) => r.id === file.id);
+  /** The other revision is the older one when it was uploaded first. */
+  const otherIsOlder = !!compare && (compare.rev.updatedAt || '') <= (thisRev?.updatedAt || '');
+  const revLabel = (r?: Revision) => (r?.updatedAt ? new Date(r.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'this revision') + (r?.isLatest ? ' (current)' : '');
+  const startCompare = (rev: Revision) => {
+    setComparePick(false);
+    setCompare({ rev, doc: null, show: 'both', dx: 0, dy: 0 });
+    Promise.all([loadPdfjs(), api.fileRoom.bytes(rev.id)])
+      .then(([lib, bytes]) => lib.getDocument({ data: new Uint8Array(bytes) }).promise)
+      .then((d: PdfDoc) => setCompare((c) => (c && c.rev.id === rev.id ? { ...c, doc: d } : c)))
+      .catch((e: Error) => { toast('⚠ ' + (e.message || 'Couldn’t open that revision')); setCompare(null); });
+  };
+
   // ---------------------------------------------------------------- render the page
   // The last few pages drawn, kept as canvases so flipping back is instant.
   const rendered = useRef(new Map<string, HTMLCanvasElement>());
@@ -172,25 +193,55 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         c.width = src.width; c.height = src.height;
         c.getContext('2d')!.drawImage(src, 0, 0);
       };
-      const cached = rendered.current.get(key);
-      if (cached) show(cached);
-      else {
-        const vp = page.getViewport({ scale: rs });
+      /** A page rendered to a canvas of exactly w x h pixels (cached). */
+      const renderTo = async (pg: any, k: string, w: number, h: number) => {
+        const hit = rendered.current.get(k);
+        if (hit) return hit;
+        const b = pg.getViewport({ scale: 1 });
+        const vp = pg.getViewport({ scale: Math.min(w / b.width, h / b.height) });
         const off = document.createElement('canvas');
-        off.width = Math.floor(vp.width);
-        off.height = Math.floor(vp.height);
-        task = page.render({ canvasContext: off.getContext('2d')!, viewport: vp });
+        off.width = w; off.height = h;
+        const ctx = off.getContext('2d')!;
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        task = pg.render({ canvasContext: ctx, viewport: vp });
         const ok = await task!.promise.then(() => true, () => false);
-        if (!ok || cancelled) return;
-        show(off);
-        rendered.current.set(key, off);
-        while (rendered.current.size > 3) rendered.current.delete(rendered.current.keys().next().value!);
+        if (!ok || cancelled) return null;
+        rendered.current.set(k, off);
+        while (rendered.current.size > 6) rendered.current.delete(rendered.current.keys().next().value!);
+        return off;
+      };
+      const vp = page.getViewport({ scale: rs });
+      const W = Math.floor(vp.width), H = Math.floor(vp.height);
+      const ours = await renderTo(page, key, W, H);
+      if (!ours || cancelled) return;
+      const cdoc = compare?.doc;
+      if (!compare || !cdoc) { setCompareMissing(false); show(ours); }
+      else if (pageNo > cdoc.numPages) { setCompareMissing(true); show(ours); }
+      else {
+        setCompareMissing(false);
+        const theirs = await renderTo(await cdoc.getPage(pageNo), `${compare.rev.id}:${pageNo}@${W}x${H}`, W, H);
+        if (!theirs || cancelled) return;
+        // Nudge (page points) moves the other revision to line up a scan.
+        const shifted = document.createElement('canvas');
+        shifted.width = W; shifted.height = H;
+        const sc = shifted.getContext('2d')!;
+        sc.fillStyle = '#fff'; sc.fillRect(0, 0, W, H);
+        sc.drawImage(theirs, compare.dx * rs, compare.dy * rs);
+        const a = ours.getContext('2d')!.getImageData(0, 0, W, H).data;
+        const bpx = sc.getImageData(0, 0, W, H).data;
+        c.width = W; c.height = H;
+        const cc = c.getContext('2d')!;
+        const out = cc.createImageData(W, H);
+        const older = otherIsOlder ? bpx : a, newer = otherIsOlder ? a : bpx;
+        overlayPixels(older, newer, out.data, compare.show);
+        cc.putImageData(out, 0, 0);
       }
       // Have the next page ready to go.
       if (pageNo < doc.numPages) void doc.getPage(pageNo + 1).catch(() => undefined);
     }, wait);
     return () => { cancelled = true; window.clearTimeout(timer); task?.cancel(); };
-  }, [doc, pageNo, zoom, file.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, pageNo, zoom, file.id, compare?.doc, compare?.show, compare?.dx, compare?.dy]);
 
   // ---------------------------------------------------------------- helpers
   const layers = useMemo(() => layersOf(marks, me), [marks, me]);
@@ -268,7 +319,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (typing) return;
       if (e.key === ' ') { setSpaceDown(true); e.preventDefault(); }
       // Esc backs out one step at a time; it never closes the drawing.
-      if (e.key === 'Escape') { if (photoView) setPhotoView(null); else if (ask) setAsk(null); else if (draft) setDraft(null); else if (search) setSearch(null); else if (selectedId) setSelectedId(null); }
+      if (e.key === 'Escape') { if (photoView) setPhotoView(null); else if (ask) setAsk(null); else if (draft) setDraft(null); else if (comparePick) setComparePick(false); else if (compare) setCompare(null); else if (search) setSearch(null); else if (selectedId) setSelectedId(null); }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected && mine(selected)) { e.preventDefault(); void removeMarkup(selected); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); void step(!e.shiftKey); }
       if (e.key === 'Enter' && draft && tool === 'measure_area') finishArea();
@@ -619,6 +670,20 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           <button type="button" className="mk-btn" onClick={() => setZoom(Math.min(8, scale * 1.25))} aria-label="Zoom in">+</button>
         </div>
         <button type="button" className={'mk-btn' + (search ? ' is-on' : '')} onClick={() => (search ? setSearch(null) : openSearch())} aria-label="Search the drawing" title="Search the drawing’s text and markup notes (Ctrl+F)" aria-pressed={!!search}>🔍</button>
+        {otherRevisions.length > 0 && (
+          <span className="mk-compare-wrap">
+            <button type="button" className={'mk-btn is-text' + (compare ? ' is-on' : '')} aria-pressed={!!compare} title="Compare with another revision: removed in red, added in blue"
+              onClick={() => { if (compare) setCompare(null); else if (otherRevisions.length === 1) startCompare(otherRevisions[0]); else setComparePick(!comparePick); }}>⇄ {compare ? 'Stop comparing' : 'Compare'}</button>
+            {comparePick && (
+              <div className="mk-compare-pick" role="menu">
+                <b>Compare with…</b>
+                {[...otherRevisions].sort((x, y) => (y.updatedAt || '').localeCompare(x.updatedAt || '')).map((r) => (
+                  <button key={r.id} type="button" role="menuitem" className={pickCompareDefault(file.id, revisions || [])?.id === r.id ? 'is-default' : ''} onClick={() => startCompare(r)}>Rev. {revLabel(r)}</button>
+                ))}
+              </div>
+            )}
+          </span>
+        )}
         <span className="mk-spacer" />
         <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>
         {canDraw && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Keeps a marked-up copy beside the drawing; the drawing stays Current">Save marked-up copy</button>}
@@ -677,6 +742,28 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                   ))}
                 </ul>
               )}
+            </div>
+          )}
+          {compare && (
+            <div className="mk-compare-bar" role="status">
+              <span>{compare.doc ? <>Comparing with Rev. {revLabel(compare.rev)}</> : 'Opening the other revision…'}</span>
+              {compare.doc && <>
+                <span className="mk-key"><i style={{ background: '#E11D1D' }} /> removed (only in {otherIsOlder ? revLabel(compare.rev) : revLabel(thisRev)})</span>
+                <span className="mk-key"><i style={{ background: '#1D4ED8' }} /> added (only in {otherIsOlder ? revLabel(thisRev) : revLabel(compare.rev)})</span>
+                <span className="mk-key"><i style={{ background: '#111' }} /> unchanged</span>
+                <span className="mk-seg">
+                  {(['both', 'older', 'newer'] as CompareShow[]).map((v) => <button key={v} type="button" className={compare.show === v ? 'is-on' : ''} onClick={() => setCompare({ ...compare, show: v })}>{v === 'both' ? 'Both' : v === 'older' ? 'Older only' : 'Newer only'}</button>)}
+                </span>
+                <span className="mk-nudge" title="Move the other revision to line it up (scans)">
+                  Nudge
+                  <button type="button" aria-label="Nudge left" onClick={() => setCompare({ ...compare, dx: compare.dx - 1 })}>←</button>
+                  <button type="button" aria-label="Nudge right" onClick={() => setCompare({ ...compare, dx: compare.dx + 1 })}>→</button>
+                  <button type="button" aria-label="Nudge up" onClick={() => setCompare({ ...compare, dy: compare.dy - 1 })}>↑</button>
+                  <button type="button" aria-label="Nudge down" onClick={() => setCompare({ ...compare, dy: compare.dy + 1 })}>↓</button>
+                  {(compare.dx || compare.dy) ? <button type="button" onClick={() => setCompare({ ...compare, dx: 0, dy: 0 })}>Reset</button> : null}
+                </span>
+              </>}
+              {compareMissing && compare.doc && <span className="mk-muted">Page {pageNo} isn’t in Rev. {revLabel(compare.rev)} — showing this one alone.</span>}
             </div>
           )}
           {(pageTrail.length > 0 || back) && (

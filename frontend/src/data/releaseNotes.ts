@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28k',
+    date: '2026-10-28',
+    title: 'Drawing markup: compare two revisions',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Compare a drawing with another revision (⇄ Compare): what was removed shows in red, what was added in blue, and what’s unchanged in black. Flip to the older or newer one on its own, and nudge it to line up scans. Your markups stay on top.', where: 'All Files → a revised PDF → Mark up → ⇄ Compare' },
+    ],
+  },
+  {
     id: '2026-10-28j',
     date: '2026-10-28',
     title: 'Drawing markup: links to other pages and files',

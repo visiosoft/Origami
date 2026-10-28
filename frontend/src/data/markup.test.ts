@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
-import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, nextSize, textMatches } from './markup';
+import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, nextSize, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -77,5 +77,27 @@ describe('links', () => {
     expect(linkLabel({ type: 'page', page: 5 })).toBe('→ p. 5');
     expect(linkLabel({ type: 'file', fileId: 'F5', name: 'Card 3.pdf', page: 2 })).toBe('→ Card 3.pdf, p. 2');
     expect(linkLabel({ type: 'file', fileId: 'F6', name: 'IMG.jpg' })).toBe('→ IMG.jpg');
+  });
+});
+
+describe('comparing revisions', () => {
+  const px = (...rgb: number[][]) => new Uint8ClampedArray(rgb.flatMap((c) => [...c, 255]));
+  it('shows removed in red, added in blue, unchanged in black', () => {
+    const W = [255, 255, 255], K = [0, 0, 0];
+    const older = px(W, K, W, K), newer = px(W, W, K, K);
+    const out = overlayPixels(older, newer, new Uint8ClampedArray(16));
+    expect(Array.from(out.slice(0, 4))).toEqual([255, 255, 255, 255]);
+    expect(Array.from(out.slice(4, 8))).toEqual([255, 0, 0, 255]);
+    expect(Array.from(out.slice(8, 12))).toEqual([0, 0, 255, 255]);
+    expect(Array.from(out.slice(12, 16))).toEqual([0, 0, 0, 255]);
+    const newerOnly = overlayPixels(older, newer, new Uint8ClampedArray(16), 'newer');
+    expect(Array.from(newerOnly.slice(4, 8))).toEqual([255, 255, 255, 255]);
+    expect(Array.from(newerOnly.slice(8, 12))).toEqual([0, 0, 0, 255]);
+  });
+  it('compares with the previous revision, or the next for the oldest', () => {
+    const revs = [{ id: 'a', name: 'A', updatedAt: '2026-10-01' }, { id: 'b', name: 'A', updatedAt: '2026-10-12' }, { id: 'c', name: 'A', updatedAt: '2026-10-28' }];
+    expect(pickCompareDefault('c', revs)?.id).toBe('b');
+    expect(pickCompareDefault('a', revs)?.id).toBe('b');
+    expect(pickCompareDefault('x', [revs[0]])?.id).toBe('a');
   });
 });

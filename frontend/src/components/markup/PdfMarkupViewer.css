@@ -91,6 +91,18 @@
 .mk-link-to button { flex: 1; }
 .mk-link-shape { cursor: pointer; }
 
+/* Comparing revisions */
+.mk-compare-wrap { position: relative; }
+.mk-compare-pick { position: absolute; top: 38px; left: 0; z-index: 20; min-width: 220px; display: grid; gap: 2px; padding: 8px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 12px 30px rgba(var(--rgb-ink), 0.2); font-size: 12.5px; }
+.mk-compare-pick b { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 2px 6px 6px; }
+.mk-compare-pick button { text-align: left; padding: 7px 8px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; cursor: pointer; }
+.mk-compare-pick button:hover, .mk-compare-pick button.is-default { background: var(--panel); }
+.mk-compare-bar { position: sticky; top: 0; left: 0; z-index: 3; margin: -8px auto 10px; width: fit-content; max-width: 100%; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 12px; border-radius: 12px; background: var(--surface); box-shadow: 0 8px 24px rgba(var(--rgb-ink), 0.16); font-size: 12px; }
+.mk-key { display: inline-flex; align-items: center; gap: 5px; color: var(--body); }
+.mk-key i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.mk-nudge { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); }
+.mk-nudge button { min-width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+
 /* Phones: tools along the bottom, the list in a drawer from the right. */
 @media (max-width: 720px) {
   .mk-body { flex-direction: column-reverse; }

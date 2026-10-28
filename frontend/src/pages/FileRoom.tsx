@@ -819,6 +819,7 @@ export function FileRoom() {
             onClose={() => setMarkingUp(null)}
             onSavedCopy={load}
             onUploaded={load}
+            revisions={f.groupId ? data.files.filter((x) => x.groupId === f.groupId && (/\.pdf$/i.test(x.name) || x.mimeType === 'application/pdf')).map((x) => ({ id: x.id, name: x.name, updatedAt: x.updatedAt, isLatest: x.isLatest !== false })) : []}
           />
         );
       })()}

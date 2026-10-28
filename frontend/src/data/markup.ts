@@ -231,3 +231,39 @@ export function capRenderScale(w: number, h: number, scale: number, dpr: number)
   const bySide = MAX_SIDE / Math.max(w, h);
   return Math.min(want, byArea, bySide);
 }
+
+// ------------------------------------------------------------------ comparing revisions
+
+export type CompareShow = 'both' | 'older' | 'newer';
+
+/**
+ * Two renders of the same page (RGBA, same size) as one overlay: ink only in
+ * the older version shows red, only in the newer blue, in both black. "older"
+ * or "newer" shows just that version, in grey.
+ */
+export function overlayPixels(older: Uint8ClampedArray, newer: Uint8ClampedArray, out: Uint8ClampedArray, show: CompareShow = 'both') {
+  for (let i = 0; i < out.length; i += 4) {
+    const io = 1 - (older[i] * 0.299 + older[i + 1] * 0.587 + older[i + 2] * 0.114) / 255;
+    const inw = 1 - (newer[i] * 0.299 + newer[i + 1] * 0.587 + newer[i + 2] * 0.114) / 255;
+    if (show === 'both') {
+      out[i] = 255 * (1 - inw);
+      out[i + 1] = 255 * (1 - Math.min(1, io + inw));
+      out[i + 2] = 255 * (1 - io);
+    } else {
+      const v = 255 * (1 - (show === 'older' ? io : inw));
+      out[i] = out[i + 1] = out[i + 2] = v;
+    }
+    out[i + 3] = 255;
+  }
+  return out;
+}
+
+export interface Revision { id: string; name: string; updatedAt?: string; isLatest?: boolean }
+
+/** Which revision to compare with by default: the one just before this, else the one just after. */
+export function pickCompareDefault(currentId: string, revisions: Revision[]): Revision | null {
+  const list = [...revisions].sort((a, b) => (a.updatedAt || '').localeCompare(b.updatedAt || ''));
+  const i = list.findIndex((r) => r.id === currentId);
+  if (i < 0) return list.filter((r) => r.id !== currentId).pop() || null;
+  return list[i - 1] || list[i + 1] || null;
+}
