@@ -501,6 +501,21 @@ export class FinanceEntity {
   @Column('int') timePct!: number;
 }
 
+/**
+ * One save of a lead's details, as the fields it changed (Oct 26 review notes:
+ * Full Details shows what changed, in orange, and each section's earlier versions).
+ */
+@Entity('lead_versions')
+@Index('IX_lead_versions_lead', ['leadId'])
+export class LeadVersionEntity {
+  @PrimaryGeneratedColumn() id!: number;
+  @Column() leadId!: string;
+  @Column() at!: string;
+  @Column({ nullable: true }) by!: string;
+  /** field -> { from, to } for each field this save changed. */
+  @Column({ type: 'simple-json' }) changes!: Record<string, { from: unknown; to: unknown }>;
+}
+
 @Entity('leads')
 export class LeadEntity {
   @PrimaryColumn() id!: string;

@@ -561,6 +561,8 @@ export const api = {
     remove: (id: string) => request(`/pipeline/${id}`, { method: 'DELETE' }),
   },
   leads: {
+    /** What each save of a lead changed, newest first (Full Details history). */
+    history: (id: string) => request<{ id: number; at: string; by?: string; changes: Record<string, { from: unknown; to: unknown }> }[]>(`/leads/${encodeURIComponent(id)}/versions`, { cache: 'no-store' }),
     list: () => request('/leads'),
     options: () => request('/leads/options'),
     get: (id: string) => request(`/leads/${id}`),

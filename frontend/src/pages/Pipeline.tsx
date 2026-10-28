@@ -10,6 +10,7 @@ import { ClientBackgroundPanel, type ClientBackground } from '../components/Clie
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { askDeadReason } from '../components/DeadReasonDialog';
 import { askPerson } from '../components/AskPerson';
+import { LeadFullDetails } from '../components/LeadFullDetails';
 import { deadReasonLabels, type DeadKind, type DeadReason } from '../data/deadReasons';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
@@ -1486,13 +1487,15 @@ export function Pipeline() {
 
           {/* Tabs -- Project Programming only while the lead is actually on that
               stage; otherwise Full Details takes its place, as before. */}
-          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 20px' }}>
-            {(['overview', 'notes', 'client', 'tasks', 'files', selected.stage === 'zoning' ? 'programming' : 'details'] as const).map((t) => {
-              const count = t === 'notes' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
+          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', padding: '0 12px', overflowX: 'auto', scrollbarWidth: 'thin' }}>
+            {(['overview', 'tasks', 'client', 'files', ...(selected.stage === 'zoning' ? ['programming' as const] : []), 'details'] as const).map((t) => {
+              // Special Actions holds the lead's tasks and its FYI notes (Oct 26 review notes).
+              const on = detailTab === t || (t === 'tasks' && detailTab === 'notes');
+              const count = t === 'tasks' ? (notesByDeal[selected.id] || []).length : t === 'files' ? leadFiles.files.length : 0;
               return (
-                <div key={t} onClick={() => setDetailTab(t)} style={{ padding: '11px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (detailTab === t ? 'var(--forest)' : 'transparent'), color: detailTab === t ? 'var(--ink)' : 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {t === 'overview' ? 'Overview' : t === 'notes' ? 'Notes' : t === 'client' ? 'Client' : t === 'tasks' ? 'Tasks' : t === 'files' ? 'Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
-                  {count > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: detailTab === t ? 'var(--forest)' : 'var(--c-efede8)', color: detailTab === t ? 'white' : 'var(--muted)' }}>{count}</span>}
+                <div key={t} onClick={() => setDetailTab(t)} style={{ flexShrink: 0, padding: '11px 9px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (on ? 'var(--forest)' : 'transparent'), color: on ? 'var(--ink)' : 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  {t === 'overview' ? 'Current Stage' : t === 'client' ? 'Client Card' : t === 'tasks' ? 'Special Actions' : t === 'files' ? 'CRM Files' : t === 'programming' ? 'Project Programming' : 'Full Details'}
+                  {count > 0 && <span title={`${count} FYI note${count === 1 ? '' : 's'}`} style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: on ? 'var(--forest)' : 'var(--c-efede8)', color: on ? 'white' : 'var(--muted)' }}>{count}</span>}
                 </div>
               );
             })}
@@ -1507,10 +1510,17 @@ export function Pipeline() {
               onSaved={(bg, updatedAt) => setLeadDetails((p) => ({ ...p, [selected.id]: { ...(p[selected.id] || baseLead(selected)), clientBackground: bg, ...(updatedAt ? { updatedAt } : {}) } as NewLead }))}
             />
           ) : detailTab === 'notes' ? (
+            <>
+            <div role="tablist" aria-label="Special actions" style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
+              {([['tasks', 'Tasks'], ['notes', `FYI · ${(notesByDeal[selected.id] || []).length}`]] as const).map(([k, label]) => (
+                <button key={k} type="button" role="tab" aria-selected={detailTab === k} onClick={() => setDetailTab(k)}
+                  style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid ' + (detailTab === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: detailTab === k ? 'var(--forest)' : 'var(--surface)', color: detailTab === k ? '#fff' : 'var(--body)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+              ))}
+            </div>
             <div style={{ padding: '16px 20px 24px' }}>
               <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.09)', borderRadius: 'var(--r-12)', padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 6 }}>
-                  {editingNoteId ? 'Edit note' : `New note · ${selectedStage.name}`}
+                  {editingNoteId ? 'Edit FYI note' : `New FYI note · ${selectedStage.name}`}
                 </div>
                 <textarea
                   value={noteDraft}
@@ -1548,6 +1558,7 @@ export function Pipeline() {
                 ))}
               </div>
             </div>
+            </>
           ) : detailTab === 'files' ? (
             <>
             <div style={{ padding: '16px 20px 0' }}><ClientWelcomeCard leadId={selected.id} defaultTo={leadDetails[selected.id]?.email || selected.email} homework={leadDetails[selected.id]?.homeworkCompleted || []} /></div>
@@ -1559,7 +1570,15 @@ export function Pipeline() {
             <LeadFilesTab leadId={selected.id} files={leadFiles.files} onChange={leadFiles.setFiles} stages={STAGES.map((s) => ({ key: s.key, name: s.name }))} currentStage={selected.stage} />
             </>
           ) : detailTab === 'tasks' ? (
+            <>
+            <div role="tablist" aria-label="Special actions" style={{ display: 'flex', gap: 6, padding: '12px 20px 0' }}>
+              {([['tasks', 'Tasks'], ['notes', `FYI · ${(notesByDeal[selected.id] || []).length}`]] as const).map(([k, label]) => (
+                <button key={k} type="button" role="tab" aria-selected={detailTab === k} onClick={() => setDetailTab(k)}
+                  style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid ' + (detailTab === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)'), background: detailTab === k ? 'var(--forest)' : 'var(--surface)', color: detailTab === k ? '#fff' : 'var(--body)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{label}</button>
+              ))}
+            </div>
             <DealTasksPanel dealId={selected.id} dealName={selected.name} currentStageName={selectedStage.name} stages={STAGES.map((s) => s.name)} openTaskId={convertedTaskId} />
+            </>
           ) : detailTab === 'contacts' ? (
             (() => {
               const ld = leadDetails[selected.id];
@@ -2261,51 +2280,40 @@ export function Pipeline() {
             <div style={{ padding: '14px 20px' }}>
               {(() => {
                 const ld = leadDetails[selected.id];
-                const sections: { title: string; rows: [string, string][] }[] = [
-                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || ''], ['Last Name', ld?.lastName || ''], ['Go-By Name', ld?.goByName || ''], ['Business / Project Name', ld?.businessName || ''], ['Pronouns', ld?.pronouns || ''], ['Pronunciation', ld?.namePronunciation || ''], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || ''], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || ''],
+                const sections: { key: string; title: string; rows: [string, string, string?][] }[] = [
+                  { key: 'contact', title: '1. Contact', rows: [['Lead Name', selected.name], ['First Name', ld?.firstName || '', 'firstName'], ['Last Name', ld?.lastName || '', 'lastName'], ['Go-By Name', ld?.goByName || '', 'goByName'], ['Business / Project Name', ld?.businessName || '', 'businessName'], ['Pronouns', ld?.pronouns || '', 'pronouns'], ['Pronunciation', ld?.namePronunciation || '', 'namePronunciation'], ['Phone', selected.phone], ['Email', selected.email], ['Primary Point of Contact', ld?.primaryPointOfContact || '', 'primaryPointOfContact'], ['Preferred Contact Method', contactMatrixSummary(ld?.preferredContactMatrix) || ld?.preferredContactMethod || '', 'preferredContactMatrix'],
                     ...(ld?.additionalContacts || []).flatMap((c, i) => ([
-                      [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || ''],
-                      [`Contact ${i + 2} — Phone`, c.phone || ''],
-                      [`Contact ${i + 2} — Email`, c.email || ''],
-                      [`Contact ${i + 2} — Preferred Contact Method`, c.preferredContactMethod || ''],
-                    ] as [string, string][])),
+                      [`Contact ${i + 2} — Name`, [c.firstName, c.lastName].filter(Boolean).join(' ') || c.goByName || '', 'additionalContacts'],
+                      [`Contact ${i + 2} — Phone`, c.phone || '', 'additionalContacts'],
+                      [`Contact ${i + 2} — Email`, c.email || '', 'additionalContacts'],
+                      [`Contact ${i + 2} — Preferred Contact Method`, c.preferredContactMethod || '', 'additionalContacts'],
+                    ] as [string, string, string?][])),
                   ] },
-                  { key: 'source', title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || ''], ['Referred By', ld?.leadSourceReferrerName || ''], ['Referrer Phone', ld?.leadSourceReferrerPhone || ''], ['Where It Was', ld?.leadSourceEventDetail || '']] },
-                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || ''], ['Street Name', ld?.projectStreetName || ''], ['City', ld?.projectCity || ''], ['ZIP', ld?.projectZipCode || ''], ['Address 2', ld?.projectAddress2 || ''], ['Owner or Tenant', ld?.occupancyStatus || ''], ['County', ld?.countyLocation || ''], ['HOA', ld?.hasHOA || ''],
+                  { key: 'source', title: '2. Source', rows: [['Lead Source', ld?.leadSource || selected.source || '', 'leadSource'], ['Referred By', ld?.leadSourceReferrerName || '', 'leadSourceReferrerName'], ['Referrer Phone', ld?.leadSourceReferrerPhone || '', 'leadSourceReferrerPhone'], ['Where It Was', ld?.leadSourceEventDetail || '', 'leadSourceEventDetail']] },
+                  { key: 'location', title: '3. Location', rows: [['Street Address', ld?.projectStreetAddress || '', 'projectStreetAddress'], ['Street Name', ld?.projectStreetName || '', 'projectStreetName'], ['City', ld?.projectCity || '', 'projectCity'], ['ZIP', ld?.projectZipCode || '', 'projectZipCode'], ['Address 2', ld?.projectAddress2 || '', 'projectAddress2'], ['Owner or Tenant', ld?.occupancyStatus || '', 'occupancyStatus'], ['County', ld?.countyLocation || '', 'countyLocation'], ['HOA', ld?.hasHOA || '', 'hasHOA'],
                     ...(ld?.addresses?.businessMailing ? ([
-                      ['Business Mailing — Street', ld.addresses.businessMailing.street || ''],
-                      ['Business Mailing — Unit', ld.addresses.businessMailing.unit || ''],
-                      ['Business Mailing — City', ld.addresses.businessMailing.city || ''],
-                      ['Business Mailing — State', ld.addresses.businessMailing.state || ''],
-                      ['Business Mailing — ZIP', ld.addresses.businessMailing.zip || ''],
-                      ['Business Mailing — County', ld.addresses.businessMailing.county || ''],
-                    ] as [string, string][]) : []),
+                      ['Business Mailing — Street', ld.addresses.businessMailing.street || '', 'addresses'],
+                      ['Business Mailing — Unit', ld.addresses.businessMailing.unit || '', 'addresses'],
+                      ['Business Mailing — City', ld.addresses.businessMailing.city || '', 'addresses'],
+                      ['Business Mailing — State', ld.addresses.businessMailing.state || '', 'addresses'],
+                      ['Business Mailing — ZIP', ld.addresses.businessMailing.zip || '', 'addresses'],
+                      ['Business Mailing — County', ld.addresses.businessMailing.county || '', 'addresses'],
+                    ] as [string, string, string?][]) : []),
                   ] },
-                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || ''], ['Potential Project Type', ld?.potentialProjectType || ''], ['Contract Type', ld?.contractType || ''], ['Homework Completed', (ld?.homeworkCompleted || []).join(', ')], ['Vision / Scope', ld?.projectVision || selected.notes || ''], ['Website', ld?.website || '']] },
-                  { key: 'budget', title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || ''], ['Budget Position', ld?.budgetPosition || ''], ['Funding Status', ld?.fundingStatus || ''], ['Desired Start', ld?.desiredStart || ''], ['Expected Duration', ld?.expectedDuration || ''], ['Length of Ownership', ld?.expectedLengthOfOwnership || '']] },
-                  { key: 'clientProfile', title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || ''], ['Client Personality', ld?.clientPersonality || '']] },
+                  { key: 'project', title: '4. Project', rows: [['Property Type', ld?.propertyType || '', 'propertyType'], ['Potential Project Type', ld?.potentialProjectType || '', 'potentialProjectType'], ['Contract Type', ld?.contractType || '', 'contractType'], ['Homework Completed', (ld?.homeworkCompleted || []).join(', '), 'homeworkCompleted'], ['Vision / Scope', ld?.projectVision || selected.notes || '', 'projectVision'], ['Website', ld?.website || '', 'website']] },
+                  { key: 'budget', title: '5. Budget & Timeline', rows: [['Reason for Project', ld?.reasonForProject || '', 'reasonForProject'], ['Budget Position', ld?.budgetPosition || '', 'budgetPosition'], ['Funding Status', ld?.fundingStatus || '', 'fundingStatus'], ['Desired Start', ld?.desiredStart || '', 'desiredStart'], ['Expected Duration', ld?.expectedDuration || '', 'expectedDuration'], ['Length of Ownership', ld?.expectedLengthOfOwnership || '', 'expectedLengthOfOwnership']] },
+                  { key: 'clientProfile', title: '6. Client Profile', rows: [['Decision Makers', ld?.decisionMakers || '', 'decisionMakers'], ['Client Personality', ld?.clientPersonality || '', 'clientPersonality']] },
                 ].map((s) => ({
+                  key: s.key,
                   title: s.title,
                   rows: [
                     ...s.rows.filter(([, val]) => val && String(val).trim()),
-                    ...(ld?.sectionNotes?.[s.key] ? [['Notes', ld.sectionNotes[s.key]]] : []),
-                    ...(ld?.sectionCustomFields?.[s.key] || []).filter((f) => f.label || f.value).map((f) => [f.label || 'Custom field', f.value || '']),
-                  ] as [string, string][],
+                    ...(ld?.sectionNotes?.[s.key] ? [['Notes', ld.sectionNotes[s.key, 'sectionNotes']]] : []),
+                    ...(ld?.sectionCustomFields?.[s.key] || []).filter((f) => f.label || f.value).map((f) => [f.label || 'Custom field', f.value || '', 'sectionCustomFields']),
+                  ] as [string, string, string?][],
                 })).filter((s) => s.rows.length > 0);
                 if (sections.length === 0) return <div style={{ fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No additional details captured yet. Use "Edit Lead" to complete the intake form.</div>;
-                return sections.map((s) => (
-                  <div key={s.title} style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--forest)', marginBottom: 8 }}>{s.title}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {s.rows.map(([label, value]) => (
-                        <div key={label} style={{ display: 'flex', gap: 10, padding: '8px 10px', background: 'var(--panel)', borderRadius: 8 }}>
-                          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, flex: '0 0 44%' }}>{label}</span>
-                          <span style={{ fontSize: 12, color: 'var(--ink)', flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ));
+                return <LeadFullDetails leadId={selected.id} stamp={ld?.updatedAt} sections={sections} />;
               })()}
             </div>
           )}

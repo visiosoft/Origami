@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28s',
+    date: '2026-10-28',
+    title: 'Lead panel: clearer tabs, and Full Details shows what changed',
+    items: [
+      { area: 'CRM', kind: 'improved', text: 'The lead panel tabs are now Current Stage (the stage’s tools and the audit trail), Special Actions (the lead’s tasks and FYI notes), Client Card, CRM Files and Full Details.', where: 'CRM & Leads → open a lead' },
+      { area: 'CRM', kind: 'new', text: 'Full Details shows one section at a time. A value changed after it was first filled in is highlighted orange (hover for what it was), and each section ends with its earlier versions — who changed what, and when.', where: 'CRM & Leads → open a lead → Full Details' },
+    ],
+  },
+  {
     id: '2026-10-28r',
     date: '2026-10-28',
     title: 'CRM: move a lead anywhere; someone owns every hold and referral',

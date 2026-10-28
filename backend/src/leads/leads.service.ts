@@ -1,7 +1,8 @@
 import { Injectable, Logger, NotFoundException, ConflictException, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LeadEntity, ProjectEntity } from '../database/entities';
+import { LeadEntity, LeadVersionEntity, ProjectEntity } from '../database/entities';
+import { leadChanges } from './lead-versions';
 import { leadStreetAddress } from './lead-address';
 import { LEAD_DROPDOWN_OPTIONS } from '../seed-data/leads';
 import { TasksService } from '../tasks/tasks.service';
@@ -17,7 +18,14 @@ export class LeadsService implements OnApplicationBootstrap {
         @InjectRepository(LeadEntity) private readonly repo: Repository<LeadEntity>,
         private readonly tasks: TasksService,
         @InjectRepository(ProjectEntity) private readonly projects?: Repository<ProjectEntity>,
+        @InjectRepository(LeadVersionEntity) private readonly versions?: Repository<LeadVersionEntity>,
     ) { }
+
+    /** A lead's saved changes, newest first (Full Details: what changed, and earlier versions). */
+    async versionsOf(id: string) {
+        if (!this.versions) return [];
+        return this.versions.find({ where: { leadId: id }, order: { id: 'DESC' }, take: 300 });
+    }
 
     /** The lead's street address is its project's location -- kept in step, so the project shows where to drive. */
     private async syncProjectAddress(lead: LeadEntity) {
@@ -121,8 +129,9 @@ export class LeadsService implements OnApplicationBootstrap {
     // stale copy overwriting a newer one -- only enforced when the row
     // already has its own updatedAt stamp, so a lead saved before this
     // existed doesn't start failing every save.
-    async update(id: string, dto: any) {
+    async update(id: string, dto: any, by?: string) {
         let lead = await this.repo.findOneBy({ id });
+        const before = lead ? { ...lead } : null;
         const now = new Date().toISOString();
         let saved: LeadEntity;
         if (!lead) {
@@ -136,6 +145,14 @@ export class LeadsService implements OnApplicationBootstrap {
             const { expectedUpdatedAt, ...patch } = dto;
             Object.assign(lead, patch, { updatedAt: now });
             saved = await this.repo.save(lead);
+        }
+        // What this save changed, kept for Full Details (a failure here never fails the save).
+        if (before && this.versions) {
+            const changes = leadChanges(before, saved);
+            if (Object.keys(changes).length) {
+                await this.versions.save(this.versions.create({ leadId: id, at: now, by: by || '', changes }))
+                    .catch((err) => this.log.warn(`Lead version for ${id} not kept: ${(err as Error).message}`));
+            }
         }
         if ('homeworkCompleted' in dto) {
             this.syncHomeworkTask(id, dto.homeworkCompleted || []).catch((err) =>
