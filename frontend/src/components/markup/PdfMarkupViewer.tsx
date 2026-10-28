@@ -5,7 +5,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  linkLabel, type LinkTarget, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 
@@ -29,6 +29,7 @@ const TOOLS: { key: Tool; label: string; icon: string; group: 'nav' | 'draw' | '
   { key: 'highlight', label: 'Highlighter', icon: '▮', group: 'draw' },
   { key: 'text', label: 'Text', icon: 'T', group: 'draw' },
   { key: 'pin', label: 'Pin — a note and site photos on a spot', icon: '📌', group: 'draw' },
+  { key: 'link', label: 'Link — a box that goes to another page or file', icon: '🔗', group: 'draw' },
   { key: 'line', label: 'Line', icon: '╱', group: 'draw' },
   { key: 'arrow', label: 'Arrow', icon: '↗', group: 'draw' },
   { key: 'rect', label: 'Box', icon: '▭', group: 'draw' },
@@ -38,13 +39,17 @@ const TOOLS: { key: Tool; label: string; icon: string; group: 'nav' | 'draw' | '
   { key: 'measure_len', label: 'Measure length', icon: '📏', group: 'measure' },
   { key: 'measure_area', label: 'Measure area (click points, double-click to finish)', icon: '⬠', group: 'measure' },
 ];
-const TWO_POINT: MarkupKind[] = ['line', 'arrow', 'rect', 'ellipse', 'cloud', 'scale', 'measure_len'];
+const TWO_POINT: MarkupKind[] = ['line', 'arrow', 'rect', 'ellipse', 'cloud', 'scale', 'measure_len', 'link'];
+
+export interface LinkableFile { id: string; name: string; mimeType?: string; folderPath?: string[] }
+const isPdfFile = (f: { name: string; mimeType?: string }) => /\.pdf$/i.test(f.name) || f.mimeType === 'application/pdf';
 
 type Hit = { page: number; box: { x0: number; y0: number; x1: number; y1: number }; context: string; markupId?: string };
 
 type Ask =
   | { kind: 'text'; at: Pt; value: string }
   | { kind: 'pin'; at: Pt; value: string }
+  | { kind: 'link'; points: Pt[]; to: 'page' | 'file'; page: string; fileId: string; filePage: string; value: string }
   | { kind: 'scale'; points: Pt[]; value: string; unit: 'ft' | 'm' }
   | { kind: 'rfi' | 'task'; markup: Markup; value: string };
 
@@ -53,13 +58,22 @@ type Ask =
  * person's markups are a layer over it, saved one by one as they're drawn.
  * Team-visible by default; "Private draft" keeps new ones to yourself.
  */
-export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, onClose, onSavedCopy }: {
-  file: { id: string; name: string; isLatest?: boolean };
+export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, initialPage, projectFiles, onOpenFile, back, onClose, onSavedCopy, onUploaded }: {
+  file: { id: string; name: string; isLatest?: boolean; folderPath?: string[] };
   projectId?: number | null;
   projectName?: string | null;
   focusMarkupId?: string | null;
+  /** Open on this page (a link from another drawing). */
+  initialPage?: number | null;
+  /** The project's other files, for links. */
+  projectFiles?: LinkableFile[];
+  /** Follow a link to another PDF in the File Room. */
+  onOpenFile?: (fileId: string, page?: number, fromPage?: number) => void;
+  /** "← Back to A-201" after following a link here from another drawing. */
+  back?: { label: string; go: () => void } | null;
   onClose: () => void;
   onSavedCopy?: () => void;
+  onUploaded?: () => void;
 }) {
   const { toast, currentUser, authUser } = useApp();
   const navigate = useNavigate();
@@ -93,6 +107,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
   // Searching the drawing's own text (and the markups' notes).
   const [search, setSearch] = useState<{ q: string; hits: Hit[]; at: number; busy: boolean; noText: boolean } | null>(null);
   const pageText = useRef(new Map<number, TextRun[]>());
+  /** Files uploaded from the link dialog, until the File Room list catches up. */
+  const extraFiles = useRef<LinkableFile[]>([]);
+  const extraFilesList = () => extraFiles.current;
   const [listAll, setListAll] = useState(false);
   // The list starts open on a desk, closed on a phone (it would cover the drawing).
   const [panel, setPanel] = useState(() => window.innerWidth > 720);
@@ -120,9 +137,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
         setMarks(list);
         const focus = focusMarkupId ? list.find((m) => m.id === focusMarkupId) : null;
         if (focus) setPageNo(focus.page);
+        else if (initialPage && initialPage >= 1 && initialPage <= d.numPages) setPageNo(initialPage);
       })
       .catch((e: Error) => { if (live) setError(e.message || 'Couldn’t open this PDF.'); });
     return () => { live = false; void loading?.destroy().catch(() => undefined); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, focusMarkupId]);
 
   // ---------------------------------------------------------------- render the page
@@ -291,6 +310,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
     }
     if (tool === 'select') {
       const m = hit(p);
+      // Someone else's link (or any link, for a viewer) goes where it points; your own is picked up to move.
+      if (m?.kind === 'link' && !mine(m)) { follow(m); return; }
       setSelectedId(m?.id || null);
       if (m && mine(m)) { drag.current = { id: m.id, from: p, orig: m.data.points }; (e.target as Element).setPointerCapture?.(e.pointerId); }
       return;
@@ -340,6 +361,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
     const kind = tool as MarkupKind;
     if (TWO_POINT.includes(kind) && Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) < 4) return;
     if (kind === 'scale') { setAsk({ kind: 'scale', points: pts, value: '', unit: pageScale?.unit || 'ft' }); return; }
+    if (kind === 'link') { setAsk({ kind: 'link', points: pts, to: 'page', page: String(Math.min(pageNo + 1, doc?.numPages || 1)), fileId: '', filePage: '', value: '' }); return; }
     const data: MarkupData = { points: pts, color: kind === 'highlight' && color === MARKUP_COLORS[0] ? '#FACC15' : color, width: kind === 'highlight' ? Math.max(8, width * 5) : width };
     if (kind === 'measure_len' && pageScale) data.label = measureLabel('measure_len', pts, size.w, size.h, pageScale);
     void save(kind, data);
@@ -350,6 +372,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
     if (!ask || !size) return;
     if (ask.kind === 'text') {
       if (ask.value.trim()) await save('text', { points: [ask.at], color, width: 1, text: ask.value.trim(), size: textSize });
+    } else if (ask.kind === 'link') {
+      let target: LinkTarget | null = null;
+      if (ask.to === 'page') {
+        const n = Math.floor(Number(ask.page));
+        if (!(n >= 1 && n <= (doc?.numPages || 1))) { toast(`Pick a page from 1 to ${doc?.numPages || 1}`); return; }
+        target = { type: 'page', page: n };
+      } else {
+        const f = otherFiles.find((x) => x.id === ask.fileId);
+        if (!f) { toast('Pick the file to link to'); return; }
+        const n = Math.floor(Number(ask.filePage));
+        target = { type: 'file', fileId: f.id, name: f.name, ...(isPdfFile(f) && n >= 1 ? { page: n } : {}) };
+      }
+      await save('link', { points: ask.points, color: '#1D4ED8', width: 1.5, target });
     } else if (ask.kind === 'pin') {
       // Selected straight away, so photos can go on it.
       const m = await save('pin', { points: [ask.at], color, width: 1, ...(ask.value.trim() ? { text: ask.value.trim() } : {}) });
@@ -415,6 +450,42 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
     finally { setBusy(false); }
   };
 
+  // ---------------------------------------------------------------- links
+  const otherFiles = [...(projectFiles || []), ...extraFilesList()].filter((f, i, all) => f.id !== file.id && all.findIndex((x) => x.id === f.id) === i).sort((a, b) => a.name.localeCompare(b.name));
+  /** Pages visited by following links on this drawing, for "← Back to p. 2". */
+  const [pageTrail, setPageTrail] = useState<number[]>([]);
+  const follow = (m: Markup) => {
+    const t = m.data.target;
+    if (!t) return;
+    if (t.type === 'page') {
+      if (t.page > (doc?.numPages || 0)) { toast(`This drawing has no page ${t.page}`); return; }
+      setPageTrail((tr) => [...tr, pageNo]);
+      setPageNo(t.page);
+      setSelectedId(null);
+      return;
+    }
+    const f = (projectFiles || []).find((x) => x.id === t.fileId);
+    if (projectFiles && !f) { toast('That file is no longer in the File Room.'); return; }
+    if (isPdfFile(f || { name: t.name }) && onOpenFile) onOpenFile(t.fileId, t.page, pageNo);
+    else window.open(api.fileRoom.previewUrl(t.fileId), '_blank', 'noopener');
+  };
+  const goBack = () => { const tr = [...pageTrail]; const p = tr.pop(); setPageTrail(tr); if (p) setPageNo(p); };
+  const uploadTarget = async (fl: FileList | null) => {
+    if (!fl?.length || !projectId || ask?.kind !== 'link') return;
+    setBusy(true);
+    try {
+      const folder = file.folderPath || (projectFiles || []).find((f) => f.id === file.id)?.folderPath || [];
+      const saved = await api.fileRoom.upload(projectId, folder, fl) as any;
+      const f = Array.isArray(saved) ? saved[0] : saved?.files?.[0];
+      if (!f?.id) throw new Error('Upload failed');
+      onUploaded?.();
+      setAsk({ ...ask, to: 'file', fileId: f.id, filePage: '' });
+      extraFiles.current.push({ id: f.id, name: f.name, mimeType: f.mimeType, folderPath: folder });
+      toast(`Uploaded “${f.name}”`);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Upload failed')); }
+    finally { setBusy(false); }
+  };
+
   // ---------------------------------------------------------------- closing
   /** Markups save as they're drawn; only a half-drawn area or a typed-in dialog would be lost. */
   const close = () => {
@@ -459,7 +530,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
     }
     const ql = q.trim().toLowerCase();
     for (const m of shownMarks) {
-      const note = m.data.text || m.data.label || '';
+      const note = m.data.text || m.data.label || (m.kind === 'link' ? linkLabel(m.data.target) : '');
       if (note.toLowerCase().includes(ql)) hits.push({ page: m.page, markupId: m.id, box: boundsOf(m, 0.02, 0.02), context: `${KIND_LABEL[m.kind]}: ${note.split('\n')[0].slice(0, 70)}` });
     }
     hits.sort((a, b) => a.page - b.page || a.box.y0 - b.box.y0);
@@ -608,6 +679,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
               )}
             </div>
           )}
+          {(pageTrail.length > 0 || back) && (
+            <div className="mk-back">
+              {pageTrail.length > 0 && <button type="button" className="mk-btn is-text" onClick={goBack}>← Back to p. {pageTrail[pageTrail.length - 1]}</button>}
+              {!pageTrail.length && back && <button type="button" className="mk-btn is-text" onClick={back.go}>← Back to {back.label}</button>}
+            </div>
+          )}
           {error && <div className="mk-msg">{error}</div>}
           {!doc && !error && <div className="mk-msg">Opening the drawing…</div>}
           <div className="mk-page" style={{ width: size ? size.w * scale : undefined, height: size ? size.h * scale : undefined, display: doc ? 'block' : 'none' }}>
@@ -615,7 +692,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
             {size && (
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                onDoubleClick={() => { if (tool === 'measure_area') finishArea(); }}>
+                onDoubleClick={(e) => { if (tool === 'measure_area') { finishArea(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
                 {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} /></g>)}
                 {draftShape}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
@@ -667,6 +744,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
                   </label>
                 )}
                 {selected.data.label && <p className="mk-quote">{selected.data.label}</p>}
+                {selected.kind === 'link' && selected.data.target && <p><button type="button" className="mk-btn is-text is-dark" onClick={() => follow(selected)}>{selected.data.target.type === 'page' ? `Go to page ${selected.data.target.page}` : `Open ${selected.data.target.name}${selected.data.target.page ? `, p. ${selected.data.target.page}` : ''}`}</button></p>}
                 {selected.linkType && <p><a href={selected.linkType === 'rfi' ? `/rfis?rfi=${encodeURIComponent(selected.linkId || '')}` : `/tasks?task=${encodeURIComponent(selected.linkId || '')}&type=log`}>Open the {selected.linkType === 'rfi' ? 'RFI' : 'task'} made from it →</a></p>}
                 <div className="mk-actions">
                   {canDraw && !selected.linkType && selected.kind !== 'scale' && <>
@@ -701,7 +779,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
                 {listed.map((m) => (
                   <li key={m.id} className={m.id === selectedId ? 'is-on' : ''} onClick={() => { setSelectedId(m.id); setPageNo(m.page); setTool('select'); }}>
                     <i style={{ background: m.data.color }} />
-                    <span><b>{KIND_LABEL[m.kind]}</b>{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{m.linkType ? ` · ${m.linkType === 'rfi' ? 'RFI' : 'task'}` : ''}</small></span>
+                    <span><b>{KIND_LABEL[m.kind]}</b>{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target)}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{m.linkType ? ` · ${m.linkType === 'rfi' ? 'RFI' : 'task'}` : ''}</small></span>
                   </li>
                 ))}
               </ul>
@@ -720,7 +798,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
       {ask && (
         <div className="mk-ask-bg" onClick={() => setAsk(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void answer(); }}>
-            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : 'Create a task from this markup'}</h4>
+            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : 'Create a task from this markup'}</h4>
             {ask.kind === 'text' && <textarea autoFocus rows={3} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="e.g. Verify beam size with structural" />}
             {ask.kind === 'pin' && <>
               <textarea autoFocus rows={2} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="A note (optional) — e.g. Crack at the footing, NE corner" aria-label="Pin note" />
@@ -733,13 +811,39 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
                 <select value={ask.unit} onChange={(e) => setAsk({ ...ask, unit: e.target.value as 'ft' | 'm' })} aria-label="Unit"><option value="ft">feet / inches</option><option value="m">metres</option></select>
               </div>
             </>}
+            {ask.kind === 'link' && <>
+              <div className="mk-seg mk-link-to" role="radiogroup" aria-label="Link to">
+                <button type="button" role="radio" aria-checked={ask.to === 'page'} className={ask.to === 'page' ? 'is-on' : ''} onClick={() => setAsk({ ...ask, to: 'page' })}>A page of this drawing</button>
+                <button type="button" role="radio" aria-checked={ask.to === 'file'} className={ask.to === 'file' ? 'is-on' : ''} onClick={() => setAsk({ ...ask, to: 'file' })}>Another file</button>
+              </div>
+              {ask.to === 'page' ? (
+                <label className="mk-move">Page
+                  <input autoFocus type="number" min={1} max={pages || 1} value={ask.page} onChange={(e) => setAsk({ ...ask, page: e.target.value })} aria-label="Page to link to" style={{ width: 90 }} />
+                  <span className="mk-muted">of {pages || 1}</span>
+                </label>
+              ) : <>
+                <select value={ask.fileId} onChange={(e) => setAsk({ ...ask, fileId: e.target.value, filePage: '' })} aria-label="File to link to">
+                  <option value="">{otherFiles.length ? 'Pick a file in this project…' : 'No other files in this project yet'}</option>
+                  {otherFiles.map((f) => <option key={f.id} value={f.id}>{(f.folderPath?.length ? f.folderPath.join(' / ') + ' / ' : '') + f.name}</option>)}
+                </select>
+                {(() => { const f = otherFiles.find((x) => x.id === ask.fileId); return f && isPdfFile(f) ? (
+                  <label className="mk-move">Open at page <input type="number" min={1} value={ask.filePage} onChange={(e) => setAsk({ ...ask, filePage: e.target.value })} placeholder="1" aria-label="Page of that file" style={{ width: 90 }} /></label>
+                ) : null; })()}
+                {projectId && (
+                  <label className={'mk-btn is-text mk-photo-add' + (busy ? ' is-busy' : '')}>
+                    {busy ? 'Uploading…' : '+ Upload a file (e.g. an inspection card)'}
+                    <input type="file" disabled={busy} onChange={(e) => { void uploadTarget(e.target.files); e.target.value = ''; }} hidden />
+                  </label>
+                )}
+              </>}
+            </>}
             {(ask.kind === 'rfi' || ask.kind === 'task') && <>
               <input autoFocus value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder={ask.kind === 'rfi' ? 'RFI subject' : 'Task subject'} aria-label="Subject" />
               <p className="mk-muted">{ask.kind === 'rfi' ? 'A draft RFI is made with this drawing and page linked; finish it in the RFI log.' : 'A Special Actions Log task is made with a link back to this spot on the drawing.'}</p>
             </>}
             <div className="mk-ask-row">
               <button type="button" className="mk-btn is-text" onClick={() => setAsk(null)}>Cancel</button>
-              <button type="submit" className="mk-btn is-text is-dark" disabled={busy}>{ask.kind === 'text' ? 'Add' : ask.kind === 'pin' ? 'Drop pin' : ask.kind === 'scale' ? 'Set scale' : 'Create'}</button>
+              <button type="submit" className="mk-btn is-text is-dark" disabled={busy}>{ask.kind === 'text' ? 'Add' : ask.kind === 'pin' ? 'Drop pin' : ask.kind === 'link' ? 'Make link' : ask.kind === 'scale' ? 'Set scale' : 'Create'}</button>
             </div>
           </form>
         </div>
@@ -835,6 +939,14 @@ function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h
         <path d="M0 0 L-7 -12 A9 9 0 1 1 7 -12 Z" fill={stroke} stroke="#fff" strokeWidth={1.5} opacity={ghost ? 0.7 : 1} />
         <circle cx={0} cy={-18} r={3.5} fill="#fff" />
         {n > 0 && <g transform="translate(9 -28)"><circle r={7} fill="#111827" stroke="#fff" strokeWidth={1.2} /><text y={3.5} textAnchor="middle" fontSize={9} fontWeight={700} fill="#fff" fontFamily="Helvetica, Arial, sans-serif">{n}</text></g>}
+      </g>;
+    }
+    case 'link': {
+      const [a, b] = pts;
+      const x = Math.min(a[0], b[0]), y = Math.min(a[1], b[1]);
+      return <g className="mk-link-shape">
+        <rect x={x} y={y} width={Math.abs(b[0] - a[0])} height={Math.abs(b[1] - a[1])} fill={stroke} fillOpacity={0.06} stroke={stroke} strokeWidth={sw} strokeDasharray="5 3" />
+        <text x={x} y={y - 4} fontSize={10 / scale} fill={stroke} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif" fontWeight={700}>{linkLabel(m.data.target)}</text>
       </g>;
     }
     case 'text': {

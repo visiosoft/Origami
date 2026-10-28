@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28j',
+    date: '2026-10-28',
+    title: 'Drawing markup: links to other pages and files',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Draw a 🔗 link box over a callout and point it at another page of the drawing (e.g. the detail sheet) or another file in the project — like an inspection card, which you can upload right from the link. Clicking someone’s link (or double-clicking your own) follows it; “← Back” takes you back.', where: 'All Files → a PDF → Mark up → 🔗' },
+      { area: 'Files', kind: 'improved', text: 'In a downloaded marked-up PDF, page links are clickable and file links open the file in Origami.', where: 'All Files → a PDF → Mark up → Download marked-up PDF' },
+    ],
+  },
+  {
     id: '2026-10-28i',
     date: '2026-10-28',
     title: 'Drawing markup: text size, search, clearer closing, faster',

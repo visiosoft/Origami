@@ -1,5 +1,5 @@
-import { PDFDocument, degrees } from 'pdf-lib';
-import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, toPage, visibleTo } from './markups';
+import { PDFDocument, PDFName, degrees } from 'pdf-lib';
+import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, linkLabel, toPage, visibleTo } from './markups';
 import { MarkupsService, PIN_PHOTO_FOLDER } from './markups.service';
 
 const twoPages = async (rotate = 0) => {
@@ -143,5 +143,32 @@ describe('MarkupsService', () => {
     await expect(svc.renameLayer('F1', { from: 'Andrea notes', to: '  ' }, an)).rejects.toThrow(/name/);
     expect((await svc.flatten('F1', an, undefined, [layerKey({ layer: 'Andrea notes' })])).count).toBe(1);
     expect((await svc.flatten('F1', an)).count).toBe(3);
+  });
+
+  it('links go to a page of the drawing or a file in the same project, and stay clickable in the PDF', async () => {
+    const rows: any[] = [];
+    const repo = { find: async () => rows, findOneBy: async (w: any) => rows.find((r) => r.id === w.id) || null, create: (x: any) => x, save: async (x: any) => { rows.push(x); return x; }, delete: async () => undefined };
+    const fileRows: Record<string, any> = { F1: { id: 'F1', name: 'A-201.pdf', projectId: 3 }, F5: { id: 'F5', name: 'Card 3.pdf', projectId: 3 }, F8: { id: 'F8', name: 'Other.pdf', projectId: 4 } };
+    const files = { findOneBy: async (w: any) => fileRows[w.id] || null };
+    const svc = new MarkupsService(repo as any, files as any, {} as any);
+    const box = [[0.1, 0.1], [0.3, 0.2]];
+    await expect(svc.create('F1', { kind: 'link', page: 1, data: { points: box } }, an)).rejects.toThrow(/Pick the page or file/);
+    await expect(svc.create('F1', { kind: 'link', page: 1, data: { points: box, target: { type: 'file', fileId: 'F8', name: 'Other.pdf' } } }, an)).rejects.toThrow(/this project/);
+    const toFile = await svc.create('F1', { kind: 'link', page: 1, data: { points: box, target: { type: 'file', fileId: 'F5', name: 'Card 3.pdf', page: 2 } } }, an);
+    expect((toFile.data as any).target).toEqual({ type: 'file', fileId: 'F5', name: 'Card 3.pdf', page: 2 });
+    expect(linkLabel({ type: 'page', page: 5 })).toBe('→ p. 5');
+    expect(linkLabel((toFile.data as any).target)).toBe('→ Card 3.pdf, p. 2');
+
+    const out = await flattenPdf(await twoPages(), [
+      { page: 1, kind: 'link', data: { points: box, color: '#1D4ED8', width: 1, target: { type: 'page', page: 2 } } },
+      { page: 1, kind: 'link', data: { points: [[0.5, 0.5], [0.6, 0.6]], color: '#1D4ED8', width: 1, target: { type: 'file', fileId: 'F5', name: 'Card 3.pdf' } } },
+    ] as any[], { fileUrl: (id) => `https://app.example/planroom?file=${id}` });
+    const doc = await PDFDocument.load(out);
+    const annots = doc.getPages()[0].node.Annots()!;
+    expect(annots.size()).toBe(2);
+    const dicts = annots.asArray().map((r) => doc.context.lookup(r) as any);
+    expect(dicts.map((d) => d.get(PDFName.of('Subtype')).toString())).toEqual(['/Link', '/Link']);
+    expect(dicts[0].get(PDFName.of('Dest')).toString()).toContain('/Fit');
+    expect(dicts[1].get(PDFName.of('A')).get(PDFName.of('URI')).decodeText()).toBe('https://app.example/planroom?file=F5');
   });
 });

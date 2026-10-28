@@ -104,7 +104,7 @@ export function FileRoom() {
   const linkedProject = params.get('project');
   // /planroom?file=<id>&markup=<id> (from an RFI or task made from a markup) opens the drawing at that markup.
   const linkedMarkup = params.get('markup');
-  const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null } | null>(linkedFile && linkedMarkup ? { id: linkedFile, focus: linkedMarkup } : null);
+  const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null; page?: number; from?: { id: string; page?: number; name: string }[] } | null>(linkedFile && linkedMarkup ? { id: linkedFile, focus: linkedMarkup } : null);
   const load = () => {
     api.fileRoom.list()
       .then((d) => {
@@ -806,12 +806,19 @@ export function FileRoom() {
         if (!f) return null;
         return (
           <PdfMarkupViewer
-            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false }}
+            key={f.id}
+            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false, folderPath: f.folderPath }}
             projectId={Number(f.projectId) || null}
             projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
             focusMarkupId={markingUp.focus || null}
+            initialPage={markingUp.page || null}
+            projectFiles={data.files.filter((x) => Number(x.projectId) === Number(f.projectId))}
+            // A link to another drawing opens it here; Back returns to this one.
+            onOpenFile={(id, page, fromPage) => setMarkingUp({ id, page, from: [...(markingUp.from || []), { id: f.id, name: f.name, page: fromPage }] })}
+            back={markingUp.from?.length ? (() => { const prev = markingUp.from[markingUp.from.length - 1]; return { label: prev.name, go: () => setMarkingUp({ id: prev.id, page: prev.page, from: markingUp.from!.slice(0, -1) }) }; })() : null}
             onClose={() => setMarkingUp(null)}
             onSavedCopy={load}
+            onUploaded={load}
           />
         );
       })()}

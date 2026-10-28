@@ -1,11 +1,11 @@
-import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFString, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 
 /**
  * PDF markup (Oct 2026): what a markup is, who sees it, and how it's drawn into
  * a PDF. Points are page-relative (0-1) on the page as it's shown (after the
  * page's own rotation); widths and text sizes are in PDF points.
  */
-export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin'] as const;
+export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin', 'link'] as const;
 export type MarkupKind = (typeof MARKUP_KINDS)[number];
 export type Pt = [number, number];
 
@@ -21,7 +21,27 @@ export interface MarkupData {
   unit?: 'ft' | 'm';
   /** pin: site photos pinned to the spot (File Room files). */
   photos?: PinPhoto[];
+  /** link: where the box goes -- a page of this PDF, or another File Room file. */
+  target?: LinkTarget;
 }
+
+export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
+
+/** A link's target, cleaned; null if it doesn't point anywhere. */
+export function cleanTarget(v: any): LinkTarget | null {
+  const page = (n: unknown) => { const p = Math.floor(Number(n)); return Number.isFinite(p) && p >= 1 && p <= 10000 ? p : null; };
+  if (v?.type === 'page') { const p = page(v.page); return p ? { type: 'page', page: p } : null; }
+  if (v?.type === 'file' && typeof v.fileId === 'string' && v.fileId.trim()) {
+    const t: LinkTarget = { type: 'file', fileId: v.fileId.trim().slice(0, 80), name: String(v.name || 'File').slice(0, 200) };
+    const p = page(v.page);
+    if (p) t.page = p;
+    return t;
+  }
+  return null;
+}
+
+/** What a link box says: "→ p. 5" or "→ Inspection card 3.pdf, p. 2". */
+export const linkLabel = (t?: LinkTarget | null) => !t ? 'Link' : t.type === 'page' ? `→ p. ${t.page}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
 
 export interface PinPhoto { fileId: string; name: string }
 export const MAX_PIN_PHOTOS = 30;
@@ -79,6 +99,11 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
     data.unit = d.unit === 'm' ? 'm' : 'ft';
   }
   if (kind === 'pin') { const photos = cleanPhotos(d.photos); if (photos.length) data.photos = photos; }
+  if (kind === 'link') {
+    const target = cleanTarget(d.target);
+    if (!target) throw new Error('Pick the page or file the link goes to.');
+    data.target = target;
+  }
   return { kind, page, data, private: raw?.private === true, layer: cleanLayer(raw?.layer) };
 }
 
@@ -194,20 +219,55 @@ function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
     const note = (d.text || '').split('\n')[0];
     const tag = [note, d.photos?.length ? `(${d.photos.length} photo${d.photos.length === 1 ? '' : 's'})` : ''].filter(Boolean).join(' ');
     if (tag) label(tag.slice(0, 80), [p[0] + 9, p[1] + 4], 9);
+  } else if (kind === 'link') {
+    const [a, b] = [pts[0], pts[1]];
+    page.drawSvgPath(poly([a, [b[0], a[1]], b, [a[0], b[1]]], true), { x: 0, y: h, borderColor: color, borderWidth: d.width, borderDashArray: [4, 3] });
+    label(linkLabel(d.target).slice(0, 80), [Math.min(a[0], b[0]), Math.min(a[1], b[1]) - 3], 9);
   } else if (kind === 'text') {
     const size = d.size || 12;
     (d.text || '').split('\n').forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * (i + 1)], size));
   }
 }
 
-/** The PDF with these markups drawn in (each on its own page). */
-export async function flattenPdf(pdf: Buffer | Uint8Array, markups: { page: number; kind: string; data: MarkupData }[]): Promise<Uint8Array> {
+/**
+ * The PDF with these markups drawn in (each on its own page). Link boxes
+ * also become clickable: a page link jumps within the PDF, a file link opens
+ * the file in the app (when `fileUrl` is given).
+ */
+export async function flattenPdf(
+  pdf: Buffer | Uint8Array,
+  markups: { page: number; kind: string; data: MarkupData }[],
+  opts: { fileUrl?: (fileId: string) => string } = {},
+): Promise<Uint8Array> {
   const doc = await PDFDocument.load(pdf, { ignoreEncryption: true });
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
   for (const m of markups) {
     const page = pages[m.page - 1];
-    if (page) drawMarkup(page, font, m.kind, m.data);
+    if (!page) continue;
+    drawMarkup(page, font, m.kind, m.data);
+    if (m.kind === 'link' && m.data.target) addLinkAnnotation(doc, page, pages, m.data, opts.fileUrl);
   }
   return doc.save();
+}
+
+function addLinkAnnotation(doc: PDFDocument, page: PDFPage, pages: PDFPage[], d: MarkupData, fileUrl?: (id: string) => string) {
+  const t = d.target!;
+  const { width: w, height: h } = page.getSize();
+  const [a, b] = d.points.slice(0, 2).map((p) => toPage(p, w, h, page.getRotation().angle));
+  const rect = [Math.min(a[0], b[0]), h - Math.max(a[1], b[1]), Math.max(a[0], b[0]), h - Math.min(a[1], b[1])];
+  let action: Record<string, unknown> | null = null;
+  if (t.type === 'page') {
+    const dest = pages[t.page - 1];
+    if (!dest) return;
+    action = { Dest: [dest.ref, PDFName.of('Fit')] };
+  } else if (fileUrl) {
+    action = { A: { Type: 'Action', S: 'URI', URI: PDFString.of(fileUrl(t.fileId)) } };
+  }
+  if (!action) return;
+  const annot = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: rect, Border: [0, 0, 0], ...action } as any);
+  const ref = doc.context.register(annot);
+  const existing = page.node.Annots();
+  if (existing) existing.push(ref);
+  else page.node.set(PDFName.of('Annots'), doc.context.obj([ref]));
 }

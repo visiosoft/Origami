@@ -1,4 +1,5 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { SettingsService } from '../settings/settings.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
@@ -17,7 +18,15 @@ export class MarkupsService {
     @InjectRepository(PdfMarkupEntity) private readonly repo: Repository<PdfMarkupEntity>,
     @InjectRepository(FileRoomFileEntity) private readonly files: Repository<FileRoomFileEntity>,
     private readonly fileRoom: FileRoomService,
+    @Optional() private readonly settings?: SettingsService,
   ) {}
+
+  /** A link may only point at a file in the drawing's own project. */
+  private async assertLinkTarget(drawing: { projectId?: unknown }, data: MarkupData) {
+    if (data.target?.type !== 'file') return;
+    const f = await this.files.findOneBy({ id: data.target.fileId });
+    if (!f || String(f.projectId ?? '') !== String(drawing.projectId ?? '')) throw new BadRequestException('Link to a file in this project.');
+  }
 
   async file(fileId: string) {
     const f = await this.files.findOneBy({ id: fileId });
@@ -48,6 +57,7 @@ export class MarkupsService {
     if (!/\.pdf$/i.test(f.name) && f.mimeType !== 'application/pdf') throw new BadRequestException('Only PDFs can be marked up.');
     let clean;
     try { clean = cleanMarkup(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
+    await this.assertLinkTarget(f, clean.data);
     const now = new Date().toISOString();
     // One scale per page: the newest replaces any earlier one.
     if (clean.kind === 'scale') {
@@ -77,6 +87,7 @@ export class MarkupsService {
     if (raw?.data !== undefined || raw?.private !== undefined) {
       let clean;
       try { clean = cleanMarkup({ kind: m.kind, page: m.page, data: raw?.data ?? m.data, private: raw?.private ?? m.private }); } catch (e) { throw new BadRequestException((e as Error).message); }
+      await this.assertLinkTarget(await this.file(m.fileId), clean.data);
       m.data = clean.data as any;
       m.private = clean.private;
     }
@@ -155,7 +166,10 @@ export class MarkupsService {
     const marks = this.pick(await this.list(fileId, claims), authors, layers);
     const { file, body } = await this.fileRoom.content(fileId);
     const buf = Buffer.from(await new Response(body as any).arrayBuffer());
-    const pdf = await flattenPdf(buf, marks.map((m) => ({ page: m.page, kind: m.kind, data: m.data as unknown as MarkupData })));
+    const base = (await this.settings?.baseUrl().catch(() => '')) || '';
+    const pdf = await flattenPdf(buf, marks.map((m) => ({ page: m.page, kind: m.kind, data: m.data as unknown as MarkupData })), {
+      fileUrl: base ? (id) => `${base}/planroom?file=${encodeURIComponent(id)}` : undefined,
+    });
     return { file, pdf: Buffer.from(pdf), count: marks.length };
   }
 

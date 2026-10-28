@@ -3,7 +3,7 @@
  * (0-1 across the page as shown), so they hold at any zoom; widths and text
  * sizes are in PDF points. Mirrors backend/src/file-room/markups.ts.
  */
-export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin';
+export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link';
 export type Pt = [number, number];
 
 export interface MarkupData {
@@ -17,7 +17,14 @@ export interface MarkupData {
   unit?: 'ft' | 'm';
   /** pin: site photos pinned to the spot (File Room files). */
   photos?: { fileId: string; name: string }[];
+  /** link: where the box goes -- a page of this PDF, or another File Room file. */
+  target?: LinkTarget;
 }
+
+export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
+
+/** What a link box says: "→ p. 5" or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
+export const linkLabel = (t?: LinkTarget | null) => !t ? 'Link' : t.type === 'page' ? `→ p. ${t.page}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
 export interface Markup {
   id: string;
   fileId: string;
@@ -37,7 +44,7 @@ export interface Markup {
 
 export const KIND_LABEL: Record<MarkupKind, string> = {
   pen: 'Pen', highlight: 'Highlight', text: 'Text', line: 'Line', arrow: 'Arrow', rect: 'Box', ellipse: 'Ellipse', cloud: 'Cloud',
-  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin',
+  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link',
 };
 
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */

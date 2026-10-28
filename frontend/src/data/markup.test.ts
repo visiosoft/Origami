@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
-import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, nextSize, textMatches } from './markup';
+import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, nextSize, textMatches } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -69,5 +69,13 @@ describe('markup quick fixes', () => {
     const s = capRenderScale(1224, 792, 8, 2);
     expect(1224 * s * 792 * s).toBeLessThanOrEqual(MAX_RENDER_PIXELS + 1);
     expect(1224 * s).toBeLessThanOrEqual(16_000);
+  });
+});
+
+describe('links', () => {
+  it('labels page and file links like the downloaded PDF does', () => {
+    expect(linkLabel({ type: 'page', page: 5 })).toBe('→ p. 5');
+    expect(linkLabel({ type: 'file', fileId: 'F5', name: 'Card 3.pdf', page: 2 })).toBe('→ Card 3.pdf, p. 2');
+    expect(linkLabel({ type: 'file', fileId: 'F6', name: 'IMG.jpg' })).toBe('→ IMG.jpg');
   });
 });
