@@ -20,6 +20,8 @@ export interface Person {
   phone: string;
   email: string;
   projects: string[];
+  /** Which phases they work on, per project: { "HOM Cafe": ["design"] }. */
+  projectPhases?: Record<string, string[]> | null;
   openTasks: number;
   since: string;
   comply: Comply | null;

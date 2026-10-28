@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28x',
+    date: '2026-10-28',
+    title: 'Project People: who works on which phase',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'Each person on a project can be marked for CRM, Design, Precon and/or Construction, and the list filters by phase.', where: 'Projects → open a project → Project People' },
+    ],
+  },
+  {
     id: '2026-10-28w',
     date: '2026-10-28',
     title: 'Drawings: stamps that scale with the sheet',

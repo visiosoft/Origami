@@ -440,6 +440,8 @@ export const api = {
     resume: (id: string | number) => request(`/projects/${id}/resume`, { method: 'POST' }),
   },
   people: {
+    /** Which phases someone works on for one project (crm, design, precon, construction). */
+    setProjectPhases: (id: number, project: string, phases: string[]) => request<any>(`/people/${id}/project-phases`, { method: 'PUT', body: JSON.stringify({ project, phases }) }),
     list: (project?: string) => request(`/people${project ? `?project=${encodeURIComponent(project)}` : ''}`),
     get: (id: string) => request(`/people/${id}`),
     create: (data: unknown) => request('/people', { method: 'POST', body: JSON.stringify(data) }),

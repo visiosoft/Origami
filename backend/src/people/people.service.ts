@@ -14,6 +14,9 @@ import { signState, readState } from '../auth/crypto.util';
 import type { TaskAttachment } from '../database/task.types';
 import { parseBusinessCard } from './business-card';
 
+/** The phases a person can be on for a project (Oct 26 review notes). */
+export const PROJECT_PHASES = ['crm', 'design', 'precon', 'construction'];
+
 type CardFile = { originalname: string; mimetype: string; size: number; buffer: Buffer };
 type Side = 'front' | 'back';
 const CARD_TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -205,6 +208,21 @@ export class PeopleService {
     if (b) b.sameAsIds = withoutLink(b.sameAsIds, a.id);
     await this.repo.save(b ? [a, b] : [a]);
     return a;
+  }
+
+  /** The phases someone works on for one project: crm, design, precon, construction (none = unset). */
+  async setProjectPhases(id: string, project: string, phases: unknown) {
+    const person = await this.repo.findOneBy({ id: Number(id) });
+    if (!person) throw new NotFoundException(`Person ${id} not found`);
+    const name = String(project || '').trim();
+    if (!name) throw new BadRequestException('Which project?');
+    const list = (Array.isArray(phases) ? phases : []).map(String);
+    const bad = list.find((p) => !PROJECT_PHASES.includes(p));
+    if (bad) throw new BadRequestException(`Unknown phase "${bad}".`);
+    const next = { ...(person.projectPhases || {}) };
+    if (list.length) next[name] = PROJECT_PHASES.filter((p) => list.includes(p)); else delete next[name];
+    person.projectPhases = Object.keys(next).length ? next : null;
+    return this.repo.save(person);
   }
 
   async update(id: string, dto: any) {

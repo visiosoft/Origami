@@ -81,6 +81,8 @@ export class PersonEntity {
   @Column() phone!: string;
   @Column() email!: string;
   @Column('simple-json') projects!: string[];
+  /** Which phases they work on, per project (Oct 26 review notes): { "HOM Cafe": ["design", "construction"] }. */
+  @Column({ type: 'simple-json', nullable: true }) projectPhases!: Record<string, string[]> | null;
   @Column('int') openTasks!: number;
   /** Set for staff and contractor workers: the Manpower employee this entry is (one record, two views). */
   @Column({ nullable: true }) employeeId!: string;
