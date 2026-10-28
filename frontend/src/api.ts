@@ -3,6 +3,18 @@ import type { CardScan } from './data/businessCard';
 import type { ContactActivity, ContactInteraction, DupMatch } from './data/people';
 import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
 import type { Markup } from './data/markup';
+
+/** GET /dashboard/tasks-summary */
+export interface TasksSummary {
+  attention: { task: string; project: string; dueDate: string }[];
+  mine: {
+    total: number; open: number; overdue: number; today: number;
+    latest: { key: string; title: string; project: string; due?: string; open: boolean; touched: string; to: string }[];
+    dated: { key: string; title: string; project: string; due?: string; open: boolean; to: string }[];
+  };
+  team: { name: string; open: number; done: number }[];
+  overdueByProject: [number, number][];
+}
 import type { BillingMonth } from './data/dashboardCharts';
 import type { AuditRow } from './data/audit';
 import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo } from './data/contracts';
@@ -326,6 +338,10 @@ export const api = {
     },
   },
   dashboard: {
+    /** The Dashboard's task cards, worked out on the server (today = the viewer's YYYY-MM-DD). */
+    tasksSummary: (today: string) => request<TasksSummary>(`/dashboard/tasks-summary?today=${encodeURIComponent(today)}`),
+    /** "My Tasks": my open work (assigned or collaborating), soonest due first -- `limit` rows and the total. */
+    myTasks: (limit = 8) => request<{ total: number; rows: { key: string; title: string; context: string; dueDate?: string; priority?: string; where: 'board' | 'log'; to: string }[] }>(`/dashboard/my-tasks?limit=${limit}`),
     kpis: () => request('/dashboard/kpis'),
     budgetVsSpend: () => request('/dashboard/budget-vs-spend'),
     revenueByMonth: () => request('/dashboard/revenue-by-month'),
