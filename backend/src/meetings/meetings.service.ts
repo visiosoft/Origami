@@ -128,7 +128,7 @@ export class MeetingsService implements OnApplicationBootstrap {
     const m = await this.load(id);
     const t = await this.tasks.create({
       topicType: dto.topicType, subject: dto.subject.trim(), description: dto.description || '',
-      assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined,
+      assignedTo: dto.assignedTo, assignedToId: dto.assignedToId, dueDate: dto.dueDate || undefined, priority: dto.priority || undefined, tags: dto.tags,
       project: m.project || '', meetingType: m.type || 'Internal', meetingDate: m.date, meetingId: m.id, tab: 'internal',
       // Where it came from, e.g. "HOM Cafe Weekly Sync - 2026/10/24 12:45" (Oct 26 review notes).
       sourceType: 'meeting', sourceId: m.id, sourceLabel: [m.title, [m.date?.replace(/-/g, '/'), m.time].filter(Boolean).join(' ')].filter(Boolean).join(' - '),

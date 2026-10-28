@@ -12,6 +12,7 @@ import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../goo
 import { scopeTasks, isRestrictedViewer, assignedTo } from '../database/viewer.util';
 import { Roles } from '../auth/guards/roles.decorator';
 import { queryLog, type Scope } from './task-query';
+import { internalOnly } from '../database/task.types';
 
 @Controller('tasks')
 export class TasksController {
@@ -45,7 +46,7 @@ export class TasksController {
     const person = q.person ? await this.tasksService.person(q.person) : undefined;
     const partList = (q.parts || 'assigned,collab,originated').split(',');
     return queryLog(rows, viewer, {
-      tab: q.tab, pf: q.pf, archived: q.archived === '1', q: q.q,
+      tab: q.tab, pf: q.pf, archived: q.archived === '1', q: q.q, tag: q.tag || undefined,
       scope: (q.scope as Scope) || 'all', person: person ?? undefined,
       parts: { assigned: partList.includes('assigned'), collab: partList.includes('collab'), originated: partList.includes('originated') },
       restricted: !!claims && isRestrictedViewer(claims),
@@ -93,7 +94,7 @@ export class TasksController {
   async activity(@Param('id') id: string, @Query() q: Record<string, string>, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);
     const { task, page } = await this.tasksService.activityPage(id, q);
-    if (claims && isRestrictedViewer(claims) && !assignedTo(task as any, claims)) throw new NotFoundException(`Task ${id} not found`);
+    if (claims && isRestrictedViewer(claims) && (!assignedTo(task as any, claims) || internalOnly((task as any).tags))) throw new NotFoundException(`Task ${id} not found`);
     return page;
   }
 
@@ -102,7 +103,7 @@ export class TasksController {
     const claims = await this.auth.verify(auth);
     const task = await this.tasksService.findOne(id);
     // A restricted viewer must not reach someone else's task by guessing an id.
-    if (claims && isRestrictedViewer(claims) && !assignedTo(task, claims)) {
+    if (claims && isRestrictedViewer(claims) && (!assignedTo(task, claims) || internalOnly((task as any).tags))) {
       throw new NotFoundException(`Task ${id} not found`);
     }
     return task;

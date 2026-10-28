@@ -30,6 +30,7 @@ export class CreateTaskDto {
   @IsString() @IsOptional() resolution?: string;
   @IsString() @IsOptional() dateClosed?: string;
   @IsArray() @IsOptional() labels?: string[];
+  @IsArray() @IsOptional() @IsString({ each: true }) tags?: string[];
   /** Cleaned by normalizeCollaborators; without this line the picker's choice was stripped. */
   @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: { id: string; item: string; done: boolean }[];

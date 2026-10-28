@@ -15,6 +15,7 @@ import { TT_COLORS, logTaskTitle, type Task, type TaskTab } from '../data/tasks'
 import { SavedViews } from '../components/SavedViews';
 import { SortHeader, sortFromString, sortToString, type SortState } from '../components/SortHeader';
 import { leadLabel, useLinkTargets } from '../data/linkTargets';
+import { ACTION_TAGS } from '../data/actionTags';
 
 const COLS = '110px 56px 2fr 80px 100px 64px 58px';
 
@@ -52,6 +53,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const boardLead = typeof boardProjectId === 'string' && boardProjectId.startsWith('lead:') ? boardProjectId.slice(5) : null;
   const targets = useLinkTargets();
   const [showArchived, setShowArchived] = useState(false);
+  // Access tag filter (Oct 26 review notes).
+  const [tagFilter, setTagFilter] = useState('');
   // The log comes a page at a time: filtered, searched and sorted on the server.
   const [logPage, setLogPage] = useState<LogPage | null>(null);
   const [logLoading, setLogLoading] = useState(false);
@@ -99,7 +102,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const [q, setQ] = useState('');
   useEffect(() => { const t = window.setTimeout(() => setQ(query), 300); return () => window.clearTimeout(t); }, [query]);
   // A different filter starts again from page 1.
-  const filterKey = [tab, pf, showArchived, q, scope, person, JSON.stringify(mineParts), sort?.key, sort?.dir, size].join('|');
+  const filterKey = [tab, pf, showArchived, q, tagFilter, scope, person, JSON.stringify(mineParts), sort?.key, sort?.dir, size].join('|');
   const lastFilter = useRef(filterKey);
   useEffect(() => {
     if (mode !== 'log') return;
@@ -109,7 +112,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
     let live = true;
     setLogLoading(true);
     const parts = (Object.keys(mineParts) as (keyof typeof mineParts)[]).filter((k) => mineParts[k]).join(',');
-    api.tasks.page({ tab, pf, archived: showArchived, q, scope, person, parts, sort: sort?.key, dir: sort?.dir, page, size })
+    api.tasks.page({ tab, pf, archived: showArchived, q, tag: tagFilter, scope, person, parts, sort: sort?.key, dir: sort?.dir, page, size })
       .then((r) => { if (live) setLogPage(r); })
       .catch(() => { })
       .finally(() => { if (live) setLogLoading(false); });
@@ -221,6 +224,11 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} placeholder="Search requests…" />
+        <select aria-label="Access tag" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}
+          style={{ padding: '9px 12px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: tagFilter ? 'var(--ink)' : 'var(--surface)', color: tagFilter ? '#fff' : 'var(--body)', fontFamily: 'inherit' }}>
+          <option value="">Any tag</option>
+          {ACTION_TAGS.map(([k, l]) => <option key={k} value={k}>{l}{logPage?.facets.tags ? ` · ${logPage.facets.tags[k] ?? 0}` : ''}</option>)}
+        </select>
         {(archivedCount > 0 || showArchived) && (
           <div onClick={() => setShowArchived((v) => !v)} title="Confirmed entries move here 7 days after they're confirmed"
             style={{ padding: '9px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.12)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)', whiteSpace: 'nowrap' }}>

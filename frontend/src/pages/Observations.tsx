@@ -14,6 +14,7 @@ import { SortSelect, sortFromString, sortToString, useSort } from '../components
 import './Meetings.css';
 import { leadLabel } from '../data/linkTargets';
 import { Skeleton } from '../components/Skeleton';
+import { ACTION_TAGS } from '../data/actionTags';
 
 type Kind = 'all' | (typeof FOR_RECORD_TOPICS)[number];
 type Pill = 'soft' | 'yellow' | 'dark' | 'outline' | 'green';
@@ -50,6 +51,7 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
   const [project, setProjectRaw] = useState(projectName || '');
   const setProject = (v: string) => { if (!projectName) setProjectRaw(v); };
   const [q, setQ] = useState('');
+  const [tag, setTag] = useState('');
   const [creating, setCreating] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(params.get('item'));
   const load = () => api.tasks.list().then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([]));
@@ -64,7 +66,7 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
   const all = useMemo(() => rows || [], [rows]);
   const projectNames = useMemo(() => [...new Set(all.map((t) => t.project).filter(Boolean))].sort(), [all]);
   const needle = q.trim().toLowerCase();
-  const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind));
+  const inScope = all.filter((t) => (!project || t.project === project) && (kind === 'all' || t.topicType === kind) && (!tag || (t.tags || []).includes(tag)));
   const shown = inScope
     .filter((t) => (state === 'all' || (state === 'open' ? !isLogClosed(t.status) : isLogClosed(t.status)))
       && (!needle || [t.serial, t.subject, t.description, t.project, t.assignedTo, t.originator].filter(Boolean).join(' ').toLowerCase().includes(needle)))
@@ -100,6 +102,10 @@ export function Observations({ projectName }: { projectName?: string } = {}) {
       <div className="ak-tools">
         <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All', all.length], ['Observation', 'Observations'], ['FYI', 'FYI'], ['Decision', 'Decisions']]} />
         <AkSeg value={state} onChange={setState} options={[['open', 'Open'], ['closed', 'Closed'], ['all', 'All']]} />
+        <select className="ak-select" aria-label="Access tag" value={tag} onChange={(e) => setTag(e.target.value)}>
+          <option value="">Any tag</option>
+          {ACTION_TAGS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+        </select>
         {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}

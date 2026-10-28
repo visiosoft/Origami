@@ -55,6 +55,8 @@ export interface Task extends ActionTrailFields {
   activity?: ActivityEvent[];
   checklist?: ChecklistItem[];
   labels?: string[];
+  /** Access tags (data/actionTags.ts). */
+  tags?: string[] | null;
   updatedAt?: string;
   /** FOR RECORD links: the Special Actions Log tasks this entry drove or is attached to (kept on both), and change orders. */
   linkedTaskIds?: string[];

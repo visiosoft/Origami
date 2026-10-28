@@ -21,6 +21,7 @@ import { Attachments } from './Attachments';
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
+import { TagPicker } from './TagPicker';
 import type { Attachment as TaskAttachment, ChecklistItem } from '../data/projectTasks';
 import { ST_COLORS, TT_COLORS, MT_COLORS, getLeadTime, logTaskTitle, taskHeadline, type Task } from '../data/tasks';
 
@@ -300,6 +301,10 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
               suggestions={allLabels}
               onChange={(labels) => set({ labels })}
             />
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            <TagPicker tags={t.tags ?? []} disabled={!canManage} onChange={(tags) => set({ tags })} />
           </div>
 
           <div style={{ marginTop: 18 }}>

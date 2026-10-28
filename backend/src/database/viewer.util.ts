@@ -1,4 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
+import { internalOnly } from './task.types';
 import type { SessionClaims } from '../auth/crypto.util';
 
 /**
@@ -43,5 +44,6 @@ export function assignedTo(
 export function scopeTasks<T extends Record<string, any>>(tasks: T[], claims: SessionClaims | null): T[] {
   if (!claims) throw new UnauthorizedException('Sign in to view tasks.');
   if (!isRestrictedViewer(claims)) return tasks;
-  return tasks.filter((t) => assignedTo(t, claims));
+  // Internal or Financial items stay with our own team even when assigned out.
+  return tasks.filter((t) => assignedTo(t, claims) && !internalOnly(t.tags));
 }

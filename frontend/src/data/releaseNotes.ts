@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28za',
+    date: '2026-10-28',
+    title: 'Access tags on special actions',
+    items: [
+      { area: 'Special Actions', kind: 'new', text: 'Tasks and FOR RECORD items take access tags — Internal, Client, External, Financial, CRM, Design, Construction (one or more). Tagging Financial adds Internal too. Internal or Financial items are never shown to client or consultant accounts, even when assigned to them.', where: 'Open a log entry; meeting items; Turn notes into items' },
+      { area: 'Special Actions', kind: 'new', text: 'Filter the Special Actions Log and FOR RECORD by tag.', where: 'Special Actions → Task → Special Actions Log; FOR RECORD' },
+    ],
+  },
+  {
     id: '2026-10-28z',
     date: '2026-10-28',
     title: 'Client score on every client',

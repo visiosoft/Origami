@@ -215,3 +215,18 @@ export function diffEvents(
   }
   return out;
 }
+
+/**
+ * Access tags on a special action (Oct 26 review notes), one or more. Anything
+ * Financial comes in Internal too (it can be untagged later); Internal or
+ * Financial items are never shown to client or consultant accounts.
+ */
+export const ACTION_TAGS = ['internal', 'client', 'external', 'financial', 'crm', 'design', 'construction'] as const;
+export function cleanTags(raw: unknown, before?: unknown): string[] {
+  const list = [...new Set((Array.isArray(raw) ? raw : []).map((t) => String(t).toLowerCase()))].filter((t) => (ACTION_TAGS as readonly string[]).includes(t));
+  const had = Array.isArray(before) ? before.map(String) : [];
+  if (list.includes('financial') && !had.includes('financial') && !list.includes('internal')) list.unshift('internal');
+  return ACTION_TAGS.filter((t) => list.includes(t));
+}
+/** Internal or Financial: for our own team only. */
+export const internalOnly = (tags: unknown) => Array.isArray(tags) && tags.some((t) => t === 'internal' || t === 'financial');

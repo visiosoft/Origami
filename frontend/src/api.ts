@@ -485,7 +485,7 @@ export const api = {
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
     /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
-    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string }) =>
+    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string; priority?: string; tags?: string[] }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
   tasks: {
@@ -509,13 +509,13 @@ export const api = {
     },
     get: (id: string) => request(`/tasks/${id}`),
     /** One page of the Special Actions Log -- filtered, searched and sorted on the server. */
-    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+    page: (o: { tab?: string; pf?: string; archived?: boolean; q?: string; tag?: string; scope?: string; person?: string; parts?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
       const params = new URLSearchParams();
       for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '' && v !== false) params.set(k, v === true ? '1' : String(v));
       return request<{
         rows: import('./data/tasks').Task[]; total: number; page: number; size: number; pages: number;
         counts: { tabs: Record<string, number>; archived: number; mine: number; scope: { all: number; mine: number; fromMe: number; assigned: number } };
-        facets: { projects: string[]; hasGeneral: boolean; labels: string[] };
+        facets: { projects: string[]; hasGeneral: boolean; labels: string[]; tags?: Record<string, number> };
       }>(`/tasks/page?${params}`);
     },
     create: (data: unknown) => request('/tasks', { method: 'POST', body: JSON.stringify(data) }),

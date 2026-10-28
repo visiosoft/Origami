@@ -18,6 +18,7 @@ import { SortSelect, sortFromString, sortToString, useSort } from '../components
 import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
 import { MeetingNotesImport } from '../components/MeetingNotesImport';
+import { TagPicker } from '../components/TagPicker';
 
 type View = 'upcoming' | 'past' | 'all';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
@@ -494,6 +495,7 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
   const [details, setDetails] = useState('');
   const [assignee, setAssignee] = useState('');
   const [due, setDue] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   // A passage picked in the review: a short one is the subject; a long one goes in the details with its first line as the subject.
   useEffect(() => {
@@ -521,13 +523,13 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
         toast(`${made.label} drafted`);
       } else {
         const u = users.find((x) => x.id === assignee);
-        const t = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined });
+        const t = await api.meetings.addAction(draft.id, { topicType: kind, subject: subject.trim().slice(0, 300), description: details.trim() || undefined, assignedTo: u?.name, assignedToId: u?.id, dueDate: due || undefined, tags: tags.length ? tags : undefined });
         ctx.onAction(t);
         // A new open task takes a complete meeting back to reviewed.
         api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { });
         toast(`${kind} added${u ? ' — ' + u.name + ' is emailed' : ''}`);
       }
-      setSubject(''); setDetails(''); setDue('');
+      setSubject(''); setDetails(''); setDue(''); setTags([]);
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not added')); }
     finally { setAdding(false); }
   };
@@ -547,6 +549,7 @@ function ActionForm({ ctx, seed }: { ctx: Ctx; seed?: { text: string; n: number 
           {kind === 'Task' && <input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date" />}
         </div>
       )}
+      {assignable && <TagPicker compact tags={tags} onChange={setTags} />}
       <button type="button" className="ak-btn is-dark" disabled={adding} onClick={() => void add()}>{adding ? 'Adding…' : KIND_TEXT[kind].btn}</button>
     </div>
   );

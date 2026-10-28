@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { matchPeople, parseMeetingNotes } from '../data/meetingNotes';
+import { TagPicker } from './TagPicker';
 
 type RecordKind = 'Observation' | 'FYI' | 'Decision' | 'Task';
 interface Row {
   key: string; on: boolean; kind: RecordKind; subject: string; description: string;
-  assigneeId: string; others: string[]; dueDate: string; priority: string;
+  assigneeId: string; others: string[]; dueDate: string; priority: string; tags: string[];
 }
 
 /**
@@ -25,12 +26,12 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
   const people = useMemo(() => users.filter((u) => u.status !== 'suspended'), [users]);
   const parsed = useMemo(() => parseMeetingNotes(text, meeting.date), [text, meeting.date]);
   const [rows, setRows] = useState<Row[]>(() => [
-    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: true, kind: 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '' })),
+    ...parsed.records.map((r, i): Row => ({ key: 'r' + i, on: true, kind: 'Observation', subject: r.title, description: r.description, assigneeId: '', others: [], dueDate: '', priority: '', tags: [] })),
     ...parsed.tasks.map((t, i): Row => {
       const { matched, unmatched } = matchPeople(t.names, people);
       return {
         key: 't' + i, on: true, kind: 'Task', subject: t.title, description: t.description, assigneeId: matched[0]?.id || '',
-        others: [...matched.slice(1).map((p) => p.name), ...unmatched], dueDate: t.dueDate || '', priority: t.priority || '',
+        others: [...matched.slice(1).map((p) => p.name), ...unmatched], dueDate: t.dueDate || '', priority: t.priority || '', tags: [],
       };
     }),
   ]);
@@ -49,6 +50,7 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
           topicType: r.kind, subject: r.subject.trim().slice(0, 300), description: (r.description.trim() + also).trim() || undefined,
           assignedTo: u?.name, assignedToId: u?.id, dueDate: r.kind === 'Task' ? r.dueDate || undefined : undefined,
           priority: r.kind === 'Task' && !r.dueDate ? (r.priority || 'High') : r.priority || undefined,
+          tags: r.tags.length ? r.tags : undefined,
         }));
       }
       toast(`${made.length} item${made.length === 1 ? '' : 's'} added from the notes`);
@@ -87,6 +89,7 @@ export function MeetingNotesImport({ meeting, text, onClose, onAdded }: {
               {r.kind === 'Task' && !r.dueDate && <span className="mt-muted" style={{ fontSize: 11.5 }}>No date in the notes — comes in as High priority</span>}
               {r.others.length > 0 && <span className="mt-muted" style={{ fontSize: 11.5 }}>Also named: {r.others.join(', ')}</span>}
             </div>
+            <TagPicker compact tags={r.tags} onChange={(tags) => patch(r.key, { tags })} />
           </div>
         </div>
       ))}

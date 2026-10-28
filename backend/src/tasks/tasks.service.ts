@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
+import { cleanTags } from '../database/task.types';
 import { activityPage } from '../common/activity-page';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
@@ -298,9 +299,9 @@ export class TasksService implements OnApplicationBootstrap {
 
   /** One page of a log entry's history, reading only what the access check and the history need. */
   async activityPage(id: string, q: { page?: unknown; size?: unknown }) {
-    const t = await this.repo.findOne({ where: { id }, select: { id: true, assignedTo: true, assignedToId: true, collaborators: true, comments: true, activity: true } });
+    const t = await this.repo.findOne({ where: { id }, select: { id: true, assignedTo: true, assignedToId: true, collaborators: true, tags: true, comments: true, activity: true } });
     if (!t) throw new NotFoundException(`Task ${id} not found`);
-    return { task: { assignedTo: t.assignedTo, assignedToId: t.assignedToId, collaborators: t.collaborators }, page: activityPage(t.comments, t.activity, q) };
+    return { task: { assignedTo: t.assignedTo, assignedToId: t.assignedToId, collaborators: t.collaborators, tags: t.tags }, page: activityPage(t.comments, t.activity, q) };
   }
 
   private async load(id: string) {
@@ -371,6 +372,7 @@ export class TasksService implements OnApplicationBootstrap {
       commentCount: 0,
       checklist,
       labels: normalizeList<string>(dto.labels),
+      tags: cleanTags(dto.tags),
       priority: cleanPriority(dto.priority),
       linkedTaskIds: cleanIds(dto.linkedTaskIds),
       changeOrderIds: cleanIds(dto.changeOrderIds),
@@ -434,6 +436,7 @@ export class TasksService implements OnApplicationBootstrap {
     const note = cleanCompletionNote(patch.completionNote); delete patch.completionNote;
     await this.bucketRules(task, patch, actor);
     if ('priority' in patch) patch.priority = cleanPriority(patch.priority);
+    if ('tags' in patch) patch.tags = cleanTags(patch.tags, task.tags);
 
     // Closing a task (any status marked "closed" in Settings) stamps the close
     // date; reopening clears it. "Blocked" is the board's old word for On hold.

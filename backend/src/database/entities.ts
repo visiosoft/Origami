@@ -257,6 +257,8 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  /** Access tags (internal, client, external, financial, crm, design, construction); see task.types cleanTags. */
+  @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
   /** Confirmed by whoever raised it; archived 7 days later. */
   @Column({ nullable: true }) confirmedAt!: string;
   @Column({ nullable: true }) archivedAt!: string;
