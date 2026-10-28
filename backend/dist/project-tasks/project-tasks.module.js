@@ -10,6 +10,8 @@ exports.ProjectTasksModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const entities_1 = require("../database/entities");
+const checklist_templates_controller_1 = require("./checklist-templates.controller");
+const checklist_templates_service_1 = require("./checklist-templates.service");
 const google_module_1 = require("../google/google.module");
 const auth_module_1 = require("../auth/auth.module");
 const project_tasks_controller_1 = require("./project-tasks.controller");
@@ -27,9 +29,10 @@ let ProjectTasksModule = class ProjectTasksModule {
 exports.ProjectTasksModule = ProjectTasksModule;
 exports.ProjectTasksModule = ProjectTasksModule = __decorate([
     (0, common_1.Module)({
-        imports: [settings_module_1.SettingsModule, notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.ProjectPhaseEntity, entities_1.ProjectEntity, entities_1.UserEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
-        controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController, phases_controller_1.PhasesController, project_hold_controller_1.ProjectHoldController],
-        providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService, phases_service_1.PhasesService, project_hold_service_1.ProjectHoldService],
+        imports: [settings_module_1.SettingsModule, notifications_module_1.NotificationsModule, typeorm_1.TypeOrmModule.forFeature([entities_1.ProjectTaskEntity, entities_1.ProjectSectionEntity, entities_1.ProjectPhaseEntity, entities_1.ProjectEntity, entities_1.UserEntity, entities_1.ChecklistTemplateEntity, entities_1.LeadEntity, entities_1.TaskEntity]), google_module_1.GoogleModule, auth_module_1.AuthModule],
+        controllers: [project_tasks_controller_1.ProjectTasksController, sections_controller_1.SectionsController, phases_controller_1.PhasesController, project_hold_controller_1.ProjectHoldController, checklist_templates_controller_1.ChecklistTemplatesController],
+        providers: [project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService, phases_service_1.PhasesService, project_hold_service_1.ProjectHoldService, checklist_templates_service_1.ChecklistTemplatesService],
+        exports: [project_hold_service_1.ProjectHoldService, project_tasks_service_1.ProjectTasksService, sections_service_1.SectionsService],
     })
 ], ProjectTasksModule);
 //# sourceMappingURL=project-tasks.module.js.map

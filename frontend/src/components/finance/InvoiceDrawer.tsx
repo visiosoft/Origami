@@ -142,6 +142,8 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
     catch (e) { onFail(e); return null; }
     finally { setBusy(false); }
   };
+  // May sign off drafts sent for approval (falls back to issuing rights until a role has it set).
+  const approver = r.approveInvoice ?? r.issueInvoice;
   const issue = async () => {
     const current = dirty ? await save() : inv;
     if (!current) return;
@@ -157,6 +159,12 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
     if (!current) return;
     try { onSaved(await api.finance.requestApproval(inv.id, { version: current.version, comment }) as Invoice); setStep(null); toast('Sent for approval'); }
     catch (e) { onFail(e); }
+  };
+  const approve = async () => {
+    setBusy(true);
+    try { onSaved(await api.finance.approveInvoice(inv.id, { version: inv.version }) as Invoice); toast('Approved — it can be issued now'); }
+    catch (e) { onFail(e); }
+    finally { setBusy(false); }
   };
   const returnIt = async (comment: string) => {
     try { onSaved(await api.finance.returnDraft(inv.id, { version: inv.version, comment }) as Invoice); setStep(null); toast('Returned to the preparer'); }
@@ -201,7 +209,10 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
       )}
       {inv.approvalRequestedAt && (
         <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: '#FBF3DC' }}>
-          Sent for approval by <b>{inv.approvalRequestedBy}</b> on {fmtDate(inv.approvalRequestedAt)}.{r.issueInvoice ? ' Issue it, or return it with what needs changing.' : ' Waiting for someone who can issue invoices.'}
+          Sent for approval by <b>{inv.approvalRequestedBy}</b> on {fmtDate(inv.approvalRequestedAt)}.
+          {inv.approvedAt
+            ? <> Approved by <b>{inv.approvedBy}</b> on {fmtDate(inv.approvedAt)}.{r.issueInvoice ? ' Ready to issue.' : ' Waiting for someone who can issue invoices.'}</>
+            : approver ? ' Approve it, or return it with what needs changing.' : ' Waiting for someone who can approve invoices.'}
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
@@ -234,7 +245,7 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
               const prevPct = valueC ? (c(l.prevBilled) / valueC) * 100 : 0;
               const toDatePct = valueC ? ((c(l.prevBilled) + f.amountC) / valueC) * 100 : 0;
               return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
                   <span style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
                     <Badge tone={KIND_BADGE[l.kind][1]}>{KIND_BADGE[l.kind][0]}</Badge>
                     {locked ? <span style={{ fontSize: 12.5 }}>{l.description}</span>
@@ -278,21 +289,21 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
             {r.viewReimbursables && <div onClick={() => setPicking(picking === 'reimb' ? null : 'reimb')} style={btn()}>+ Reimbursable{readyReimbs.length ? ` (${readyReimbs.length})` : ''}</div>}
             <div onClick={addAdjustment} style={btn()}>+ Adjustment</div>
             {picking === 'sov' && (
-              <div style={{ position: 'absolute', top: 46, left: 12, zIndex: 5, ...card, boxShadow: '0 12px 30px rgba(20,8,31,.15)', maxHeight: 320, overflowY: 'auto', minWidth: 460 }}>
+              <div style={{ position: 'absolute', top: 46, left: 12, zIndex: 5, ...card, boxShadow: '0 12px 30px rgba(var(--rgb-shade), .15)', maxHeight: 320, overflowY: 'auto', minWidth: 460 }}>
                 {items.filter((x) => !onInvoice.has(keyOf({ kind: x.kind, id: x.id })) && (x.value || 0) > x.invoiced).map((x) => (
-                  <div key={x.kind + x.id} onClick={() => addProgress(x)} style={{ display: 'flex', gap: 10, padding: '8px 12px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', fontSize: 12.5 }}>
+                  <div key={x.kind + x.id} onClick={() => addProgress(x)} style={{ display: 'flex', gap: 10, padding: '8px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5 }}>
                     <span style={{ flex: 1 }}>{x.name}</span>
                     <span style={{ color: MUTED }}>{usd(x.invoiced)} of {usd(x.value)}</span>
-                    {x.billable > 0 && <b style={{ color: '#8A6D12' }}>{usd(x.billable)} ready</b>}
+                    {x.billable > 0 && <b style={{ color: 'var(--c-8a6d12)' }}>{usd(x.billable)} ready</b>}
                   </div>
                 ))}
                 {!items.some((x) => !onInvoice.has(keyOf({ kind: x.kind, id: x.id })) && (x.value || 0) > x.invoiced) && <div style={{ padding: 12, fontSize: 12.5, color: MUTED }}>Every item with a value is on this invoice or fully billed.</div>}
               </div>
             )}
             {picking === 'reimb' && (
-              <div style={{ position: 'absolute', top: 46, left: 12, zIndex: 5, ...card, boxShadow: '0 12px 30px rgba(20,8,31,.15)', maxHeight: 320, overflowY: 'auto', minWidth: 460 }}>
+              <div style={{ position: 'absolute', top: 46, left: 12, zIndex: 5, ...card, boxShadow: '0 12px 30px rgba(var(--rgb-shade), .15)', maxHeight: 320, overflowY: 'auto', minWidth: 460 }}>
                 {readyReimbs.map((x) => (
-                  <div key={x.id} onClick={() => addReimb(x)} style={{ display: 'flex', gap: 10, padding: '8px 12px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', fontSize: 12.5 }}>
+                  <div key={x.id} onClick={() => addReimb(x)} style={{ display: 'flex', gap: 10, padding: '8px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5 }}>
                     <b style={{ color: ACCENT }}>{x.number}</b><span style={{ flex: 1 }}>{x.description}</span><b>{usd(x.billAmount)}</b>
                   </div>
                 ))}
@@ -315,9 +326,11 @@ function DraftEditor({ inv, overview, onSaved, onFail, onDeleted }: {
         {canEdit && <div onClick={remove} style={{ ...btn(), color: DANGER, marginRight: 'auto' }}>Delete draft</div>}
         <div onClick={() => printInvoice({ ...inv, ...h, retentionPct: invRet, taxPct: invTax } as any, overview, true)} style={btn()}>Preview</div>
         {canEdit && <div onClick={busy ? undefined : save} style={btn(false, busy || !dirty)}>Save draft</div>}
-        {r.issueInvoice && inv.approvalRequestedAt && <div onClick={() => setStep('return')} style={btn()}>Return</div>}
+        {approver && inv.approvalRequestedAt && <div onClick={() => setStep('return')} style={btn()}>Return</div>}
+        {approver && inv.approvalRequestedAt && !inv.approvedAt && !r.issueInvoice && <div onClick={busy ? undefined : approve} style={btn(true, busy)}>Approve</div>}
+        {approver && inv.approvalRequestedAt && !inv.approvedAt && r.issueInvoice && <div onClick={busy ? undefined : approve} style={btn(false, busy)}>Approve only</div>}
         {r.issueInvoice
-          ? <div onClick={busy ? undefined : issue} style={btn(true, busy)}>Issue {docName(inv).toLowerCase()}</div>
+          ? (!inv.approvalRequestedAt || inv.approvedAt || approver) && <div onClick={busy ? undefined : issue} style={btn(true, busy)}>{inv.approvalRequestedAt && !inv.approvedAt ? 'Approve & issue' : `Issue ${docName(inv).toLowerCase()}`}</div>
           : canEdit && !inv.approvalRequestedAt && <div onClick={() => setStep('request')} style={btn(true)}>Send for approval</div>}
       </div>
       <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.6 }}>
@@ -347,7 +360,7 @@ function Totals({ work, ret, adj, reimb = 0, rel = 0, tax, total, paid, credited
       {row(credit ? 'Total credit' : 'Total due', usd(total), true)}
       {credited ? row('Credited', usd(credited)) : null}
       {paid != null && row('Received', usd(paid))}
-      {outstanding != null && row(outstanding < 0 ? 'Credit due to client' : 'Client owes', usd(Math.abs(outstanding)), true, outstanding > 0 ? DANGER : '#1E6B36')}
+      {outstanding != null && row(outstanding < 0 ? 'Credit due to client' : 'Client owes', usd(Math.abs(outstanding)), true, outstanding > 0 ? DANGER : 'var(--c-1e6b36)')}
       {note && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{note}</div>}
     </div>
   );
@@ -448,7 +461,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
               <span style={{ textAlign: 'right' }}>This claim</span><span style={{ textAlign: 'right' }}>Retention</span><span style={{ textAlign: 'right' }}>Tax</span><span style={{ textAlign: 'right' }}>Net + tax</span>
             </div>
             {(inv.lines || []).map((l: any) => (
-              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+              <div key={l.id} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
                 <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Badge tone={KIND_BADGE[l.kind as LineKind]?.[1] || 'grey'}>{KIND_BADGE[l.kind as LineKind]?.[0] || l.kind}</Badge>
                   <span>{l.description}{l.kind === 'manual' && l.quantity != null ? <span style={{ color: MUTED }}> · {l.quantity} {l.unit || ''} × {usd(l.rate)}</span> : null}</span></span>
                 <span style={{ textAlign: 'right' }}>{l.contractValue != null ? usd(l.contractValue) : ''}</span>
@@ -484,7 +497,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
             <Label text="Payments received" />
             <div style={{ ...card, overflow: 'hidden' }}>
               {(inv.payments || []).map((p) => (
-                <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, opacity: p.voidedAt ? 0.55 : 1 }}>
+                <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, opacity: p.voidedAt ? 0.55 : 1 }}>
                   <span style={{ width: 100, color: MUTED }}>{fmtDate(p.date)}</span>
                   <span style={{ flex: 1 }}>{(PAYMENT_METHODS.find(([k]) => k === p.method)?.[1]) || p.method}{p.bankRef ? ` · ${p.bankRef}` : ''}{p.txnRef ? ` · #${p.txnRef}` : ''}{p.voidedAt ? ` · voided: ${p.voidReason}` : ''}</span>
                   <b style={{ textDecoration: p.voidedAt ? 'line-through' : 'none' }}>{usd(p.amount)}</b>
@@ -498,7 +511,7 @@ function IssuedView({ inv, overview, onChanged, onFail, onOpen }: { inv: Invoice
             <Label text="Credit notes & write-offs" />
             <div style={{ ...card, overflow: 'hidden' }}>
               {inv.credits.map((x) => (
-                <div key={x.id} onClick={() => onOpen(x.id)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer', opacity: x.status === 'void' ? 0.55 : 1 }}>
+                <div key={x.id} onClick={() => onOpen(x.id)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer', opacity: x.status === 'void' ? 0.55 : 1 }}>
                   <b style={{ width: 120, color: ACCENT }}>{x.issuedNumber || 'Draft'}</b>
                   <span style={{ flex: 1 }}>{x.creditType === 'write_off' ? 'Write-off' : 'Credit'} · {fmtDate(x.invoiceDate)} · {x.status}</span>
                   <b>{usd(x.total)}</b>
@@ -535,7 +548,7 @@ async function printInvoice(inv: Invoice, overview: Overview, draft = false) {
   w.document.write('<p style="font-family:Arial;padding:30px;color:#777">Preparing the document…</p>');
   let b: any = {};
   try { b = await api.finance.brand(); } catch { /* print without the letterhead */ }
-  const accent = b.accentColor || '#173326';
+  const accent = b.accentColor || 'var(--forest)';
   const isCredit = inv.kind === 'credit';
   const heading = isCredit ? (inv.creditType === 'write_off' ? 'WRITE-OFF' : 'CREDIT NOTE') : inv.kind === 'retention' ? 'INVOICE — RETENTION' : 'INVOICE';
   const lines = inv.lines || [];
@@ -543,12 +556,12 @@ async function printInvoice(inv: Invoice, overview: Overview, draft = false) {
 <td class="r">${esc(usd(l.amount))}</td><td class="r">${l.retentionAmount ? esc(usd(-l.retentionAmount)) : '—'}</td><td class="r">${l.taxAmount ? esc(usd(l.taxAmount)) : '—'}</td></tr>`).join('');
   const totalRow = (label: string, v: string, strong = false) => `<tr class="${strong ? 'b' : ''}"><td>${esc(label)}</td><td class="r">${esc(v)}</td></tr>`;
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(inv.issuedNumber || 'Draft')} — ${esc(overview.project.name)}</title>
-<style>body{font-family:Arial,sans-serif;color:#0B1A12;margin:36px;font-size:12.5px}.top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${esc(accent)};padding-bottom:14px}
-.co{font-size:12px;color:#556;line-height:1.5}.co b{font-size:16px;color:#0B1A12}h1{font-size:24px;margin:0;color:${esc(accent)};text-align:right}.meta{text-align:right;line-height:1.7}
+<style>body{font-family:Arial,sans-serif;color:var(--ink);margin:36px;font-size:12.5px}.top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${esc(accent)};padding-bottom:14px}
+.co{font-size:12px;color:#556;line-height:1.5}.co b{font-size:16px;color:var(--ink)}h1{font-size:24px;margin:0;color:${esc(accent)};text-align:right}.meta{text-align:right;line-height:1.7}
 .row{display:flex;gap:40px;margin:22px 0}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#778;font-weight:bold;margin-bottom:4px}
 table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#778;border-bottom:1px solid #ccc;padding:6px 4px}
 td{padding:7px 4px;border-bottom:1px solid #eee;vertical-align:top}.r{text-align:right;white-space:nowrap}.n{color:#778;font-size:11px;margin-top:2px}
-.tot{width:340px;margin-left:auto;margin-top:16px}.tot td{border:none;padding:4px}.tot .b td{font-weight:bold;font-size:15px;border-top:2px solid #0B1A12;padding-top:8px}
+.tot{width:340px;margin-left:auto;margin-top:16px}.tot td{border:none;padding:4px}.tot .b td{font-weight:bold;font-size:15px;border-top:2px solid var(--ink);padding-top:8px}
 .draft{color:#b33;font-weight:bold;letter-spacing:.2em}.foot{margin-top:40px;font-size:11px;color:#778;border-top:1px solid #ddd;padding-top:10px}</style></head><body>
 <div class="top"><div class="co">${b.logoDataUrl ? `<img src="${esc(b.logoDataUrl)}" style="max-height:56px;max-width:220px;display:block;margin-bottom:8px">` : ''}<b>${esc(b.companyName || '')}</b><br>${esc(b.address || '')}<br>${esc([b.phone, b.email, b.website].filter(Boolean).join(' · '))}</div>
 <div class="meta"><h1>${heading}</h1>${draft ? '<div class="draft">DRAFT</div>' : ''}<b>${esc(inv.issuedNumber || 'Not yet numbered')}</b><br>Date: ${esc(fmtDate(inv.invoiceDate))}${!isCredit ? `<br>Due: ${esc(fmtDate(inv.dueDate))}` : ''}${inv.creditFor ? `<br>Against: ${esc(inv.creditFor.issuedNumber)}` : ''}${inv.poNumber ? `<br>PO: ${esc(inv.poNumber)}` : ''}${inv.reference && !inv.creditFor ? `<br>Ref: ${esc(inv.reference)}` : ''}</div></div>

@@ -1,4 +1,5 @@
-import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
+import type { PendingNotice } from '../notifications/pending-notices';
+import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent, DerivedRef } from './task.types';
 export declare class ProjectEntity {
     id: number;
     priority: string;
@@ -17,7 +18,13 @@ export declare class ProjectEntity {
     imgColor: string;
     img: string;
     designPhase: string;
+    highViz: boolean | null;
+    code: string | null;
+    pricing: string | null;
+    labor: string | null;
     leadId: string;
+    siteAccess: string;
+    fileRoomSyncedAt: string;
     introLetterSentAt: string;
     introLetterSubject: string;
     introLetterHtml: string;
@@ -41,11 +48,16 @@ export declare class ProjectEntity {
 }
 export declare class PersonEntity {
     id: number;
+    businessCards: {
+        front?: TaskAttachment | null;
+        back?: TaskAttachment | null;
+    } | null;
     name: string;
     role: string;
     company: string;
     contact: string | null;
     kind: string;
+    internalLevel: string;
     tier: string;
     phone: string;
     email: string;
@@ -57,6 +69,18 @@ export declare class PersonEntity {
     since: string;
     comply: unknown;
     last: string;
+    contactStatus: string;
+    contactStatusAt: string;
+    contactStatusReason: string;
+    lastActivityAt: string;
+    sameAsIds: number[] | null;
+    pointOfContact: boolean | null;
+    formerCompanies: {
+        company: string;
+        personId?: number | null;
+        role?: string | null;
+        until?: string | null;
+    }[] | null;
     firstName: string;
     lastName: string;
     goByName: string;
@@ -69,16 +93,40 @@ export declare class PersonEntity {
     insurance: Record<string, unknown>;
     notLicensedDesigner: boolean | null;
 }
+export declare class ContactInteractionEntity {
+    id: string;
+    personId: number;
+    kind: string;
+    at: string;
+    note: string | null;
+    byId: string | null;
+    byName: string | null;
+    createdAt: string;
+}
 export declare class TaskEntity {
     id: string;
+    closedAt: string;
+    pendingNotices: PendingNotice[] | null;
+    holdReason: string;
+    leadId: string;
+    leadName: string;
+    serial: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     tab: string;
     meetingType: string;
     meetingDate: string;
     assignedTo: string;
     status: string;
     originator: string;
+    priority: string;
     topicType: string;
+    subject: string;
     description: string;
+    completionNote: string;
+    startDate: string;
     dueDate: string;
     dueTime: string;
     dateClosed: string;
@@ -96,6 +144,46 @@ export declare class TaskEntity {
     activity: ActivityEvent[];
     checklist: ChecklistItem[];
     labels: string[];
+    confirmedAt: string;
+    archivedAt: string;
+    updatedAt: string;
+    meetingId: string;
+    linkedTaskIds: string[] | null;
+    changeOrderIds: string[] | null;
+}
+export declare class MeetingEntity {
+    id: string;
+    serial: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
+    activity: ActivityEvent[] | null;
+    title: string;
+    type: string;
+    projectId: number | null;
+    project: string;
+    date: string;
+    time: string;
+    location: string;
+    attendees: {
+        id?: string;
+        name: string;
+        email?: string;
+    }[] | null;
+    agenda: string;
+    minutes: string;
+    status: string;
+    locationType: string;
+    rfiIds: string[] | null;
+    changeOrderIds: string[] | null;
+    recordingUrl: string;
+    transcriptUrl: string;
+    transcript: string;
+    reviewedBy: string;
+    reviewedAt: string;
+    createdBy: string;
+    createdAt: string;
     updatedAt: string;
 }
 export declare class DealEntity {
@@ -150,6 +238,59 @@ export declare class ProposalEntity {
     signatureImage2: string;
     signerIp2: string;
     signerUserAgent2: string;
+}
+export declare class ContractEntity {
+    id: string;
+    number: string;
+    projectId: number | null;
+    type: string;
+    title: string;
+    html: string;
+    amount: string | null;
+    status: string;
+    parties: {
+        key: string;
+        role: string;
+        label: string;
+        name: string;
+        email: string;
+        personId?: number | null;
+        internal?: boolean;
+        sentAt?: string | null;
+        viewedAt?: string | null;
+        signedAt?: string | null;
+        signedName?: string | null;
+        initials?: string | null;
+        signatureImage?: string | null;
+        ip?: string | null;
+        userAgent?: string | null;
+    }[];
+    attachments: {
+        fileId: string;
+        name: string;
+        kind: string;
+    }[] | null;
+    templateId: string | null;
+    changeOrderId: string | null;
+    commitmentId: string | null;
+    sentAt: string | null;
+    signedAt: string | null;
+    signedFileId: string | null;
+    voidedAt: string | null;
+    voidReason: string | null;
+    createdById: string | null;
+    createdByName: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+}
+export declare class ContractTemplateEntity {
+    id: string;
+    type: string;
+    name: string;
+    html: string;
+    isDefault: boolean | null;
+    updatedAt: string | null;
+    updatedBy: string | null;
 }
 export declare class InvoiceEntity {
     pk: number;
@@ -242,6 +383,7 @@ export declare class LeadEntity {
     meetingType: string;
     meetingAgenda: string;
     meetingEventId: string;
+    siteVisitEventId: string;
     fitScore: number;
     fitSelections: Record<string, string>;
     zoningImages: string;
@@ -348,6 +490,16 @@ export declare class ProjectSectionEntity {
 }
 export declare class ProjectTaskEntity {
     id: string;
+    closedAt: string;
+    pendingNotices: PendingNotice[] | null;
+    holdReason: string;
+    leadId: string;
+    leadName: string;
+    serial: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     projectId: number | null;
     sectionId: string;
     title: string;
@@ -379,6 +531,13 @@ export declare class ProjectTaskEntity {
     endDate: string;
     durationDays: number;
     dependsOn: string[];
+    createdById: string;
+    createdByName: string;
+    requestedById: string;
+    requestedBy: string;
+    completionNote: string;
+    confirmedAt: string;
+    archivedAt: string;
 }
 export declare class ProjectPhaseEntity {
     id: string;
@@ -452,19 +611,98 @@ export declare class UserEntity {
     inviteToken: string;
     inviteSentAt: string;
     inviteExpiresAt: string;
+    permissionOverrides: Record<string, {
+        level?: string;
+        extent?: string;
+    }> | null;
     notifyOnAssignment: boolean | null;
     notifyByEmail: boolean | null;
     notifyBySms: boolean | null;
     digestFrequency: string;
     notifyOnOverdue: boolean | null;
     notifyOnMilestone: boolean | null;
+    phone: string;
+    notificationMatrix: Record<string, string[]> | null;
     calendarRefreshToken: string;
     calendarEmail: string;
     calendarConnectedAt: string;
 }
+export declare class ChecklistTemplateEntity {
+    id: string;
+    name: string;
+    items: {
+        item: string;
+    }[] | null;
+    autoFor: string[] | null;
+    createdById: string;
+    createdByName: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export declare class UserViewEntity {
+    id: string;
+    userId: string;
+    page: string;
+    name: string;
+    filters: Record<string, unknown> | null;
+    createdAt: string;
+}
+export declare class PdfMarkupEntity {
+    id: string;
+    fileId: string;
+    page: number;
+    kind: string;
+    data: Record<string, unknown>;
+    authorId: string | null;
+    authorName: string;
+    private: boolean;
+    linkType: string | null;
+    linkId: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+export declare class NotificationItemEntity {
+    id: string;
+    userId: string;
+    event: string;
+    title: string;
+    body: string | null;
+    url: string | null;
+    at: string;
+    digests: string[] | null;
+    sent: string[] | null;
+}
 export declare class AppSettingEntity {
     key: string;
     value: string;
+    updatedAt: string;
+}
+export declare class ProgressNoteEntity {
+    id: string;
+    projectId: number;
+    track: string;
+    category: string;
+    percent: number;
+    status: string;
+    description: string;
+    date: string;
+    clientVisible: boolean;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+}
+export declare class ProgressPhotoEntity {
+    id: string;
+    projectId: number;
+    track: string;
+    category: string;
+    area: string;
+    takenOn: string;
+    caption: string;
+    tags: string[] | null;
+    clientVisible: boolean;
+    createdBy: string;
+    createdAt: string;
     updatedAt: string;
 }
 export declare class FileRoomFileEntity {
@@ -489,6 +727,20 @@ export declare class FileRoomFolderEntity {
     path: string[];
     name: string;
     createdAt: string;
+}
+export declare class FileRoomShareEntity {
+    id: string;
+    projectId: number | null;
+    files: {
+        id: string;
+        name: string;
+        folderPath?: string[];
+    }[];
+    to: string;
+    note: string;
+    sentById: string;
+    sentByName: string;
+    sentAt: string;
 }
 export declare class EmployeeEntity {
     id: string;
@@ -835,6 +1087,25 @@ export declare class DailyLogEntity {
     approvedAt: string;
     rejectionNote: string;
     createdAt: string;
+    version: number;
+    versionOf: string;
+    sections: Record<string, any> | null;
+    onBehalfOf: string;
+    certifiedName: string;
+    signatureDataUrl: string;
+    signedAt: string;
+    autoReason: string;
+    dupBaseline: Record<string, any> | null;
+    dupFromDate: string;
+}
+export declare class DailyReportTemplateEntity {
+    id: string;
+    name: string;
+    sections: Record<string, any> | null;
+    entries: Record<string, any>[] | null;
+    createdById: string;
+    createdByName: string;
+    createdAt: string;
 }
 export declare class LaborLogEntryEntity {
     id: string;
@@ -1113,6 +1384,8 @@ export declare class ProjectInvoiceEntity extends FinanceStamped {
     creditReason: string;
     approvalRequestedAt: string;
     approvalRequestedBy: string;
+    approvedAt: string;
+    approvedBy: string;
 }
 export declare class ProjectInvoiceLineEntity {
     id: string;
@@ -1179,8 +1452,30 @@ export declare class FinanceActivityEntity {
     byId: string;
     at: string;
 }
+export declare class AuditEventEntity {
+    id: string;
+    at: string;
+    userId: string | null;
+    userName: string | null;
+    entityType: string;
+    entityId: string | null;
+    label: string | null;
+    action: string;
+    projectId: number | null;
+    method: string;
+    path: string;
+    changes: {
+        field: string;
+        from: string | null;
+        to: string | null;
+    }[] | null;
+}
 export declare class ChangeOrderEntity extends FinanceStamped {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     projectId: number;
     number: string;
     title: string;
@@ -1234,6 +1529,7 @@ export declare class ReimbursableEntity extends FinanceStamped {
     description: string;
     category: string;
     vendor: string;
+    receiptNumber: string;
     cost: number;
     markupPct: number;
     billable: boolean;
@@ -1323,6 +1619,23 @@ export declare class CommitmentLineEntity {
     taskId: string;
     amount: number;
 }
+export declare class ContractorBidEntity {
+    id: string;
+    contractorId: string;
+    projectId: number | null;
+    projectName: string;
+    tradeId: string;
+    scope: string;
+    dateReceived: string;
+    amount: number | null;
+    outcome: string;
+    dueDate: string | null;
+    outcomeDate: string;
+    notes: string;
+    createdByName: string;
+    createdAt: string;
+    updatedAt: string;
+}
 export declare class CostEntryEntity extends FinanceStamped {
     id: string;
     projectId: number;
@@ -1360,6 +1673,8 @@ export declare class CostForecastEntity extends FinanceStamped {
 export interface RfiDrawingRef {
     fileId: string;
     name: string;
+    markupId?: string;
+    page?: number;
 }
 export interface RfiContact {
     name: string;
@@ -1375,6 +1690,10 @@ export interface RfiEvent {
 }
 export declare class RfiEntity {
     id: string;
+    sourceType: string;
+    sourceId: string;
+    sourceLabel: string;
+    derivedRefs: DerivedRef[] | null;
     projectId: number;
     number: string;
     subject: string;

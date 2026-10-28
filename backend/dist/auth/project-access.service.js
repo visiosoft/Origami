@@ -17,11 +17,27 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const access_levels_1 = require("../users/access-levels");
 const roles_decorator_1 = require("./guards/roles.decorator");
 let ProjectAccessService = class ProjectAccessService {
-    constructor(people, projects) {
+    constructor(people, projects, roles, users) {
         this.people = people;
         this.projects = projects;
+        this.roles = roles;
+        this.users = users;
+        this.cache = new Map();
+    }
+    async assignedOnly(claims) {
+        if (claims.roleKey === 'admin' || !this.roles || !this.users)
+            return false;
+        const key = claims.sub + '|' + claims.roleKey;
+        const hit = this.cache.get(key);
+        if (hit && Date.now() - hit.at < 15_000)
+            return hit.assigned;
+        const [role, user] = await Promise.all([this.roles.findOneBy({ key: claims.roleKey }), this.users.findOneBy({ id: claims.sub })]);
+        const assigned = (0, access_levels_1.extentOf)((0, access_levels_1.effectivePermissions)(role?.permissions, user?.permissionOverrides)) === 'assigned';
+        this.cache.set(key, { at: Date.now(), assigned });
+        return assigned;
     }
     isStaff(claims) {
         return !!claims && (claims.roleKey === 'admin' || (claims.tier === 'internal' && claims.roleKey !== roles_decorator_1.PORTAL_ROLE));
@@ -29,7 +45,7 @@ let ProjectAccessService = class ProjectAccessService {
     async allowedIds(claims) {
         if (!claims)
             throw new common_1.UnauthorizedException('Sign in first.');
-        if (this.isStaff(claims))
+        if (this.isStaff(claims) && !(await this.assignedOnly(claims)))
             return 'all';
         if (claims.roleKey === roles_decorator_1.PORTAL_ROLE)
             return new Set();
@@ -66,7 +82,13 @@ exports.ProjectAccessService = ProjectAccessService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.PersonEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __param(2, (0, common_1.Optional)()),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
+    __param(3, (0, common_1.Optional)()),
+    __param(3, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], ProjectAccessService);
 let ProjectAccessModule = class ProjectAccessModule {
@@ -75,7 +97,7 @@ exports.ProjectAccessModule = ProjectAccessModule;
 exports.ProjectAccessModule = ProjectAccessModule = __decorate([
     (0, common_1.Global)(),
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity, entities_1.ProjectEntity])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.PersonEntity, entities_1.ProjectEntity, entities_1.RoleEntity, entities_1.UserEntity])],
         providers: [ProjectAccessService],
         exports: [ProjectAccessService],
     })

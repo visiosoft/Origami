@@ -14,6 +14,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SectionsController = void 0;
 const common_1 = require("@nestjs/common");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
+const adminOnly = (c) => { if (c?.roleKey !== 'admin')
+    throw new common_1.ForbiddenException('Only an administrator can change the board’s columns.'); };
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const sections_service_1 = require("./sections.service");
 const project_tasks_service_1 = require("./project-tasks.service");
@@ -26,13 +29,16 @@ let SectionsController = class SectionsController {
     findAll(projectId) {
         return this.service.forProject(Number(projectId));
     }
-    create(dto) {
+    create(dto, c) {
+        adminOnly(c);
         return this.service.create(dto);
     }
-    update(id, dto) {
+    update(id, dto, c) {
+        adminOnly(c);
         return this.service.update(id, dto);
     }
-    async remove(id) {
+    async remove(id, c) {
+        adminOnly(c);
         const section = await this.service.getById(id);
         if (section) {
             const siblings = (await this.service.forProject(section.projectId)).filter((s) => s.id !== id);
@@ -55,23 +61,26 @@ __decorate([
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_section_dto_1.CreateSectionDto]),
+    __metadata("design:paramtypes", [create_section_dto_1.CreateSectionDto, Object]),
     __metadata("design:returntype", void 0)
 ], SectionsController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", void 0)
 ], SectionsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], SectionsController.prototype, "remove", null);
 exports.SectionsController = SectionsController = __decorate([

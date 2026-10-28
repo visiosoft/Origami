@@ -14,10 +14,13 @@ import { ProjectTasksModule } from './project-tasks/project-tasks.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { SupportModule } from './support/support.module';
 import { ConsultantsModule } from './consultants/consultants.module';
+import { MeetingsModule } from './meetings/meetings.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SeedModule } from './database/seed.module';
 import { SettingsModule } from './settings/settings.module';
+import { AuditModule } from './audit/audit.module';
+import { ContractsModule } from './contracts/contracts.module';
 import { GoogleModule } from './google/google.module';
 import { AuthModule } from './auth/auth.module';
 import { RemindersModule } from './reminders/reminders.module';
@@ -25,12 +28,15 @@ import { RfisModule } from './rfis/rfis.module';
 import { FileRoomModule } from './file-room/file-room.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SmsModule } from './sms/sms.module';
+import { TrackingModule } from './tracking/tracking.module';
 import { ProjectProgramModule } from './project-program/project-program.module';
 import { ProposalModule } from './proposals/proposal.module';
 import { GuestAccessModule } from './guest-access/guest-access.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ManpowerModule } from './manpower/manpower.module';
 import { FinanceModule } from './finance/finance.module';
+import { ViewsModule } from './views/views.module';
+import { SpecialActionsModule } from './special-actions/special-actions.module';
 import { SessionGuard } from './auth/guards/session.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -61,6 +67,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     }),
     SeedModule,
     SettingsModule,
+    AuditModule,
+    ContractsModule,
     GoogleModule,
     AuthModule,
     RemindersModule,
@@ -81,12 +89,16 @@ import { RolesGuard } from './auth/guards/roles.guard';
     WorkflowsModule,
     SupportModule,
     ConsultantsModule,
+    MeetingsModule,
     EmailTemplatesModule,
     DashboardModule,
     NotificationsModule,
     SmsModule,
+    TrackingModule,
     ManpowerModule,
     FinanceModule,
+    ViewsModule,
+    SpecialActionsModule,
   ],
   // Every route requires a session unless marked @Public(); role and tier rules
   // are applied after, once the caller is known. Order matters: SessionGuard

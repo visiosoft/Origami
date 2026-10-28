@@ -39,6 +39,27 @@ export declare class FinanceController {
         footerNote: string;
     }>;
     portfolio(a?: string): Promise<any[]>;
+    billing(months?: string, a?: string): Promise<{
+        month: string;
+        invoiced: number;
+        collected: number;
+        pastDue: number;
+        withinTerms: number;
+        retention: number;
+        open: {
+            id: string;
+            number: string;
+            projectId: number;
+            project: string;
+            dueDate: string | null;
+            unpaid: number;
+            pastDue: boolean;
+        }[];
+    }[]>;
+    collections(months?: string, a?: string): Promise<{
+        month: string;
+        amount: number;
+    }[]>;
     pending(a?: string): Promise<import("./finance-hub.service").Pending[]>;
     audit(q: any, a?: string): Promise<{
         projectName: string;
@@ -69,6 +90,7 @@ export declare class FinanceController {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -276,6 +298,7 @@ export declare class FinanceController {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -299,6 +322,15 @@ export declare class FinanceController {
     }[]>;
     newReimb(id: string, dto: any, a?: string): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -309,6 +341,7 @@ export declare class FinanceController {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -608,6 +641,7 @@ export declare class FinanceController {
     issue(id: string, dto: any, a?: string): Promise<any>;
     void(id: string, dto: any, a?: string): Promise<any>;
     requestApproval(id: string, dto: any, a?: string): Promise<any>;
+    approveInvoice(id: string, dto: any, a?: string): Promise<any>;
     returnDraft(id: string, dto: any, a?: string): Promise<any>;
     credit(id: string, dto: any, a?: string): Promise<any>;
     pay(id: string, dto: any, a?: string): Promise<any>;
@@ -620,8 +654,26 @@ export declare class FinanceController {
         deleted: boolean;
     }>;
     actCo(id: string, action: string, dto: any, a?: string): Promise<any>;
+    receiptCheck(q: any, a?: string): Promise<{
+        id: string;
+        number: string;
+        projectId: number;
+        projectName: string;
+        date: string;
+        cost: number;
+        vendor: string | null;
+    }[]>;
     reimb(id: string, a?: string): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -632,6 +684,7 @@ export declare class FinanceController {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -655,6 +708,15 @@ export declare class FinanceController {
     }>;
     updateReimb(id: string, dto: any, a?: string): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -665,6 +727,7 @@ export declare class FinanceController {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;
@@ -692,6 +755,15 @@ export declare class FinanceController {
     }>;
     decideReimb(id: string, dto: any, a?: string): Promise<{
         approvals: import("../database/entities").FinancialApprovalEntity[];
+        receiptDuplicates: {
+            id: string;
+            number: string;
+            projectId: number;
+            projectName: string;
+            date: string;
+            cost: number;
+            vendor: string | null;
+        }[];
         attachments: TaskAttachment[];
         markup: number;
         billAmount: number;
@@ -702,6 +774,7 @@ export declare class FinanceController {
         description: string;
         category: string;
         vendor: string;
+        receiptNumber: string;
         cost: number;
         markupPct: number;
         billable: boolean;

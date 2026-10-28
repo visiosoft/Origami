@@ -37,7 +37,7 @@ export interface ChecklistItem {
 /** One entry in a task's history — field edits, comments, files, assignment. */
 export interface ActivityEvent {
   id: string;
-  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
+  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators' | 'link';
   field?: string;
   from?: string;
   to?: string;
@@ -45,6 +45,24 @@ export interface ActivityEvent {
   by: string;
   byId?: string;
   at: string;                 // ISO timestamp
+}
+
+/** One priority scale for every special action (Oct 16): Urgent, High, Medium, Low, or none (''). */
+export const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'] as const;
+export const cleanPriority = (v: unknown) => (PRIORITIES as readonly string[]).includes(String(v)) ? String(v) : '';
+
+/** The kinds of special action that can be duplicated or converted into one another. */
+export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
+
+/** Something made from this record: "Converted to CO-003", "Duplicated to Chelliah as RFI-007". */
+export interface DerivedRef {
+  kind: ActionKind;
+  id: string;
+  label: string;
+  how: 'converted' | 'duplicated';
+  projectName?: string;
+  by: string;
+  at: string;
 }
 
 /** Statuses for project (board) tasks. Kept in sync with the `completed` flag. */
@@ -59,9 +77,31 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 export function normalizeTaskStatus(v: unknown): string | undefined {
   if (v == null) return undefined;
   const s = String(v).trim();
-  if (/^(blocked|on[\s-]*hold|hold)$/i.test(s)) return 'On hold';
-  return s;
+  return bucketStatus(s) || s;
 }
+
+/**
+ * The task buckets (Oct 16): To Do, Assigned, In Progress, On Hold, Complete,
+ * Confirmed. Stored as the long-standing values -- "Not started" shows as To Do
+ * and "Done" as Complete -- so everything that reads them keeps working.
+ */
+export const TASK_BUCKETS = ['Not started', 'Assigned', 'In progress', 'On hold', 'Done', 'Confirmed'] as const;
+
+/** A status name, or a board column's name, read as a bucket (null when it isn't one). */
+export function bucketStatus(name?: string | null): string | null {
+  const s = (name || '').trim();
+  if (/^(to[\s-]*do|todo|not[\s-]*started|backlog|new)$/i.test(s)) return 'Not started';
+  if (/^assigned$/i.test(s)) return 'Assigned';
+  if (/^(in[\s-]*progress|doing)$/i.test(s)) return 'In progress';
+  if (/^(blocked|on[\s-]*hold|hold)$/i.test(s)) return 'On hold';
+  if (/^(done|complete|completed)$/i.test(s)) return 'Done';
+  if (/^confirmed$/i.test(s)) return 'Confirmed';
+  return null;
+}
+
+/** Finished, whether or not the originator has confirmed it yet. */
+export const isDoneStatus = (s?: string | null) => s === 'Done' || s === 'Confirmed';
+export const isTaskDone = (t: { completed?: boolean | null; status?: string | null }) => !!t.completed || isDoneStatus(t.status);
 
 /** A board column that means "on hold" -- a task's status and that column move together. */
 export const isHoldSection = (name?: string | null) => /^(on[\s-]*hold|blocked)$/i.test((name || '').trim());
@@ -111,6 +151,7 @@ export function event(
 export const TRACKED_FIELDS: Record<string, string> = {
   title: 'Title',
   description: 'Description',
+  startDate: 'Start date',
   dueDate: 'Due date',
   priority: 'Priority',
   status: 'Status',

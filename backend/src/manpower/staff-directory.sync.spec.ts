@@ -57,6 +57,20 @@ describe('People <-> Employees: one record', () => {
     expect([people.rows.length, employees.rows.length]).toEqual(count);
   });
 
+  it('turning a person into Staff links their unlinked employee at once (or creates one)', async () => {
+    const { sync, employees, people } = setup();
+    const tomas = people.rows.find((p) => p.id === 4);
+    employees.rows.push({ id: 'EMP-T', name: 'Tomas Perez', email: 'T@x.com ', workerId: 'W-0009' });
+    tomas.kind = 'Staff';
+    await sync.personChanged(tomas, { kind: 'Staff' });
+    expect(tomas.employeeId).toBe('EMP-T');
+    const jerrod = people.rows.find((p) => p.id === 2);
+    const before = employees.rows.length;
+    await sync.personChanged(jerrod, { kind: 'Staff' });
+    expect(jerrod.employeeId).toBeTruthy();
+    expect(employees.rows.length).toBe(before + 1);
+  });
+
   it('carries People edits of shared fields back to the employee, and removes the entry with the employee', async () => {
     const { sync, employees, people } = setup();
     await sync.backfill();

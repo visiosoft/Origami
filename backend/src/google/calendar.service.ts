@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { guestList, type Guest } from '../scheduling/site-visit-team';
 import { GoogleService } from './google.service';
 
 const FREEBUSY_URL = 'https://www.googleapis.com/calendar/v3/freeBusy';
@@ -29,7 +30,8 @@ export interface ScheduleEventInput {
   start: string; // ISO
   end: string;   // ISO
   location?: string;
-  attendees?: string[];
+  /** Bare emails are required guests; { optional: true } marks an optional one. */
+  attendees?: Guest[];
   /** Adds a Google Meet link when true -- skipped for a phone consultation. */
   video?: boolean;
 }
@@ -109,7 +111,7 @@ export class CalendarService {
       end: { dateTime: input.end },
     };
     if (input.location) body.location = input.location;
-    if (input.attendees?.length) body.attendees = input.attendees.map((email) => ({ email }));
+    if (input.attendees?.length) body.attendees = guestList(input.attendees);
     if (input.video) {
       body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
     }
@@ -191,7 +193,7 @@ export class CalendarService {
       end: { dateTime: input.end },
     };
     if (input.location) body.location = input.location;
-    if (input.attendees?.length) body.attendees = input.attendees.map((email) => ({ email }));
+    if (input.attendees?.length) body.attendees = guestList(input.attendees);
     if (input.video) {
       body.conferenceData = { createRequest: { requestId: `origami-${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } };
     }

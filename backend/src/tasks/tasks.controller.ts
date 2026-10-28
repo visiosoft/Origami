@@ -6,7 +6,7 @@ import type { Response } from 'express';
 import { Readable } from 'stream';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto, AddCommentDto, AddLinkDto } from './dto/update-task.dto';
+import { UpdateTaskDto, AddCommentDto, AddLinkDto, LinkDto, LinkedTaskDto } from './dto/update-task.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from '../google/attachments.service';
 import { scopeTasks, isRestrictedViewer, assignedTo } from '../database/viewer.util';
@@ -43,6 +43,28 @@ export class TasksController {
     return this.tasksService.saveStatuses(body?.statuses);
   }
 
+  /** What each priority means (every priority picker shows these). */
+  @Get('priorities')
+  priorities() {
+    return this.tasksService.priorityDefinitions();
+  }
+
+  /** Settings -> Task priorities (administrators): the wording only; due windows are fixed. */
+  @Roles('admin')
+  @Put('priorities')
+  savePriorities(@Body() body: { definitions?: unknown }) {
+    return this.tasksService.savePriorityDefinitions(body?.definitions);
+  }
+
+  /** Projects and open leads a task can be linked to (for the pickers). */
+  @Get('link-targets')
+  async linkTargets(@Headers('authorization') auth?: string) {
+    // Clients and subcontractors never see the list of leads and projects.
+    const claims = await this.auth.verify(auth);
+    if (!claims || isRestrictedViewer(claims)) return { projects: [], leads: [] };
+    return this.tasksService.linkTargets();
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);
@@ -64,9 +86,34 @@ export class TasksController {
     return this.tasksService.update(id, dto, await this.auth.actor(auth));
   }
 
+  /** Save pressed in the task editor: send the emails held on the entry. */
+  @Post(':id/notify')
+  notify(@Param('id') id: string) {
+    return this.tasksService.flushNotices(id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.tasksService.remove(id);
+  }
+
+  // ------------------------------------------------------------ FOR RECORD links
+
+  /** Attach this entry to a task or a change order. */
+  @Post(':id/links')
+  async addRecordLink(@Param('id') id: string, @Body() dto: LinkDto, @Headers('authorization') auth?: string) {
+    return this.tasksService.link(id, dto.kind, dto.targetId, await this.auth.actor(auth));
+  }
+
+  @Delete(':id/links/:kind/:targetId')
+  async removeRecordLink(@Param('id') id: string, @Param('kind') kind: string, @Param('targetId') targetId: string, @Headers('authorization') auth?: string) {
+    return this.tasksService.unlink(id, kind === 'task' ? 'task' : 'changeOrder', targetId, await this.auth.actor(auth));
+  }
+
+  /** Create a task from this entry, linked to it. */
+  @Post(':id/linked-task')
+  async linkedTask(@Param('id') id: string, @Body() dto: LinkedTaskDto, @Headers('authorization') auth?: string) {
+    return this.tasksService.createLinkedTask(id, dto, await this.auth.actor(auth));
   }
 
   // ------------------------------------------------------------- attachments

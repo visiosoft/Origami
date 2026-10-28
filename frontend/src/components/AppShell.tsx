@@ -1,13 +1,16 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { releaseSeen } from '../data/releaseNotes';
 import { Icon } from '../icons';
 import { Logo, LogoMark } from './Logo';
 import { Notifications } from './Notifications';
+import { ThemeToggle } from './ThemeToggle';
+import { GlobalSearch, openGlobalSearch } from './GlobalSearch';
 import { useApp, type ViewMode } from '../AppContext';
-import { NAV_GROUPS, PERSONAL_ROUTES } from '../data/nav';
+import { NAV_GROUPS, PERSONAL_ROUTES, PERM_BY_ROUTE, permOf } from '../data/nav';
 import { AutosaveIndicator, AutosaveProvider } from '../autosave';
 import { ServerStatusBanner } from './ServerStatusBanner';
+import { SessionExpired } from './SessionExpired';
 import './AppShell.css';
 
 const VIEW_MODES: ViewMode[] = ['internal', 'client', 'consultant'];
@@ -34,15 +37,20 @@ export function AppShell() {
     if (loadingAccess) return;
     // The daily log decides for itself (superintendents only), so it isn't a role permission either.
     if (slug === 'dashboard' || slug === 'help' || slug === 'login' || slug === 'daily-log' || PERSONAL_ROUTES.has(slug)) return;
-    if (!can(slug, 'view')) navigate('/dashboard', { replace: true });
+    // A second menu entry for a module (e.g. Schedule under Construction) checks that module's permission.
+    if (!can(PERM_BY_ROUTE[slug] || slug, 'view')) navigate('/dashboard', { replace: true });
   }, [slug, loadingAccess, can, navigate]);
 
   // Only show nav items the current role can view; drop groups left empty.
   // The phone daily log is only for superintendents (whoever runs a site).
   const runsSite = !!authUser?.isSuperintendent;
   const visibleGroups = NAV_GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(it.route, 'view'))) }))
+    .map((g) => ({ ...g, items: g.items.filter((it) => !it.hidden && (it.superintendent ? runsSite : it.personal ? currentUser?.tier !== 'client' && currentUser?.tier !== 'consultant' : can(permOf(it), 'view'))) }))
     .filter((g) => g.items.length > 0);
+
+  const searchPages = useMemo(() => visibleGroups.flatMap((g) => g.items.map((it) => ({ label: it.label, route: it.route, icon: it.icon }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(visibleGroups.map((g) => g.items.map((it) => it.route)))]);
 
   const activeItem = (() => {
     for (const group of NAV_GROUPS) {
@@ -55,6 +63,15 @@ export function AppShell() {
 
   const pageTitle = activeItem?.label ?? 'Module';
   const pageBadge = activeItem?.badge;
+
+  // The sidebar search narrows the menu as you type; Enter opens the first match.
+  const [navQuery, setNavQuery] = useState('');
+  const nq = navQuery.trim().toLowerCase();
+  const shownGroups = !nq ? visibleGroups : visibleGroups
+    .map((g) => ({ ...g, items: g.items.filter((it) => `${it.label} ${it.desc || ''} ${g.label}`.toLowerCase().includes(nq)) }))
+    .filter((g) => g.items.length > 0);
+  const firstMatch = nq ? shownGroups[0]?.items[0] : undefined;
+  const isMac = typeof navigator !== 'undefined' && /mac/i.test(navigator.platform || '');
 
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => ({ ...prev, [key]: prev[key] === false ? true : false }));
@@ -73,6 +90,7 @@ export function AppShell() {
 
   return (
     <AutosaveProvider>
+    <SessionExpired />
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
@@ -80,10 +98,32 @@ export function AppShell() {
           <div className="brand-mark-only"><LogoMark size={28} /></div>
         </div>
 
+        <div className="nav-search">
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx={11} cy={11} r={7} /><path d="m21 21-4.3-4.3" /></svg>
+          <input
+            value={navQuery}
+            onChange={(e) => setNavQuery(e.target.value)}
+            placeholder="Search menu"
+            aria-label="Search the menu"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && firstMatch) { navigate('/' + firstMatch.route); setNavQuery(''); (e.target as HTMLInputElement).blur(); }
+              else if (e.key === 'Enter' && nq) { openGlobalSearch(navQuery.trim()); setNavQuery(''); }
+              else if (e.key === 'Escape') setNavQuery('');
+            }}
+          />
+          {navQuery
+            ? <button type="button" className="nav-search-clear" onClick={() => setNavQuery('')} aria-label="Clear">×</button>
+            : <kbd className="nav-search-kbd" onClick={() => openGlobalSearch()} title="Search everything">{isMac ? '⌘K' : 'Ctrl K'}</kbd>}
+        </div>
+        <button type="button" className="nav-search-icon" onClick={() => openGlobalSearch()} title="Search" aria-label="Search">
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx={11} cy={11} r={7} /><path d="m21 21-4.3-4.3" /></svg>
+        </button>
+
         <nav className="nav om-nav-scroll">
-          {visibleGroups.map((group) => (
+          {nq && !shownGroups.length && <div className="nav-search-none">No menu item matches.</div>}
+          {shownGroups.map((group) => (
             <div key={group.key} className="nav-group">
-              <div className="nav-group-header" onClick={() => toggleGroup(group.key)}>
+              <div className="nav-group-header" onClick={() => toggleGroup(group.key)} title={group.hint}>
                 <span className="nav-group-label">{group.label}</span>
                 <span
                   className="nav-group-chevron"
@@ -92,13 +132,15 @@ export function AppShell() {
                   ▼
                 </span>
               </div>
-              {isOpen(group.key) && (
+              {(nq || isOpen(group.key)) && (
                 <div className="nav-group-items">
                   {group.items.map((item) => (
                     <NavLink
                       key={item.route}
                       to={`/${item.route}`}
-                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${READY_FOR_TESTING.has(item.route) ? 'ready' : ''}`}
+                      title={item.desc}
+                      onClick={() => setNavQuery('')}
+                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${READY_FOR_TESTING.has(item.route) ? 'ready' : ''} ${firstMatch?.route === item.route ? 'is-first' : ''}`}
                     >
                       <Icon name={item.icon} size={16} style={{ flexShrink: 0, opacity: 0.8 }} />
                       <span className="nav-item-label">{item.label}</span>
@@ -111,6 +153,11 @@ export function AppShell() {
               )}
             </div>
           ))}
+          {nq && (
+            <button type="button" className="nav-search-all" onClick={() => { openGlobalSearch(navQuery.trim()); setNavQuery(''); }}>
+              Search projects, people and tasks for “{navQuery.trim()}” →
+            </button>
+          )}
         </nav>
 
         <div className="user-chip" style={{ position: 'relative' }}>
@@ -130,7 +177,7 @@ export function AppShell() {
           <div className="topbar-left">
             {slug !== 'dashboard' && (
               <div className="topbar-back" onClick={() => navigate(-1)} title="Back">
-                <Icon name="back" size={18} stroke="#43514D" strokeWidth={2} />
+                <Icon name="back" size={18} stroke="var(--body)" strokeWidth={2} />
               </div>
             )}
             <h1 className="page-title">{pageTitle}</h1>
@@ -156,12 +203,9 @@ export function AppShell() {
 
           <AutosaveIndicator />
 
-          <div className="search-box">
-            <Icon name="search" size={16} stroke="#7E9B93" strokeWidth={2} />
-            <span className="search-placeholder">Search...</span>
-            <span className="search-kbd">⌘K</span>
-          </div>
+          <GlobalSearch pages={searchPages} />
 
+          <ThemeToggle />
           <Notifications />
         </header>
 

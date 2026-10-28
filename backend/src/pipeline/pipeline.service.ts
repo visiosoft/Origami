@@ -1,9 +1,14 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
+import { NEEDS_INTAKE, missingIntake } from './lead-intake';
+import { cleanLossReason, DEAD_STAGES, isDueForArchive } from './dead-leads';
 import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { NotifyHub } from '../notifications/notify-hub.service';
 import { DealEntity, LeadEntity } from '../database/entities';
 import { ProjectsService } from '../projects/projects.service';
+import { TasksService } from '../tasks/tasks.service';
+import { ProjectTasksService } from '../project-tasks/project-tasks.service';
 import { STAGES, RETIRED_STAGE_KEYS, stageBlockedFor, deliveryCode } from '../seed-data/pipeline';
 
 /** How many chases before the lead is handed on rather than chased again. */
@@ -38,7 +43,24 @@ export class PipelineService implements OnApplicationBootstrap {
     @InjectRepository(DealEntity) private readonly repo: Repository<DealEntity>,
     @InjectRepository(LeadEntity) private readonly leads: Repository<LeadEntity>,
     private readonly projects: ProjectsService,
+    @Optional() private readonly tasks?: TasksService,
+    @Optional() private readonly boardTasks?: ProjectTasksService,
+    @Optional() private readonly hub?: NotifyHub,
   ) {}
+
+  /** A lead's name for a notification (it lives on the lead record). */
+  private async leadName(id: string, fallback?: string) {
+    const lead = await this.leads.findOneBy({ id }).catch(() => null);
+    return String((lead as any)?.leadName || (lead as any)?.name || fallback || id);
+  }
+
+  /** "Lead status changes": everyone who follows the CRM hears it their way (daily digest by default). */
+  private leadMoved(id: string, what: (name: string) => string, actor?: DealActor, fallbackName?: string) {
+    if (!this.hub) return;
+    void this.leadName(id, fallbackName)
+      .then((name) => this.hub!.broadcast('lead_status', { title: what(name), path: `/pipeline?open=${encodeURIComponent(id)}`, actorId: actor?.id }))
+      .catch((e) => this.log.warn(`Lead status notice for ${id}: ${(e as Error).message}`));
+  }
 
   /**
    * Stage indices moved when the hold and cold stages were inserted, so any
@@ -46,6 +68,10 @@ export class PipelineService implements OnApplicationBootstrap {
    * stage key — the key is the real identity, the index only orders the board.
    */
   async onApplicationBootstrap() {
+    // Dead leads leave the board 7 business days after landing there; checked now and every 6 hours.
+    void this.archiveDeadLeads();
+    const sweep = setInterval(() => { void this.archiveDeadLeads(); }, 6 * 60 * 60_000);
+    sweep.unref?.();
     try {
       const deals = await this.repo.find();
       const stale = deals.filter((d) => {
@@ -200,6 +226,13 @@ export class PipelineService implements OnApplicationBootstrap {
       throw new ConflictException(`A deal with id ${dto.id} already exists`);
     }
     const deal = await this.repo.save(this.repo.create(dto as Partial<DealEntity>));
+    // "Incoming lead": a text or an email straight away for whoever wants one.
+    if (this.hub) {
+      void this.leadName(deal.id, dto?.name).then((name) => this.hub!.broadcast('lead_new', {
+        title: `New lead: ${name}`, body: [dto?.source && `Source: ${dto.source}`, dto?.phone, dto?.email].filter(Boolean).join(' · ') || undefined,
+        path: `/pipeline?open=${encodeURIComponent(deal.id)}`,
+      })).catch((e) => this.log.warn(`New lead notice for ${deal.id}: ${(e as Error).message}`));
+    }
     // A Kickoff-stage placeholder project is created once the lead clears
     // Project Fit Review (see updateStage), not the moment it's created --
     // a brand-new, unreviewed lead shouldn't already have a project entry.
@@ -219,6 +252,11 @@ export class PipelineService implements OnApplicationBootstrap {
     // nothing to review at design fit or zoning. Enforced here rather than only
     // in the UI, so the rule holds however the move is made.
     const lead = await this.leads.findOneBy({ id });
+    // Leaving New Lead for the active funnel needs the intake complete: every field answered or N/A (Oct 27 backlog).
+    if (deal.stage === 'new_lead' && NEEDS_INTAKE.includes(stage)) {
+      const missing = missingIntake(lead as unknown as Record<string, unknown>);
+      if (missing.length) throw new BadRequestException(`Finish the New Lead intake first — ${missing.length} field${missing.length === 1 ? '' : 's'} still need an answer or N/A: ${missing.slice(0, 6).map((f) => f.label).join(', ')}${missing.length > 6 ? '…' : ''}.`);
+    }
     if (stageBlockedFor(lead?.contractType, stage)) {
       throw new BadRequestException(
         `${stageName} does not apply to a ${deliveryCode(lead?.contractType)} lead.`,
@@ -248,6 +286,8 @@ export class PipelineService implements OnApplicationBootstrap {
     // into the active pipeline (e.g. brought back after being reconsidered)
     // clears it, rather than leaving a stale "We Declined"/"Referred to..."
     // badge on a lead that's back in play.
+    // Back in play: a loss reason no longer applies either.
+    if (!DEAD_STAGES.includes(stage) && deal.lossReason) deal.lossReason = '';
     if (stage !== 'rejected' && stage !== 'referred_monitoring' && deal.rejectionType) {
       deal.rejectionType = '';
       deal.rejectionReason = '';
@@ -272,6 +312,7 @@ export class PipelineService implements OnApplicationBootstrap {
         this.log.warn(`Could not create the Kickoff-stage project for ${id}: ${(err as Error).message}`);
       }
     }
+    this.leadMoved(id, (name) => `${name} moved to ${stageName}`, actor);
     return saved;
   }
 
@@ -281,6 +322,7 @@ export class PipelineService implements OnApplicationBootstrap {
     deal.archived = archived;
     deal.archivedAt = archived ? new Date().toISOString() : '';
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(archived ? 'Archived' : 'Restored from archive', actor)];
+    this.leadMoved(id, (name) => `${name} ${archived ? 'archived' : 'restored from the archive'}`, actor);
     return this.repo.save(deal);
   }
 
@@ -308,6 +350,7 @@ export class PipelineService implements OnApplicationBootstrap {
   async setRejection(id: string, rejection: {
     rejectionType: 'internal' | 'client' | 'referred';
     rejectionReason?: string;
+    lossReason?: string;
     referredToName?: string;
     referredToCompany?: string;
     referredToContact?: string;
@@ -315,6 +358,12 @@ export class PipelineService implements OnApplicationBootstrap {
     const deal = await this.findOne(id);
     deal.rejectionType = rejection.rejectionType;
     deal.rejectionReason = rejection.rejectionReason || '';
+    if (rejection.rejectionType === 'client') {
+      const loss = cleanLossReason(rejection.lossReason);
+      if (!loss) throw new BadRequestException('Say why the client passed: value proposition, experience, trust, quality, timeline or other.');
+      if (loss === 'Other' && !deal.rejectionReason.trim()) throw new BadRequestException('Add a note for "Other".');
+      deal.lossReason = loss;
+    }
     deal.referredToName = rejection.referredToName || '';
     deal.referredToCompany = rejection.referredToCompany || '';
     deal.referredToContact = rejection.referredToContact || '';
@@ -322,10 +371,44 @@ export class PipelineService implements OnApplicationBootstrap {
     const detail = rejection.rejectionType === 'referred'
       ? `Referred to ${[rejection.referredToName, rejection.referredToCompany].filter(Boolean).join(', ') || 'an external contact'}${rejection.referredToContact ? ` (${rejection.referredToContact})` : ''}`
       : rejection.rejectionType === 'client'
-        ? `Rejected — client declined${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
+        ? `Client passed — ${deal.lossReason}${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
         : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
     return this.repo.save(deal);
+  }
+
+  /** Why a lead went Cold / Loss (or was lost on Cancelled / Passed): a reason, and a note for "Other". */
+  async setLoss(id: string, body: { lossReason?: string; note?: string }, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    const loss = cleanLossReason(body?.lossReason);
+    if (!loss) throw new BadRequestException('Pick why it was lost: value proposition, experience, trust, quality, timeline or other.');
+    const note = String(body?.note || '').trim();
+    if (loss === 'Other' && !note) throw new BadRequestException('Add a note for "Other".');
+    deal.lossReason = loss;
+    deal.rejectionReason = note;
+    const detail = `Lost — ${loss}${note ? `: ${note}` : ''}`;
+    deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
+    return this.repo.save(deal);
+  }
+
+  /** Cold / Loss and Cancelled / Passed leads 7 business days on: archived (restorable), with a timeline line saying so. */
+  async archiveDeadLeads(now: Date = new Date()): Promise<number> {
+    try {
+      const dead = await this.repo.find({ where: { stage: In(DEAD_STAGES) } });
+      const due = dead.filter((d) => isDueForArchive(d, now));
+      for (const d of due) {
+        d.archived = true;
+        d.archivedAt = now.toISOString();
+        d.timeline = [...((d.timeline as unknown[]) || []), this.event('Archived automatically — 7 business days after it closed', { name: 'System' })];
+      }
+      if (due.length) { await this.repo.save(due); this.log.log(`Archived ${due.length} dead lead(s)`); }
+      return due.length;
+    } catch (e) {
+      this.log.warn('Dead lead archive failed: ' + (e as Error).message);
+      return 0;
+    }
   }
 
   /**
@@ -414,6 +497,19 @@ export class PipelineService implements OnApplicationBootstrap {
   }
 
   /** Append a note or any other audited action to the trail. */
+  /** Something the client did (opened the proposal...): on the timeline, and a notice to the team. */
+  async clientEvent(id: string, what: (name: string) => string) {
+    try {
+      const deal = await this.findOne(id);
+      const text = what(deal.name);
+      deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(text, { name: 'Client' })];
+      await this.repo.save(deal);
+      this.leadMoved(id, () => text, undefined, deal.name);
+    } catch (e) {
+      this.log.warn(`Client event for ${id}: ${(e as Error).message}`);
+    }
+  }
+
   async addEvent(id: string, action: string, actor?: DealActor, type: 'auto' | 'pc' | 'pm' = 'auto') {
     const deal = await this.findOne(id);
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(action, actor, type)];
@@ -486,6 +582,15 @@ export class PipelineService implements OnApplicationBootstrap {
     ];
     await this.repo.save(deal);
 
+    // Work done for the lead carries on in the project (still linked to the lead).
+    try {
+      await this.tasks?.adoptLead(id, project.name);
+      await this.boardTasks?.adoptLead(id, Number(project.id));
+    } catch (err) {
+      this.log.warn(`Could not move ${deal.name}'s tasks onto project ${project.id}: ${(err as Error).message}`);
+    }
+
+    this.leadMoved(id, (name) => `${name} became a project`, actor, deal.name);
     return { project, deal };
   }
 

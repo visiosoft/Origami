@@ -52,6 +52,8 @@ let FinanceController = class FinanceController {
     async rights(a) { return this.fin.rights(await this.actor(a)); }
     async brand(a) { return this.fin.brand(await this.actor(a)); }
     async portfolio(a) { return this.hub.portfolio(await this.actor(a)); }
+    async billing(months, a) { return this.hub.billing(await this.actor(a), Number(months) || 6); }
+    async collections(months, a) { return this.hub.collections(await this.actor(a), Number(months) || 6); }
     async pending(a) { return this.hub.pending(await this.actor(a)); }
     async audit(q, a) { return this.hub.audit(await this.actor(a), q || {}); }
     async allCos(a) { return this.cos.all(await this.actor(a)); }
@@ -109,6 +111,7 @@ let FinanceController = class FinanceController {
     async issue(id, dto, a) { return this.invoices.issue(id, dto, await this.actor(a)); }
     async void(id, dto, a) { return this.invoices.void(id, dto, await this.actor(a)); }
     async requestApproval(id, dto, a) { return this.invoices.requestApproval(id, dto, await this.actor(a)); }
+    async approveInvoice(id, dto, a) { return this.invoices.approve(id, dto, await this.actor(a)); }
     async returnDraft(id, dto, a) { return this.invoices.returnDraft(id, dto, await this.actor(a)); }
     async credit(id, dto, a) { return this.invoices.createCredit(id, dto, await this.actor(a)); }
     async pay(id, dto, a) { return this.invoices.recordPayment(id, dto, await this.actor(a)); }
@@ -120,6 +123,7 @@ let FinanceController = class FinanceController {
     async actCo(id, action, dto, a) {
         return this.cos.act(id, action, dto || {}, await this.actor(a));
     }
+    async receiptCheck(q, a) { return this.reimbs.checkReceipt(q || {}, await this.actor(a)); }
     async reimb(id, a) { return this.reimbs.get(id, await this.actor(a)); }
     async updateReimb(id, dto, a) { return this.reimbs.update(id, dto, await this.actor(a)); }
     async removeReimb(id, a) { return this.reimbs.remove(id, await this.actor(a)); }
@@ -149,6 +153,22 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "portfolio", null);
+__decorate([
+    (0, common_1.Get)('billing'),
+    __param(0, (0, common_1.Query)('months')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "billing", null);
+__decorate([
+    (0, common_1.Get)('collections'),
+    __param(0, (0, common_1.Query)('months')),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "collections", null);
 __decorate([
     (0, common_1.Get)('approvals'),
     __param(0, (0, common_1.Headers)('authorization')),
@@ -521,6 +541,15 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "requestApproval", null);
 __decorate([
+    (0, common_1.Post)('invoices/:id/approve'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "approveInvoice", null);
+__decorate([
     (0, common_1.Post)('invoices/:id/return'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
@@ -599,6 +628,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object, String]),
     __metadata("design:returntype", Promise)
 ], FinanceController.prototype, "actCo", null);
+__decorate([
+    (0, common_1.Get)('reimbursables/receipt-check'),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], FinanceController.prototype, "receiptCheck", null);
 __decorate([
     (0, common_1.Get)('reimbursables/:id'),
     __param(0, (0, common_1.Param)('id')),

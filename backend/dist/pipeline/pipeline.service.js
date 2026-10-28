@@ -14,19 +14,37 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PipelineService = exports.MAX_FOLLOW_UPS = void 0;
 const common_1 = require("@nestjs/common");
+const lead_intake_1 = require("./lead-intake");
 const lead_address_1 = require("../leads/lead-address");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const notify_hub_service_1 = require("../notifications/notify-hub.service");
 const entities_1 = require("../database/entities");
 const projects_service_1 = require("../projects/projects.service");
+const tasks_service_1 = require("../tasks/tasks.service");
+const project_tasks_service_1 = require("../project-tasks/project-tasks.service");
 const pipeline_1 = require("../seed-data/pipeline");
 exports.MAX_FOLLOW_UPS = 3;
 let PipelineService = class PipelineService {
-    constructor(repo, leads, projects) {
+    constructor(repo, leads, projects, tasks, boardTasks, hub) {
         this.repo = repo;
         this.leads = leads;
         this.projects = projects;
+        this.tasks = tasks;
+        this.boardTasks = boardTasks;
+        this.hub = hub;
         this.log = new common_1.Logger('PipelineService');
+    }
+    async leadName(id, fallback) {
+        const lead = await this.leads.findOneBy({ id }).catch(() => null);
+        return String(lead?.leadName || lead?.name || fallback || id);
+    }
+    leadMoved(id, what, actor, fallbackName) {
+        if (!this.hub)
+            return;
+        void this.leadName(id, fallbackName)
+            .then((name) => this.hub.broadcast('lead_status', { title: what(name), path: `/pipeline?open=${encodeURIComponent(id)}`, actorId: actor?.id }))
+            .catch((e) => this.log.warn(`Lead status notice for ${id}: ${e.message}`));
     }
     async onApplicationBootstrap() {
         try {
@@ -147,6 +165,12 @@ let PipelineService = class PipelineService {
             throw new common_1.ConflictException(`A deal with id ${dto.id} already exists`);
         }
         const deal = await this.repo.save(this.repo.create(dto));
+        if (this.hub) {
+            void this.leadName(deal.id, dto?.name).then((name) => this.hub.broadcast('lead_new', {
+                title: `New lead: ${name}`, body: [dto?.source && `Source: ${dto.source}`, dto?.phone, dto?.email].filter(Boolean).join(' · ') || undefined,
+                path: `/pipeline?open=${encodeURIComponent(deal.id)}`,
+            })).catch((e) => this.log.warn(`New lead notice for ${deal.id}: ${e.message}`));
+        }
         return this.overlayLead(deal, await this.leads.findOneBy({ id: deal.id }));
     }
     async updateStage(id, stage, actor) {
@@ -155,6 +179,11 @@ let PipelineService = class PipelineService {
         const stageName = target?.name ?? stage;
         const deal = await this.findOne(id);
         const lead = await this.leads.findOneBy({ id });
+        if (deal.stage === 'new_lead' && lead_intake_1.NEEDS_INTAKE.includes(stage)) {
+            const missing = (0, lead_intake_1.missingIntake)(lead);
+            if (missing.length)
+                throw new common_1.BadRequestException(`Finish the New Lead intake first — ${missing.length} field${missing.length === 1 ? '' : 's'} still need an answer or N/A: ${missing.slice(0, 6).map((f) => f.label).join(', ')}${missing.length > 6 ? '…' : ''}.`);
+        }
         if ((0, pipeline_1.stageBlockedFor)(lead?.contractType, stage)) {
             throw new common_1.BadRequestException(`${stageName} does not apply to a ${(0, pipeline_1.deliveryCode)(lead?.contractType)} lead.`);
         }
@@ -190,6 +219,7 @@ let PipelineService = class PipelineService {
                 this.log.warn(`Could not create the Kickoff-stage project for ${id}: ${err.message}`);
             }
         }
+        this.leadMoved(id, (name) => `${name} moved to ${stageName}`, actor);
         return saved;
     }
     async setArchived(id, archived, actor) {
@@ -197,6 +227,7 @@ let PipelineService = class PipelineService {
         deal.archived = archived;
         deal.archivedAt = archived ? new Date().toISOString() : '';
         deal.timeline = [...(deal.timeline || []), this.event(archived ? 'Archived' : 'Restored from archive', actor)];
+        this.leadMoved(id, (name) => `${name} ${archived ? 'archived' : 'restored from the archive'}`, actor);
         return this.repo.save(deal);
     }
     async setRoles(id, roles, actor) {
@@ -225,6 +256,7 @@ let PipelineService = class PipelineService {
                 ? `Rejected — client declined${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
                 : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
         deal.timeline = [...(deal.timeline || []), this.event(detail, actor)];
+        this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
         return this.repo.save(deal);
     }
     async logFollowUp(id, input, actor) {
@@ -329,6 +361,14 @@ let PipelineService = class PipelineService {
             this.event(`Converted to project #${project.id} (${project.stage}) — card archived`, actor),
         ];
         await this.repo.save(deal);
+        try {
+            await this.tasks?.adoptLead(id, project.name);
+            await this.boardTasks?.adoptLead(id, Number(project.id));
+        }
+        catch (err) {
+            this.log.warn(`Could not move ${deal.name}'s tasks onto project ${project.id}: ${err.message}`);
+        }
+        this.leadMoved(id, (name) => `${name} became a project`, actor, deal.name);
         return { project, deal };
     }
     async remove(id) {
@@ -343,9 +383,15 @@ exports.PipelineService = PipelineService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.DealEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __param(3, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Optional)()),
+    __param(5, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
-        projects_service_1.ProjectsService])
+        projects_service_1.ProjectsService,
+        tasks_service_1.TasksService,
+        project_tasks_service_1.ProjectTasksService,
+        notify_hub_service_1.NotifyHub])
 ], PipelineService);
 function initialsOf(name) {
     const parts = name.trim().split(/\s+/).filter(Boolean);

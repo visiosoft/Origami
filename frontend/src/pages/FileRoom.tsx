@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
+import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
 import { api } from '../api';
+import { RecipientPicker } from '../components/RecipientPicker';
+import { ShareHistory } from '../components/ShareHistory';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
@@ -8,21 +12,41 @@ import {
   type FileRoomData, type FileRoomFile,
 } from '../data/fileRoom';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = 'var(--font-display)';
+/** Documents Drive can show as a PDF (images have their own preview). */
+const PREVIEWABLE = new Set(['pdf', 'doc', 'docx', 'rtf', 'odt', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp', 'txt']);
+const canPreview = (f: { ext?: string; mimeType?: string }) =>
+  PREVIEWABLE.has((f.ext || '').toLowerCase().replace(/^\./, '')) || /^application\/vnd\.google-apps\.(document|spreadsheet|presentation)$/.test(f.mimeType || '');
+
+/** PDFs can be marked up (drawings, specs, submittals). */
+const isPdf = (f: { ext?: string; mimeType?: string; name?: string }) =>
+  (f.ext || '').toLowerCase().replace(/^\./, '') === 'pdf' || f.mimeType === 'application/pdf' || /\.pdf$/i.test(f.name || '');
+
+/** "Last synced 12 min ago" for the project's Drive folder. */
+function syncedLabel(iso?: string | null) {
+  if (!iso) return 'Not synced with Drive yet';
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'Last synced just now';
+  if (mins < 60) return `Last synced ${mins} min ago`;
+  const d = new Date(iso);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return `Last synced ${sameDay ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', '}${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 const EMPTY: FileRoomData = { projects: [], categories: [], files: [], folders: [] };
 
 const card: React.CSSProperties = {
-  background: 'white', borderRadius: 14, border: '1px solid rgba(20,8,31,0.06)',
+  background: 'var(--surface)', borderRadius: 'var(--r-14)', border: '1px solid rgba(var(--rgb-shade), 0.06)',
 };
 
 const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box', padding: '7px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontFamily: 'inherit',
-  fontSize: 12.5, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 12.5, color: 'var(--ink)', outline: 'none',
 };
 
-const FolderIcon = ({ size = 15, c = '#7E9B93' }: { size?: number; c?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+const FolderIcon = ({ size = 15, c = 'var(--muted)' }: { size?: number; c?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ stroke: c }} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
   </svg>
 );
@@ -34,7 +58,8 @@ const FolderIcon = ({ size = 15, c = '#7E9B93' }: { size?: number; c?: string })
  */
 export function FileRoom() {
   const { can, toast } = useApp();
-  const canManage = can('planroom', 'manage');
+  // Opened as All Files, that module's own permission counts too.
+  const canManage = can('planroom', 'manage') || (window.location.pathname === '/allfiles' && can('allfiles', 'manage'));
   const isNarrow = useWindowWidth() < 900;
 
   const [data, setData] = useState<FileRoomData>(EMPTY);
@@ -60,6 +85,15 @@ export function FileRoom() {
   const [emailTo, setEmailTo] = useState('');
   const [emailNote, setEmailNote] = useState('');
   const [emailOpen, setEmailOpen] = useState(false);
+  // Several files picked at once (inside one project): share, email or move them together.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulk, setBulk] = useState<'' | 'email' | 'move'>('');
+  const [bulkTo, setBulkTo] = useState('');
+  const [bulkNote, setBulkNote] = useState('');
+  const [bulkLinks, setBulkLinks] = useState<{ id: string; name: string; url: string }[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [sharesTick, setSharesTick] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
@@ -68,6 +102,9 @@ export function FileRoom() {
   const linkedFile = params.get('file');
   // /planroom?project=<id> (the project page's Files button) opens that project's folder.
   const linkedProject = params.get('project');
+  // /planroom?file=<id>&markup=<id> (from an RFI or task made from a markup) opens the drawing at that markup.
+  const linkedMarkup = params.get('markup');
+  const [markingUp, setMarkingUp] = useState<{ id: string; focus?: string | null; page?: number; from?: { id: string; page?: number; name: string }[] } | null>(linkedFile && linkedMarkup ? { id: linkedFile, focus: linkedMarkup } : null);
   const load = () => {
     api.fileRoom.list()
       .then((d) => {
@@ -192,10 +229,45 @@ export function FileRoom() {
     setNewFolderName(''); setNewFolderOpen(false); setNewFolderTreeFor(null);
   };
 
+  // A different folder or project starts a fresh selection.
+  const here = path.join('>');
+  useEffect(() => { setPicked(new Set()); setBulk(''); setBulkLinks([]); }, [here]);
+  const canPick = canManage && !atRoot;
+  const togglePick = (id: string) => setPicked((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const pickBox = (id: string) => canPick ? (
+    <input type="checkbox" checked={picked.has(id)} aria-label="Select file"
+      onClick={(e) => e.stopPropagation()} onChange={() => togglePick(id)}
+      style={{ width: 17, height: 17, margin: 0, flexShrink: 0, cursor: 'pointer', accentColor: 'var(--ink)' }} />
+  ) : null;
+  const pickedIds = [...picked];
+  const bulkRun = async (fn: () => Promise<void>) => {
+    setBulkBusy(true);
+    try { await fn(); } catch (e) { toast('⚠ ' + ((e as Error).message || 'Failed')); } finally { setBulkBusy(false); }
+  };
+  const bulkShare = () => bulkRun(async () => {
+    const links = await api.fileRoom.shareMany(pickedIds);
+    setBulkLinks(links);
+    const text = links.map((l) => `${l.name} — ${l.url}`).join('\n');
+    try { await navigator.clipboard.writeText(text); toast(`${links.length} share link${links.length === 1 ? '' : 's'} copied`); }
+    catch { toast('Share links ready'); }
+  });
+  const bulkEmail = () => bulkRun(async () => {
+    if (!bulkTo.trim()) { toast('⚠ Add a recipient'); return; }
+    await api.fileRoom.emailMany(pickedIds, bulkTo, bulkNote);
+    toast(`Sent ${pickedIds.length} file${pickedIds.length === 1 ? '' : 's'} to ${bulkTo.trim()}`);
+    setSharesTick((n) => n + 1);
+    setBulk(''); setBulkTo(''); setBulkNote('');
+  });
+  const bulkMove = (to: string[]) => bulkRun(async () => {
+    const r = await api.fileRoom.moveMany(pickedIds, to);
+    toast(r.moved ? `Moved ${r.moved} file${r.moved === 1 ? '' : 's'} to ${to.length ? to.join(' › ') : 'the project root'}` : 'They’re already there');
+    setPicked(new Set()); setBulk(''); load();
+  });
+
   const act = (p: Promise<unknown>, ok: string) =>
     p.then(() => { toast(ok); load(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
 
-  if (loading) return <div style={{ padding: 24, fontSize: 13, color: '#7E9B93' }}>Loading File Room…</div>;
+  if (loading) return <div style={{ padding: 24, fontSize: 13, color: 'var(--muted)' }}>Loading File Room…</div>;
 
   // ---- tree ---------------------------------------------------------------
 
@@ -207,26 +279,26 @@ export function FileRoom() {
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 7, padding: '7px 9px', borderRadius: 8, cursor: 'pointer',
-        marginLeft: opts.indent ?? 0, background: active ? '#DCE7DE' : 'transparent',
-        color: active ? '#173326' : '#43514D', fontWeight: active ? 700 : 500, fontSize: 12,
+        marginLeft: opts.indent ?? 0, background: active ? 'var(--mint)' : 'transparent',
+        color: active ? 'var(--forest)' : 'var(--body)', fontWeight: active ? 700 : 500, fontSize: 12,
       }}
     >
       {opts.chevron !== undefined && opts.chevron !== null && (
         <span
           onClick={(e) => { e.stopPropagation(); opts.onChevron?.(); }}
-          style={{ fontSize: 8, color: '#9AA39D', transition: 'transform 0.15s', transform: opts.chevron === 'open' ? 'rotate(180deg)' : 'none' }}
+          style={{ fontSize: 8, color: 'var(--c-9aa39d)', transition: 'transform 0.15s', transform: opts.chevron === 'open' ? 'rotate(180deg)' : 'none' }}
         >▼</span>
       )}
-      <FolderIcon c={active ? '#173326' : '#7E9B93'} />
+      <FolderIcon c={active ? 'var(--forest)' : 'var(--muted)'} />
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-      {count !== null && <span style={{ fontSize: 10.5, color: '#7E9B93', fontWeight: 600 }}>{count}</span>}
+      {count !== null && <span style={{ fontSize: 10.5, color: 'var(--muted)', fontWeight: 600 }}>{count}</span>}
     </div>
   );
 
   const tree = (
     <div style={{ ...card, width: isNarrow ? '100%' : 250, flexShrink: 0, padding: 10, maxHeight: isNarrow ? 260 : 'calc(100vh - 210px)', overflowY: 'auto' }}>
       {treeRow('All Files', data.files.length, atRoot, () => setPath(['all']))}
-      <div style={{ height: 1, background: 'rgba(20,8,31,0.06)', margin: '8px 2px' }} />
+      <div style={{ height: 1, background: 'rgba(var(--rgb-shade), 0.06)', margin: '8px 2px' }} />
       {data.projects.map((p) => {
         const open = !!openProjects[p.id];
         const isActive = projectId === p.id && folder.length === 0;
@@ -256,11 +328,11 @@ export function FileRoom() {
                       placeholder="Folder name" style={{ ...inputStyle, flex: 1, padding: '5px 8px', fontSize: 11.5 }}
                     />
                     <div onClick={() => createFolder(p.id, [], newFolderName)}
-                         style={{ padding: '5px 10px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add</div>
+                         style={{ padding: '5px 10px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Add</div>
                   </div>
                 ) : (
                   <div onClick={() => { setNewFolderTreeFor(p.id); setNewFolderName(''); }}
-                       style={{ marginLeft: 26, padding: '5px 9px', fontSize: 11, fontWeight: 600, color: '#7E9B93', cursor: 'pointer' }}>+ New folder</div>
+                       style={{ marginLeft: 26, padding: '5px 9px', fontSize: 11, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>+ New folder</div>
                 ))}
               </>
             )}
@@ -284,12 +356,12 @@ export function FileRoom() {
         const last = i === shown.length - 1;
         return (
           <span key={`${s.label}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {i > 0 && <span style={{ color: '#C9D4CC', fontSize: 12 }}>›</span>}
+            {i > 0 && <span style={{ color: 'var(--c-c9d4cc)', fontSize: 12 }}>›</span>}
             <span
               onClick={() => { if (last || s.depth === -2) return; s.depth === -1 ? setPath(['all']) : jumpTo(s.depth); }}
               style={last
-                ? { fontFamily: BG, fontSize: 14, fontWeight: 700, color: '#0B1A12' }
-                : { fontSize: 12.5, fontWeight: 600, color: '#7E9B93', cursor: s.depth === -2 ? 'default' : 'pointer' }}
+                ? { fontFamily: BG, fontSize: 14, fontWeight: 700, color: 'var(--ink)' }
+                : { fontSize: 12.5, fontWeight: 600, color: 'var(--muted)', cursor: s.depth === -2 ? 'default' : 'pointer' }}
             >{s.label}</span>
           </span>
         );
@@ -303,7 +375,7 @@ export function FileRoom() {
     if (!f.groupId) return null;
     const latest = f.isLatest !== false;
     return (
-      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: latest ? '#D2EAD3' : '#EFEDE8', color: latest ? '#1C5230' : '#7E9B93' }}>
+      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: latest ? 'var(--c-d2ead3)' : 'var(--c-efede8)', color: latest ? 'var(--success-deep)' : 'var(--muted)' }}>
         {latest ? 'Latest' : 'Older version'}
       </span>
     );
@@ -314,30 +386,31 @@ export function FileRoom() {
       {visibleFolders.map((f) => (
         <div key={f.key} onClick={() => (atRoot ? setPath([f.key]) : openFolder(f.name))}
              style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer' }}>
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: '#EFEDE8', display: 'grid', placeItems: 'center', marginBottom: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: 'var(--c-efede8)', display: 'grid', placeItems: 'center', marginBottom: 10 }}>
             <FolderIcon size={19} />
           </div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-          <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 3 }}>{f.count} {f.count === 1 ? 'file' : 'files'}</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+          <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{f.count} {f.count === 1 ? 'file' : 'files'}</div>
         </div>
       ))}
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-               style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer' }}>
+               style={{ ...card, borderRadius: 13, padding: 14, cursor: 'pointer', position: 'relative', outline: picked.has(f.id) ? '2px solid var(--ink)' : 'none', outlineOffset: -2 }}>
+            {canPick && <span style={{ position: 'absolute', top: 12, right: 12 }}>{pickBox(f.id)}</span>}
             <div style={{ width: 38, height: 38, borderRadius: 9, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', marginBottom: 10, fontSize: 9, fontWeight: 800 }}>
               {(f.ext || '?').slice(0, 4)}
             </div>
-            <div title={f.name} style={{ fontSize: 12.5, fontWeight: 700, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-            <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 3 }}>{prettySize(f.size)} · {shortDate(f.updatedAt)}</div>
+            <div title={f.name} style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>{prettySize(f.size)} · {shortDate(f.updatedAt)}</div>
             {atRoot && <div style={{ fontSize: 10, color: '#2F6F68', marginTop: 3 }}>{data.projects.find((p) => p.id === Number(f.projectId))?.name}</div>}
             <div style={{ marginTop: 7 }}>{badge(f)}</div>
           </div>
         );
       })}
       {!visibleFolders.length && !visibleFiles.length && (
-        <div style={{ gridColumn: '1 / -1', padding: '28px 0', textAlign: 'center', fontSize: 12.5, color: '#9AA39D' }}>
+        <div style={{ gridColumn: '1 / -1', padding: '28px 0', textAlign: 'center', fontSize: 12.5, color: 'var(--c-9aa39d)' }}>
           {search ? 'Nothing matches that search.' : 'This folder is empty.'}
         </div>
       )}
@@ -347,34 +420,35 @@ export function FileRoom() {
   const listView = (
     <div style={{ ...card, overflow: 'hidden' }}>
       <div onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid rgba(20,8,31,0.06)', cursor: 'pointer' }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>Name</span>
-        <span style={{ fontSize: 9, color: '#9AA39D' }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
+           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', cursor: 'pointer' }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>Name</span>
+        <span style={{ fontSize: 9, color: 'var(--c-9aa39d)' }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
       </div>
       {visibleFolders.map((f, i) => (
         <div key={f.key} onClick={() => (atRoot ? setPath([f.key]) : openFolder(f.name))}
-             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i ? '1px solid rgba(20,8,31,0.04)' : 'none', cursor: 'pointer' }}>
+             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.04)' : 'none', cursor: 'pointer' }}>
           <FolderIcon />
-          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: '#0B1A12' }}>{f.name}</span>
-          <span style={{ fontSize: 11, color: '#7E9B93' }}>{f.count}</span>
+          <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink)' }}>{f.name}</span>
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>{f.count}</span>
         </div>
       ))}
       {visibleFiles.map((f) => {
         const st = extStyle(f.ext);
         return (
           <div key={f.id} onClick={() => { setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.04)', cursor: 'pointer' }}>
+               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)', cursor: 'pointer', background: picked.has(f.id) ? 'rgba(245, 196, 67, 0.12)' : 'transparent' }}>
+            {pickBox(f.id)}
             <span style={{ width: 22, height: 22, borderRadius: 6, background: st.bg, color: st.c, display: 'grid', placeItems: 'center', fontSize: 7.5, fontWeight: 800, flexShrink: 0 }}>{(f.ext || '?').slice(0, 4)}</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#0B1A12', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
             {badge(f)}
             {atRoot && <span style={{ fontSize: 10.5, color: '#2F6F68' }}>{data.projects.find((p) => p.id === Number(f.projectId))?.name}</span>}
-            <span style={{ width: 64, textAlign: 'right', fontSize: 10.5, color: '#7E9B93' }}>{prettySize(f.size)}</span>
-            <span style={{ width: 56, textAlign: 'right', fontSize: 10.5, color: '#7E9B93' }}>{shortDate(f.updatedAt)}</span>
+            <span style={{ width: 64, textAlign: 'right', fontSize: 10.5, color: 'var(--muted)' }}>{prettySize(f.size)}</span>
+            <span style={{ width: 56, textAlign: 'right', fontSize: 10.5, color: 'var(--muted)' }}>{shortDate(f.updatedAt)}</span>
           </div>
         );
       })}
       {!visibleFolders.length && !visibleFiles.length && (
-        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12.5, color: '#9AA39D' }}>
+        <div style={{ padding: '24px 0', textAlign: 'center', fontSize: 12.5, color: 'var(--c-9aa39d)' }}>
           {search ? 'Nothing matches that search.' : 'This folder is empty.'}
         </div>
       )}
@@ -382,16 +456,16 @@ export function FileRoom() {
   );
 
   const pill = (label: string, on: boolean, onClick: () => void) => (
-    <div onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: on ? '#173326' : 'white', color: on ? 'white' : '#43514D', border: '1px solid ' + (on ? '#173326' : 'rgba(20,8,31,0.12)') }}>{label}</div>
+    <div onClick={onClick} style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: on ? 'var(--forest)' : 'var(--surface)', color: on ? 'white' : 'var(--body)', border: '1px solid ' + (on ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.12)') }}>{label}</div>
   );
 
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: '#0F2417', color: '#D2822E', display: 'grid', placeItems: 'center', fontSize: 14 }}>◈</div>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--sidebar)', color: '#D2822E', display: 'grid', placeItems: 'center', fontSize: 14 }}>◈</div>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em', color: '#0B1A12' }}>File Room</div>
-          <div style={{ fontSize: 12, color: '#7E9B93' }}>Origami Design + Build</div>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em', color: 'var(--ink)' }}>File Room</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)' }}>Origami Design + Build</div>
         </div>
       </div>
 
@@ -400,9 +474,9 @@ export function FileRoom() {
           ['Added This Week', String(stats.recent), 'last 7 days'],
           ['Storage Used', stats.storage, 'in Google Drive']].map(([label, value, sub]) => (
           <div key={label} style={{ ...card, padding: '15px 16px' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>{label}</div>
-            <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7, color: '#0B1A12' }}>{value}</div>
-            <div style={{ fontSize: 10.5, color: '#7E9B93', fontWeight: 600, marginTop: 4 }}>{sub}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>{label}</div>
+            <div style={{ fontFamily: BG, fontSize: 23, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 7, color: 'var(--ink)' }}>{value}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--muted)', fontWeight: 600, marginTop: 4 }}>{sub}</div>
           </div>
         ))}
       </div>
@@ -415,25 +489,39 @@ export function FileRoom() {
             {breadcrumb}
             <div style={{ flex: 1 }} />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search files…"
-                   style={{ ...inputStyle, background: '#FBF8F2', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 10, minWidth: 200 }} />
-            <div style={{ display: 'flex', gap: 3, background: '#EFEDE8', padding: 3, borderRadius: 999 }}>
+                   style={{ ...inputStyle, background: 'var(--panel)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, minWidth: 200 }} />
+            <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
               {(['grid', 'list'] as const).map((v) => (
                 <div key={v} onClick={() => setView(v)}
-                     style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'white' : 'transparent', color: view === v ? '#0B1A12' : '#7E9B93', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
+                     style={{ padding: '5px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v}</div>
               ))}
             </div>
             {pill('Latest files only', latestOnly, () => setLatestOnly((v) => !v))}
             {canManage && !atRoot && pill('+ New Folder', false, () => setNewFolderOpen((v) => !v))}
+            {canManage && !atRoot && pill('Sent history', historyOpen, () => setHistoryOpen((v) => !v))}
+            {canManage && !atRoot && pill('Standard folders', false, async () => {
+              if (!projectId) return;
+              try {
+                const r = await api.fileRoom.applyTemplate(projectId);
+                toast(!r.template ? 'No standard folders set yet — add them under Settings → Integrations → Google Workspace' : r.created ? `Added ${r.created} standard folder${r.created === 1 ? '' : 's'}` : 'All standard folders are already here');
+                load();
+              } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not add the folders')); }
+            })}
             {!atRoot && (
               <div onClick={() => projectId && sync(projectId)}
                    title="Pull in anything added to this project's Drive folder"
-                   style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: 'white', color: '#43514D', border: '1px solid rgba(20,8,31,0.12)' }}>
+                   style={{ padding: '7px 13px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: syncing ? 'progress' : 'pointer', background: 'var(--surface)', color: 'var(--body)', border: '1px solid rgba(var(--rgb-shade), 0.12)' }}>
                 {syncing ? 'Syncing…' : '⟳ Sync Drive'}
               </div>
             )}
+            {!atRoot && (
+              <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                {syncedLabel(data.projects.find((p) => p.id === projectId)?.syncedAt)}
+              </span>
+            )}
             {canManage && (
               <div onClick={() => setUploadOpen((v) => !v)}
-                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>+ Upload Files</div>
+                   style={{ padding: '7px 14px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>+ Upload Files</div>
             )}
           </div>
 
@@ -446,7 +534,7 @@ export function FileRoom() {
                      }}
                      placeholder="Folder name" style={{ ...inputStyle, width: 220 }} />
               <div onClick={() => createFolder(projectId as number, folder, newFolderName)}
-                   style={{ padding: '7px 14px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Create</div>
+                   style={{ padding: '7px 14px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Create</div>
             </div>
           )}
 
@@ -455,22 +543,22 @@ export function FileRoom() {
               onClick={() => fileInput.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); sendFiles(Array.from(e.dataTransfer.files)); }}
-              style={{ border: '2px dashed rgba(20,8,31,0.12)', borderRadius: 13, background: 'white', padding: '26px 16px', textAlign: 'center', cursor: 'pointer', marginBottom: 12 }}
+              style={{ border: '2px dashed rgba(var(--rgb-shade), 0.12)', borderRadius: 13, background: 'var(--surface)', padding: '26px 16px', textAlign: 'center', cursor: 'pointer', marginBottom: 12 }}
             >
               <input ref={fileInput} type="file" multiple style={{ display: 'none' }}
                      onChange={(e) => { sendFiles(Array.from(e.target.files ?? [])); e.currentTarget.value = ''; }} />
               <div style={{ fontSize: 20, marginBottom: 6 }}>⬆</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#0B1A12' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
                 {uploading.length ? `Uploading ${uploading.length}…` : 'Drop files here or click to attach'}
               </div>
-              <div style={{ fontSize: 11, color: '#7E9B93', marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
                 {atRoot ? 'Open a project first — files belong to one' : ['All Files', project?.name, ...folder].filter(Boolean).join(' › ')}
               </div>
             </div>
           )}
 
           {!storageReady && canManage && (
-            <div style={{ fontSize: 11.5, color: '#8A6D12', background: '#FBE9AE', borderRadius: 8, padding: '8px 11px', marginBottom: 12 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--c-8a6d12)', background: 'var(--amber-light)', borderRadius: 8, padding: '8px 11px', marginBottom: 12 }}>
               No Google account connected — uploads are unavailable until one is linked under Settings → Integrations.
             </div>
           )}
@@ -479,26 +567,99 @@ export function FileRoom() {
         </div>
       </div>
 
+      {historyOpen && projectId && createPortal(
+        <div onClick={() => setHistoryOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 140, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100vw', height: '100%', boxSizing: 'border-box', background: 'var(--surface)', overflowY: 'auto', padding: '18px 22px', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: 'var(--ink)' }}>Sent history</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Every file emailed from {project?.name || 'this project'}’s File Room — who sent what, to whom and when.</div>
+              </div>
+              <div onClick={() => setHistoryOpen(false)} style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
+            </div>
+            <ShareHistory projectId={projectId} refreshKey={sharesTick}
+              onOpenFile={(id) => { const f = data.files.find((x) => x.id === id); if (!f) { toast('That file is no longer in the File Room'); return; } setHistoryOpen(false); setPath([String(f.projectId), ...(f.folderPath || [])]); setSelectedFileId(f.id); setRenaming(f.name); setNotes(f.notes ?? ''); setShareUrl(''); setEmailOpen(false); }} />
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {canPick && picked.size > 0 && createPortal(
+        <div style={{ position: 'fixed', left: '50%', bottom: 18, transform: 'translateX(-50%)', zIndex: 135, width: 'min(720px, calc(100vw - 32px))', boxSizing: 'border-box',
+          background: 'var(--surface)', color: 'var(--ink)', borderRadius: 18, boxShadow: '0 18px 50px rgba(var(--rgb-ink), 0.28)', border: '1px solid rgba(var(--rgb-shade), 0.1)', padding: 12, display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <b style={{ fontSize: 13, marginRight: 4 }}>{picked.size} selected</b>
+            {picked.size < visibleFiles.length && <span onClick={() => setPicked(new Set(visibleFiles.map((f) => f.id)))} style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', cursor: 'pointer', textDecoration: 'underline' }}>Select all {visibleFiles.length}</span>}
+            <span style={{ flex: 1 }} />
+            {pill(bulkBusy ? 'Working…' : 'Copy share links', false, bulkBusy ? () => {} : bulkShare)}
+            {pill('Email', bulk === 'email', () => setBulk((b) => (b === 'email' ? '' : 'email')))}
+            {pill('Move to…', bulk === 'move', () => setBulk((b) => (b === 'move' ? '' : 'move')))}
+            {pill('Clear', false, () => { setPicked(new Set()); setBulk(''); setBulkLinks([]); })}
+          </div>
+          {picked.size > 25 && <div style={{ fontSize: 12, color: '#9A4318' }}>Up to 25 files at a time — untick {picked.size - 25}.</div>}
+          {bulk === 'email' && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <RecipientPicker value={bulkTo} onChange={setBulkTo} style={inputStyle} dropUp />
+              <textarea value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} rows={2} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 11, color: 'var(--muted)' }}>One email with a view link for each file — anyone with a link can view that file.</span>
+                {pill(bulkBusy ? 'Sending…' : `Send ${picked.size} file${picked.size === 1 ? '' : 's'}`, true, bulkBusy ? () => {} : bulkEmail)}
+              </div>
+            </div>
+          )}
+          {bulk === 'move' && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+              {[[], ...data.folders.filter((f) => Number(f.projectId) === projectId).map((f) => f.path || []).sort((a, b) => a.join('/').localeCompare(b.join('/')))].map((to) => (
+                <span key={to.join('/') || '__root'} onClick={bulkBusy ? undefined : () => bulkMove(to)}
+                  style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: to.join('>') === folder.join('>') ? 'var(--panel)' : 'var(--surface)' }}>
+                  {to.length ? to.join(' › ') : 'Project root'}
+                </span>
+              ))}
+            </div>
+          )}
+          {bulkLinks.length > 0 && (
+            <div style={{ fontSize: 11.5, color: 'var(--body)', background: 'var(--panel)', borderRadius: 10, padding: '8px 10px', maxHeight: 120, overflowY: 'auto', display: 'grid', gap: 3 }}>
+              {bulkLinks.map((l) => <div key={l.id} style={{ wordBreak: 'break-all' }}><b>{l.name}</b> — <a href={l.url} target="_blank" rel="noreferrer">{l.url}</a></div>)}
+            </div>
+          )}
+        </div>,
+        document.body,
+      )}
+
       {selected && (
         <div onClick={() => setSelectedFileId(null)}
-             style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 140, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
+             style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 140, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.18s ease' }}>
           <div onClick={(e) => e.stopPropagation()}
-               style={{ width: 400, maxWidth: '92vw', height: '100%', background: 'white', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(11,26,18,0.22)' }}>
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+               style={{ width: 400, maxWidth: '92vw', height: '100%', background: 'var(--surface)', overflowY: 'auto', boxShadow: '-14px 0 46px rgba(var(--rgb-ink), 0.22)' }}>
+            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: extStyle(selected.ext).bg, color: extStyle(selected.ext).c, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{(selected.ext || '?').slice(0, 4)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: '#0B1A12', wordBreak: 'break-word' }}>{selected.name}</div>
-                <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>{(selected.folderPath ?? []).join(' › ') || 'Project root'}</div>
+                <div style={{ fontFamily: BG, fontSize: 16, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-word' }}>{selected.name}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>{(selected.folderPath ?? []).join(' › ') || 'Project root'}</div>
                 <div style={{ marginTop: 6 }}>{badge(selected)}</div>
               </div>
               <div onClick={() => setSelectedFileId(null)}
-                   style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(20,8,31,0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#7E9B93', flexShrink: 0 }}>×</div>
+                   style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.08)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'var(--muted)', flexShrink: 0 }}>×</div>
             </div>
 
             {isImage(selected) && (
               <div style={{ padding: '16px 22px 0' }}>
                 <img src={api.fileRoom.contentUrl(selected.id)} alt={selected.name}
-                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(20,8,31,0.08)' }} />
+                     style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)' }} />
+              </div>
+            )}
+            {canPreview(selected) && (
+              <div style={{ padding: '16px 22px 0' }}>
+                <iframe key={selected.id} src={api.fileRoom.previewUrl(selected.id)} title={selected.name}
+                        style={{ width: '100%', height: 360, border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 10, background: 'var(--panel)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 6 }}>
+                  {isPdf(selected) && (
+                    <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
+                      style={{ padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>✎ Mark up</button>
+                  )}
+                  <a href={api.fileRoom.previewUrl(selected.id)} target="_blank" rel="noreferrer"
+                     style={{ fontSize: 12, fontWeight: 700, color: 'var(--forest)' }}>Open full screen ↗</a>
+                </div>
               </div>
             )}
 
@@ -510,31 +671,38 @@ export function FileRoom() {
                  ['Type', selected.ext || '—'],
                  ['Version', selected.groupId ? `${versions.length} revision${versions.length === 1 ? '' : 's'}` : 'Single']] as [string, string][])
                 .map(([k, v]) => (
-                  <div key={k} style={{ background: '#FBF8F2', borderRadius: 10, padding: '11px 13px' }}>
-                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93' }}>{k}</div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', marginTop: 3, wordBreak: 'break-word' }}>{v}</div>
+                  <div key={k} style={{ background: 'var(--panel)', borderRadius: 10, padding: '11px 13px' }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>{k}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', marginTop: 3, wordBreak: 'break-word' }}>{v}</div>
                   </div>
                 ))}
             </div>
 
             {versions.length > 1 && (
               <div style={{ padding: '0 22px 16px' }}>
-                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 8 }}>Version history</div>
+                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Version history</div>
                 {versions.map((v, i) => (
                   <div key={v.id} onClick={() => { setSelectedFileId(v.id); setRenaming(v.name); setNotes(v.notes ?? ''); setShareUrl(''); setEmailOpen(false); }}
-                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: v.id === selected.id ? '#EEF3EE' : 'transparent' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: 999, background: v.isLatest !== false ? '#2F7D4A' : '#C9D4CC', flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 11.5, color: '#43514D' }}>
+                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: v.id === selected.id ? 'var(--mist)' : 'transparent' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 999, background: v.isLatest !== false ? 'var(--success)' : 'var(--c-c9d4cc)', flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 11.5, color: 'var(--body)' }}>
                       v{versions.length - i} · {shortDate(v.updatedAt)} · {v.uploadedBy || '—'}
                     </span>
-                    {v.isLatest !== false && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: '#D2EAD3', color: '#1C5230' }}>Current</span>}
+                    {v.isLatest !== false && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'var(--c-d2ead3)', color: 'var(--success-deep)' }}>Current</span>}
                   </div>
                 ))}
               </div>
             )}
 
+            {canManage && (
+              <div style={{ padding: '0 22px 16px' }}>
+                <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 7 }}>Email history</div>
+                <ShareHistory fileId={selected.id} refreshKey={sharesTick} empty="This file hasn’t been emailed to anyone yet." />
+              </div>
+            )}
+
             <div style={{ padding: '0 22px 16px' }}>
-              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#7E9B93', marginBottom: 7 }}>Notes</div>
+              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 7 }}>Notes</div>
               <textarea
                 value={notes}
                 disabled={!canManage}
@@ -542,13 +710,26 @@ export function FileRoom() {
                 onBlur={() => { if (notes !== (selected.notes ?? '')) act(api.fileRoom.setNotes(selected.id, notes), 'Notes saved'); }}
                 rows={4}
                 placeholder="What this document is, what changed, anything worth knowing…"
-                style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.6, background: '#FBF8F2' }}
+                style={{ ...inputStyle, width: '100%', resize: 'vertical', lineHeight: 1.6, background: 'var(--panel)' }}
               />
             </div>
 
             <div style={{ padding: '0 22px 24px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <a href={api.fileRoom.contentUrl(selected.id, { download: true })}
-                 style={{ padding: '10px 0', borderRadius: 10, background: '#173326', color: 'white', fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
+                 style={{ padding: '10px 0', borderRadius: 10, background: canPreview(selected) || isImage(selected) ? 'transparent' : 'var(--forest)', color: canPreview(selected) || isImage(selected) ? 'var(--forest)' : 'white', border: '1px solid ' + (canPreview(selected) || isImage(selected) ? 'rgba(var(--rgb-shade), 0.12)' : 'transparent'), fontSize: 12.5, fontWeight: 700, textAlign: 'center', textDecoration: 'none' }}>Download</a>
+
+              {canManage && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--body)' }}>
+                  Move to
+                  <select value={(selected.folderPath ?? []).join('/')} style={{ ...inputStyle, flex: 1 }}
+                          onChange={(e) => { const to = e.target.value ? e.target.value.split('/') : []; act(api.fileRoom.move(selected.id, to), to.length ? `Moved to ${to.join(' › ')}` : 'Moved to the project root'); }}>
+                    <option value="">Project root</option>
+                    {data.folders.filter((f) => Number(f.projectId) === Number(selected.projectId))
+                      .map((f) => (f.path || []).join('/')).sort()
+                      .map((k) => <option key={k} value={k}>{k.split('/').join(' › ')}</option>)}
+                  </select>
+                </label>
+              )}
 
               <div
                 onClick={async () => {
@@ -559,24 +740,24 @@ export function FileRoom() {
                     catch { toast('Share link ready'); }
                   } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not create a link')); }
                 }}
-                style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
+                style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
               >Copy share link</div>
 
               {shareUrl && (
-                <div style={{ background: '#FBF8F2', borderRadius: 8, padding: '8px 10px' }}>
-                  <div style={{ fontSize: 10, color: '#8A6D12', fontWeight: 700, marginBottom: 4 }}>Anyone with this link can view the file</div>
+                <div style={{ background: 'var(--panel)', borderRadius: 8, padding: '8px 10px' }}>
+                  <div style={{ fontSize: 10, color: 'var(--c-8a6d12)', fontWeight: 700, marginBottom: 4 }}>Anyone with this link can view the file</div>
                   <div style={{ fontSize: 10.5, color: '#2F6F68', wordBreak: 'break-all' }}>{shareUrl}</div>
                 </div>
               )}
 
               <div onClick={() => setEmailOpen((v) => !v)}
-                   style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>
+                   style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>
                 {emailOpen ? 'Cancel email' : 'Email this file'}
               </div>
 
               {emailOpen && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: '#FBF8F2', borderRadius: 10, padding: 10 }}>
-                  <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="Recipient email" style={inputStyle} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, background: 'var(--panel)', borderRadius: 10, padding: 10 }}>
+                  <RecipientPicker value={emailTo} onChange={setEmailTo} style={inputStyle} />
                   <textarea value={emailNote} onChange={(e) => setEmailNote(e.target.value)} rows={3} placeholder="Add a note (optional)" style={{ ...inputStyle, resize: 'vertical' }} />
                   <div
                     onClick={async () => {
@@ -584,12 +765,12 @@ export function FileRoom() {
                       try {
                         const r = await api.fileRoom.email(selected.id, emailTo, emailNote);
                         toast(`Sent to ${r.to}`);
-                        setEmailOpen(false); setEmailTo(''); setEmailNote('');
+                        setEmailOpen(false); setEmailTo(''); setEmailNote(''); setSharesTick((n) => n + 1);
                       } catch (e) { toast('⚠ ' + ((e as Error).message || 'Could not send')); }
                     }}
-                    style={{ padding: '8px 0', borderRadius: 999, background: '#173326', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
+                    style={{ padding: '8px 0', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}
                   >Send</div>
-                  <div style={{ fontSize: 10, color: '#7E9B93', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1.5 }}>
                     Sent from the connected Google account as a view link, not an attachment — so size is never a problem.
                   </div>
                 </div>
@@ -599,13 +780,13 @@ export function FileRoom() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input value={renaming} onChange={(e) => setRenaming(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
                   <div onClick={() => renaming.trim() && renaming !== selected.name && act(api.fileRoom.rename(selected.id, renaming), 'Renamed')}
-                       style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Rename</div>
+                       style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Rename</div>
                 </div>
               )}
 
               {canManage && selected.groupId && selected.isLatest === false && (
                 <div onClick={() => act(api.fileRoom.markLatest(selected.id), 'Marked as the latest version')}
-                     style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(20,8,31,0.12)', color: '#173326', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>Mark as latest version</div>
+                     style={{ padding: '9px 0', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.12)', color: 'var(--forest)', fontSize: 12, fontWeight: 700, textAlign: 'center', cursor: 'pointer' }}>Mark as latest version</div>
               )}
 
               {canManage && (
@@ -620,6 +801,28 @@ export function FileRoom() {
           </div>
         </div>
       )}
+      {markingUp && (() => {
+        const f = data.files.find((x) => x.id === markingUp.id);
+        if (!f) return null;
+        return (
+          <PdfMarkupViewer
+            key={f.id}
+            file={{ id: f.id, name: f.name, isLatest: (f as any).isLatest !== false, folderPath: f.folderPath }}
+            projectId={Number(f.projectId) || null}
+            projectName={data.projects.find((p) => p.id === Number(f.projectId))?.name || null}
+            focusMarkupId={markingUp.focus || null}
+            initialPage={markingUp.page || null}
+            projectFiles={data.files.filter((x) => Number(x.projectId) === Number(f.projectId))}
+            // A link to another drawing opens it here; Back returns to this one.
+            onOpenFile={(id, page, fromPage) => setMarkingUp({ id, page, from: [...(markingUp.from || []), { id: f.id, name: f.name, page: fromPage }] })}
+            back={markingUp.from?.length ? (() => { const prev = markingUp.from[markingUp.from.length - 1]; return { label: prev.name, go: () => setMarkingUp({ id: prev.id, page: prev.page, from: markingUp.from!.slice(0, -1) }) }; })() : null}
+            onClose={() => setMarkingUp(null)}
+            onSavedCopy={load}
+            onUploaded={load}
+            revisions={f.groupId ? data.files.filter((x) => x.groupId === f.groupId && (/\.pdf$/i.test(x.name) || x.mimeType === 'application/pdf')).map((x) => ({ id: x.id, name: x.name, updatedAt: x.updatedAt, isLatest: x.isLatest !== false })) : []}
+          />
+        );
+      })()}
     </div>
   );
 }

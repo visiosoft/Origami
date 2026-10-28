@@ -85,7 +85,18 @@ let ContractorDirectorySync = class ContractorDirectorySync {
             });
         }
         else {
-            Object.assign(p, fields);
+            const upd = { contractorId: c.id, ...(c.userId ? { userId: c.userId } : {}) };
+            if (val(c.companyName)) {
+                upd.name = c.companyName;
+                upd.company = c.companyName;
+            }
+            if (val(c.contactPerson))
+                upd.contact = val(c.contactPerson);
+            if (val(c.phone))
+                upd.phone = val(c.phone);
+            if (val(c.email))
+                upd.email = val(c.email);
+            Object.assign(p, upd);
         }
         complianceToPerson(c, p);
         const saved = await this.people.save(p);
@@ -158,6 +169,16 @@ let ContractorDirectorySync = class ContractorDirectorySync {
         const [contractors, people] = await Promise.all([this.contractors.find(), this.people.find()]);
         let linked = 0, created = 0;
         for (const c of contractors) {
+            const pair = people.find((x) => x.id === Number(c.personId)) || people.find((x) => x.contractorId === c.id);
+            if (pair) {
+                if (Number(c.personId) !== pair.id)
+                    await this.contractors.update({ id: c.id }, { personId: pair.id });
+                if (pair.contractorId !== c.id) {
+                    pair.contractorId = c.id;
+                    await this.people.save(pair);
+                }
+                continue;
+            }
             const before = people.length;
             await this.syncContractor(c, people);
             if (people.length > before)

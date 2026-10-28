@@ -28,6 +28,8 @@ export class WeeklyTimesheetsController {
   @Get('list') async list(@Query('from') from?: string, @Query('to') to?: string, @Query('status') status?: string, @Query('employeeId') employeeId?: string, @Headers('authorization') a?: string) {
     return this.service.list({ from, to, status, employeeId }, await this.access.actor(a));
   }
+  /** Submitted timesheets waiting for a decision, for the notifications bell. */
+  @Get('pending-notices') async pendingNotices(@Headers('authorization') a?: string) { return this.service.pendingNotices(await this.access.actor(a)); }
   @Post(':id/submit') async submit(@Param('id') id: string, @Headers('authorization') a?: string) { return this.service.submit(id, await this.access.actor(a)); }
   @Post(':id/approve') async approve(@Param('id') id: string, @Body() dto: TimesheetNoteDto, @Headers('authorization') a?: string) { return this.service.approve(id, dto.note, await this.access.actor(a)); }
   @Post(':id/reject') async reject(@Param('id') id: string, @Body() dto: TimesheetNoteDto, @Headers('authorization') a?: string) { return this.service.reject(id, dto.note, await this.access.actor(a)); }

@@ -4,6 +4,7 @@ exports.IMPORT_COLUMNS = void 0;
 exports.isoDate = isoDate;
 exports.mapHeaders = mapHeaders;
 exports.planImport = planImport;
+const contact_duplicates_1 = require("./contact-duplicates");
 exports.IMPORT_COLUMNS = [
     { key: 'kind', header: 'Kind', hint: 'Client, Consultant, Sub, Vendor, Authority or Staff (required)' },
     { key: 'name', header: 'Name', hint: 'The person — or for a company, the firm name (required)' },
@@ -49,7 +50,11 @@ function isoDate(v) {
 }
 function mapHeaders(row) {
     const byNorm = new Map(exports.IMPORT_COLUMNS.map((c) => [norm(c.header), c.key]));
-    for (const [alt, key] of [['fullname', 'name'], ['companyname', 'name'], ['type', 'kind'], ['category', 'kind'], ['mobile', 'phone'], ['phonenumber', 'phone'], ['emailaddress', 'email'], ['trade', 'role'], ['title', 'role'], ['address', 'street'], ['zipcode', 'zip'], ['postalcode', 'zip'], ['contact', 'contact'], ['contactperson', 'contact']]) {
+    for (const [alt, key] of [['fullname', 'name'], ['companyname', 'name'], ['type', 'kind'], ['category', 'kind'], ['mobile', 'phone'], ['phonenumber', 'phone'], ['emailaddress', 'email'], ['trade', 'role'], ['title', 'role'], ['address', 'street'], ['zipcode', 'zip'], ['postalcode', 'zip'], ['contact', 'contact'], ['contactperson', 'contact'],
+        ['givenname', 'firstName'], ['familyname', 'lastName'], ['organizationname', 'company'], ['organization1name', 'company'], ['organizationtitle', 'role'], ['organization1title', 'role'],
+        ['email1value', 'email'], ['phone1value', 'phone'], ['address1street', 'street'], ['address1city', 'city'], ['address1region', 'state'], ['address1postalcode', 'zip'],
+        ['mobilephone', 'phone'], ['businessphone', 'phone'], ['primaryphone', 'phone'], ['email1address', 'email'], ['jobtitle', 'role'], ['businessstreet', 'street'], ['businesscity', 'city'], ['businessstate', 'state'], ['businesspostalcode', 'zip'],
+    ]) {
         if (!byNorm.has(alt))
             byNorm.set(alt, key);
     }
@@ -68,10 +73,15 @@ function planImport(rows, existing, projectNames, opts) {
     return rows.map((raw, i) => {
         const r = mapHeaders(raw);
         const issues = [];
-        const kind = KIND_ALIASES[(r.kind || '').toLowerCase()] || '';
+        const kind = KIND_ALIASES[(r.kind || opts.defaultKind || '').toLowerCase()] || '';
         const first = r.firstName || '';
         const last = r.lastName || '';
-        const name = r.name || [first, last].filter(Boolean).join(' ');
+        let name = r.name || [first, last].filter(Boolean).join(' ');
+        if (!r.kind && COMPANY_KINDS.includes(kind) && r.company && name && name.toLowerCase() !== r.company.toLowerCase()) {
+            if (!r.contact)
+                r.contact = name;
+            name = r.company;
+        }
         const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email || '') ? r.email.toLowerCase() : '';
         const base = { row: i + 2, name, kind, email };
         if (!Object.values(r).some(Boolean))
@@ -128,6 +138,11 @@ function planImport(rows, existing, projectNames, opts) {
         }
         const match = existing.find((p) => email && String(p.email || '').trim().toLowerCase() === email)
             || (!email ? existing.find((p) => p.kind === kind && String(p.name || '').trim().toLowerCase() === name.toLowerCase()) : undefined);
+        const alike = !match ? (0, contact_duplicates_1.findDuplicates)({ name, firstName: first, lastName: last, email, phone: r.phone }, existing)[0] : undefined;
+        if (alike) {
+            const st = alike.contactStatus === 'expired' ? ', expired' : alike.contactStatus === 'review' ? ', in review' : '';
+            return { ...base, action: 'skip', matchId: alike.id, issues: [...issues, `Looks like “${alike.name}”${st} — same ${alike.matchedOn.join(' and ')}. Add them by hand if they're someone else`] };
+        }
         if (match) {
             if (!opts.update)
                 return { ...base, action: 'skip', matchId: match.id, issues: [...issues, `Already in People as “${match.name}” — tick “Update existing” to overwrite`] };

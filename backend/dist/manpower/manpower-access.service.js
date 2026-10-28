@@ -17,11 +17,18 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const access_levels_1 = require("../users/access-levels");
 const auth_service_1 = require("../auth/auth.service");
 let ManpowerAccess = class ManpowerAccess {
-    constructor(roles, auth) {
+    constructor(roles, auth, users) {
         this.roles = roles;
         this.auth = auth;
+        this.users = users;
+    }
+    async effective(actor) {
+        const role = await this.roles.findOneBy({ key: actor.roleKey });
+        const user = actor.id && this.users ? await this.users.findOneBy({ id: actor.id }) : null;
+        return (0, access_levels_1.effectivePermissions)(role?.permissions, user?.permissionOverrides);
     }
     async actor(bearer) {
         const claims = await this.auth.verify(bearer);
@@ -32,16 +39,14 @@ let ManpowerAccess = class ManpowerAccess {
             return false;
         if (actor.roleKey === 'admin')
             return true;
-        const role = await this.roles.findOneBy({ key: actor.roleKey });
-        return !!role?.permissions?.[moduleKey]?.[action];
+        return !!(await this.effective(actor))[moduleKey]?.[action];
     }
     async permissionsOf(actor) {
         if (!actor.roleKey)
             return null;
         if (actor.roleKey === 'admin')
             return 'all';
-        const role = await this.roles.findOneBy({ key: actor.roleKey });
-        return role?.permissions || null;
+        return (await this.effective(actor));
     }
     async require(actor, moduleKey, what) {
         if (!(await this.can(actor, moduleKey))) {
@@ -53,8 +58,11 @@ exports.ManpowerAccess = ManpowerAccess;
 exports.ManpowerAccess = ManpowerAccess = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
+    __param(2, (0, common_1.Optional)()),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        auth_service_1.AuthService])
+        auth_service_1.AuthService,
+        typeorm_2.Repository])
 ], ManpowerAccess);
 exports.HR_MODULE = 'manpower_con';
 exports.FINANCE_MODULE = 'fin_resources';

@@ -7,6 +7,7 @@ import { GoogleService } from '../google/google.service';
 import { reminderEmail, overdueEmail, progressEmail, overstretchEmail, type ReminderBuckets, type ReminderTask } from './reminder.templates';
 import { loadEmailBrand } from '../email/shell';
 import { LOG_STATUSES_KEY, isClosedStatus, parseLogStatuses } from '../tasks/log-statuses';
+import { taskTitle } from '../tasks/tasks.service';
 
 const DAY = 86400000;
 const HOUR = 3600000;
@@ -55,8 +56,10 @@ export function bucketTasks(tasks: ReminderTask[], today: string): ReminderBucke
  * Whether this person gets the digest today: email on, frequency not off, and
  * a weekly digest only on Mondays. Never chosen reads as daily.
  */
-export function wantsDigest(user: Pick<UserEntity, 'notifyByEmail' | 'digestFrequency'>, today: string) {
+export function wantsDigest(user: Pick<UserEntity, 'notifyByEmail' | 'digestFrequency'> & { notificationMatrix?: unknown }, today: string) {
   if (user.notifyByEmail === false) return false;
+  // Someone who has set up their notifications (Settings -> Notifications) gets due dates that way instead.
+  if (user.notificationMatrix) return false;
   const freq = user.digestFrequency || 'daily';
   if (freq === 'off') return false;
   if (freq === 'weekly') return new Date(`${today}T12:00:00Z`).getUTCDay() === 1;
@@ -152,7 +155,8 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     const following = (list: unknown) => Array.isArray(list) && list.some((c: any) => c?.id === user.id);
     const out: ReminderTask[] = [];
     for (const t of data.boardTasks) {
-      if (t.completed || t.status === 'Done' || t.parentId || !t.dueDate) continue;
+      // Subtasks count too: each has its own assignee and due date.
+      if (t.completed || t.status === 'Done' || !t.dueDate) continue;
       const mine = this.isMine(t.assigneeId, t.assignee, user);
       if (!mine && !following(t.collaborators)) continue;
       out.push({
@@ -167,7 +171,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
       const mine = this.isMine(t.assignedToId, t.assignedTo, user);
       if (!mine && !following(t.collaborators)) continue;
       out.push({
-        id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
+        id: t.id, title: taskTitle(t).slice(0, 90), dueDate: t.dueDate,
         project: t.project || '', where: 'log', following: !mine,
         url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
       });
@@ -299,7 +303,7 @@ export class RemindersService implements OnApplicationBootstrap, OnModuleDestroy
     const brand = await loadEmailBrand(this.settings);
 
     for (const user of data.users) {
-      if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false) continue;
+      if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false || user.notificationMatrix) continue;
       const overdue = bucketTasks(this.tasksFor(user, data, base), today).overdue;
       if (!overdue.length) continue;
       const mail = overdueEmail({ name: user.name, tasks: overdue, url: `${base}/tasks`, brand });

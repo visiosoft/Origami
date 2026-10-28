@@ -7,9 +7,13 @@ export declare class ProjectsController {
     private readonly access;
     constructor(projectsService: ProjectsService, access: ProjectAccessService);
     findAll(claims: SessionClaims | null): Promise<any[]>;
-    findOne(id: string, claims: SessionClaims | null): Promise<import("../database/entities").ProjectEntity>;
+    findOne(id: string, claims: SessionClaims | null): Promise<import("../database/entities").ProjectEntity & {
+        taskCode: string | undefined;
+    }>;
     create(dto: CreateProjectDto): Promise<import("../database/entities").ProjectEntity>;
-    update(id: string, dto: Partial<CreateProjectDto>): Promise<import("../database/entities").ProjectEntity>;
+    update(id: string, dto: Partial<CreateProjectDto>, claims: SessionClaims | null): Promise<import("../database/entities").ProjectEntity & {
+        taskCode: string | undefined;
+    }>;
     remove(id: string): Promise<{
         id: number;
         deleted: boolean;

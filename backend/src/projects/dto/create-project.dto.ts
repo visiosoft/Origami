@@ -8,7 +8,13 @@ export class CreateProjectDto {
   @IsString() @IsOptional() location?: string;
   @IsString() @IsOptional() typeOfWork?: string;
   @IsString() @IsOptional() contractType?: string;
+  /** Task-number prefix (2-8 letters or digits); blank = made from the name. */
+  @IsString() @IsOptional() code?: string;
   @IsString() @IsOptional() contractAmt?: string;
+  /** LS | T&M | T&M NTE | CS, blank when unset. */
+  @IsString() @IsOptional() pricing?: string;
+  /** PW | CP, blank when unset. */
+  @IsString() @IsOptional() labor?: string;
   @IsString() @IsOptional() estStart?: string;
   @IsString() @IsOptional() duration?: string;
   @IsString() @IsOptional() scope?: string;
@@ -19,7 +25,10 @@ export class CreateProjectDto {
   @IsString() @IsOptional() imgColor?: string;
   @IsString() @IsOptional() img?: string;
   @IsString() @IsOptional() designPhase?: string;
+  @IsBoolean() @IsOptional() highViz?: boolean;
   @IsString() @IsOptional() leadId?: string;
+  /** Gate / lockbox codes and how to get on site. */
+  @IsString() @IsOptional() siteAccess?: string;
   @IsString() @IsOptional() introLetterSentAt?: string;
   @IsString() @IsOptional() introLetterSubject?: string;
   @IsString() @IsOptional() introLetterHtml?: string;

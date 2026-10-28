@@ -99,6 +99,14 @@ export declare class WeeklyTimesheetsService {
         createdAt: string;
         updatedAt: string;
     }[]>;
+    pendingNotices(actor: Actor): Promise<{
+        id: string;
+        employeeId: string;
+        employeeName: string;
+        weekStart: string;
+        totalHours: number;
+        submittedAt: string;
+    }[]>;
     save(dto: {
         employeeId: string;
         weekStart: string;

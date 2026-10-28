@@ -1,5 +1,6 @@
+import type { PendingNotice } from '../notifications/pending-notices';
 import { Column, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
-import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent } from './task.types';
+import type { TaskAttachment, TaskComment, ChecklistItem, ActivityEvent, DerivedRef } from './task.types';
 
 const TEXT = { type: 'nvarchar', length: 'MAX' } as const;
 
@@ -24,7 +25,16 @@ export class ProjectEntity {
   // Set by dragging on the Design board. Overrides the phase derived from
   // task progress, so a team can park a project where they say it is.
   @Column({ nullable: true }) designPhase!: string;
+  /** High Viz (Oct 20): a project the team wants everyone following High Viz to hear about. */
+  @Column({ type: 'bit', nullable: true }) highViz!: boolean | null;
+  /** Prefix for its task numbers (NARV-T-2026-0001); blank = made from the name (see database/serials.ts). */
+  @Column({ type: 'nvarchar', length: 12, nullable: true }) code!: string | null;
+  /** Pricing (LS, T&M, T&M NTE, CS) and labour (PW, CP) codes, shown as badges on the dashboard. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) pricing!: string | null;
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) labor!: string | null;
   @Column({ nullable: true }) leadId!: string; // links to the originating LeadEntity (intake questionnaire)
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) siteAccess!: string; // lockbox / gate codes, how to get on site
+  @Column({ nullable: true }) fileRoomSyncedAt!: string; // ISO time the File Room last pulled this project's Drive folder
   @Column({ nullable: true }) introLetterSentAt!: string; // ISO timestamp when the Introduction Letter was sent
   // The composed Introduction Letter, saved as a draft before it's sent --
   // separate from the plain-text template default, so an edit survives a
@@ -58,11 +68,15 @@ export class ProjectEntity {
 @Entity('people')
 export class PersonEntity {
   @PrimaryColumn('int') id!: number;
+  /** Photos of their business card, front and back (Drive files), kept with the contact. */
+  @Column({ type: 'simple-json', nullable: true }) businessCards!: { front?: TaskAttachment | null; back?: TaskAttachment | null } | null;
   @Column() name!: string;
   @Column() role!: string;
   @Column() company!: string;
   @Column({ type: 'nvarchar', length: 255, nullable: true }) contact!: string | null;
   @Column() kind!: string;
+  /** For internal people (kind Staff): Executive | Staff | Super | Foreman | Labor. Empty = worked out from their role. */
+  @Column({ nullable: true }) internalLevel!: string;
   @Column() tier!: string;
   @Column() phone!: string;
   @Column() email!: string;
@@ -77,6 +91,18 @@ export class PersonEntity {
   @Column() since!: string;
   @Column({ type: 'simple-json', nullable: true }) comply!: unknown;
   @Column() last!: string;
+  /** Active / Review / Expired. Review comes on its own after 12 months with no activity; Expired is set by hand. */
+  @Column({ nullable: true }) contactStatus!: string;
+  @Column({ nullable: true }) contactStatusAt!: string;
+  @Column({ nullable: true }) contactStatusReason!: string;
+  /** Last time anything touched this contact: an edit, a task, a file sent to them. */
+  @Column({ nullable: true }) lastActivityAt!: string;
+  /** Other People records that are the same person (confirmed when the duplicate warning came up). Shown read-only under Reference. */
+  @Column({ type: 'simple-json', nullable: true }) sameAsIds!: number[] | null;
+  /** Connections: companies they used to work at (the record there, when it's in People). */
+  /** The point of contact for their company (one per company). */
+  @Column({ type: 'bit', nullable: true }) pointOfContact!: boolean | null;
+  @Column({ type: 'simple-json', nullable: true }) formerCompanies!: { company: string; personId?: number | null; role?: string | null; until?: string | null }[] | null;
 
   // --- Profile ---
   // `name` stays the display name; these are the parts it is composed from.
@@ -100,17 +126,110 @@ export class PersonEntity {
   @Column({ type: 'bit', nullable: true }) notLicensedDesigner!: boolean | null;
 }
 
+/**
+ * A call, email, meeting or note with a contact (Oct 27 backlog, Contacts:
+ * Activity). Logged by hand; keeps the contact's "last known interaction" honest.
+ */
+@Entity('contact_interactions')
+@Index('IX_contact_interactions_person', ['personId'])
+export class ContactInteractionEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column('int') personId!: number;
+  /** call | email | meeting | site_visit | note */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  /** The day it happened (YYYY-MM-DD). */
+  @Column({ type: 'nvarchar', length: 10 }) at!: string;
+  @Column({ type: 'nvarchar', length: 2000, nullable: true }) note!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) byId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+}
+
+/**
+ * A text sent to a client from a lead, contact or project (Oct 27 backlog item
+ * 11), sent or failed -- the record's "Texts" list and an audit of what went out.
+ */
+@Entity('sms_messages')
+@Index('IX_sms_messages_entity', ['entityType', 'entityId'])
+export class SmsMessageEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 40 }) at!: string;
+  @Column({ type: 'nvarchar', length: 32 }) to!: string;
+  @Column({ type: 'nvarchar', length: 2000 }) body!: string;
+  /** twilio | quo */
+  @Column({ type: 'nvarchar', length: 10 }) provider!: string;
+  /** sent | failed */
+  @Column({ type: 'nvarchar', length: 10 }) status!: string;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) error!: string | null;
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) providerId!: string | null;
+  /** lead | person | project */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) entityType!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) entityId!: string | null;
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) templateKey!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) byId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
+}
+
+/**
+ * A link in an email we track (Oct 27 backlog item 12): /api/d/:token counts
+ * the open and forwards to the real target -- a change order's PDF, a shared
+ * file. Scanner hits are counted apart, so "Opened" means a person.
+ */
+@Entity('tracked_links')
+@Index('IX_tracked_links_ref', ['kind', 'refId'])
+export class TrackedLinkEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) token!: string;
+  /** co | share */
+  @Column({ type: 'nvarchar', length: 20 }) kind!: string;
+  @Column({ type: 'nvarchar', length: 64 }) refId!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) recipient!: string | null;
+  @Column({ type: 'nvarchar', length: 2000 }) target!: string;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) label!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) firstOpenedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) lastOpenedAt!: string | null;
+  @Column({ type: 'int', nullable: true }) opens!: number | null;
+  @Column({ type: 'int', nullable: true }) scannerHits!: number | null;
+  @Column({ type: 'nvarchar', length: 300, nullable: true }) lastUserAgent!: string | null;
+}
+
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Closed with "Close task": complete and archived at once. */
+  @Column({ nullable: true }) closedAt!: string;
+  /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
+  @Column({ type: 'simple-json', nullable: true }) pendingNotices!: PendingNotice[] | null;
+  /** Why it's on hold (status On hold). */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) holdReason!: string;
+  /** The lead it's for, when the work comes before a signed contract (the lead's / deal's id), and its name. */
+  @Column({ nullable: true }) leadId!: string;
+  @Column({ nullable: true }) leadName!: string;
+  /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  @Column({ nullable: true }) serial!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   @Column() tab!: string; // internal | owner | subcontractor
   @Column() meetingType!: string;
   @Column() meetingDate!: string;
   @Column({ nullable: true }) assignedTo!: string;
   @Column() status!: string;
   @Column({ nullable: true }) originator!: string;
+  /** Urgent / High / Medium / Low, or empty for none -- the same scale as every special action. */
+  @Column({ nullable: true }) priority!: string;
   @Column() topicType!: string;
+  /** The task's name. Older tasks have none: their first description line serves as the name. */
+  @Column({ nullable: true }) subject!: string;
   @Column(TEXT) description!: string;
+  /** What was done -- required when it's marked complete. */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) completionNote!: string;
+  /** Set the first time it goes In Progress (or by hand). */
+  @Column({ nullable: true }) startDate!: string;
   @Column({ nullable: true }) dueDate!: string;
   // HH:mm, set when a task is created from a specific slot on My Calendar --
   // absent means "sometime that day", same as before this existed.
@@ -129,6 +248,67 @@ export class TaskEntity {
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
+  /** Confirmed by whoever raised it; archived 7 days later. */
+  @Column({ nullable: true }) confirmedAt!: string;
+  @Column({ nullable: true }) archivedAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+  /** The meeting this was raised in (MeetingEntity.id), when it came from one. */
+  @Column({ nullable: true }) meetingId!: string;
+  /**
+   * FOR RECORD links (observations, FYIs and decisions): the Request Log tasks
+   * this entry drove or is attached to -- kept on both entries -- and the change
+   * orders (ChangeOrderEntity.id) it drove or backs up.
+   */
+  @Column({ type: 'simple-json', nullable: true }) linkedTaskIds!: string[] | null;
+  @Column({ type: 'simple-json', nullable: true }) changeOrderIds!: string[] | null;
+}
+
+/**
+ * A meeting -- internal, client, consultant, subcontractor or on site -- and what
+ * came out of it. Tasks, FYIs and observations raised in it are Request Log
+ * entries carrying its id (TaskEntity.meetingId); RFIs raised from it are listed
+ * in rfiIds.
+ */
+@Entity('meetings')
+export class MeetingEntity {
+  @PrimaryColumn() id!: string;
+  /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  @Column({ nullable: true }) serial!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
+  /** History: created, converted / duplicated, links. */
+  @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[] | null;
+  @Column() title!: string;
+  @Column({ default: 'Internal' }) type!: string; // Internal | Client | Consultant | Subcontractor | Site
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  /** The project's name, as the Request Log stores it on each entry. */
+  @Column({ nullable: true }) project!: string;
+  @Column() date!: string; // yyyy-mm-dd
+  @Column({ nullable: true }) time!: string; // HH:mm
+  @Column({ nullable: true }) location!: string;
+  @Column({ type: 'simple-json', nullable: true }) attendees!: { id?: string; name: string; email?: string }[] | null;
+  @Column({ ...TEXT, nullable: true }) agenda!: string;
+  @Column({ ...TEXT, nullable: true }) minutes!: string;
+  /** scheduled | occurred | cancelled | rescheduled | reviewed | complete (older rows: held = occurred). See meetings/meeting-status.ts. */
+  @Column({ default: 'scheduled' }) status!: string;
+  /** virtual | call | text | in_person -- how it is held; `location` keeps the address or link. */
+  @Column({ nullable: true }) locationType!: string;
+  @Column({ type: 'simple-json', nullable: true }) rfiIds!: string[] | null;
+  /** Change orders drafted from the meeting (ChangeOrderEntity.id). */
+  @Column({ type: 'simple-json', nullable: true }) changeOrderIds!: string[] | null;
+  /** The recording, and the transcript as a link and/or pasted text. */
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) recordingUrl!: string;
+  @Column({ type: 'nvarchar', length: 1000, nullable: true }) transcriptUrl!: string;
+  @Column({ ...TEXT, nullable: true }) transcript!: string;
+  /** Who went through the notes / transcript and pulled out the special actions, and when. */
+  @Column({ nullable: true }) reviewedBy!: string;
+  @Column({ nullable: true }) reviewedAt!: string;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
   @Column({ nullable: true }) updatedAt!: string;
 }
 
@@ -175,6 +355,8 @@ export class DealEntity {
   // deal is actually rejected, and this table already has rows.
   @Column({ nullable: true }) rejectionType!: string; // 'internal' | 'client' | 'referred'
   @Column({ nullable: true }) rejectionReason!: string;
+  /** Why a lost lead was lost (Oct 27 sync): one of LOSS_REASONS in pipeline/dead-leads.ts; the note is in rejectionReason. */
+  @Column({ nullable: true }) lossReason!: string;
   @Column({ nullable: true }) referredToName!: string;
   @Column({ nullable: true }) referredToCompany!: string;
   @Column({ nullable: true }) referredToContact!: string;
@@ -220,6 +402,59 @@ export class ProposalEntity {
   @Column('nvarchar', { length: 'MAX', nullable: true }) signatureImage2!: string;
   @Column({ nullable: true }) signerIp2!: string;
   @Column({ nullable: true }) signerUserAgent2!: string;
+  /** When the client opened their signing page (Oct 27 backlog item 12): first, latest, and how many times. */
+  @Column({ nullable: true }) firstViewedAt!: string;
+  @Column({ nullable: true }) lastViewedAt!: string;
+  @Column({ type: 'int', nullable: true }) viewCount!: number | null;
+}
+
+/**
+ * A contract signed inside ODIN (Oct 27 backlog): GC, owner, sub, consultant,
+ * and change orders with the owner or a sub. Each party signs from their own
+ * link (initials on every marked section, then a signature); Origami signs
+ * last, in the app. The signed PDF goes to the project's File Room.
+ */
+@Entity('contracts')
+@Index('IX_contracts_project', ['projectId'])
+export class ContractEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  /** CT-2026-0001 */
+  @Column({ type: 'nvarchar', length: 30 }) number!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  /** gc | owner | sub | consultant | co_owner | co_sub */
+  @Column({ type: 'nvarchar', length: 20 }) type!: string;
+  @Column({ type: 'nvarchar', length: 300 }) title!: string;
+  @Column({ type: 'nvarchar', length: 'MAX' }) html!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) amount!: string | null;
+  /** draft | sent | countersign | signed | void */
+  @Column({ type: 'nvarchar', length: 20 }) status!: string;
+  @Column({ type: 'simple-json' }) parties!: { key: string; role: string; label: string; name: string; email: string; personId?: number | null; internal?: boolean; sentAt?: string | null; viewedAt?: string | null; lastViewedAt?: string | null; views?: number | null; signedAt?: string | null; signedName?: string | null; initials?: string | null; signatureImage?: string | null; ip?: string | null; userAgent?: string | null }[];
+  @Column({ type: 'simple-json', nullable: true }) attachments!: { fileId: string; name: string; kind: string }[] | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) templateId!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) changeOrderId!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) commitmentId!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) sentAt!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) signedAt!: string | null;
+  /** The signed PDF in the project's File Room. */
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) signedFileId!: string | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) voidedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) voidReason!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) createdById!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) createdByName!: string | null;
+  @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+}
+
+/** Settings -> Contract templates: the starting wording for each contract type, with {{merge}} fields and {{initials}} boxes. */
+@Entity('contract_templates')
+export class ContractTemplateEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 20 }) type!: string;
+  @Column({ type: 'nvarchar', length: 200 }) name!: string;
+  @Column({ type: 'nvarchar', length: 'MAX' }) html!: string;
+  @Column({ type: 'bit', nullable: true }) isDefault!: boolean | null;
+  @Column({ type: 'nvarchar', length: 40, nullable: true }) updatedAt!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) updatedBy!: string | null;
 }
 
 @Entity('invoices')
@@ -351,6 +586,8 @@ export class LeadEntity {
   // The real Calendar event id once one is created -- lets a re-save update
   // the same event instead of leaving duplicates on the calendar.
   @Column({ nullable: true }) meetingEventId!: string;
+  /** The site visit's Google Calendar event, so a reschedule updates it instead of sending a second invite. */
+  @Column({ nullable: true }) siteVisitEventId!: string;
   @Column({ type: 'int', nullable: true }) fitScore!: number;
   @Column({ type: 'simple-json', nullable: true }) fitSelections!: Record<string, string>;
   @Column({ ...TEXT, nullable: true }) zoningImages!: string; // JSON string of [{name,dataUrl}] (data URLs)
@@ -478,6 +715,23 @@ export class ProjectSectionEntity {
 @Entity('project_tasks')
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** Closed with "Close task": complete and archived at once. */
+  @Column({ nullable: true }) closedAt!: string;
+  /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
+  @Column({ type: 'simple-json', nullable: true }) pendingNotices!: PendingNotice[] | null;
+  /** Why it's on hold (status On hold). */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) holdReason!: string;
+  /** The lead it's for, when the work comes before a signed contract (the lead's / deal's id), and its name. */
+  @Column({ nullable: true }) leadId!: string;
+  @Column({ nullable: true }) leadName!: string;
+  /** Serial number, per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  @Column({ nullable: true }) serial!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   // Null = a General Tasks board task, not tied to any client project.
   @Column({ type: 'int', nullable: true }) projectId!: number | null;
   @Column({ nullable: true }) sectionId!: string;
@@ -496,7 +750,7 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) assigneeId!: string;     // users.id — `assignee` stays as the display name
   /** People following the task without owning it ("Collaborative"): [{ id, name }]. */
   @Column({ type: 'simple-json', nullable: true }) collaborators!: { id: string; name: string }[];
-  @Column({ nullable: true }) status!: string;         // Not started | In progress | On hold | Done
+  @Column({ nullable: true }) status!: string;         // Not started (To Do) | Assigned | In progress | On hold | Done (Complete) | Confirmed
   @Column({ type: 'simple-json', nullable: true }) checklist!: ChecklistItem[];
   @Column({ type: 'simple-json', nullable: true }) labels!: string[];
   @Column({ type: 'simple-json', nullable: true }) activity!: ActivityEvent[];
@@ -510,6 +764,18 @@ export class ProjectTaskEntity {
   @Column({ nullable: true }) endDate!: string;        // ISO; '' when open-ended
   @Column({ type: 'int', nullable: true }) durationDays!: number;
   @Column({ type: 'simple-json', nullable: true }) dependsOn!: string[]; // task ids
+  // --- Task buckets (To Do / Assigned / In progress / On hold / Complete / Confirmed) ---
+  /** Who created it -- the originator, who confirms it once complete. */
+  @Column({ nullable: true }) createdById!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  /** Source: who asked for it (may differ from whoever entered it, the assigner). */
+  @Column({ nullable: true }) requestedById!: string;
+  @Column({ nullable: true }) requestedBy!: string;
+  /** What was done -- required when it's marked complete. */
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) completionNote!: string;
+  /** Moved to Confirmed by the originator; 7 days later it's archived. */
+  @Column({ nullable: true }) confirmedAt!: string;
+  @Column({ nullable: true }) archivedAt!: string;
 }
 
 /**
@@ -650,6 +916,8 @@ export class UserEntity {
   @Column({ nullable: true }) inviteToken!: string;    // sha256 of the emailed token
   @Column({ nullable: true }) inviteSentAt!: string;
   @Column({ nullable: true }) inviteExpiresAt!: string;
+  /** This person's own access, changed from their role's default: data type -> { level, extent } (see users/access-levels.ts). */
+  @Column({ type: 'simple-json', nullable: true }) permissionOverrides!: Record<string, { level?: string; extent?: string }> | null;
   // --- Preferences ---
   // Null means "not chosen", which reads as on: an existing account should keep
   // being told when work is assigned to them without opting in first.
@@ -664,6 +932,10 @@ export class UserEntity {
   @Column({ nullable: true }) digestFrequency!: string; // 'daily' | 'weekly' | 'off'
   @Column({ type: 'bit', nullable: true }) notifyOnOverdue!: boolean | null;
   @Column({ type: 'bit', nullable: true }) notifyOnMilestone!: boolean | null;
+  /** For text notifications (falls back to their People record's phone). */
+  @Column({ nullable: true }) phone!: string;
+  /** Notification settings: event -> channels (text/email, now/daily/weekly). Null = the defaults. */
+  @Column({ type: 'simple-json', nullable: true }) notificationMatrix!: Record<string, string[]> | null;
   // A staff member's OWN Google Calendar -- separate from the one shared
   // workspace connection everything else in this file (mail, Drive, the
   // office-wide calendars checked while booking) uses. Scoped to
@@ -673,6 +945,76 @@ export class UserEntity {
   @Column({ nullable: true }) calendarRefreshToken!: string;
   @Column({ nullable: true }) calendarEmail!: string;
   @Column({ nullable: true }) calendarConnectedAt!: string;
+}
+
+
+/** A checklist made in advance ("Pre-pour inspection") and added to any task in one go. */
+@Entity('checklist_templates')
+export class ChecklistTemplateEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ type: 'simple-json', nullable: true }) items!: { item: string }[] | null;
+  /** Added by itself to new records of these kinds: task, record, record:Observation, label:Safety. */
+  @Column({ type: 'simple-json', nullable: true }) autoFor!: string[] | null;
+  @Column({ nullable: true }) createdById!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** A person's own saved filter set on a list page ("My overdue RFIs"). Only its owner sees it. */
+@Entity('user_views')
+export class UserViewEntity {
+  @PrimaryColumn() id!: string;
+  @Column() userId!: string;
+  /** Which list: "tasks.board", "rfis", "special-actions" … */
+  @Column() page!: string;
+  @Column() name!: string;
+  @Column({ type: 'simple-json', nullable: true }) filters!: Record<string, unknown> | null;
+  @Column() createdAt!: string;
+}
+
+/**
+ * A markup drawn on one page of a PDF in the File Room (Oct 2026): a layer over
+ * the drawing, which itself never changes. Points are page-relative (0-1) as
+ * the page is shown, so they hold at any zoom; sizes are in PDF points.
+ */
+@Entity('pdf_markups')
+export class PdfMarkupEntity {
+  @PrimaryColumn() id!: string;
+  @Column() fileId!: string;
+  @Column('int') page!: number;
+  @Column({ type: 'nvarchar', length: 40 }) kind!: string;
+  @Column({ type: 'simple-json' }) data!: Record<string, unknown>;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) authorId!: string | null;
+  @Column({ type: 'nvarchar', length: 200 }) authorName!: string;
+  /** A private draft: only its author sees it. */
+  @Column({ type: 'bit', default: false }) private!: boolean;
+  /** Its named layer; null = its author's own layer. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) layer!: string | null;
+  /** An RFI or task made from it. */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) linkType!: string | null;
+  @Column({ type: 'nvarchar', length: 80, nullable: true }) linkId!: string | null;
+  @Column() createdAt!: string;
+  @Column() updatedAt!: string;
+}
+
+/**
+ * One notification for one person: what happened, and which digests (daily /
+ * weekly, by email or text) it still goes into. Also their in-app feed.
+ */
+@Entity('notification_items')
+export class NotificationItemEntity {
+  @PrimaryColumn() id!: string;
+  @Column() userId!: string;
+  @Column() event!: string;
+  @Column({ type: 'nvarchar', length: 500 }) title!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) body!: string | null;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) url!: string | null;
+  @Column() at!: string;
+  /** Digests it belongs in (email_daily, text_weekly, …) and the ones already sent. */
+  @Column({ type: 'simple-json', nullable: true }) digests!: string[] | null;
+  @Column({ type: 'simple-json', nullable: true }) sent!: string[] | null;
 }
 
 // Simple key/value store for workspace configuration (Google OAuth credentials,
@@ -689,6 +1031,47 @@ export class AppSettingEntity {
  * row holds where it sits in the folder tree and which version group it belongs
  * to. `folderPath` excludes the project itself — ['Drawings & Plans', 'Rev 4'].
  */
+
+/** A dated progress update for one category of a project: how far along, its state, and what's happening. */
+@Entity('progress_notes')
+@Index('IX_progress_notes_project', ['projectId'])
+export class ProgressNoteEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  @Column({ default: 'construction' }) track!: string;
+  @Column() category!: string;
+  /** 0-100 */
+  @Column('int') percent!: number;
+  /** not_started | in_progress | on_hold | complete */
+  @Column({ default: 'in_progress' }) status!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) description!: string;
+  @Column() date!: string;
+  @Column({ default: false }) clientVisible!: boolean;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
+/** What a progress photo shows: its track, category, area, date taken and caption. The file is the File Room file with this id. */
+@Entity('progress_photos')
+@Index('IX_progress_photos_project', ['projectId'])
+export class ProgressPhotoEntity {
+  @PrimaryColumn() id!: string;
+  @Column('int') projectId!: number;
+  /** construction | design */
+  @Column({ default: 'construction' }) track!: string;
+  @Column() category!: string;
+  @Column({ nullable: true }) area!: string;
+  @Column() takenOn!: string;
+  @Column({ type: 'nvarchar', length: 'MAX', nullable: true }) caption!: string;
+  @Column({ type: 'simple-json', nullable: true }) tags!: string[] | null;
+  /** Shown to the project's client (otherwise staff only). */
+  @Column({ default: false }) clientVisible!: boolean;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
 @Entity('file_room_files')
 export class FileRoomFileEntity {
   @PrimaryColumn() id!: string;
@@ -717,6 +1100,19 @@ export class FileRoomFolderEntity {
   @Column({ type: 'simple-json', nullable: true }) path!: string[];   // includes its own name
   @Column() name!: string;
   @Column({ nullable: true }) createdAt!: string;
+}
+
+/** A record of File Room files emailed to someone: who sent what, to whom, when. */
+@Entity('file_room_shares')
+export class FileRoomShareEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ type: 'simple-json' }) files!: { id: string; name: string; folderPath?: string[] }[];
+  @Column({ type: 'nvarchar', length: 1000 }) to!: string;   // comma-separated recipients
+  @Column({ ...TEXT, nullable: true }) note!: string;
+  @Column({ nullable: true }) sentById!: string;
+  @Column() sentByName!: string;
+  @Column() sentAt!: string;
 }
 
 // ---------------------------------------------------------------- Manpower
@@ -1127,12 +1523,43 @@ export class DailyLogEntity {
   @Column({ nullable: true }) supervisorId!: string;
   @Column({ nullable: true }) supervisorName!: string;
   @Column({ ...TEXT, nullable: true }) notes!: string;
-  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected
+  @Column({ default: 'draft' }) status!: string; // draft | submitted | approved | rejected | superseded (an approved report replaced by a later version of the same day)
   @Column({ nullable: true }) submittedAt!: string;
   @Column({ nullable: true }) approvedById!: string;
   @Column({ nullable: true }) approvedByName!: string;
   @Column({ nullable: true }) approvedAt!: string;
   @Column({ ...TEXT, nullable: true }) rejectionNote!: string;
+  @Column() createdAt!: string;
+  // --- Daily Report (Sections I-X) ---
+  /** 1 for the first report of a project+date; an "updated report" for the same day is 2, 3, ... */
+  @Column({ type: 'int', default: 1 }) version!: number;
+  /** The original (version 1) report this one updates. */
+  @Column({ nullable: true }) versionOf!: string;
+  /** Sections II and IV-IX as answered (activity, delays, subs, inspectors, visitors, deliveries, equipment, notes). */
+  @Column({ type: 'simple-json', nullable: true }) sections!: Record<string, any> | null;
+  /** I.E: filled in on behalf of this person. */
+  @Column({ nullable: true }) onBehalfOf!: string;
+  /** X: who signed, their signature, and when -- the time is taken once and never changed. */
+  @Column({ nullable: true }) certifiedName!: string;
+  @Column({ ...TEXT, nullable: true }) signatureDataUrl!: string;
+  @Column({ nullable: true }) signedAt!: string;
+  /** Made by the system for a stop-order or holiday day. */
+  @Column({ nullable: true }) autoReason!: string;
+  /** Duplicated from an earlier day: what was copied, so unchanged values can be highlighted. */
+  @Column({ type: 'simple-json', nullable: true }) dupBaseline!: Record<string, any> | null;
+  @Column({ nullable: true }) dupFromDate!: string;
+}
+
+/** A named Daily Report starting point anyone on the team can reuse. */
+@Entity('daily_report_templates')
+export class DailyReportTemplateEntity {
+  @PrimaryColumn() id!: string;
+  @Column() name!: string;
+  @Column({ type: 'simple-json', nullable: true }) sections!: Record<string, any> | null;
+  /** Crew rows (Section III) without hours tied to a date. */
+  @Column({ type: 'simple-json', nullable: true }) entries!: Record<string, any>[] | null;
+  @Column({ nullable: true }) createdById!: string;
+  @Column({ nullable: true }) createdByName!: string;
   @Column() createdAt!: string;
 }
 
@@ -1503,6 +1930,9 @@ export class ProjectInvoiceEntity extends FinanceStamped {
   /** A draft sent for approval by someone who can prepare but not issue invoices. */
   @Column({ nullable: true }) approvalRequestedAt!: string;
   @Column({ nullable: true }) approvalRequestedBy!: string;
+  /** Approved for issue (by someone with "Approve invoices"); cleared if the draft is edited afterwards. */
+  @Column({ nullable: true }) approvedAt!: string;
+  @Column({ nullable: true }) approvedBy!: string;
 }
 
 /** One line of an invoice. Everything that explains its amount is copied onto it when the invoice is issued. */
@@ -1592,6 +2022,29 @@ export class FinanceActivityEntity {
   @Column() at!: string;
 }
 
+/**
+ * The app-wide audit log (Oct 2026): one row per change someone saved -- who,
+ * when, which record, and what changed (before / after for the main records).
+ * Finance keeps its own detailed log (finance_activity); the log page reads both.
+ */
+@Entity('audit_events')
+@Index('IX_audit_events_at', ['at'])
+@Index('IX_audit_events_entity', ['entityType', 'entityId'])
+export class AuditEventEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 40 }) at!: string;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) userId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) userName!: string | null;
+  @Column({ type: 'nvarchar', length: 60 }) entityType!: string;
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) entityId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) label!: string | null;
+  @Column({ type: 'nvarchar', length: 80 }) action!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  @Column({ type: 'nvarchar', length: 10 }) method!: string;
+  @Column({ type: 'nvarchar', length: 300 }) path!: string;
+  @Column({ type: 'simple-json', nullable: true }) changes!: { field: string; from: string | null; to: string | null }[] | null;
+}
+
 // ------------------------------------------------------------------ financials, phase 2
 
 /**
@@ -1604,6 +2057,12 @@ export class FinanceActivityEntity {
 @Index('UQ_change_orders_number', ['projectId', 'number'], { unique: true })
 export class ChangeOrderEntity extends FinanceStamped {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   @Column('int') projectId!: number;
   /** CO-001, per project, given when the change order is created. */
   @Column() number!: string;
@@ -1677,6 +2136,8 @@ export class ReimbursableEntity extends FinanceStamped {
   /** travel | printing | permits_fees | materials | consultants | shipping | equipment | other */
   @Column({ default: 'other' }) category!: string;
   @Column({ nullable: true }) vendor!: string;
+  /** The number printed on the receipt -- checked against other expenses so one receipt isn't claimed twice. */
+  @Column({ nullable: true }) receiptNumber!: string;
   @Column({ ...MONEY }) cost!: number;
   @Column({ ...PCT, default: 0 }) markupPct!: number;
   /** False: tracked as a project cost only, never billed. */
@@ -1807,6 +2268,34 @@ export class CommitmentLineEntity {
   @Column({ ...MONEY }) amount!: number;
 }
 
+/**
+ * An estimate a subcontractor sent us (or was asked for): the project, trade,
+ * amount and whether they got the job. Kept on the sub's record so the team can
+ * see who has bid several times without an award.
+ */
+@Entity('contractor_bids')
+@Index('IX_contractor_bids_contractor', ['contractorId'])
+export class ContractorBidEntity {
+  @PrimaryColumn() id!: string;
+  @Column() contractorId!: string;
+  @Column({ type: 'int', nullable: true }) projectId!: number | null;
+  /** The job's name -- typed for one not in Origami, or copied from the project. */
+  @Column({ nullable: true }) projectName!: string;
+  @Column({ nullable: true }) tradeId!: string;
+  @Column({ ...TEXT, nullable: true }) scope!: string;
+  @Column() dateReceived!: string;
+  @Column({ ...MONEY, nullable: true }) amount!: number | null;
+  /** invited | interested | pending | awarded | not_awarded | withdrawn | declined */
+  @Column({ default: 'pending' }) outcome!: string;
+  /** When the RFP closes (bids due); drives the contact's responsiveness alerts. */
+  @Column({ type: 'nvarchar', length: 10, nullable: true }) dueDate!: string | null;
+  @Column({ nullable: true }) outcomeDate!: string;
+  @Column({ ...TEXT, nullable: true }) notes!: string;
+  @Column({ nullable: true }) createdByName!: string;
+  @Column() createdAt!: string;
+  @Column({ nullable: true }) updatedAt!: string;
+}
+
 /** A cost incurred: a vendor bill, subcontractor invoice, material or equipment charge. Labor and reimbursables are counted from their own records. */
 @Entity('cost_entries')
 @Index('IX_cost_entries_project', ['projectId'])
@@ -1857,7 +2346,8 @@ export class CostForecastEntity extends FinanceStamped {
 }
 
 /** A drawing / file in the File Room an RFI points at. */
-export interface RfiDrawingRef { fileId: string; name: string }
+/** A drawing an RFI points at -- and, when made from a markup, that markup (opens the drawing at it). */
+export interface RfiDrawingRef { fileId: string; name: string; markupId?: string; page?: number }
 /** Someone an RFI goes to or is copied to -- a People contact, a staff member, or just a name and email. */
 export interface RfiContact { name: string; email?: string; company?: string; personId?: number }
 export interface RfiEvent { at: string; by: string; action: string; note?: string }
@@ -1873,6 +2363,12 @@ export interface RfiEvent { at: string; by: string; action: string; note?: strin
 @Index('IX_rfis_project', ['projectId'])
 export class RfiEntity {
   @PrimaryColumn() id!: string;
+  /** Where it came from when it was converted or duplicated from another special action. */
+  @Column({ nullable: true }) sourceType!: string;
+  @Column({ nullable: true }) sourceId!: string;
+  @Column({ nullable: true }) sourceLabel!: string;
+  /** What was made from it (converted to / duplicated as). */
+  @Column({ type: 'simple-json', nullable: true }) derivedRefs!: DerivedRef[] | null;
   @Column('int') projectId!: number;
   @Column() number!: string;
   @Column() subject!: string;

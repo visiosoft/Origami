@@ -23,6 +23,7 @@ const letterhead_1 = require("../documents/letterhead");
 const public_decorator_1 = require("../auth/guards/public.decorator");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const cookie_util_1 = require("../auth/guards/cookie.util");
+const placeholders_1 = require("../email-templates/placeholders");
 let GoogleController = class GoogleController {
     constructor(google, settings, auth, calendar) {
         this.google = google;
@@ -103,7 +104,7 @@ let GoogleController = class GoogleController {
         if (!code)
             return fail('Google did not return an authorization code.');
         try {
-            const tokens = await this.google.exchangeCode(code);
+            const tokens = await this.google.exchangeCode(code, mode);
             const profile = await this.google.profile(tokens.access_token);
             if (mode === 'connect') {
                 await this.google.saveConnection(tokens.refresh_token, profile);
@@ -140,6 +141,7 @@ let GoogleController = class GoogleController {
         return { sent: true, to };
     }
     send(body) {
+        (0, placeholders_1.assertFilled)(body?.subject, body?.html);
         return this.google.sendMail(body);
     }
     async letterPdf(body, res) {
@@ -150,6 +152,7 @@ let GoogleController = class GoogleController {
         return res.end(pdf);
     }
     async sendLetter(body) {
+        (0, placeholders_1.assertFilled)(body?.subject, body?.html, body?.noteHtml, body?.docTitle, body?.subtitle);
         const pdf = await this.renderLetter(body);
         const filename = (0, letterhead_1.safeFilename)(body.filename || body.subject || 'Letter') + '.pdf';
         await this.google.sendMail({

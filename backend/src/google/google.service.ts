@@ -7,6 +7,20 @@ const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
 const GMAIL_SEND_URL = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files';
+/** Office formats Drive can open as its own kind of file (and so export as PDF). */
+const GOOGLE_EQUIVALENT: Record<string, string> = {
+  'application/msword': 'application/vnd.google-apps.document',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.google-apps.document',
+  'application/rtf': 'application/vnd.google-apps.document',
+  'application/vnd.oasis.opendocument.text': 'application/vnd.google-apps.document',
+  'application/vnd.ms-excel': 'application/vnd.google-apps.spreadsheet',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'application/vnd.google-apps.spreadsheet',
+  'application/vnd.oasis.opendocument.spreadsheet': 'application/vnd.google-apps.spreadsheet',
+  'text/csv': 'application/vnd.google-apps.spreadsheet',
+  'application/vnd.ms-powerpoint': 'application/vnd.google-apps.presentation',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'application/vnd.google-apps.presentation',
+  'application/vnd.oasis.opendocument.presentation': 'application/vnd.google-apps.presentation',
+};
 const DOCS_URL = 'https://docs.googleapis.com/v1/documents';
 const DRIVE_FILE_FIELDS = 'id,name,mimeType,size,webViewLink,iconLink,thumbnailLink,createdTime';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -78,7 +92,20 @@ export class GoogleService {
 
   // ---------------------------------------------------------------- config
 
-  async credentials(): Promise<{ clientId: string; clientSecret: string; redirectUri: string }> {
+  /**
+   * The OAuth client to use. The company connection (Gmail, Drive, shared
+   * calendars) can have its own client -- one in an "Internal" Google Cloud
+   * project, which Google doesn't put through app verification or a security
+   * assessment because only the company's own Workspace accounts can use it.
+   * Sign-in and My Calendar always use the main (public) client. With no
+   * separate client set, everything uses the main one, as before.
+   */
+  async credentials(purpose: 'public' | 'workspace' = 'public'): Promise<{ clientId: string; clientSecret: string; redirectUri: string }> {
+    if (purpose === 'workspace') {
+      const wid = (await this.settings.get('google.workspaceClientId')) || '';
+      const wsecret = (await this.settings.get('google.workspaceClientSecret')) || '';
+      if (wid && wsecret) return { clientId: wid, clientSecret: wsecret, redirectUri: await this.redirectUri() };
+    }
     const clientId = (await this.settings.get('google.clientId')) || '';
     const clientSecret = (await this.settings.get('google.clientSecret')) || '';
     if (!clientId || !clientSecret) {
@@ -106,7 +133,7 @@ export class GoogleService {
 
   /** Where the browser should be sent to start a consent flow. */
   async consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string> {
-    const { clientId, redirectUri } = await this.credentials();
+    const { clientId, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
     const scopes = mode === 'connect' ? WORKSPACE_SCOPES : mode === 'my-calendar' ? MY_CALENDAR_SCOPES : LOGIN_SCOPES;
     const params = new URLSearchParams({
       client_id: clientId,
@@ -130,8 +157,8 @@ export class GoogleService {
 
   // ----------------------------------------------------------------- OAuth
 
-  async exchangeCode(code: string): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
-    const { clientId, clientSecret, redirectUri } = await this.credentials();
+  async exchangeCode(code: string, mode: 'connect' | 'login' | 'my-calendar' = 'login'): Promise<{ access_token: string; refresh_token?: string; expires_in: number }> {
+    const { clientId, clientSecret, redirectUri } = await this.credentials(mode === 'connect' ? 'workspace' : 'public');
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -202,7 +229,7 @@ export class GoogleService {
         'No Google account is connected. Connect one under Settings -> Integrations -> Google Workspace.',
       );
     }
-    const { clientId, clientSecret } = await this.credentials();
+    const { clientId, clientSecret } = await this.credentials('workspace');
     const res = await fetch(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -382,7 +409,7 @@ export class GoogleService {
    * the requester is entitled to this particular file — see the task-scoped
    * content endpoints, which look the id up on the task first.
    */
-  async downloadDriveFile(id: string, thumb = false): Promise<{ body: any; mimeType: string; size?: string }> {
+  async downloadDriveFile(id: string, thumb = false, size?: number): Promise<{ body: any; mimeType: string; size?: string }> {
     const token = await this.workspaceToken();
 
     if (thumb) {
@@ -392,7 +419,7 @@ export class GoogleService {
       const metaBody: any = await meta.json().catch(() => ({}));
       if (meta.ok && metaBody?.thumbnailLink) {
         // Drive thumbnails are served from a token-authenticated CDN URL.
-        const thumbRes = await fetch(metaBody.thumbnailLink, { headers: { Authorization: `Bearer ${token}` } });
+        const thumbRes = await fetch(thumbnailAt(metaBody.thumbnailLink, size), { headers: { Authorization: `Bearer ${token}` } });
         if (thumbRes.ok) {
           return { body: thumbRes.body, mimeType: thumbRes.headers.get('content-type') || 'image/jpeg' };
         }
@@ -518,6 +545,39 @@ export class GoogleService {
       return Buffer.from(await res.arrayBuffer());
     } finally {
       // The Doc is scaffolding; don't leave it lying around in Drive.
+      await this.trashDriveFile(doc.id).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Read the text on a photo (a business card): Drive converts the image to a
+   * Google Doc with OCR, the Doc is exported as plain text, and trashed.
+   */
+  async imageToText(image: Buffer, mimeType: string, name = 'scan'): Promise<string> {
+    const token = await this.workspaceToken();
+    const boundary = 'origami_ocr_' + Math.random().toString(36).slice(2);
+    const metadata = { name, mimeType: 'application/vnd.google-apps.document' };
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`, 'utf8'),
+      Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`, 'utf8'),
+      image,
+      Buffer.from(`\r\n--${boundary}--`, 'utf8'),
+    ]);
+    const created = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&supportsAllDrives=true&ocrLanguage=en&fields=id`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body: body as any,
+    });
+    const doc: any = await created.json().catch(() => ({}));
+    if (!created.ok || !doc?.id) {
+      this.log.error(`OCR upload failed: ${JSON.stringify(doc)}`);
+      throw new BadRequestException(doc?.error?.message || 'Could not read the card.');
+    }
+    try {
+      const res = await fetch(`${DRIVE_FILES_URL}/${doc.id}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new BadRequestException('Drive could not read the text on the card.');
+      return (await res.text()).replace(/^\uFEFF/, '');
+    } finally {
       await this.trashDriveFile(doc.id).catch(() => undefined);
     }
   }
@@ -665,6 +725,62 @@ export class GoogleService {
     if (fill.length) await call(fill);
   }
 
+  /** Rename a Drive file and/or move it into another folder. */
+  async updateDriveFile(id: string, opts: { name?: string; folderId?: string }): Promise<void> {
+    const token = await this.workspaceToken();
+    const params = new URLSearchParams({ supportsAllDrives: 'true', fields: 'id' });
+    if (opts.folderId) {
+      const meta = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?fields=parents&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+      const body: any = await meta.json().catch(() => ({}));
+      const parents: string[] = Array.isArray(body?.parents) ? body.parents : [];
+      if (!parents.includes(opts.folderId)) {
+        params.set('addParents', opts.folderId);
+        if (parents.length) params.set('removeParents', parents.join(','));
+      }
+    }
+    const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}?${params}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts.name ? { name: opts.name } : {}),
+    });
+    if (!res.ok) {
+      const err: any = await res.json().catch(() => ({}));
+      this.log.error(`Drive update failed for ${id}: ${JSON.stringify(err).slice(0, 200)}`);
+      throw new BadRequestException(err?.error?.message || 'Google Drive refused the change.');
+    }
+  }
+
+  /**
+   * A PDF of a document so it can be read in the browser instead of downloaded.
+   * Google Docs/Sheets/Slides export straight to PDF; Word, Excel and
+   * PowerPoint files are copied as a Google file, exported, and the copy is
+   * trashed. Returns null for anything Drive can't turn into a PDF.
+   */
+  async previewPdf(id: string, mimeType: string, name = 'preview'): Promise<Buffer | null> {
+    const target = GOOGLE_EQUIVALENT[mimeType] || (mimeType.startsWith('application/vnd.google-apps.') ? '' : undefined);
+    if (target === undefined) return null;
+    const token = await this.workspaceToken();
+    let exportId = id;
+    let temp = '';
+    if (target) {
+      const copy = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(id)}/copy?supportsAllDrives=true&fields=id`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: `${name} (preview)`, mimeType: target }),
+      });
+      const made: any = await copy.json().catch(() => ({}));
+      if (!copy.ok || !made?.id) { this.log.warn(`Preview copy failed for ${id}: ${made?.error?.message || copy.status}`); return null; }
+      exportId = temp = made.id;
+    }
+    try {
+      const res = await fetch(`${DRIVE_FILES_URL}/${encodeURIComponent(exportId)}/export?mimeType=application%2Fpdf`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return null;
+      return Buffer.from(await res.arrayBuffer());
+    } finally {
+      if (temp) await this.trashDriveFile(temp).catch(() => undefined);
+    }
+  }
+
   /** Move a file to Drive's trash — recoverable, unlike a hard delete. */
   async trashDriveFile(id: string): Promise<void> {
     const token = await this.workspaceToken();
@@ -780,4 +896,14 @@ function encode(message: string) {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
+}
+
+/**
+ * A Drive thumbnail link at another size: the link ends in "=s220"; a larger
+ * one (up to 2000px) is a JPEG preview of any photo, HEIC included.
+ */
+export function thumbnailAt(link: string, size?: number): string {
+  if (!size) return link;
+  const px = Math.max(64, Math.min(2000, Math.round(size)));
+  return /=s\d+(-[a-z]+)?$/i.test(link) ? link.replace(/=s\d+(-[a-z]+)?$/i, `=s${px}`) : `${link}=s${px}`;
 }

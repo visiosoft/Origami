@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { RoleEntity } from '../database/entities';
+import { RoleEntity, UserEntity } from '../database/entities';
 import { AuthService } from '../auth/auth.service';
 export interface Actor {
     name: string;
@@ -9,7 +9,9 @@ export interface Actor {
 export declare class ManpowerAccess {
     private readonly roles;
     private readonly auth;
-    constructor(roles: Repository<RoleEntity>, auth: AuthService);
+    private readonly users?;
+    constructor(roles: Repository<RoleEntity>, auth: AuthService, users?: Repository<UserEntity> | undefined);
+    private effective;
     actor(bearer: string | undefined): Promise<Actor>;
     can(actor: Actor, moduleKey: string, action?: 'view' | 'manage'): Promise<boolean>;
     permissionsOf(actor: Actor): Promise<Record<string, {

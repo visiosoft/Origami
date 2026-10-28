@@ -21,12 +21,14 @@ const settings_service_1 = require("../settings/settings.service");
 const google_service_1 = require("../google/google.service");
 const shell_1 = require("../email/shell");
 const assignment_template_1 = require("./assignment.template");
+const notify_hub_service_1 = require("./notify-hub.service");
 let NotificationsService = class NotificationsService {
-    constructor(users, projects, settings, google) {
+    constructor(users, projects, settings, google, hub) {
         this.users = users;
         this.projects = projects;
         this.settings = settings;
         this.google = google;
+        this.hub = hub;
         this.log = new common_1.Logger('Notifications');
     }
     taskAssigned(notice) {
@@ -42,7 +44,24 @@ let NotificationsService = class NotificationsService {
             });
         }
     }
-    async sendAssignment(notice, follow) {
+    async sendAssignment(notice, follow, sample = false) {
+        if (sample || !this.hub || !notice.assigneeId)
+            return this.emailAssignment(notice, follow, sample);
+        const event = !follow || follow.kind === 'added' ? 'task_assigned' : follow.kind === 'comment' ? 'task_comment' : follow.kind === 'mention' ? 'mention' : 'task_status';
+        const who = notice.actor?.name || 'Someone';
+        const title = !follow ? `${who} assigned you: ${notice.title}`
+            : follow.kind === 'added' ? `${who} added you as a collaborator: ${notice.title}`
+                : follow.kind === 'comment' ? `${who} commented on: ${notice.title}`
+                    : follow.kind === 'mention' ? `${who} mentioned you: ${notice.title}`
+                        : follow.kind === 'done' ? `Done: ${notice.title}`
+                            : `${notice.title} moved to ${notice.status || 'a new status'}`;
+        let result = { sent: false, reason: 'not chosen in their notification settings' };
+        await this.hub.deliver([notice.assigneeId], event, { title, body: follow?.comment, path: this.taskUrl('', notice), actorId: notice.actor?.id }, {
+            email: async () => { result = await this.emailAssignment(notice, follow, false); },
+        });
+        return result;
+    }
+    async emailAssignment(notice, follow, _sample) {
         const skip = (reason) => {
             this.log.log(`No assignment email for ${notice.taskId}: ${reason}`);
             return { sent: false, reason };
@@ -61,8 +80,6 @@ let NotificationsService = class NotificationsService {
             return skip(`${user.id} has no email address`);
         if (user.status === 'suspended')
             return skip(`${user.email} is suspended`);
-        if (user.notifyOnAssignment === false)
-            return skip(`${user.email} has these emails turned off`);
         if (!(await this.google.isConnected()))
             return skip('no Google account is connected');
         const base = await this.settings.baseUrl();
@@ -107,9 +124,11 @@ exports.NotificationsService = NotificationsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
+    __param(4, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         settings_service_1.SettingsService,
-        google_service_1.GoogleService])
+        google_service_1.GoogleService,
+        notify_hub_service_1.NotifyHub])
 ], NotificationsService);
 //# sourceMappingURL=notifications.service.js.map

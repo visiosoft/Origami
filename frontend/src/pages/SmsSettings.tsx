@@ -2,29 +2,34 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = 'var(--font-display)';
 const MASK = '••••••••';
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--ink)', outline: 'none',
 };
 
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 18, marginBottom: 16,
+  background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 18, marginBottom: 16,
 };
 
-type Form = { 'sms.accountSid': string; 'sms.authToken': string; 'sms.fromNumber': string; 'sms.enabled': string };
-const EMPTY: Form = { 'sms.accountSid': '', 'sms.authToken': '', 'sms.fromNumber': '', 'sms.enabled': 'true' };
+type Form = {
+  'sms.accountSid': string; 'sms.authToken': string; 'sms.fromNumber': string; 'sms.enabled': string;
+  'sms.provider': string; 'sms.quoApiKey': string; 'sms.quoFrom': string;
+};
+const EMPTY: Form = { 'sms.accountSid': '', 'sms.authToken': '', 'sms.fromNumber': '', 'sms.enabled': 'true', 'sms.provider': 'twilio', 'sms.quoApiKey': '', 'sms.quoFrom': '' };
+const QUO_LINE = '+16507614661';
 
-interface Status { configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }
+interface Status { provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }
 
 /**
  * Settings → SMS.
  *
- * Twilio credentials and the sending number. The auth token is stored masked
- * like the other secrets, so posting the mask back leaves it unchanged.
+ * Texts go out through Quo -- the office line, so replies land in Quo (Oct 27
+ * sync) -- or Twilio. Keys and tokens are stored masked like the other
+ * secrets, so posting the mask back leaves them unchanged.
  */
 export function SmsSettings() {
   const { toast } = useApp();
@@ -69,17 +74,17 @@ export function SmsSettings() {
       .finally(() => setSending(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 
   const enabled = form['sms.enabled'] !== 'false';
 
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>SMS</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
-          Texting clients from the system, using the same templates as email. Sent through Twilio — the credentials
-          come from your Twilio console, and the sending number must be one you own there.
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>SMS</div>
+        <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
+          Texting clients from the system (“Text client” on a lead, contact or project), using the SMS templates.
+          Sent through Quo from the office line, so replies come back to Quo — or through Twilio.
         </div>
       </div>
 
@@ -90,59 +95,95 @@ export function SmsSettings() {
       )}
 
       <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: status?.configured ? (status.enabled ? '#2F7D4A' : '#93520F') : '#B8410F' }} />
+        <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: status?.configured ? (status.enabled ? 'var(--success)' : '#93520F') : '#B8410F' }} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0B1A12' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
             {status?.configured ? (status.enabled ? 'Ready to send' : 'Configured, but switched off') : 'Not configured'}
           </div>
-          <div style={{ fontSize: 11.5, color: '#7E9B93', marginTop: 2 }}>
-            {status?.configured ? `Sending as ${status.fromNumber} · account ${status.accountSid}` : 'Add the account SID, auth token and sending number below.'}
+          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
+            {status?.configured
+              ? `Sending through ${status.provider === 'quo' ? 'Quo' : 'Twilio'} as ${status.fromNumber}${status.provider === 'quo' ? '' : ` · account ${status.accountSid}`}`
+              : form['sms.provider'] === 'quo' ? 'Add the Quo API key below.' : 'Add the account SID, auth token and sending number below.'}
           </div>
         </div>
       </div>
 
       <div style={card}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', marginBottom: 14 }}>Twilio Account</div>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 10 }}>Send through</div>
+        <div role="radiogroup" aria-label="SMS provider" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {([['quo', 'Quo — the office line'], ['twilio', 'Twilio']] as const).map(([k, label]) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', borderRadius: 999, border: '1px solid ' + (form['sms.provider'] === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'), fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'var(--ink)' }}>
+              <input type="radio" name="sms-provider" checked={(form['sms.provider'] || 'twilio') === k} onChange={() => set('sms.provider', k)} /> {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {form['sms.provider'] === 'quo' && (
+        <div style={card}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 14 }}>Quo</div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>API key</label>
+              <input style={inputStyle} type="password" value={form['sms.quoApiKey']} onChange={(e) => set('sms.quoApiKey', e.target.value)} placeholder={MASK} aria-label="Quo API key" />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Create one in Quo → Settings → API. Stored masked; leave as {MASK} to keep the saved key.</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>Send from</label>
+              <input style={inputStyle} value={form['sms.quoFrom']} onChange={(e) => set('sms.quoFrom', e.target.value)} placeholder={QUO_LINE} aria-label="Quo number" />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>The Quo number texts come from. Blank = the office line, (650) 761-4661.</span>
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={enabled} onChange={(e) => set('sms.enabled', e.target.checked ? 'true' : 'false')} />
+            Sending is on
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>— untick to stop every outgoing text without clearing the key.</span>
+          </label>
+        </div>
+      )}
+
+      <div style={{ ...card, display: form['sms.provider'] === 'quo' ? 'none' : undefined }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 14 }}>Twilio Account</div>
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Account SID</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>Account SID</label>
             <input style={inputStyle} value={form['sms.accountSid']} onChange={(e) => set('sms.accountSid', e.target.value)} placeholder="ACxxxxxxxx…" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Auth Token</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>Auth Token</label>
             <input style={inputStyle} type="password" value={form['sms.authToken']} onChange={(e) => set('sms.authToken', e.target.value)} placeholder={MASK} />
-            <span style={{ fontSize: 11, color: '#7E9B93' }}>Stored masked. Leave as {MASK} to keep the saved token.</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Stored masked. Leave as {MASK} to keep the saved token.</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            <label style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D' }}>Sending Number</label>
+            <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>Sending Number</label>
             <input style={inputStyle} value={form['sms.fromNumber']} onChange={(e) => set('sms.fromNumber', e.target.value)} placeholder="+14155550100" />
-            <span style={{ fontSize: 11, color: '#7E9B93' }}>A number on your Twilio account, in +country format.</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>A number on your Twilio account, in +country format.</span>
           </div>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: '#0B1A12', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
           <input type="checkbox" checked={enabled} onChange={(e) => set('sms.enabled', e.target.checked ? 'true' : 'false')} />
           Sending is on
-          <span style={{ fontSize: 11, color: '#7E9B93' }}>— untick to stop every outgoing text without clearing the credentials.</span>
+          <span style={{ fontSize: 11, color: 'var(--muted)' }}>— untick to stop every outgoing text without clearing the credentials.</span>
         </label>
       </div>
 
       <div style={card}>
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', marginBottom: 12 }}>Send a Test</div>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 12 }}>Send a Test</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input style={{ ...inputStyle, flex: '1 1 220px' }} value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="+14155551234" />
           <div onClick={sending || !status?.configured ? undefined : sendTest}
-            style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: sending || !status?.configured ? 'default' : 'pointer', background: status?.configured ? (sending ? '#9AB0A4' : '#173326') : '#D6DED8', color: status?.configured ? 'white' : '#9AA39D' }}>
+            style={{ padding: '9px 18px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: sending || !status?.configured ? 'default' : 'pointer', background: status?.configured ? (sending ? 'var(--c-9ab0a4)' : 'var(--forest)') : 'var(--c-d6ded8)', color: status?.configured ? 'white' : 'var(--c-9aa39d)' }}>
             {sending ? 'Sending…' : 'Send test'}
           </div>
         </div>
-        <div style={{ fontSize: 11, color: '#9AA39D', marginTop: 8, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: 'var(--c-9aa39d)', marginTop: 8, lineHeight: 1.5 }}>
           Sends one real text and is billed like any other. Save your credentials first.
         </div>
       </div>
 
       <div onClick={saving ? undefined : save}
-        style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>
+        style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>
         {saving ? 'Saving…' : 'Save SMS settings'}
       </div>
     </div>

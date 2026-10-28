@@ -13,6 +13,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FinanceHubService = void 0;
+exports.reimbursablesApprovedC = reimbursablesApprovedC;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
@@ -22,8 +23,18 @@ const financials_service_1 = require("./financials.service");
 const invoices_service_1 = require("./invoices.service");
 const costs_service_1 = require("./costs.service");
 const money_1 = require("./money");
+const billing_months_1 = require("./billing-months");
+function reimbursablesApprovedC(rows) {
+    const out = new Map();
+    for (const r of rows) {
+        if (r.billable === false || (r.status !== 'approved' && r.status !== 'billed'))
+            continue;
+        out.set(r.projectId, (out.get(r.projectId) || 0) + (0, invoices_service_1.reimbursableBillC)(r));
+    }
+    return out;
+}
 let FinanceHubService = class FinanceHubService {
-    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries) {
+    constructor(fin, projects, pfin, cos, coItems, reimbs, releases, invoices, phfin, tfin, phases, tasks, activity, lines, costs, costEntries, payments, commitments, commitmentLines) {
         this.fin = fin;
         this.projects = projects;
         this.pfin = pfin;
@@ -40,6 +51,9 @@ let FinanceHubService = class FinanceHubService {
         this.lines = lines;
         this.costs = costs;
         this.costEntries = costEntries;
+        this.payments = payments;
+        this.commitments = commitments;
+        this.commitmentLines = commitmentLines;
     }
     async names() {
         return new Map((await this.projects.find()).map((p) => [p.id, p.name]));
@@ -69,6 +83,21 @@ let FinanceHubService = class FinanceHubService {
                 });
             }
         }
+        if ((r.manageCosts || r.approveCosts) && this.commitments) {
+            const drafts = await this.commitments.find({ where: { status: 'draft' } });
+            const lines = drafts.length && this.commitmentLines ? await this.commitmentLines.find({ where: { commitmentId: (0, typeorm_2.In)(drafts.map((c) => c.id)) } }) : [];
+            const KIND = { subcontract: 'Subcontract', purchase_order: 'Purchase order', service: 'Service agreement' };
+            for (const c of drafts) {
+                const mine = lines.filter((l) => l.commitmentId === c.id);
+                if (!mine.length)
+                    continue;
+                out.push({
+                    type: 'commitment', id: c.id, projectId: c.projectId, projectName: pn(c.projectId), title: `${c.number} ${c.title}`,
+                    detail: `${KIND[c.type] || 'Contract'} with ${c.vendorName || '—'}${c.createdBy ? ` · drafted by ${c.createdBy}` : ''}`,
+                    amount: (0, money_1.fromCents)((0, money_1.sumCents)(mine.map((l) => (0, money_1.toCents)(l.amount)))), since: c.createdAt, canAct: r.approveCosts,
+                });
+            }
+        }
         if ((r.manageCosts || r.approveCosts) && this.costEntries) {
             const bills = await this.costEntries.find({ where: { source: 'portal', status: 'recorded' } });
             const byBatch = new Map();
@@ -92,14 +121,14 @@ let FinanceHubService = class FinanceHubService {
                     detail: `${x.scope === 'project' ? 'Whole project' : x.scope} · requested by ${x.requestedBy || '—'}`, amount: x.amount, since: x.createdAt, canAct: r.releaseRetention,
                 });
             }
-            const waiting = (await this.invoices.find({ where: { status: 'draft' } })).filter((i) => i.approvalRequestedAt);
+            const waiting = (await this.invoices.find({ where: { status: 'draft' } })).filter((i) => i.approvalRequestedAt && !i.approvedAt);
             const draftLines = waiting.length ? await this.lines.find({ where: { invoiceId: (0, typeorm_2.In)(waiting.map((i) => i.id)) } }) : [];
             for (const x of waiting) {
                 const total = (0, finance_calc_1.invoiceTotals)(draftLines.filter((l) => l.invoiceId === x.id).map((l) => ({ kind: l.kind, amountC: (0, money_1.toCents)(l.amount), retentionApplies: l.retentionApplies, retentionPct: l.retentionPct, taxable: l.taxable, taxPct: l.taxPct }))).totalC;
                 out.push({
                     type: 'invoice', id: x.id, projectId: x.projectId, projectName: pn(x.projectId),
                     title: `Draft ${x.kind === 'credit' ? (x.creditType === 'write_off' ? 'write-off' : 'credit note') : x.kind === 'retention' ? 'retention invoice' : 'invoice'}${x.description ? ` — ${x.description}` : ''}`,
-                    detail: `Sent for approval by ${x.approvalRequestedBy || '—'}`, amount: (0, money_1.fromCents)(total), since: x.approvalRequestedAt, canAct: r.issueInvoice,
+                    detail: `Sent for approval by ${x.approvalRequestedBy || '—'}`, amount: (0, money_1.fromCents)(total), since: x.approvalRequestedAt, canAct: r.approveInvoice,
                 });
             }
             const strict = (await this.pfin.find()).filter((s) => s.requireProgressApproval);
@@ -137,6 +166,7 @@ let FinanceHubService = class FinanceHubService {
             for (const id of await this.costs.projectsWithCosts())
                 ids.add(id);
         const labor = showCosts ? await this.costs.laborAll() : [];
+        const approvedReimbC = reimbursablesApprovedC(await this.reimbs.find());
         const rows = [];
         for (const id of ids) {
             const p = byId.get(id);
@@ -144,9 +174,40 @@ let FinanceHubService = class FinanceHubService {
                 continue;
             const client = clientIds.has(id) ? (0, finance_calc_1.toDollars)((0, finance_calc_1.computeSov)((await this.fin.context(id)).input).summary) : {};
             const pay = showCosts ? await this.costs.payingSide(id, labor) : null;
-            rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? (0, finance_calc_1.toDollars)(pay) : {}) });
+            rows.push({
+                projectId: p.id, name: p.name, stage: p.stage, contractType: p.contractType || '', pricing: p.pricing || '', labor: p.labor || '',
+                hasClientContract: clientIds.has(id), ...client, reimbursablesApproved: (0, money_1.fromCents)(approvedReimbC.get(id) || 0), ...(pay ? (0, finance_calc_1.toDollars)(pay) : {}),
+            });
         }
         return rows.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    async collections(actor, months = 6) {
+        await this.fin.need(actor, 'view');
+        const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+        const now = new Date();
+        const keys = [];
+        for (let i = n - 1; i >= 0; i--) {
+            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+            keys.push(d.toISOString().slice(0, 7));
+        }
+        const totals = new Map(keys.map((k) => [k, 0]));
+        const rows = this.payments ? await this.payments.find() : [];
+        for (const p of rows) {
+            if (p.voidedAt || !p.date)
+                continue;
+            const k = String(p.date).slice(0, 7);
+            if (!totals.has(k))
+                continue;
+            totals.set(k, (totals.get(k) || 0) + (0, money_1.toCents)(Number(p.amount) * (Number(p.fxRate) || 1)));
+        }
+        return keys.map((month) => ({ month, amount: (0, money_1.fromCents)(totals.get(month) || 0) }));
+    }
+    async billing(actor, months = 6) {
+        await this.fin.need(actor, 'view');
+        const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+        const [invoices, payments, projects] = await Promise.all([this.invoices.find(), this.payments ? this.payments.find() : Promise.resolve([]), this.projects.find()]);
+        const names = new Map(projects.map((p) => [p.id, p.name]));
+        return (0, billing_months_1.billingMonths)(invoices, payments, { months: n, today: new Date().toISOString().slice(0, 10), projectName: (id) => names.get(id) || `Project ${id}` });
     }
     async audit(actor, q) {
         await this.fin.need(actor, 'view');
@@ -179,6 +240,9 @@ exports.FinanceHubService = FinanceHubService = __decorate([
     __param(12, (0, typeorm_1.InjectRepository)(entities_1.FinanceActivityEntity)),
     __param(13, (0, typeorm_1.InjectRepository)(entities_1.ProjectInvoiceLineEntity)),
     __param(15, (0, typeorm_1.InjectRepository)(entities_1.CostEntryEntity)),
+    __param(16, (0, typeorm_1.InjectRepository)(entities_1.ProjectPaymentEntity)),
+    __param(17, (0, typeorm_1.InjectRepository)(entities_1.CommitmentEntity)),
+    __param(18, (0, typeorm_1.InjectRepository)(entities_1.CommitmentLineEntity)),
     __metadata("design:paramtypes", [financials_service_1.FinancialsService,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -194,6 +258,9 @@ exports.FinanceHubService = FinanceHubService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         costs_service_1.CostsService,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], FinanceHubService);
 //# sourceMappingURL=finance-hub.service.js.map

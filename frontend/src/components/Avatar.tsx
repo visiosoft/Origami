@@ -10,7 +10,7 @@ export function Avatar({
   name,
   user,
   size = 24,
-  bg = '#173326',
+  bg = 'var(--forest)',
   title,
 }: {
   name?: string;
@@ -50,7 +50,7 @@ export function Avatar({
       title={title ?? label}
       style={{
         ...base,
-        background: label ? bg : '#C9D4CC',
+        background: label ? bg : 'var(--c-c9d4cc)',
         color: 'white',
         fontSize: Math.max(8, Math.round(size * 0.42)),
         fontWeight: 700,

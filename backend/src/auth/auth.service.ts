@@ -7,6 +7,7 @@ import { GoogleService, type GoogleProfile } from '../google/google.service';
 import { inviteEmail, resetEmail } from './email.templates';
 import { loadEmailBrand } from '../email/shell';
 import { FOUNDER_ADMIN } from '../seed-data/users';
+import { effectivePermissions } from '../users/access-levels';
 import {
   hashPassword, verifyPassword, passwordProblem,
   randomToken, hashToken, signJwt, verifyJwt, type SessionClaims,
@@ -287,6 +288,21 @@ export class AuthService {
     return { name: claims.name, id: claims.sub };
   }
 
+  /**
+   * A fresh session for someone already signed in, so people working all day
+   * aren't signed out mid-edit when the 12h token runs out. The account is read
+   * again: a suspended or deleted user can't renew. Guest links never renew --
+   * they last as long as their grant.
+   */
+  async refresh(bearer: string | undefined) {
+    const claims = await this.verify(bearer);
+    if (!claims) throw new UnauthorizedException('Not signed in.');
+    if (claims.sub.startsWith('GUEST-')) throw new UnauthorizedException('Guest links do not renew.');
+    const user = await this.users.findOneBy({ id: claims.sub });
+    if (!user) throw new UnauthorizedException('Not signed in.');
+    return this.issueSession(user);
+  }
+
   async me(bearer: string | undefined) {
     const claims = await this.verify(bearer);
     if (!claims) throw new UnauthorizedException('Not signed in.');
@@ -294,7 +310,8 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('Not signed in.');
     // The role's module permissions ride along so the app can show outside accounts only what they may use.
     const role = await this.roles.findOneBy({ key: user.roleKey });
-    return { ...publicUser(user), roleName: role?.name || user.roleKey, rolePermissions: role?.permissions || {}, isSuperintendent: await this.isSuperintendent(user) };
+    // With this person's own overrides on top (User Access & Roles -> a user -> Access).
+    return { ...publicUser(user), roleName: role?.name || user.roleKey, rolePermissions: effectivePermissions(role?.permissions as any, user.permissionOverrides as any), isSuperintendent: await this.isSuperintendent(user) };
   }
 
   /**

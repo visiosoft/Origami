@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { isLogClosed, logStatusTone } from '../data/logStatuses';
-import { taskHeadline, type Task } from '../data/tasks';
+import { logTaskTitle, type Task } from '../data/tasks';
 import { PRIORITY_STYLE, type ProjectTask } from '../data/projectTasks';
 import { isMine, raisedBy } from '../components/TaskScope';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
@@ -25,10 +25,10 @@ interface Log { id: string; projectId: number; date: string; status: string; sup
 interface Sheet { id: string; weekStart: string; status: string; totalHours: number }
 
 const btnDark: React.CSSProperties = { padding: '10px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, background: ACCENT, color: 'white', cursor: 'pointer', whiteSpace: 'nowrap' };
-const btnLight: React.CSSProperties = { ...btnDark, background: 'white', color: ACCENT, border: '1px solid rgba(23,51,38,0.25)' };
+const btnLight: React.CSSProperties = { ...btnDark, background: 'var(--surface)', color: ACCENT, border: '1px solid rgba(var(--rgb-forest), 0.25)' };
 const LOG_TONE: Record<string, [string, string, string]> = {
-  draft: ['Draft', '#EFEDE8', '#5C6B65'], submitted: ['Submitted', '#FBF0CC', '#8A6D12'],
-  approved: ['Approved', '#D2EAD3', '#1E6B36'], rejected: ['Sent back', '#F2DFD4', '#8E2E0A'],
+  draft: ['Draft', 'var(--c-efede8)', 'var(--c-5c6b65)'], submitted: ['Submitted', 'var(--c-fbf0cc)', 'var(--c-8a6d12)'],
+  approved: ['Approved', 'var(--c-d2ead3)', 'var(--c-1e6b36)'], rejected: ['Sent back', '#F2DFD4', '#8E2E0A'],
 };
 const addDays = (iso: string, n: number) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const isOverdue = (due?: string) => !!due && /^\d{4}-\d{2}-\d{2}$/.test(due) && due < todayISO();
@@ -39,6 +39,7 @@ function useSiteWork() {
   const [board, setBoard] = useState<ProjectTask[]>([]);
   const [log, setLog] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Record<number, string>>({});
+  const [siteAccess, setSiteAccess] = useState<{ id: number; name: string; siteAccess: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
   const reload = useCallback(() => Promise.all([
     api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoard(r); }).catch(() => { }),
@@ -46,13 +47,17 @@ function useSiteWork() {
   ]).finally(() => setLoaded(true)), []);
   useEffect(() => {
     void reload();
-    api.projects.list().then((r: any) => { if (Array.isArray(r)) setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name]))); }).catch(() => { });
+    api.projects.list().then((r: any) => {
+      if (!Array.isArray(r)) return;
+      setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name])));
+      setSiteAccess(r.filter((p: any) => (p.siteAccess || '').trim()).map((p: any) => ({ id: p.id, name: p.name, siteAccess: p.siteAccess })));
+    }).catch(() => { });
   }, [reload]);
   const me = currentUser;
-  const myBoard = board.filter((t) => !t.parentId && isMine(t as any, me, true));
+  const myBoard = board.filter((t) => isMine(t as any, me, true));
   const myLog = log.filter((t) => isMine(t, me, true));
   const raised = log.filter((t) => raisedBy(t, me?.id) && !isMine(t, me));
-  return { board, setBoard, log, setLog, projects, loaded, reload, myBoard, myLog, raised };
+  return { board, setBoard, log, setLog, projects, siteAccess, loaded, reload, myBoard, myLog, raised };
 }
 
 /** Task lists with the drawers that open them. */
@@ -66,7 +71,7 @@ function useTaskRows(w: ReturnType<typeof useSiteWork>) {
     priority: t.priority, open: () => setOpenBoard(t.id),
   });
   const logRow = (t: Task): Row => ({
-    key: 'l' + t.id, title: taskHeadline(t.description).title || t.id, context: `${t.id} · ${t.project || 'General'}`, dueDate: t.dueDate, status: t.status,
+    key: 'l' + t.id, title: logTaskTitle(t), context: `${t.id} · ${t.project || 'General'}`, dueDate: t.dueDate, status: t.status,
     who: isMine(t, currentUser) ? undefined : t.assignedTo, open: () => setOpenLog(t.id),
   });
   const logTask = openLog ? w.log.find((t) => t.id === openLog) : null;
@@ -105,7 +110,7 @@ function Section({ title, count, action, children }: { title: string; count?: nu
 }
 
 function TaskList({ rows, empty, limit }: { rows: Row[]; empty: string; limit?: number }) {
-  if (!rows.length) return <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>{empty}</div>;
+  if (!rows.length) return <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>{empty}</div>;
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       {rows.slice(0, limit ?? rows.length).map((t) => {
@@ -113,7 +118,7 @@ function TaskList({ rows, empty, limit }: { rows: Row[]; empty: string; limit?: 
         const tone = t.status ? logStatusTone(t.status) : null;
         const late = isOverdue(t.dueDate) && !isLogClosed(t.status || '') && t.status !== 'Done';
         return (
-          <div key={t.key} onClick={t.open} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FBF8F2', borderRadius: 10, cursor: 'pointer', flexWrap: 'wrap', borderLeft: late ? '3px solid #C2410C' : '3px solid transparent' }}>
+          <div key={t.key} onClick={t.open} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--panel)', borderRadius: 10, cursor: 'pointer', flexWrap: 'wrap', borderLeft: late ? '3px solid #C2410C' : '3px solid transparent' }}>
             <div style={{ flex: '1 1 220px', minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{t.title}</div>
               <div style={{ fontSize: 11, color: MUTED }}>{t.context}{t.who ? ` · for ${t.who}` : ''}</div>
@@ -167,7 +172,7 @@ export function SuperintendentDashboard() {
 
   return (
     <div style={{ display: 'grid', gap: 16, animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ ...card, padding: '20px 22px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', background: 'linear-gradient(120deg, #E8F0EA, #FBF8F2)' }}>
+      <div style={{ ...card, padding: '20px 22px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', background: 'linear-gradient(120deg, #E8F0EA, var(--panel))' }}>
         <div style={{ flex: '1 1 280px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
           <div style={{ fontFamily: BG, fontSize: 26, fontWeight: 700, color: INK, marginTop: 4, textWrap: 'balance' as any }}>{hello}{first ? `, ${first}` : ''}.</div>
@@ -188,20 +193,33 @@ export function SuperintendentDashboard() {
           <TaskList rows={openTasks} limit={8} empty={w.loaded ? 'Nothing assigned to you right now.' : 'Loading…'} />
         </Section>
         <Section title="Requests I raised" count={openRaised.length} action={<span onClick={() => setShowNew(true)} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ New request</span>}>
-          <TaskList rows={openRaised} limit={8} empty="Need something from the office or another team member? Raise a request — it goes on the Request Log and they’re emailed." />
+          <TaskList rows={openRaised} limit={8} empty="Need something from the office or another team member? Raise a request — it goes on the Special Actions Log and they’re emailed." />
         </Section>
 
         <MyWorkforceRequests projectNames={w.projects} />
 
+        {w.siteAccess.length > 0 && (
+          <Section title="Site access" count={w.siteAccess.length}>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {w.siteAccess.map((p) => (
+                <div key={p.id} style={{ padding: '10px 12px', background: 'var(--panel)', borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>{p.name}</div>
+                  <div style={{ fontSize: 13, color: INK, whiteSpace: 'pre-wrap', marginTop: 2 }}>{p.siteAccess}</div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
         <Section title="My daily logs" count={logs.length} action={<span onClick={() => openLog()} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>Daily log →</span>}>
-          {!logs.length ? <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>Logs you fill in on site show up here.</div> : (
+          {!logs.length ? <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>Logs you fill in on site show up here.</div> : (
             <div style={{ display: 'grid' }}>
               {logs.slice(0, 10).map((l) => {
                 const [label, bg, fg] = LOG_TONE[l.status] || LOG_TONE.draft;
                 return (
                   <div key={l.id} onClick={() => openLog(l)} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '9px 2px', borderTop: '1px solid ' + LINE, cursor: 'pointer', fontSize: 12.5, flexWrap: 'wrap' }}>
                     <span style={{ width: 92, fontWeight: 700, color: INK, fontVariantNumeric: 'tabular-nums' }}>{fmtDate(l.date)}</span>
-                    <span style={{ flex: '1 1 140px', color: '#43514D', minWidth: 0 }}>{w.projects[l.projectId] || 'Project'}{l.status === 'rejected' && l.rejectionNote ? <span style={{ color: '#8E2E0A' }}> — {l.rejectionNote}</span> : null}</span>
+                    <span style={{ flex: '1 1 140px', color: 'var(--body)', minWidth: 0 }}>{w.projects[l.projectId] || 'Project'}{l.status === 'rejected' && l.rejectionNote ? <span style={{ color: '#8E2E0A' }}> — {l.rejectionNote}</span> : null}</span>
                     <span style={{ fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: bg, color: fg }}>{label}</span>
                   </div>
                 );
@@ -213,7 +231,7 @@ export function SuperintendentDashboard() {
         <Section title="My timesheets" action={<span onClick={() => navigate('/my-timesheet')} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>My Timesheet →</span>}>
           {employeeId === null ? <div style={{ fontSize: 12.5, color: MUTED }}>Your login isn’t linked to an employee record yet — ask HR to link it.</div> : (
             <>
-              <div onClick={() => navigate('/my-timesheet')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#FBF8F2', borderRadius: 10, cursor: 'pointer' }}>
+              <div onClick={() => navigate('/my-timesheet')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--panel)', borderRadius: 10, cursor: 'pointer' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.07em' }}>This week</div>
                   <div style={{ fontFamily: BG, fontSize: 20, fontWeight: 700, color: INK }}>{thisWeek ? `${thisWeek.totalHours} h` : 'Not started'}</div>

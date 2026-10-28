@@ -5,12 +5,14 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken', 'sms.quoApiKey'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
   'google.clientId',
   'google.clientSecret',
+  'google.workspaceClientId',
+  'google.workspaceClientSecret',
   'app.baseUrl',
   // A banner every signed-in page shows while it's on ("Updates 3-4 pm -- please save your work").
   'app.notice',
@@ -21,6 +23,8 @@ export const PUBLIC_KEYS = [
   'google.allowSignup',
   'google.hostedDomain',
   'google.attachmentsFolder',
+  // Standard folders laid out for every project's File Room (one path per line).
+  'fileRoom.folderTemplate',
   'reminders.enabled',
   'reminders.hour',
   'reminders.timezone',
@@ -52,6 +56,10 @@ export const PUBLIC_KEYS = [
   'sms.accountSid',
   'sms.authToken',
   'sms.fromNumber',
+  // Texting through Quo, from the office line (Oct 27 sync): 'twilio' (default) or 'quo'.
+  'sms.provider',
+  'sms.quoApiKey',
+  'sms.quoFrom',
   // --- Branding: letterhead, footer and signature used on generated documents ---
   'brand.companyName',
   'brand.tagline',
@@ -61,6 +69,8 @@ export const PUBLIC_KEYS = [
   'brand.phone',
   'brand.email',
   'brand.website',
+  // Our contractor licence number, printed on contracts.
+  'brand.license',
   'brand.footerNote',
   'brand.signatureName',
   'brand.signatureTitle',
@@ -81,9 +91,24 @@ export class SettingsService {
     @InjectRepository(AppSettingEntity) private readonly repo: Repository<AppSettingEntity>,
   ) {}
 
+  /**
+   * Settings are read on nearly every request (the session's signing secret,
+   * the base URL, integration switches), so they're kept in memory for a short
+   * while. A change made through this service is seen at once; one made by
+   * another server instance within CACHE_MS.
+   */
+  private readonly cache = new Map<string, { value: string | null; at: number }>();
+  private static readonly CACHE_MS = 30_000;
+
   async get(key: string): Promise<string | null> {
+    // Run-once markers ("…LastRunDate") are always read fresh, so two server instances never both run a daily job.
+    const cacheable = !/run/i.test(key);
+    const hit = cacheable ? this.cache.get(key) : undefined;
+    if (hit && Date.now() - hit.at < SettingsService.CACHE_MS) return hit.value;
     const row = await this.repo.findOneBy({ key });
-    return row?.value ?? null;
+    const value = row?.value ?? null;
+    this.cache.set(key, { value, at: Date.now() });
+    return value;
   }
 
   async getMany(keys: string[]): Promise<Record<string, string>> {
@@ -101,6 +126,7 @@ export class SettingsService {
     row.value = value ?? '';
     row.updatedAt = new Date().toISOString();
     await this.repo.save(row);
+    this.cache.set(key, { value: row.value, at: Date.now() });
   }
 
   async setMany(patch: Record<string, unknown>): Promise<void> {

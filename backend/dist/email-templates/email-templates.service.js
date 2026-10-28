@@ -18,6 +18,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const email_templates_1 = require("../seed-data/email-templates");
+const placeholders_1 = require("./placeholders");
 let EmailTemplatesService = class EmailTemplatesService {
     constructor(repo) {
         this.repo = repo;
@@ -64,11 +65,13 @@ let EmailTemplatesService = class EmailTemplatesService {
         return this.repo.findOneBy({ id });
     }
     create(dto) {
+        (0, placeholders_1.assertKnownTokens)(dto?.subject, dto?.body);
         const id = dto.id || 'TPL-' + String(Date.now());
         const tpl = { key: '', subject: '', kind: 'email', category: '', updatedAt: new Date().toISOString(), ...dto, id };
         return this.repo.save(this.repo.create(tpl));
     }
     async update(id, dto) {
+        (0, placeholders_1.assertKnownTokens)(dto?.subject, dto?.body);
         let tpl = await this.repo.findOneBy({ id });
         if (!tpl)
             tpl = this.repo.create({ id });

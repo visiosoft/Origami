@@ -1,6 +1,6 @@
 export declare class CreateSectionDto {
     id?: string;
-    projectId: number;
+    projectId: number | null;
     name?: string;
     order?: number;
 }

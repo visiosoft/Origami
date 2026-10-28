@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { OpenedBadge, type Opened } from '../OpenedBadge';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
+import { SaveBar, useAutosave } from '../../autosave';
+import { SavedViews } from '../SavedViews';
+import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
+import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import {
   ApprovalTrail, CO_REASONS, CoBadge, ReasonBox, failed, label, usd, usd0,
@@ -39,10 +44,10 @@ async function loadTargets(projectId: number): Promise<Targets> {
  * Change orders -- one project's (inside its Financial tab) or every project's
  * (the Change Orders log).
  */
-export function ChangeOrderList({ projectId, overview, rights, onChanged }: { projectId?: number; overview?: Overview; rights: Rights; onChanged?: () => void }) {
+export function ChangeOrderList({ projectId, overview, rights, onChanged, openId }: { projectId?: number; overview?: Overview; rights: Rights; onChanged?: () => void; openId?: string | null }) {
   const { toast } = useApp();
   const [rows, setRows] = useState<ChangeOrder[] | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(openId || null);
   const [adding, setAdding] = useState(false);
   const [status, setStatus] = useState('all');
   const [q, setQ] = useState('');
@@ -54,6 +59,11 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
 
   const shown = (rows || []).filter((c) => (status === 'all' || (status === 'pending' ? ['draft', 'internal_review'].includes(c.status) : c.status === status))
     && (!q || `${c.number} ${c.title} ${c.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
+  const { sorted, sort, setSort, toggle } = useSort(shown, {
+    number: (c) => c.number, project: (c) => c.projectName, title: (c) => c.title, reason: (c) => label(CO_REASONS, c.reason), amount: (c) => c.total,
+    requested: (c) => c.dateRequested, days: (c) => c.scheduleImpactDays, status: (c) => c.status,
+  }, null, { amount: 'desc', requested: 'desc', days: 'desc' });
+  const viewValue = { status, q, sort: sortToString(sort) };
   const sum = (pred: (c: ChangeOrder) => boolean) => (rows || []).filter(pred).reduce((a, c) => a + (c.total || 0), 0);
   const cols = projectId ? '90px minmax(200px,2fr) 150px 120px 120px 90px 130px' : '90px minmax(160px,1.4fr) minmax(200px,2fr) 150px 120px 120px 90px 130px';
 
@@ -91,6 +101,8 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
         <div style={{ flex: 1 }} />
         {rights.editChangeOrders && <div onClick={() => setAdding(true)} style={btn(true)}>+ Change order</div>}
       </div>
+      <SavedViews page={projectId ? 'changeorders.project' : 'changeorders'} value={viewValue} defaults={{ status: 'all', q: '', sort: '' }}
+        onApply={(v) => { setStatus(String(v.status)); setQ(String(v.q || '')); setSort(sortFromString(v.sort)); }} />
       {adding && (
         <ReasonBox title="New change order" confirm="Create" onCancel={() => setAdding(false)} onSubmit={create}
           fields={[
@@ -104,12 +116,15 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: projectId ? 880 : 1060 }}>
             <div style={headRow(cols)}>
-              <span>No.</span>{!projectId && <span>Project</span>}<span>Title</span><span>Reason</span><span style={{ textAlign: 'right' }}>Amount</span>
-              <span>Requested</span><span style={{ textAlign: 'right' }}>Days</span><span>Status</span>
+              <SortHeader k="number" sort={sort} onSort={toggle}>No.</SortHeader>{!projectId && <SortHeader k="project" sort={sort} onSort={toggle}>Project</SortHeader>}
+              <SortHeader k="title" sort={sort} onSort={toggle}>Title</SortHeader><SortHeader k="reason" sort={sort} onSort={toggle}>Reason</SortHeader>
+              <SortHeader k="amount" sort={sort} onSort={toggle} align="right">Amount</SortHeader>
+              <SortHeader k="requested" sort={sort} onSort={toggle}>Requested</SortHeader><SortHeader k="days" sort={sort} onSort={toggle} align="right">Days</SortHeader>
+              <SortHeader k="status" sort={sort} onSort={toggle}>Status</SortHeader>
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {shown.map((c) => (
-              <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', fontSize: 12.5, opacity: c.status === 'cancelled' ? 0.55 : 1 }}>
+            {sorted.map((c) => (
+              <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: c.status === 'cancelled' ? 0.55 : 1 }}>
                 <b style={{ color: ACCENT }}>{c.number}</b>
                 {!projectId && <span style={{ color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.projectName}</span>}
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
@@ -132,13 +147,19 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged }: { pr
 // ------------------------------------------------------------------ drawer
 
 type Step = null | 'return' | 'reject' | 'cancel' | 'client' | 'email';
+type CoForm = Record<string, any> & { items: ChangeOrderItem[] };
+/** The editable part of a change order, as the drawer holds it (numbers as typed text). */
+const formOf = (c: ChangeOrder): CoForm => ({
+  title: c.title, reason: c.reason, requestedBy: c.requestedBy || '', dateRequested: c.dateRequested || '', scheduleImpactDays: String(c.scheduleImpactDays || 0), description: c.description || '', notes: c.notes || '',
+  items: c.items.map((i) => ({ ...i, amount: String(i.amount), cost: i.cost == null ? '' : String(i.cost), quantity: i.quantity == null ? '' : String(i.quantity), rate: i.rate == null ? '' : String(i.rate) })),
+});
+const amountOf = (it: ChangeOrderItem) => (it.quantity !== '' && it.quantity != null && it.rate !== '' && it.rate != null ? Number(it.quantity) * Number(it.rate) : Number(it.amount) || 0);
 
 export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: { id: string; overview?: Overview; rights: Rights; onClose: () => void; onChanged: () => void }) {
   const { toast } = useApp();
   const [co, setCo] = useState<ChangeOrder | null>(null);
   const [f, setF] = useState<Record<string, any>>({});
   const [items, setItems] = useState<ChangeOrderItem[]>([]);
-  const [dirty, setDirty] = useState(false);
   const [targets, setTargets] = useState<Targets>({ phases: [], tasks: [] });
   const [impact, setImpact] = useState<any>(null);
   const [step, setStep] = useState<Step>(null);
@@ -146,43 +167,73 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
   const [busy, setBusy] = useState(false);
   // The client's email for "Email to client" -- the project's bill-to, read when that step opens.
   const [billTo, setBillTo] = useState<string | undefined>(undefined);
+  // Whether the client opened the emailed change order (Oct 27 backlog item 12), across every time it was sent.
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const emailedCount = (co?.approvals || []).filter((a) => a.decision === 'sent_to_client').length;
+  useEffect(() => {
+    if (!emailedCount) { setOpened(null); return; }
+    api.tracking.list('co', id).then((rows) => {
+      const list = Array.isArray(rows) ? rows : [];
+      const firsts = list.map((r) => r.firstOpenedAt).filter(Boolean) as string[];
+      const lasts = list.map((r) => r.lastOpenedAt).filter(Boolean) as string[];
+      setOpened({ firstOpenedAt: firsts.sort()[0] || null, lastOpenedAt: lasts.sort().pop() || null, opens: list.reduce((n, r) => n + (r.opens || 0), 0) });
+    }).catch(() => setOpened(null));
+  }, [id, emailedCount]);
   const openEmail = (projectId: number) => {
     const known = overview && overview.project.id === projectId ? overview.settings.billToEmail : undefined;
     if (known !== undefined) { setBillTo(known || ''); setStep('email'); return; }
     api.finance.overview(projectId).then((o: any) => setBillTo(o?.settings?.billToEmail || '')).catch(() => setBillTo('')).finally(() => setStep('email'));
   };
 
-  const apply = (c: ChangeOrder) => {
-    setCo(c); setDirty(false); setStep(null);
-    setF({ title: c.title, reason: c.reason, requestedBy: c.requestedBy || '', dateRequested: c.dateRequested || '', scheduleImpactDays: String(c.scheduleImpactDays || 0), description: c.description || '', notes: c.notes || '' });
-    setItems(c.items.map((i) => ({ ...i, amount: String(i.amount), cost: i.cost == null ? '' : String(i.cost), quantity: i.quantity == null ? '' : String(i.quantity), rate: i.rate == null ? '' : String(i.rate) })));
+  // The change order as last saved -- each save and step needs its current version.
+  const coRef = useRef<ChangeOrder | null>(null);
+  // What autosave compares the draft with: reset when the change order is (re)loaded or a step runs.
+  const [baseline, setBaseline] = useState<CoForm | null>(null);
+  const refreshImpact = (c: ChangeOrder) => {
     if (['draft', 'internal_review', 'submitted'].includes(c.status)) api.finance.changeOrderImpact(c.id).then(setImpact).catch(() => setImpact(null)); else setImpact(null);
   };
+  const apply = (c: ChangeOrder) => {
+    coRef.current = c; setCo(c); setStep(null);
+    const { items: its, ...rest } = formOf(c);
+    setF(rest); setItems(its); setBaseline({ ...rest, items: its, id: c.id });
+    refreshImpact(c);
+  };
+  const draft = useMemo<CoForm>(() => ({ ...f, items, id: co?.id }), [f, items, co?.id]);
+  // Drafts save by themselves a moment after each change; Save forces it.
+  const auto = useAutosave<CoForm>({
+    draft, saved: baseline, label: 'Saving change order…',
+    enabled: !!co && co.status === 'draft' && rights.editChangeOrders,
+    save: async (_changes, { draft: d }) => {
+      const cur = coRef.current!;
+      const { items: its, ...rest } = d;
+      delete rest.id;
+      try {
+        const r = await api.finance.updateChangeOrder(cur.id, { ...rest, version: cur.version, items: its.map((it) => ({ ...it, amount: amountOf(it) })) }) as ChangeOrder;
+        coRef.current = r; setCo(r); onChanged(); refreshImpact(r);
+        // The baseline is what was sent, so server-side rounding doesn't read as a new edit.
+        return d;
+      } catch (e) {
+        if (/since you opened it/.test((e as any)?.message || '')) { failed(toast, e); load(); }
+        throw e;
+      }
+    },
+  });
   const load = () => api.finance.changeOrder(id).then((c: any) => apply(c)).catch((e: any) => failed(toast, e));
   useEffect(() => { load(); api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, [id]);
   useEffect(() => { if (!co) return; if (overview && overview.project.id === co.projectId) setTargets(targetsFrom(overview)); else loadTargets(co.projectId).then(setTargets); }, [co?.projectId]);
 
   if (!co) return <Drawer title="Change order" width={1000} onClose={onClose}><div style={{ fontSize: 12.5, color: MUTED }}>Loading…</div></Drawer>;
   const editable = co.status === 'draft' && rights.editChangeOrders;
-  const set = (k: string) => (e: any) => { setF({ ...f, [k]: e.target.value }); setDirty(true); };
-  const patch = (i: number, p: Partial<ChangeOrderItem>) => { setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x))); setDirty(true); };
-  const amountOf = (it: ChangeOrderItem) => (it.quantity !== '' && it.quantity != null && it.rate !== '' && it.rate != null ? Number(it.quantity) * Number(it.rate) : Number(it.amount) || 0);
+  const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
+  const patch = (i: number, p: Partial<ChangeOrderItem>) => setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const total = items.reduce((a, it) => a + amountOf(it), 0);
   const cost = items.reduce((a, it) => a + (Number(it.cost) || 0), 0);
 
-  const save = async () => {
-    setBusy(true);
-    try {
-      const r = await api.finance.updateChangeOrder(co.id, { ...f, version: co.version, items: items.map((it) => ({ ...it, amount: amountOf(it) })) }) as ChangeOrder;
-      apply(r); onChanged(); toast('Saved'); return r;
-    } catch (e) { failed(toast, e); if (/since you opened it/.test((e as any)?.message || '')) load(); return null; }
-    finally { setBusy(false); }
-  };
   /** Run a step; true when it went through. */
   const act = async (action: string, extra: Record<string, unknown> = {}): Promise<boolean> => {
-    let cur: ChangeOrder | null = co;
-    if (dirty && co.status === 'draft') cur = await save();
-    if (!cur) return false;
+    // Anything typed goes first, so the step acts on what's on screen.
+    if (editable && auto.dirty && !(await auto.saveNow())) { toast('⚠ Save the change order first: ' + (auto.error || 'it did not save')); return false; }
+    const cur = coRef.current || co;
     setBusy(true);
     try {
       apply(await api.finance.changeOrderStep(cur.id, action, { version: cur.version, ...extra }) as ChangeOrder); onChanged();
@@ -214,8 +265,9 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
   const cols = editable ? 'minmax(180px,1.6fr) minmax(200px,1.5fr) 60px 70px 90px 110px 100px 24px' : 'minmax(200px,1.6fr) minmax(200px,1.5fr) 110px 110px';
 
   return (
-    <Drawer title={`${co.number} · ${co.title}`} subtitle={`${label(CO_REASONS, co.reason)}${co.requestedBy ? ` · requested by ${co.requestedBy}` : ''}${co.createdBy ? ` · raised by ${co.createdBy}` : ''}`} width={1060} onClose={onClose}>
+    <Drawer title={`${co.number} · ${co.title}`} subtitle={`${label(CO_REASONS, co.reason)}${co.requestedBy ? ` · requested by ${co.requestedBy}` : ''}`} width={1060} onClose={onClose}>
       <div style={{ display: 'grid', gap: 16 }}>
+        <OriginatorLine by={co.createdBy} at={co.createdAt} number={co.number} />
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <CoBadge s={co.status} />
           {co.status === 'approved' && <span style={{ fontSize: 12.5, color: MUTED }}>Approved {fmtDate(co.clientApprovedDate || co.approvedAt)} · signed by {co.clientSigner}{co.clientReference ? ` · ${co.clientReference}` : ''}</span>}
@@ -225,7 +277,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
         </div>
 
         {impact && (impact.ok
-          ? <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: '#F3F8F3' }}>
+          ? <div style={{ ...card, padding: '10px 14px', fontSize: 12.5, background: 'var(--c-f3f8f3)' }}>
               Approving this changes the contract from <b>{usd(impact.revisedBefore)}</b> to <b>{usd(impact.revisedAfter)}</b>
               {' '}({impact.total >= 0 ? '+' : ''}{usd(impact.total)}). Unallocated afterwards: {usd(impact.unallocatedAfter)}.
             </div>
@@ -249,7 +301,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
                   : <><span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Cost</span></>}
               </div>
               {items.map((it, i) => (
-                <div key={it.id || i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+                <div key={it.id || i} style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '7px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
                   {editable ? <>
                     <input value={it.description} onChange={(e) => patch(i, { description: e.target.value })} placeholder="What changes" style={{ ...input, padding: '5px 7px', fontSize: 12.5 }} />
                     <span style={{ display: 'grid', gap: 4 }}>
@@ -272,7 +324,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
                       ? <b style={{ textAlign: 'right' }}>{usd(amountOf(it))}</b>
                       : <input type="number" value={it.amount} onChange={(e) => patch(i, { amount: e.target.value })} placeholder="− to deduct" style={{ ...input, padding: '5px 6px', fontSize: 12.5, textAlign: 'right' }} />}
                     <input type="number" value={it.cost ?? ''} onChange={(e) => patch(i, { cost: e.target.value })} placeholder="optional" style={{ ...input, padding: '5px 6px', fontSize: 12.5, textAlign: 'right' }} />
-                    <span onClick={() => { setItems(items.filter((_, j) => j !== i)); setDirty(true); }} title="Remove" style={{ cursor: 'pointer', color: MUTED, fontSize: 16, textAlign: 'center' }}>×</span>
+                    <span onClick={() => setItems(items.filter((_, j) => j !== i))} title="Remove" style={{ cursor: 'pointer', color: MUTED, fontSize: 16, textAlign: 'center' }}>×</span>
                   </> : <>
                     <span>{it.description}{it.quantity != null && it.quantity !== '' ? <span style={{ color: MUTED }}> · {it.quantity} {it.unit || ''} × {usd(Number(it.rate))}</span> : null}</span>
                     <span style={{ color: MUTED }}>{describeTarget(it)}</span>
@@ -283,7 +335,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
               ))}
               {!items.length && <div style={{ padding: 14, fontSize: 12.5, color: MUTED, textAlign: 'center' }}>No items yet — price the change line by line.</div>}
               <div style={{ display: 'flex', gap: 16, padding: '10px 14px', borderTop: '1px solid ' + LINE, alignItems: 'center', flexWrap: 'wrap' }}>
-                {editable && <div onClick={() => { setItems([...items, { description: '', targetType: 'none', amount: '' }]); setDirty(true); }} style={btn()}>+ Item</div>}
+                {editable && <div onClick={() => setItems([...items, { description: '', targetType: 'none', amount: '' }])} style={btn()}>+ Item</div>}
                 <div style={{ flex: 1 }} />
                 <span style={{ fontSize: 12.5, color: MUTED }}>Cost {usd(cost)} · margin {usd(total - cost)}</span>
                 <span style={{ fontFamily: BG, fontSize: 17, fontWeight: 700, color: total < 0 ? DANGER : INK }}>Total {usd(total)}</span>
@@ -312,7 +364,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           {editable && !co.submittedAt && <div onClick={remove} style={{ ...btn(), color: DANGER }}>Delete draft</div>}
           {rights.editChangeOrders && ['draft', 'internal_review', 'submitted'].includes(co.status) && <div onClick={() => setStep('cancel')} style={{ ...btn(), color: DANGER }}>Cancel CO</div>}
           <div style={{ flex: 1 }} />
-          {editable && <div onClick={busy ? undefined : save} style={btn(false, busy || !dirty)}>Save</div>}
+          {editable && <SaveBar auto={auto} onDone={onClose} />}
           {editable && <div onClick={busy ? undefined : () => act('submit')} style={btn(!rights.approveChangeOrders, busy)}>Submit for internal review</div>}
           {co.status === 'draft' && rights.approveChangeOrders && <div onClick={() => setStep('client')} style={btn(true)} title="The client has already signed it">Record signed approval</div>}
           {co.status === 'internal_review' && rights.approveChangeOrders && <>
@@ -320,6 +372,7 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
             <div onClick={() => setStep('reject')} style={{ ...btn(), color: DANGER }}>Reject</div>
             <div onClick={busy ? undefined : async () => { if (await act('approve_internal')) openEmail(co.projectId); }} style={btn(true, busy)} title="Moves it to Under client review, then lets you email it with the PDF">Approve &amp; send to client</div>
           </>}
+          {emailedCount > 0 && <OpenedBadge opened={opened} />}
           {co.status === 'submitted' && rights.approveChangeOrders && <>
             <div onClick={() => openEmail(co.projectId)} style={btn()} title="The change order as a PDF, with signature blocks">{(co.approvals || []).some((a) => a.decision === 'sent_to_client') ? 'Email again' : 'Email to client'}</div>
             <div onClick={() => setStep('return')} style={btn()}>Return</div>
@@ -329,6 +382,14 @@ export function ChangeOrderDrawer({ id, overview, rights, onClose, onChanged }: 
           {co.status === 'rejected' && rights.editChangeOrders && <div onClick={() => act('reopen')} style={btn()}>Reopen as draft</div>}
         </div>
 
+        <ActionTrail sourceType={co.sourceType} sourceId={co.sourceId} sourceLabel={co.sourceLabel} derived={co.derivedRefs} />
+        {rights.editChangeOrders && (
+          <ActionMenu kind="co" id={co.id} projectId={co.projectId} onMade={() => {
+            // Only the trail changes on this one; keep any edits in progress.
+            api.finance.changeOrder(co.id).then((c: any) => setCo((cur) => (cur ? { ...cur, derivedRefs: c.derivedRefs } : cur))).catch(() => { });
+            onChanged();
+          }} />
+        )}
         <Attachments scope="finance-change-orders" taskId={co.id} attachments={co.attachments || []} canManage={rights.editChangeOrders} storageReady={storageReady}
           onUpload={async (files) => { await api.finance.coUpload(co.id, files); load(); }}
           onRemove={async (att) => { await api.finance.coRemoveAttachment(co.id, att.id); load(); }}
@@ -350,14 +411,14 @@ async function printChangeOrder(co: ChangeOrder, where: (it: ChangeOrderItem) =>
   w.document.write('<p style="font-family:Arial;padding:30px;color:#777">Preparing the change order…</p>');
   let b: any = {};
   try { b = await api.finance.brand(); } catch { /* print without the letterhead */ }
-  const accent = b.accentColor || '#173326';
+  const accent = b.accentColor || 'var(--forest)';
   const rows = co.items.map((it) => `<tr><td>${esc(it.description)}<div class="n">${esc(where(it))}</div></td><td class="r">${it.quantity != null && it.quantity !== '' ? `${esc(it.quantity)} ${esc(it.unit || '')} × ${esc(usd(Number(it.rate)))}` : ''}</td><td class="r">${esc(usd(Number(it.amount)))}</td></tr>`).join('');
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(co.number)} — ${esc(co.title)}</title>
-<style>body{font-family:Arial,sans-serif;color:#0B1A12;margin:36px;font-size:12.5px}.top{display:flex;justify-content:space-between;border-bottom:3px solid ${esc(accent)};padding-bottom:14px}
-.co{font-size:12px;color:#556;line-height:1.5}.co b{font-size:16px;color:#0B1A12}h1{font-size:24px;margin:0;color:${esc(accent)};text-align:right}.meta{text-align:right;line-height:1.7}
+<style>body{font-family:Arial,sans-serif;color:var(--ink);margin:36px;font-size:12.5px}.top{display:flex;justify-content:space-between;border-bottom:3px solid ${esc(accent)};padding-bottom:14px}
+.co{font-size:12px;color:#556;line-height:1.5}.co b{font-size:16px;color:var(--ink)}h1{font-size:24px;margin:0;color:${esc(accent)};text-align:right}.meta{text-align:right;line-height:1.7}
 table{width:100%;border-collapse:collapse;margin-top:18px}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#778;border-bottom:1px solid #ccc;padding:6px 4px}
-td{padding:7px 4px;border-bottom:1px solid #eee;vertical-align:top}.r{text-align:right;white-space:nowrap}.n{color:#778;font-size:11px;margin-top:2px}.tot td{font-weight:bold;font-size:15px;border-top:2px solid #0B1A12;border-bottom:none}
-.sig{display:flex;gap:40px;margin-top:60px}.sig div{flex:1;border-top:1px solid #0B1A12;padding-top:6px;font-size:11px;color:#556}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#778;font-weight:bold;margin:18px 0 4px}</style></head><body>
+td{padding:7px 4px;border-bottom:1px solid #eee;vertical-align:top}.r{text-align:right;white-space:nowrap}.n{color:#778;font-size:11px;margin-top:2px}.tot td{font-weight:bold;font-size:15px;border-top:2px solid var(--ink);border-bottom:none}
+.sig{display:flex;gap:40px;margin-top:60px}.sig div{flex:1;border-top:1px solid var(--ink);padding-top:6px;font-size:11px;color:#556}.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#778;font-weight:bold;margin:18px 0 4px}</style></head><body>
 <div class="top"><div class="co">${b.logoDataUrl ? `<img src="${esc(b.logoDataUrl)}" style="max-height:56px;max-width:220px;display:block;margin-bottom:8px">` : ''}<b>${esc(b.companyName || '')}</b><br>${esc(b.address || '')}<br>${esc([b.phone, b.email, b.website].filter(Boolean).join(' · '))}</div>
 <div class="meta"><h1>CHANGE ORDER</h1><b>${esc(co.number)}</b><br>Date: ${esc(fmtDate(co.dateRequested || co.createdAt))}${projectName ? `<br>Project: ${esc(projectName)}` : ''}<br>Reason: ${esc(label(CO_REASONS, co.reason))}</div></div>
 <div class="lbl">${esc(co.title)}</div>${co.description ? `<div style="white-space:pre-line">${esc(co.description)}</div>` : ''}

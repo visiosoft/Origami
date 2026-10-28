@@ -1,5 +1,6 @@
 import { Repository } from 'typeorm';
-import { ContractorEntity, EmployeeEntity } from '../database/entities';
+import { ContractorBidEntity, ContractorEntity, EmployeeEntity } from '../database/entities';
+import { type BidStats } from './contractor-bids';
 import { ContractorDirectorySync } from './contractor-directory.sync';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { type TaskAttachment } from '../database/task.types';
@@ -8,7 +9,8 @@ export declare class ContractorsService {
     private readonly employees;
     private readonly attachments;
     private readonly directory?;
-    constructor(repo: Repository<ContractorEntity>, employees: Repository<EmployeeEntity>, attachments: AttachmentsService, directory?: ContractorDirectorySync | undefined);
+    private readonly bids?;
+    constructor(repo: Repository<ContractorEntity>, employees: Repository<EmployeeEntity>, attachments: AttachmentsService, directory?: ContractorDirectorySync | undefined, bids?: Repository<ContractorBidEntity> | undefined);
     private mirror;
     private hydrate;
     private counts;
@@ -19,6 +21,7 @@ export declare class ContractorsService {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -51,6 +54,7 @@ export declare class ContractorsService {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -81,6 +85,7 @@ export declare class ContractorsService {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -115,6 +120,7 @@ export declare class ContractorsService {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -145,6 +151,7 @@ export declare class ContractorsService {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -175,6 +182,7 @@ export declare class ContractorsService {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: BidStats;
         id: string;
         companyName: string;
         personId: number;

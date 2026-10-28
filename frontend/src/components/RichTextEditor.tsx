@@ -5,7 +5,7 @@ const MAX_IMAGE_BYTES = 500 * 1024;
 
 const BTN: React.CSSProperties = {
   width: 28, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center',
-  cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: '#43514D', flexShrink: 0,
+  cursor: 'pointer', fontSize: 12.5, fontWeight: 700, color: 'var(--body)', flexShrink: 0,
 };
 
 /**
@@ -79,25 +79,25 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
   );
 
   return (
-    <div style={{ border: '1px solid rgba(20,8,31,0.14)', borderRadius: 9, overflow: 'hidden', background: 'white' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '5px 6px', borderBottom: '1px solid rgba(20,8,31,0.08)', background: '#FBF8F2', flexWrap: 'wrap' }}>
+    <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.14)', borderRadius: 9, overflow: 'hidden', background: 'var(--surface)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '5px 6px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', background: 'var(--panel)', flexWrap: 'wrap' }}>
         {btn('B', () => run('bold'), 'Bold')}
         <span style={{ fontStyle: 'italic' }}>{btn('I', () => run('italic'), 'Italic')}</span>
         <span style={{ textDecoration: 'underline' }}>{btn('U', () => run('underline'), 'Underline')}</span>
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,8,31,0.1)', margin: '0 3px' }} />
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
         {btn('H1', () => run('formatBlock', '<h1>'), 'Heading 1')}
         {btn('H2', () => run('formatBlock', '<h2>'), 'Heading 2')}
         {btn('H3', () => run('formatBlock', '<h3>'), 'Heading 3')}
         {btn('¶', () => run('formatBlock', '<p>'), 'Paragraph')}
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,8,31,0.1)', margin: '0 3px' }} />
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
         {btn('•', () => run('insertUnorderedList'), 'Bullet list')}
         {btn('1.', () => run('insertOrderedList'), 'Numbered list')}
         {btn('🔗', link, 'Insert link')}
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,8,31,0.1)', margin: '0 3px' }} />
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
         {btn('🖼', () => fileRef.current?.click(), 'Insert image')}
         {btn('⊞', insertTable, 'Insert table')}
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { insertImage(e.target.files?.[0]); e.currentTarget.value = ''; }} />
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(20,8,31,0.1)', margin: '0 3px' }} />
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(var(--rgb-shade), 0.1)', margin: '0 3px' }} />
         {btn('✕', () => run('removeFormat'), 'Clear formatting')}
       </div>
       <div
@@ -108,17 +108,17 @@ export function RichTextEditor({ value, onChange, minHeight = 260 }: {
         onBlur={emit}
         style={{
           padding: '12px 14px', minHeight, maxHeight: 520, overflowY: 'auto',
-          fontSize: 13, lineHeight: 1.6, color: '#0B1A12', outline: 'none',
+          fontSize: 13, lineHeight: 1.6, color: 'var(--ink)', outline: 'none',
         }}
         className="rich-text-editor-surface"
       />
       <style>{`
         .rich-text-editor-surface h1 { font-size: 20px; font-weight: 700; margin: 14px 0 8px; }
         .rich-text-editor-surface h2 { font-size: 16px; font-weight: 700; margin: 12px 0 6px; }
-        .rich-text-editor-surface h3 { font-size: 13.5px; font-weight: 700; margin: 10px 0 5px; text-transform: uppercase; letter-spacing: 0.04em; color: #173326; }
+        .rich-text-editor-surface h3 { font-size: 13.5px; font-weight: 700; margin: 10px 0 5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--forest); }
         .rich-text-editor-surface p { margin: 0 0 8px; }
         .rich-text-editor-surface ul, .rich-text-editor-surface ol { margin: 0 0 8px; padding-left: 22px; }
-        .rich-text-editor-surface a { color: #173326; }
+        .rich-text-editor-surface a { color: var(--forest); }
       `}</style>
     </div>
   );

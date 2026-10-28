@@ -14,6 +14,8 @@ export interface Person {
   company: string;
   contact?: string;
   kind: 'Staff' | 'Client' | 'Consultant' | 'Sub' | 'Authority' | 'Vendor';
+  /** Internal people only; empty means it is worked out from the role (see internalLevelOf). */
+  internalLevel?: string;
   tier: 'Internal' | 'Client' | 'Consultant';
   phone: string;
   email: string;
@@ -22,25 +24,48 @@ export interface Person {
   since: string;
   comply: Comply | null;
   last: string;
+  /** Active / Review / Expired (empty = Active). Review comes on its own after 12 months with no activity. */
+  contactStatus?: ContactStatus | null;
+  /** Photos of their business card (Drive files), shown through /people/:id/business-card/:side/content. */
+  businessCards?: { front?: unknown; back?: unknown } | null;
+  contactStatusAt?: string | null;
+  contactStatusReason?: string | null;
+  lastActivityAt?: string | null;
+  /** Other records confirmed as the same person (shown read-only under Reference). */
+  sameAsIds?: number[] | null;
+  /** Connections: companies they used to work at (the record there, when it's in People). */
+  formerCompanies?: FormerCompany[] | null;
+  /** The point of contact for their company (one per company). */
+  pointOfContact?: boolean | null;
 }
 
+export type ContactStatus = 'active' | 'review' | 'expired';
+export const CONTACT_STATUS_LABEL: Record<ContactStatus, string> = { active: 'Active', review: 'Review', expired: 'Expired' };
+export const CONTACT_STATUS_HINT: Record<ContactStatus, string> = {
+  active: 'Current — worked with recently',
+  review: 'Check before using: no activity in 12 months, or flagged by someone',
+  expired: 'No longer current — kept for the record',
+};
+export const contactStatusOf = (p: Pick<Person, 'contactStatus'>): ContactStatus =>
+  p.contactStatus === 'review' || p.contactStatus === 'expired' ? p.contactStatus : 'active';
+
 export const KIND_STYLE: Record<string, { bg: string; c: string }> = {
-  Staff: { bg: '#DCE7DE', c: '#173326' },
+  Staff: { bg: 'var(--mint)', c: 'var(--forest)' },
   Client: { bg: '#D6E8E5', c: '#2F6F68' },
   Consultant: { bg: '#E8DDF2', c: '#6B2FA0' },
-  Sub: { bg: '#FBE9AE', c: '#93520F' },
+  Sub: { bg: 'var(--amber-light)', c: '#93520F' },
   Authority: { bg: '#DCE6F2', c: '#0E5A8A' },
   Vendor: { bg: '#F2DFD4', c: '#A75A3A' },
 };
 
 export const TIER_STYLE: Record<string, { bg: string; c: string }> = {
-  Internal: { bg: '#173326', c: 'white' },
+  Internal: { bg: 'var(--forest)', c: 'white' },
   Client: { bg: '#D6E8E5', c: '#2F6F68' },
-  Consultant: { bg: '#EFEDE8', c: '#43514D' },
+  Consultant: { bg: 'var(--c-efede8)', c: 'var(--body)' },
 };
 
 export const KIND_C: Record<string, string> = {
-  Staff: '#173326', Client: '#2F6F68', Consultant: '#6B2FA0', Sub: '#93520F', Authority: '#0E5A8A', Vendor: '#A75A3A',
+  Staff: 'var(--forest)', Client: '#2F6F68', Consultant: '#6B2FA0', Sub: '#93520F', Authority: '#0E5A8A', Vendor: '#A75A3A',
 };
 
 export const COMPANY_META: Record<string, { line: string; address: string; trade: string; billing: string }> = {
@@ -79,3 +104,54 @@ export const PEOPLE: Person[] = [
 ];
 
 export const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+/** The levels inside the internal team, top to bottom. */
+export const INTERNAL_LEVELS = ['Executive', 'Staff', 'Super', 'Foreman', 'Labor'] as const;
+export type InternalLevel = typeof INTERNAL_LEVELS[number];
+
+/** The level a role title suggests, for internal people nobody has set one for. */
+export function levelFromRole(role?: string): InternalLevel {
+  const r = (role || '').toLowerCase();
+  if (/\b(principal|owner|founder|president|ceo|coo|cfo|chief|director|partner|executive|vp|vice president)\b/.test(r)) return 'Executive';
+  if (/\bsuperintendent|\bsuper\b/.test(r)) return 'Super';
+  if (/\bforem[ae]n\b/.test(r)) return 'Foreman';
+  if (/\b(labou?r|labou?rer|laborers|worker|helper|apprentice|carpenter|electrician|plumber|painter|mason|operator)\b/.test(r)) return 'Labor';
+  return 'Staff';
+}
+
+/** An internal person's level: the one set on their record, else what their role suggests. Null for everyone else. */
+export function internalLevelOf(p: Pick<Person, 'kind' | 'role' | 'internalLevel'>): InternalLevel | null {
+  if (p.kind !== 'Staff') return null;
+  const set = (INTERNAL_LEVELS as readonly string[]).includes(p.internalLevel || '') ? p.internalLevel as InternalLevel : null;
+  return set || levelFromRole(p.role);
+}
+
+/** A possible duplicate of a contact being added (GET /people/duplicates). */
+export interface DupMatch {
+  id: number; name: string; company?: string | null; kind?: string | null; email?: string | null; phone?: string | null;
+  contactStatus?: string | null; contactStatusReason?: string | null; lastActivityAt?: string | null; matchedOn: ('name' | 'email' | 'phone')[];
+}
+
+export interface FormerCompany { company: string; personId?: number | null; role?: string | null; until?: string | null }
+
+const COMPANY_KINDS = ['Consultant', 'Sub', 'Authority', 'Vendor'];
+/** The company a record stands for: a firm's own name, or the company a person works at. */
+export const companyOf = (p: Pick<Person, 'kind' | 'name' | 'company'>) => (COMPANY_KINDS.includes(p.kind) ? p.name : p.company || '').trim();
+
+/** People who used to work at this record's company (or were linked to this record) -- and are elsewhere now. */
+export function formerPeopleOf(p: Person, all: Person[]): Person[] {
+  const co = companyOf(p).toLowerCase();
+  return all.filter((x) => x.id !== p.id && (x.formerCompanies || []).some((f) => f.personId === p.id || (!!co && f.company.trim().toLowerCase() === co)));
+}
+
+/** A call, email, meeting, site visit or note with a contact. */
+export interface ContactInteraction { id: string; personId: number; kind: 'call' | 'email' | 'meeting' | 'site_visit' | 'note'; at: string; note?: string | null; byName?: string | null; createdAt: string }
+export const INTERACTION_KINDS: [ContactInteraction['kind'], string][] = [['call', 'Call'], ['email', 'Email'], ['meeting', 'Meeting'], ['site_visit', 'Site visit'], ['note', 'Note']];
+export interface ContactAlert { kind: 'responsiveness' | 'interactions' | 'pulse'; text: string }
+export interface ContactActivity {
+  interactions: ContactInteraction[];
+  bids: import('./contractorBids').ContractorBid[];
+  lastInteractionAt: string | null;
+  alerts: ContactAlert[];
+  pointOfContact: { id: number; name: string } | null;
+}

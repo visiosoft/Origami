@@ -45,6 +45,26 @@ describe('ProjectTasksService', () => {
         });
     });
 
+    describe('parent and child tasks', () => {
+        it('refuses a subtask without an assignee or due date', async () => {
+            await expect(service.create({ title: 'Inspection', parentId: 'T-1', sectionId: 'S' })).rejects.toThrow('A subtask needs an assignee and a due date.');
+            await expect(service.create({ title: 'Inspection', parentId: 'T-1', sectionId: 'S', assignee: 'Astrid', dueDate: '2026-10-20' })).resolves.toBeTruthy();
+        });
+
+        it("won't finish a parent while a subtask is open, but will once they're done", async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-1', status: 'In progress', completed: false } as any);
+            repo.find.mockResolvedValue([{ id: 'T-2', parentId: 'T-1', completed: false, status: 'Not started' }] as any);
+            await expect(service.update('T-1', { completed: true })).rejects.toThrow('Finish its 1 open subtask first.');
+            repo.find.mockResolvedValue([{ id: 'T-2', parentId: 'T-1', completed: true, status: 'Done' }] as any);
+            await expect(service.update('T-1', { completed: true, completionNote: 'All done' })).resolves.toMatchObject({ status: 'Done' });
+        });
+
+        it("won't let a subtask's due date be cleared", async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-2', parentId: 'T-1', dueDate: '2026-10-20', assignee: 'Astrid' } as any);
+            await expect(service.update('T-2', { dueDate: '' })).rejects.toThrow('A subtask needs a due date.');
+        });
+    });
+
     describe('findAll', () => {
         const rows = () => ([
             { id: 'T-1', projectId: 7, title: 'Project task' },
@@ -58,15 +78,17 @@ describe('ProjectTasksService', () => {
         });
 
         it('returns only General Tasks board items when projectId is explicitly null', async () => {
-            repo.find.mockResolvedValue(rows());
+            repo.find.mockImplementation(async (q: any) => rows().filter((r: any) => (q.where.projectId?._type === 'isNull' ? r.projectId == null : r.projectId === q.where.projectId)));
             const general = await service.findAll(null);
+            expect((repo.find.mock.calls.at(-1) as any[])[0].where.projectId._type).toBe('isNull');
             expect(general).toHaveLength(1);
             expect(general[0].id).toBe('T-2');
         });
 
         it("returns only that project's tasks when a projectId number is given", async () => {
-            repo.find.mockResolvedValue(rows());
+            repo.find.mockImplementation(async (q: any) => rows().filter((r: any) => r.projectId === q.where.projectId));
             const scoped = await service.findAll(7);
+            expect((repo.find.mock.calls.at(-1) as any[])[0].where).toEqual({ projectId: 7 });
             expect(scoped).toHaveLength(1);
             expect(scoped[0].id).toBe('T-1');
         });
@@ -94,10 +116,10 @@ describe('ProjectTasksService', () => {
             expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.objectContaining({ taskId: 'T-1' }), ['U-JL'], { kind: 'added' });
         });
 
-        it('lets collaborators know when the task is done, and about comments (with the assignee)', async () => {
-            repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'X', status: 'In progress', assigneeId: 'U-AS', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [], comments: [] } as any);
-            await service.update('T-1', { status: 'Done' }, actor);
-            expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.anything(), ['U-AN'], { kind: 'done' });
+        it('lets everyone on the task know when it is done (assignee, collaborators, assigner), and about comments', async () => {
+            repo.findOneBy.mockResolvedValue({ id: 'T-1', title: 'X', status: 'In progress', assigneeId: 'U-AS', createdById: 'U-ED', collaborators: [{ id: 'U-AN', name: 'Andrea' }], activity: [], comments: [] } as any);
+            await service.update('T-1', { status: 'Done', completionNote: 'Sent to the client' }, actor);
+            expect(notifications.taskFollowUp).toHaveBeenCalledWith(expect.anything(), ['U-AS', 'U-AN', 'U-ED'], { kind: 'done' });
             await service.addComment('T-1', 'Client sent the survey', actor);
             expect(notifications.taskFollowUp).toHaveBeenLastCalledWith(expect.anything(), ['U-AN', 'U-AS'], { kind: 'comment', comment: 'Client sent the survey' });
         });

@@ -157,6 +157,31 @@ let WeeklyTimesheetsService = class WeeklyTimesheetsService {
         const lines = await this.lines.find({ where: { timesheetId: (0, typeorm_2.In)(rows.map((s) => s.id)) } });
         return rows.map((s) => ({ ...s, lines: lines.filter((l) => l.timesheetId === s.id).sort((a, b) => a.order - b.order) }));
     }
+    async pendingNotices(actor) {
+        const sheets = await this.sheets.find({ where: { status: 'submitted' } });
+        if (!sheets.length)
+            return [];
+        const role = actor.roleKey || '';
+        const everyone = role === 'admin' || role === 'project_coordinator' || /(^|_)(hr|human_resources)(_|$)/.test(role)
+            || (await this.access.can(actor, manpower_access_service_1.HR_MODULE));
+        const emps = await this.employees.find({ where: { id: (0, typeorm_2.In)([...new Set(sheets.map((s) => s.employeeId))]) } });
+        const byId = new Map(emps.map((e) => [e.id, e]));
+        const mine = actor.id ? await this.employees.findOneBy({ userId: actor.id }) : null;
+        return sheets
+            .filter((s) => {
+            const e = byId.get(s.employeeId);
+            if (!e)
+                return false;
+            if (actor.id && (e.userId === actor.id || s.submittedById === actor.id))
+                return false;
+            return everyone || (!!mine && e.supervisorId === mine.id);
+        })
+            .sort((a, b) => String(b.submittedAt || b.updatedAt || '').localeCompare(String(a.submittedAt || a.updatedAt || '')))
+            .map((s) => ({
+            id: s.id, employeeId: s.employeeId, employeeName: byId.get(s.employeeId)?.name || s.submittedByName || 'Someone',
+            weekStart: s.weekStart, totalHours: s.totalHours, submittedAt: s.submittedAt || s.updatedAt || s.createdAt,
+        }));
+    }
     async save(dto, actor) {
         const emp = await this.employee(dto.employeeId);
         const r = await this.rights(actor, emp);

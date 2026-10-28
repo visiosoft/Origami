@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { INTAKE_FIELDS } from './lead-intake';
 import { Repository } from 'typeorm';
 import { MAX_FOLLOW_UPS, PipelineService } from './pipeline.service';
 import { DealEntity, LeadEntity } from '../database/entities';
@@ -143,9 +144,17 @@ describe('PipelineService', () => {
         it('does not create a Kickoff-stage project for a move within the pre-approval stages', async () => {
             const deal = { id: 'PL-1', stage: 'new_lead', stageIdx: 0, timeline: [] } as unknown as DealEntity;
             dealsRepo.findOneBy.mockResolvedValue(deal);
-            leadsRepo.findOneBy.mockResolvedValue(null);
+            // A finished intake: every field answered or N/A.
+            leadsRepo.findOneBy.mockResolvedValue(Object.fromEntries(INTAKE_FIELDS.map((f) => [f.key, 'N/A'])) as unknown as LeadEntity);
             await service.updateStage('PL-1', 'contact_attempted');
             expect(projects.ensureForLead).not.toHaveBeenCalled();
+        });
+
+        it('keeps a lead in New Lead until every intake field has an answer or N/A (holds and closing are fine)', async () => {
+            dealsRepo.findOneBy.mockImplementation(async () => ({ id: 'PL-1', stage: 'new_lead', stageIdx: 0, timeline: [] }) as unknown as DealEntity);
+            leadsRepo.findOneBy.mockResolvedValue({ firstName: 'Kai' } as unknown as LeadEntity);
+            await expect(service.updateStage('PL-1', 'contact_attempted')).rejects.toThrow(/Finish the New Lead intake first — \d+ fields still need an answer or N\/A: Last Name/);
+            await expect(service.updateStage('PL-1', 'hold_3m')).resolves.toBeTruthy();
         });
 
         it('does not create a Kickoff-stage project when a lead is rejected instead of approved', async () => {
@@ -202,11 +211,19 @@ describe('PipelineService', () => {
             expect((saved.timeline as any[])[0].action).toBe('Rejected — not a fit for us');
         });
 
-        it('records a client rejection with an optional reason folded into the timeline text', async () => {
+        it('records why the client passed (a loss reason, plus an optional note) in the timeline', async () => {
             dealsRepo.findOneBy.mockResolvedValue(baseDeal());
-            const saved = await service.setRejection('PL-1', { rejectionType: 'client', rejectionReason: 'Went with another firm' });
+            const saved = await service.setRejection('PL-1', { rejectionType: 'client', lossReason: 'timeline', rejectionReason: 'Went with another firm' });
             expect(saved.rejectionType).toBe('client');
-            expect((saved.timeline as any[])[0].action).toBe('Rejected — client declined: Went with another firm');
+            expect(saved.lossReason).toBe('Timeline');
+            expect((saved.timeline as any[])[0].action).toBe('Client passed — Timeline: Went with another firm');
+        });
+
+        it('needs a loss reason when the client passed, and a note for Other', async () => {
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            await expect(service.setRejection('PL-1', { rejectionType: 'client' })).rejects.toThrow(/why the client passed/);
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            await expect(service.setRejection('PL-1', { rejectionType: 'client', lossReason: 'Other' })).rejects.toThrow(/note/);
         });
 
         it('records a referral with the referred-to contact fields and a matching timeline entry', async () => {

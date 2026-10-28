@@ -173,6 +173,18 @@ export const CONTRACT_TYPES: ContractTypeSpec[] = [
   { code: 'PDB', label: 'Progressive Design Build', summary: 'Full design, full build process.', detail: 'Selects teams based on qualifications, collaborates to develop the design, then negotiates price.' },
 ];
 
+/** How a project is priced and the labour rate it's on: badges on the dashboard's Budget & Time chart. */
+export const PRICING_TYPES = [
+  { code: 'LS', label: 'Lump sum' },
+  { code: 'T&M', label: 'Time & materials' },
+  { code: 'T&M NTE', label: 'T&M, not to exceed' },
+  { code: 'CS', label: 'Cost-plus' },
+] as const;
+export const LABOR_TYPES = [
+  { code: 'PW', label: 'Prevailing wage' },
+  { code: 'CP', label: 'Company (standard) pay' },
+] as const;
+
 export const contractTypeLabel = (c: ContractTypeSpec) => `${c.label} (${c.code})`;
 
 export const findContractType = (value?: string) => {

@@ -14,6 +14,8 @@ export interface LeadContact {
   pronouns: string;
   company: string;
   title: string;
+  /** Relationship to the lead (Spouse, Partner, Business Partner, ...); `title` is their job title or role. */
+  relationship?: string;
   phone: string;
   email: string;
   preferredContactMethod: string;
@@ -54,7 +56,7 @@ export const REQUIRED_ROLES = CONTACT_ROLES.filter((r) => r.required);
 export const blankContact = (): LeadContact => ({
   id: 'C-' + Math.random().toString(36).slice(2, 9),
   firstName: '', lastName: '', goByName: '', pronouns: '',
-  company: '', title: '', phone: '', email: '',
+  company: '', title: '', relationship: '', phone: '', email: '',
   preferredContactMethod: '', clientPersonality: '', roles: [], notes: '',
 });
 
@@ -146,7 +148,7 @@ export function seedContactsFromLead(lead: Record<string, any>): LeadContact[] {
       phone: lead.phoneOfSecondContact || '',
       email: lead.emailOfSecondContact || '',
       preferredContactMethod: lead.preferredContactMethodOfSecondContact || '',
-      title: lead.relationshipOfSecondContact || '',
+      relationship: lead.relationshipOfSecondContact || '',
       roles: ['SC'],
       notes: '',
     });
@@ -166,6 +168,7 @@ export function seedContactsFromLead(lead: Record<string, any>): LeadContact[] {
       lastName: c.lastName || '',
       goByName: c.goByName || '',
       pronouns: c.pronouns || '',
+      relationship: c.relationship || '',
       phone: c.phone || '',
       email: c.email || '',
       preferredContactMethod: c.preferredContactMethod || '',
@@ -175,4 +178,10 @@ export function seedContactsFromLead(lead: Record<string, any>): LeadContact[] {
   }
 
   return out;
+}
+
+/** Relationship to the lead -- older records kept it in the title ("Spouse"), so read it from there too. */
+export function relationshipOf(c: Pick<LeadContact, 'title'> & { relationship?: string }, options: readonly string[]): string {
+  if (c.relationship) return c.relationship;
+  return options.includes((c.title || '').trim()) ? c.title.trim() : '';
 }

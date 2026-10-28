@@ -18,11 +18,13 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const users_1 = require("../seed-data/users");
+const TIERS = ['internal', 'client', 'consultant'];
 exports.SITE_SUPER_TRIM_KEY = 'roles.siteSuperTrimmed.v3';
 let RolesService = class RolesService {
-    constructor(repo, settings) {
+    constructor(repo, settings, users) {
         this.repo = repo;
         this.settings = settings;
+        this.users = users;
         this.log = new common_1.Logger('RolesService');
     }
     async onApplicationBootstrap() {
@@ -60,10 +62,21 @@ let RolesService = class RolesService {
     }
     async update(key, dto) {
         let role = await this.repo.findOneBy({ key });
+        if (role && dto?.tier !== undefined && dto.tier !== role.tier)
+            await this.checkTypeChange(role, dto.tier);
         if (!role)
             role = this.repo.create({ key });
         Object.assign(role, dto, { key });
         return this.repo.save(role);
+    }
+    async checkTypeChange(role, tier) {
+        if (!TIERS.includes(tier))
+            throw new common_1.BadRequestException('Pick Internal, Client or Third Party.');
+        if (role.isSystem)
+            throw new common_1.BadRequestException(`${role.name} is a built-in role; its type can't change.`);
+        const n = this.users ? await this.users.count({ where: { roleKey: role.key } }) : 0;
+        if (n)
+            throw new common_1.BadRequestException(`${n} ${n === 1 ? 'person has' : 'people have'} the ${role.name} role. Give them another role first, then change its type.`);
     }
     async remove(key) {
         const role = await this.repo.findOneBy({ key });
@@ -79,7 +92,10 @@ exports.RolesService = RolesService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.RoleEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.AppSettingEntity)),
+    __param(2, (0, common_1.Optional)()),
+    __param(2, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], RolesService);
 //# sourceMappingURL=roles.service.js.map

@@ -14,15 +14,73 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeopleController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
+const stream_1 = require("stream");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
 const people_service_1 = require("./people.service");
+const contact_activity_service_1 = require("./contact-activity.service");
+const claims_decorator_1 = require("../auth/guards/claims.decorator");
 const create_person_dto_1 = require("./dto/create-person.dto");
+const auth_service_1 = require("../auth/auth.service");
+const attachments_service_1 = require("../google/attachments.service");
 let PeopleController = class PeopleController {
-    constructor(peopleService) {
+    constructor(peopleService, auth, attachments, activity) {
         this.peopleService = peopleService;
+        this.auth = auth;
+        this.attachments = attachments;
+        this.activity = activity;
     }
     findAll(project) {
         return this.peopleService.findAll(project);
+    }
+    async scanCard(files, auth) {
+        const front = files?.front?.[0];
+        const back = files?.back?.[0];
+        if (!front && !back)
+            throw new common_1.BadRequestException('Add a photo of the card.');
+        for (const f of [front, back])
+            if (f && !/^image\//.test(f.mimetype || ''))
+                throw new common_1.BadRequestException('The card must be a photo (JPG, PNG or HEIC).');
+        return this.peopleService.scanCard({ front, back }, await this.auth.requireActor(auth));
+    }
+    async addCard(id, files, auth) {
+        return this.peopleService.addCardPhotos(id, { front: files?.front?.[0], back: files?.back?.[0] }, await this.auth.requireActor(auth));
+    }
+    removeCard(id, side) {
+        if (side !== 'front' && side !== 'back')
+            throw new common_1.NotFoundException();
+        return this.peopleService.removeCardPhoto(id, side);
+    }
+    async cardContent(id, side, thumb, res) {
+        if (side !== 'front' && side !== 'back')
+            throw new common_1.NotFoundException();
+        const att = await this.peopleService.cardPhoto(id, side);
+        const file = await this.attachments.download(att, thumb === '1');
+        res.setHeader('Content-Type', file.mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(att.name)}"`);
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        stream_1.Readable.fromWeb(file.body).pipe(res);
+    }
+    duplicates(q) {
+        return this.peopleService.duplicates(q);
+    }
+    activityOf(id) {
+        return this.activity.activity(id);
+    }
+    logInteraction(id, body, claims) {
+        return this.activity.log(id, body, claims ? { id: claims.sub, name: claims.name } : null);
+    }
+    removeInteraction(id, interactionId) {
+        return this.activity.removeInteraction(id, interactionId);
+    }
+    pointOfContact(id, body) {
+        return this.activity.setPointOfContact(id, body?.on !== false);
+    }
+    link(id, otherId) {
+        return this.peopleService.link(id, otherId);
+    }
+    unlink(id, otherId) {
+        return this.peopleService.unlink(id, otherId);
     }
     findOne(id) {
         return this.peopleService.findOne(id);
@@ -45,6 +103,98 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PeopleController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Post)('business-card/scan'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileFieldsInterceptor)([{ name: 'front', maxCount: 1 }, { name: 'back', maxCount: 1 }], { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),
+    __param(0, (0, common_1.UploadedFiles)()),
+    __param(1, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], PeopleController.prototype, "scanCard", null);
+__decorate([
+    (0, common_1.Post)(':id/business-card'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileFieldsInterceptor)([{ name: 'front', maxCount: 1 }, { name: 'back', maxCount: 1 }], { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.UploadedFiles)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], PeopleController.prototype, "addCard", null);
+__decorate([
+    (0, common_1.Delete)(':id/business-card/:side'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('side')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "removeCard", null);
+__decorate([
+    (0, common_1.Get)(':id/business-card/:side/content'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('side')),
+    __param(2, (0, common_1.Query)('thumb')),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, Object]),
+    __metadata("design:returntype", Promise)
+], PeopleController.prototype, "cardContent", null);
+__decorate([
+    (0, common_1.Get)('duplicates'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "duplicates", null);
+__decorate([
+    (0, common_1.Get)(':id/activity'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "activityOf", null);
+__decorate([
+    (0, common_1.Post)(':id/interactions'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "logInteraction", null);
+__decorate([
+    (0, common_1.Delete)(':id/interactions/:interactionId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('interactionId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "removeInteraction", null);
+__decorate([
+    (0, common_1.Put)(':id/point-of-contact'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "pointOfContact", null);
+__decorate([
+    (0, common_1.Post)(':id/same-as/:otherId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('otherId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "link", null);
+__decorate([
+    (0, common_1.Delete)(':id/same-as/:otherId'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('otherId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], PeopleController.prototype, "unlink", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),
@@ -77,6 +227,9 @@ __decorate([
 exports.PeopleController = PeopleController = __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Controller)('people'),
-    __metadata("design:paramtypes", [people_service_1.PeopleService])
+    __metadata("design:paramtypes", [people_service_1.PeopleService,
+        auth_service_1.AuthService,
+        attachments_service_1.AttachmentsService,
+        contact_activity_service_1.ContactActivityService])
 ], PeopleController);
 //# sourceMappingURL=people.controller.js.map

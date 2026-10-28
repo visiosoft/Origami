@@ -28,8 +28,10 @@ function assignmentEmail(input) {
     const why = !input.follow ? `${who} assigned you a task.`
         : input.follow.kind === 'added' ? `${who} added you as a collaborator on this task — you'll hear when it moves.`
             : input.follow.kind === 'done' ? `${who} marked a task you're collaborating on as done.`
-                : `${who} commented on a task you're collaborating on:`;
-    const quote = input.follow?.kind === 'comment' && input.follow.comment
+                : input.follow.kind === 'mention' ? `${who} mentioned you on a task:`
+                    : input.follow.kind === 'status' ? `${who} moved a task you're on to <strong>${(0, shell_1.escapeHtml)(input.status || 'a new status')}</strong>.`
+                        : `${who} commented on a task you're collaborating on:`;
+    const quote = (input.follow?.kind === 'comment' || input.follow?.kind === 'mention') && input.follow.comment
         ? `<p style="margin:-8px 0 18px;padding:10px 14px;border-left:3px solid #2F7D4A;background:#F4F7F4;font-size:13.5px;line-height:1.6;color:#0B1A12;white-space:pre-wrap;">${(0, shell_1.escapeHtml)(input.follow.comment.length > 600 ? input.follow.comment.slice(0, 600) + '…' : input.follow.comment)}</p>`
         : '';
     const body = `
@@ -47,14 +49,16 @@ function assignmentEmail(input) {
         subject: !input.follow ? `${input.assignerName} assigned you: ${input.title}`
             : input.follow.kind === 'added' ? `You're collaborating on: ${input.title}`
                 : input.follow.kind === 'done' ? `Done: ${input.title}`
-                    : `${input.assignerName} commented on: ${input.title}`,
+                    : input.follow.kind === 'mention' ? `${input.assignerName} mentioned you: ${input.title}`
+                        : input.follow.kind === 'status' ? `${input.status || 'Status changed'}: ${input.title}`
+                            : `${input.assignerName} commented on: ${input.title}`,
         html: (0, shell_1.emailShell)({
             brand: input.brand,
-            eyebrow: input.follow ? 'Task you follow' : 'Task assigned',
-            title: !input.follow ? 'You have a new task' : input.follow.kind === 'added' ? 'You were added as a collaborator' : input.follow.kind === 'done' ? 'A task you follow is done' : 'New comment on a task you follow',
+            eyebrow: input.follow?.kind === 'mention' ? 'You were mentioned' : input.follow ? 'Task you follow' : 'Task assigned',
+            title: !input.follow ? 'You have a new task' : input.follow.kind === 'mention' ? 'Someone mentioned you' : input.follow.kind === 'status' ? 'A task you’re on moved' : input.follow.kind === 'added' ? 'You were added as a collaborator' : input.follow.kind === 'done' ? 'A task you follow is done' : 'New comment on a task you follow',
             body,
             cta: { label: 'Open task', url: input.url },
-            footer: `You're receiving this because you ${input.follow ? 'collaborate on' : 'were assigned'} this task. `
+            footer: `You're receiving this because you ${input.follow?.kind === 'mention' ? 'were mentioned on' : input.follow ? 'collaborate on' : 'were assigned'} this task. `
                 + `<a href="${input.settingsUrl}" style="color:#2F7D4A;">Turn these emails off</a>.`,
         }),
     };

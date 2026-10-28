@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import { Attachments } from '../Attachments';
+import { SortHeader, useSort } from '../SortHeader';
 import { ACCENT, BG, DANGER, INK, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input, todayISO } from '../manpowerUi';
 import { ApprovalTrail, REIMB_CATEGORIES, ReasonBox, ReimbBadge, failed, label, usd, usd0, type Overview, type Reimbursable, type Rights } from './financeUi';
 
@@ -18,15 +19,22 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
   const [creating, setCreating] = useState(false);
   const [status, setStatus] = useState('all');
   const [q, setQ] = useState('');
+  const [codeOf, setCodeOf] = useState<Record<string, string>>({});
+  useEffect(() => { api.csiCodes.list().then((x: any) => setCodeOf(Object.fromEntries((Array.isArray(x) ? x : []).map((c: any) => [c.id, c.code])))).catch(() => {}); }, []);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const load = () => (projectId ? api.finance.reimbursables(projectId) : api.finance.allReimbursables())
     .then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load reimbursables')); });
   useEffect(() => { load(); }, [projectId]);
 
   const all = rows || [];
-  const shown = all.filter((r) => (status === 'all' || r.status === status) && (!q || `${r.number} ${r.description} ${r.vendor || ''} ${r.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
+  const shown = all.filter((r) => (status === 'all' || r.status === status) && (!q || `${r.number} ${r.description} ${r.vendor || ''} ${r.receiptNumber || ''} ${r.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
   const total = (pred: (r: Reimbursable) => boolean) => all.filter(pred).reduce((a, r) => a + (r.billable ? r.billAmount : r.cost), 0);
   const ready = all.filter((r) => r.status === 'approved' && r.billable && !r.invoiceId);
+  const { sorted, sort, toggle } = useSort(shown, {
+    number: (r) => r.number, project: (r) => r.projectName, date: (r) => r.date, desc: (r) => r.description, category: (r) => label(REIMB_CATEGORIES, r.category),
+    cost: (r) => r.cost, bill: (r) => (r.billable ? r.billAmount : null), status: (r) => r.status,
+  }, null, { date: 'desc', cost: 'desc', bill: 'desc' });
+  const H = (k: string, t: string, right?: boolean) => <SortHeader k={k} sort={sort} onSort={toggle} align={right ? 'right' : undefined}>{t}</SortHeader>;
   const cols = `${onBill ? '28px ' : ''}80px ${projectId ? '' : 'minmax(140px,1.2fr) '}100px minmax(200px,2fr) 140px 110px 110px 150px`;
 
   return (
@@ -46,7 +54,7 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search expenses" style={{ ...input, width: 240 }} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search expenses or receipt no." style={{ ...input, width: 240 }} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...input, width: 180 }}>
           <option value="all">All statuses</option><option value="submitted">Awaiting approval</option><option value="approved">Approved</option>
           <option value="billed">Billed</option><option value="rejected">Rejected</option>
@@ -59,19 +67,19 @@ export function ReimbursableList({ projectId, overview, rights, onChanged, onBil
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: projectId ? 880 : 1040 }}>
             <div style={headRow(cols)}>
-              {onBill && <span />}<span>No.</span>{!projectId && <span>Project</span>}<span>Date</span><span>Expense</span><span>Category</span>
-              <span style={{ textAlign: 'right' }}>Cost</span><span style={{ textAlign: 'right' }}>To bill</span><span>Status</span>
+              {onBill && <span />}{H('number', 'No.')}{!projectId && H('project', 'Project')}{H('date', 'Date')}{H('desc', 'Expense')}{H('category', 'Category')}
+              {H('cost', 'Cost', true)}{H('bill', 'To bill', true)}{H('status', 'Status')}
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {shown.map((r) => {
+            {sorted.map((r) => {
               const pickable = r.status === 'approved' && r.billable && !r.invoiceId;
               return (
-                <div key={r.id} onClick={() => setOpen(r.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', fontSize: 12.5, opacity: r.status === 'rejected' ? 0.55 : 1 }}>
+                <div key={r.id} onClick={() => setOpen(r.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', fontSize: 12.5, opacity: r.status === 'rejected' ? 0.55 : 1 }}>
                   {onBill && <span onClick={(e) => e.stopPropagation()}>{pickable && <input type="checkbox" checked={picked.has(r.id)} onChange={(e) => { const n = new Set(picked); if (e.target.checked) n.add(r.id); else n.delete(r.id); setPicked(n); }} />}</span>}
                   <b style={{ color: ACCENT }}>{r.number}</b>
                   {!projectId && <span style={{ color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</span>}
                   <span>{fmtDate(r.date)}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}{r.vendor ? <span style={{ color: MUTED }}> · {r.vendor}</span> : null}{r.attachments?.length ? <span style={{ color: MUTED }}> · 📎{r.attachments.length}</span> : null}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}{r.vendor ? <span style={{ color: MUTED }}> · {r.vendor}</span> : null}{r.receiptNumber ? <span style={{ color: MUTED }}> · #{r.receiptNumber}</span> : null}{r.csiCodeId && codeOf[r.csiCodeId] ? <span style={{ color: MUTED }}> · CSI {codeOf[r.csiCodeId]}</span> : null}{r.attachments?.length ? <span style={{ color: MUTED }}> · 📎{r.attachments.length}</span> : null}</span>
                   <span style={{ color: MUTED }}>{label(REIMB_CATEGORIES, r.category)}</span>
                   <span style={{ textAlign: 'right' }}>{usd(r.cost)}</span>
                   <b style={{ textAlign: 'right' }}>{r.billable ? usd(r.billAmount) : <span style={{ color: MUTED, fontWeight: 400 }}>not billed</span>}</b>
@@ -97,25 +105,35 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
 }) {
   const { toast } = useApp();
   const [r, setR] = useState<Reimbursable | null>(null);
-  const [f, setF] = useState<Record<string, any>>({ date: todayISO(), description: '', category: 'other', vendor: '', cost: '', markupPct: String(overview?.settings.reimbursableMarkupPct ?? ''), billable: true, taxable: false, phaseId: '', notes: '', projectId: projectId ? String(projectId) : '' });
+  const [f, setF] = useState<Record<string, any>>({ date: todayISO(), description: '', category: 'other', vendor: '', receiptNumber: '', csiCodeId: '', cost: '', markupPct: String(overview?.settings.reimbursableMarkupPct ?? ''), billable: true, taxable: false, phaseId: '', notes: '', projectId: projectId ? String(projectId) : '' });
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [rejecting, setRejecting] = useState(false);
   const [storageReady, setStorageReady] = useState(false);
+  const [codes, setCodes] = useState<{ id: string; code: string; division: string; active?: boolean }[]>([]);
+  const [dups, setDups] = useState<NonNullable<Reimbursable['receiptDuplicates']>>([]);
   const phases = overview ? overview.sov.groups.flatMap((g) => g.rows.filter((x) => x.kind === 'phase').map((x) => ({ id: x.id, name: x.name }))) : [];
 
   const apply = (x: Reimbursable) => {
     setR(x); setRejecting(false);
-    setF({ date: x.date, description: x.description, category: x.category, vendor: x.vendor || '', cost: String(x.cost), markupPct: String(x.markupPct), billable: x.billable, taxable: x.taxable, phaseId: x.phaseId || '', notes: x.notes || '', projectId: String(x.projectId) });
+    setF({ date: x.date, description: x.description, category: x.category, vendor: x.vendor || '', receiptNumber: x.receiptNumber || '', csiCodeId: x.csiCodeId || '', cost: String(x.cost), markupPct: String(x.markupPct), billable: x.billable, taxable: x.taxable, phaseId: x.phaseId || '', notes: x.notes || '', projectId: String(x.projectId) });
   };
   const load = () => (id ? api.finance.reimbursable(id).then((x: any) => apply(x)).catch((e: any) => failed(toast, e)) : Promise.resolve());
   useEffect(() => { load(); api.google.status().then((g: any) => setStorageReady(!!g?.connected)).catch(() => {}); }, [id]);
+  useEffect(() => { api.csiCodes.list().then((x: any) => setCodes(Array.isArray(x) ? x : [])).catch(() => {}); }, []);
+  // The same receipt on another expense: checked as it's typed (after a pause).
+  useEffect(() => {
+    const receipt = String(f.receiptNumber || '').trim();
+    if (!receipt) { setDups([]); return; }
+    const t = window.setTimeout(() => { api.finance.receiptCheck(receipt, f.vendor, r?.id).then((x) => setDups(Array.isArray(x) ? x : [])).catch(() => {}); }, 400);
+    return () => window.clearTimeout(t);
+  }, [f.receiptNumber, f.vendor, r?.id]);
   useEffect(() => { if (!projectId && !id) api.projects.list().then((x: any) => setProjects(Array.isArray(x) ? x.map((p: any) => ({ id: p.id, name: p.name })) : [])).catch(() => {}); }, [projectId, id]);
 
   const editable = !r || ((r.status === 'submitted' || r.status === 'rejected') && rights.submitReimbursables) || (r.status === 'approved' && rights.approveReimbursables);
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   const cost = Number(f.cost) || 0;
   const bill = f.billable ? Math.round((cost + cost * (Number(f.markupPct) || 0) / 100) * 100) / 100 : 0;
-  const payload = () => ({ ...f, cost: Number(f.cost), markupPct: f.markupPct === '' ? undefined : Number(f.markupPct), phaseId: f.phaseId || null, version: r?.version });
+  const payload = () => ({ ...f, cost: Number(f.cost), markupPct: f.markupPct === '' ? undefined : Number(f.markupPct), phaseId: f.phaseId || null, csiCodeId: f.csiCodeId || null, receiptNumber: String(f.receiptNumber || '').trim() || null, version: r?.version });
 
   const save = async () => {
     try {
@@ -160,6 +178,16 @@ export function ReimbursableDrawer({ id, projectId, overview, rights, onClose, o
           <div><Label text="Category" /><select disabled={!editable} value={f.category} onChange={set('category')} style={input}>{REIMB_CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
           <div style={{ gridColumn: '1 / -1' }}><Label text="Description" /><input disabled={!editable} value={f.description} onChange={set('description')} placeholder="e.g. Plan printing for permit submittal" style={input} /></div>
           <div><Label text="Vendor" /><input disabled={!editable} value={f.vendor} onChange={set('vendor')} style={input} /></div>
+          <div><Label text="Receipt number" /><input disabled={!editable} value={f.receiptNumber} onChange={set('receiptNumber')} placeholder="As printed on the receipt" style={input} /></div>
+          <div><Label text="CSI code" /><select disabled={!editable} value={f.csiCodeId} onChange={set('csiCodeId')} style={input}>
+            <option value="">No cost code</option>
+            {codes.filter((c) => c.active !== false || c.id === f.csiCodeId).map((c) => <option key={c.id} value={c.id}>{c.code} {c.division}</option>)}
+          </select></div>
+          {dups.length > 0 && (
+            <div role="alert" style={{ gridColumn: '1 / -1', padding: '9px 12px', borderRadius: 10, background: 'var(--c-fdf3d8, #FDF3D8)', color: '#7A5A0B', fontSize: 12.5 }}>
+              ⚠ Receipt {String(f.receiptNumber).trim()} is already on {dups.map((d) => `${d.number} (${d.projectName}, ${fmtDate(d.date)}, ${usd(d.cost)})`).join('; ')}. Check it isn’t being claimed twice.
+            </div>
+          )}
           <div><Label text="Cost ($)" /><input disabled={!editable} type="number" min={0} value={f.cost} onChange={set('cost')} style={input} /></div>
           <div><Label text="Markup %" /><input disabled={!editable} type="number" min={0} max={100} value={f.markupPct} onChange={set('markupPct')} placeholder="Project default" style={input} /></div>
           {phases.length > 0 && <div><Label text="Milestone (optional)" /><select disabled={!editable} value={f.phaseId} onChange={set('phaseId')} style={input}><option value="">—</option>{phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>}

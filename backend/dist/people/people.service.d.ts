@@ -1,21 +1,163 @@
+import { type DupRow } from './contact-duplicates';
 import { StaffDirectorySync } from '../manpower/staff-directory.sync';
 import { ContractorDirectorySync } from '../manpower/contractor-directory.sync';
 import { Repository } from 'typeorm';
 import { PersonEntity } from '../database/entities';
+import { AttachmentsService, type UploadActor } from '../google/attachments.service';
+import { GoogleService } from '../google/google.service';
+import { SettingsService } from '../settings/settings.service';
+import type { TaskAttachment } from '../database/task.types';
+type CardFile = {
+    originalname: string;
+    mimetype: string;
+    size: number;
+    buffer: Buffer;
+};
+type Side = 'front' | 'back';
 export declare class PeopleService {
     private readonly repo;
     private readonly staff?;
     private readonly subs?;
-    constructor(repo: Repository<PersonEntity>, staff?: StaffDirectorySync | undefined, subs?: ContractorDirectorySync | undefined);
+    private readonly attachments?;
+    private readonly google?;
+    private readonly settings?;
+    constructor(repo: Repository<PersonEntity>, staff?: StaffDirectorySync | undefined, subs?: ContractorDirectorySync | undefined, attachments?: AttachmentsService | undefined, google?: GoogleService | undefined, settings?: SettingsService | undefined);
     findAll(project?: string): Promise<PersonEntity[]>;
     findOne(id: string): Promise<PersonEntity>;
     isClientOnProject(email: string, projectName: string): Promise<boolean>;
     linkToProject(email: string, name: string, tier: 'Client' | 'Consultant', projectName: string): Promise<PersonEntity>;
     private nextId;
+    scanCard(files: {
+        front?: CardFile;
+        back?: CardFile;
+    }, actor: UploadActor): Promise<{
+        cardToken: string;
+        front: TaskAttachment | null;
+        back: TaskAttachment | null;
+        text: string;
+        fields: import("./business-card").CardFields;
+        readError: string;
+    }>;
+    private cardsFromToken;
+    private applyCardToken;
+    addCardPhotos(id: string, files: {
+        front?: CardFile;
+        back?: CardFile;
+    }, actor: UploadActor): Promise<{
+        businessCards: {
+            front?: TaskAttachment | null;
+            back?: TaskAttachment | null;
+        };
+        id: number;
+        name: string;
+        role: string;
+        company: string;
+        contact: string | null;
+        kind: string;
+        internalLevel: string;
+        tier: string;
+        phone: string;
+        email: string;
+        projects: string[];
+        openTasks: number;
+        employeeId: string;
+        contractorId: string;
+        userId: string;
+        since: string;
+        comply: unknown;
+        last: string;
+        contactStatus: string;
+        contactStatusAt: string;
+        contactStatusReason: string;
+        lastActivityAt: string;
+        sameAsIds: number[] | null;
+        pointOfContact: boolean | null;
+        formerCompanies: {
+            company: string;
+            personId?: number | null;
+            role?: string | null;
+            until?: string | null;
+        }[] | null;
+        firstName: string;
+        lastName: string;
+        goByName: string;
+        pronouns: string;
+        gender: string;
+        categories: string[];
+        addresses: Record<string, unknown>;
+        contactInfo: Record<string, unknown>;
+        licenses: unknown[];
+        insurance: Record<string, unknown>;
+        notLicensedDesigner: boolean | null;
+    }>;
+    removeCardPhoto(id: string, side: Side): Promise<{
+        businessCards: {
+            front?: TaskAttachment | null;
+            back?: TaskAttachment | null;
+        };
+        id: number;
+        name: string;
+        role: string;
+        company: string;
+        contact: string | null;
+        kind: string;
+        internalLevel: string;
+        tier: string;
+        phone: string;
+        email: string;
+        projects: string[];
+        openTasks: number;
+        employeeId: string;
+        contractorId: string;
+        userId: string;
+        since: string;
+        comply: unknown;
+        last: string;
+        contactStatus: string;
+        contactStatusAt: string;
+        contactStatusReason: string;
+        lastActivityAt: string;
+        sameAsIds: number[] | null;
+        pointOfContact: boolean | null;
+        formerCompanies: {
+            company: string;
+            personId?: number | null;
+            role?: string | null;
+            until?: string | null;
+        }[] | null;
+        firstName: string;
+        lastName: string;
+        goByName: string;
+        pronouns: string;
+        gender: string;
+        categories: string[];
+        addresses: Record<string, unknown>;
+        contactInfo: Record<string, unknown>;
+        licenses: unknown[];
+        insurance: Record<string, unknown>;
+        notLicensedDesigner: boolean | null;
+    }>;
+    cardPhoto(id: string, side: Side): Promise<TaskAttachment>;
     create(dto: any): Promise<PersonEntity>;
+    duplicates(q: {
+        name?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string;
+        exclude?: string;
+    }): Promise<(DupRow & {
+        matchedOn: import("./contact-duplicates").MatchedOn[];
+    })[]>;
+    link(id: string, otherId: string): Promise<{
+        person: PersonEntity;
+        other: PersonEntity;
+    }>;
+    unlink(id: string, otherId: string): Promise<PersonEntity>;
     update(id: string, dto: any): Promise<PersonEntity>;
     remove(id: string): Promise<{
         id: number;
         deleted: boolean;
     }>;
 }
+export {};

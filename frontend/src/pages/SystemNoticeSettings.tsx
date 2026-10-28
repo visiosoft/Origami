@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { SaveBar, useAutosave } from '../autosave';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = 'var(--font-display)';
 const input: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none', resize: 'vertical',
+  border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--ink)', outline: 'none', resize: 'vertical',
 };
 type Notice = { text: string; on: boolean };
 
@@ -35,11 +35,11 @@ export function SystemNoticeSettings() {
   const quick = ['Updates in progress — please save your work. Back in a few minutes.', 'Scheduled update today at 3:00 pm. Save your work before then.'];
 
   return (
-    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 14, padding: '20px 22px', display: 'grid', gap: 14, maxWidth: 720 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-14)', padding: '20px 22px', display: 'grid', gap: 14, maxWidth: 720 }}>
       <div>
         <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700 }}>System notice</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, lineHeight: 1.55 }}>
-          A banner across the top of every page for everyone signed in. Turn it on before updating the system, so nobody is in the middle of typing when it restarts.
+        <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, lineHeight: 1.55 }}>
+          A banner across the top of every page for everyone signed in, and on the login page. Turn it on before updating the system, so nobody is in the middle of typing when it restarts.
           The app also shows “Updating the system…” by itself whenever the server is restarting, and “A new version was installed” afterwards.
         </div>
       </div>
@@ -49,7 +49,7 @@ export function SystemNoticeSettings() {
       </label>
       <textarea value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} rows={3} placeholder="e.g. Updates in progress — please save your work." style={input} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {quick.map((q) => <span key={q} onClick={() => setDraft({ text: q, on: true })} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', cursor: 'pointer', color: '#43514D' }}>{q}</span>)}
+        {quick.map((q) => <span key={q} onClick={() => setDraft({ text: q, on: true })} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', cursor: 'pointer', color: 'var(--body)' }}>{q}</span>)}
       </div>
       <SaveBar auto={auto} blocked={draft.on && !draft.text.trim() ? 'Write the notice to turn it on' : undefined} />
     </div>

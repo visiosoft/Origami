@@ -81,7 +81,14 @@ export class ContractorDirectorySync implements OnApplicationBootstrap {
         projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added',
       } as Partial<PersonEntity>);
     } else {
-      Object.assign(p, fields);
+      // Already in People: bring the shared fields across, but never blank one out
+      // or change what kind of record it is -- someone may have edited it there.
+      const upd: Partial<PersonEntity> = { contractorId: c.id, ...(c.userId ? { userId: c.userId } : {}) };
+      if (val(c.companyName)) { upd.name = c.companyName; upd.company = c.companyName; }
+      if (val(c.contactPerson)) upd.contact = val(c.contactPerson);
+      if (val(c.phone)) upd.phone = val(c.phone);
+      if (val(c.email)) upd.email = val(c.email);
+      Object.assign(p, upd);
     }
     complianceToPerson(c, p);
     const saved = await this.people.save(p);
@@ -139,10 +146,23 @@ export class ContractorDirectorySync implements OnApplicationBootstrap {
   }
 
   /** Once at start-up: link or create the other half of every contractor and every sub company. */
+  /**
+   * At start-up: link any contractor and People entry that aren't linked yet, and
+   * create the missing side. Pairs that are already linked are left exactly as
+   * they are -- this used to copy every contractor's details over its People
+   * entry on every restart, undoing edits made in People after each deploy.
+   */
   async backfill() {
     const [contractors, people] = await Promise.all([this.contractors.find(), this.people.find()]);
     let linked = 0, created = 0;
     for (const c of contractors) {
+      const pair = people.find((x) => x.id === Number(c.personId)) || people.find((x) => x.contractorId === c.id);
+      if (pair) {
+        // Already paired: only make sure each side points at the other.
+        if (Number(c.personId) !== pair.id) await this.contractors.update({ id: c.id }, { personId: pair.id });
+        if (pair.contractorId !== c.id) { pair.contractorId = c.id; await this.people.save(pair); }
+        continue;
+      }
       const before = people.length;
       await this.syncContractor(c, people);
       if (people.length > before) created++; else linked++;

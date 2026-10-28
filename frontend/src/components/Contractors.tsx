@@ -10,6 +10,8 @@ import {
   type Assignment, type Contractor, type Project, type SubcontractorTrade,
 } from './manpowerUi';
 import { TradeChips, TradePicker, useSubcontractorTrades } from './SubcontractorTrades';
+import { ContractorBids } from './ContractorBids';
+import { bidSummary, owedAJob, OWED_A_JOB } from '../data/contractorBids';
 
 const STATUSES: [string, string, 'green' | 'amber' | 'grey'][] = [['active', 'Active', 'green'], ['suspended', 'Suspended', 'amber'], ['ended', 'Ended', 'grey']];
 const statusBadge = (s: string) => { const m = STATUSES.find(([k]) => k === s) || STATUSES[0]; return <Badge tone={m[2]}>{m[1]}</Badge>; };
@@ -76,6 +78,8 @@ export function Contractors({ employees, trades, projects, assignments, canManag
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [tradeFilter, setTradeFilter] = useState('');
+  const [owedOnly, setOwedOnly] = useState(false);
+  const [order, setOrder] = useState<'name' | 'owed'>('name');
   const { trades: subTrades } = useSubcontractorTrades();
 
   const load = () => api.contractors.list().then((r: any) => setContractors(Array.isArray(r) ? r : [])).catch(() => setContractors([]));
@@ -92,10 +96,15 @@ export function Contractors({ employees, trades, projects, assignments, canManag
 
   const q = query.trim().toLowerCase();
   const tradeText = (c: Contractor) => (c.tradeIds || []).map((id) => { const t = subTrades.find((x) => x.id === id); return t ? `${t.code} ${t.name}` : ''; }).join(' ');
-  const shown = all.filter((c) => (!statusFilter || c.status === statusFilter) && (!tradeFilter || (c.tradeIds || []).includes(tradeFilter))
+  const filtered = all.filter((c) => (!statusFilter || c.status === statusFilter) && (!tradeFilter || (c.tradeIds || []).includes(tradeFilter)) && (!owedOnly || owedAJob(c.bidStats))
     && (!q || [c.companyName, c.contactPerson, c.contractNumber, c.licenseNumber, tradeText(c)].some((v) => (v || '').toLowerCase().includes(q))));
+  // "Most bids without a job" puts the subs owed work first.
+  const shown = order === 'owed'
+    ? [...filtered].sort((a, b) => (b.bidStats?.sinceLastAward || 0) - (a.bidStats?.sinceLastAward || 0) || (b.bidStats?.received || 0) - (a.bidStats?.received || 0) || a.companyName.localeCompare(b.companyName))
+    : filtered;
+  const owedCount = all.filter((c) => owedAJob(c.bidStats)).length;
   const usedTrades = subTrades.filter((t) => all.some((c) => (c.tradeIds || []).includes(t.id)));
-  const cols = 'minmax(190px,1.5fr) minmax(200px,1.5fr) 1fr 150px 140px 70px 90px';
+  const cols = 'minmax(190px,1.5fr) minmax(200px,1.5fr) 1fr 150px 140px 150px 70px 90px';
 
   return (
     <div>
@@ -109,14 +118,21 @@ export function Contractors({ employees, trades, projects, assignments, canManag
           <option value="">All statuses</option>
           {STATUSES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
+        <label title={`Subs with ${OWED_A_JOB} or more estimates since their last award`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: owedOnly ? INK : MUTED, fontWeight: owedOnly ? 700 : 500 }}>
+          <input type="checkbox" checked={owedOnly} onChange={(e) => setOwedOnly(e.target.checked)} />Owed a job{owedCount ? ` (${owedCount})` : ''}
+        </label>
+        <select value={order} onChange={(e) => setOrder(e.target.value as 'name' | 'owed')} style={{ ...input, width: 'auto' }} aria-label="Sort">
+          <option value="name">A–Z</option>
+          <option value="owed">Most bids without a job</option>
+        </select>
         <span style={{ fontSize: 12, color: MUTED }}>{all.length} contractors · {employees.filter((e) => e.contractorId).length} contractor workers</span>
         <div style={{ flex: 1 }} />
         {canManage && <div onClick={() => setAdding(true)} style={btn(true)}>+ Add contractor</div>}
       </div>
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 1020 }}>
-            <div style={headRow(cols)}><span>Company</span><span>Trades</span><span>Contact</span><span>Contract ends</span><span>Insurance</span><span>Workers</span><span>Status</span></div>
+          <div style={{ minWidth: 1170 }}>
+            <div style={headRow(cols)}><span>Company</span><span>Trades</span><span>Contact</span><span>Contract ends</span><span>Insurance</span><span>Bids</span><span>Workers</span><span>Status</span></div>
             {contractors === null && <div style={{ padding: 16, fontSize: 12.5, color: MUTED }}>Loading…</div>}
             {shown.map((c) => (
               <div key={c.id} onClick={() => setOpenId(c.id)} style={{ ...bodyRow(cols), cursor: 'pointer' }}>
@@ -134,6 +150,10 @@ export function Contractors({ employees, trades, projects, assignments, canManag
                   {c.contractStatus === 'expired' || c.contractStatus === 'expiring' ? <Badge tone={expiryTone(c.contractStatus)}>{expiryLabel(c.contractStatus)}</Badge> : null}
                 </span>
                 <span><Badge tone={expiryTone(c.insuranceStatus)}>{c.insuranceStatus === 'none' ? 'Not on file' : expiryLabel(c.insuranceStatus)}</Badge></span>
+                <span style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5 }}>{c.bidStats?.received ? `${c.bidStats.received} bid${c.bidStats.received === 1 ? '' : 's'} · ${c.bidStats.awarded} won` : <span style={{ color: MUTED }}>—</span>}</div>
+                  {owedAJob(c.bidStats) && <Badge tone="amber">{c.bidStats!.sinceLastAward} without a job</Badge>}
+                </span>
                 <span style={{ fontSize: 13, fontWeight: 700 }}>{c.workerCount}</span>
                 <span>{statusBadge(c.status)}</span>
               </div>
@@ -185,7 +205,7 @@ function AddContractorDrawer({ subTrades, onClose, onCreated }: { subTrades: Sub
       footer={<><div onClick={onClose} style={btn()}>Cancel</div><div onClick={saving ? undefined : create} style={btn(true, saving)}>{saving ? 'Adding…' : 'Add contractor'}</div></>}
     >
       {subs.length > 0 && (
-        <div style={{ marginBottom: 18, padding: 12, borderRadius: 10, background: '#F7F3EA' }}>
+        <div style={{ marginBottom: 18, padding: 12, borderRadius: 10, background: 'var(--c-f7f3ea)' }}>
           <Label text="Start from the People directory (optional)" />
           <select value={draft.personId ?? ''} onChange={(e) => fromPerson(e.target.value)} style={input}>
             <option value="">— New company —</option>
@@ -289,6 +309,8 @@ function ContractorDetail({ contractor, subTrades, employees, trades, projects, 
           </div>
         </div>
       </div>
+
+      <ContractorBids contractor={contractor} projects={projects} subTrades={subTrades} canManage={canManage} onChanged={onChanged} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14, alignItems: 'start' }}>
         <div style={{ ...card, padding: '18px 20px' }}>
@@ -443,9 +465,10 @@ export function SubContractorSummary({ contractorId, onOpen }: { contractorId: s
       <div style={{ display: 'grid', gap: 5, fontSize: 12.5, color: INK }}>
         <div>Status: <b style={{ textTransform: 'capitalize' }}>{c.status}</b>{c.workerCount ? ` · ${c.workerCount} worker${c.workerCount === 1 ? '' : 's'} on file` : ''}</div>
         <div style={exp(c.licenseExpiry)}>Licence {c.licenseNumber ? `#${c.licenseNumber} ` : ''}{c.licenseExpiry ? `${c.licenseExpiry.slice(0, 10) < today ? 'expired' : 'expires'} ${day(c.licenseExpiry)}` : 'not on file'}</div>
+        <div style={owedAJob(c.bidStats) ? { color: 'var(--c-8a6d12)', fontWeight: 700 } : {}}>Estimates: {bidSummary(c.bidStats)}</div>
         <div style={exp(c.insuranceExpiry)}>Insurance {c.insuranceExpiry ? `${c.insuranceExpiry.slice(0, 10) < today ? 'expired' : 'expires'} ${day(c.insuranceExpiry)}` : 'not on file'}</div>
       </div>
-      <div onClick={onOpen} style={{ marginTop: 10, display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: '#173326', color: 'white' }}>
+      <div onClick={onOpen} style={{ marginTop: 10, display: 'inline-block', padding: '8px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>
         Open contractor record — trades, contract, insurance, workers
       </div>
     </div>

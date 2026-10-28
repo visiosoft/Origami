@@ -1,17 +1,19 @@
 import { OnApplicationBootstrap } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { AppSettingEntity, RoleEntity } from '../database/entities';
+import { AppSettingEntity, RoleEntity, UserEntity } from '../database/entities';
 export declare const SITE_SUPER_TRIM_KEY = "roles.siteSuperTrimmed.v3";
 export declare class RolesService implements OnApplicationBootstrap {
     private readonly repo;
     private readonly settings;
+    private readonly users?;
     private readonly log;
-    constructor(repo: Repository<RoleEntity>, settings: Repository<AppSettingEntity>);
+    constructor(repo: Repository<RoleEntity>, settings: Repository<AppSettingEntity>, users?: Repository<UserEntity> | undefined);
     onApplicationBootstrap(): Promise<void>;
     trimSiteSuper(): Promise<void>;
     findAll(): Promise<RoleEntity[]>;
     create(dto: any): Promise<RoleEntity>;
     update(key: string, dto: any): Promise<RoleEntity>;
+    private checkTypeChange;
     remove(key: string): Promise<{
         key: string;
         deleted: boolean;

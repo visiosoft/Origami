@@ -3,17 +3,45 @@ export interface LogStatus { name: string; closed?: boolean; color?: string }
 
 export const LOG_STATUSES_KEY = 'requestLog.statuses';
 
-/** The Request Log's statuses until an administrator changes them -- "On hold" matches the task board's. */
+/**
+ * The task buckets (Oct 16) -- the same six as the task board: To Do, Assigned,
+ * In Progress, On hold, Complete, Confirmed. Complete and Confirmed close a task.
+ */
 export const DEFAULT_LOG_STATUSES: LogStatus[] = [
-  { name: 'Open' }, { name: 'In Progress' }, { name: 'On hold' }, { name: 'Closed', closed: true },
+  { name: 'To Do' }, { name: 'Assigned' }, { name: 'In Progress' }, { name: 'On hold' },
+  { name: 'Complete', closed: true }, { name: 'Confirmed', closed: true },
 ];
+/** Where a new entry starts. */
+export const LOG_START = 'To Do';
+/** The buckets can be recoloured and others added, but not removed. */
+export const LOG_BUCKETS = DEFAULT_LOG_STATUSES.map((s) => s.name);
+
+/** The statuses before the buckets: "Open" is To Do (or Assigned), "Closed" is Complete. */
+export function bucketOf(status: string | null | undefined, hasAssignee: boolean): string | null | undefined {
+  const s = String(status || '').trim().toLowerCase();
+  if (s === 'open' || s === 'not started' || s === 'to do' || s === 'todo') return hasAssignee ? 'Assigned' : 'To Do';
+  if (s === 'closed' || s === 'done') return 'Complete';
+  return status;
+}
+
+/** The In Progress bucket, however it's spelled. */
+export const isInProgress = (status: string | null | undefined) => /^in[\s-]*progress$/i.test(String(status || '').trim());
+
+/** A saved list from before the buckets, brought onto them: renamed, with the missing buckets added in order. */
+export function withBuckets(list: LogStatus[]): LogStatus[] {
+  const renamed = list.map((s) => (s.name === 'Open' ? { ...s, name: 'To Do' } : s.name === 'Closed' ? { ...s, name: 'Complete', closed: true } : s));
+  const extra = renamed.filter((s) => !LOG_BUCKETS.includes(s.name));
+  const buckets = DEFAULT_LOG_STATUSES.map((b) => ({ ...b, ...(renamed.find((s) => s.name === b.name)?.color ? { color: renamed.find((s) => s.name === b.name)!.color } : {}) }));
+  // Extras go before Complete, where an admin's own working statuses belong.
+  const at = buckets.findIndex((b) => b.name === 'Complete');
+  return [...buckets.slice(0, at), ...extra, ...buckets.slice(at)];
+}
 
 const COLOR = /^#[0-9a-f]{6}$/i;
 
 /**
- * The saved list, cleaned: unique names, at most 12, and always an "Open"
- * (new tasks start there) and at least one closed status ("Closed" if none
- * was marked). Anything unusable falls back to the defaults.
+ * The saved list, cleaned: unique names, at most 12, and always the six
+ * buckets (Complete and Confirmed closed). Anything unusable falls back to the defaults.
  */
 export function parseLogStatuses(raw: unknown): LogStatus[] {
   let list: unknown = raw;
@@ -30,12 +58,7 @@ export function parseLogStatuses(raw: unknown): LogStatus[] {
     if (out.length >= 12) break;
   }
   if (!out.length) return DEFAULT_LOG_STATUSES;
-  if (!out.some((s) => s.name === 'Open')) out.unshift({ name: 'Open' });
-  if (!out.some((s) => s.closed)) {
-    const c = out.find((s) => s.name === 'Closed');
-    if (c) c.closed = true; else out.push({ name: 'Closed', closed: true });
-  }
-  return out;
+  return withBuckets(out).slice(0, 12);
 }
 
 export const isClosedStatus = (list: LogStatus[], status?: string | null) => list.some((s) => s.closed && s.name === status);

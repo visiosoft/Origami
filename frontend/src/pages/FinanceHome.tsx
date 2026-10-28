@@ -1,5 +1,7 @@
+import { stageLabel } from '../data/projects';
+import { SortHeader, useSort } from '../components/SortHeader';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { ACCENT, BG, DANGER, INK, MUTED, Badge, Drawer, card, fmtDate, headRow, input } from '../components/manpowerUi';
@@ -8,8 +10,10 @@ import { ChangeOrderDrawer, ChangeOrderList } from '../components/finance/Change
 import { ReimbursableDrawer, ReimbursableList } from '../components/finance/Reimbursables';
 import { usd, usd0, type Rights } from '../components/finance/financeUi';
 import { FinanceReports } from '../components/finance/Reports';
+import { ReimbursementBoard } from '../components/finance/ReimbursementBoard';
+import { useTheme } from '../theme';
 
-const PAPER = '#FBF8F2';
+const PAPER = 'var(--panel)';
 type Tab = 'approvals' | 'portfolio' | 'reports' | 'changes' | 'reimbursables' | 'audit';
 
 interface Pending {
@@ -29,6 +33,9 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
   const navigate = useNavigate();
   const [rights, setRights] = useState<Rights | null>(null);
   const [tab, setTab] = useState<Tab>(initial);
+  const [theme] = useTheme();
+  // ?co=<id> opens that change order (links from Special Actions).
+  const [params] = useSearchParams();
   const [project, setProject] = useState<{ id: number; name: string } | null>(null);
   useEffect(() => { api.finance.access().then((r: any) => setRights(r)).catch(() => setRights(null)); }, []);
   useEffect(() => { setTab(initial); }, [initial]);
@@ -51,7 +58,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
         <div style={{ ...card, padding: 20, marginTop: 20, fontSize: 13, color: MUTED }}>Your role doesn't include project finance, change orders or reimbursables.</div>
       ) : (
         <>
-          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(20,8,31,.09)', margin: '18px 0 20px' }}>
+          <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid rgba(var(--rgb-shade), .09)', margin: '18px 0 20px' }}>
             {tabs.map(([k, l]) => (
               <div key={k} onClick={() => setTab(k)} style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: tab === k ? ACCENT : MUTED, borderBottom: '2px solid ' + (tab === k ? ACCENT : 'transparent'), marginBottom: -1 }}>{l}</div>
             ))}
@@ -59,8 +66,8 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
           {tab === 'approvals' && <Approvals rights={rights} onProject={setProject} />}
           {tab === 'portfolio' && <Portfolio onProject={setProject} />}
           {tab === 'reports' && <FinanceReports rights={rights} onProject={setProject} />}
-          {tab === 'changes' && <ChangeOrderList rights={rights} />}
-          {tab === 'reimbursables' && <ReimbursableList rights={rights} />}
+          {tab === 'changes' && <ChangeOrderList rights={rights} openId={params.get('co')} />}
+          {tab === 'reimbursables' && (theme === 'coterie' ? <ReimbursementBoard rights={rights} /> : <ReimbursableList rights={rights} />)}
           {tab === 'audit' && <Audit />}
         </>
       )}
@@ -84,6 +91,9 @@ function Approvals({ rights, onProject }: { rights: Rights; onProject: (p: { id:
   const load = () => api.finance.approvals().then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load approvals')); });
   useEffect(() => { load(); }, []);
   const shown = (rows || []).filter((r) => !mine || r.canAct);
+  const { sorted: aSorted, sort: aSort, toggle: aToggle } = useSort(shown, {
+    type: (p) => TYPE_LABEL[p.type]?.[0] || p.type, project: (p) => p.projectName, what: (p) => p.title, amount: (p) => p.amount, since: (p) => p.since,
+  }, null, { amount: 'desc', since: 'asc' });
   const cols = '150px minmax(160px,1fr) minmax(220px,2fr) 120px 110px 110px';
   const open = (p: Pending) => {
     if (p.type === 'change_order') setCo(p.id);
@@ -99,10 +109,14 @@ function Approvals({ rights, onProject }: { rights: Rights; onProject: (p: { id:
       <div style={{ ...card, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 900 }}>
-            <div style={headRow(cols)}><span>Type</span><span>Project</span><span>What</span><span style={{ textAlign: 'right' }}>Amount</span><span>Waiting since</span><span /></div>
+            <div style={headRow(cols)}>
+              <SortHeader k="type" sort={aSort} onSort={aToggle}>Type</SortHeader><SortHeader k="project" sort={aSort} onSort={aToggle}>Project</SortHeader>
+              <SortHeader k="what" sort={aSort} onSort={aToggle}>What</SortHeader><SortHeader k="amount" sort={aSort} onSort={aToggle} align="right">Amount</SortHeader>
+              <SortHeader k="since" sort={aSort} onSort={aToggle}>Waiting since</SortHeader><span />
+            </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {shown.map((p) => (
-              <div key={p.type + p.id} onClick={() => open(p)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer' }}>
+            {aSorted.map((p) => (
+              <div key={p.type + p.id} onClick={() => open(p)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
                 <span><Badge tone={TYPE_LABEL[p.type][1]}>{TYPE_LABEL[p.type][0]}</Badge></span>
                 <span style={{ color: MUTED }}>{p.projectName}</span>
                 <span><b>{p.title}</b><div style={{ fontSize: 11.5, color: MUTED }}>{p.detail}</div></span>
@@ -128,6 +142,10 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
   const [rows, setRows] = useState<any[] | null>(null);
   useEffect(() => { api.finance.portfolio().then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load')); }); }, []);
   const cols = 'minmax(200px,1.6fr) 125px 115px 115px 115px 115px 125px 115px 115px';
+  const money = (k: string) => (r: any) => (r[k] == null ? null : Number(r[k]));
+  const { sorted: pSorted, sort: pSort, toggle: pToggle } = useSort(rows || [], {
+    name: (r: any) => r.name, ...Object.fromEntries(['revisedContract', 'contractWorkInvoiced', 'paid', 'arOutstanding', 'unbilledEarned', 'committed', 'paidOut', 'stillToPay'].map((k) => [k, money(k)])),
+  }, null, Object.fromEntries(['revisedContract', 'contractWorkInvoiced', 'paid', 'arOutstanding', 'unbilledEarned', 'committed', 'paidOut', 'stillToPay'].map((k) => [k, 'desc' as const])));
   const costs = (rows || []).some((r) => r.committed != null);
   const sum = (k: string) => (rows || []).reduce((a, r) => a + (Number(r[k]) || 0), 0);
   const num = (n: number, tone?: string) => <span style={{ textAlign: 'right', color: tone }}>{usd0(n)}</span>;
@@ -153,20 +171,20 @@ function Portfolio({ onProject }: { onProject: (p: { id: number; name: string })
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 1180 }}>
             <div style={headRow(cols)}>
-              <span>Project</span><span style={{ textAlign: 'right' }}>Client contract</span><span style={{ textAlign: 'right' }}>Billed</span><span style={{ textAlign: 'right' }}>Received</span>
-              <span style={{ textAlign: 'right' }}>Client owes</span><span style={{ textAlign: 'right' }}>Done, not billed</span><span style={{ textAlign: 'right' }}>Committed to subs</span>
-              <span style={{ textAlign: 'right' }}>Paid out</span><span style={{ textAlign: 'right' }}>Still to pay</span>
+              <SortHeader k="name" sort={pSort} onSort={pToggle}>Project</SortHeader>
+              {([['revisedContract', 'Client contract'], ['contractWorkInvoiced', 'Billed'], ['paid', 'Received'], ['arOutstanding', 'Client owes'], ['unbilledEarned', 'Done, not billed'], ['committed', 'Committed to subs'], ['paidOut', 'Paid out'], ['stillToPay', 'Still to pay']] as [string, string][])
+                .map(([k, t]) => <SortHeader key={k} k={k} sort={pSort} onSort={pToggle} align="right">{t}</SortHeader>)}
             </div>
             {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
-            {(rows || []).map((r) => (
-              <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5, cursor: 'pointer' }}>
-                <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{r.stage}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
+            {pSorted.map((r) => (
+              <div key={r.projectId} onClick={() => onProject({ id: r.projectId, name: r.name })} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5, cursor: 'pointer' }}>
+                <span><b>{r.name}</b><div style={{ fontSize: 11, color: MUTED }}>{stageLabel(r.stage)}{r.hasClientContract ? (r.approvedChanges ? ` · COs ${usd0(r.approvedChanges)}` : '') : ' · no client contract (outsourced / internal)'}</div></span>
                 {r.hasClientContract ? <>
                   {num(r.revisedContract)}{num(r.contractWorkInvoiced)}{num(r.paid)}
                   <span style={{ textAlign: 'right', color: r.overdueCount ? DANGER : undefined }}>{usd0(r.arOutstanding)}{r.overdueCount ? <div style={{ fontSize: 11 }}>{usd0(r.overdue)} overdue</div> : null}</span>
-                  {num(r.unbilledEarned, r.unbilledEarned < 0 ? DANGER : r.unbilledEarned > 0 ? '#8A6D12' : undefined)}
+                  {num(r.unbilledEarned, r.unbilledEarned < 0 ? DANGER : r.unbilledEarned > 0 ? 'var(--c-8a6d12)' : undefined)}
                 </> : <><span style={{ textAlign: 'right', color: MUTED }}>—</span><span /><span /><span /><span /></>}
-                {r.committed != null ? <>{num(r.committed)}{num(r.paidOut)}{num(r.stillToPay, r.stillToPay ? '#8A6D12' : undefined)}</> : <><span /><span /><span /></>}
+                {r.committed != null ? <>{num(r.committed)}{num(r.paidOut)}{num(r.stillToPay, r.stillToPay ? 'var(--c-8a6d12)' : undefined)}</> : <><span /><span /><span /></>}
               </div>
             ))}
             {rows && !rows.length && <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>No project has its financials set up yet — open a project and use its Financial tab.</div>}
@@ -211,7 +229,7 @@ function Audit() {
       <div style={{ ...card, overflow: 'hidden' }}>
         {rows === null && <div style={{ padding: 14, fontSize: 12.5, color: MUTED }}>Loading…</div>}
         {(rows || []).map((a) => (
-          <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+          <div key={a.id} style={{ display: 'flex', gap: 12, padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
             <span style={{ width: 150, color: MUTED, flexShrink: 0 }}>{new Date(a.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
             <span style={{ width: 180, color: MUTED, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.projectName}</span>
             <span style={{ flex: 1, lineHeight: 1.6 }}>

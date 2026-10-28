@@ -1,7 +1,8 @@
-import { ForbiddenException, Global, Injectable, Module, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Global, Injectable, Module, Optional, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PersonEntity, ProjectEntity } from '../database/entities';
+import { PersonEntity, ProjectEntity, RoleEntity, UserEntity } from '../database/entities';
+import { effectivePermissions, extentOf } from '../users/access-levels';
 import type { SessionClaims } from './crypto.util';
 import { PORTAL_ROLE } from './guards/roles.decorator';
 
@@ -19,7 +20,23 @@ export class ProjectAccessService {
   constructor(
     @InjectRepository(PersonEntity) private readonly people: Repository<PersonEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
+    @Optional() @InjectRepository(RoleEntity) private readonly roles?: Repository<RoleEntity>,
+    @Optional() @InjectRepository(UserEntity) private readonly users?: Repository<UserEntity>,
   ) {}
+
+  // Role / user lookups are asked for on most project reads: kept a few seconds.
+  private cache = new Map<string, { at: number; assigned: boolean }>();
+  /** Staff whose access says "Assigned projects" (role overall, or their own change): only their projects. */
+  private async assignedOnly(claims: SessionClaims): Promise<boolean> {
+    if (claims.roleKey === 'admin' || !this.roles || !this.users) return false;
+    const key = claims.sub + '|' + claims.roleKey;
+    const hit = this.cache.get(key);
+    if (hit && Date.now() - hit.at < 15_000) return hit.assigned;
+    const [role, user] = await Promise.all([this.roles.findOneBy({ key: claims.roleKey }), this.users.findOneBy({ id: claims.sub })]);
+    const assigned = extentOf(effectivePermissions(role?.permissions as any, user?.permissionOverrides as any)) === 'assigned';
+    this.cache.set(key, { at: Date.now(), assigned });
+    return assigned;
+  }
 
   /** True for staff (and administrators, whatever their tier). */
   isStaff(claims: SessionClaims | null) {
@@ -29,7 +46,7 @@ export class ProjectAccessService {
   /** 'all' for staff; otherwise the ids of the projects this account is linked to. */
   async allowedIds(claims: SessionClaims | null): Promise<'all' | Set<number>> {
     if (!claims) throw new UnauthorizedException('Sign in first.');
-    if (this.isStaff(claims)) return 'all';
+    if (this.isStaff(claims) && !(await this.assignedOnly(claims))) return 'all';
     if (claims.roleKey === PORTAL_ROLE) return new Set();
     // Their People entries: the one their login was given from (People.userId), and any with the same email.
     const email = String(claims.email || '').trim().toLowerCase();
@@ -67,7 +84,7 @@ export class ProjectAccessService {
 /** Available everywhere, so any controller can scope what it returns. */
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([PersonEntity, ProjectEntity])],
+  imports: [TypeOrmModule.forFeature([PersonEntity, ProjectEntity, RoleEntity, UserEntity])],
   providers: [ProjectAccessService],
   exports: [ProjectAccessService],
 })

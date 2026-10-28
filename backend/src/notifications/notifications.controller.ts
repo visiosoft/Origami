@@ -1,12 +1,33 @@
-import { Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, UnauthorizedException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
+import { NotifyHub } from './notify-hub.service';
 import { Roles } from '../auth/guards/roles.decorator';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
 
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(private readonly notifications: NotificationsService, private readonly hub: NotifyHub) {}
+
+  /** My notification settings: each event's channels, my phone number, and anything missing. */
+  @Get('prefs')
+  async prefs(@Claims() claims: SessionClaims | null) {
+    if (!claims) throw new UnauthorizedException('Sign in first.');
+    return this.hub.prefs(claims.sub);
+  }
+
+  @Put('prefs')
+  async setPrefs(@Claims() claims: SessionClaims | null, @Body() body: { matrix?: unknown; phone?: unknown }) {
+    if (!claims) throw new UnauthorizedException('Sign in first.');
+    return this.hub.setPrefs(claims.sub, body || {});
+  }
+
+  /** My notifications, newest first (?digest=daily|weekly for what a digest holds). */
+  @Get('feed')
+  async feed(@Claims() claims: SessionClaims | null, @Query('digest') digest?: string) {
+    if (!claims) throw new UnauthorizedException('Sign in first.');
+    return this.hub.feed(claims.sub, { digest });
+  }
 
   /**
    * Send yourself a sample assignment email.
@@ -32,6 +53,6 @@ export class NotificationsController {
       assigneeId: claims.sub,
       // Deliberately not the recipient, or the self-assignment rule would skip it.
       actor: { name: 'Origami', id: undefined },
-    });
+    }, undefined, true);
   }
 }

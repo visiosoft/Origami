@@ -47,6 +47,17 @@ export class ProposalService implements OnApplicationBootstrap {
     }
   }
 
+  /** Client contracts (proposals) sent and not signed yet -- for Approvals. */
+  async awaitingSignature() {
+    const rows = (await this.repo.find()).filter((r) => r.sentAt && !r.signedAt);
+    const out = [];
+    for (const r of rows) {
+      const deal = await this.pipeline.findOne(r.dealId).catch(() => null);
+      out.push({ dealId: r.dealId, dealName: deal?.name || r.dealId, subject: r.subject || '', amount: r.amount || '', sentAt: r.sentAt, sentTo: r.sentTo || '' });
+    }
+    return out.sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt)));
+  }
+
   async get(dealId: string) {
     if (!dealId) throw new BadRequestException('Which deal?');
     const row = await this.repo.findOneBy({ dealId });
@@ -126,6 +137,23 @@ export class ProposalService implements OnApplicationBootstrap {
     const parsed = await this.readToken(token);
     if (!parsed) throw new ForbiddenException('This link has expired or is no longer valid. Ask your project contact to resend it.');
     return this.get(parsed.dealId);
+  }
+
+  /**
+   * The client opened their signing page (Oct 27 backlog item 12): first and
+   * latest view and a count. Called by the page's own data request only -- not
+   * the PDF it embeds, and not an internal preview -- so a mail scanner, which
+   * doesn't run the page, never counts.
+   */
+  async recordView(token: string) {
+    const parsed = await this.readToken(token);
+    if (!parsed) return;
+    const row = await this.repo.findOneBy({ dealId: parsed.dealId });
+    if (!row || !row.sentAt) return;
+    const at = new Date().toISOString();
+    const first = !row.firstViewedAt;
+    await this.repo.update({ dealId: row.dealId }, { firstViewedAt: row.firstViewedAt || at, lastViewedAt: at, viewCount: (row.viewCount || 0) + 1 });
+    if (first) void this.pipeline.clientEvent(row.dealId, (name) => `The client opened the proposal for ${name}`);
   }
 
   /**

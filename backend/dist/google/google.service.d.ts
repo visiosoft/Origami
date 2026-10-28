@@ -26,7 +26,7 @@ export declare class GoogleService {
     private accessToken;
     private folderIds;
     constructor(settings: SettingsService);
-    credentials(): Promise<{
+    credentials(purpose?: 'public' | 'workspace'): Promise<{
         clientId: string;
         clientSecret: string;
         redirectUri: string;
@@ -34,7 +34,7 @@ export declare class GoogleService {
     isConfigured(): Promise<boolean>;
     redirectUri(): Promise<string>;
     consentUrl(mode: 'connect' | 'login' | 'my-calendar', state: string): Promise<string>;
-    exchangeCode(code: string): Promise<{
+    exchangeCode(code: string, mode?: 'connect' | 'login' | 'my-calendar'): Promise<{
         access_token: string;
         refresh_token?: string;
         expires_in: number;
@@ -83,7 +83,7 @@ export declare class GoogleService {
         buffer: Buffer;
         parentId: string;
     }): Promise<DriveFile>;
-    downloadDriveFile(id: string, thumb?: boolean): Promise<{
+    downloadDriveFile(id: string, thumb?: boolean, size?: number): Promise<{
         body: any;
         mimeType: string;
         size?: string;
@@ -95,10 +95,16 @@ export declare class GoogleService {
         header?: string;
         footer?: string;
     }, landscape?: boolean): Promise<Buffer>;
+    imageToText(image: Buffer, mimeType: string, name?: string): Promise<string>;
     spreadsheetToCsv(file: Buffer, mimeType: string, name?: string): Promise<string>;
     csvToXlsx(csv: string, name?: string): Promise<Buffer>;
     private setPageOrientation;
     private setRunningHeadFoot;
+    updateDriveFile(id: string, opts: {
+        name?: string;
+        folderId?: string;
+    }): Promise<void>;
+    previewPdf(id: string, mimeType: string, name?: string): Promise<Buffer | null>;
     trashDriveFile(id: string): Promise<void>;
     testDrive(): Promise<{
         ok: true;
@@ -106,3 +112,4 @@ export declare class GoogleService {
     }>;
     listDriveFiles(q?: string, pageSize?: number): Promise<DriveFile[]>;
 }
+export declare function thumbnailAt(link: string, size?: number): string;

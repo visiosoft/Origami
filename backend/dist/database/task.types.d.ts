@@ -25,7 +25,7 @@ export interface ChecklistItem {
 }
 export interface ActivityEvent {
     id: string;
-    type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
+    type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators' | 'link';
     field?: string;
     from?: string;
     to?: string;
@@ -34,9 +34,28 @@ export interface ActivityEvent {
     byId?: string;
     at: string;
 }
+export declare const PRIORITIES: readonly ["Urgent", "High", "Medium", "Low"];
+export declare const cleanPriority: (v: unknown) => string;
+export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
+export interface DerivedRef {
+    kind: ActionKind;
+    id: string;
+    label: string;
+    how: 'converted' | 'duplicated';
+    projectName?: string;
+    by: string;
+    at: string;
+}
 export declare const TASK_STATUSES: readonly ["Not started", "In progress", "On hold", "Done"];
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export declare function normalizeTaskStatus(v: unknown): string | undefined;
+export declare const TASK_BUCKETS: readonly ["Not started", "Assigned", "In progress", "On hold", "Done", "Confirmed"];
+export declare function bucketStatus(name?: string | null): string | null;
+export declare const isDoneStatus: (s?: string | null) => s is "Done" | "Confirmed";
+export declare const isTaskDone: (t: {
+    completed?: boolean | null;
+    status?: string | null;
+}) => boolean;
 export declare const isHoldSection: (name?: string | null) => boolean;
 export declare function subId(prefix: string): string;
 export declare function normalizeAttachments(raw: unknown): TaskAttachment[];

@@ -20,6 +20,7 @@ export declare function dailyLogCsv(meta: {
     supervisor: string;
     status: string;
     notes?: string;
+    sections?: any;
 }, rows: DailyLogRow[]): string;
 export declare class DailyLogBackupService {
     private readonly logs;

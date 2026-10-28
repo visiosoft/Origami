@@ -16,6 +16,7 @@ exports.SmsController = void 0;
 const common_1 = require("@nestjs/common");
 const sms_service_1 = require("./sms.service");
 const roles_decorator_1 = require("../auth/guards/roles.decorator");
+const placeholders_1 = require("../email-templates/placeholders");
 let SmsController = class SmsController {
     constructor(sms) {
         this.sms = sms;
@@ -24,6 +25,7 @@ let SmsController = class SmsController {
         return this.sms.status();
     }
     send(body) {
+        (0, placeholders_1.assertFilled)(body?.body);
         return this.sms.send({ to: body?.to, body: body?.body });
     }
     test(body) {

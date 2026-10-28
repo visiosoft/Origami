@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailTemplateEntity } from '../database/entities';
 import { DEFAULT_EMAIL_TEMPLATES, LEGACY_INTRODUCTION_LETTER_BODY_V1, LEGACY_INTRODUCTION_LETTER_BODY_V2, LEGACY_INTRODUCTION_LETTER_BODY_V3 } from '../seed-data/email-templates';
+import { assertKnownTokens } from './placeholders';
 
 @Injectable()
 export class EmailTemplatesService implements OnApplicationBootstrap {
@@ -70,12 +71,14 @@ export class EmailTemplatesService implements OnApplicationBootstrap {
   }
 
   create(dto: any) {
+    assertKnownTokens(dto?.subject, dto?.body);
     const id = dto.id || 'TPL-' + String(Date.now());
     const tpl = { key: '', subject: '', kind: 'email', category: '', updatedAt: new Date().toISOString(), ...dto, id };
     return this.repo.save(this.repo.create(tpl as Partial<EmailTemplateEntity>));
   }
 
   async update(id: string, dto: any) {
+    assertKnownTokens(dto?.subject, dto?.body);
     let tpl = await this.repo.findOneBy({ id });
     if (!tpl) tpl = this.repo.create({ id } as Partial<EmailTemplateEntity>);
     Object.assign(tpl, dto, { id, updatedAt: new Date().toISOString() });

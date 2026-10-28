@@ -51,6 +51,8 @@ export class FinanceController {
 
   // --- across projects
   @Get('portfolio') async portfolio(@Headers('authorization') a?: string) { return this.hub.portfolio(await this.actor(a)); }
+  @Get('billing') async billing(@Query('months') months?: string, @Headers('authorization') a?: string) { return this.hub.billing(await this.actor(a), Number(months) || 6); }
+  @Get('collections') async collections(@Query('months') months?: string, @Headers('authorization') a?: string) { return this.hub.collections(await this.actor(a), Number(months) || 6); }
   @Get('approvals') async pending(@Headers('authorization') a?: string) { return this.hub.pending(await this.actor(a)); }
   @Get('audit') async audit(@Query() q: any, @Headers('authorization') a?: string) { return this.hub.audit(await this.actor(a), q || {}); }
   @Get('change-orders') async allCos(@Headers('authorization') a?: string) { return this.cos.all(await this.actor(a)); }
@@ -118,6 +120,7 @@ export class FinanceController {
   @Post('invoices/:id/issue') async issue(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.issue(id, dto, await this.actor(a)); }
   @Post('invoices/:id/void') async void(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.void(id, dto, await this.actor(a)); }
   @Post('invoices/:id/request-approval') async requestApproval(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.requestApproval(id, dto, await this.actor(a)); }
+  @Post('invoices/:id/approve') async approveInvoice(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.approve(id, dto, await this.actor(a)); }
   @Post('invoices/:id/return') async returnDraft(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.returnDraft(id, dto, await this.actor(a)); }
   @Post('invoices/:id/credit') async credit(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.createCredit(id, dto, await this.actor(a)); }
   @Post('invoices/:id/payments') async pay(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.invoices.recordPayment(id, dto, await this.actor(a)); }
@@ -133,6 +136,7 @@ export class FinanceController {
   }
 
   // --- reimbursables
+  @Get('reimbursables/receipt-check') async receiptCheck(@Query() q: any, @Headers('authorization') a?: string) { return this.reimbs.checkReceipt(q || {}, await this.actor(a)); }
   @Get('reimbursables/:id') async reimb(@Param('id') id: string, @Headers('authorization') a?: string) { return this.reimbs.get(id, await this.actor(a)); }
   @Put('reimbursables/:id') async updateReimb(@Param('id') id: string, @Body() dto: any, @Headers('authorization') a?: string) { return this.reimbs.update(id, dto, await this.actor(a)); }
   @Delete('reimbursables/:id') async removeReimb(@Param('id') id: string, @Headers('authorization') a?: string) { return this.reimbs.remove(id, await this.actor(a)); }

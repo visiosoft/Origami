@@ -103,7 +103,7 @@ export class ProjectHoldService {
     if (!project.holdSince) return project;
     if (project.holdTaskId) {
       const task = await this.taskRepo.findOneBy({ id: project.holdTaskId });
-      if (task && task.status !== 'Done' && !task.completed) await this.tasks.update(task.id, { status: 'Done' }, actor);
+      if (task && task.status !== 'Done' && !task.completed) await this.tasks.update(task.id, { status: 'Done', completionNote: `Project back to work (${project.name || 'resumed'}).` }, actor);
     }
     project.holdHistory = [...(project.holdHistory || []), { action: 'resumed', at: new Date().toISOString(), by: actor.name }];
     project.holdSince = '';

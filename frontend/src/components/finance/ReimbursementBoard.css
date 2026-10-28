@@ -1,0 +1,128 @@
+/* Reimbursement page, New look. Only rendered in the New theme. */
+.rb { display: flex; flex-direction: column; gap: 18px; color: var(--ink); }
+
+/* Totals */
+.rb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.rb-stat {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; font: inherit; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card);
+  padding: 18px 20px; cursor: pointer; min-width: 0;
+  transition: transform 0.35s var(--ease-out), box-shadow 0.35s ease;
+  animation: riseIn 0.45s var(--ease-out) both;
+}
+.rb-stat:disabled { cursor: default; }
+.rb-stat:not(:disabled):hover { transform: translateY(-3px); box-shadow: var(--shadow-pop); }
+.rb-stat-label { font-size: 13px; color: var(--muted); }
+.rb-stat-value { font-family: var(--font-display); font-size: 34px; font-weight: 400; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-stat-sub { font-size: 12.5px; color: var(--muted); }
+.rb-stat.is-yellow { background: var(--yellow); border-color: var(--yellow); }
+.rb-stat.is-yellow .rb-stat-label, .rb-stat.is-yellow .rb-stat-sub { color: rgba(74, 55, 8, 0.75); }
+.rb-stat.is-dark { background: var(--ink); border-color: var(--ink); color: #FDFCF9; }
+.rb-stat.is-dark .rb-stat-label, .rb-stat.is-dark .rb-stat-sub { color: rgba(253, 252, 249, 0.66); }
+
+/* Filters */
+.rb-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rb-seg { display: inline-flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); }
+.rb-seg button {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 0; border-radius: 999px; background: transparent;
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: background-color 0.2s, color 0.2s;
+}
+.rb-seg button i { font-style: normal; font-size: 11px; font-weight: 600; min-width: 18px; padding: 1px 6px; border-radius: 999px; background: rgba(29, 29, 27, 0.06); color: var(--body); }
+.rb-seg button:hover { color: var(--ink); }
+.rb-seg button.is-on { background: var(--ink); color: #FDFCF9; }
+.rb-seg button.is-on i { background: var(--yellow); color: #4A3708; }
+.rb-select, .rb-search {
+  height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+  font: inherit; font-size: 13px; color: var(--ink); outline: none; min-width: 0;
+}
+.rb-select { max-width: 240px; cursor: pointer; }
+.rb-search { flex: 1 1 220px; max-width: 340px; }
+.rb-select:focus, .rb-search:focus { border-color: rgba(29, 29, 27, 0.35); }
+.rb-add { margin-left: auto; height: 40px; padding: 0 20px; border-radius: 999px; border: 0; background: var(--ink); color: #FDFCF9; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.rb-add:hover { background: #000; }
+
+/* List + side */
+.rb-main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.rb-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 18px 20px; min-width: 0; }
+.rb-list { padding: 8px 12px 12px; }
+.rb-empty { padding: 40px 16px; text-align: center; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.rb-muted { font-size: 13px; color: var(--muted); }
+.rb-link { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+.rb-group + .rb-group { margin-top: 6px; }
+.rb-group-head { display: flex; align-items: baseline; justify-content: space-between; padding: 14px 12px 8px; }
+.rb-group-head span { font-family: var(--font-display); font-size: 20px; letter-spacing: -0.02em; }
+.rb-group-head b { font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.rb-row {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px 150px 128px; align-items: center; gap: 14px;
+  min-height: 64px; padding: 8px 12px; border-top: 1px solid var(--border); border-radius: 18px; cursor: pointer;
+  transition: background-color 0.25s var(--ease-out);
+  animation: riseIn 0.4s var(--ease-out) both;
+}
+.rb-group-head + .rb-row { border-top-color: transparent; }
+.rb-row:hover { background: rgba(245, 196, 67, 0.12); border-top-color: transparent; }
+.rb-row:hover + .rb-row { border-top-color: transparent; }
+.rb-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.rb-row.is-muted { opacity: 0.55; }
+.rb-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: var(--r-14); background: rgba(29, 29, 27, 0.05); font-size: 10.5px; color: var(--muted); line-height: 1.1; }
+.rb-date b { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: var(--ink); }
+.rb-main-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rb-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rb-receipt { display: inline-flex; align-items: center; gap: 3px; justify-self: start; padding: 3px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: rgba(29, 29, 27, 0.05); color: var(--body); }
+.rb-receipt.is-missing { background: rgba(196, 92, 38, 0.12); color: #9A4318; }
+.rb-amt { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font-variant-numeric: tabular-nums; }
+.rb-amt b { font-size: 14.5px; font-weight: 600; }
+.rb-amt small { font-size: 11px; color: var(--muted); }
+.rb-state { display: flex; justify-content: flex-end; }
+
+.rb-pill { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.rb-pill.is-dark { background: var(--ink); color: #FDFCF9; }
+.rb-pill.is-yellow { background: var(--yellow); color: #4A3708; }
+.rb-pill.is-soft { background: transparent; border: 1.5px solid rgba(29, 29, 27, 0.25); color: var(--ink); }
+.rb-pill.is-grey { background: rgba(29, 29, 27, 0.06); color: var(--muted); }
+.rb-approve {
+  padding: 7px 16px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s, transform 0.15s var(--ease-spring);
+}
+.rb-approve:hover { background: var(--yellow); border-color: var(--yellow); color: #4A3708; }
+.rb-approve:active { transform: scale(0.95); }
+.rb-approve:disabled { opacity: 0.6; cursor: default; }
+
+/* Side panels */
+.rb-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.rb-h { margin: 0 0 12px; font-family: var(--font-display); font-weight: 400; font-size: 20px; letter-spacing: -0.02em; }
+.rb-bar-row { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 8px 10px; margin: 0 -10px; box-sizing: content-box; border: 0; border-radius: var(--r-14); background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.rb-bar-row.is-static { cursor: default; }
+.rb-bar-row:not(.is-static):hover, .rb-bar-row.is-on { background: rgba(245, 196, 67, 0.14); }
+.rb-bar-top { display: flex; align-items: baseline; gap: 10px; font-size: 13px; }
+.rb-bar-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--body); }
+.rb-bar-top b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.rb-bar-track { height: 8px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(-55deg, transparent 0 5px, rgba(29, 29, 27, 0.09) 5px 6px); }
+.rb-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--yellow); transition: width 0.8s var(--ease-out); }
+.rb-bar-fill.is-dark { background: var(--ink); }
+.rb-warn { font-size: 13px; line-height: 1.5; color: var(--body); background: rgba(196, 92, 38, 0.07); border-color: rgba(196, 92, 38, 0.2); }
+.rb-warn b { font-family: var(--font-display); font-weight: 400; font-size: 20px; color: #9A4318; }
+
+@media (max-width: 1140px) {
+  .rb-main { grid-template-columns: 1fr; }
+  .rb-side { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+}
+@media (max-width: 900px) {
+  .rb-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .rb-stat { padding: 14px 16px; }
+  .rb-stat-value { font-size: 26px; }
+  .rb-seg { width: 100%; overflow-x: auto; }
+  .rb-select, .rb-search { flex: 1 1 100%; max-width: none; }
+  .rb-add { margin-left: 0; width: 100%; }
+  .rb-hide-sm { display: none; }
+  .rb-row { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; }
+  .rb-date { width: 40px; height: 40px; }
+  .rb-amt { grid-column: 2; align-items: flex-start; text-align: left; flex-direction: row; gap: 8px; align-items: baseline; }
+  .rb-state { grid-column: 3; grid-row: 1; }
+  .rb-list { padding: 4px 6px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .rb-stat, .rb-row { animation: none; transition: none; } }

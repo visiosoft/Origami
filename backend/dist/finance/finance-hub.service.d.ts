@@ -1,10 +1,10 @@
 import { Repository } from 'typeorm';
-import { ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
+import { ChangeOrderEntity, ChangeOrderItemEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity, ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
 import { FinancialsService } from './financials.service';
 import { CostsService } from './costs.service';
 export interface Pending {
-    type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill';
+    type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill' | 'commitment';
     id: string;
     projectId: number;
     projectName: string;
@@ -15,6 +15,13 @@ export interface Pending {
     canAct: boolean;
     itemKind?: string;
 }
+export declare function reimbursablesApprovedC(rows: {
+    projectId: number;
+    status: string;
+    billable?: boolean | null;
+    cost: number;
+    markupPct: number;
+}[]): Map<number, number>;
 export declare class FinanceHubService {
     private readonly fin;
     private readonly projects;
@@ -32,10 +39,34 @@ export declare class FinanceHubService {
     private readonly lines;
     private readonly costs?;
     private readonly costEntries?;
-    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined, costEntries?: Repository<CostEntryEntity> | undefined);
+    private readonly payments?;
+    private readonly commitments?;
+    private readonly commitmentLines?;
+    constructor(fin: FinancialsService, projects: Repository<ProjectEntity>, pfin: Repository<ProjectFinancialEntity>, cos: Repository<ChangeOrderEntity>, coItems: Repository<ChangeOrderItemEntity>, reimbs: Repository<ReimbursableEntity>, releases: Repository<RetentionReleaseEntity>, invoices: Repository<ProjectInvoiceEntity>, phfin: Repository<PhaseFinancialEntity>, tfin: Repository<TaskFinancialEntity>, phases: Repository<ProjectPhaseEntity>, tasks: Repository<ProjectTaskEntity>, activity: Repository<FinanceActivityEntity>, lines: Repository<ProjectInvoiceLineEntity>, costs?: CostsService | undefined, costEntries?: Repository<CostEntryEntity> | undefined, payments?: Repository<ProjectPaymentEntity> | undefined, commitments?: Repository<CommitmentEntity> | undefined, commitmentLines?: Repository<CommitmentLineEntity> | undefined);
     private names;
     pending(actor: Actor): Promise<Pending[]>;
     portfolio(actor: Actor): Promise<any[]>;
+    collections(actor: Actor, months?: number): Promise<{
+        month: string;
+        amount: number;
+    }[]>;
+    billing(actor: Actor, months?: number): Promise<{
+        month: string;
+        invoiced: number;
+        collected: number;
+        pastDue: number;
+        withinTerms: number;
+        retention: number;
+        open: {
+            id: string;
+            number: string;
+            projectId: number;
+            project: string;
+            dueDate: string | null;
+            unpaid: number;
+            pastDue: boolean;
+        }[];
+    }[]>;
     audit(actor: Actor, q: {
         projectId?: string;
         entityType?: string;

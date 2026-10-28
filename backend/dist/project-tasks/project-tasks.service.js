@@ -12,27 +12,56 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ProjectTasksService = void 0;
+exports.ProjectTasksService = exports.ARCHIVE_AFTER_DAYS = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const notify_hub_service_1 = require("../notifications/notify-hub.service");
+const mentions_1 = require("../tasks/mentions");
+const task_rules_1 = require("../tasks/task-rules");
 const entities_1 = require("../database/entities");
+const lead_link_1 = require("../tasks/lead-link");
+const pending_notices_1 = require("../notifications/pending-notices");
+const auto_checklist_1 = require("./auto-checklist");
 const project_tasks_1 = require("../seed-data/project-tasks");
 const sections_service_1 = require("./sections.service");
 const task_types_1 = require("../database/task.types");
 const assignee_util_1 = require("../database/assignee.util");
 const attachments_service_1 = require("../google/attachments.service");
 const notifications_service_1 = require("../notifications/notifications.service");
+const serials_1 = require("../database/serials");
+exports.ARCHIVE_AFTER_DAYS = 7;
 let ProjectTasksService = class ProjectTasksService {
-    constructor(repo, users, sections, attachments, notifications) {
+    constructor(repo, users, sections, attachments, notifications, checklistTemplates, leads, hub, logTasks, projects) {
         this.repo = repo;
         this.users = users;
         this.sections = sections;
         this.attachments = attachments;
         this.notifications = notifications;
+        this.checklistTemplates = checklistTemplates;
+        this.leads = leads;
+        this.hub = hub;
+        this.logTasks = logTasks;
+        this.projects = projects;
         this.log = new common_1.Logger('ProjectTasksService');
     }
+    async adoptLead(leadId, projectId) {
+        const rows = (await this.repo.findBy({ leadId })).filter((t) => t.projectId == null);
+        if (!rows.length)
+            return 0;
+        const sections = await this.sections.forProject(projectId);
+        for (const t of rows) {
+            const home = sections.find((s) => (0, task_types_1.bucketStatus)(s.name) === (0, task_types_1.normalizeTaskStatus)(t.status)) || sections[0];
+            await this.repo.update({ id: t.id }, { projectId, ...(t.parentId ? {} : { sectionId: home?.id ?? t.sectionId }) });
+        }
+        return rows.length;
+    }
     async onApplicationBootstrap() {
+        const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + e.message)); }, 60_000);
+        tick.unref?.();
+        const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + e.message)); }, 30 * 60_000);
+        starts.unref?.();
+        this.startDueTasks().catch(() => undefined);
         try {
             if ((await this.repo.count()) === 0) {
                 await this.repo.save(project_tasks_1.DEFAULT_TASKS);
@@ -40,6 +69,9 @@ let ProjectTasksService = class ProjectTasksService {
             }
             await (0, assignee_util_1.backfillAssignees)(this.repo, this.users, 'assigneeId', 'assignee', this.log);
             await this.renameLegacyTitles();
+            const fixed = await this.fixCompleted();
+            if (fixed)
+                this.log.log(`Put ${fixed} completed task(s) in Done`);
             const blocked = await this.repo.findBy({ status: 'Blocked' });
             if (blocked.length) {
                 for (const t of blocked)
@@ -50,6 +82,17 @@ let ProjectTasksService = class ProjectTasksService {
         }
         catch (err) {
             this.log.error('Task seed failed: ' + err.message);
+        }
+        try {
+            const rows = await this.repo.find();
+            const pairs = (0, serials_1.backfillSerials)(rows, (t) => String(t.projectId ?? ''), () => 'task', (t) => t.createdAt);
+            for (const [id, serial] of pairs)
+                await this.repo.update({ id }, { serial });
+            if (pairs.length)
+                this.log.log(`Gave ${pairs.length} board task(s) a serial number`);
+        }
+        catch (err) {
+            this.log.error('Board task serial numbers failed: ' + err.message);
         }
     }
     async renameLegacyTitles() {
@@ -78,8 +121,19 @@ let ProjectTasksService = class ProjectTasksService {
             status: task.status || (task.completed ? 'Done' : 'Not started'),
         };
     }
+    async archiveConfirmed(rows) {
+        const cutoff = Date.now() - exports.ARCHIVE_AFTER_DAYS * 86400000;
+        const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff && (!t.updatedAt || Date.parse(t.updatedAt) <= cutoff));
+        if (!due.length)
+            return;
+        const at = new Date().toISOString();
+        for (const t of due)
+            t.archivedAt = at;
+        await this.repo.save(due).catch((e) => this.log.warn('Archiving confirmed tasks failed: ' + e.message));
+    }
     async findAll(projectId) {
         const rows = await this.repo.find({ order: { order: 'ASC' } });
+        await this.archiveConfirmed(rows);
         const scoped = projectId === undefined
             ? rows
             : projectId === null
@@ -101,67 +155,157 @@ let ProjectTasksService = class ProjectTasksService {
             throw new common_1.NotFoundException(`Task ${id} not found`);
         return task;
     }
-    async syncHoldSection(task, patch) {
+    async syncBucketSection(task, patch) {
         const projectId = patch.projectId !== undefined ? patch.projectId : task.projectId;
         if (projectId === undefined)
             return;
         const sections = await this.sections.forProject(projectId == null ? null : Number(projectId));
-        const hold = sections.find((s) => (0, task_types_1.isHoldSection)(s.name));
-        if (!hold)
-            return;
+        const bucketOf = (id) => (0, task_types_1.bucketStatus)(sections.find((x) => x.id === id)?.name);
         const movingSection = 'sectionId' in patch && patch.sectionId !== task.sectionId;
         const changingStatus = 'status' in patch && patch.status !== task.status;
         if (movingSection && !changingStatus) {
-            if (patch.sectionId === hold.id)
-                patch.status = 'On hold';
-            else if (task.sectionId === hold.id && task.status === 'On hold')
+            const into = bucketOf(patch.sectionId);
+            if (into)
+                patch.status = into;
+            else if ((0, task_types_1.isDoneStatus)(task.status))
+                patch.status = 'In progress';
+            else if (task.status === 'On hold' && bucketOf(task.sectionId) === 'On hold')
                 patch.status = 'In progress';
         }
         else if (changingStatus && !movingSection) {
-            if (patch.status === 'On hold') {
-                if (task.sectionId !== hold.id)
-                    patch.sectionId = hold.id;
-            }
-            else if (task.sectionId === hold.id) {
-                const want = patch.status === 'Done' ? /^done$/i : patch.status === 'Not started' ? /^(to[\s-]*do|not started)$/i : /^in[\s-]*progress$/i;
-                const target = sections.find((s) => want.test(s.name.trim()));
-                if (target)
-                    patch.sectionId = target.id;
+            if (bucketOf(task.sectionId) === patch.status)
+                return;
+            const target = sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === patch.status)
+                || (patch.status === 'Confirmed' ? sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === 'Done') : undefined)
+                || (patch.status === 'Assigned' ? sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === 'Not started') : undefined);
+            if (target && target.id !== task.sectionId)
+                patch.sectionId = target.id;
+            else if (!target && bucketOf(task.sectionId) && bucketOf(task.sectionId) !== patch.status) {
+                const fallback = sections.find((x) => (0, task_types_1.bucketStatus)(x.name) === 'In progress');
+                if (fallback && patch.status !== 'Assigned' && patch.status !== 'Not started')
+                    patch.sectionId = fallback.id;
             }
         }
     }
-    syncStatus(task, patch) {
+    async syncStatus(task, patch, actor) {
         if ('status' in patch) {
-            patch.completed = patch.status === 'Done';
+            patch.completed = (0, task_types_1.isDoneStatus)(patch.status);
         }
         else if ('completed' in patch) {
-            const wasDone = (task.status || '') === 'Done';
-            if (patch.completed)
-                patch.status = 'Done';
-            else if (wasDone || !task.status)
+            if (patch.completed) {
+                if (!(0, task_types_1.isDoneStatus)(task.status))
+                    patch.status = 'Done';
+            }
+            else if ((0, task_types_1.isDoneStatus)(task.status) || !task.status)
                 patch.status = 'In progress';
         }
+        const assigned = 'assigneeId' in patch || 'assignee' in patch
+            ? !!(patch.assigneeId || (patch.assignee || '').trim())
+            : !!(task.assigneeId || (task.assignee || '').trim());
+        const status = patch.status ?? task.status ?? 'Not started';
+        if (status === 'Not started' && assigned)
+            patch.status = 'Assigned';
+        if (status === 'Assigned' && !assigned)
+            patch.status = 'Not started';
+        const board = !(patch.phaseId ?? task.phaseId);
+        const pending = (s) => !s || s === 'Not started' || s === 'Assigned';
+        if (board && 'startDate' in patch && patch.startDate !== task.startDate && pending(patch.status ?? task.status) && (0, task_rules_1.startDue)(patch.startDate, assigned)) {
+            patch.status = 'In progress';
+        }
+        let next = patch.status ?? task.status;
+        if (board && next === 'In progress' && task.status !== 'In progress' && !assigned) {
+            if (!(0, task_types_1.isDoneStatus)(task.status))
+                throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
+            patch.status = next = 'Not started';
+        }
+        if (next === 'In progress' && task.status !== 'In progress' && !task.startDate && !patch.startDate) {
+            patch.startDate = new Date().toISOString().slice(0, 10);
+        }
+        if (next === 'Confirmed' && task.status !== 'Confirmed') {
+            const originator = task.createdById || this.createdByIdOf(task);
+            if (originator && actor.id !== originator && !(await this.isAdmin(actor))) {
+                throw new common_1.BadRequestException(`Only ${task.createdByName || 'whoever created it'} (or an admin) can confirm this task.`);
+            }
+            patch.confirmedAt = new Date().toISOString();
+            patch.completed = true;
+        }
+        else if (next !== 'Confirmed' && task.confirmedAt) {
+            patch.confirmedAt = null;
+            patch.archivedAt = null;
+        }
+        if ((task.archivedAt || task.closedAt) && 'status' in patch && patch.status !== task.status) {
+            patch.archivedAt = null;
+            patch.closedAt = null;
+        }
+    }
+    createdByIdOf(task) {
+        const ev = (0, task_types_1.normalizeList)(task.activity).find((e) => e.type === 'created');
+        return ev?.actorId || ev?.byId || undefined;
+    }
+    async isAdmin(actor) {
+        if (!actor.id)
+            return false;
+        const u = await this.users.findOneBy({ id: actor.id });
+        return u?.roleKey === 'admin';
+    }
+    assertSubtaskFields(t) {
+        const missing = [!(t.assigneeId || (t.assignee || '').trim()) && 'an assignee', !(t.dueDate || '').trim() && 'a due date'].filter(Boolean);
+        if (missing.length)
+            throw new common_1.BadRequestException(`A subtask needs ${missing.join(' and ')}.`);
+    }
+    async assertSubtasksDone(parentId) {
+        const open = (await this.repo.find({ where: { parentId } })).filter((s) => !s.completed && !(0, task_types_1.isDoneStatus)(s.status));
+        if (open.length)
+            throw new common_1.BadRequestException(`Finish its ${open.length} open subtask${open.length === 1 ? '' : 's'} first.`);
     }
     async create(dto, actor = { name: 'Unknown' }) {
-        const id = dto.id || 'T-' + String(Date.now());
+        if (dto.parentId)
+            this.assertSubtaskFields(dto);
+        const defer = !!dto.parentId || !!dto.deferNotify;
+        dto = { ...dto };
+        delete dto.deferNotify;
+        delete dto.pendingNotices;
+        const id = (0, serials_1.newTaskId)();
+        delete dto.id;
         if (dto.status) {
             dto = { ...dto, status: (0, task_types_1.normalizeTaskStatus)(dto.status) };
-            if (dto.status === 'On hold') {
-                const p = { status: 'On hold' };
-                await this.syncHoldSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p);
-                if (p.sectionId)
-                    dto.sectionId = p.sectionId;
-            }
+            const p = { status: dto.status };
+            await this.syncBucketSection({ projectId: dto.projectId == null ? null : Number(dto.projectId), sectionId: dto.sectionId, status: '' }, p);
+            if (p.sectionId)
+                dto.sectionId = p.sectionId;
+        }
+        else if (dto.sectionId) {
+            const sections = await this.sections.forProject(dto.projectId == null ? null : Number(dto.projectId));
+            const b = (0, task_types_1.bucketStatus)(sections.find((x) => x.id === dto.sectionId)?.name);
+            if (b)
+                dto = { ...dto, status: b };
         }
         const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.assigneeId, name: dto.assignee });
+        if (dto.leadId !== undefined)
+            dto = { ...dto, ...(await (0, lead_link_1.resolveLead)(this.leads, dto.leadId)) };
+        const templates = !dto.parentId && this.checklistTemplates ? await this.checklistTemplates.find().catch(() => []) : [];
+        const checklist = (0, auto_checklist_1.withAutoChecklists)(templates, { kind: 'task', labels: (0, task_types_1.normalizeList)(dto.labels) }, (0, task_types_1.normalizeList)(dto.checklist));
+        const requester = dto.requestedById || dto.requestedBy ? await (0, assignee_util_1.resolveAssignee)(this.users, { id: dto.requestedById, name: dto.requestedBy }) : null;
+        let status = dto.status || (dto.completed ? 'Done' : 'Not started');
+        if (status === 'Not started' && assignee.name)
+            status = 'Assigned';
+        const board = !dto.phaseId;
+        if (board && (status === 'Not started' || status === 'Assigned') && (0, task_rules_1.startDue)(dto.startDate, !!assignee.name))
+            status = 'In progress';
+        if (board && status === 'In progress' && !assignee.name)
+            throw new common_1.BadRequestException(task_rules_1.NO_ASSIGNEE_IN_PROGRESS);
         const task = {
-            order: 0, completed: false, parentId: null, attachments: [], comments: [],
+            order: 0, parentId: null, attachments: [], comments: [],
             createdAt: new Date().toISOString().slice(0, 10),
             ...dto,
             assignee: assignee.name,
             assigneeId: assignee.id ?? undefined,
-            status: dto.status || (dto.completed ? 'Done' : 'Not started'),
-            checklist: (0, task_types_1.normalizeList)(dto.checklist),
+            ...(requester ? { requestedBy: requester.name, requestedById: requester.id ?? undefined } : {}),
+            status,
+            completed: (0, task_types_1.isDoneStatus)(status) || !!dto.completed,
+            startDate: dto.startDate || (status === 'In progress' ? new Date().toISOString().slice(0, 10) : undefined),
+            createdById: actor.id, createdByName: actor.name,
+            checklist,
             labels: (0, task_types_1.normalizeList)(dto.labels),
             collaborators: (0, task_types_1.normalizeCollaborators)(dto.collaborators, assignee.id),
             activity: [(0, task_types_1.event)('created', actor, { text: 'created this task' })],
@@ -169,17 +313,22 @@ let ProjectTasksService = class ProjectTasksService {
             projectId: dto.projectId == null ? null : Number(dto.projectId),
             id,
         };
+        const peers = (await this.repo.find()).filter((t) => (t.projectId ?? null) === (task.projectId ?? null));
+        const projectName = task.projectId != null && this.projects ? (await this.projects.findOneBy({ id: task.projectId }))?.name : null;
+        const logPeers = projectName && this.logTasks ? await this.logTasks.find({ where: { project: projectName }, select: { id: true, serial: true } }) : [];
+        task.serial = (0, serials_1.nextSerial)([...peers.map((t) => t.serial), ...logPeers.map((t) => t.serial)], 'task', (0, serials_1.serialYear)());
+        const at = new Date().toISOString();
+        const who = { id: actor.id, name: actor.name };
+        const followers = (0, task_types_1.normalizeCollaborators)(task.collaborators);
+        const notices = [
+            ...(assignee.id ? [{ kind: 'assigned', ids: [String(assignee.id)], actor: who, at }] : []),
+            ...(followers.length ? [{ kind: 'added', ids: followers.map((c) => c.id), actor: who, at }] : []),
+        ];
+        if (defer)
+            task.pendingNotices = (0, pending_notices_1.holdNotices)(null, notices);
         const saved = await this.repo.save(this.repo.create(task));
-        if (assignee.id) {
-            this.notifications.taskAssigned({
-                surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
-                projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
-                status: saved.status, assigneeId: assignee.id, actor,
-            });
-        }
-        const followers = (0, task_types_1.normalizeCollaborators)(saved.collaborators);
-        if (followers.length)
-            this.notifications.taskFollowUp(this.notice(saved, actor), followers.map((c) => c.id), { kind: 'added' });
+        if (!defer)
+            this.sendNotices(saved, notices);
         return this.hydrate(saved);
     }
     notice(t, actor) {
@@ -191,15 +340,43 @@ let ProjectTasksService = class ProjectTasksService {
             task = this.repo.create({ id, createdAt: new Date().toISOString().slice(0, 10) });
         const patch = { ...dto };
         delete patch.id;
+        delete patch.serial;
+        delete patch.pendingNotices;
+        const defer = !!patch.deferNotify;
+        delete patch.deferNotify;
+        const closing = !!patch.close;
+        delete patch.close;
+        delete patch.closedAt;
+        delete patch.archivedAt;
+        if (closing && !(0, task_types_1.isDoneStatus)(task.status))
+            patch.status = 'Done';
+        if ('leadId' in patch)
+            Object.assign(patch, await (0, lead_link_1.resolveLead)(this.leads, patch.leadId));
         if ('assignee' in patch || 'assigneeId' in patch) {
             const assignee = await (0, assignee_util_1.resolveAssignee)(this.users, { id: patch.assigneeId, name: patch.assignee });
             patch.assignee = assignee.name;
             patch.assigneeId = assignee.id ?? null;
         }
+        if ('requestedBy' in patch || 'requestedById' in patch) {
+            const src = await (0, assignee_util_1.resolveAssignee)(this.users, { id: patch.requestedById, name: patch.requestedBy });
+            patch.requestedBy = src.name;
+            patch.requestedById = src.id ?? null;
+        }
+        const note = (0, task_rules_1.cleanCompletionNote)(patch.completionNote);
+        delete patch.completionNote;
         if ('status' in patch)
             patch.status = (0, task_types_1.normalizeTaskStatus)(patch.status);
-        await this.syncHoldSection(task, patch);
-        this.syncStatus(task, patch);
+        await this.syncBucketSection(task, patch);
+        await this.syncStatus(task, patch, actor);
+        await this.syncBucketSection(task, patch);
+        if (task.parentId) {
+            if ('dueDate' in patch && task.dueDate && !(patch.dueDate || '').trim())
+                throw new common_1.BadRequestException('A subtask needs a due date.');
+            if (('assignee' in patch || 'assigneeId' in patch) && (task.assigneeId || task.assignee) && !(patch.assigneeId || (patch.assignee || '').trim()))
+                throw new common_1.BadRequestException('A subtask needs an assignee.');
+        }
+        if ((0, task_types_1.isDoneStatus)(patch.status) && !(0, task_types_1.isDoneStatus)(task.status) && !task.parentId)
+            await this.assertSubtasksDone(id);
         let joined = [];
         const collabEvents = [];
         if ('collaborators' in patch) {
@@ -211,27 +388,132 @@ let ProjectTasksService = class ProjectTasksService {
             if (removed.length)
                 collabEvents.push((0, task_types_1.event)('collaborators', actor, { text: `removed ${removed.map((c) => c.name).join(', ')} from collaborators` }));
         }
-        const finished = patch.status === 'Done' && task.status !== 'Done';
-        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents];
+        const finished = (0, task_types_1.isDoneStatus)(patch.status) && !(0, task_types_1.isDoneStatus)(task.status);
+        const noteEvents = [];
+        if (finished && !closing && !(patch.phaseId ?? task.phaseId)) {
+            if (!note)
+                throw new common_1.BadRequestException(task_rules_1.NEEDS_COMPLETION_NOTE);
+        }
+        if (finished && note) {
+            patch.completionNote = note;
+            noteEvents.push((0, task_types_1.event)('comment', actor, { text: `Completion note: ${note}` }));
+        }
+        if (closing) {
+            const at = new Date().toISOString();
+            patch.archivedAt = at;
+            patch.closedAt = at;
+            patch.completed = true;
+        }
+        const events = [...(0, task_types_1.diffEvents)(task, patch, actor), ...collabEvents, ...noteEvents, ...(closing ? [(0, task_types_1.event)('status', actor, { text: 'closed this task (archived)' })] : [])];
         const reassignedTo = 'assigneeId' in patch && patch.assigneeId && patch.assigneeId !== task.assigneeId
             ? String(patch.assigneeId)
             : null;
+        if ((0, task_rules_1.holdReasonMissing)(task, patch))
+            throw new common_1.BadRequestException(task_rules_1.NEEDS_HOLD_REASON);
+        const nextStatus = patch.status ?? task.status;
+        if (nextStatus !== 'On hold' && task.holdReason)
+            patch.holdReason = null;
+        const at = new Date().toISOString();
+        const who = { id: actor.id, name: actor.name };
+        const moved = !finished && !closing && 'status' in patch && patch.status !== task.status && !(patch.phaseId ?? task.phaseId)
+            && !(['Assigned', 'Not started'].includes(patch.status) && ('assigneeId' in patch || 'assignee' in patch));
+        const notices = [
+            ...(reassignedTo ? [{ kind: 'assigned', ids: [reassignedTo], actor: who, at }] : []),
+            ...(joined.length ? [{ kind: 'added', ids: joined.map((c) => c.id), actor: who, at }] : []),
+            ...(finished ? [{ kind: 'done', ids: [], actor: who, at }] : []),
+            ...(moved ? [{ kind: 'status', ids: [], actor: who, at, status: patch.status }] : []),
+        ];
         Object.assign(task, patch, { id });
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), ...events];
         task.updatedAt = new Date().toISOString();
+        if (defer && notices.length)
+            task.pendingNotices = (0, pending_notices_1.holdNotices)(task.pendingNotices, notices);
         const saved = await this.repo.save(task);
-        if (reassignedTo) {
-            this.notifications.taskAssigned({
-                surface: 'board', taskId: saved.id, title: saved.title, description: saved.description,
-                projectId: saved.projectId, dueDate: saved.dueDate, priority: saved.priority,
-                status: saved.status, assigneeId: reassignedTo, actor,
-            });
+        if (closing)
+            for (const s of await this.repo.findBy({ parentId: id }))
+                if (!s.archivedAt)
+                    await this.repo.update({ id: s.id }, { archivedAt: saved.archivedAt });
+        if (!defer)
+            this.sendNotices(saved, notices);
+        if (moved || finished) {
+            void this.hub?.highVizTask({ labels: (0, task_types_1.normalizeList)(saved.labels), projectId: saved.projectId }, { title: `${saved.title} — ${saved.status}`, path: `/tasks?task=${encodeURIComponent(saved.id)}${saved.projectId != null ? `&project=${saved.projectId}` : ''}`, actorId: actor.id }).catch(() => undefined);
         }
-        if (joined.length)
-            this.notifications.taskFollowUp(this.notice(saved, actor), joined.map((c) => c.id), { kind: 'added' });
-        if (finished)
-            this.notifications.taskFollowUp(this.notice(saved, actor), (0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), { kind: 'done' });
         return this.hydrate(saved);
+    }
+    involved(t) {
+        return [t.assigneeId, ...(0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), t.createdById || this.createdByIdOf(t), t.requestedById].filter(Boolean);
+    }
+    async fixCompleted() {
+        const rows = await this.repo.find();
+        const boards = new Map();
+        const sectionsOf = async (pid) => {
+            const k = String(pid ?? 'general');
+            if (!boards.has(k))
+                boards.set(k, await this.sections.forProject(pid));
+            return boards.get(k);
+        };
+        let n = 0;
+        for (const t of rows) {
+            const patch = {};
+            if (t.completed && !(0, task_types_1.isDoneStatus)(t.status))
+                patch.status = 'Done';
+            const status = patch.status ?? t.status;
+            if ((0, task_types_1.isDoneStatus)(status) && !t.parentId && t.sectionId) {
+                const sections = await sectionsOf(t.projectId == null ? null : Number(t.projectId));
+                const here = (0, task_types_1.bucketStatus)(sections.find((s) => s.id === t.sectionId)?.name);
+                if (!(0, task_types_1.isDoneStatus)(here || '')) {
+                    const done = sections.find((s) => (0, task_types_1.bucketStatus)(s.name) === (status === 'Confirmed' ? 'Confirmed' : 'Done')) || sections.find((s) => (0, task_types_1.bucketStatus)(s.name) === 'Done');
+                    if (done)
+                        patch.sectionId = done.id;
+                }
+            }
+            if (Object.keys(patch).length) {
+                await this.repo.update({ id: t.id }, patch);
+                n++;
+            }
+        }
+        return n;
+    }
+    sendNotices(t, notices) {
+        for (const n of notices) {
+            const notice = this.notice(t, n.actor);
+            if (n.kind === 'assigned')
+                this.notifications.taskAssigned({ ...notice, assigneeId: n.ids[0] });
+            else if (n.kind === 'added')
+                this.notifications.taskFollowUp(notice, n.ids, { kind: 'added' });
+            else if (n.kind === 'status')
+                this.notifications.taskFollowUp({ ...notice, status: n.status || t.status }, this.involved(t), { kind: 'status' });
+            else
+                this.notifications.taskFollowUp(notice, this.involved(t), { kind: 'done' });
+        }
+    }
+    async flushNotices(id, withSubtasks = true) {
+        const rows = [await this.repo.findOneBy({ id }), ...(withSubtasks ? await this.repo.findBy({ parentId: id }) : [])].filter(Boolean);
+        let sent = 0;
+        for (const t of rows.filter((x) => x.pendingNotices?.length)) {
+            const live = (0, pending_notices_1.stillTrue)(t.pendingNotices, { assigneeId: t.assigneeId, collaboratorIds: (0, task_types_1.normalizeCollaborators)(t.collaborators).map((c) => c.id), done: (0, task_types_1.isDoneStatus)(t.status), status: t.status });
+            await this.repo.update({ id: t.id }, { pendingNotices: null });
+            this.sendNotices(t, live);
+            sent += live.length;
+        }
+        return { sent };
+    }
+    async startDueTasks() {
+        const rows = (await this.repo.find()).filter((t) => !t.phaseId && !t.archivedAt && (!t.status || t.status === 'Not started' || t.status === 'Assigned')
+            && (0, task_rules_1.startDue)(t.startDate, !!(t.assigneeId || (t.assignee || '').trim())));
+        for (const t of rows) {
+            try {
+                await this.update(t.id, { status: 'In progress' }, { name: 'System' });
+            }
+            catch (e) {
+                this.log.warn(`Start ${t.id}: ${e.message}`);
+            }
+        }
+        return rows.length;
+    }
+    async flushOverdue() {
+        for (const t of (await this.repo.find()).filter((x) => (0, pending_notices_1.overdue)(x.pendingNotices)))
+            await this.flushNotices(t.id, false);
     }
     async reorder(sectionId, ids) {
         const rows = await this.repo.find({ where: { sectionId } });
@@ -318,7 +600,10 @@ let ProjectTasksService = class ProjectTasksService {
         task.comments = [...(0, task_types_1.normalizeList)(task.comments), comment];
         task.activity = [...(0, task_types_1.normalizeList)(task.activity), (0, task_types_1.event)('comment', actor, { text: comment.text })];
         const saved = await this.repo.save(task);
-        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assigneeId].filter(Boolean);
+        const mentioned = (0, mentions_1.mentionedIds)(comment.text, await this.users.find());
+        const followers = [...(0, task_types_1.normalizeCollaborators)(saved.collaborators).map((c) => c.id), saved.assigneeId].filter((x) => x && !mentioned.includes(x));
+        if (mentioned.length)
+            this.notifications.taskFollowUp(this.notice(saved, actor), mentioned, { kind: 'mention', comment: comment.text });
         if (followers.length)
             this.notifications.taskFollowUp(this.notice(saved, actor), followers, { kind: 'comment', comment: comment.text });
         return this.hydrate(saved);
@@ -329,10 +614,24 @@ exports.ProjectTasksService = ProjectTasksService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectTaskEntity)),
     __param(1, (0, typeorm_1.InjectRepository)(entities_1.UserEntity)),
+    __param(5, (0, common_1.Optional)()),
+    __param(5, (0, typeorm_1.InjectRepository)(entities_1.ChecklistTemplateEntity)),
+    __param(6, (0, common_1.Optional)()),
+    __param(6, (0, typeorm_1.InjectRepository)(entities_1.LeadEntity)),
+    __param(7, (0, common_1.Optional)()),
+    __param(8, (0, common_1.Optional)()),
+    __param(8, (0, typeorm_1.InjectRepository)(entities_1.TaskEntity)),
+    __param(9, (0, common_1.Optional)()),
+    __param(9, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         sections_service_1.SectionsService,
         attachments_service_1.AttachmentsService,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        notify_hub_service_1.NotifyHub,
+        typeorm_2.Repository,
+        typeorm_2.Repository])
 ], ProjectTasksService);
 //# sourceMappingURL=project-tasks.service.js.map

@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { DailyLogBackupService } from './daily-log-backup.service';
+import { WeeklyReportService } from './weekly-report.service';
 import { PeopleModule } from '../people/people.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
-  EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
+  EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity, ContractorBidEntity,
   TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
   PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
   LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
@@ -21,6 +22,8 @@ import { CsiCodesController } from './csi-codes.controller';
 import { CsiCodesService } from './csi-codes.service';
 import { DailyLogsController } from './daily-logs.controller';
 import { DailyLogsService } from './daily-logs.service';
+import { DailyReportAutomationService } from './daily-report-automation.service';
+import { ProjectTasksModule } from '../project-tasks/project-tasks.module';
 import { TimesheetsController } from './timesheets.controller';
 import { TimesheetsService } from './timesheets.service';
 import { SubcontractorTradesController } from './subcontractor-trades.controller';
@@ -32,6 +35,7 @@ import { AssignmentsService } from './assignments.service';
 import { WorkforceRequestsController } from './workforce-requests.controller';
 import { WorkforceRequestsService } from './workforce-requests.service';
 import { ContractorsController } from './contractors.controller';
+import { ContractorBidsService } from './contractor-bids.service';
 import { ContractorsService } from './contractors.service';
 import { PayrollSetupService } from './payroll-setup.service';
 import { PayrollService } from './payroll.service';
@@ -59,7 +63,7 @@ import { SampleDataController } from './sample-data.controller';
   imports: [
     PeopleModule,
     TypeOrmModule.forFeature([
-      EmployeeEntity, CsiCodeEntity, DailyLogEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity,
+      EmployeeEntity, CsiCodeEntity, DailyLogEntity, DailyReportTemplateEntity, LaborLogEntryEntity, LeaveRequestEntity, ProjectEntity, ContractorBidEntity,
       TradeEntity, SubcontractorTradeEntity, EmployeeRecordEntity, EmployeeAssignmentEntity, WorkforceRequestEntity, ContractorEntity,
       PayComponentEntity, PayrollRunEntity, PayslipEntity, OvertimeRequestEntity, EmployeeAdvanceEntity, RoleEntity,
       LeaveTypeEntity, LeaveAdjustmentEntity, PublicHolidayEntity, ShiftTemplateEntity, ShiftAssignmentEntity,
@@ -69,6 +73,7 @@ import { SampleDataController } from './sample-data.controller';
     AuthModule,
     GoogleModule,
     SettingsModule,
+    ProjectTasksModule,
   ],
   controllers: [PicklistsController, 
     EmployeesController, CsiCodesController, DailyLogsController, TimesheetsController,
@@ -76,9 +81,9 @@ import { SampleDataController } from './sample-data.controller';
     PayrollController, OvertimeController, AdvancesController,
     LeaveController, ShiftsController, AssetsController, AccommodationController, TransportController, SampleDataController, WeeklyTimesheetsController,
   ],
-  providers: [DailyLogBackupService, 
+  providers: [DailyLogBackupService, WeeklyReportService, DailyReportAutomationService,
     ManpowerAccess, PicklistsService, EmployeesService, CsiCodesService, DailyLogsService, TimesheetsService,
-    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService,
+    SubcontractorTradesService, EmployeeRecordsService, AssignmentsService, WorkforceRequestsService, ContractorsService, ContractorBidsService,
     PayrollSetupService, PayrollService, OvertimeService, AdvancesService,
     LeaveService, ShiftsService, AssetsService, AccommodationService, TransportService, SampleDataService, WeeklyTimesheetsService,
   ],

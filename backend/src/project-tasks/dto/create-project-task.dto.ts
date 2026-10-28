@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsNumber, IsBoolean, IsArray } from 'class-validator';
-import type { ChecklistItem, TaskAttachment, TaskComment } from '../../database/task.types';
+import { PartialType } from '@nestjs/mapped-types';
+import type { ChecklistItem, Collaborator, TaskAttachment, TaskComment } from '../../database/task.types';
 
 /**
  * ValidationPipe runs with `whitelist: true`, so anything NOT declared here is
@@ -17,11 +18,19 @@ export class CreateProjectTaskDto {
   @IsString() @IsOptional() assigneeId?: string;
   @IsString() @IsOptional() dueDate?: string;
   @IsString() @IsOptional() priority?: string;
+  @IsString() @IsOptional() leadId?: string;
+  @IsString() @IsOptional() holdReason?: string;
+  @IsString() @IsOptional() completionNote?: string;
+  @IsString() @IsOptional() requestedById?: string;
+  @IsString() @IsOptional() requestedBy?: string;
+  @IsBoolean() @IsOptional() deferNotify?: boolean;
+  @IsBoolean() @IsOptional() close?: boolean;
   @IsString() @IsOptional() status?: string;
   @IsNumber() @IsOptional() order?: number;
   @IsBoolean() @IsOptional() completed?: boolean;
   @IsString() @IsOptional() parentId?: string | null;
   @IsArray() @IsOptional() labels?: string[];
+  @IsArray() @IsOptional() collaborators?: Collaborator[];
   @IsArray() @IsOptional() checklist?: ChecklistItem[];
   @IsArray() @IsOptional() attachments?: TaskAttachment[];
   @IsArray() @IsOptional() comments?: TaskComment[];
@@ -35,6 +44,12 @@ export class CreateProjectTaskDto {
   @IsNumber() @IsOptional() durationDays?: number;
   @IsArray() @IsOptional() dependsOn?: string[];
 }
+
+/**
+ * A patch: every field optional. A real class (not `Partial<>`, which erases to
+ * Object at runtime) so the ValidationPipe checks and whitelists it.
+ */
+export class UpdateProjectTaskDto extends PartialType(CreateProjectTaskDto) {}
 
 /** Body for the batch card-reorder endpoint. */
 export class ReorderDto {

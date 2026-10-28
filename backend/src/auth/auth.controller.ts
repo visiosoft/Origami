@@ -47,6 +47,15 @@ export class AuthController {
     return this.auth.forgotPassword(dto.email);
   }
 
+  /** Renews the session (and its cookie) while the old one is still valid. */
+  @AnySignedIn()
+  @Post('refresh')
+  async refresh(@Headers('authorization') authorization: string | undefined, @Res({ passthrough: true }) res: Response) {
+    const session = await this.auth.refresh(authorization);
+    res.cookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresIn));
+    return session;
+  }
+
   @AnySignedIn()
   @Get('me')
   me(@Headers('authorization') authorization?: string) {

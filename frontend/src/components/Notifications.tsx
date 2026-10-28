@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { clip, logTaskTitle } from '../data/tasks';
 import { isLogClosed } from '../data/logStatuses';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
@@ -25,7 +26,7 @@ const readSeen = (): string[] => {
 };
 
 /**
- * The topbar bell: work that has been assigned to you.
+ * The topbar bell: work assigned to you, and timesheets submitted for you to review.
  *
  * Anything assigned since you last opened the panel counts as new and lights
  * the dot; opening the panel marks everything currently listed as seen.
@@ -37,12 +38,15 @@ export function Notifications() {
   const [boardTasks, setBoardTasks] = useState<ProjectTask[]>([]);
   const [logTasks, setLogTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Record<number, string>>({});
+  const [sheets, setSheets] = useState<{ id: string; employeeName: string; weekStart: string; totalHours: number; submittedAt?: string }[]>([]);
   const [seen, setSeen] = useState<string[]>(readSeen);
   const box = useRef<HTMLDivElement | null>(null);
 
   const load = () => {
     api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoardTasks(r); }).catch(() => { });
     api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r); }).catch(() => { });
+    // Submitted timesheets for whoever reviews them (admins, HR, project coordinators, supervisors).
+    api.timesheets.pendingNotices().then((r) => setSheets(Array.isArray(r) ? r : [])).catch(() => setSheets([]));
     api.projects.list().then((r: any) => {
       if (Array.isArray(r)) setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name])));
     }).catch(() => { });
@@ -66,7 +70,7 @@ export function Notifications() {
     if (!currentUser) return [];
     const out: Row[] = [
       ...boardTasks
-        .filter((t) => !t.parentId && !t.completed && t.status !== 'Done' && isMine(t, currentUser))
+        .filter((t) => !t.completed && t.status !== 'Done' && isMine(t, currentUser))
         .map((t) => ({
           id: 'b' + t.id,
           title: t.title,
@@ -78,14 +82,22 @@ export function Notifications() {
         .filter((t) => !isLogClosed(t.status) && isMine(t, currentUser))
         .map((t) => ({
           id: 'l' + t.id,
-          title: t.description?.length > 70 ? t.description.slice(0, 70) + '…' : t.description || t.id,
-          context: t.project || 'Request Log',
+          title: clip(logTaskTitle(t), 70),
+          context: t.project || 'Special Actions Log',
           at: t.updatedAt,
           to: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
         })),
+      ...sheets.map((t) => ({
+        // Keyed by submission time too, so a re-submitted week counts as new.
+        id: 'ts' + t.id + (t.submittedAt || ''),
+        title: `${t.employeeName} submitted a timesheet`,
+        context: `Week of ${new Date(t.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${Math.round(t.totalHours * 10) / 10} h · waiting for approval`,
+        at: t.submittedAt,
+        to: '/manpower_con?tab=timesheets',
+      })),
     ];
     return out.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 12);
-  }, [boardTasks, logTasks, projects, currentUser]);
+  }, [boardTasks, logTasks, projects, sheets, currentUser]);
 
   const unseen = rows.filter((r) => !seen.includes(r.id));
 
@@ -102,26 +114,26 @@ export function Notifications() {
 
   return (
     <div ref={box} style={{ position: 'relative' }}>
-      <div className="topbar-bell" title="Assigned to you" onClick={toggle} style={{ cursor: 'pointer' }}>
-        <Icon name="bell" size={18} stroke="#43514D" strokeWidth={2} />
+      <div className="topbar-bell" title="Notifications" onClick={toggle} style={{ cursor: 'pointer' }}>
+        <Icon name="bell" size={18} stroke="var(--body)" strokeWidth={2} />
         {unseen.length > 0 && <span className="topbar-bell-dot" />}
       </div>
 
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 320, maxWidth: '90vw', zIndex: 200,
-          background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.08)',
-          boxShadow: '0 18px 44px rgba(11,26,18,0.16)', overflow: 'hidden',
+          background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.08)',
+          boxShadow: '0 18px 44px rgba(var(--rgb-ink), 0.16)', overflow: 'hidden',
         }}>
-          <div style={{ padding: '11px 14px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: '#7E9B93' }}>Assigned to you</span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#7E9B93' }}>{rows.length}</span>
+          <div style={{ padding: '11px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'var(--muted)' }}>Notifications</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--muted)' }}>{rows.length}</span>
           </div>
 
           <div style={{ maxHeight: 340, overflowY: 'auto' }}>
             {rows.length === 0 && (
-              <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12, color: '#9AA39D' }}>
-                Nothing is assigned to you right now.
+              <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: 12, color: 'var(--c-9aa39d)' }}>
+                Nothing new — no tasks assigned to you and no timesheets waiting.
               </div>
             )}
             {rows.map((r, i) => (
@@ -130,21 +142,27 @@ export function Notifications() {
                 onClick={() => { setOpen(false); navigate(r.to); }}
                 style={{
                   padding: '10px 14px', cursor: 'pointer',
-                  borderTop: i ? '1px solid rgba(20,8,31,0.04)' : 'none',
-                  background: unseen.some((u) => u.id === r.id) ? '#F4F9F4' : 'white',
+                  borderTop: i ? '1px solid rgba(var(--rgb-shade), 0.04)' : 'none',
+                  background: unseen.some((u) => u.id === r.id) ? 'var(--c-f4f9f4)' : 'var(--surface)',
                 }}
               >
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0B1A12', lineHeight: 1.4 }}>{r.title}</div>
-                <div style={{ fontSize: 10.5, color: '#7E9B93', marginTop: 3 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>{r.title}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>
                   {r.context}{r.at ? ` · ${relativeTime(r.at)}` : ''}
                 </div>
               </div>
             ))}
           </div>
 
-          <div onClick={() => { setOpen(false); navigate('/tasks'); }}
-               style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,0.06)', fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', textAlign: 'center' }}>
-            Open Tasks
+          <div style={{ display: 'flex', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+            <div onClick={() => { setOpen(false); navigate('/tasks'); }}
+                 style={{ flex: 1, padding: '10px 14px', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', textAlign: 'center' }}>
+              Open Tasks
+            </div>
+            <div onClick={() => { setOpen(false); navigate('/notifications'); }}
+                 style={{ flex: 1, padding: '10px 14px', fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', textAlign: 'center', borderLeft: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+              All notifications
+            </div>
           </div>
         </div>
       )}

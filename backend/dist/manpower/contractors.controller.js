@@ -22,6 +22,7 @@ const auth_service_1 = require("../auth/auth.service");
 const attachments_service_1 = require("../google/attachments.service");
 const update_task_dto_1 = require("../tasks/dto/update-task.dto");
 const contractors_service_1 = require("./contractors.service");
+const contractor_bids_service_1 = require("./contractor-bids.service");
 class ContractorDto {
 }
 exports.ContractorDto = ContractorDto;
@@ -121,10 +122,11 @@ __decorate([
     __metadata("design:type", String)
 ], ContractorDto.prototype, "notes", void 0);
 let ContractorsController = class ContractorsController {
-    constructor(service, auth, attachments) {
+    constructor(service, auth, attachments, bids) {
         this.service = service;
         this.auth = auth;
         this.attachments = attachments;
+        this.bids = bids;
     }
     findAll() {
         return this.service.findAll();
@@ -137,6 +139,18 @@ let ContractorsController = class ContractorsController {
     }
     remove(id) {
         return this.service.remove(id);
+    }
+    listBids(id) {
+        return this.bids.list(id);
+    }
+    async addBid(id, dto, auth) {
+        return this.bids.create(id, dto || {}, await this.auth.actor(auth));
+    }
+    updateBid(bidId, dto) {
+        return this.bids.update(bidId, dto || {});
+    }
+    removeBid(bidId) {
+        return this.bids.remove(bidId);
     }
     async upload(id, files, auth) {
         return this.service.addAttachments(id, files, await this.auth.requireActor(auth));
@@ -187,6 +201,37 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ContractorsController.prototype, "remove", null);
 __decorate([
+    (0, common_1.Get)(':id/bids'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ContractorsController.prototype, "listBids", null);
+__decorate([
+    (0, common_1.Post)(':id/bids'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Headers)('authorization')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", Promise)
+], ContractorsController.prototype, "addBid", null);
+__decorate([
+    (0, common_1.Put)('bids/:bidId'),
+    __param(0, (0, common_1.Param)('bidId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ContractorsController.prototype, "updateBid", null);
+__decorate([
+    (0, common_1.Delete)('bids/:bidId'),
+    __param(0, (0, common_1.Param)('bidId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ContractorsController.prototype, "removeBid", null);
+__decorate([
     (0, common_1.Post)(':id/attachments'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FilesInterceptor)('files', attachments_service_1.MAX_FILES_PER_UPLOAD, { limits: { fileSize: attachments_service_1.MAX_FILE_BYTES } })),
     __param(0, (0, common_1.Param)('id')),
@@ -228,6 +273,7 @@ exports.ContractorsController = ContractorsController = __decorate([
     (0, common_1.Controller)('contractors'),
     __metadata("design:paramtypes", [contractors_service_1.ContractorsService,
         auth_service_1.AuthService,
-        attachments_service_1.AttachmentsService])
+        attachments_service_1.AttachmentsService,
+        contractor_bids_service_1.ContractorBidsService])
 ], ContractorsController);
 //# sourceMappingURL=contractors.controller.js.map

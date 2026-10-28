@@ -1,4 +1,53 @@
+import type { ContractorBid } from './data/contractorBids';
+import type { CardScan } from './data/businessCard';
+import type { ContactActivity, ContactInteraction, DupMatch } from './data/people';
+import type { NotifyFeedItem, NotifyPrefs } from './data/notifications';
+import type { Markup } from './data/markup';
+import type { BillingMonth } from './data/dashboardCharts';
+import type { AuditRow } from './data/audit';
+import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo } from './data/contracts';
+import type { PriorityDef } from './data/priority';
 const API_BASE = '/api';
+
+/** Special actions that can be duplicated or converted: Special Actions Log entry, board task, meeting, RFI, change order. */
+export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
+/** A record made by duplicating or converting. */
+export interface MadeAction { kind: ActionKind; id: string; label: string; projectId: number | null; projectName: string }
+/** What was made from a record ("Converted to CO-003"). */
+export interface DerivedRef { kind: ActionKind; id: string; label: string; how: 'converted' | 'duplicated'; projectName?: string; by: string; at: string }
+
+/** Where a record came from, and what was made from it (duplicate / convert). */
+export interface ActionTrailFields { sourceType?: string | null; sourceId?: string | null; sourceLabel?: string | null; derivedRefs?: DerivedRef[] | null;
+  /** Serial number per kind, project and year: T-2026-0142, FR-2026-0031, MTG-2026-0012. */
+  serial?: string | null }
+
+/** A project's week, from its daily reports (Daily Reports -> Weekly). */
+export interface WeeklyReport {
+  projectId: number; weekStart: string; weekEnd: string;
+  days: { date: string; logId: string | null; status: string; worked: string; reason: string; auto: boolean; crew: number; hours: number; supervisor: string; updates: number }[];
+  totals: { hours: number; workerDays: number; daysWorked: number; daysNoWork: number; daysMissing: number; equipmentHours: number; equipmentIdle: number; deliveries: number };
+  byCode: { code: string; label: string; hours: number; workers: number }[];
+  byWorker: { name: string; trade: string; hours: number; days: number }[];
+  delays: { date: string; label: string; getWell: string; details: string }[];
+  inspections: { date: string; authority: string; what: string; outcome: string }[];
+  visitors: { date: string; type: string; name: string; details: string }[];
+  deliveries: { date: string; supplier: string; poRef: string; items: string; qty: number | ''; receivedBy: string; condition: string; notes: string }[];
+  equipment: { name: string; ownership: string; hoursUsed: number; hoursIdle: number; days: number }[];
+  notes: { date: string; text: string }[];
+}
+
+/** A checklist made in advance ("Pre-pour inspection"). */
+export interface ChecklistTemplate { id: string; name: string; items: { item: string }[];
+  /** Added by itself to new records: task, record, record:Observation, label:Safety. */
+  autoFor?: string[]; createdById?: string; createdByName?: string; createdAt: string }
+
+/** A saved filter set on a list page (Saved views). */
+export interface SavedView { id: string; page: string; name: string; filters: Record<string, unknown> | null; createdAt: string }
+
+/** One email of File Room files: what went to whom, when, from whom. */
+export type FileShare = { id: string; projectId: number | null; files: { id: string; name: string; folderPath?: string[] }[]; to: string; note?: string | null; sentByName: string; sentAt: string;
+  /** When it was opened (null = not yet; absent = sent before tracking). */
+  opened?: import('./components/OpenedBadge').Opened | null };
 
 /** A letter rendered on the company letterhead — previewed and sent as a PDF. */
 export interface LetterInput {
@@ -28,7 +77,51 @@ export interface LetterInput {
 const TOKEN_KEY = 'origami.session';
 
 /** The signed-in user's session token, shared by every API call. */
+/** Fired when a request finds the session has ended mid-work; the app then asks the person to sign in again. */
+export const SESSION_EXPIRED_EVENT = 'origami:session-expired';
+/** Fired once they're signed back in, so unsaved work can be sent. */
+export const SESSION_RESTORED_EVENT = 'origami:session-restored';
+
+/** Seconds-since-epoch expiry inside a session token, or null if it can't be read. */
+export const tokenExpiry = (token: string | null): number | null => {
+  try {
+    const body = token?.split('.')[1];
+    if (!body) return null;
+    const json = JSON.parse(atob(body.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp : null;
+  } catch { return null; }
+};
+
+/** A 401 from anything but the sign-in endpoints means the session ran out while someone was working. */
+const noteSignedOut = (status: number, path: string, hadToken: boolean) => {
+  if (status === 401 && hadToken && !/^\/auth\/(login|me|refresh|logout)/.test(path)) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+};
+
+/**
+ * Runs a save that isn't on an autosaving form (a stage move, a delete, a
+ * section rename). If the server is restarting -- a deploy -- it keeps trying for
+ * a while; if the session ran out, it waits for the person to sign back in and
+ * then sends. Anything else is handed back, so the screen can say it wasn't saved
+ * instead of quietly dropping it.
+ */
+export function persist<T>(fn: () => Promise<T>, tries = 8): Promise<T> {
+  return fn().catch((e: any) => {
+    const down = !e?.status || e.status >= 500;
+    if (down && tries > 1) {
+      return new Promise<T>((resolve, reject) => { window.setTimeout(() => { persist(fn, tries - 1).then(resolve, reject); }, 5000); });
+    }
+    if (e?.status === 401) {
+      return new Promise<T>((resolve, reject) => {
+        const again = () => { window.removeEventListener(SESSION_RESTORED_EVENT, again); fn().then(resolve, reject); };
+        window.addEventListener(SESSION_RESTORED_EVENT, again);
+      });
+    }
+    throw e;
+  });
+}
+
 export const session = {
+  key: TOKEN_KEY,
   get: (): string | null => {
     try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
   },
@@ -55,6 +148,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     // the UI can show the real reason instead of a bare status code.
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    noteSignedOut(res.status, path, !!token);
     // The status rides along, so callers can tell "signed out" (401) from "server busy" (502/503).
     throw Object.assign(new Error(msg || `API error: ${res.status}`), { status: res.status });
   }
@@ -76,9 +170,23 @@ async function requestForm<T>(path: string, form: FormData): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    noteSignedOut(res.status, path, !!token);
     throw Object.assign(new Error(msg || `Upload failed: ${res.status}`), { status: res.status });
   }
   return res.json();
+}
+
+/** A file's bytes, signed in (for the PDF markup viewer and marked-up downloads). */
+async function requestBytes(path: string): Promise<ArrayBuffer> {
+  const token = session.get();
+  const res = await fetch(`${API_BASE}${path}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = body && (Array.isArray(body.message) ? body.message[0] : body.message);
+    noteSignedOut(res.status, path, !!token);
+    throw Object.assign(new Error(msg || `Couldn’t load the file (${res.status})`), { status: res.status });
+  }
+  return res.arrayBuffer();
 }
 
 /** Build a FormData from a browser FileList / File[]. */
@@ -109,6 +217,8 @@ export const api = {
     login: (email: string, password: string) =>
       request<{ token: string; user: unknown }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     me: () => request('/auth/me'),
+    /** A fresh session token while the current one is still valid. */
+    refresh: () => request<{ token: string; expiresIn: number; user: unknown }>('/auth/refresh', { method: 'POST' }),
     setNotificationPrefs: (notifyOnAssignment: boolean) =>
       request('/auth/me/notifications', { method: 'PUT', body: JSON.stringify({ notifyOnAssignment }) }),
     /** Any subset of the newer per-channel/trigger notification preferences. */
@@ -123,14 +233,37 @@ export const api = {
       request<{ ok: boolean; reason?: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
     googleLoginUrl: () => `${API_BASE}/google/login`,
   },
+  /** Duplicate a special action (to several projects at once) or convert it into another kind. */
+  specialActions: {
+    duplicate: (d: { kind: ActionKind; id: string; projectIds: (number | null)[] }) =>
+      request<{ created: MadeAction[]; failed: { projectId: number | null; projectName: string; reason: string }[] }>('/special-actions/duplicate', { method: 'POST', body: JSON.stringify(d) }),
+    convert: (d: { from: { kind: ActionKind; id: string }; to: ActionKind; topicType?: string; projectId?: number | null; title?: string; body?: string }) =>
+      request<MadeAction>('/special-actions/convert', { method: 'POST', body: JSON.stringify(d) }),
+  },
+  /** Checklists made in advance and added to tasks. */
+  checklistTemplates: {
+    list: () => request<ChecklistTemplate[]>('/checklist-templates'),
+    save: (name: string, items: string[], autoFor?: string[]) => request<ChecklistTemplate>('/checklist-templates', { method: 'POST', body: JSON.stringify({ name, items, autoFor }) }),
+    update: (id: string, d: { name?: string; items?: string[]; autoFor?: string[] }) => request<ChecklistTemplate>(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/checklist-templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+  /** The caller's own saved filter sets, per list page. */
+  views: {
+    list: (page: string) => request<SavedView[]>(`/views?page=${encodeURIComponent(page)}`),
+    save: (page: string, name: string, filters: Record<string, unknown>) => request<SavedView>('/views', { method: 'POST', body: JSON.stringify({ page, name, filters }) }),
+    remove: (id: string) => request(`/views/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
   settings: {
     get: () => request<Record<string, string>>('/settings'),
     save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
   sms: {
-    status: () => request<{ configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
-    send: (to: string, body: string) =>
-      request<{ sent: boolean; to: string; segments: number }>('/sms/send', { method: 'POST', body: JSON.stringify({ to, body }) }),
+    status: () => request<{ provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
+    /** With entityType/entityId the text is recorded on that lead, contact or project. */
+    send: (to: string, body: string, link?: { entityType: 'lead' | 'person' | 'project'; entityId: string; templateKey?: string }) =>
+      request<{ sent: boolean; to: string; segments: number }>('/sms/send', { method: 'POST', body: JSON.stringify({ to, body, ...link }) }),
+    messages: (entityType: 'lead' | 'person' | 'project', entityId: string) =>
+      request<import('./data/sms').SmsMessage[]>(`/sms/messages?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`),
     test: (to: string) =>
       request<{ sent: boolean; to: string }>('/sms/test', { method: 'POST', body: JSON.stringify({ to }) }),
   },
@@ -138,6 +271,11 @@ export const api = {
   notifications: {
     /** Sends the caller a sample assignment email, for checking the template. */
     test: () => request<{ sent: boolean; reason?: string }>('/notifications/test', { method: 'POST' }),
+    /** My notification settings: each event's channels, my phone, and what's missing. */
+    prefs: () => request<NotifyPrefs>('/notifications/prefs'),
+    /** matrix: event -> channels ([] = no notification); null = back to the defaults. */
+    setPrefs: (body: { matrix?: Record<string, string[]> | null; phone?: string }) => request<NotifyPrefs>('/notifications/prefs', { method: 'PUT', body: JSON.stringify(body) }),
+    feed: (digest?: 'daily' | 'weekly') => request<NotifyFeedItem[]>(`/notifications/feed${digest ? `?digest=${digest}` : ''}`),
   },
 
   google: {
@@ -207,14 +345,57 @@ export const api = {
     create: (data: unknown) => request('/people', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string | number, data: unknown) => request(`/people/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string | number) => request(`/people/${id}`, { method: 'DELETE' }),
+    /** Possible duplicates of a contact being added (same name, email or phone), Expired first. */
+    duplicates: (q: Record<string, string>) => request<DupMatch[]>(`/people/duplicates?${new URLSearchParams(q).toString()}`),
+    /** Activity: logged interactions, RFPs / estimates, the company's point of contact, and alerts. */
+    activity: (id: number) => request<ContactActivity>(`/people/${id}/activity`),
+    logInteraction: (id: number, d: { kind: string; at: string; note?: string }) => request<ContactInteraction>(`/people/${id}/interactions`, { method: 'POST', body: JSON.stringify(d) }),
+    removeInteraction: (id: number, interactionId: string) => request(`/people/${id}/interactions/${interactionId}`, { method: 'DELETE' }),
+    setPointOfContact: (id: number, on: boolean) => request(`/people/${id}/point-of-contact`, { method: 'PUT', body: JSON.stringify({ on }) }),
+    /** "Same person": link two records both ways (read-only Reference on each), or unlink. */
+    link: (id: number, otherId: number) => request(`/people/${id}/same-as/${otherId}`, { method: 'POST' }),
+    unlink: (id: number, otherId: number) => request(`/people/${id}/same-as/${otherId}`, { method: 'DELETE' }),
+    /** Read a business card (front and/or back photo): fields to review, and a token that keeps the photos with the contact. */
+    scanCard: (front?: File | null, back?: File | null) => {
+      const f = new FormData();
+      if (front) f.append('front', front, front.name);
+      if (back) f.append('back', back, back.name);
+      return requestForm<CardScan>('/people/business-card/scan', f);
+    },
+    /** Add or replace card photos on a saved contact. */
+    addCard: (id: number, front?: File | null, back?: File | null) => {
+      const f = new FormData();
+      if (front) f.append('front', front, front.name);
+      if (back) f.append('back', back, back.name);
+      return requestForm<any>(`/people/${id}/business-card`, f);
+    },
+    removeCard: (id: number, side: 'front' | 'back') => request<any>(`/people/${id}/business-card/${side}`, { method: 'DELETE' }),
+    cardUrl: (id: number, side: 'front' | 'back', thumb = false) => `${API_BASE}/people/${id}/business-card/${side}/content${thumb ? '?thumb=1' : ''}`,
     /** Bulk import (People -> Import): the template's columns, Excel -> CSV, and preview / apply. */
     importColumns: () => request('/people/import/columns'),
     importConvert: (file: File) => { const f = new FormData(); f.append('file', file, file.name); return requestForm('/people/import/convert', f); },
-    importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update }) }),
+    importRows: (rows: Record<string, string>[], dryRun: boolean, update: boolean, defaultKind?: string) => request('/people/import', { method: 'POST', body: JSON.stringify({ rows, dryRun, update, ...(defaultKind ? { defaultKind } : {}) }) }),
+  },
+  meetings: {
+    list: () => request<import('./data/meetings').Meeting[]>('/meetings'),
+    create: (d: unknown) => request<import('./data/meetings').Meeting>('/meetings', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
+    /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
+    addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string }) =>
+      request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
   tasks: {
-    /** The Request Log's statuses (Settings -> Request Log statuses). */
+    /** Save pressed in the editor: send the emails held on this entry. */
+    notify: (id: string) => request<{ sent: number }>(`/tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
+    /** Projects and open leads a task can be linked to. */
+    linkTargets: () => request<import('./data/linkTargets').LinkTargets>('/tasks/link-targets'),
+    /** The Special Actions Log's statuses (Settings -> Special Actions Log statuses). */
     statuses: () => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses'),
+    /** What each priority means (Settings -> Task priorities). */
+    priorities: () => request<PriorityDef[]>('/tasks/priorities'),
+    savePriorities: (definitions: PriorityDef[]) => request<PriorityDef[]>('/tasks/priorities', { method: 'PUT', body: JSON.stringify({ definitions }) }),
     saveStatuses: (statuses: unknown) => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses', { method: 'PUT', body: JSON.stringify({ statuses }) }),
     list: (tab?: string, project?: string) => {
       const params = new URLSearchParams();
@@ -231,6 +412,12 @@ export const api = {
     addLink: (id: string, name: string, url: string) => request(`/tasks/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/tasks/${id}/attachments/${attId}`, { method: 'DELETE' }),
     addComment: (id: string, text: string) => request(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
+    /** FOR RECORD: attach an entry to a task or a change order, or detach it. */
+    link: (id: string, kind: 'task' | 'changeOrder', targetId: string) => request<any>(`/tasks/${encodeURIComponent(id)}/links`, { method: 'POST', body: JSON.stringify({ kind, targetId }) }),
+    unlink: (id: string, kind: 'task' | 'changeOrder', targetId: string) => request<any>(`/tasks/${encodeURIComponent(id)}/links/${kind}/${encodeURIComponent(targetId)}`, { method: 'DELETE' }),
+    /** A task driven by the entry, on its project and meeting, linked both ways. */
+    linkedTask: (id: string, d: { subject?: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string } = {}) =>
+      request<{ task: any; entry: any }>(`/tasks/${encodeURIComponent(id)}/linked-task`, { method: 'POST', body: JSON.stringify(d) }),
   },
   pipeline: {
     /** Archived deals are excluded unless asked for. */
@@ -243,7 +430,8 @@ export const api = {
       request(`/pipeline/${id}/archived`, { method: 'PUT', body: JSON.stringify({ archived }) }),
     setRoles: (id: string, roles: Record<string, string>) =>
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
-    setRejection: (id: string, data: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string }) =>
+    setLoss: (id: string, data: { lossReason: string; note?: string }) => request(`/pipeline/${id}/loss`, { method: 'PUT', body: JSON.stringify(data) }),
+    setRejection: (id: string, data: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; lossReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string }) =>
       request(`/pipeline/${id}/rejection`, { method: 'PUT', body: JSON.stringify(data) }),
     logFollowUp: (id: string, data: Record<string, unknown>) =>
       request(`/pipeline/${id}/follow-up`, { method: 'POST', body: JSON.stringify(data) }),
@@ -329,14 +517,20 @@ export const api = {
     update: (id: string, data: unknown) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),
     resendInvite: (id: string) => request<{ invite: { sent: boolean; url?: string; error?: string } }>(`/users/${id}/resend-invite`, { method: 'POST' }),
+    /** A person's access: their role's settings and their own changes. */
+    access: (id: string) => request<{ userId: string; roleKey: string; roleName: string; rolePermissions: import('./data/users').RolePermissions; overrides: Record<string, { level?: string; extent?: string }> }>(`/users/${encodeURIComponent(id)}/access`),
+    setAccess: (id: string, overrides: Record<string, { level?: string; extent?: string }>) => request<any>(`/users/${encodeURIComponent(id)}/access`, { method: 'PUT', body: JSON.stringify({ overrides }) }),
   },
   roles: {
     list: () => request('/roles'),
     create: (data: unknown) => request('/roles', { method: 'POST', body: JSON.stringify(data) }),
     update: (key: string, data: unknown) => request(`/roles/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (key: string) => request(`/roles/${key}`, { method: 'DELETE' }),
+    /** The PEOPLE ACCESS sheet's rows: a preview (dryRun) or applied. */
   },
   projectTasks: {
+    /** Save pressed in the task editor: send the emails held on the task and its subtasks. */
+    notify: (id: string) => request<{ sent: number }>(`/project-tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** projectId: a number scopes to that project; null scopes to the
      *  General Tasks board; omitted (list only) returns everything. */
     board: (projectId: number | null) => request(`/project-tasks/board?projectId=${projectId === null ? 'null' : projectId}`),
@@ -395,6 +589,8 @@ export const api = {
       request(`/project-program/versions/${id}/restore`, { method: 'POST', body: JSON.stringify(owner) }),
   },
   proposals: {
+    /** Client contracts sent and not signed yet (Approvals). */
+    awaiting: () => request<{ dealId: string; dealName: string; subject: string; amount: string; sentAt: string; sentTo: string }[]>('/proposals/awaiting'),
     get: (dealId: string) => request(`/proposals?dealId=${encodeURIComponent(dealId)}`),
     save: (dealId: string, body: { subject?: string; html?: string; amount?: string; requiresSecondSignatory?: boolean }) =>
       request('/proposals', { method: 'PUT', body: JSON.stringify({ dealId, ...body }) }),
@@ -424,6 +620,34 @@ export const api = {
       pdfUrl: (token: string) => `${API_BASE}/proposals/public/pdf?token=${encodeURIComponent(token)}`,
     },
   },
+  /** Contracts signed inside ODIN: templates, drafts, sending, counter-signing, the signed PDF. */
+  contracts: {
+    types: () => request<{ types: ContractTypeInfo[]; mergeFields: [string, string][] }>('/contracts/types'),
+    templates: () => request<ContractTemplate[]>('/contracts/templates'),
+    createTemplate: (d: Partial<ContractTemplate>) => request<ContractTemplate>('/contracts/templates', { method: 'POST', body: JSON.stringify(d) }),
+    saveTemplate: (id: string, d: Partial<ContractTemplate>) => request<ContractTemplate>(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeTemplate: (id: string) => request(`/contracts/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    list: (q: Record<string, string> = {}) => request<Contract[]>(`/contracts?${new URLSearchParams(q).toString()}`),
+    get: (id: string) => request<Contract>(`/contracts/${encodeURIComponent(id)}`),
+    create: (d: Record<string, unknown>) => request<Contract>('/contracts', { method: 'POST', body: JSON.stringify(d) }),
+    update: (id: string, d: Record<string, unknown>) => request<Contract>(`/contracts/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/contracts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    send: (id: string, d: { note?: string; resendKeys?: string[] } = {}) => request<{ sent: string[] }>(`/contracts/${encodeURIComponent(id)}/send`, { method: 'POST', body: JSON.stringify(d) }),
+    countersign: (id: string, d: { name: string; initials: string; image: string; initialled: number; reviewed: boolean }) => request<Contract>(`/contracts/${encodeURIComponent(id)}/countersign`, { method: 'POST', body: JSON.stringify(d) }),
+    void: (id: string, reason: string) => request<Contract>(`/contracts/${encodeURIComponent(id)}/void`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    /** The contract as a PDF (signed once it is), for viewing or downloading. */
+    pdf: async (id: string) => new Blob([await requestBytes(`/contracts/${encodeURIComponent(id)}/pdf`)], { type: 'application/pdf' }),
+    /** File Room files on a project that can go with a contract (estimates, drawings, specs). */
+    files: (projectId: number) => request<{ id: string; name: string; folderPath: string[] }[]>(`/contracts/files?projectId=${projectId}`),
+    /** A project's change orders and subcontracts / POs, for a contract to be about. */
+    links: (projectId: number) => request<{ changeOrders: { id: string; number: string; title: string; amount: number | null; status: string }[]; commitments: { id: string; number: string; title: string; vendorName: string; contractorId?: string | null; type: string }[] }>(`/contracts/links?projectId=${projectId}`),
+    public: {
+      get: (token: string) => request<ContractSigningView>(`/contracts/public?token=${encodeURIComponent(token)}`),
+      sign: (token: string, d: { name: string; initials: string; image: string; initialled: number; reviewed: boolean }) => request<ContractSigningView>('/contracts/public/sign', { method: 'POST', body: JSON.stringify({ token, ...d }) }),
+      pdfUrl: (token: string, download = false) => `${API_BASE}/contracts/public/pdf?token=${encodeURIComponent(token)}${download ? '&download=1' : ''}`,
+      fileUrl: (token: string, fileId: string) => `${API_BASE}/contracts/public/file?token=${encodeURIComponent(token)}&fileId=${encodeURIComponent(fileId)}`,
+    },
+  },
   guestAccess: {
     /** Time-limited logins granted to clients/consultants, in place of standing passwords. */
     list: (projectId?: number) => request<{
@@ -450,8 +674,33 @@ export const api = {
     /** Create or update the real calendar event a booking represents. */
     createEvent: (payload: {
       eventId?: string; summary: string; description?: string; start: string; end: string;
-      location?: string; attendees?: string[]; video?: boolean;
+      location?: string; attendees?: (string | { email: string; optional?: boolean; name?: string })[]; video?: boolean;
     }) => request<{ id: string; htmlLink: string; meetLink?: string }>('/scheduling/events', { method: 'POST', body: JSON.stringify(payload) }),
+    /** Who a site visit invite goes to by default, each required or optional. */
+    siteVisitTeam: () => request<import('./data/siteVisitInvite').Guest[]>('/scheduling/site-visit-team'),
+    setSiteVisitTeam: (team: import('./data/siteVisitInvite').Guest[]) =>
+      request<import('./data/siteVisitInvite').Guest[]>('/scheduling/site-visit-team', { method: 'POST', body: JSON.stringify(team) }),
+  },
+  /** Construction -> Progress Photos: a project's photos by track and category (files live in its File Room). */
+  progressPhotos: {
+    categories: () => request<import('./data/progressPhotos').PhotoCategories>('/progress-photos/categories'),
+    list: (projectId: number) => request<{ photos: import('./data/progressPhotos').ProgressPhoto[]; unsorted: import('./data/progressPhotos').UnsortedPhoto[]; notes: import('./data/progressPhotos').ProgressNote[]; progress: import('./data/progressPhotos').ProgressSummary }>(`/progress-photos?projectId=${projectId}`),
+    addNote: (d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressNote>('/progress-photos/notes', { method: 'POST', body: JSON.stringify(d) }),
+    updateNote: (id: string, d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressNote>(`/progress-photos/notes/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeNote: (id: string) => request(`/progress-photos/notes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    upload: (projectId: number, files: File[], meta: Record<string, unknown>, dates: string[]) => {
+      const form = new FormData();
+      form.append('projectId', String(projectId));
+      form.append('meta', JSON.stringify(meta));
+      form.append('dates', JSON.stringify(dates));
+      files.forEach((f) => form.append('files', f, f.name));
+      return requestForm<{ uploaded: number }>('/progress-photos/upload', form);
+    },
+    classify: (fileIds: string[], meta: Record<string, unknown>) => request<{ sorted: number }>('/progress-photos/classify', { method: 'POST', body: JSON.stringify({ fileIds, meta }) }),
+    update: (id: string, d: Record<string, unknown>) => request<import('./data/progressPhotos').ProgressPhoto>(`/progress-photos/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    remove: (id: string) => request(`/progress-photos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    /** The photo itself (thumb: Drive's small version; download: as a file). */
+    url: (id: string, opts: { thumb?: boolean; download?: boolean; size?: number } = {}) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/content${opts.thumb ? `?thumb=1${opts.size ? `&size=${opts.size}` : ''}` : opts.download ? '?download=1' : ''}`,
   },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
@@ -469,11 +718,34 @@ export const api = {
     createFolder: (projectId: number, path: string[], name: string) =>
       request('/file-room/folders', { method: 'POST', body: JSON.stringify({ projectId, path, name }) }),
     removeFolder: (id: string) => request(`/file-room/folders/${id}`, { method: 'DELETE' }),
+    /** Files emailed from the File Room -- for a project or one file. */
+    shares: (q: { projectId?: number; fileId?: string }) =>
+      request<FileShare[]>(`/file-room/shares?${new URLSearchParams(Object.entries(q).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)]))}`),
+    shareMany: (ids: string[]) => request<{ id: string; name: string; url: string }[]>('/file-room/files/share', { method: 'POST', body: JSON.stringify({ ids }) }),
+    emailMany: (ids: string[], to: string, note: string) => request<{ sent: boolean; to: string; count: number }>('/file-room/files/email', { method: 'POST', body: JSON.stringify({ ids, to, note }) }),
+    moveMany: (ids: string[], folderPath: string[]) => request<{ moved: number }>('/file-room/files/move', { method: 'PUT', body: JSON.stringify({ ids, folderPath }) }),
+    move: (id: string, folderPath: string[]) => request(`/file-room/files/${id}/move`, { method: 'PUT', body: JSON.stringify({ folderPath }) }),
+    applyTemplate: (projectId: number) => request<{ created: number; template: number }>(`/file-room/template?projectId=${projectId}`, { method: 'POST' }),
+    /** A file the browser can show: Office and Google documents arrive as PDF. */
+    previewUrl: (id: string) => `${API_BASE}/file-room/files/${encodeURIComponent(id)}/preview`,
     share: (id: string) => request<{ url: string; name: string }>(`/file-room/files/${id}/share`, { method: 'POST' }),
     email: (id: string, to: string, note: string) =>
       request<{ sent: boolean; to: string }>(`/file-room/files/${id}/email`, { method: 'POST', body: JSON.stringify({ to, note }) }),
     sync: (projectId: number) =>
-      request<{ added: number; updated: number; removed: number; folders: number }>(`/file-room/sync?projectId=${projectId}`, { method: 'POST' }),
+      request<{ added: number; updated: number; removed: number; folders: number; syncedAt?: string }>(`/file-room/sync?projectId=${projectId}`, { method: 'POST' }),
+    /** The PDF itself, for the markup viewer. */
+    bytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content`),
+    markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
+    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
+    editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
+    removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
+    /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */
+    renameLayer: (id: string, from: string | null, to: string, authorId?: string | null) => request<{ layer: string; updated: number }>(`/file-room/files/${encodeURIComponent(id)}/layers`, { method: 'PUT', body: JSON.stringify({ from, to, authorId }) }),
+    addPinPhotos: (mid: string, files: File[] | FileList) => requestForm<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos`, filesForm(files)),
+    removePinPhoto: (mid: string, fileId: string) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos/${encodeURIComponent(fileId)}`, { method: 'DELETE' }),
+    /** The PDF with markups drawn in (just these layers, by key, when given). */
+    markedUpPdf: (id: string, layers?: string[]) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/markups/pdf${layers?.length ? `?layers=${encodeURIComponent(layers.join(','))}` : ''}`),
+    saveMarkedUpCopy: (id: string, layers?: string[]) => request<{ id: string; name: string }>(`/file-room/files/${encodeURIComponent(id)}/markups/copy`, { method: 'POST', body: JSON.stringify({ layers }) }),
     /** Relative on purpose: works through the vite proxy and same-origin in prod. */
     contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
       const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');
@@ -483,6 +755,8 @@ export const api = {
   projectPhases: {
     list: (projectId: number) => request(`/project-phases?projectId=${projectId}`),
     board: (projectId: number) => request(`/project-phases/board?projectId=${projectId}`),
+    /** Every project's phases with dates worked out from their tasks, for the Schedule. */
+    schedule: () => request<any[]>('/project-phases/schedule'),
     /** Every project's phase progress in one call, for the Design board. */
     overview: () => request('/project-phases/overview'),
     /** Bring one project up to the current programme template. */
@@ -510,6 +784,12 @@ export const api = {
     create: (data: unknown) => request('/project-sections', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-sections/${id}`, { method: 'DELETE' }),
+    /** The same columns on every board (Oct 27 sync): each change applies to every project's board and General. */
+    addEverywhere: (name: string) => request<{ added: number }>('/project-sections/everywhere', { method: 'POST', body: JSON.stringify({ name }) }),
+    renameEverywhere: (id: string, name: string) => request<{ renamed: number }>(`/project-sections/${id}/everywhere`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    orderEverywhere: (names: string[]) => request('/project-sections/order-everywhere', { method: 'PUT', body: JSON.stringify({ names }) }),
+    removeEverywhere: (id: string) => request<{ removed: number }>(`/project-sections/${id}/everywhere`, { method: 'DELETE' }),
+    matchAll: (projectId: number | null) => request<{ boards: number }>(`/project-sections/match/${projectId ?? 'general'}`, { method: 'POST' }),
   },
   workflows: {
     list: (projectId?: number | 'none') => request(`/workflows${projectId !== undefined ? `?projectId=${projectId}` : ''}`),
@@ -553,6 +833,16 @@ export const api = {
     photoUrl: (id: string, version?: string) => `${API_BASE}/employees/${encodeURIComponent(id)}/photo${version ? `?v=${encodeURIComponent(version)}` : ''}`,
   },
   /** Project financials: contract, schedule of values, earned value, invoices and payments. */
+  /** The app-wide audit log (admins): who changed what, newest first. */
+  /** Who opened a change order or a share we emailed (Oct 27 backlog item 12). */
+  tracking: {
+    list: (kind: 'co' | 'share', refId: string) => request<{ kind: string; refId: string; recipient?: string | null; createdAt: string; firstOpenedAt?: string | null; lastOpenedAt?: string | null; opens?: number | null }[]>(`/tracking/${kind}/${encodeURIComponent(refId)}`),
+  },
+  audit: {
+    list: (q: Record<string, string> = {}) => request<AuditRow[]>(`/audit?${new URLSearchParams(q).toString()}`),
+    /** One project's trail (internal staff; no finance entries). */
+    project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
+  },
   finance: {
     access: () => request('/finance/access'),
     brand: () => request('/finance/brand'),
@@ -580,9 +870,14 @@ export const api = {
     removeAttachment: (id: string, attId: string) => request(`/finance-invoices/${id}/attachments/${attId}`, { method: 'DELETE' }),
     // --- phase 2
     portfolio: () => request('/finance/portfolio'),
+    /** Money received per month across projects, oldest first. */
+    /** Invoiced vs collected per month, with what's still open on each month's invoices. */
+    billing: (months = 6) => request<BillingMonth[]>(`/finance/billing?months=${months}`),
+    collections: (months = 6) => request<{ month: string; amount: number }[]>(`/finance/collections?months=${months}`),
     approvals: () => request('/finance/approvals'),
     audit: (q: Record<string, string> = {}) => request(`/finance/audit?${new URLSearchParams(q).toString()}`),
     requestApproval: (id: string, d: unknown) => request(`/finance/invoices/${id}/request-approval`, { method: 'POST', body: JSON.stringify(d) }),
+    approveInvoice: (id: string, d: unknown) => request(`/finance/invoices/${id}/approve`, { method: 'POST', body: JSON.stringify(d) }),
     returnDraft: (id: string, d: unknown) => request(`/finance/invoices/${id}/return`, { method: 'POST', body: JSON.stringify(d) }),
     createCredit: (invoiceId: string, d: unknown) => request(`/finance/invoices/${invoiceId}/credit`, { method: 'POST', body: JSON.stringify(d) }),
     allChangeOrders: () => request('/finance/change-orders'),
@@ -600,6 +895,9 @@ export const api = {
     reimbursables: (projectId: number) => request(`/finance/projects/${projectId}/reimbursables`),
     createReimbursable: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/reimbursables`, { method: 'POST', body: JSON.stringify(d) }),
     reimbursable: (id: string) => request(`/finance/reimbursables/${id}`),
+    /** Other expenses already carrying this receipt number (same vendor, or no vendor given). */
+    receiptCheck: (receipt: string, vendor?: string, exclude?: string) =>
+      request<{ id: string; number: string; projectName: string; date: string; cost: number; vendor?: string | null }[]>(`/finance/reimbursables/receipt-check?${new URLSearchParams({ receipt, ...(vendor ? { vendor } : {}), ...(exclude ? { exclude } : {}) }).toString()}`),
     updateReimbursable: (id: string, d: unknown) => request(`/finance/reimbursables/${id}`, { method: 'PUT', body: JSON.stringify(d) }),
     deleteReimbursable: (id: string) => request(`/finance/reimbursables/${id}`, { method: 'DELETE' }),
     decideReimbursable: (id: string, d: unknown) => request(`/finance/reimbursables/${id}/decision`, { method: 'POST', body: JSON.stringify(d) }),
@@ -698,6 +996,11 @@ export const api = {
     uploadAttachments: (id: string, files: File[] | FileList) => requestForm(`/contractors/${id}/attachments`, filesForm(files)),
     addLink: (id: string, name: string, url: string) => request(`/contractors/${id}/attachments/link`, { method: 'POST', body: JSON.stringify({ name, url }) }),
     removeAttachment: (id: string, attId: string) => request(`/contractors/${id}/attachments/${attId}`, { method: 'DELETE' }),
+    /** Their estimates, newest first. Each change returns the whole list again. */
+    bids: (id: string) => request<ContractorBid[]>(`/contractors/${encodeURIComponent(id)}/bids`),
+    addBid: (id: string, d: Partial<ContractorBid>) => request<ContractorBid[]>(`/contractors/${encodeURIComponent(id)}/bids`, { method: 'POST', body: JSON.stringify(d) }),
+    updateBid: (bidId: string, d: Partial<ContractorBid>) => request<ContractorBid[]>(`/contractors/bids/${encodeURIComponent(bidId)}`, { method: 'PUT', body: JSON.stringify(d) }),
+    removeBid: (bidId: string) => request<ContractorBid[]>(`/contractors/bids/${encodeURIComponent(bidId)}`, { method: 'DELETE' }),
   },
   payroll: {
     /** Tax and deduction summaries: query string from, to, employeeId, drafts=1. */
@@ -835,12 +1138,26 @@ export const api = {
       const qs = q.toString();
       return request(`/daily-logs${qs ? `?${qs}` : ''}`);
     },
-    day: (projectId: number, date: string) => request(`/daily-logs/day?projectId=${projectId}&date=${date}`),
-    save: (data: { projectId: number; date: string; notes?: string; entries?: unknown[] }) =>
-      request('/daily-logs', { method: 'POST', body: JSON.stringify(data) }),
+    /** A project's day: the asked-for report (`id`) or the latest version, plus every version. */
+    day: (projectId: number, date: string, id?: string) => request(`/daily-logs/day?projectId=${projectId}&date=${date}${id ? `&id=${encodeURIComponent(id)}` : ''}`),
+    save: (data: {
+      projectId: number; date: string; notes?: string; entries?: unknown[];
+      id?: string; newVersion?: boolean; sections?: Record<string, unknown> | null; onBehalfOf?: string;
+      certifiedName?: string; signatureDataUrl?: string; dupBaseline?: Record<string, unknown> | null; dupFromDate?: string;
+    }) => request('/daily-logs', { method: 'POST', body: JSON.stringify(data) }),
+    /** Section I figures: % invoiced, % of schedule, task / RFI / change-order counts. No dollars. */
+    summary: (projectId: number, date?: string) => request(`/daily-report/summary?projectId=${projectId}${date ? `&date=${date}` : ''}`),
+    templates: () => request('/daily-logs/templates'),
+    saveTemplate: (data: { name: string; sections?: Record<string, unknown> | null; entries?: unknown[] }) =>
+      request('/daily-logs/templates', { method: 'POST', body: JSON.stringify(data) }),
+    removeTemplate: (id: string) => request(`/daily-logs/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     submit: (id: string) => request(`/daily-logs/${id}/submit`, { method: 'POST' }),
     approve: (id: string) => request(`/daily-logs/${id}/approve`, { method: 'POST' }),
     reject: (id: string, note?: string) => request(`/daily-logs/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
+    /** A project's week rolled up from its daily reports; `week` is any day in it. */
+    weekly: (projectId: number, week: string) => request<WeeklyReport>(`/daily-logs/weekly?projectId=${projectId}&week=${week}`),
+    /** Email the week as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
+    emailWeekly: (projectId: number, week: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>('/daily-logs/weekly/email', { method: 'POST', body: JSON.stringify({ projectId, week, to }) }),
     /** Email the day as PDF + Excel -- to the usual backup list, or to `to` (comma-separated). */
     email: (id: string, to?: string) => request<{ sent: boolean; to: string[]; attachments: string[] }>(`/daily-logs/${id}/email`, { method: 'POST', body: JSON.stringify({ to }) }),
   },
@@ -853,6 +1170,8 @@ export const api = {
     save: (d: unknown) => request('/timesheets/week', { method: 'PUT', body: JSON.stringify(d) }),
     list: (o?: { from?: string; to?: string; status?: string; employeeId?: string }) => request(`/timesheets/list${qs(o)}`),
     submit: (id: string) => request(`/timesheets/${id}/submit`, { method: 'POST' }),
+    /** Submitted timesheets waiting for a decision that the caller should hear about (the bell). */
+    pendingNotices: () => request<{ id: string; employeeId: string; employeeName: string; weekStart: string; totalHours: number; submittedAt?: string }[]>('/timesheets/pending-notices'),
     approve: (id: string, note?: string) => request(`/timesheets/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
     reject: (id: string, note?: string) => request(`/timesheets/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }),
     reopen: (id: string, note?: string) => request(`/timesheets/${id}/reopen`, { method: 'POST', body: JSON.stringify({ note }) }),

@@ -12,10 +12,14 @@ export declare class CreatePersonDto {
     licenses?: unknown[];
     insurance?: Record<string, unknown>;
     notLicensedDesigner?: boolean;
+    businessCardToken?: string;
+    sameAsId?: number;
+    formerCompanies?: unknown[];
     role?: string;
     company?: string;
     contact?: string;
     kind?: string;
+    internalLevel?: string;
     tier?: string;
     phone?: string;
     email?: string;
@@ -24,5 +28,7 @@ export declare class CreatePersonDto {
     since?: string;
     last?: string;
     comply?: unknown;
+    contactStatus?: string;
+    contactStatusReason?: string;
     userId?: string | null;
 }

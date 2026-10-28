@@ -14,15 +14,17 @@ const notifications_service_1 = require("./notifications.service");
 const notifications_controller_1 = require("./notifications.controller");
 const settings_module_1 = require("../settings/settings.module");
 const google_module_1 = require("../google/google.module");
+const sms_module_1 = require("../sms/sms.module");
+const notify_hub_service_1 = require("./notify-hub.service");
 let NotificationsModule = class NotificationsModule {
 };
 exports.NotificationsModule = NotificationsModule;
 exports.NotificationsModule = NotificationsModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.ProjectEntity]), settings_module_1.SettingsModule, google_module_1.GoogleModule],
+        imports: [typeorm_1.TypeOrmModule.forFeature([entities_1.UserEntity, entities_1.ProjectEntity, entities_1.RoleEntity, entities_1.PersonEntity, entities_1.NotificationItemEntity, entities_1.ProjectTaskEntity, entities_1.TaskEntity]), settings_module_1.SettingsModule, google_module_1.GoogleModule, sms_module_1.SmsModule],
         controllers: [notifications_controller_1.NotificationsController],
-        providers: [notifications_service_1.NotificationsService],
-        exports: [notifications_service_1.NotificationsService],
+        providers: [notifications_service_1.NotificationsService, notify_hub_service_1.NotifyHub],
+        exports: [notifications_service_1.NotificationsService, notify_hub_service_1.NotifyHub],
     })
 ], NotificationsModule);
 //# sourceMappingURL=notifications.module.js.map

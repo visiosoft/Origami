@@ -2,19 +2,34 @@ import { isLogClosed } from './logStatuses';
 // Tasks fixtures + lead-time logic ported from the Origami v4 prototype (getAllTasks / getLeadTime).
 
 import type { Attachment, TaskComment, ActivityEvent, ChecklistItem } from './projectTasks';
+import type { ActionTrailFields } from '../api';
 
-export interface Task {
+export interface Task extends ActionTrailFields {
   id: string;
   /** People following the task without owning it ("Collaborative"). */
   collaborators?: { id: string; name: string }[];
   meetingType: 'Internal' | 'Owner' | 'Subcontractor';
   meetingDate: string;
   assignedTo: string;
-  /** One of the Request Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
+  /** One of the Special Actions Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
   status: string;
+  /** Urgent / High / Medium / Low, or empty for none. */
+  priority?: string;
+  /** Confirmed by whoever raised it; archived 7 days later. */
+  confirmedAt?: string | null;
+  archivedAt?: string | null;
+  /** Source: who asked for it (the assigner is whoever entered it). */
   originator: string;
-  topicType: 'Task' | 'FYI' | 'RFI';
+  /** What was done -- written when it's marked complete. */
+  completionNote?: string;
+  topicType: 'Task' | 'FYI' | 'Observation' | 'Decision' | 'RFI';
+  /** The meeting it was raised in, when it came from one. */
+  meetingId?: string;
+  /** The task's name. Older tasks have none: their first description line serves as the name. */
+  subject?: string;
   description: string;
+  /** Set the first time it goes In Progress (or by hand). */
+  startDate?: string;
   dueDate: string;
   /** HH:mm, set when created from a specific slot on My Calendar. */
   dueTime?: string;
@@ -23,6 +38,11 @@ export interface Task {
   resolution: string;
   linkedFile: string;
   project: string;
+  /** The lead it's for (work before a signed contract), and its name. */
+  leadId?: string | null;
+  leadName?: string | null;
+  /** Why it's on hold (status On hold). */
+  holdReason?: string | null;
   tab?: TaskTab;
   /** users.id — `assignedTo` is kept alongside as the display name. */
   assignedToId?: string;
@@ -32,7 +52,14 @@ export interface Task {
   checklist?: ChecklistItem[];
   labels?: string[];
   updatedAt?: string;
+  /** FOR RECORD links: the Special Actions Log tasks this entry drove or is attached to (kept on both), and change orders. */
+  linkedTaskIds?: string[];
+  changeOrderIds?: string[];
 }
+
+/** FOR RECORD: Special Actions Log entries kept on record rather than worked -- observations, FYIs and decisions. */
+export const FOR_RECORD_TOPICS = ['Observation', 'FYI', 'Decision'] as const;
+export const isForRecord = (t: Pick<Task, 'topicType'>) => (FOR_RECORD_TOPICS as readonly string[]).includes(t.topicType);
 
 export type TaskTab = 'internal' | 'owner' | 'subcontractor';
 
@@ -78,7 +105,7 @@ export const ALL_TASKS: Record<TaskTab, Task[]> = {
 };
 
 /**
- * A Request Log task has one text field. Its first line reads as the title and
+ * A Special Actions Log task has one text field. Its first line reads as the title and
  * the rest as details, so a long note pasted from an email doesn't turn into
  * one wall of bold text wherever the task is listed.
  */
@@ -97,51 +124,85 @@ export function taskHeadline(text?: string): { title: string; details: string } 
 }
 
 export const ST_COLORS: Record<string, { bg: string; c: string }> = {
-  Closed: { bg: '#D2EAD3', c: '#1C5230' },
+  Closed: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
   Open: { bg: '#F2DFD4', c: '#8E2E0A' },
   'In Progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  'On hold': { bg: '#FBE9AE', c: '#93520F' },
+  'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
 };
 export const TT_COLORS: Record<string, { bg: string; c: string }> = {
-  Task: { bg: '#DCE7DE', c: '#173326' },
-  FYI: { bg: '#FBE9AE', c: '#93520F' },
+  Task: { bg: 'var(--mint)', c: 'var(--forest)' },
+  FYI: { bg: 'var(--amber-light)', c: '#93520F' },
+  Observation: { bg: '#EAE0F3', c: '#5B2E86' },
+  Decision: { bg: '#DCE6F5', c: '#2B4C7E' },
   RFI: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 export const MT_COLORS: Record<string, { bg: string; c: string }> = {
-  Internal: { bg: '#DCE7DE', c: '#173326' },
-  Owner: { bg: '#D2EAD3', c: '#1C5230' },
-  Subcontractor: { bg: '#FBE9AE', c: '#93520F' },
+  Internal: { bg: 'var(--mint)', c: 'var(--forest)' },
+  Owner: { bg: 'var(--c-d2ead3)', c: 'var(--success-deep)' },
+  Subcontractor: { bg: 'var(--amber-light)', c: '#93520F' },
 };
 
 export interface AuditEntry { what: string; by: string; when: string; chip: string; chipBg: string; chipC: string; dot: string }
 
-export function getLeadTime(t: Task) {
-  const digits = (String(t.id).match(/\d/g) || []).reduce((a, d) => a + Number(d), 0);
+const dayMs = 86400000;
+const toDay = (v?: string | null) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? new Date(v.slice(0, 10) + 'T12:00:00') : null);
+const shortDate = (v?: string | null) => { const d = toDay(v); return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; };
+
+/**
+ * Lead time, open days and the due-date history of a Special Actions Log task. Open
+ * days run from the meeting date to today (or the day it closed); the history
+ * is the task's own recorded due-date changes (Oct 2026: it used to show
+ * made-up approvals).
+ */
+export function getLeadTime(t: Task, today = new Date()) {
   const leadMap: Record<string, number> = { Task: 14, RFI: 7, FYI: 5 };
   const leadTime = leadMap[t.topicType] || 14;
-  const openDays = t.daysOpen > 0 ? t.daysOpen : (digits % 26) + 2;
-  const variance = openDays - leadTime;
   const closed = isLogClosed(t.status);
+  const start = toDay(t.meetingDate);
+  const end = (closed && toDay(t.dateClosed)) || today;
+  const openDays = t.daysOpen > 0 ? t.daysOpen : start ? Math.max(0, Math.round((end.getTime() - start.getTime()) / dayMs)) : 0;
+  const variance = openDays - leadTime;
   const ok = variance <= 0;
   const label = closed ? (ok ? 'Closed on time' : 'Closed ' + variance + ' days late') : ok ? 'Within lead time' : variance + ' days over lead time';
   const source = (leadMap[t.topicType] ? t.topicType : 'Task') + ' template · ' + leadTime + '-day default';
-  const audit: AuditEntry[] = [
-    { what: 'Due date set from template (+' + leadTime + ' days)', by: 'System', when: t.meetingDate, chip: 'Auto', chipBg: '#EFEDE8', chipC: '#43514D', dot: '#7E9B93' },
-  ];
-  if (variance > 3) audit.unshift({ what: 'Due date moved out by ' + Math.min(variance, 10) + ' days', by: (t.assignedTo || 'Unassigned') + ' → approved by Edward M.', when: 'Approved ' + (t.dueDate || 'pending'), chip: 'Approved', chipBg: '#D2EAD3', chipC: '#1C5230', dot: '#2F7D4A' });
-  if (!closed && variance > 8) audit.unshift({ what: 'Second extension requested', by: t.assignedTo || 'Unassigned', when: 'Awaiting owner approval', chip: 'Pending', chipBg: '#FBE9AE', chipC: '#93520F', dot: '#D2822E' });
-  return { leadTime, openDays, variance, source, audit, label, bg: ok ? '#D2EAD3' : '#F2DFD4', color: ok ? '#1C5230' : '#8E2E0A' };
+  const when = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const moves = (t.activity || []).filter((e) => e.type === 'field' && e.field === 'dueDate');
+  const audit: AuditEntry[] = moves.map((e) => {
+    const from = toDay(e.from), to = toDay(e.to);
+    const days = from && to ? Math.round((to.getTime() - from.getTime()) / dayMs) : null;
+    const what = !e.from ? `Due date set to ${shortDate(e.to)}` : !e.to ? `Due date cleared (was ${shortDate(e.from)})`
+      : `Due date moved ${days != null && days < 0 ? 'in' : 'out'} ${days != null ? Math.abs(days) + ' day' + (Math.abs(days) === 1 ? '' : 's') : ''} · ${shortDate(e.from)} → ${shortDate(e.to)}`;
+    const late = days != null && days > 0;
+    return { what, by: e.by || 'Someone', when: when(e.at), chip: !e.from ? 'Set' : late ? 'Extended' : 'Moved', chipBg: late ? 'var(--amber-light)' : 'var(--c-efede8)', chipC: late ? '#93520F' : 'var(--body)', dot: late ? '#D2822E' : 'var(--muted)' };
+  }).reverse();
+  if (t.dueDate && !moves.some((e) => !e.from)) {
+    audit.push({ what: `Due date ${shortDate(moves[0]?.from || t.dueDate)}`, by: 'When the task was created', when: shortDate(t.meetingDate), chip: 'Original', chipBg: 'var(--c-efede8)', chipC: 'var(--body)', dot: 'var(--muted)' });
+  }
+  return { leadTime, openDays, variance, source, audit, label, bg: ok ? 'var(--c-d2ead3)' : '#F2DFD4', color: ok ? 'var(--success-deep)' : '#8E2E0A' };
 }
 
 export const NEW_TASK_FIELDS = [
-  { label: 'Meeting Type', value: 'Internal', valColor: '#0B1A12', span: 'auto', required: true },
-  { label: 'Meeting Date', value: 'Select date', valColor: '#7E9B93', span: 'auto', required: true },
-  { label: 'Assigned To', value: 'Select person', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Originator', value: 'Select person', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Topic Type', value: 'Task', valColor: '#0B1A12', span: 'auto', required: true },
-  { label: 'Status', value: 'Open', valColor: '#0B1A12', span: 'auto', required: true },
-  { label: 'Due Date', value: 'Select date', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Project', value: 'Select project', valColor: '#7E9B93', span: 'auto', required: false },
-  { label: 'Description', value: 'Describe the task...', valColor: '#7E9B93', span: '1 / -1', required: true },
-  { label: 'Link to File', value: 'Attach or paste link', valColor: '#7E9B93', span: '1 / -1', required: false },
+  { label: 'Meeting Type', value: 'Internal', valColor: 'var(--ink)', span: 'auto', required: true },
+  { label: 'Meeting Date', value: 'Select date', valColor: 'var(--muted)', span: 'auto', required: true },
+  { label: 'Assigned To', value: 'Select person', valColor: 'var(--muted)', span: 'auto', required: false },
+  { label: 'Originator', value: 'Select person', valColor: 'var(--muted)', span: 'auto', required: false },
+  { label: 'Topic Type', value: 'Task', valColor: 'var(--ink)', span: 'auto', required: true },
+  { label: 'Status', value: 'Open', valColor: 'var(--ink)', span: 'auto', required: true },
+  { label: 'Due Date', value: 'Select date', valColor: 'var(--muted)', span: 'auto', required: false },
+  { label: 'Project', value: 'Select project', valColor: 'var(--muted)', span: 'auto', required: false },
+  { label: 'Description', value: 'Describe the task...', valColor: 'var(--muted)', span: '1 / -1', required: true },
+  { label: 'Link to File', value: 'Attach or paste link', valColor: 'var(--muted)', span: '1 / -1', required: false },
 ];
+
+/** A Special Actions Log task's name: its subject, or (older tasks) the first line of its description. */
+export function logTaskTitle(t: { subject?: string; description?: string; id?: string }): string {
+  return (t.subject || '').trim() || taskHeadline(t.description).title || t.id || '';
+}
+
+/** The text under the name: the whole description when there is a subject, else what follows the first line. */
+export function logTaskDetails(t: { subject?: string; description?: string }): string {
+  return (t.subject || '').trim() ? (t.description || '').trim() : taskHeadline(t.description).details;
+}
+
+/** Trim a name for tight spaces. */
+export const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + '…' : s);

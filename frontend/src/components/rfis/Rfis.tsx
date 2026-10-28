@@ -1,47 +1,56 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { CloseButton } from '../CloseButton';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { PriorityHelp } from '../PriorityHelp';
 import { api } from '../../api';
+import { SavedViews } from '../SavedViews';
+import { AkStats } from '../ActionKit';
+import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
+import { PrioritySelect } from '../PrioritySelect';
+import { linkPriorityDue } from '../../data/priority';
+import type { Priority } from '../../data/projectTasks';
+import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
 import { useApp } from '../../AppContext';
 import { SaveBar, useAutosave } from '../../autosave';
 import { AssigneePicker } from '../AssigneePicker';
 import { Attachments } from '../Attachments';
 import type { Attachment } from '../../data/projectTasks';
+import type { ActionTrailFields } from '../../api';
 
 // ------------------------------------------------------------------ types & looks
 
 export interface RfiContact { name: string; email?: string; company?: string; personId?: number }
-export interface Rfi {
+export interface Rfi extends ActionTrailFields {
   id: string; projectId: number; projectName?: string; number: string; subject: string;
   status: 'draft' | 'open' | 'answered' | 'closed' | 'void';
   priority?: string; question?: string; suggestion?: string; discipline?: string; specSection?: string; drawingRef?: string;
-  drawings?: { fileId: string; name: string }[] | null; to?: RfiContact | null; cc?: RfiContact[] | null;
+  drawings?: { fileId: string; name: string; markupId?: string; page?: number }[] | null; to?: RfiContact | null; cc?: RfiContact[] | null;
   ownerId?: string; ownerName?: string; dateSent?: string; dateDue?: string; dateAnswered?: string; dateClosed?: string;
   answer?: string; answeredBy?: string; costImpact?: string; costAmount?: number | null; scheduleImpact?: string; scheduleDays?: number | null;
-  changeOrderId?: string; changeOrderNumber?: string; sourceTaskId?: string; attachments?: Attachment[];
+  changeOrderId?: string; changeOrderNumber?: string; sourceTaskId?: string; sourceTaskType?: string; attachments?: Attachment[];
   history?: { at: string; by: string; action: string; note?: string }[]; voidReason?: string; ballInCourt?: string;
   createdAt?: string; createdBy?: string;
 }
 
-const BG = "'Bricolage Grotesque', serif";
-const INK = '#0B1A12';
-const MUTED = '#7E9B93';
+const BG = 'var(--font-display)';
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
 export const RFI_STATUS: Record<Rfi['status'], { label: string; bg: string; c: string }> = {
-  draft: { label: 'Draft', bg: '#EFEDE8', c: '#5C6B65' },
-  open: { label: 'Awaiting answer', bg: '#FBE9AE', c: '#93520F' },
+  draft: { label: 'Draft', bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
+  open: { label: 'Awaiting answer', bg: 'var(--amber-light)', c: '#93520F' },
   answered: { label: 'Answered', bg: '#D6E8E5', c: '#2F6F68' },
-  closed: { label: 'Closed', bg: '#E4EFE5', c: '#145C33' },
+  closed: { label: 'Closed', bg: 'var(--c-e4efe5)', c: 'var(--c-145c33)' },
   void: { label: 'Void', bg: '#F2DFD4', c: '#8E2E0A' },
 };
 const DISCIPLINES = ['Architectural', 'Structural', 'Civil', 'Mechanical', 'Electrical', 'Plumbing', 'Fire Protection', 'Landscape', 'Interior', 'Owner / Client', 'Other'];
 const FIELDS = ['subject', 'question', 'suggestion', 'discipline', 'specSection', 'drawingRef', 'drawings', 'to', 'cc', 'ownerId', 'dateDue', 'priority',
   'costImpact', 'costAmount', 'scheduleImpact', 'scheduleDays', 'answer', 'answeredBy', 'dateAnswered'] as const;
 
-const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: 'white', fontSize: 13, fontFamily: 'inherit', color: INK, outline: 'none' };
+const input: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: INK, outline: 'none' };
 const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 };
 const btn = (primary = false, danger = false): React.CSSProperties => ({
   padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
-  border: primary ? 'none' : '1px solid ' + (danger ? 'rgba(142,46,10,0.3)' : 'rgba(20,8,31,0.14)'),
-  background: primary ? '#173326' : 'white', color: primary ? 'white' : danger ? '#8E2E0A' : '#173326',
+  border: primary ? 'none' : '1px solid ' + (danger ? 'rgba(142,46,10,0.3)' : 'rgba(var(--rgb-shade), 0.14)'),
+  background: primary ? 'var(--forest)' : 'var(--surface)', color: primary ? 'white' : danger ? '#8E2E0A' : 'var(--forest)',
 });
 
 const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -102,6 +111,25 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
       .filter((r) => status === 'all' ? true : status === 'active' ? r.status !== 'closed' && r.status !== 'void' : r.status === status)
       .filter((r) => !t || [r.number, r.subject, r.to?.name, r.to?.company, r.projectName, r.drawingRef, r.discipline].some((x) => (x || '').toLowerCase().includes(t)));
   }, [rows, status, q]);
+  const { sorted, sort, setSort, toggle } = useSort(shown, {
+    number: (r) => r.number, subject: (r) => r.subject, project: (r) => r.projectName, to: (r) => r.to?.name, status: (r) => RFI_STATUS[r.status]?.label || r.status,
+    sent: (r) => r.dateSent, due: (r) => r.dateDue, days: (r) => daysOpen(r), ball: (r) => r.ballInCourt,
+  }, null, { sent: 'desc', due: 'asc', days: 'desc' });
+  const viewValue = { status, q, sort: sortToString(sort) };
+  const applyView = (v: typeof viewValue) => {
+    setStatus(v.status as typeof status); setQ(v.q || ''); setSort(sortFromString(v.sort));
+  };
+  // The RFI dashboard (Oct 16): the numbers at a glance; each card filters the list.
+  const stats = useMemo(() => {
+    const live = rows.filter((r) => r.status !== 'void');
+    const days = live.map(daysOpen).filter((d): d is number => d != null);
+    return {
+      draft: live.filter((r) => r.status === 'draft').length,
+      avg: days.length ? Math.round(days.reduce((a, d) => a + d, 0) / days.length) : null,
+      cost: live.filter((r) => r.costImpact === 'yes' && r.status !== 'closed').length,
+      closed: live.filter((r) => r.status === 'closed').length,
+    };
+  }, [rows]);
   const counts = useMemo(() => ({
     open: rows.filter((r) => r.status === 'open').length,
     overdue: rows.filter(isOverdue).length,
@@ -148,9 +176,20 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
         </select>
         {rights?.manage && <button type="button" onClick={() => setCreating(true)} style={btn(true)}>+ New RFI</button>}
       </div>
+      {!compact && !loading && rows.length > 0 && (
+        <div style={{ marginBottom: 14 }}><AkStats items={[
+          { key: 'open', label: 'Awaiting an answer', value: counts.open, sub: 'sent, not answered', onClick: () => setStatus('open'), on: status === 'open' },
+          { key: 'late', label: 'Overdue', value: counts.overdue, sub: 'past the answer date', tone: counts.overdue ? 'dark' : undefined },
+          { key: 'ans', label: 'Answered', value: counts.answered, sub: 'to review and close', tone: counts.answered ? 'yellow' : undefined, onClick: () => setStatus('answered'), on: status === 'answered' },
+          { key: 'draft', label: 'Drafts', value: stats.draft, sub: 'not sent yet', onClick: () => setStatus('draft'), on: status === 'draft' },
+          { key: 'cost', label: 'Cost impact', value: stats.cost, sub: 'open RFIs that change the price' },
+          { key: 'avg', label: 'Average days open', value: stats.avg ?? '—', sub: `${stats.closed} closed so far` },
+        ]} /></div>
+      )}
+      <div style={{ marginBottom: 12 }}><SavedViews page={projectId ? 'rfis.project' : 'rfis'} value={viewValue} defaults={{ status: 'active', q: '', sort: '' }} onApply={applyView} /></div>
 
       {creating && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12, background: '#FBF8F2', borderRadius: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: 12, background: 'var(--panel)', borderRadius: 'var(--r-12)', marginBottom: 12 }}>
           {!projectId && (
             <select value={newProject} onChange={(e) => setNewProject(e.target.value ? Number(e.target.value) : '')} style={{ ...input, width: 220 }}>
               <option value="">Project…</option>
@@ -168,41 +207,41 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
 
       {loading ? <div style={{ fontSize: 13, color: MUTED, padding: 12 }}>Loading RFIs…</div>
         : !shown.length ? (
-          <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: '#FBF8F2', borderRadius: 12 }}>
+          <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
             {rows.length ? 'No RFIs match.' : 'No RFIs yet. When something on the drawings needs an answer from the architect, engineer or owner, start one here — or use “Convert to RFI” on a task.'}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto', background: 'white', borderRadius: 12, border: '1px solid rgba(20,8,31,0.06)' }}>
+          <div style={{ overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 760 }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: MUTED, fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  {['No.', 'Subject', ...(projectId ? [] : ['Project']), 'To', 'Status', 'Sent', 'Due', 'Days', 'Ball in court', 'Impact'].map((h) => (
-                    <th key={h} style={{ padding: '10px 12px', borderBottom: '1px solid rgba(20,8,31,0.08)', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
+                  {([['number', 'No.'], ['subject', 'Subject'], ...(projectId ? [] : [['project', 'Project']]), ['to', 'To'], ['status', 'Status'], ['sent', 'Sent'], ['due', 'Due'], ['days', 'Days'], ['ball', 'Ball in court'], ['', 'Impact']] as [string, string][]).map(([k, h]) => (
+                    <th key={h} style={{ padding: '10px 12px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.08)', fontWeight: 700, whiteSpace: 'nowrap' }}>{k ? <SortHeader k={k} sort={sort} onSort={toggle}>{h}</SortHeader> : h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {shown.map((r) => {
+                {sorted.map((r) => {
                   const d = daysOpen(r);
                   return (
-                    <tr key={r.id} onClick={() => setOpenRfi(r.id)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(20,8,31,0.05)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#FBF8F2'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
-                      <td style={{ padding: '10px 12px', fontWeight: 700, color: '#173326', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{r.number}</td>
+                    <tr key={r.id} onClick={() => setOpenRfi(r.id)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(var(--rgb-shade), 0.05)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--forest)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{r.number}</td>
                       <td style={{ padding: '10px 12px', fontWeight: 600, color: INK, maxWidth: 320 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.subject}</div>
                         {(r.drawingRef || r.discipline) && <div style={{ fontSize: 11, color: MUTED, fontWeight: 500 }}>{[r.discipline, r.drawingRef].filter(Boolean).join(' · ')}</div>}
                       </td>
-                      {!projectId && <td style={{ padding: '10px 12px', color: '#43514D', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</td>}
-                      <td style={{ padding: '10px 12px', color: '#43514D', whiteSpace: 'nowrap' }}>{r.to?.name || <span style={{ color: '#B5BDB8' }}>—</span>}</td>
+                      {!projectId && <td style={{ padding: '10px 12px', color: 'var(--body)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.projectName}</td>}
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{r.to?.name || <span style={{ color: 'var(--c-b5bdb8)' }}>—</span>}</td>
                       <td style={{ padding: '10px 12px' }}><StatusPill r={r} /></td>
-                      <td style={{ padding: '10px 12px', color: '#43514D', whiteSpace: 'nowrap' }}>{rfiDay(r.dateSent)}</td>
-                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: isOverdue(r) ? 700 : 400, color: isOverdue(r) ? '#8E2E0A' : '#43514D' }}>{rfiDay(r.dateDue)}</td>
-                      <td style={{ padding: '10px 12px', color: '#43514D', fontVariantNumeric: 'tabular-nums' }}>{d ?? ''}</td>
-                      <td style={{ padding: '10px 12px', color: '#43514D', whiteSpace: 'nowrap' }}>{r.ballInCourt}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{rfiDay(r.dateSent)}</td>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: isOverdue(r) ? 700 : 400, color: isOverdue(r) ? '#8E2E0A' : 'var(--body)' }}>{rfiDay(r.dateDue)}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', fontVariantNumeric: 'tabular-nums' }}>{d ?? ''}</td>
+                      <td style={{ padding: '10px 12px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{r.ballInCourt}</td>
                       <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontSize: 11.5 }}>
                         {r.costImpact === 'yes' && <span title="Cost impact" style={{ color: '#8E2E0A', fontWeight: 700, marginRight: 8 }}>$</span>}
                         {r.scheduleImpact === 'yes' && <span title="Schedule impact" style={{ color: '#93520F', fontWeight: 700, marginRight: 8 }}>⏱</span>}
-                        {r.changeOrderNumber && <span style={{ color: '#173326', fontWeight: 700 }}>{r.changeOrderNumber}</span>}
+                        {r.changeOrderNumber && <span style={{ color: 'var(--forest)', fontWeight: 700 }}>{r.changeOrderNumber}</span>}
                       </td>
                     </tr>
                   );
@@ -266,6 +305,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
     onSaved: (row) => { setRec(row); onChanged(row); },
   });
   const set = (patch: Partial<Rfi>) => setDraft((d) => ({ ...d, ...patch }));
+  // Which of priority / answer date was filled in from the other.
+  const autoPD = useRef<'priority' | 'due' | null>(null);
 
   /** Actions: save any pending edits first, then take the server's record as the new baseline. */
   const act = async (fn: () => Promise<Rfi>, done: string) => {
@@ -279,14 +320,12 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
     finally { setBusy(false); }
   };
 
+  // Through the shared conversion, so both records note it and the RFI links the change order.
   const createChangeOrder = () => act(async () => {
-    const co: any = await api.finance.createChangeOrder(rec.projectId, {
-      title: `${rec.number}: ${rec.subject}`,
-      description: [rec.question && `Question: ${rec.question}`, rec.answer && `Answer (${rec.answeredBy || 'recipient'}): ${rec.answer}`].filter(Boolean).join('\n\n'),
-      reason: 'design_change', requestedBy: rec.answeredBy || rec.to?.name, scheduleImpactDays: rec.scheduleDays || 0,
-    });
-    return api.rfis.update(rec.id, { changeOrderId: co.id, changeOrderNumber: co.number });
+    await api.specialActions.convert({ from: { kind: 'rfi', id: rec.id }, to: 'co' });
+    return api.rfis.get(rec.id) as Promise<Rfi>;
   }, 'Change order drafted — find it in the project’s Financial tab');
+  const reloadTrail = () => { api.rfis.get(rec.id).then((r: Rfi) => { setRec((cur) => ({ ...cur, history: r.history, derivedRefs: r.derivedRefs, changeOrderId: r.changeOrderId, changeOrderNumber: r.changeOrderNumber })); onChanged(r); }).catch(() => { }); };
 
   const pickPerson = (id: string) => {
     const p = people.find((x) => String(x.id) === id);
@@ -305,9 +344,9 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   }, [files, fileQuery, draft.drawings]);
 
   const section = (title: string, children: React.ReactNode, extra?: React.ReactNode) => (
-    <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+    <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#173326', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--forest)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{title}</div>
         <div style={{ marginLeft: 'auto' }}>{extra}</div>
       </div>
       {children}
@@ -316,27 +355,27 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
   const ro = !editable;
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(20,8,31,0.15)', animation: 'scaleIn 0.2s ease' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 130, display: 'flex', justifyContent: 'flex-end', animation: 'fadeIn 0.15s ease' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', width: 820, maxWidth: '96vw', height: '100%', overflowY: 'auto', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.15)', animation: 'scaleIn 0.2s ease' }}>
         {editable && (
-          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'white', padding: '10px 24px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-            <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} />
+          <div style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--surface)', padding: '10px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+            <SaveBar auto={auto} blocked={!draft.subject?.trim() ? 'Give it a subject to save' : undefined} onDone={onClose} />
           </div>
         )}
 
         {/* Header */}
-        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
+        <div style={{ padding: '20px 24px 14px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-            <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: '#173326' }}>{rec.number}</span>
+            <span style={{ fontFamily: BG, fontSize: 15, fontWeight: 800, color: 'var(--forest)' }}>{rec.number}</span>
             <StatusPill r={rec} />
             <span style={{ fontSize: 12, color: MUTED }}>{rec.projectName}</span>
-            <div onClick={onClose} style={{ marginLeft: 'auto', width: 32, height: 32, borderRadius: 10, display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(20,8,31,0.08)' }}>
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth={2} strokeLinecap="round"><line x1={18} y1={6} x2={6} y2={18} /><line x1={6} y1={6} x2={18} y2={18} /></svg>
-            </div>
+            <span style={{ marginLeft: 'auto' }}><CloseButton onClick={onClose} /></span>
           </div>
           {ro ? <div style={{ fontFamily: BG, fontSize: 19, fontWeight: 700, color: INK }}>{rec.subject}</div>
             : <input value={draft.subject || ''} onChange={(e) => set({ subject: e.target.value })} style={{ ...input, fontFamily: BG, fontSize: 18, fontWeight: 700, border: '1px solid transparent', padding: '4px 6px', marginLeft: -6 }} />}
           {rec.status === 'void' && rec.voidReason && <div style={{ fontSize: 12.5, color: '#8E2E0A', marginTop: 6 }}>Voided: {rec.voidReason}</div>}
+          <div style={{ marginTop: 6 }}><OriginatorLine by={rec.createdBy} at={rec.createdAt} number={rec.number} /></div>
+          <div style={{ marginTop: 8 }}><ActionTrail sourceType={rec.sourceType || (rec.sourceTaskId ? rec.sourceTaskType || 'board' : null)} sourceId={rec.sourceId || rec.sourceTaskId} sourceLabel={rec.sourceLabel || 'a task'} derived={rec.derivedRefs} /></div>
 
           {/* Actions */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
@@ -362,8 +401,8 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           </div>
 
           {panel === 'send' && (
-            <div style={{ marginTop: 12, padding: 14, background: '#FBF8F2', borderRadius: 12 }}>
-              <div style={{ fontSize: 12.5, color: '#43514D', marginBottom: 8, lineHeight: 1.5 }}>
+            <div style={{ marginTop: 12, padding: 14, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--body)', marginBottom: 8, lineHeight: 1.5 }}>
                 {draft.to?.email
                   ? <>Emails <b>{draft.to.name}</b> ({draft.to.email}){(draft.cc || []).length ? `, copying ${(draft.cc || []).map((c) => c.name).join(', ')}` : ''} and you, with the RFI attached as a PDF. Replies come back to {draft.ownerName || 'the owner'}.
                     {!rec.dateDue && !draft.dateDue ? ' The answer is due in 7 working days unless you set a date below.' : ''}</>
@@ -377,7 +416,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             </div>
           )}
           {panel === 'answer' && (
-            <div style={{ marginTop: 12, padding: 14, background: '#FBF8F2', borderRadius: 12 }}>
+            <div style={{ marginTop: 12, padding: 14, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
               <div style={lbl}>The answer</div>
               <textarea autoFocus value={answerForm.answer} onChange={(e) => setAnswerForm({ ...answerForm, answer: e.target.value })} rows={5} placeholder="Paste the reply from the email" style={{ ...input, resize: 'vertical' }} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 10 }}>
@@ -392,7 +431,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             </div>
           )}
           {(panel === 'void' || panel === 'close') && (
-            <div style={{ marginTop: 12, padding: 14, background: panel === 'void' ? '#FBEDE6' : '#FBF8F2', borderRadius: 12 }}>
+            <div style={{ marginTop: 12, padding: 14, background: panel === 'void' ? '#FBEDE6' : 'var(--panel)', borderRadius: 'var(--r-12)' }}>
               <textarea autoFocus value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={panel === 'void' ? 'Why is it void? (e.g. duplicate of RFI-004, withdrawn)' : 'Closing note (optional)'} style={{ ...input, resize: 'vertical' }} />
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 {panel === 'void'
@@ -430,22 +469,22 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           <div style={{ ...lbl, marginTop: 12 }}>Drawings in the File Room</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             {(draft.drawings || []).map((d) => (
-              <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#EEF3EE', fontSize: 12, fontWeight: 600 }}>
-                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}`} target="_blank" rel="noopener noreferrer" style={{ color: '#173326', textDecoration: 'none' }}>{d.name}</a>
+              <span key={d.fileId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--mist)', fontSize: 12, fontWeight: 600 }}>
+                <a href={`/planroom?file=${encodeURIComponent(d.fileId)}${d.markupId ? `&markup=${encodeURIComponent(d.markupId)}` : ''}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--forest)', textDecoration: 'none' }}>{d.name}{d.page ? ` · p. ${d.page}` : ''}{d.markupId ? ' · markup' : ''}</a>
                 {!ro && <span onClick={() => set({ drawings: (draft.drawings || []).filter((x) => x.fileId !== d.fileId) })} style={{ cursor: 'pointer', color: MUTED }} title="Remove">×</span>}
               </span>
             ))}
-            {!(draft.drawings || []).length && <span style={{ fontSize: 12, color: '#B5BDB8' }}>None linked</span>}
+            {!(draft.drawings || []).length && <span style={{ fontSize: 12, color: 'var(--c-b5bdb8)' }}>None linked</span>}
           </div>
           {!ro && (files.length ? (
             <div>
               <input value={fileQuery} onChange={(e) => setFileQuery(e.target.value)} placeholder={`Find a drawing in this project’s File Room (${files.length} files)…`} style={input} />
               {fileQuery.trim() && (
-                <div style={{ border: '1px solid rgba(20,8,31,0.08)', borderRadius: 9, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
+                <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 9, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
                   {matchingFiles.length ? matchingFiles.map((f) => (
                     <div key={f.id} onClick={() => { set({ drawings: [...(draft.drawings || []), { fileId: f.id, name: f.name }] }); setFileQuery(''); }}
-                      style={{ padding: '8px 11px', cursor: 'pointer', fontSize: 12.5, borderBottom: '1px solid rgba(20,8,31,0.04)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#FBF8F2'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
+                      style={{ padding: '8px 11px', cursor: 'pointer', fontSize: 12.5, borderBottom: '1px solid rgba(var(--rgb-shade), 0.04)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--panel)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}>
                       <b>{f.name}</b> <span style={{ color: MUTED }}>{(f.folderPath || []).join(' › ')}</span>
                     </div>
                   )) : <div style={{ padding: '8px 11px', fontSize: 12, color: MUTED }}>No match.</div>}
@@ -475,12 +514,12 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
               <div style={lbl}>Copy to</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
                 {(draft.cc || []).map((c, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#FBF8F2', fontSize: 12 }}>
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'var(--panel)', fontSize: 12 }}>
                     {c.name}{c.email ? '' : <span style={{ color: '#8E2E0A' }} title="No email — won't be copied"> ⚠</span>}
                     {!ro && <span onClick={() => set({ cc: (draft.cc || []).filter((_, j) => j !== i) })} style={{ cursor: 'pointer', color: MUTED }}>×</span>}
                   </span>
                 ))}
-                {!(draft.cc || []).length && <span style={{ fontSize: 12, color: '#B5BDB8' }}>Nobody</span>}
+                {!(draft.cc || []).length && <span style={{ fontSize: 12, color: 'var(--c-b5bdb8)' }}>Nobody</span>}
               </div>
               {!ro && people.length > 0 && (
                 <select value="" onChange={(e) => addCc(e.target.value)} style={input}>
@@ -493,10 +532,13 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginTop: 12 }}>
-            <div><div style={lbl}>Answer needed by</div><input readOnly={ro} type="date" value={draft.dateDue || ''} onChange={(e) => set({ dateDue: e.target.value })} style={input} /></div>
+            <div><div style={lbl}>Answer needed by</div><input readOnly={ro} type="date" value={draft.dateDue || ''} onChange={(e) => { const r = linkPriorityDue({ priority: draft.priority as Priority, dueDate: draft.dateDue, auto: autoPD.current }, { dueDate: e.target.value }); autoPD.current = r.auto; set({ dateDue: r.dueDate, priority: r.priority }); }} style={input} />
+              {autoPD.current === 'due' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the priority</div>}</div>
             <div><div style={lbl}>Priority</div>
-              <select disabled={ro} value={draft.priority || 'Medium'} onChange={(e) => set({ priority: e.target.value })} style={input}>{['High', 'Medium', 'Low'].map((p) => <option key={p}>{p}</option>)}</select></div>
-            <div><div style={lbl}>Sent</div><div style={{ fontSize: 13, padding: '9px 0', color: '#43514D' }}>{rec.dateSent ? rfiDay(rec.dateSent) : 'Not yet'}{daysOpen(rec) != null ? ` · ${daysOpen(rec)} day${daysOpen(rec) === 1 ? '' : 's'} open` : ''}</div></div>
+              <PrioritySelect disabled={ro} value={draft.priority} style={input} onChange={(p) => { const r = linkPriorityDue({ priority: draft.priority as Priority, dueDate: draft.dateDue, auto: autoPD.current }, { priority: p }); autoPD.current = r.auto; set({ priority: r.priority, dateDue: r.dueDate }); }} />
+              {autoPD.current === 'priority' && <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Set from the date</div>}
+              <PriorityHelp value={draft.priority} /></div>
+            <div><div style={lbl}>Sent</div><div style={{ fontSize: 13, padding: '9px 0', color: 'var(--body)' }}>{rec.dateSent ? rfiDay(rec.dateSent) : 'Not yet'}{daysOpen(rec) != null ? ` · ${daysOpen(rec)} day${daysOpen(rec) === 1 ? '' : 's'} open` : ''}</div></div>
           </div>
         </>)}
 
@@ -513,7 +555,7 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
               </select></div>
             {draft.scheduleImpact === 'yes' && <div><div style={lbl}>Days</div><input readOnly={ro} type="number" min={0} value={draft.scheduleDays ?? ''} onChange={(e) => set({ scheduleDays: e.target.value === '' ? null : Number(e.target.value) })} style={input} /></div>}
           </div>
-          {rec.changeOrderNumber && <div style={{ marginTop: 10, fontSize: 12.5, color: '#173326', fontWeight: 600 }}>Change order {rec.changeOrderNumber} drafted from this RFI — open it in the project’s Financial tab.</div>}
+          {rec.changeOrderNumber && <div style={{ marginTop: 10, fontSize: 12.5, color: 'var(--forest)', fontWeight: 600 }}>Change order {rec.changeOrderNumber} drafted from this RFI — open it in the project’s Financial tab.</div>}
         </>)}
 
         {section('Files', (
@@ -525,10 +567,12 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
           />
         ))}
 
+        {canManage && section('Duplicate or convert', <ActionMenu kind="rfi" id={rec.id} projectId={rec.projectId} onMade={reloadTrail} />)}
+
         {section('History', (
           <div style={{ display: 'grid', gap: 7 }}>
             {[...(rec.history || [])].reverse().map((h, i) => (
-              <div key={i} style={{ fontSize: 12.5, color: '#43514D', lineHeight: 1.45 }}>
+              <div key={i} style={{ fontSize: 12.5, color: 'var(--body)', lineHeight: 1.45 }}>
                 <b style={{ color: INK }}>{h.by}</b> {h.action}
                 <span style={{ color: MUTED }}> · {new Date(h.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
                 {h.note && <div style={{ color: MUTED, fontStyle: 'italic' }}>“{h.note}”</div>}
@@ -543,35 +587,3 @@ export function RfiDrawer({ rfi, canManage, onClose, onChanged, onDeleted }: {
 
 // ------------------------------------------------------------------ from a task
 
-/**
- * "Convert to RFI" on a task: a draft RFI with the task's title and text,
- * noted on the task, then opened on the RFIs page. The task itself stays.
- */
-export function ConvertToRfiButton({ source }: {
-  source: { taskId: string; type: 'log' | 'board'; projectId?: number | null; project?: string; title: string; description?: string };
-}) {
-  const { toast } = useApp();
-  const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
-  if (!source.projectId && !source.project) return null;
-  const go = () => {
-    setBusy(true);
-    api.rfis.create({
-      projectId: source.projectId || undefined, project: source.project, subject: source.title.slice(0, 300) || 'RFI',
-      question: source.description || source.title, sourceTaskId: source.taskId, sourceTaskType: source.type,
-    })
-      .then((r: Rfi) => {
-        const note = `Converted to ${r.number} — ${r.subject}`;
-        (source.type === 'log' ? api.tasks.addComment(source.taskId, note) : api.projectTasks.addComment(source.taskId, note)).catch(() => { });
-        toast(`${r.number} drafted from this task`);
-        navigate(`/rfis?rfi=${encodeURIComponent(r.id)}`);
-      })
-      .catch((e: Error) => toast('⚠ ' + e.message))
-      .finally(() => setBusy(false));
-  };
-  return (
-    <div onClick={busy ? undefined : go} title="Start a Request for Information from this task" style={{ display: 'inline-block', padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: busy ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,0.14)', color: '#173326', marginRight: 8 }}>
-      {busy ? 'Converting…' : 'Convert to RFI'}
-    </div>
-  );
-}

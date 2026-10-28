@@ -1,22 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { RfiLog } from '../components/rfis/Rfis';
+import { ProjectPeople } from '../components/ProjectPeople';
+import { TaskBoard } from '../components/TaskBoard';
 import { HoldBadge } from '../components/ProjectHold';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { subtasksOf, type ProjectTask } from '../data/projectTasks';
+import { isTaskDone, statusLabel, subtasksOf, type ProjectTask } from '../data/projectTasks';
+import { TaskLinkBadge } from '../components/TaskLinkBadge';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
 
-const HEADING = "'Bricolage Grotesque', serif";
+const HEADING = 'var(--font-display)';
 
 /** Tokens from the design handoff. */
 const INK = '#14081F';
 const INK3 = '#756E80';
 const MUTED = '#9c96a4';
-const PAPER = '#FBF8F2';
+const PAPER = 'var(--panel)';
 const ACCENT = '#5B2BC9';
 const SAND = '#EDE3CF';
 
@@ -40,6 +43,7 @@ interface Project {
   priority: string; typeOfWork: string; estStart: string; duration: string; scope: string;
   referral: string; designPhase?: string;
   holdSince?: string; holdUntil?: string; holdReason?: string;
+  highViz?: boolean | null;
 }
 
 /**
@@ -69,6 +73,7 @@ export function DesignProject() {
   const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<'board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis' | 'subs'>('board');
   const [rfiView, setRfiView] = useState(false);
+  const [actionKind, setActionKind] = useState<'tasks' | 'rfis'>('tasks');
   useEffect(() => { api.rfis.access().then((r) => setRfiView(!!r?.view)).catch(() => setRfiView(false)); }, []);
   const [finView, setFinView] = useState(false);
   useEffect(() => { api.finance.access().then((r: any) => setFinView(!!r?.view)).catch(() => setFinView(false)); }, []);
@@ -140,7 +145,7 @@ export function DesignProject() {
 
   const stages = useMemo(() => scopedPhases.map((ph) => {
     const items = tasks.filter((t) => t.phaseId === ph.id && !t.parentId);
-    const done = items.filter((t) => t.completed || t.status === 'Done').length;
+    const done = items.filter((t) => isTaskDone(t)).length;
     const percent = items.length ? Math.round((done / items.length) * 100) : 0;
     const colors = STAGE_COLORS[ph.key] || { dot: ph.color, text: ph.color };
     return {
@@ -167,11 +172,13 @@ export function DesignProject() {
   /** Ticking writes through — the board and reports read the same completion. */
   const toggle = (task: ProjectTask) => {
     if (!canManage) return;
-    const next = !(task.completed || task.status === 'Done');
+    const next = !isTaskDone(task);
     setTasks((prev) => prev.map((t) => (t.id === task.id
       ? { ...t, completed: next, status: next ? 'Done' : 'In progress' }
       : t)));
-    api.projectTasks.update(task.id, { completed: next, status: next ? 'Done' : 'In progress' })
+    // Only "done or not" is sent: the server picks the status (and keeps a Confirmed task Confirmed).
+    api.projectTasks.update(task.id, { completed: next })
+      .then((res: any) => { if (res?.id) setTasks((prev) => prev.map((t) => (t.id === res.id ? { ...t, status: res.status, completed: res.completed, sectionId: res.sectionId } : t))); })
       .catch((e: Error) => {
         setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
         toast('⚠ ' + e.message);
@@ -197,7 +204,7 @@ export function DesignProject() {
     (roleFilter === 'All roles' || task.team === roleFilter)
     && (!q || task.title.toLowerCase().includes(q) || (task.assignee || '').toLowerCase().includes(q)));
 
-  const isDone = (t: ProjectTask) => !!(t.completed || t.status === 'Done');
+  const isDone = (t: ProjectTask) => isTaskDone(t);
   const isProgress = (t: ProjectTask) => !isDone(t) && t.status === 'In progress';
   const today = new Date().toISOString().slice(0, 10);
   const isLate = (t: any) => !isDone(t) && !!t.dueDate && t.dueDate < today;
@@ -255,7 +262,7 @@ export function DesignProject() {
   const COLUMNS = [
     { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !isDone(t) && !isProgress(t), emptyText: 'Nothing waiting to start.' },
     { key: 'progress', label: 'In progress', dot: ACCENT, match: isProgress, emptyText: 'Nothing under way.' },
-    { key: 'done', label: 'Done', dot: '#16A34A', match: isDone, emptyText: 'Nothing finished yet.' },
+    { key: 'done', label: 'Done', dot: 'var(--c-16a34a)', match: isDone, emptyText: 'Nothing finished yet.' },
   ];
 
   const selCount = selected.length;
@@ -278,16 +285,16 @@ export function DesignProject() {
   };
 
   const pill: React.CSSProperties = {
-    height: 40, padding: '0 12px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999,
-    background: '#FFFFFF', fontSize: 14, color: '#4A4357', cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
+    height: 40, padding: '0 12px', border: '1px solid rgba(var(--rgb-shade), .14)', borderRadius: 999,
+    background: 'var(--surface)', fontSize: 14, color: '#4A4357', cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
   };
   const bulkBtn = (text: string, onClick: () => void, primary = false): React.ReactNode => (
     <div
       onClick={onClick}
       style={{
         height: 34, display: 'flex', alignItems: 'center', padding: '0 14px', borderRadius: 999,
-        border: primary ? 'none' : '1px solid rgba(20,8,31,.14)',
-        background: primary ? ACCENT : '#fff', color: primary ? '#fff' : '#4A4357',
+        border: primary ? 'none' : '1px solid rgba(var(--rgb-shade), .14)',
+        background: primary ? ACCENT : 'var(--surface)', color: primary ? '#fff' : '#4A4357',
         fontSize: 13, fontWeight: 600, cursor: 'pointer',
       }}
     >{text}</div>
@@ -300,8 +307,24 @@ export function DesignProject() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h1 style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 26, color: INK, margin: 0 }}>{project.name}</h1>
+          {/* High Viz: the team decides which projects everyone following High Viz hears about. */}
+          {(canManage || project.highViz) && (
+            <button type="button" disabled={!canManage} aria-pressed={!!project.highViz}
+              title={project.highViz ? 'High Viz — its status changes and task moves go to everyone following High Viz. Click to turn off.' : 'Mark High Viz — its status changes and task moves go to everyone following High Viz'}
+              onClick={() => {
+                const next = !project.highViz;
+                setProject({ ...project, highViz: next });
+                api.projects.update(project.id, { highViz: next })
+                  .then(() => toast(next ? 'Marked High Viz' : 'No longer High Viz'))
+                  .catch((e: Error) => { setProject({ ...project, highViz: !next }); toast('⚠ ' + (e.message || 'Not saved')); });
+              }}
+              style={{ padding: '5px 12px', borderRadius: 999, fontFamily: 'inherit', fontSize: 11.5, fontWeight: 800, letterSpacing: '0.04em', cursor: canManage ? 'pointer' : 'default',
+                border: '1px solid ' + (project.highViz ? '#C2410C' : 'rgba(var(--rgb-shade), .18)'), background: project.highViz ? '#C2410C' : 'var(--surface)', color: project.highViz ? '#fff' : INK3 }}>
+              {project.highViz ? '★ HIGH VIZ' : '☆ High Viz'}
+            </button>
+          )}
           <span onClick={() => navigate(`/planroom?project=${id}`)} title="This project's folder in the Plan & File Room"
-            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', background: '#fff', color: INK }}>
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .14)', background: 'var(--surface)', color: INK }}>
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
             Files
           </span>
@@ -321,12 +344,12 @@ export function DesignProject() {
                 onClick={() => setPhaseFilter(s.key)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13.5, cursor: 'pointer',
-                  color: s.key === phaseFilter ? INK : s.complete ? '#16A34A' : MUTED,
+                  color: s.key === phaseFilter ? INK : s.complete ? 'var(--c-16a34a)' : MUTED,
                 }}
               >
                 <span style={{
                   width: 15, height: 15, borderRadius: 999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, background: s.complete ? '#16A34A' : SAND, color: '#fff',
+                  fontSize: 9, background: s.complete ? 'var(--c-16a34a)' : SAND, color: '#fff',
                 }}>{s.complete ? '✓' : ''}</span>
                 {s.name}
               </span>
@@ -335,8 +358,8 @@ export function DesignProject() {
           ))}
         </div>
 
-        <div style={{ background: '#FFFFFF', border: '1px solid rgba(20,8,31,.10)', borderRadius: 24, boxShadow: '0 8px 24px rgba(20,8,31,.06)', overflow: 'hidden' }}>
-          <div style={{ padding: '24px 26px 20px', borderBottom: '1px solid rgba(20,8,31,.08)' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .10)', borderRadius: 24, boxShadow: '0 8px 24px rgba(var(--rgb-shade), .06)', overflow: 'hidden' }}>
+          <div style={{ padding: '24px 26px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), .08)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.12em', textTransform: 'uppercase', color: ACCENT }}>Phase checklist</div>
@@ -355,11 +378,11 @@ export function DesignProject() {
             </div>
 
             <div style={{ display: 'flex', height: 10, borderRadius: 999, overflow: 'hidden', background: SAND, marginTop: 18 }}>
-              <div style={{ background: '#16A34A', transition: 'width .3s ease', width: `${donePct}%` }} />
+              <div style={{ background: 'var(--c-16a34a)', transition: 'width .3s ease', width: `${donePct}%` }} />
               <div style={{ background: ACCENT, transition: 'width .3s ease', width: `${progPct}%` }} />
             </div>
             <div style={{ display: 'flex', gap: 18, marginTop: 10, fontSize: 12, color: INK3, flexWrap: 'wrap' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: '#16A34A' }} />{doneCount} done</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: 'var(--c-16a34a)' }} />{doneCount} done</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: ACCENT }} />{progCount} in progress</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: '#C9BFA8' }} />{openCount} not started</span>
             </div>
@@ -381,22 +404,25 @@ export function DesignProject() {
             </div>
 
             <div style={{ display: 'flex', gap: 6, marginTop: 20, flexWrap: 'wrap' }}>
-              {([['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ...(rfiView ? [['rfis', 'RFIs']] : []), ['subs', 'Subcontractors'], ['dashboard', 'Dashboard'], ...(finView ? [['financials', 'Financials']] : [])] as ['board' | 'list' | 'timeline' | 'dashboard' | 'financials' | 'rfis' | 'subs', string][]).map(([key, label]) => (
+              {/* Dashboard first; the work views; then a divider before the project's other records (Oct 20). */}
+              {([['dashboard', 'Dashboard'], ['board', 'Board'], ['list', 'List'], ['timeline', 'Timeline'], ['|', ''], ['rfis', 'Special Actions'], ['subs', 'People'], ...(finView ? [['financials', 'Financials']] : [])] as [typeof view | '|', string][]).map(([key, label], i) => key === '|'
+                ? <span key={'sep' + i} aria-hidden style={{ width: 1, alignSelf: 'stretch', margin: '2px 4px', background: 'rgba(var(--rgb-shade), .18)' }} />
+                : (
                 <div
                   key={key}
                   onClick={() => setView(key)}
                   style={{
                     padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
-                    background: view === key ? ACCENT : '#fff', color: view === key ? '#fff' : '#4A4357',
-                    border: '1px solid ' + (view === key ? ACCENT : 'rgba(20,8,31,.14)'),
+                    background: view === key ? ACCENT : 'var(--surface)', color: view === key ? '#fff' : '#4A4357',
+                    border: '1px solid ' + (view === key ? ACCENT : 'rgba(var(--rgb-shade), .14)'),
                   }}
                 >{label}</div>
               ))}
             </div>
 
             <div style={{ display: view === 'financials' || view === 'rfis' || view === 'subs' ? 'none' : 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 14px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, background: PAPER, flex: '1 1 220px', maxWidth: 340 }}>
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={INK3} strokeWidth={2} strokeLinecap="round"><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 14px', border: '1px solid rgba(var(--rgb-shade), .14)', borderRadius: 999, background: PAPER, flex: '1 1 220px', maxWidth: 340 }}>
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" style={{ stroke: INK3 }} strokeWidth={2} strokeLinecap="round"><circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" /></svg>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -418,7 +444,7 @@ export function DesignProject() {
               )}
               <div
                 onClick={() => { setQuery(''); setRoleFilter('All roles'); setPhaseFilter('all'); }}
-                style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 16px', border: '1px solid rgba(20,8,31,.14)', borderRadius: 999, fontSize: 14, fontWeight: 600, color: '#4A4357', cursor: 'pointer' }}
+                style={{ height: 40, display: 'flex', alignItems: 'center', padding: '0 16px', border: '1px solid rgba(var(--rgb-shade), .14)', borderRadius: 999, fontSize: 14, fontWeight: 600, color: '#4A4357', cursor: 'pointer' }}
               >Reset</div>
             </div>
 
@@ -443,7 +469,7 @@ export function DesignProject() {
                   <div onClick={() => setShowColumnsMenu((v) => !v)} style={{ ...pill, display: 'flex', alignItems: 'center', position: 'relative', zIndex: 21 }}>Hide columns{hiddenCols.size ? ` (${hiddenCols.size})` : ''}</div>
                   {showColumnsMenu && (<>
                     <div onClick={() => setShowColumnsMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 19 }} />
-                    <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 44, left: 0, zIndex: 20, background: '#fff', border: '1px solid rgba(20,8,31,.12)', borderRadius: 12, boxShadow: '0 10px 30px rgba(20,8,31,.12)', padding: 8, minWidth: 160 }}>
+                    <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 44, left: 0, zIndex: 20, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .12)', borderRadius: 'var(--r-12)', boxShadow: '0 10px 30px rgba(var(--rgb-shade), .12)', padding: 8, minWidth: 160 }}>
                       {COLUMN_DEFS.map((c) => (
                         <label key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', fontSize: 12.5, color: INK, cursor: 'pointer' }}>
                           <input
@@ -469,7 +495,7 @@ export function DesignProject() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '14px 26px', background: '#F7F3FF', borderBottom: '1px solid #DDD0FF' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#4A1FA0' }}>{selCount} selected</span>
               <div style={{ flex: 1 }} />
-              {bulkBtn('Mark complete', () => bulk({ completed: true, status: 'Done' }), true)}
+              {bulkBtn('Mark complete', () => bulk({ completed: true }), true)}
               {bulkBtn('Move to in progress', () => bulk({ completed: false, status: 'In progress' }))}
               {bulkBtn('Reopen', () => bulk({ completed: false, status: 'Not started' }))}
               <div onClick={() => setSelected([])} style={{ height: 34, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: 13, fontWeight: 600, color: INK3, cursor: 'pointer' }}>Clear</div>
@@ -500,10 +526,10 @@ export function DesignProject() {
                         onClick={() => setSelectedId(task.id)}
                         title="Open the task"
                         style={{
-                          position: 'relative', background: '#FFFFFF',
-                          border: '1px solid ' + (picked ? ACCENT : 'rgba(20,8,31,.08)'),
-                          boxShadow: picked ? '0 0 0 3px rgba(91,43,201,.12)' : '0 1px 2px rgba(20,8,31,.05)',
-                          borderRadius: 14, padding: '12px 14px', cursor: 'pointer', transition: 'box-shadow .18s ease, border-color .18s ease',
+                          position: 'relative', background: 'var(--surface)',
+                          border: '1px solid ' + (picked ? ACCENT : 'rgba(var(--rgb-shade), .08)'),
+                          boxShadow: picked ? '0 0 0 3px rgba(91,43,201,.12)' : '0 1px 2px rgba(var(--rgb-shade), .05)',
+                          borderRadius: 'var(--r-14)', padding: '12px 14px', cursor: 'pointer', transition: 'box-shadow .18s ease, border-color .18s ease',
                         }}
                       >
                         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -514,8 +540,8 @@ export function DesignProject() {
                             title={done ? 'Mark not done' : 'Mark done'}
                             style={{
                               flex: '0 0 auto', width: 20, height: 20, marginTop: 1, borderRadius: 6,
-                              border: '1.5px solid ' + (done ? '#16A34A' : 'rgba(20,8,31,.22)'),
-                              background: done ? '#16A34A' : 'transparent',
+                              border: '1.5px solid ' + (done ? 'var(--c-16a34a)' : 'rgba(var(--rgb-shade), .22)'),
+                              background: done ? 'var(--c-16a34a)' : 'transparent',
                               display: 'grid', placeItems: 'center', transition: 'all .15s ease',
                               cursor: canManage ? 'pointer' : 'default',
                             }}
@@ -538,9 +564,9 @@ export function DesignProject() {
                               <span style={{ fontSize: 11, fontWeight: 600, color: '#8A8194' }}>{stage.name}</span>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(20,8,31,.07)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(var(--rgb-shade), .07)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                                <span style={{ width: 22, height: 22, borderRadius: 999, background: task.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 9.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+                                <span style={{ width: 22, height: 22, borderRadius: 999, background: task.assignee ? '#EDE5FF' : 'var(--c-f0eee9)', color: '#4A1FA0', fontSize: 9.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
                                   {task.assignee ? initials(task.assignee) : '—'}
                                 </span>
                                 <span style={{ fontSize: 12, color: task.assignee ? '#4A4357' : '#A79EB4', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -577,7 +603,7 @@ export function DesignProject() {
                             title={picked ? 'Remove from selection' : 'Select for a bulk change'}
                             style={{
                               flex: '0 0 auto', width: 16, height: 16, borderRadius: 999, marginTop: 3,
-                              border: '1.5px solid ' + (picked ? ACCENT : 'rgba(20,8,31,.16)'),
+                              border: '1.5px solid ' + (picked ? ACCENT : 'rgba(var(--rgb-shade), .16)'),
                               background: picked ? ACCENT : 'transparent', cursor: 'pointer',
                             }}
                           />
@@ -587,7 +613,7 @@ export function DesignProject() {
                   })}
 
                   {rows.length === 0 && (
-                    <div style={{ border: '1.5px dashed rgba(20,8,31,.14)', borderRadius: 14, padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: '#8A8194' }}>{col.emptyText}</div>
+                    <div style={{ border: '1.5px dashed rgba(var(--rgb-shade), .14)', borderRadius: 'var(--r-14)', padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: '#8A8194' }}>{col.emptyText}</div>
                   )}
                 </div>
               );
@@ -604,14 +630,24 @@ export function DesignProject() {
           )}
 
           {view === 'rfis' && project && (
-            <div style={{ padding: '18px 26px 28px' }}>
-              <RfiLog projectId={id} projectName={project.name} compact />
+            <div style={{ padding: '18px 26px 28px', display: 'grid', gap: 14 }}>
+              {/* Special Actions on this project: its tasks, and its RFIs for those who can see them. */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                {([['tasks', 'Tasks'], ...(rfiView ? [['rfis', 'RFIs']] : [])] as ['tasks' | 'rfis', string][]).map(([k, label]) => (
+                  <button key={k} type="button" onClick={() => setActionKind(k)} style={{ padding: '6px 13px', borderRadius: 999, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid ' + (actionKind === k ? INK : 'rgba(var(--rgb-shade), .14)'), background: actionKind === k ? INK : 'var(--surface)', color: actionKind === k ? '#fff' : '#4A4357' }}>{label}</button>
+                ))}
+              </div>
+              {actionKind === 'rfis' && rfiView ? <RfiLog projectId={id} projectName={project.name} compact /> : <TaskBoard projectId={id} />}
             </div>
           )}
 
           {view === 'subs' && (
-            <div style={{ padding: '18px 26px 28px' }}>
-              <ProjectSubcontractors projectId={id} onAddSubcontract={finView ? () => setView('financials') : undefined} />
+            <div style={{ padding: '18px 26px 28px', display: 'grid', gap: 22 }}>
+              {project && <ProjectPeople projectName={project.name} />}
+              <div>
+                <h4 style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)' }}>Subcontracts</h4>
+                <ProjectSubcontractors projectId={id} onAddSubcontract={finView ? () => setView('financials') : undefined} />
+              </div>
             </div>
           )}
 
@@ -650,16 +686,16 @@ export function DesignProject() {
 const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
 const PRIORITY_DOT: Record<string, { bg: string; c: string }> = {
-  Low: { bg: '#EFEDE8', c: '#5C6B65' },
+  Low: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   Medium: { bg: '#D6E8E5', c: '#2F6F68' },
-  High: { bg: '#FBE9AE', c: '#8A6D12' },
+  High: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
   Urgent: { bg: '#F2DFD4', c: '#8E2E0A' },
 };
 
 const LIST_GROUPS = [
-  { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !(t.completed || t.status === 'Done') && t.status !== 'In progress' },
-  { key: 'progress', label: 'In progress', dot: ACCENT, match: (t: ProjectTask) => !(t.completed || t.status === 'Done') && t.status === 'In progress' },
-  { key: 'done', label: 'Done', dot: '#16A34A', match: (t: ProjectTask) => !!(t.completed || t.status === 'Done') },
+  { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !isTaskDone(t) && t.status !== 'In progress' },
+  { key: 'progress', label: 'In progress', dot: ACCENT, match: (t: ProjectTask) => !isTaskDone(t) && t.status === 'In progress' },
+  { key: 'done', label: 'Done', dot: 'var(--c-16a34a)', match: (t: ProjectTask) => isTaskDone(t) },
 ];
 
 const COLUMN_DEFS = [
@@ -688,9 +724,9 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
   const visibleCols = COLUMN_DEFS.filter((c) => !hiddenCols.has(c.key));
   const cols = ['28px', 'minmax(220px,2fr)', ...visibleCols.map((c) => c.width)].join(' ');
   return (
-    <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
-      <div style={{ border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+    <div style={{ padding: '18px 26px 28px', background: 'var(--surface)' }}>
+      <div style={{ border: '1px solid rgba(var(--rgb-shade), .09)', borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, padding: '9px 14px', background: 'var(--c-f7f3ea)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
           <span />
           <span>Task</span>
           {visibleCols.map((c) => <span key={c.key}>{c.label}</span>)}
@@ -700,7 +736,7 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
           if (!rows.length) return null;
           return (
             <div key={g.key}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: '#FBF8F2', borderTop: '1px solid rgba(20,8,31,.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'var(--panel)', borderTop: '1px solid rgba(var(--rgb-shade), .06)' }}>
                 <span style={{ width: 8, height: 8, borderRadius: 999, background: g.dot }} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: INK }}>{g.label}</span>
                 <span style={{ fontSize: 11, color: '#9c96a4' }}>{rows.length}</span>
@@ -715,9 +751,9 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
                     <div
                       key={t.id}
                       onClick={() => onOpen(t.id)}
-                      style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer', background: indent ? '#FBFAF6' : 'transparent' }}
+                      style={{ display: 'grid', gridTemplateColumns: cols, gap: 8, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer', background: indent ? '#FBFAF6' : 'transparent' }}
                     >
-                      <span style={{ width: 16, height: 16, borderRadius: 5, border: '1.5px solid ' + (isDone(t) ? '#16A34A' : 'rgba(20,8,31,.2)'), background: isDone(t) ? '#16A34A' : 'transparent' }} />
+                      <span style={{ width: 16, height: 16, borderRadius: 5, border: '1.5px solid ' + (isDone(t) ? 'var(--c-16a34a)' : 'rgba(var(--rgb-shade), .2)'), background: isDone(t) ? 'var(--c-16a34a)' : 'transparent' }} />
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, paddingLeft: indent ? 20 : 0 }}>
                         {!indent && subs.length > 0 && (
                           <span
@@ -726,20 +762,20 @@ function ListView({ groups, allTasks, hiddenCols, onOpen, isDone, isLate }: {
                           >▶</span>
                         )}
                         <span style={{ fontSize: indent ? 12 : 13, fontWeight: indent ? 500 : 600, color: indent ? '#4A4357' : INK, textDecoration: isDone(t) ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</span>
-                        {!indent && subs.length > 0 && <span style={{ fontSize: 10.5, color: '#9c96a4', flex: '0 0 auto' }}>{subs.filter((s) => isDone(s)).length}/{subs.length}</span>}
+                        {!indent && subs.length > 0 && <TaskLinkBadge kind="P" text={`${subs.filter((s) => isDone(s)).length}/${subs.length}`} title="Parent task: subtasks done" />}
                       </span>
                       {visibleCols.map((c) => {
                         if (c.key === 'owner') return (
                           <span key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                            <span style={{ width: 18, height: 18, borderRadius: 999, background: t.assignee ? '#EDE5FF' : '#F0EEE9', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
+                            <span style={{ width: 18, height: 18, borderRadius: 999, background: t.assignee ? '#EDE5FF' : 'var(--c-f0eee9)', color: '#4A1FA0', fontSize: 8.5, fontWeight: 700, display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>
                               {t.assignee ? initials(t.assignee) : '—'}
                             </span>
                             <span style={{ fontSize: 11.5, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.assignee || 'Unassigned'}</span>
                           </span>
                         );
                         if (c.key === 'status') return (
-                          <span key={c.key} style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[t.status === 'Done' ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
-                            {t.status || 'Not started'}
+                          <span key={c.key} style={{ display: 'inline-flex', width: 'fit-content', alignItems: 'center', height: 20, padding: '0 9px', borderRadius: 999, background: (STATUS as any)[isTaskDone(t) ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].bg, color: (STATUS as any)[isTaskDone(t) ? 'complete' : t.status === 'In progress' ? 'progress' : 'none'].c, fontSize: 10.5, fontWeight: 700 }}>
+                            {statusLabel(t.status || 'Not started')}
                           </span>
                         );
                         if (c.key === 'priority') return pr ? (
@@ -813,21 +849,21 @@ function TimelineView({ stages, filtered, onOpen, isDone }: {
   const byStage = stages.map((s) => ({ stage: s, rows: dated.filter((r) => r.stage.key === s.key) }));
 
   return (
-    <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
+    <div style={{ padding: '18px 26px 28px', background: 'var(--surface)' }}>
       {undatedCount > 0 && (
         <div style={{ fontSize: 11.5, color: '#9c96a4', marginBottom: 10 }}>{undatedCount} task{undatedCount === 1 ? '' : 's'} with no dates aren't shown on the chart.</div>
       )}
-      <div style={{ display: 'flex', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-        <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid rgba(20,8,31,.08)' }}>
-          <div style={{ height: 36, borderBottom: '1px solid rgba(20,8,31,.08)', background: '#F7F3EA' }} />
+      <div style={{ display: 'flex', border: '1px solid rgba(var(--rgb-shade), .09)', borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
+        <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid rgba(var(--rgb-shade), .08)' }}>
+          <div style={{ height: 36, borderBottom: '1px solid rgba(var(--rgb-shade), .08)', background: 'var(--c-f7f3ea)' }} />
           {byStage.map(({ stage, rows }) => (
             <div key={stage.key}>
-              <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: '#FBF8F2', fontSize: 11, fontWeight: 700, color: INK }}>
+              <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', background: 'var(--panel)', fontSize: 11, fontWeight: 700, color: INK }}>
                 <span style={{ width: 7, height: 7, borderRadius: 999, background: stage.colors?.dot || ACCENT }} />
                 {stage.name}
               </div>
               {rows.map((r) => (
-                <div key={r.task.id} onClick={() => onOpen(r.task.id)} style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 12, color: INK, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderTop: '1px solid rgba(20,8,31,.04)' }}>
+                <div key={r.task.id} onClick={() => onOpen(r.task.id)} style={{ height: rowHeight, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 12, color: INK, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', borderTop: '1px solid rgba(var(--rgb-shade), .04)' }}>
                   {r.task.title}
                 </div>
               ))}
@@ -836,27 +872,27 @@ function TimelineView({ stages, filtered, onOpen, isDone }: {
         </div>
         <div style={{ overflowX: 'auto', flex: 1 }}>
           <div style={{ position: 'relative', width: days.length * dayWidth }}>
-            <div style={{ display: 'flex', height: 36, borderBottom: '1px solid rgba(20,8,31,.08)', background: '#F7F3EA' }}>
+            <div style={{ display: 'flex', height: 36, borderBottom: '1px solid rgba(var(--rgb-shade), .08)', background: 'var(--c-f7f3ea)' }}>
               {days.map((d) => (
-                <div key={fmtDay(d)} style={{ width: dayWidth, flexShrink: 0, textAlign: 'center', fontSize: 9, color: '#9c96a4', paddingTop: 4, borderRight: '1px solid rgba(20,8,31,.04)' }}>
+                <div key={fmtDay(d)} style={{ width: dayWidth, flexShrink: 0, textAlign: 'center', fontSize: 9, color: '#9c96a4', paddingTop: 4, borderRight: '1px solid rgba(var(--rgb-shade), .04)' }}>
                   {d.getDate() === 1 || d.getDay() === 0 ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : d.getDate()}
                 </div>
               ))}
             </div>
             {byStage.map(({ stage, rows }) => (
               <div key={stage.key}>
-                <div style={{ height: 28, background: '#FBF8F2', borderBottom: '1px solid rgba(20,8,31,.03)' }} />
+                <div style={{ height: 28, background: 'var(--panel)', borderBottom: '1px solid rgba(var(--rgb-shade), .03)' }} />
                 {rows.map((r) => {
                   const x = dayIndex(r.start) * dayWidth;
                   const w = Math.max(dayWidth, (dayIndex(r.end) - dayIndex(r.start) + 1) * dayWidth);
                   return (
-                    <div key={r.task.id} style={{ position: 'relative', height: rowHeight, borderTop: '1px solid rgba(20,8,31,.04)' }}>
+                    <div key={r.task.id} style={{ position: 'relative', height: rowHeight, borderTop: '1px solid rgba(var(--rgb-shade), .04)' }}>
                       <div
                         onClick={() => onOpen(r.task.id)}
                         title={r.task.title}
                         style={{
                           position: 'absolute', left: x, width: w, top: 6, height: rowHeight - 12, borderRadius: 6, cursor: 'pointer',
-                          background: isDone(r.task) ? '#16A34A' : stage.colors?.dot || ACCENT, opacity: isDone(r.task) ? 0.85 : 1,
+                          background: isDone(r.task) ? 'var(--c-16a34a)' : stage.colors?.dot || ACCENT, opacity: isDone(r.task) ? 0.85 : 1,
                         }}
                       />
                     </div>
@@ -887,7 +923,7 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
 
   const tiles = [
     { label: 'Total tasks', value: total, c: INK },
-    { label: 'Completed', value: done, c: '#16A34A' },
+    { label: 'Completed', value: done, c: 'var(--c-16a34a)' },
     { label: 'Incomplete', value: incomplete, c: ACCENT },
     { label: 'Overdue', value: overdue, c: '#B4232A' },
   ];
@@ -898,28 +934,28 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
   const statusGroups = [
     { label: 'Not started', dot: '#C9BFA8', count: filtered.filter((r) => !isDone(r.task) && !isProgress(r.task)).length },
     { label: 'In progress', dot: ACCENT, count: filtered.filter((r) => isProgress(r.task)).length },
-    { label: 'Done', dot: '#16A34A', count: done },
+    { label: 'Done', dot: 'var(--c-16a34a)', count: done },
   ];
   const maxStatus = Math.max(1, ...statusGroups.map((s) => s.count));
 
   return (
-    <div style={{ padding: '18px 26px 28px', background: '#fff' }}>
+    <div style={{ padding: '18px 26px 28px', background: 'var(--surface)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 22 }}>
         {tiles.map((t) => (
-          <div key={t.label} style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 14, padding: '16px 18px' }}>
+          <div key={t.label} style={{ border: '1px solid rgba(var(--rgb-shade), .08)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>{t.label}</div>
             <div style={{ fontFamily: HEADING, fontWeight: 700, fontSize: 30, color: t.c, marginTop: 6 }}>{t.value}</div>
           </div>
         ))}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 }}>
-        <div style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 14, padding: '16px 18px' }}>
+        <div style={{ border: '1px solid rgba(var(--rgb-shade), .08)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, marginBottom: 12 }}>Tasks by phase</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {byPhase.map((b) => (
               <div key={b.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 88, fontSize: 11, color: '#4A4357', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>{b.name}</span>
-                <div style={{ flex: 1, height: 10, background: '#F0EEE9', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ flex: 1, height: 10, background: 'var(--c-f0eee9)', borderRadius: 999, overflow: 'hidden' }}>
                   <div style={{ width: `${(b.count / maxPhase) * 100}%`, height: '100%', background: b.dot, borderRadius: 999 }} />
                 </div>
                 <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: INK, textAlign: 'right' }}>{b.count}</span>
@@ -928,13 +964,13 @@ function DashboardView({ filtered, shownPhases, isDone, isProgress, isLate }: {
             {!byPhase.length && <div style={{ fontSize: 11.5, color: '#9c96a4' }}>No phases to show.</div>}
           </div>
         </div>
-        <div style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 14, padding: '16px 18px' }}>
+        <div style={{ border: '1px solid rgba(var(--rgb-shade), .08)', borderRadius: 'var(--r-14)', padding: '16px 18px' }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: INK, marginBottom: 12 }}>Tasks by status</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {statusGroups.map((b) => (
               <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 88, fontSize: 11, color: '#4A4357', flexShrink: 0 }}>{b.label}</span>
-                <div style={{ flex: 1, height: 10, background: '#F0EEE9', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ flex: 1, height: 10, background: 'var(--c-f0eee9)', borderRadius: 999, overflow: 'hidden' }}>
                   <div style={{ width: `${(b.count / maxStatus) * 100}%`, height: '100%', background: b.dot, borderRadius: 999 }} />
                 </div>
                 <span style={{ width: 20, fontSize: 11, fontWeight: 700, color: INK, textAlign: 'right' }}>{b.count}</span>

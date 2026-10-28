@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RejectDailyLogDto = exports.SaveDailyLogDto = exports.LaborLogEntryDto = void 0;
+exports.RejectDailyLogDto = exports.SaveDailyReportTemplateDto = exports.SaveDailyLogDto = exports.LaborLogEntryDto = void 0;
 const class_validator_1 = require("class-validator");
 class LaborLogEntryDto {
 }
@@ -69,6 +69,67 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], SaveDailyLogDto.prototype, "entries", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SaveDailyLogDto.prototype, "id", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], SaveDailyLogDto.prototype, "newVersion", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], SaveDailyLogDto.prototype, "sections", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(200),
+    __metadata("design:type", String)
+], SaveDailyLogDto.prototype, "onBehalfOf", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(200),
+    __metadata("design:type", String)
+], SaveDailyLogDto.prototype, "certifiedName", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(400000),
+    __metadata("design:type", String)
+], SaveDailyLogDto.prototype, "signatureDataUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], SaveDailyLogDto.prototype, "dupBaseline", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SaveDailyLogDto.prototype, "dupFromDate", void 0);
+class SaveDailyReportTemplateDto {
+}
+exports.SaveDailyReportTemplateDto = SaveDailyReportTemplateDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(120),
+    __metadata("design:type", String)
+], SaveDailyReportTemplateDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsObject)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], SaveDailyReportTemplateDto.prototype, "sections", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], SaveDailyReportTemplateDto.prototype, "entries", void 0);
 class RejectDailyLogDto {
 }
 exports.RejectDailyLogDto = RejectDailyLogDto;

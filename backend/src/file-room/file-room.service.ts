@@ -1,10 +1,40 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { FileRoomFileEntity, FileRoomFolderEntity, ProjectEntity } from '../database/entities';
+import { FileRoomFileEntity, FileRoomFolderEntity, FileRoomShareEntity, ProjectEntity } from '../database/entities';
 import { GoogleService } from '../google/google.service';
 import { subId } from '../database/task.types';
 import type { UploadActor } from '../google/attachments.service';
+import { SettingsService } from '../settings/settings.service';
+
+/** "a@x.com; b@y.com" -> "a@x.com, b@y.com"; every address checked. */
+export function recipients(to: string): string {
+  const list = String(to || '').split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+  if (!list.length) throw new BadRequestException('A recipient is required.');
+  const bad = list.filter((e) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+  if (bad.length) throw new BadRequestException(`Not an email address: ${bad.join(', ')}`);
+  if (list.length > 20) throw new BadRequestException('At most 20 recipients at a time.');
+  return Array.from(new Set(list.map((e) => e.toLowerCase()))).join(', ');
+}
+
+const uniqueIds = (ids: unknown) => Array.from(new Set((Array.isArray(ids) ? ids : []).map(String).filter(Boolean)));
+
+export const FOLDER_TEMPLATE_KEY = 'fileRoom.folderTemplate';
+
+/** "Drawings/Architectural" per line -> [['Drawings', 'Architectural'], ...]; blanks and duplicates dropped. */
+export function parseFolderTemplate(text: string): string[][] {
+  const seen = new Set<string>();
+  const out: string[][] = [];
+  for (const line of String(text).split(/\r?\n/)) {
+    const path = line.split('/').map((s) => s.trim()).filter(Boolean);
+    const key = path.join('/').toLowerCase();
+    if (!path.length || seen.has(key)) continue;
+    seen.add(key);
+    out.push(path);
+  }
+  return out;
+}
 
 /** Where the File Room keeps everything inside the connected account's Drive. */
 const DRIVE_ROOT = 'Origami File Room';
@@ -50,7 +80,39 @@ export class FileRoomService {
     @InjectRepository(FileRoomFolderEntity) private readonly folders: Repository<FileRoomFolderEntity>,
     @InjectRepository(ProjectEntity) private readonly projects: Repository<ProjectEntity>,
     private readonly google: GoogleService,
+    private readonly settings: SettingsService,
+    @InjectRepository(FileRoomShareEntity) private readonly shares: Repository<FileRoomShareEntity>,
+    @Optional() private readonly tracking?: TrackingService,
   ) {}
+
+  /** The link to put in the email: tracked when tracking is on (Oct 27 backlog item 12), so the share shows when it was opened. */
+  private async emailLink(url: string, o: { shareId: string; to: string; projectId: number | null; name: string }) {
+    if (!this.tracking) return url;
+    return this.tracking.link({ kind: 'share', refId: o.shareId, target: url, recipient: o.to, projectId: o.projectId, label: o.name }).catch(() => url);
+  }
+
+  /** The standard folders every project gets: one path per line, '/' for subfolders. */
+  async folderTemplate(): Promise<string[][]> {
+    return parseFolderTemplate((await this.settings.get(FOLDER_TEMPLATE_KEY)) || '');
+  }
+
+  /**
+   * Lay out the standard folders for a project, in Drive and in the File Room.
+   * Safe to run again: folders already there are left alone.
+   */
+  async applyTemplate(projectId: number) {
+    const template = await this.folderTemplate();
+    if (!template.length) return { created: 0, template: 0 };
+    if (!(await this.google.isConnected())) throw new BadRequestException('No Google account is connected.');
+    const name = await this.projectName(projectId);
+    const before = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
+    for (const path of template) {
+      await this.google.folderForPath(DRIVE_ROOT, [name, ...path]);
+      for (let i = 1; i <= path.length; i++) await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+    }
+    const after = (await this.folders.find()).filter((f) => Number(f.projectId) === projectId).length;
+    return { created: after - before, template: template.length };
+  }
 
   private hydrate(f: FileRoomFileEntity): FileRoomFileEntity {
     return {
@@ -72,7 +134,7 @@ export class FileRoomService {
       ? rawFiles.filter((f) => Number(f.projectId) === projectId)
       : rawFiles;
     return {
-      projects: projects.map((p) => ({ id: p.id, name: p.name })),
+      projects: projects.map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null })),
       categories: DEFAULT_CATEGORIES,
       files: scoped.map((f) => this.hydrate(f)),
       folders: (projectId ? rawFolders.filter((f) => Number(f.projectId) === projectId) : rawFolders)
@@ -177,11 +239,49 @@ export class FileRoomService {
   }
 
   /** Stream a file's bytes; the record is resolved first, never a bare Drive id. */
-  async content(id: string, thumb = false) {
+  async content(id: string, thumb = false, size?: number) {
     const file = await this.load(id);
     if (!file.driveId) throw new NotFoundException('File has no stored content');
-    const stream = await this.google.downloadDriveFile(file.driveId, thumb);
+    const stream = await this.google.downloadDriveFile(file.driveId, thumb, size);
     return { file: this.hydrate(file), ...stream };
+  }
+
+  /**
+   * Something the browser can show: images, PDFs and text as they are; Office
+   * and Google documents as a PDF made by Drive. Null when there's no preview.
+   */
+  async preview(id: string) {
+    const file = await this.load(id);
+    if (!file.driveId) throw new NotFoundException('File has no stored content');
+    const mime = file.mimeType || '';
+    if (/^image\//.test(mime) || mime === 'application/pdf' || mime === 'text/plain') {
+      return { file: this.hydrate(file), ...(await this.google.downloadDriveFile(file.driveId)), pdf: null as Buffer | null };
+    }
+    const pdf = await this.google.previewPdf(file.driveId, mime, file.name);
+    return { file: this.hydrate(file), body: null, mimeType: 'application/pdf', pdf };
+  }
+
+  /**
+   * Move a file (and its other revisions) to another folder of the same
+   * project -- in Drive too, so the next sync doesn't put it back.
+   */
+  async move(id: string, folderPath: string[]) {
+    const file = await this.load(id);
+    const path = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean);
+    const projectId = Number(file.projectId);
+    const group = file.groupId
+      ? (await this.files.find()).filter((f) => f.groupId === file.groupId && Number(f.projectId) === projectId)
+      : [file];
+    const folderId = await this.google.folderForPath(DRIVE_ROOT, [await this.projectName(projectId), ...path]);
+    for (const f of group) {
+      if (f.driveId) await this.google.updateDriveFile(f.driveId, { folderId });
+      f.folderPath = path;
+      f.updatedAt = new Date().toISOString();
+      await this.files.save(f);
+    }
+    // Make sure the destination shows as a folder even if it was only just made.
+    for (let i = 1; i <= path.length; i++) await this.createFolder(projectId, path.slice(0, i - 1), path[i - 1]);
+    return this.hydrate(await this.load(id));
   }
 
   /** Rename and/or set the notes; whichever field is supplied is applied. */
@@ -191,6 +291,8 @@ export class FileRoomService {
       const clean = patch.name.trim();
       if (!clean) throw new BadRequestException('A name is required.');
       this.assertAllowed(clean);
+      // Rename in Drive as well, or the next sync would bring the old name back.
+      if (file.driveId && clean !== file.name) await this.google.updateDriveFile(file.driveId, { name: clean });
       file.name = clean;
       file.ext = extOf(clean);
     }
@@ -241,8 +343,10 @@ export class FileRoomService {
   /** Email the file as a link rather than an attachment, so size never bites. */
   async email(id: string, to: string, note: string, actor: UploadActor) {
     const file = await this.load(id);
-    if (!to?.trim()) throw new BadRequestException('A recipient is required.');
-    const { url } = await this.shareLink(id);
+    to = recipients(to);
+    const { url: driveUrl } = await this.shareLink(id);
+    const shareId = subId('frs');
+    const url = await this.emailLink(driveUrl, { shareId, to, projectId: Number(file.projectId) || null, name: file.name });
     const project = await this.projectName(Number(file.projectId));
     const html = `
       <p>${actor.name} shared a file with you from the Origami File Room.</p>
@@ -250,8 +354,73 @@ export class FileRoomService {
       ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
       <p><a href="${url}">Open ${file.name}</a></p>
       <p style="color:#7E9B93;font-size:12px;">Anyone with this link can view the file.</p>`;
-    await this.google.sendMail({ to: to.trim(), subject: `${file.name} — shared from Origami`, html });
-    return { sent: true, to: to.trim(), url };
+    await this.google.sendMail({ to, subject: `${file.name} — shared from Origami`, html });
+    await this.logShare([file], to, note, actor, shareId);
+    return { sent: true, to, url: driveUrl };
+  }
+
+  /** View links for several files at once. */
+  async shareMany(ids: string[]) {
+    const out: { id: string; name: string; url: string }[] = [];
+    for (const id of uniqueIds(ids)) out.push({ id, ...(await this.shareLink(id)) });
+    return out;
+  }
+
+  /** Several files in one email, each as a view link. */
+  async emailMany(ids: string[], to: string, note: string, actor: UploadActor) {
+    to = recipients(to);
+    const links = await this.shareMany(ids);
+    if (!links.length) throw new BadRequestException('Pick at least one file.');
+    if (links.length === 1) return this.email(links[0].id, to, note, actor);
+    const files = await Promise.all(links.map((l) => this.load(l.id)));
+    const shareId = subId('frs');
+    for (const [i, l] of links.entries()) l.url = await this.emailLink(l.url, { shareId, to, projectId: Number(files[i].projectId) || null, name: l.name });
+    const projects = Array.from(new Set(await Promise.all(files.map((f) => this.projectName(Number(f.projectId))))));
+    const html = `
+      <p>${actor.name} shared ${links.length} files with you from the Origami File Room${projects.length === 1 ? ` (${escapeText(projects[0])})` : ''}.</p>
+      ${note?.trim() ? `<p>${escapeText(note)}</p>` : ''}
+      <ul>${links.map((l) => `<li style="margin-bottom:6px;"><a href="${l.url}">${escapeText(l.name)}</a></li>`).join('')}</ul>
+      <p style="color:#7E9B93;font-size:12px;">Anyone with these links can view the files.</p>`;
+    await this.google.sendMail({ to, subject: `${links.length} files — shared from Origami`, html });
+    await this.logShare(files, to, note, actor, shareId);
+    return { sent: true, to, count: links.length };
+  }
+
+  private async logShare(files: FileRoomFileEntity[], to: string, note: string, actor: UploadActor, id = subId('frs')) {
+    const projectIds = Array.from(new Set(files.map((f) => Number(f.projectId))));
+    await this.shares.save(this.shares.create({
+      id,
+      projectId: projectIds.length === 1 ? projectIds[0] : null,
+      files: files.map((f) => ({ id: f.id, name: f.name, folderPath: f.folderPath ?? [] })),
+      to, note: note?.trim() || null, sentById: actor.id, sentByName: actor.name || 'Someone', sentAt: new Date().toISOString(),
+    } as Partial<FileRoomShareEntity>)).catch((e) => this.log.warn(`Could not record the share: ${e?.message}`));
+  }
+
+  /** Files emailed from the File Room, newest first -- for a project, or for one file. */
+  async shareHistory(opts: { projectId?: number; fileId?: string }) {
+    const rows = (await this.shares.find())
+      .filter((s) => (opts.projectId ? Number(s.projectId) === opts.projectId : true))
+      .filter((s) => (opts.fileId ? (s.files || []).some((f) => f.id === opts.fileId) : true));
+    const list = rows.sort((a, b) => String(b.sentAt).localeCompare(String(a.sentAt))).slice(0, 500);
+    // When each share was opened (Oct 27 backlog item 12) -- shares sent before tracking have none.
+    const opened = this.tracking ? await this.tracking.summary('share', list.map((s) => s.id)).catch(() => ({} as Record<string, OpenSummary>)) : {};
+    return list.map((s) => ({ ...s, opened: opened[s.id] || null }));
+  }
+
+  /** Move several files (each with its versions) into one folder. */
+  async moveMany(ids: string[], folderPath: string[]) {
+    const target = (Array.isArray(folderPath) ? folderPath : []).map((s) => String(s).trim()).filter(Boolean).join('>');
+    let moved = 0;
+    const done = new Set<string>();
+    for (const id of uniqueIds(ids)) {
+      if (done.has(id)) continue;
+      const file = await this.load(id);
+      if ((file.folderPath ?? []).join('>') === target) continue;
+      await this.move(id, folderPath);
+      moved++;
+      if (file.groupId) (await this.files.find()).filter((f) => f.groupId === file.groupId).forEach((f) => done.add(f.id));
+    }
+    return { moved };
   }
 
   // ----------------------------------------------------------------- sync
@@ -328,8 +497,13 @@ export class FileRoomService {
       removed++;
     }
 
+    // New projects get the standard folders the first time they're synced.
+    const project = await this.projects.findOneBy({ id: projectId });
+    if (project && !project.fileRoomSyncedAt) await this.applyTemplate(projectId).catch((e) => this.log.warn(`Folder template: ${e?.message}`));
+    const syncedAt = new Date().toISOString();
+    await this.projects.update({ id: projectId }, { fileRoomSyncedAt: syncedAt });
     this.log.log(`Drive sync for project ${projectId}: +${added} ~${updated} -${removed}, ${folders} folders`);
-    return { added, updated, removed, folders };
+    return { added, updated, removed, folders, syncedAt };
   }
 
   // ---------------------------------------------------------------- folders

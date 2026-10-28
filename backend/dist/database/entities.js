@@ -9,8 +9,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.AppSettingEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ProposalEntity = exports.DealEntity = exports.TaskEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
-exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = void 0;
+exports.SubcontractorTradeEntity = exports.TimesheetLineEntity = exports.TimesheetEntity = exports.ContractorEntity = exports.WorkforceRequestEntity = exports.EmployeeAssignmentEntity = exports.EmployeeAdvanceEntity = exports.OvertimeRequestEntity = exports.PayslipEntity = exports.PayrollRunEntity = exports.PayComponentEntity = exports.EmployeeEntity = exports.FileRoomShareEntity = exports.FileRoomFolderEntity = exports.FileRoomFileEntity = exports.ProgressPhotoEntity = exports.ProgressNoteEntity = exports.AppSettingEntity = exports.NotificationItemEntity = exports.PdfMarkupEntity = exports.UserViewEntity = exports.ChecklistTemplateEntity = exports.UserEntity = exports.ProjectProgramVersionEntity = exports.GuestAccessEntity = exports.LeadProgramEntity = exports.ProjectProgramEntity = exports.ProjectPhaseEntity = exports.ProjectTaskEntity = exports.ProjectSectionEntity = exports.WorkflowItemEntity = exports.WorkflowEntity = exports.EmailTemplateEntity = exports.ConsultantEntity = exports.FaqEntity = exports.TicketEntity = exports.RoleEntity = exports.ScoringCriterionEntity = exports.LeadEntity = exports.FinanceEntity = exports.InvoiceEntity = exports.ContractTemplateEntity = exports.ContractEntity = exports.ProposalEntity = exports.DealEntity = exports.MeetingEntity = exports.TaskEntity = exports.ContactInteractionEntity = exports.PersonEntity = exports.ProjectEntity = void 0;
+exports.LeadFilesEntity = exports.RfiEntity = exports.CostForecastEntity = exports.CostEntryEntity = exports.ContractorBidEntity = exports.CommitmentLineEntity = exports.CommitmentEntity = exports.CostBudgetLineEntity = exports.FinancialApprovalEntity = exports.RetentionReleaseEntity = exports.ReimbursableEntity = exports.ChangeOrderItemEntity = exports.ChangeOrderEntity = exports.AuditEventEntity = exports.FinanceActivityEntity = exports.ProjectPaymentEntity = exports.FinanceSequenceEntity = exports.ProjectInvoiceLineEntity = exports.ProjectInvoiceEntity = exports.ProgressUpdateEntity = exports.TaskFinancialEntity = exports.PhaseFinancialEntity = exports.ProjectFinancialEntity = exports.TransportAssignmentEntity = exports.TransportRouteEntity = exports.AccommodationIssueEntity = exports.BedAllocationEntity = exports.AccommodationUnitEntity = exports.AssetIssueEntity = exports.AssetEntity = exports.ShiftAssignmentEntity = exports.ShiftTemplateEntity = exports.PublicHolidayEntity = exports.LeaveAdjustmentEntity = exports.LeaveTypeEntity = exports.LeaveRequestEntity = exports.LaborLogEntryEntity = exports.DailyReportTemplateEntity = exports.DailyLogEntity = exports.CsiCodeEntity = exports.EmployeeRecordEntity = exports.TradeEntity = void 0;
 const typeorm_1 = require("typeorm");
 const TEXT = { type: 'nvarchar', length: 'MAX' };
 let ProjectEntity = class ProjectEntity {
@@ -85,9 +85,33 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "designPhase", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "highViz", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 12, nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "code", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "pricing", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], ProjectEntity.prototype, "labor", void 0);
+__decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectEntity.prototype, "leadId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000, nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "siteAccess", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectEntity.prototype, "fileRoomSyncedAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
@@ -151,6 +175,10 @@ __decorate([
     __metadata("design:type", Number)
 ], PersonEntity.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "businessCards", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], PersonEntity.prototype, "name", void 0);
@@ -170,6 +198,10 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], PersonEntity.prototype, "kind", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "internalLevel", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
@@ -217,6 +249,34 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], PersonEntity.prototype, "contactStatus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "contactStatusAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "contactStatusReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], PersonEntity.prototype, "lastActivityAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "sameAsIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "pointOfContact", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], PersonEntity.prototype, "formerCompanies", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], PersonEntity.prototype, "firstName", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -261,6 +321,45 @@ __decorate([
 exports.PersonEntity = PersonEntity = __decorate([
     (0, typeorm_1.Entity)('people')
 ], PersonEntity);
+let ContactInteractionEntity = class ContactInteractionEntity {
+};
+exports.ContactInteractionEntity = ContactInteractionEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], ContactInteractionEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], ContactInteractionEntity.prototype, "personId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContactInteractionEntity.prototype, "kind", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 10 }),
+    __metadata("design:type", String)
+], ContactInteractionEntity.prototype, "at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 2000, nullable: true }),
+    __metadata("design:type", Object)
+], ContactInteractionEntity.prototype, "note", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContactInteractionEntity.prototype, "byId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], ContactInteractionEntity.prototype, "byName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40 }),
+    __metadata("design:type", String)
+], ContactInteractionEntity.prototype, "createdAt", void 0);
+exports.ContactInteractionEntity = ContactInteractionEntity = __decorate([
+    (0, typeorm_1.Entity)('contact_interactions'),
+    (0, typeorm_1.Index)('IX_contact_interactions_person', ['personId'])
+], ContactInteractionEntity);
 let TaskEntity = class TaskEntity {
 };
 exports.TaskEntity = TaskEntity;
@@ -268,6 +367,46 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "closedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "pendingNotices", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "holdReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "leadId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "leadName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "serial", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "sourceType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "sourceId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "sourceLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "derivedRefs", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
@@ -293,13 +432,29 @@ __decorate([
     __metadata("design:type", String)
 ], TaskEntity.prototype, "originator", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "priority", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "topicType", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "subject", void 0);
+__decorate([
     (0, typeorm_1.Column)(TEXT),
     __metadata("design:type", String)
 ], TaskEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "completionNote", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "startDate", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
@@ -359,10 +514,152 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], TaskEntity.prototype, "confirmedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "archivedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], TaskEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], TaskEntity.prototype, "meetingId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "linkedTaskIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], TaskEntity.prototype, "changeOrderIds", void 0);
 exports.TaskEntity = TaskEntity = __decorate([
     (0, typeorm_1.Entity)('tasks')
 ], TaskEntity);
+let MeetingEntity = class MeetingEntity {
+};
+exports.MeetingEntity = MeetingEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "serial", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "sourceType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "sourceId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "sourceLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "derivedRefs", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "activity", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'Internal' }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "project", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "date", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "time", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "location", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "attendees", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "agenda", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "minutes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'scheduled' }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "locationType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "rfiIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], MeetingEntity.prototype, "changeOrderIds", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "recordingUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "transcriptUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "transcript", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "reviewedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "reviewedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], MeetingEntity.prototype, "updatedAt", void 0);
+exports.MeetingEntity = MeetingEntity = __decorate([
+    (0, typeorm_1.Entity)('meetings')
+], MeetingEntity);
 let DealEntity = class DealEntity {
 };
 exports.DealEntity = DealEntity;
@@ -571,6 +868,135 @@ __decorate([
 exports.ProposalEntity = ProposalEntity = __decorate([
     (0, typeorm_1.Entity)('proposals')
 ], ProposalEntity);
+let ContractEntity = class ContractEntity {
+};
+exports.ContractEntity = ContractEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 30 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "number", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 300 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX' }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "html", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Array)
+], ContractEntity.prototype, "parties", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "attachments", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "templateId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "changeOrderId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "commitmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "sentAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "signedFileId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "voidedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 500, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "voidReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40 }),
+    __metadata("design:type", String)
+], ContractEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractEntity.prototype, "updatedAt", void 0);
+exports.ContractEntity = ContractEntity = __decorate([
+    (0, typeorm_1.Entity)('contracts'),
+    (0, typeorm_1.Index)('IX_contracts_project', ['projectId'])
+], ContractEntity);
+let ContractTemplateEntity = class ContractTemplateEntity {
+};
+exports.ContractTemplateEntity = ContractTemplateEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20 }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "type", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200 }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX' }),
+    __metadata("design:type", String)
+], ContractTemplateEntity.prototype, "html", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
+    __metadata("design:type", Object)
+], ContractTemplateEntity.prototype, "isDefault", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40, nullable: true }),
+    __metadata("design:type", Object)
+], ContractTemplateEntity.prototype, "updatedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], ContractTemplateEntity.prototype, "updatedBy", void 0);
+exports.ContractTemplateEntity = ContractTemplateEntity = __decorate([
+    (0, typeorm_1.Entity)('contract_templates')
+], ContractTemplateEntity);
 let InvoiceEntity = class InvoiceEntity {
 };
 exports.InvoiceEntity = InvoiceEntity;
@@ -898,6 +1324,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], LeadEntity.prototype, "meetingEventId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], LeadEntity.prototype, "siteVisitEventId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'int', nullable: true }),
     __metadata("design:type", Number)
@@ -1279,6 +1709,46 @@ __decorate([
     __metadata("design:type", String)
 ], ProjectTaskEntity.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "closedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ProjectTaskEntity.prototype, "pendingNotices", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "holdReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "leadId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "leadName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "serial", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "sourceType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "sourceId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "sourceLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ProjectTaskEntity.prototype, "derivedRefs", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'int', nullable: true }),
     __metadata("design:type", Object)
 ], ProjectTaskEntity.prototype, "projectId", void 0);
@@ -1390,6 +1860,34 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
     __metadata("design:type", Array)
 ], ProjectTaskEntity.prototype, "dependsOn", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "requestedById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "requestedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "completionNote", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "confirmedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectTaskEntity.prototype, "archivedAt", void 0);
 exports.ProjectTaskEntity = ProjectTaskEntity = __decorate([
     (0, typeorm_1.Entity)('project_tasks')
 ], ProjectTaskEntity);
@@ -1671,6 +2169,10 @@ __decorate([
     __metadata("design:type", String)
 ], UserEntity.prototype, "inviteExpiresAt", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "permissionOverrides", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'bit', nullable: true }),
     __metadata("design:type", Object)
 ], UserEntity.prototype, "notifyOnAssignment", void 0);
@@ -1697,6 +2199,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
+], UserEntity.prototype, "phone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], UserEntity.prototype, "notificationMatrix", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
 ], UserEntity.prototype, "calendarRefreshToken", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
@@ -1709,6 +2219,170 @@ __decorate([
 exports.UserEntity = UserEntity = __decorate([
     (0, typeorm_1.Entity)('users')
 ], UserEntity);
+let ChecklistTemplateEntity = class ChecklistTemplateEntity {
+};
+exports.ChecklistTemplateEntity = ChecklistTemplateEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], ChecklistTemplateEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ChecklistTemplateEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ChecklistTemplateEntity.prototype, "items", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ChecklistTemplateEntity.prototype, "autoFor", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ChecklistTemplateEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ChecklistTemplateEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ChecklistTemplateEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ChecklistTemplateEntity.prototype, "updatedAt", void 0);
+exports.ChecklistTemplateEntity = ChecklistTemplateEntity = __decorate([
+    (0, typeorm_1.Entity)('checklist_templates')
+], ChecklistTemplateEntity);
+let UserViewEntity = class UserViewEntity {
+};
+exports.UserViewEntity = UserViewEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], UserViewEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserViewEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserViewEntity.prototype, "page", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserViewEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], UserViewEntity.prototype, "filters", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], UserViewEntity.prototype, "createdAt", void 0);
+exports.UserViewEntity = UserViewEntity = __decorate([
+    (0, typeorm_1.Entity)('user_views')
+], UserViewEntity);
+let PdfMarkupEntity = class PdfMarkupEntity {
+};
+exports.PdfMarkupEntity = PdfMarkupEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], PdfMarkupEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PdfMarkupEntity.prototype, "fileId", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], PdfMarkupEntity.prototype, "page", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40 }),
+    __metadata("design:type", String)
+], PdfMarkupEntity.prototype, "kind", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Object)
+], PdfMarkupEntity.prototype, "data", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 80, nullable: true }),
+    __metadata("design:type", Object)
+], PdfMarkupEntity.prototype, "authorId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200 }),
+    __metadata("design:type", String)
+], PdfMarkupEntity.prototype, "authorName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'bit', default: false }),
+    __metadata("design:type", Boolean)
+], PdfMarkupEntity.prototype, "private", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], PdfMarkupEntity.prototype, "linkType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 80, nullable: true }),
+    __metadata("design:type", Object)
+], PdfMarkupEntity.prototype, "linkId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PdfMarkupEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], PdfMarkupEntity.prototype, "updatedAt", void 0);
+exports.PdfMarkupEntity = PdfMarkupEntity = __decorate([
+    (0, typeorm_1.Entity)('pdf_markups')
+], PdfMarkupEntity);
+let NotificationItemEntity = class NotificationItemEntity {
+};
+exports.NotificationItemEntity = NotificationItemEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], NotificationItemEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], NotificationItemEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], NotificationItemEntity.prototype, "event", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 500 }),
+    __metadata("design:type", String)
+], NotificationItemEntity.prototype, "title", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", Object)
+], NotificationItemEntity.prototype, "body", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 500, nullable: true }),
+    __metadata("design:type", Object)
+], NotificationItemEntity.prototype, "url", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], NotificationItemEntity.prototype, "at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], NotificationItemEntity.prototype, "digests", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], NotificationItemEntity.prototype, "sent", void 0);
+exports.NotificationItemEntity = NotificationItemEntity = __decorate([
+    (0, typeorm_1.Entity)('notification_items')
+], NotificationItemEntity);
 let AppSettingEntity = class AppSettingEntity {
 };
 exports.AppSettingEntity = AppSettingEntity;
@@ -1727,6 +2401,116 @@ __decorate([
 exports.AppSettingEntity = AppSettingEntity = __decorate([
     (0, typeorm_1.Entity)('app_settings')
 ], AppSettingEntity);
+let ProgressNoteEntity = class ProgressNoteEntity {
+};
+exports.ProgressNoteEntity = ProgressNoteEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], ProgressNoteEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'construction' }),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "track", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], ProgressNoteEntity.prototype, "percent", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'in_progress' }),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "status", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "date", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], ProgressNoteEntity.prototype, "clientVisible", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProgressNoteEntity.prototype, "updatedAt", void 0);
+exports.ProgressNoteEntity = ProgressNoteEntity = __decorate([
+    (0, typeorm_1.Entity)('progress_notes'),
+    (0, typeorm_1.Index)('IX_progress_notes_project', ['projectId'])
+], ProgressNoteEntity);
+let ProgressPhotoEntity = class ProgressPhotoEntity {
+};
+exports.ProgressPhotoEntity = ProgressPhotoEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int'),
+    __metadata("design:type", Number)
+], ProgressPhotoEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'construction' }),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "track", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "category", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "area", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "takenOn", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 'MAX', nullable: true }),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "caption", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ProgressPhotoEntity.prototype, "tags", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], ProgressPhotoEntity.prototype, "clientVisible", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProgressPhotoEntity.prototype, "updatedAt", void 0);
+exports.ProgressPhotoEntity = ProgressPhotoEntity = __decorate([
+    (0, typeorm_1.Entity)('progress_photos'),
+    (0, typeorm_1.Index)('IX_progress_photos_project', ['projectId'])
+], ProgressPhotoEntity);
 let FileRoomFileEntity = class FileRoomFileEntity {
 };
 exports.FileRoomFileEntity = FileRoomFileEntity;
@@ -1815,6 +2599,44 @@ __decorate([
 exports.FileRoomFolderEntity = FileRoomFolderEntity = __decorate([
     (0, typeorm_1.Entity)('file_room_folders')
 ], FileRoomFolderEntity);
+let FileRoomShareEntity = class FileRoomShareEntity {
+};
+exports.FileRoomShareEntity = FileRoomShareEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], FileRoomShareEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], FileRoomShareEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json' }),
+    __metadata("design:type", Array)
+], FileRoomShareEntity.prototype, "files", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 1000 }),
+    __metadata("design:type", String)
+], FileRoomShareEntity.prototype, "to", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], FileRoomShareEntity.prototype, "note", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], FileRoomShareEntity.prototype, "sentById", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], FileRoomShareEntity.prototype, "sentByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], FileRoomShareEntity.prototype, "sentAt", void 0);
+exports.FileRoomShareEntity = FileRoomShareEntity = __decorate([
+    (0, typeorm_1.Entity)('file_room_shares')
+], FileRoomShareEntity);
 let EmployeeEntity = class EmployeeEntity {
 };
 exports.EmployeeEntity = EmployeeEntity;
@@ -2976,9 +3798,83 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], DailyLogEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], DailyLogEntity.prototype, "version", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "versionOf", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyLogEntity.prototype, "sections", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "onBehalfOf", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "certifiedName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "signatureDataUrl", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "signedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "autoReason", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyLogEntity.prototype, "dupBaseline", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyLogEntity.prototype, "dupFromDate", void 0);
 exports.DailyLogEntity = DailyLogEntity = __decorate([
     (0, typeorm_1.Entity)('daily_logs')
 ], DailyLogEntity);
+let DailyReportTemplateEntity = class DailyReportTemplateEntity {
+};
+exports.DailyReportTemplateEntity = DailyReportTemplateEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "name", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyReportTemplateEntity.prototype, "sections", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], DailyReportTemplateEntity.prototype, "entries", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "createdById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], DailyReportTemplateEntity.prototype, "createdAt", void 0);
+exports.DailyReportTemplateEntity = DailyReportTemplateEntity = __decorate([
+    (0, typeorm_1.Entity)('daily_report_templates')
+], DailyReportTemplateEntity);
 let LaborLogEntryEntity = class LaborLogEntryEntity {
 };
 exports.LaborLogEntryEntity = LaborLogEntryEntity;
@@ -4047,6 +4943,14 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ProjectInvoiceEntity.prototype, "approvalRequestedBy", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectInvoiceEntity.prototype, "approvedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ProjectInvoiceEntity.prototype, "approvedBy", void 0);
 exports.ProjectInvoiceEntity = ProjectInvoiceEntity = __decorate([
     (0, typeorm_1.Entity)('project_invoices'),
     (0, typeorm_1.Index)('IX_project_invoices_project', ['projectId']),
@@ -4299,6 +5203,62 @@ exports.FinanceActivityEntity = FinanceActivityEntity = __decorate([
     (0, typeorm_1.Entity)('finance_activity'),
     (0, typeorm_1.Index)('IX_finance_activity_project', ['projectId'])
 ], FinanceActivityEntity);
+let AuditEventEntity = class AuditEventEntity {
+};
+exports.AuditEventEntity = AuditEventEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)({ type: 'nvarchar', length: 64 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 40 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 64, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "userId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "userName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 60 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "entityType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 100, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "entityId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 200, nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "label", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 80 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "action", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 10 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "method", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 300 }),
+    __metadata("design:type", String)
+], AuditEventEntity.prototype, "path", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], AuditEventEntity.prototype, "changes", void 0);
+exports.AuditEventEntity = AuditEventEntity = __decorate([
+    (0, typeorm_1.Entity)('audit_events'),
+    (0, typeorm_1.Index)('IX_audit_events_at', ['at']),
+    (0, typeorm_1.Index)('IX_audit_events_entity', ['entityType', 'entityId'])
+], AuditEventEntity);
 let ChangeOrderEntity = class ChangeOrderEntity extends FinanceStamped {
 };
 exports.ChangeOrderEntity = ChangeOrderEntity;
@@ -4306,6 +5266,22 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], ChangeOrderEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ChangeOrderEntity.prototype, "sourceType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ChangeOrderEntity.prototype, "sourceId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ChangeOrderEntity.prototype, "sourceLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], ChangeOrderEntity.prototype, "derivedRefs", void 0);
 __decorate([
     (0, typeorm_1.Column)('int'),
     __metadata("design:type", Number)
@@ -4518,6 +5494,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], ReimbursableEntity.prototype, "vendor", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ReimbursableEntity.prototype, "receiptNumber", void 0);
 __decorate([
     (0, typeorm_1.Column)({ ...MONEY }),
     __metadata("design:type", Number)
@@ -4874,6 +5854,73 @@ exports.CommitmentLineEntity = CommitmentLineEntity = __decorate([
     (0, typeorm_1.Index)('IX_commitment_lines_commitment', ['commitmentId']),
     (0, typeorm_1.Index)('IX_commitment_lines_project', ['projectId'])
 ], CommitmentLineEntity);
+let ContractorBidEntity = class ContractorBidEntity {
+};
+exports.ContractorBidEntity = ContractorBidEntity;
+__decorate([
+    (0, typeorm_1.PrimaryColumn)(),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "contractorId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], ContractorBidEntity.prototype, "projectId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "projectName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "tradeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "scope", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "dateReceived", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...MONEY, nullable: true }),
+    __metadata("design:type", Object)
+], ContractorBidEntity.prototype, "amount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'pending' }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "outcome", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'nvarchar', length: 10, nullable: true }),
+    __metadata("design:type", Object)
+], ContractorBidEntity.prototype, "dueDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "outcomeDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ ...TEXT, nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "createdByName", void 0);
+__decorate([
+    (0, typeorm_1.Column)(),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], ContractorBidEntity.prototype, "updatedAt", void 0);
+exports.ContractorBidEntity = ContractorBidEntity = __decorate([
+    (0, typeorm_1.Entity)('contractor_bids'),
+    (0, typeorm_1.Index)('IX_contractor_bids_contractor', ['contractorId'])
+], ContractorBidEntity);
 let CostEntryEntity = class CostEntryEntity extends FinanceStamped {
 };
 exports.CostEntryEntity = CostEntryEntity;
@@ -5016,6 +6063,22 @@ __decorate([
     (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], RfiEntity.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], RfiEntity.prototype, "sourceType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], RfiEntity.prototype, "sourceId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], RfiEntity.prototype, "sourceLabel", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'simple-json', nullable: true }),
+    __metadata("design:type", Object)
+], RfiEntity.prototype, "derivedRefs", void 0);
 __decorate([
     (0, typeorm_1.Column)('int'),
     __metadata("design:type", Number)

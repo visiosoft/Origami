@@ -14,12 +14,15 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectsService = void 0;
 const common_1 = require("@nestjs/common");
+const serials_1 = require("../database/serials");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const notify_hub_service_1 = require("../notifications/notify-hub.service");
 const entities_1 = require("../database/entities");
 let ProjectsService = class ProjectsService {
-    constructor(repo) {
+    constructor(repo, hub) {
         this.repo = repo;
+        this.hub = hub;
         this.log = new common_1.Logger('ProjectsService');
     }
     async onApplicationBootstrap() {
@@ -36,14 +39,17 @@ let ProjectsService = class ProjectsService {
             this.log.warn('Kickoff stage migration failed: ' + err.message);
         }
     }
-    findAll() {
-        return this.repo.find({ order: { id: 'ASC' } });
+    async findAll() {
+        const rows = await this.repo.find({ order: { id: 'ASC' } });
+        const codes = (0, serials_1.projectCodes)(rows);
+        return rows.map((p) => Object.assign(p, { taskCode: codes.get(p.id) }));
     }
     async findOne(id) {
         const project = await this.repo.findOneBy({ id: Number(id) });
         if (!project)
             throw new common_1.NotFoundException(`Project ${id} not found`);
-        return project;
+        const codes = (0, serials_1.projectCodes)(await this.repo.find({ select: { id: true, name: true, code: true } }));
+        return Object.assign(project, { taskCode: codes.get(project.id) });
     }
     async create(dto) {
         const rows = await this.repo.find();
@@ -73,14 +79,44 @@ let ProjectsService = class ProjectsService {
             leadId: deal.id,
         });
     }
-    async update(id, dto) {
+    async update(id, dto, actor) {
         const patch = { ...(dto || {}) };
         for (const k of ['holdSince', 'holdUntil', 'holdReason', 'holdBy', 'holdTaskId', 'holdHistory'])
             delete patch[k];
         if (!Object.keys(patch).length)
             return this.findOne(id);
+        if ('code' in patch) {
+            const code = (0, serials_1.cleanProjectCode)(patch.code);
+            if (patch.code && !code)
+                throw new common_1.BadRequestException('A project code is 2 to 8 letters or digits.');
+            if (code) {
+                const others = (await this.repo.find({ select: { id: true, name: true, code: true } })).filter((p) => p.id !== Number(id));
+                if ((0, serials_1.projectCodes)(others).size && [...(0, serials_1.projectCodes)(others).values()].includes(code))
+                    throw new common_1.BadRequestException(`${code} is already another project's code.`);
+            }
+            patch.code = code || null;
+        }
+        const before = this.hub ? await this.repo.findOneBy({ id: Number(id) }) : null;
         await this.repo.update({ id: Number(id) }, patch);
+        if (before)
+            this.statusNotices(before, patch, actor);
         return this.findOne(id);
+    }
+    statusNotices(before, patch, actor) {
+        const send = (event, title, path) => void this.hub.broadcast(event, { title, path, actorId: actor?.id }, { projectName: before.name }).catch(() => undefined);
+        const viz = (patch.highViz ?? before.highViz) === true;
+        if (patch.highViz === true && !before.highViz)
+            send('high_viz', `${before.name} is now High Viz`, `/design/${before.id}`);
+        if (patch.designPhase !== undefined && patch.designPhase && patch.designPhase !== before.designPhase) {
+            send('design_status', `${before.name} moved to ${patch.designPhase}`, `/design/${before.id}`);
+            if (viz)
+                send('high_viz', `${before.name} moved to ${patch.designPhase}`, `/design/${before.id}`);
+        }
+        if (patch.stage !== undefined && patch.stage && patch.stage !== before.stage) {
+            send('construction_status', `${before.name} is now ${patch.stage}`, `/pm/${before.id}`);
+            if (viz)
+                send('high_viz', `${before.name} is now ${patch.stage}`, `/pm/${before.id}`);
+        }
     }
     async remove(id) {
         const project = await this.repo.findOneBy({ id: Number(id) });
@@ -93,6 +129,8 @@ exports.ProjectsService = ProjectsService;
 exports.ProjectsService = ProjectsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.ProjectEntity)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, common_1.Optional)()),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        notify_hub_service_1.NotifyHub])
 ], ProjectsService);
 //# sourceMappingURL=projects.service.js.map

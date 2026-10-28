@@ -68,6 +68,11 @@ export declare class AuthService {
         name: string;
         id?: string;
     }>;
+    refresh(bearer: string | undefined): Promise<{
+        token: string;
+        expiresIn: number;
+        user: any;
+    }>;
     me(bearer: string | undefined): Promise<any>;
     setNotificationPrefs(bearer: string | undefined, prefs: {
         notifyOnAssignment?: boolean;

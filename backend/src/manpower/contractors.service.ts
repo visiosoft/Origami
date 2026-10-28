@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ContractorEntity, EmployeeEntity } from '../database/entities';
+import { ContractorBidEntity, ContractorEntity, EmployeeEntity } from '../database/entities';
+import { bidStats, type BidStats } from './contractor-bids';
 import { ContractorDirectorySync } from './contractor-directory.sync';
 import { AttachmentsService, type UploadActor } from '../google/attachments.service';
 import { normalizeAttachments, subId, type TaskAttachment } from '../database/task.types';
@@ -15,6 +16,7 @@ export class ContractorsService {
     @InjectRepository(EmployeeEntity) private readonly employees: Repository<EmployeeEntity>,
     private readonly attachments: AttachmentsService,
     private readonly directory?: ContractorDirectorySync,
+    @Optional() @InjectRepository(ContractorBidEntity) private readonly bids?: Repository<ContractorBidEntity>,
   ) {}
 
   /** Keep the People entry (same record) in step; never let that fail the save. */
@@ -23,7 +25,7 @@ export class ContractorsService {
     return c;
   }
 
-  private hydrate(c: ContractorEntity, workerCount: number) {
+  private hydrate(c: ContractorEntity, workerCount: number, stats?: BidStats) {
     return {
       ...c,
       attachments: normalizeAttachments(c.attachments),
@@ -32,6 +34,7 @@ export class ContractorsService {
       licenseStatus: expiryStatus(c.licenseExpiry),
       tradeIds: c.tradeIds || [],
       workerCount,
+      bidStats: stats || bidStats([]),
     };
   }
 
@@ -43,8 +46,10 @@ export class ContractorsService {
   }
 
   async findAll() {
-    const [rows, counts] = await Promise.all([this.repo.find({ order: { companyName: 'ASC' } }), this.counts()]);
-    return rows.map((c) => this.hydrate(c, counts.get(c.id) || 0));
+    const [rows, counts, bids] = await Promise.all([this.repo.find({ order: { companyName: 'ASC' } }), this.counts(), this.bids ? this.bids.find() : Promise.resolve([])]);
+    const byContractor = new Map<string, ContractorBidEntity[]>();
+    for (const b of bids) byContractor.set(b.contractorId, [...(byContractor.get(b.contractorId) || []), b]);
+    return rows.map((c) => this.hydrate(c, counts.get(c.id) || 0, bidStats(byContractor.get(c.id) || [])));
   }
 
   private async load(id: string) {
@@ -54,7 +59,7 @@ export class ContractorsService {
   }
 
   private async one(c: ContractorEntity) {
-    return this.hydrate(c, (await this.counts()).get(c.id) || 0);
+    return this.hydrate(c, (await this.counts()).get(c.id) || 0, bidStats(this.bids ? await this.bids.findBy({ contractorId: c.id }) : []));
   }
 
   async create(dto: any) {
@@ -80,6 +85,7 @@ export class ContractorsService {
     if (workers) throw new BadRequestException(`${c.companyName} still has ${workers} worker(s) on record -- set the contractor to Ended instead.`);
     await this.attachments.discardAll(normalizeAttachments(c.attachments));
     await this.repo.remove(c);
+    await this.bids?.delete({ contractorId: id });
     await this.directory?.removeContractor(id);
     return { id, deleted: true };
   }

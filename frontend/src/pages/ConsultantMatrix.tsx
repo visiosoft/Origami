@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../api';
+import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 
-const BG = "'Bricolage Grotesque', serif";
-const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(20,8,31,0.12)', background: '#FBF8F2', fontSize: 13, fontFamily: 'inherit', color: '#0B1A12', outline: 'none' };
+const BG = 'var(--font-display)';
+const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
 export interface Consultant {
   id: string;
@@ -60,18 +60,18 @@ export function ConsultantMatrix() {
   const remove = (c: Consultant) => {
     if (!confirm(`Remove ${c.firm} from ${c.type}?`)) return;
     setRows((prev) => prev.filter((x) => x.id !== c.id));
-    api.consultants.remove(c.id).catch(() => { });
+    persist(() => api.consultants.remove(c.id)).catch((e: Error) => toast('⚠ Not removed — ' + (e.message || 'try again')));
   };
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 4 }}>
         <div>
-          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12' }}>Consultant & Sub Prequalifying</div>
-          <div style={{ fontSize: 13, color: '#5C6B65' }}>The company's directory of prequalified consultants and subs, grouped by trade.</div>
+          <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: 'var(--ink)' }}>Consultant & Sub Prequalifying</div>
+          <div style={{ fontSize: 13, color: 'var(--c-5c6b65)' }}>The company's directory of prequalified consultants and subs, grouped by trade.</div>
         </div>
         {canManage && (
-          <div onClick={() => addNew()} style={{ display: 'inline-block', padding: '10px 18px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Add consultant</div>
+          <div onClick={() => addNew()} style={{ display: 'inline-block', padding: '10px 18px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Add consultant</div>
         )}
       </div>
 
@@ -95,32 +95,32 @@ export function ConsultantMatrix() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {grouped.map(([type, list]) => (
-          <div key={type} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.06)', borderRadius: 14, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#F4F6F4', borderBottom: '1px solid rgba(20,8,31,0.06)' }}>
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{type} <span style={{ color: '#7E9B93', fontWeight: 500 }}>({list.length})</span></div>
-              {canManage && <span onClick={() => addNew(type)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer' }}>+ Add to {type}</span>}
+          <div key={type} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#F4F6F4', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{type} <span style={{ color: 'var(--muted)', fontWeight: 500 }}>({list.length})</span></div>
+              {canManage && <span onClick={() => addNew(type)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>+ Add to {type}</span>}
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                 <thead>
                   <tr>
                     {['Firm', 'Contact', 'Phone', 'Email', 'Address', ''].map((h) => (
-                      <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #EDEFEC', whiteSpace: 'nowrap' }}>{h}</th>
+                      <th key={h} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--c-edefec)', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((c) => (
                     <tr key={c.id}>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', fontWeight: 600, color: '#0B1A12', whiteSpace: 'nowrap' }}>{c.firm}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line' }}>{c.contact || '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line' }}>{c.phone || '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line' }}>{c.email || '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'pre-line', color: '#5C6B65' }}>{c.address || '—'}</td>
-                      <td style={{ padding: '9px 10px', borderBottom: '1px solid #EDEFEC', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '9px 10px', borderBottom: '1px solid var(--c-edefec)', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{c.firm}</td>
+                      <td style={{ padding: '9px 10px', borderBottom: '1px solid var(--c-edefec)', whiteSpace: 'pre-line' }}>{c.contact || '—'}</td>
+                      <td style={{ padding: '9px 10px', borderBottom: '1px solid var(--c-edefec)', whiteSpace: 'pre-line' }}>{c.phone || '—'}</td>
+                      <td style={{ padding: '9px 10px', borderBottom: '1px solid var(--c-edefec)', whiteSpace: 'pre-line' }}>{c.email || '—'}</td>
+                      <td style={{ padding: '9px 10px', borderBottom: '1px solid var(--c-edefec)', whiteSpace: 'pre-line', color: 'var(--c-5c6b65)' }}>{c.address || '—'}</td>
+                      <td style={{ padding: '9px 10px', borderBottom: '1px solid var(--c-edefec)', whiteSpace: 'nowrap' }}>
                         {canManage && (
                           <>
-                            <span onClick={() => setEditing(c)} style={{ fontSize: 11.5, fontWeight: 700, color: '#173326', cursor: 'pointer', marginRight: 10 }}>Edit</span>
+                            <span onClick={() => setEditing(c)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', marginRight: 10 }}>Edit</span>
                             <span onClick={() => remove(c)} style={{ fontSize: 11.5, fontWeight: 700, color: '#8E2E0A', cursor: 'pointer' }}>Delete</span>
                           </>
                         )}
@@ -132,12 +132,12 @@ export function ConsultantMatrix() {
             </div>
           </div>
         ))}
-        {grouped.length === 0 && <div style={{ fontSize: 12.5, color: '#9AA39D', fontStyle: 'italic' }}>No consultants match that search.</div>}
+        {grouped.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No consultants match that search.</div>}
       </div>
 
       {editing && (
-        <div onClick={() => setEditing(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease', padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: 16, boxShadow: '0 24px 60px rgba(20,8,31,0.24)', padding: 22 }}>
+        <div onClick={() => setEditing(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.5)', zIndex: 140, display: 'grid', placeItems: 'center', animation: 'fadeIn 0.15s ease', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 560, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', borderRadius: 16, boxShadow: '0 24px 60px rgba(var(--rgb-shade), 0.24)', padding: 22 }}>
             <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 17, marginBottom: 14 }}>{editing.id ? 'Edit consultant' : 'New consultant'}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
@@ -154,15 +154,15 @@ export function ConsultantMatrix() {
             </div>
             <div style={{ display: 'flex', gap: 18, marginTop: 14, flexWrap: 'wrap' }}>
               {([['rfpSent', 'RFP sent'], ['bidInterest', 'Bid interest received'], ['signedContract', 'Signed contract']] as const).map(([key, label]) => (
-                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#43514D', cursor: 'pointer' }}>
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--body)', cursor: 'pointer' }}>
                   <input type="checkbox" checked={!!editing[key]} onChange={(e) => setEditing({ ...editing, [key]: e.target.checked })} />
                   {label}
                 </label>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 9, marginTop: 18 }}>
-              <div onClick={save} style={{ padding: '10px 20px', borderRadius: 999, background: '#173326', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</div>
-              <div onClick={() => setEditing(null)} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid rgba(20,8,31,0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#43514D' }}>Cancel</div>
+              <div onClick={save} style={{ padding: '10px 20px', borderRadius: 999, background: 'var(--forest)', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</div>
+              <div onClick={() => setEditing(null)} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.12)', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: 'var(--body)' }}>Cancel</div>
             </div>
           </div>
         </div>
@@ -172,5 +172,5 @@ export function ConsultantMatrix() {
 }
 
 function L({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{children}</div>;
+  return <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 5 }}>{children}</div>;
 }

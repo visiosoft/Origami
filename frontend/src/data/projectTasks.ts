@@ -1,6 +1,9 @@
+import type { ActionTrailFields } from '../api';
 // Types + style maps for the Asana-style per-project task board.
 
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
+/** In order of urgency; '' is None. */
+export const PRIORITY_ORDER: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
 
 /**
  * A file on a task: either a real upload stored in Google Drive (`kind: 'drive'`)
@@ -27,7 +30,7 @@ export interface ChecklistItem { id: string; item: string; done: boolean }
 /** One entry in a task's history — field edits, comments, files, assignment. */
 export interface ActivityEvent {
   id: string;
-  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators';
+  type: 'created' | 'field' | 'comment' | 'attachment' | 'assign' | 'status' | 'collaborators' | 'link';
   field?: string;
   from?: string;
   to?: string;
@@ -37,16 +40,37 @@ export interface ActivityEvent {
   at: string;
 }
 
-/** "Blocked" and "On hold" were one thing under two names -- it's "On hold" now. */
-export type TaskStatus = 'Not started' | 'In progress' | 'On hold' | 'Done';
-export const TASK_STATUSES: TaskStatus[] = ['Not started', 'In progress', 'On hold', 'Done'];
+/**
+ * The task buckets: To Do, Assigned, In Progress, On Hold, Complete, Confirmed.
+ * Stored under their long-standing names -- "Not started" shows as To Do and
+ * "Done" as Complete -- so show them through STATUS_LABEL.
+ */
+export type TaskStatus = 'Not started' | 'Assigned' | 'In progress' | 'On hold' | 'Done' | 'Confirmed';
+export const TASK_STATUSES: TaskStatus[] = ['Not started', 'Assigned', 'In progress', 'On hold', 'Done', 'Confirmed'];
+export const STATUS_LABEL: Record<string, string> = {
+  'Not started': 'To Do', Assigned: 'Assigned', 'In progress': 'In Progress', 'On hold': 'On Hold', Done: 'Complete', Confirmed: 'Confirmed', Blocked: 'On Hold',
+};
+export const statusLabel = (s?: string | null) => STATUS_LABEL[s || 'Not started'] || s || 'To Do';
+/** Finished, whether or not the originator has confirmed it yet. */
+export const isTaskDone = (t: { completed?: boolean; status?: string | null }) => !!t.completed || t.status === 'Done' || t.status === 'Confirmed';
+/** What each bucket means (the Oct 16 definitions). */
+export const STATUS_HINT: Record<string, string> = {
+  'Not started': 'Not assigned to anyone yet — may or may not have a due date',
+  Assigned: 'Assigned to someone',
+  'In progress': 'The assignee has started it (setting a start date does this) — needs an assignee',
+  'On hold': 'On hold or blocked — say why',
+  Done: 'The assignee says it’s complete, with a note saying what was done',
+  Confirmed: 'The assigner (whoever entered it) confirms it’s complete — archived a week later unless it’s moved or changed',
+};
 
 export const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
-  'Not started': { bg: '#EFEDE8', c: '#5C6B65' },
+  'Not started': { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
+  Assigned: { bg: '#E3E0F5', c: '#4B3F8F' },
   'In progress': { bg: '#D6E8E5', c: '#2F6F68' },
-  'On hold': { bg: '#FBE9AE', c: '#93520F' },
-  Blocked: { bg: '#FBE9AE', c: '#93520F' }, // an older row not yet renamed
-  Done: { bg: '#D2EAD3', c: '#1E6B36' },
+  'On hold': { bg: 'var(--amber-light)', c: '#93520F' },
+  Blocked: { bg: 'var(--amber-light)', c: '#93520F' }, // an older row not yet renamed
+  Done: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
+  Confirmed: { bg: 'var(--c-1e6b36)', c: '#FFFFFF' },
 };
 
 export interface ProjectSection {
@@ -57,12 +81,22 @@ export interface ProjectSection {
   order: number;
 }
 
-export interface ProjectTask {
+export interface ProjectTask extends ActionTrailFields {
   id: string;
   /** People following the task without owning it ("Collaborative"). */
   collaborators?: { id: string; name: string }[];
   /** null = a General Tasks board task, not tied to any client project. */
   projectId: number | null;
+  /** The lead it's for (work before a signed contract), and its name. */
+  leadId?: string | null;
+  leadName?: string | null;
+  /** Why it's on hold (status On hold). */
+  holdReason?: string | null;
+  /** Source: who asked for it (the assigner is whoever entered it). */
+  requestedById?: string | null;
+  requestedBy?: string | null;
+  /** What was done -- written when it's marked complete. */
+  completionNote?: string | null;
   sectionId: string;
   title: string;
   description?: string;
@@ -92,6 +126,12 @@ export interface ProjectTask {
   endDate?: string;
   durationDays?: number | null;
   dependsOn?: string[];
+  /** The originator -- who confirms it once it's complete. */
+  createdById?: string;
+  createdByName?: string;
+  confirmedAt?: string | null;
+  /** Set 7 days after Confirmed; archived tasks are off the board unless asked for. */
+  archivedAt?: string | null;
 }
 
 /** A stage of the delivery programme. Tasks are filed under one. */
@@ -109,9 +149,9 @@ export interface ProjectPhase {
 export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
 
 export const PRIORITY_STYLE: Record<Priority, { bg: string; c: string }> = {
-  Low: { bg: '#EFEDE8', c: '#5C6B65' },
+  Low: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   Medium: { bg: '#D6E8E5', c: '#2F6F68' },
-  High: { bg: '#FBE9AE', c: '#8A6D12' },
+  High: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
   Urgent: { bg: '#F2DFD4', c: '#8E2E0A' },
 };
 
@@ -129,12 +169,48 @@ export const checklistProgress = (items?: ChecklistItem[]) => {
 
 /** Deterministic colour for a free-form label, so tags look stable. */
 const LABEL_COLORS = [
-  { bg: '#DCE7DE', c: '#173326' }, { bg: '#D6E8E5', c: '#2F6F68' },
-  { bg: '#FBE9AE', c: '#8A6D12' }, { bg: '#F2DFD4', c: '#8E2E0A' },
-  { bg: '#EAE0F3', c: '#5B2E86' }, { bg: '#EDE3D0', c: '#6B4F1D' },
+  { bg: 'var(--mint)', c: 'var(--forest)' }, { bg: '#D6E8E5', c: '#2F6F68' },
+  { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' }, { bg: '#F2DFD4', c: '#8E2E0A' },
+  { bg: '#EAE0F3', c: '#5B2E86' }, { bg: 'var(--sand)', c: '#6B4F1D' },
 ];
 export const labelStyle = (label: string) => {
   let hash = 0;
   for (let i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
   return LABEL_COLORS[hash % LABEL_COLORS.length];
 };
+
+/**
+ * Who put a task on its current assignee, and when: the latest assignment in
+ * its history, else whoever created it already assigned. Null when nobody is
+ * assigned or the history doesn't say. Works for board and request-log tasks.
+ */
+export function assignedByOf(t: { activity?: ActivityEvent[]; assignee?: string; assignedTo?: string }): { by: string; at: string } | null {
+  const who = String(t.assignee ?? t.assignedTo ?? '').trim();
+  if (!who) return null;
+  const events = Array.isArray(t.activity) ? t.activity : [];
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i];
+    if (e.type === 'assign' && String(e.to || '').trim()) return { by: e.by, at: e.at };
+  }
+  const created = events.find((e) => e.type === 'created');
+  return created ? { by: created.by, at: created.at } : null;
+}
+
+/** Who created a task, and when (from its history); null when the history doesn't say. */
+export function createdByOf(t: { activity?: ActivityEvent[] }): { by: string; at: string; byId?: string } | null {
+  const created = (Array.isArray(t.activity) ? t.activity : []).find((e) => e.type === 'created');
+  return created ? { by: created.by, at: created.at, byId: created.byId } : null;
+}
+
+/**
+ * "Created by Sara R. · Oct 1", plus "· reassigned by Edward M." when someone
+ * other than the creator later handed it to its current assignee.
+ */
+export function createdByText(t: { activity?: ActivityEvent[]; assignee?: string; assignedTo?: string }): string {
+  const c = createdByOf(t);
+  if (!c) return '';
+  const when = c.at ? new Date(c.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+  const a = assignedByOf(t);
+  const re = a && a.at !== c.at && a.by && a.by !== c.by ? ` · reassigned by ${a.by}` : '';
+  return `Created by ${c.by || 'someone'}${when ? ' · ' + when : ''}${re}`;
+}

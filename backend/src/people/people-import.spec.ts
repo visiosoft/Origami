@@ -50,4 +50,20 @@ describe('People import', () => {
   it('dates: ISO or US style', () => {
     expect([isoDate('2027-03-31'), isoDate('3/31/2027'), isoDate('03/31/27'), isoDate('March 31')]).toEqual(['2027-03-31', '2027-03-31', '2027-03-31', '']);
   });
+  it('reads Google and Outlook contact exports, with the kind picked on the page', () => {
+    const [g] = planImport([{ 'First Name': 'Kai', 'Last Name': 'Lono', 'Organization Name': 'Kestrel Electric', 'Organization Title': 'Estimator', 'E-mail 1 - Value': 'kai@kestrel.test', 'Phone 1 - Value': '808 555 0199' }], existing, projects, { update: false, defaultKind: 'Consultant' });
+    // A consultant is a firm: the person becomes its primary contact.
+    expect(g).toMatchObject({ action: 'create', kind: 'Consultant', name: 'Kestrel Electric' });
+    expect(g.person).toMatchObject({ contact: 'Kai Lono', company: 'Kestrel Electric', role: 'Estimator', email: 'kai@kestrel.test', phone: '808 555 0199' });
+    const [o] = planImport([{ 'First Name': 'Ivy', 'Last Name': 'Ng', 'Mobile Phone': '555', 'E-mail Address': 'ivy@x.test', 'Job Title': 'Owner' }], existing, projects, { update: false, defaultKind: 'Client' });
+    expect(o.person).toMatchObject({ kind: 'Client', role: 'Owner', email: 'ivy@x.test' });
+  });
+
+  it('a row that looks like a contact already here (same phone or full name, Expired too) is skipped', () => {
+    const people: any[] = [{ id: 9, name: 'Kai Lono', kind: 'Consultant', email: 'old@x.test', phone: '(808) 555-0101', contactStatus: 'expired' }];
+    const [r] = planImport([{ Kind: 'Sub', Name: 'Kestrel Electric', Phone: '808.555.0101' }], people, projects, { update: false });
+    expect(r).toMatchObject({ action: 'skip', matchId: 9 });
+    expect(r.issues[0]).toMatch(/Looks like “Kai Lono”, expired — same phone/);
+  });
 });
+

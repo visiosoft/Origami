@@ -4,12 +4,21 @@ export interface Project {
   id: number;
   /** The project doesn't use the Project Program workbook. */
   programOff?: boolean;
+  /** High Viz: everyone following High Viz hears about its status and task moves (Settings → Notifications). */
+  highViz?: boolean | null;
   priority: 'High' | 'Medium' | 'Low';
   name: string;
   location: string;
   typeOfWork: string;
   contractType: string;
   contractAmt: string;
+  /** LS | T&M | T&M NTE | CS (PRICING_TYPES). */
+  pricing?: string | null;
+  /** PW | CP (LABOR_TYPES). */
+  labor?: string | null;
+  /** Task-number prefix set by hand (blank = made from the name); `taskCode` is the one in use. */
+  code?: string | null;
+  taskCode?: string;
   estStart: string;
   duration: string;
   scope: string;
@@ -20,6 +29,8 @@ export interface Project {
   imgColor: string;
   img: string;
   leadId?: string; // originating lead (intake questionnaire) shown on the Project Info task
+  /** Gate / lockbox codes and how to get on site. */
+  siteAccess?: string;
   introLetterSentAt?: string; // ISO timestamp when the Introduction Letter was sent (marks that step complete)
   /** The composed Introduction Letter, saved as a draft before sending. */
   introLetterSubject?: string;
@@ -49,16 +60,21 @@ export const PROJECTS: Project[] = [
   { id: 7, priority: 'Low', name: 'Design & Permit Sequence DETAILED DATES', location: 'Program-wide', typeOfWork: 'Design · Permitting Program', contractType: 'Consulting', contractAmt: '$68,000', estStart: 'Ongoing', duration: 'Rolling', scope: 'Master permit and design milestone tracking across all active jobs', stage: 'Design', progress: 40, referral: '', contactedBy: 'Edward', imgColor: '#2C5F58', img: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=200&fit=crop' },
 ];
 
+// `name` is the stored stage; `label` is what people see. Kickoff holds leads and
+// won-but-not-started work, so it reads as CRM; Closeout reads as Closed.
 export const STAGE_CONFIG = [
-  { name: 'Kickoff', color: '#7E9B93' },
-  { name: 'Design', color: '#245C3A' },
-  { name: 'Construction', color: '#173326' },
-  { name: 'Closeout', color: '#0F2417' },
+  { name: 'Kickoff', label: 'CRM', color: 'var(--muted)' },
+  { name: 'Design', label: 'Design', color: 'var(--c-245c3a)' },
+  { name: 'Construction', label: 'Construction', color: 'var(--forest)' },
+  { name: 'Closeout', label: 'Closed', color: 'var(--sidebar)' },
 ] as const;
+
+/** The name shown for a stored project stage. */
+export const stageLabel = (stage?: string) => STAGE_CONFIG.find((s) => s.name === stage)?.label || stage || '';
 
 export const PR_COLORS: Record<string, { bg: string; c: string }> = {
   High: { bg: '#F2DFD4', c: '#8E2E0A' },
-  Medium: { bg: '#FBE9AE', c: '#93520F' },
+  Medium: { bg: 'var(--amber-light)', c: '#93520F' },
   Low: { bg: '#D6E8E5', c: '#2F6F68' },
 };
 
@@ -125,7 +141,7 @@ export const PROJECT_WORKFLOW: WfPhase[] = [
     { title: 'Interior Construction Details', status: 'Open', auto: false, assignee: 'Edward', team: 'Architecture', start: 'Nov 4', end: 'Nov 15', dur: '10d', deps: ['Interior Conceptual Designs (MFS)'] },
     { title: 'Procurement Schedules', status: 'Open', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-generate from selections', start: 'Nov 18', end: 'Nov 22', dur: '5d', deps: ['Interior Schematic Design', 'Interior Construction Details'] },
   ] },
-  { id: 'ca', name: 'Construction Administration', color: '#145C33', start: 'Nov 25', end: 'Mar 14, 2025', tasks: [
+  { id: 'ca', name: 'Construction Administration', color: 'var(--c-145c33)', start: 'Nov 25', end: 'Mar 14, 2025', tasks: [
     { title: 'Construction Kick-off Meeting', status: 'Open', auto: false, assignee: 'Edward', team: 'Project Management', start: 'Nov 25', end: 'Nov 25', dur: '1d', deps: [] },
     { title: 'Request for Information / Clarifications', status: 'Open', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-log from field reports', start: 'Nov 26', end: 'Mar 7', dur: 'Ongoing', deps: ['Construction Kick-off Meeting'] },
     { title: 'Change Orders / Clarifications', status: 'Open', auto: true, assignee: '', team: 'Automation', autoLabel: 'Auto-track CO approvals', start: 'Nov 26', end: 'Mar 7', dur: 'Ongoing', deps: ['Construction Kick-off Meeting'] },
@@ -136,7 +152,7 @@ export const PROJECT_WORKFLOW: WfPhase[] = [
 ];
 
 export const TEAM_COLORS: Record<string, string> = { 'Project Management': '#173326', 'Admin & Coordination': '#245C3A', Architecture: '#2F6F68', Design: '#2F6F68', Interiors: '#D2822E', 'Permits & Compliance': '#8E2E0A', Finance: '#2F7D4A', 'Legal & Contracts': '#0F2417', 'Client / Owner': '#0B1A12', Automation: '#D2822E', 'Field Operations': '#1C5230' };
-export const TEAM_BGS: Record<string, string> = { 'Project Management': '#DCE7DE', 'Admin & Coordination': '#EEF3EE', Architecture: '#D6E8E5', Design: '#D3EAE6', Interiors: '#FBE9AE', 'Permits & Compliance': '#F2DFD4', Finance: '#D2EAD3', 'Legal & Contracts': '#DCE7DE', 'Client / Owner': '#EFEDE8', Automation: '#FBE9AE', 'Field Operations': '#D2EAD3' };
+export const TEAM_BGS: Record<string, string> = { 'Project Management': 'var(--mint)', 'Admin & Coordination': 'var(--mist)', Architecture: '#D6E8E5', Design: '#D3EAE6', Interiors: 'var(--amber-light)', 'Permits & Compliance': '#F2DFD4', Finance: 'var(--c-d2ead3)', 'Legal & Contracts': 'var(--mint)', 'Client / Owner': 'var(--c-efede8)', Automation: 'var(--amber-light)', 'Field Operations': 'var(--c-d2ead3)' };
 export const WF_ST_COLORS: Record<string, { bg: string; c: string }> = { Done: { bg: '#D2EAD3', c: '#1C5230' }, Open: { bg: '#EFEDE8', c: '#3A423E' }, 'In Progress': { bg: '#D6E8E5', c: '#2F6F68' } };
 
 export interface ComputedPhase extends WfPhase {
@@ -225,8 +241,8 @@ export function computeWorkflow(phases: BoardPhase[], tasks: BoardTask[]): Compu
       weeks: Number(ph.weeks) || 0,
       weekFrom: weekCursor,
       weekTo: weekCursor + (Number(ph.weeks) || 0),
-      statusBg: allDone ? '#D2EAD3' : locked ? '#EFEDE8' : '#D6E8E5',
-      statusC: allDone ? '#1C5230' : locked ? '#9AA39D' : '#2F6F68',
+      statusBg: allDone ? 'var(--c-d2ead3)' : locked ? 'var(--c-efede8)' : '#D6E8E5',
+      statusC: allDone ? 'var(--success-deep)' : locked ? 'var(--c-9aa39d)' : '#2F6F68',
       headerOpacity: locked ? '0.55' : '1',
     };
     weekCursor += Number(ph.weeks) || 0;

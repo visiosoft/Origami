@@ -49,10 +49,13 @@ const viewer: Actor = { id: 'U-V', name: 'Val', roleKey: 'viewer' };
 const nobody: Actor = { id: 'U-N', name: 'Ned', roleKey: 'staff' };
 const clerk: Actor = { id: 'U-C', name: 'Cal (Clerk)', roleKey: 'clerk' };
 const site: Actor = { id: 'U-S', name: 'Sam (Site)', roleKey: 'site' };
+const issuer: Actor = { id: 'U-I', name: 'Ira (Issues)', roleKey: 'issuer' };
 const PERMS: Record<string, Record<string, string[]>> = {
   finance: { fin_project: ['view', 'manage'] }, pm: { pm: ['view', 'manage'], fin_project: ['view'] }, viewer: { fin_project: ['view'] }, staff: {},
   // Prepares invoices but a granular setting takes issuing away.
   clerk: { fin_project: ['view', 'manage'], finx_issue_invoice: [] },
+  // Issues invoices, but approving them is someone else's call.
+  issuer: { fin_project: ['view', 'manage'], finx_approve_invoice: [] },
   // Change orders and reimbursables only -- no project financials.
   site: { changeorders: ['view', 'manage'], reimbursement: ['view', 'manage'] },
 };
@@ -306,6 +309,24 @@ describe('phase 2: permissions and invoice approval', () => {
     const issued = await s.inv.issue(d.id, { version: d.version }, finance);
     expect(issued.approvals.map((a: any) => a.decision)).toEqual(['submitted', 'returned', 'submitted', 'approved']);
   });
+
+  it('approving is its own step: a draft sent for approval waits for an approver before it can be issued', async () => {
+    const s = await readyProject();
+    await s.fin.reportProgress('task', 'T-1', { pct: 100, version: v(s.t.tfin.rows, (r) => r.taskId === 'T-1') }, pm);
+    expect(await s.fin.rights(issuer)).toMatchObject({ issueInvoice: true, approveInvoice: false });
+    expect(await s.fin.rights(clerk)).toMatchObject({ approveInvoice: false }); // falls back to issuing
+    let d = await s.inv.createDraft(7, { billReady: true }, clerk);
+    d = await s.inv.requestApproval(d.id, { version: d.version }, clerk);
+    await expect(s.inv.issue(d.id, { version: d.version }, issuer)).rejects.toThrow(/waiting for approval/);
+    await expect(s.inv.approve(d.id, { version: d.version }, issuer)).rejects.toThrow(/doesn't allow approving invoices/);
+    expect((await s.hub.pending(issuer)).find((x: any) => x.type === 'invoice')).toMatchObject({ canAct: false });
+    d = await s.inv.approve(d.id, { version: d.version }, finance);
+    expect(d.approvedBy).toBe('Fiona (Finance)');
+    expect((await s.hub.pending(finance)).find((x: any) => x.type === 'invoice')).toBeUndefined();
+    const issued = await s.inv.issue(d.id, { version: d.version }, issuer);
+    expect(issued.status).toBe('issued');
+    expect(issued.approvals.map((a: any) => a.decision)).toEqual(['submitted', 'approved', 'issued']);
+  });
 });
 
 describe('phase 2: change orders', () => {
@@ -410,6 +431,19 @@ describe('phase 2: reimbursables, retention release and credit notes', () => {
     await expect(s.inv.createDraft(7, { reimbursableIds: [r.id] }, finance)).rejects.toThrow(/Nothing is ready/);
     await s.inv.void(i.id, { reason: 'Wrong client', version: i.version }, finance);
     expect(s.t.reimbs.rows[0]).toMatchObject({ status: 'approved', invoiceId: null });
+  });
+
+  it('reimbursables: a receipt number already used on another expense is flagged (same vendor, or no vendor)', async () => {
+    const s = await readyProject();
+    const a = await s.reimb.create(7, { description: 'Lumber', cost: 200, vendor: 'Home Depot', receiptNumber: 'R-1043', csiCodeId: '06 10 00' }, site);
+    expect(a).toMatchObject({ receiptNumber: 'R-1043', csiCodeId: '06 10 00', receiptDuplicates: [] });
+    const b = await s.reimb.create(7, { description: 'Lumber again', cost: 200, vendor: 'home depot', receiptNumber: 'r 1043' }, site);
+    expect(b.receiptDuplicates.map((x: any) => x.number)).toEqual([a.number]);
+    // Another shop printing the same number is not a duplicate.
+    expect(await s.reimb.checkReceipt({ receipt: '1043-R', vendor: 'Lowes' }, site)).toEqual([]);
+    expect((await s.reimb.checkReceipt({ receipt: 'R1043', vendor: 'Lowes' }, site))).toEqual([]);
+    expect((await s.reimb.checkReceipt({ receipt: 'R1043' }, site)).length).toBe(2);
+    expect((await s.reimb.checkReceipt({ receipt: 'R1043', exclude: a.id }, site)).map((x: any) => x.id)).toEqual([b.id]);
   });
 
   it('retention: request, approve, bill back to the items that held it, and pay', async () => {

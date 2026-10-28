@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PayrollReports } from '../components/PayrollReports';
 import { PicklistsSetup } from '../components/PicklistsSetup';
 import { useSearchParams } from 'react-router-dom';
@@ -21,16 +22,16 @@ import { TimesheetsModule } from '../components/Timesheets';
 import { CostCodesSettings } from '../components/CostCodes';
 import { SampleDataPanel, SubcontractorTradesSetup } from '../components/SubcontractorTrades';
 
-const BG = "'Bricolage Grotesque', serif";
-const INK = '#0B1A12';
-const MUTED = '#7E9B93';
-const PAPER = '#FBF8F2';
-const ACCENT = '#173326';
+const BG = 'var(--font-display)';
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
+const PAPER = 'var(--panel)';
+const ACCENT = 'var(--forest)';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.13)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.13)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--ink)', outline: 'none',
 };
 
 interface Project { id: number; name: string }
@@ -61,14 +62,25 @@ function GroupMenu({ label, tabs, current, onPick }: {
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  // The menu is drawn at the top of the page (a portal) under the button, so cards
+  // further down the page can never paint over it.
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const active = tabs.find(([k]) => k === current);
   useEffect(() => {
     if (!open) return;
-    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const place = () => { const r = ref.current?.getBoundingClientRect(); if (r) setAt({ top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 226) }); };
+    place();
+    const away = (e: MouseEvent) => { const t = e.target as Node; if (!ref.current?.contains(t) && !menuRef.current?.contains(t)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', away);
     document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc);
+      window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true);
+    };
   }, [open]);
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -77,33 +89,34 @@ function GroupMenu({ label, tabs, current, onPick }: {
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 8, height: 38, padding: '0 16px', borderRadius: 10, cursor: 'pointer',
           fontSize: 14, whiteSpace: 'nowrap', userSelect: 'none',
-          background: active ? ACCENT : '#fff', color: active ? '#fff' : INK,
-          border: '1px solid ' + (active ? ACCENT : 'rgba(20,8,31,.12)'),
-          boxShadow: active ? 'none' : '0 1px 2px rgba(20,8,31,.04)',
+          background: active ? ACCENT : 'var(--surface)', color: active ? '#fff' : INK,
+          border: '1px solid ' + (active ? ACCENT : 'rgba(var(--rgb-shade), .12)'),
+          boxShadow: active ? 'none' : '0 1px 2px rgba(var(--rgb-shade), .04)',
         }}
       >
         {active ? <><span style={{ color: 'rgba(255,255,255,.62)', fontWeight: 500 }}>{label}</span><span style={{ fontWeight: 700 }}>{active[1]}</span></>
           : <span style={{ fontWeight: 600 }}>{label}</span>}
         <span style={{ fontSize: 9, marginLeft: 4, opacity: 0.8, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform .15s' }}>▼</span>
       </div>
-      {open && (
-        <div style={{ position: 'absolute', top: 44, left: 0, zIndex: 50, minWidth: 210, background: '#fff', borderRadius: 12, border: '1px solid rgba(20,8,31,.1)', boxShadow: '0 12px 32px rgba(20,8,31,.14)', padding: 6 }}>
+      {open && at && createPortal(
+        <div ref={menuRef} style={{ position: 'fixed', top: at.top, left: at.left, zIndex: 1000, minWidth: 210, background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), .1)', boxShadow: '0 12px 32px rgba(var(--rgb-shade), .14)', padding: 6 }}>
           {tabs.map(([key, name]) => (
             <div
               key={key}
               onClick={() => { onPick(key); setOpen(false); }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13.5,
-                fontWeight: key === current ? 700 : 500, color: key === current ? ACCENT : INK, background: key === current ? '#EEF3EE' : undefined,
+                fontWeight: key === current ? 700 : 500, color: key === current ? ACCENT : INK, background: key === current ? 'var(--mist)' : undefined,
               }}
-              onMouseEnter={(e) => { if (key !== current) e.currentTarget.style.background = '#F7F3EA'; }}
+              onMouseEnter={(e) => { if (key !== current) e.currentTarget.style.background = 'var(--c-f7f3ea)'; }}
               onMouseLeave={(e) => { if (key !== current) e.currentTarget.style.background = ''; }}
             >
               <span style={{ flex: 1 }}>{name}</span>
               {key === current && <span style={{ fontSize: 12 }}>✓</span>}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -114,11 +127,11 @@ const LEFT = ['resigned', 'terminated', 'contract_expired', 'demobilized'];
 const isWorking = (e: Employee) => !LEFT.includes(e.employmentStatus || '') && e.status !== 'inactive';
 
 const STATUS_STYLE: Record<string, { bg: string; c: string }> = {
-  draft: { bg: '#EFEDE8', c: '#5C6B65' },
-  submitted: { bg: '#FBE9AE', c: '#8A6D12' },
-  approved: { bg: '#D2EAD3', c: '#1E6B36' },
+  draft: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
+  submitted: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
+  approved: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
   rejected: { bg: '#F2DFD4', c: '#8E2E0A' },
-  pending: { bg: '#FBE9AE', c: '#8A6D12' },
+  pending: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
   denied: { bg: '#F2DFD4', c: '#8E2E0A' },
 };
 const StatusBadge = ({ status }: { status: string }) => {
@@ -149,6 +162,11 @@ export function Manpower() {
   const [openContractorId] = useState<string | null>(params.get('contractor'));
   useEffect(() => { if (openContractorId) setTab('contractors'); }, [openContractorId]);
   useEffect(() => { if (params.get('employee') || params.get('add') || params.get('contractor') || params.get('tab')) setParams({}, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A link with ?tab= while the page is already open (e.g. from the notifications bell) switches tabs too.
+  const tabParam = params.get('tab');
+  useEffect(() => {
+    if (tabParam && TAB_GROUPS.some((g) => g.tabs.some(([k]) => k === tabParam))) { setTab(tabParam as TabKey); setParams({}, { replace: true }); }
+  }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
   const [payrollSettings, setPayrollSettings] = useState<PayrollSettings>(DEFAULT_SETTINGS);
 
   const reloadAssignments = () => api.assignments.list({ status: 'current' }).then((r: any) => setAssignments(Array.isArray(r) ? r : [])).catch(() => {});
@@ -320,12 +338,12 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
       ) : loading ? (
         <div style={{ fontSize: 12.5, color: MUTED, padding: '18px 0' }}>Loading…</div>
       ) : (
-        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .09)', borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, padding: '9px 14px', background: 'var(--c-f7f3ea)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
             <span>Employee</span><span>CSI Code</span><span>Hours</span><span>Task Detail</span><span>Status</span><span>Team</span><span />
           </div>
           {entries.map((row, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 80px 1.6fr 90px 70px 30px', gap: 8, alignItems: 'center', padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
               <select disabled={locked || !canManage} value={row.employeeId} onChange={(e) => patchRow(i, { employeeId: e.target.value })} style={input}>
                 <option value="">Select…</option>
                 {crew.length > 0 && <optgroup label="Deployed on this project">{crew.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}</optgroup>}
@@ -351,20 +369,20 @@ function DailyLogTab({ projects, employees, assignments, csiCodes, canManage, to
           ))}
           {!entries.length && <div style={{ padding: '16px 14px', fontSize: 12, color: MUTED }}>No workers logged yet.</div>}
           {!locked && canManage && (
-            <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(20,8,31,.05)' }}>
-              <div onClick={addRow} style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: ACCENT }}>+ Add worker</div>
+            <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
+              <div onClick={addRow} style={{ display: 'inline-block', padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .14)', color: ACCENT }}>+ Add worker</div>
               {missingCrew.length > 0 && <div onClick={addCrew} style={{ display: 'inline-block', marginLeft: 8, padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: ACCENT, color: 'white' }}>+ Add deployed crew ({missingCrew.length})</div>}
             </div>
           )}
 
-          <div style={{ padding: '14px', borderTop: '1px solid rgba(20,8,31,.06)' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Notes</div>
+          <div style={{ padding: '14px', borderTop: '1px solid rgba(var(--rgb-shade), .06)' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Notes</div>
             <textarea disabled={locked || !canManage} value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...input, width: '100%', resize: 'vertical' }} />
           </div>
 
           {!locked && canManage && (
             <div style={{ display: 'flex', gap: 8, padding: '14px' }}>
-              <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', border: '1px solid rgba(20,8,31,.14)', color: ACCENT }}>{saving ? 'Saving…' : 'Save draft'}</div>
+              <div onClick={saving ? undefined : save} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', border: '1px solid rgba(var(--rgb-shade), .14)', color: ACCENT }}>{saving ? 'Saving…' : 'Save draft'}</div>
               <div onClick={saving ? undefined : submit} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: ACCENT, color: 'white' }}>{saving ? 'Submitting…' : 'Submit for approval'}</div>
             </div>
           )}
@@ -411,12 +429,12 @@ function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, current
   };
 
   return (
-    <div style={{ background: 'white', border: '1px solid rgba(20,8,31,.09)', borderRadius: 14, overflow: 'hidden' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), .09)', borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
       {!logs.length && <div style={{ padding: '20px 16px', fontSize: 12.5, color: MUTED }}>Nothing waiting for approval.</div>}
       {logs.map((log) => {
         const selfSubmitted = !!currentUserId && currentUserId === log.supervisorId;
         return (
-          <div key={log.id} style={{ borderTop: '1px solid rgba(20,8,31,.05)' }}>
+          <div key={log.id} style={{ borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
             <div onClick={() => open(log)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{projectName(log.projectId)} — {log.date}</div>
@@ -426,12 +444,12 @@ function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, current
             </div>
             {openId === log.id && (
               <div style={{ padding: '0 16px 16px' }}>
-                <div style={{ border: '1px solid rgba(20,8,31,.08)', borderRadius: 10, overflow: 'hidden', marginBottom: 10 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 70px 1.6fr', gap: 8, padding: '7px 12px', background: '#F7F3EA', fontSize: 10, fontWeight: 700, color: '#9c96a4', textTransform: 'uppercase' }}>
+                <div style={{ border: '1px solid rgba(var(--rgb-shade), .08)', borderRadius: 10, overflow: 'hidden', marginBottom: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 70px 1.6fr', gap: 8, padding: '7px 12px', background: 'var(--c-f7f3ea)', fontSize: 10, fontWeight: 700, color: '#9c96a4', textTransform: 'uppercase' }}>
                     <span>Employee</span><span>CSI Code</span><span>Hours</span><span>Task Detail</span>
                   </div>
                   {(entriesByLog[log.id!] || []).map((e, i) => (
-                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 70px 1.6fr', gap: 8, padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,.05)', fontSize: 12.5 }}>
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.6fr 70px 1.6fr', gap: 8, padding: '7px 12px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', fontSize: 12.5 }}>
                       <span>{employeeName(e.employeeId)}</span><span>{csiLabel(e.csiCodeId)}</span><span>{e.hours ?? '—'}</span><span>{e.taskDetail || '—'}</span>
                     </div>
                   ))}
@@ -442,10 +460,10 @@ function ApprovalsTab({ projects, employees, csiCodes, canManage, toast, current
                     {rejecting === log.id ? (
                       <>
                         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason for rejecting…" style={{ ...input, flex: 1, minWidth: 180 }} />
-                        <div onClick={() => reject(log.id!)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Confirm reject</div>
+                        <div onClick={() => reject(log.id!)} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .14)', color: '#8E2E0A' }}>Confirm reject</div>
                       </>
                     ) : (
-                      <div onClick={() => { setRejecting(log.id); setNote(''); }} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(20,8,31,.14)', color: '#8E2E0A' }}>Reject</div>
+                      <div onClick={() => { setRejecting(log.id); setNote(''); }} style={{ padding: '8px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .14)', color: '#8E2E0A' }}>Reject</div>
                     )}
                   </div>
                 )}

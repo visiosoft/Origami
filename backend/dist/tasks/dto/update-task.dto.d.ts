@@ -1,3 +1,4 @@
+import type { Collaborator } from '../../database/task.types';
 export declare class UpdateTaskDto {
     tab?: string;
     meetingType?: string;
@@ -7,7 +8,16 @@ export declare class UpdateTaskDto {
     status?: string;
     originator?: string;
     topicType?: string;
+    meetingId?: string;
+    subject?: string;
+    priority?: string;
+    leadId?: string;
+    holdReason?: string;
+    completionNote?: string;
+    deferNotify?: boolean;
+    close?: boolean;
     description?: string;
+    startDate?: string;
     dueDate?: string;
     dueTime?: string;
     dateClosed?: string;
@@ -15,11 +25,14 @@ export declare class UpdateTaskDto {
     linkedFile?: string;
     project?: string;
     labels?: string[];
+    collaborators?: Collaborator[];
     checklist?: {
         id: string;
         item: string;
         done: boolean;
     }[];
+    linkedTaskIds?: string[];
+    changeOrderIds?: string[];
 }
 export declare class AddCommentDto {
     text: string;
@@ -27,4 +40,15 @@ export declare class AddCommentDto {
 export declare class AddLinkDto {
     name?: string;
     url: string;
+}
+export declare class LinkDto {
+    kind: 'task' | 'changeOrder';
+    targetId: string;
+}
+export declare class LinkedTaskDto {
+    subject?: string;
+    description?: string;
+    assignedTo?: string;
+    assignedToId?: string;
+    dueDate?: string;
 }

@@ -57,7 +57,11 @@ function cleanContact(c) {
         return null;
     return { name: name || email, ...(email ? { email } : {}), ...(c.company ? { company: cleanText(c.company, 200) } : {}), ...(Number(c.personId) ? { personId: Number(c.personId) } : {}) };
 }
-const cleanDrawings = (list) => (Array.isArray(list) ? list : []).map((d) => ({ fileId: String(d?.fileId || '').slice(0, 100), name: cleanText(d?.name, 300) })).filter((d) => d.fileId && d.name).slice(0, 30);
+const cleanDrawings = (list) => (Array.isArray(list) ? list : []).map((d) => ({
+    fileId: String(d?.fileId || '').slice(0, 100), name: cleanText(d?.name, 300),
+    ...(d?.markupId ? { markupId: String(d.markupId).slice(0, 80) } : {}),
+    ...(Number(d?.page) >= 1 ? { page: Math.floor(Number(d.page)) } : {}),
+})).filter((d) => d.fileId && d.name).slice(0, 30);
 function ballInCourt(r) {
     if (r.status === 'open')
         return r.to?.name || 'Recipient';
@@ -143,7 +147,7 @@ let RfisService = class RfisService {
                 discipline: rfi_document_1.RFI_DISCIPLINES.includes(dto.discipline) ? dto.discipline : undefined,
                 specSection: cleanText(dto.specSection, 100) || undefined, drawingRef: cleanText(dto.drawingRef, 300) || undefined,
                 drawings: cleanDrawings(dto.drawings), to: cleanContact(dto.to), cc: (Array.isArray(dto.cc) ? dto.cc : []).map(cleanContact).filter(Boolean),
-                ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: ['Low', 'Medium', 'High'].includes(dto.priority) ? dto.priority : 'Medium',
+                ownerId: owner?.id, ownerName: owner?.name || actor.name, priority: (0, task_types_1.cleanPriority)(dto.priority),
                 dateDue: ISO.test(dto.dateDue || '') ? dto.dateDue : undefined,
                 sourceTaskId: cleanText(dto.sourceTaskId, 100) || undefined, sourceTaskType: dto.sourceTaskType === 'log' ? 'log' : dto.sourceTaskId ? 'board' : undefined,
                 attachments: [], history: [], createdAt: now(), createdBy: actor.name, updatedAt: now(), updatedBy: actor.name,
@@ -173,7 +177,7 @@ let RfisService = class RfisService {
             else if (k === 'discipline')
                 r.discipline = rfi_document_1.RFI_DISCIPLINES.includes(v) ? v : '';
             else if (k === 'priority')
-                r.priority = ['Low', 'Medium', 'High'].includes(v) ? v : 'Medium';
+                r.priority = (0, task_types_1.cleanPriority)(v);
             else if (k === 'dateDue' || k === 'dateAnswered')
                 r[k] = ISO.test(v || '') ? v : '';
             else if (k === 'costImpact' || k === 'scheduleImpact')

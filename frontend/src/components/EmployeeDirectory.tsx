@@ -18,23 +18,23 @@ import { EmployeeAssetsPanel } from './Assets';
 import { EmployeeHousingCard } from './Accommodation';
 import { EmployeeTransportCard } from './Transport';
 
-const BG = "'Bricolage Grotesque', serif";
-const INK = '#0B1A12';
-const MUTED = '#7E9B93';
-const ACCENT = '#173326';
-const ACCENT_BG = '#DCE7DE';
-const LINE = 'rgba(20,8,31,.09)';
+const BG = 'var(--font-display)';
+const INK = 'var(--ink)';
+const MUTED = 'var(--muted)';
+const ACCENT = 'var(--forest)';
+const ACCENT_BG = 'var(--mint)';
+const LINE = 'rgba(var(--rgb-shade), .09)';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', width: '100%', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.13)', background: 'white', fontFamily: 'inherit',
+  border: '1px solid rgba(var(--rgb-shade), 0.13)', background: 'var(--surface)', fontFamily: 'inherit',
   fontSize: 13, color: INK, outline: 'none',
 };
 const btn = (primary = false): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 15px', borderRadius: 999,
   fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-  background: primary ? ACCENT : '#fff', color: primary ? '#fff' : ACCENT,
-  border: '1px solid ' + (primary ? ACCENT : 'rgba(20,8,31,.14)'),
+  background: primary ? ACCENT : 'var(--surface)', color: primary ? '#fff' : ACCENT,
+  border: '1px solid ' + (primary ? ACCENT : 'rgba(var(--rgb-shade), .14)'),
 });
 
 export interface Employee {
@@ -63,13 +63,13 @@ export const EMPLOYMENT_STATUSES: Opt[] = [
   ['terminated', 'Terminated'], ['contract_expired', 'Contract Expired'], ['demobilized', 'Demobilized'],
 ];
 const STATUS_COLOR: Record<string, { bg: string; c: string }> = {
-  active: { bg: '#D2EAD3', c: '#1E6B36' },
+  active: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)' },
   on_leave: { bg: '#D8E2F0', c: '#3C5C8A' },
-  suspended: { bg: '#FBE9AE', c: '#8A6D12' },
-  resigned: { bg: '#EFEDE8', c: '#5C6B65' },
+  suspended: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
+  resigned: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   terminated: { bg: '#F2DFD4', c: '#8E2E0A' },
-  contract_expired: { bg: '#EFEDE8', c: '#5C6B65' },
-  demobilized: { bg: '#EFEDE8', c: '#5C6B65' },
+  contract_expired: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
+  demobilized: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
 };
 const SKILL_LEVELS: Opt[] = [['helper', 'Helper'], ['semi_skilled', 'Semi-skilled'], ['skilled', 'Skilled'], ['expert', 'Expert']];
 const GENDERS: Opt[] = [['male', 'Male'], ['female', 'Female'], ['other', 'Other']];
@@ -334,17 +334,17 @@ export function EmployeeDirectory(props: DirectoryProps) {
         {canManage && <div onClick={() => setAdding(true)} style={btn(true)}>+ Add employee</div>}
       </div>
 
-      <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 880 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: '#F7F3EA', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, padding: '9px 14px', background: 'var(--c-f7f3ea)', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#9c96a4' }}>
               <span /><span>Worker ID</span><span>Name</span><span>Trade</span><span>Type</span><span>Deployed on</span><span>Status</span>
             </div>
             {filtered.map((e) => {
               const a = deployment.get(e.id);
               const contractor = e.contractorId ? contractors.find((c) => c.id === e.contractorId) : undefined;
               return (
-                <div key={e.id} onClick={() => onOpen(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(20,8,31,.05)', cursor: 'pointer' }}>
+                <div key={e.id} onClick={() => onOpen(e.id)} style={{ display: 'grid', gridTemplateColumns: cols, gap: 10, alignItems: 'center', padding: '9px 14px', borderTop: '1px solid rgba(var(--rgb-shade), .05)', cursor: 'pointer' }}>
                   <Photo emp={e} size={30} />
                   <span style={{ fontSize: 12, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{e.workerId || '—'}</span>
                   <span style={{ minWidth: 0 }}>
@@ -407,9 +407,9 @@ export function AddEmployeeDrawer({ employees, trades, contractors, defaults, ti
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,8,31,0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 100vw)', height: '100%', background: 'white', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(20,8,31,0.2)' }}>
-        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(20,8,31,0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(var(--rgb-shade), 0.45)', zIndex: 160, display: 'flex', justifyContent: 'flex-end' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(640px, 100vw)', height: '100%', background: 'var(--surface)', display: 'flex', flexDirection: 'column', boxShadow: '-24px 0 60px rgba(var(--rgb-shade), 0.2)' }}>
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: BG, fontSize: 18, fontWeight: 700, color: INK }}>{title || 'Add employee'}</div>
             <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>Only the name is required — everything else can be filled in later from the profile.</div>
@@ -421,7 +421,7 @@ export function AddEmployeeDrawer({ employees, trades, contractors, defaults, ti
             <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={patch} disabled={false} employees={employees} trades={trades} contractors={contractors} />
           ))}
         </div>
-        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(20,8,31,0.06)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <div onClick={onClose} style={btn()}>Cancel</div>
           <div onClick={saving ? undefined : create} style={{ ...btn(true), opacity: saving ? 0.6 : 1 }}>{saving ? 'Adding…' : 'Add employee'}</div>
         </div>
@@ -492,7 +492,7 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
     <div>
       <div onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: ACCENT, fontWeight: 700, fontSize: 13, marginBottom: 14 }}>← All employees</div>
 
-      <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 16, padding: '18px 20px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 16, padding: '18px 20px', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}>
         <div onClick={canManage ? () => photoInput.current?.click() : undefined} title={canManage ? 'Change photo' : undefined} style={{ cursor: canManage ? 'pointer' : 'default', position: 'relative' }}>
           <Photo emp={employee} size={64} />
           {canManage && <span style={{ position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: 999, background: ACCENT, color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, border: '2px solid white' }}>✎</span>}
@@ -505,7 +505,7 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
             <StatusPill status={statusOf(employee)} />
-            {employee.employmentType && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#EFEDE8', color: '#43514D' }}>{labelOf(EMPLOYMENT_TYPES, employee.employmentType)}</span>}
+            {employee.employmentType && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: 'var(--c-efede8)', color: 'var(--body)' }}>{labelOf(EMPLOYMENT_TYPES, employee.employmentType)}</span>}
             {tradeName && <span style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: ACCENT_BG, color: ACCENT }}>{tradeName}{employee.skillLevel ? ` · ${labelOf(SKILL_LEVELS, employee.skillLevel)}` : ''}</span>}
             {current.map((a) => (
               <span key={a.id} onClick={() => setTab('deployment')} style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, background: '#D8E2F0', color: '#3C5C8A', cursor: 'pointer' }}>
@@ -594,7 +594,7 @@ function EmployeeProfile(props: DirectoryProps & { employee: Employee; onBack: (
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, padding: '14px 16px' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', padding: '14px 16px' }}>
       <div style={{ fontFamily: BG, fontSize: 14, fontWeight: 700, color: INK, marginBottom: 10 }}>{title}</div>
       {children}
     </div>
@@ -618,7 +618,7 @@ function Chips({ items, empty }: { items?: string[]; empty: string }) {
   if (!items?.length) return <div style={{ fontSize: 12, color: MUTED }}>{empty}</div>;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-      {items.map((s) => <span key={s} style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: '#F3EFE6', color: '#43514D' }}>{s}</span>)}
+      {items.map((s) => <span key={s} style={{ fontSize: 11.5, fontWeight: 600, padding: '3px 9px', borderRadius: 999, background: '#F3EFE6', color: 'var(--body)' }}>{s}</span>)}
     </div>
   );
 }
@@ -644,7 +644,7 @@ function EditableSections({ sectionKeys, employee, employees, trades, contractor
   });
 
   return (
-    <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, padding: '18px 20px' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', padding: '18px 20px' }}>
       {sectionKeys.map((k) => (
         <SectionForm key={k} section={SECTIONS[k]} draft={draft} patch={(p) => setDraft((d) => ({ ...d, ...p }))} disabled={!canManage} employees={employees} trades={trades} contractors={contractors} />
       ))}
@@ -672,9 +672,9 @@ const KIND_LABEL: Record<RecordKind, { one: string; many: string; issue: string;
 };
 const EXPIRY_STYLE: Record<string, { bg: string; c: string; label: string }> = {
   expired: { bg: '#F2DFD4', c: '#8E2E0A', label: 'Expired' },
-  expiring: { bg: '#FBE9AE', c: '#8A6D12', label: 'Expiring soon' },
-  valid: { bg: '#D2EAD3', c: '#1E6B36', label: 'Valid' },
-  none: { bg: '#EFEDE8', c: '#5C6B65', label: 'No expiry' },
+  expiring: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)', label: 'Expiring soon' },
+  valid: { bg: 'var(--c-d2ead3)', c: 'var(--c-1e6b36)', label: 'Valid' },
+  none: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)', label: 'No expiry' },
 };
 function ExpiryBadge({ status }: { status: string }) {
   const s = EXPIRY_STYLE[status] || EXPIRY_STYLE.none;
@@ -717,9 +717,9 @@ function RecordsPanel({ kind, employeeId, records, canManage, onChanged }: {
         {canManage && <div onClick={add} style={btn(true)}>+ Add {L.one}</div>}
       </div>
 
-      <div style={{ background: 'white', border: '1px solid ' + LINE, borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid ' + LINE, borderRadius: 'var(--r-14)', overflow: 'hidden' }}>
         {shown.map((r) => (
-          <div key={r.id} style={{ borderTop: '1px solid rgba(20,8,31,.05)' }}>
+          <div key={r.id} style={{ borderTop: '1px solid rgba(var(--rgb-shade), .05)' }}>
             <div onClick={() => setOpenId(openId === r.id ? null : r.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', cursor: 'pointer', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{r.type || 'Untitled'}{r.title ? ` — ${r.title}` : ''}</div>
@@ -728,8 +728,8 @@ function RecordsPanel({ kind, employeeId, records, canManage, onChanged }: {
                 </div>
               </div>
               {r.attachments.length > 0 && <span style={{ fontSize: 11, color: MUTED }}>📎 {r.attachments.length}</span>}
-              {kind === 'document' && r.verification && <span style={{ fontSize: 10.5, fontWeight: 700, color: r.verification === 'verified' ? '#1E6B36' : r.verification === 'rejected' ? '#8E2E0A' : '#8A6D12', textTransform: 'capitalize' }}>{r.verification}</span>}
-              {kind === 'contract' && r.status && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#43514D', textTransform: 'capitalize' }}>{r.status}</span>}
+              {kind === 'document' && r.verification && <span style={{ fontSize: 10.5, fontWeight: 700, color: r.verification === 'verified' ? 'var(--c-1e6b36)' : r.verification === 'rejected' ? '#8E2E0A' : 'var(--c-8a6d12)', textTransform: 'capitalize' }}>{r.verification}</span>}
+              {kind === 'contract' && r.status && <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--body)', textTransform: 'capitalize' }}>{r.status}</span>}
               <ExpiryBadge status={r.expiryStatus} />
             </div>
             {openId === r.id && (

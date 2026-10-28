@@ -5,7 +5,10 @@ export declare class CreateProjectDto {
     location?: string;
     typeOfWork?: string;
     contractType?: string;
+    code?: string;
     contractAmt?: string;
+    pricing?: string;
+    labor?: string;
     estStart?: string;
     duration?: string;
     scope?: string;
@@ -16,7 +19,9 @@ export declare class CreateProjectDto {
     imgColor?: string;
     img?: string;
     designPhase?: string;
+    highViz?: boolean;
     leadId?: string;
+    siteAccess?: string;
     introLetterSentAt?: string;
     introLetterSubject?: string;
     introLetterHtml?: string;

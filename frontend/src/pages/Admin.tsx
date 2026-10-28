@@ -2,16 +2,18 @@ import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
+import { useTheme } from '../theme';
+import { AccessBoard } from '../components/AccessBoard';
 import {
-  MODULES, TIERS, TIER_STYLE, STATUS_STYLE,
+  MODULES, TIERS, TIER_STYLE, STATUS_STYLE, FIN_ACTIONS,
   type Role, type User, type Tier, type UserStatus,
 } from '../data/users';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8,
-  border: '1px solid rgba(20,8,31,0.14)', background: 'white', fontFamily: 'inherit',
-  fontSize: 13, color: '#0B1A12', outline: 'none',
+  border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit',
+  fontSize: 13, color: 'var(--ink)', outline: 'none',
 };
 
 const SECTIONS = [
@@ -23,16 +25,17 @@ export function Admin() {
   const { can } = useApp();
   const [active, setActive] = useState('users');
   const readOnly = !can('users', 'manage');
+  const [theme] = useTheme();
 
   const nav = (
     <div style={{ flexShrink: 0, width: isMobile ? '100%' : 240 }}>
       {SECTIONS.map((sec) => (
         <div key={sec.group} style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7E9B93', padding: '0 12px 8px' }}>{sec.group}</div>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', padding: '0 12px 8px' }}>{sec.group}</div>
           {sec.items.map((it) => {
             const on = active === it.key;
             return (
-              <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? '#0B1A12' : '#43514D', background: on ? '#E7F0E8' : 'transparent', borderLeft: '3px solid ' + (on ? '#2F7D4A' : 'transparent'), marginBottom: 2 }}>{it.label}</div>
+              <div key={it.key} onClick={() => setActive(it.key)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--ink)' : 'var(--body)', background: on ? 'var(--c-e7f0e8)' : 'transparent', borderLeft: '3px solid ' + (on ? 'var(--success)' : 'transparent'), marginBottom: 2 }}>{it.label}</div>
             );
           })}
         </div>
@@ -40,11 +43,13 @@ export function Admin() {
     </div>
   );
 
+  if (theme === 'coterie') return <AccessBoard readOnly={readOnly} />;
+
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>
-      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: '#0B1A12', marginBottom: 4 }}>User Access &amp; Roles</div>
-      <div style={{ fontSize: 13, color: '#5C6B65', marginBottom: 20 }}>Manage accounts (Internal, Client, Consultant) and the roles that control what each can see. New users are emailed a link to set their own password — until they use it, or sign in with Google, the account stays <strong>Pending</strong>.</div>
-      {readOnly && <div style={{ fontSize: 12, color: '#8A6D12', background: '#FBE9AE', borderRadius: 8, padding: '8px 12px', marginBottom: 16, display: 'inline-block' }}>Your role has view-only access to this page.</div>}
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 22, color: 'var(--ink)', marginBottom: 4 }}>User Access &amp; Roles</div>
+      <div style={{ fontSize: 13, color: 'var(--c-5c6b65)', marginBottom: 20 }}>Manage accounts (Internal, Client, Consultant) and the roles that control what each can see. New users are emailed a link to set their own password — until they use it, or sign in with Google, the account stays <strong>Pending</strong>.</div>
+      {readOnly && <div style={{ fontSize: 12, color: 'var(--c-8a6d12)', background: 'var(--amber-light)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, display: 'inline-block' }}>Your role has view-only access to this page.</div>}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 16 : 28, alignItems: 'flex-start' }}>
         {nav}
         <div style={{ flex: 1, minWidth: 0, width: isMobile ? '100%' : 'auto' }}>
@@ -111,35 +116,35 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Users <span style={{ fontSize: 13, color: '#7E9B93', fontWeight: 600 }}>({users.length})</span></div>
-        {!readOnly && <div onClick={() => setAdding((a) => !a)} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adding ? '#EEF3EE' : '#173326', color: adding ? '#173326' : 'white' }}>{adding ? 'Cancel' : '+ Add user'}</div>}
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Users <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 600 }}>({users.length})</span></div>
+        {!readOnly && <div onClick={() => setAdding((a) => !a)} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: adding ? 'var(--mist)' : 'var(--forest)', color: adding ? 'var(--forest)' : 'white' }}>{adding ? 'Cancel' : '+ Add user'}</div>}
       </div>
 
       {adding && !readOnly && (
-        <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 14, marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 14, marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <Field label="Name"><input style={{ ...inputStyle, width: 160 }} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></Field>
           <Field label="Email"><input style={{ ...inputStyle, width: 200 }} value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} /></Field>
           <Field label="Tier"><select style={{ ...inputStyle, width: 130 }} value={draft.tier} onChange={(e) => setDraft({ ...draft, tier: e.target.value as Tier, roleKey: '' })}>{TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}</select></Field>
           <Field label="Role"><select style={{ ...inputStyle, width: 170 }} value={draft.roleKey} onChange={(e) => setDraft({ ...draft, roleKey: e.target.value })}><option value="">Select…</option>{rolesForTier(draft.tier as Tier).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</select></Field>
           <Field label="Status"><select style={{ ...inputStyle, width: 130 }} value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as UserStatus })}>{(['active', 'pending', 'suspended'] as UserStatus[]).map((s) => <option key={s} value={s}>{STATUS_STYLE[s].label}</option>)}</select></Field>
-          <div onClick={saveNew} style={{ padding: '9px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#2F7D4A', color: 'white' }}>{saving ? 'Saving…' : 'Save'}</div>
+          <div onClick={saveNew} style={{ padding: '9px 18px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--success)', color: 'white' }}>{saving ? 'Saving…' : 'Save'}</div>
         </div>
       )}
 
       {inviteNote && (
-        <div style={{ background: inviteNote.sent ? '#D8ECD9' : '#FBE9AE', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
+        <div style={{ background: inviteNote.sent ? '#D8ECD9' : 'var(--amber-light)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: '12px 14px', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: inviteNote.sent ? '#1E6B36' : '#8A6D12', flex: 1 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: inviteNote.sent ? 'var(--c-1e6b36)' : 'var(--c-8a6d12)', flex: 1 }}>
               {inviteNote.sent
                 ? `Invitation emailed to ${inviteNote.email} — they can set their password from the link.`
                 : `Could not email ${inviteNote.email}${inviteNote.error ? ': ' + inviteNote.error : '.'}`}
             </div>
-            <div onClick={() => setInviteNote(null)} style={{ fontSize: 11.5, fontWeight: 700, color: '#43514D', cursor: 'pointer' }}>Dismiss</div>
+            <div onClick={() => setInviteNote(null)} style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)', cursor: 'pointer' }}>Dismiss</div>
           </div>
           {!inviteNote.sent && inviteNote.url && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8A6D12', marginBottom: 4 }}>Send them this link instead</div>
-              <div style={{ fontSize: 11.5, color: '#0B1A12', wordBreak: 'break-all', background: 'white', borderRadius: 8, padding: '8px 10px' }}>{inviteNote.url}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--c-8a6d12)', marginBottom: 4 }}>Send them this link instead</div>
+              <div style={{ fontSize: 11.5, color: 'var(--ink)', wordBreak: 'break-all', background: 'var(--surface)', borderRadius: 8, padding: '8px 10px' }}>{inviteNote.url}</div>
             </div>
           )}
         </div>
@@ -149,12 +154,12 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
         {users.map((u) => {
           const ts = TIER_STYLE[u.tier]; const ss = STATUS_STYLE[u.status];
           return (
-            <div key={u.id} style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div key={u.id} style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)', borderRadius: 'var(--r-12)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ minWidth: 170, flex: '1 1 170px' }}>
                 {readOnly ? (
                   <>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{u.name}</div>
-                    <div style={{ fontSize: 11.5, color: '#7E9B93' }}>{u.email}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{u.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{u.email}</div>
                   </>
                 ) : (
                   <>
@@ -164,29 +169,29 @@ function UsersEditor({ readOnly }: { readOnly: boolean }) {
                       key={'n' + u.id}
                       defaultValue={u.name}
                       onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== u.name) patch(u, { name: v }); else e.target.value = u.name; }}
-                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}
-                      onFocus={(e) => { e.target.style.border = '1px solid rgba(20,8,31,0.14)'; e.target.style.background = 'white'; }}
+                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}
+                      onFocus={(e) => { e.target.style.border = '1px solid rgba(var(--rgb-shade), 0.14)'; e.target.style.background = 'white'; }}
                       onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
                     />
                     <input
                       key={'e' + u.id}
                       defaultValue={u.email}
                       onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== u.email) patch(u, { email: v }); else e.target.value = u.email; }}
-                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 11.5, color: '#7E9B93' }}
-                      onFocus={(e) => { e.target.style.border = '1px solid rgba(20,8,31,0.14)'; e.target.style.background = 'white'; }}
+                      style={{ ...inputStyle, width: '100%', padding: '3px 6px', border: '1px solid transparent', background: 'transparent', fontSize: 11.5, color: 'var(--muted)' }}
+                      onFocus={(e) => { e.target.style.border = '1px solid rgba(var(--rgb-shade), 0.14)'; e.target.style.background = 'white'; }}
                       onBlurCapture={(e) => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent'; }}
                     />
                   </>
                 )}
               </div>
               {readOnly ? (
-                <>{pill(ts.bg, ts.color, ts.label)}{pill('#EDE3D0', '#0B1A12', roles.find((r) => r.key === u.roleKey)?.name || u.roleKey)}{pill(ss.bg, ss.color, ss.label)}</>
+                <>{pill(ts.bg, ts.color, ts.label)}{pill('var(--sand)', 'var(--ink)', roles.find((r) => r.key === u.roleKey)?.name || u.roleKey)}{pill(ss.bg, ss.color, ss.label)}</>
               ) : (
                 <>
                   <select style={{ ...inputStyle, width: 130 }} value={u.tier} onChange={(e) => patch(u, { tier: e.target.value as Tier })}>{TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}</select>
                   <select style={{ ...inputStyle, width: 170 }} value={u.roleKey} onChange={(e) => patch(u, { roleKey: e.target.value })}>{rolesForTier(u.tier).map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}{!rolesForTier(u.tier).some((r) => r.key === u.roleKey) && <option value={u.roleKey}>{u.roleKey}</option>}</select>
                   <select style={{ ...inputStyle, width: 130 }} value={u.status} onChange={(e) => patch(u, { status: e.target.value as UserStatus })}>{(['active', 'pending', 'suspended'] as UserStatus[]).map((s) => <option key={s} value={s}>{STATUS_STYLE[s].label}</option>)}</select>
-                  <div onClick={() => resend(u)} title={u.hasPassword ? 'Email a password reset link' : 'Re-send the invitation email'} style={{ fontSize: 12, fontWeight: 600, color: '#173326', cursor: 'pointer', padding: '6px 10px' }}>{u.hasPassword ? 'Reset password' : 'Resend invite'}</div>
+                  <div onClick={() => resend(u)} title={u.hasPassword ? 'Email a password reset link' : 'Re-send the invitation email'} style={{ fontSize: 12, fontWeight: 600, color: 'var(--forest)', cursor: 'pointer', padding: '6px 10px' }}>{u.hasPassword ? 'Reset password' : 'Resend invite'}</div>
                   <div onClick={() => del(u)} style={{ fontSize: 12, fontWeight: 600, color: '#8E2E0A', cursor: 'pointer', padding: '6px 10px' }}>Delete</div>
                 </>
               )}
@@ -227,20 +232,33 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
   const save = () => {
     if (!draft) return;
     setSaving(true);
-    api.roles.update(draft.key, draft).then(() => { toast('Role saved'); refreshAccess(); }).catch(() => toast('⚠ Failed to save role')).finally(() => setSaving(false));
+    api.roles.update(draft.key, draft).then(() => { toast('Role saved'); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to save role'))).finally(() => setSaving(false));
   };
+  // New role: a name and its type (Internal / Client / Third Party).
+  const [adding, setAdding] = useState<{ name: string; tier: Tier } | null>(null);
   const addRole = () => {
-    const name = prompt('New role name?'); if (!name) return;
-    api.roles.create({ name, tier: 'internal', permissions: {} }).then(() => { toast('Role created'); refreshAccess(); }).catch(() => toast('⚠ Failed'));
+    if (!adding) return;
+    const name = adding.name.trim(); if (!name) { toast('⚠ Give the role a name'); return; }
+    api.roles.create({ name, tier: adding.tier, permissions: {} }).then(() => { toast('Role created'); setAdding(null); refreshAccess(); }).catch((e: Error) => toast('⚠ ' + (e.message || 'Failed')));
   };
   const delRole = (r: Role) => { if (r.isSystem) { toast('System roles cannot be deleted'); return; } if (confirm(`Delete role "${r.name}"?`)) api.roles.remove(r.key).then(() => { toast('Role deleted'); setSelectedKey(null); setDraft(null); refreshAccess(); }).catch(() => toast('⚠ Failed')); };
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Roles &amp; Permissions</div>
-        {!readOnly && <div onClick={addRole} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#D2EAD3', color: '#173326' }}>+ Add role</div>}
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Roles &amp; Permissions</div>
+        {!readOnly && !adding && <div onClick={() => setAdding({ name: '', tier: 'internal' })} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'var(--c-d2ead3)', color: 'var(--forest)' }}>+ Add role</div>}
       </div>
+      {adding && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14, padding: 12, borderRadius: 10, background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)' }}>
+          <input autoFocus value={adding.name} placeholder="Role name" aria-label="Role name" onChange={(e) => setAdding({ ...adding, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && addRole()} style={{ ...inputStyle, flex: '1 1 200px' }} />
+          <select value={adding.tier} aria-label="Role type" onChange={(e) => setAdding({ ...adding, tier: e.target.value as Tier })} style={{ ...inputStyle, width: 160 }}>
+            {TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}
+          </select>
+          <div onClick={addRole} style={{ padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', background: 'var(--forest)', color: 'white' }}>Create role</div>
+          <div onClick={() => setAdding(null)} style={{ padding: '9px 10px', fontSize: 13, cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* role list grouped by tier */}
@@ -251,9 +269,9 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
               {roles.filter((r) => r.tier === t).map((r) => {
                 const on = r.key === selectedKey;
                 return (
-                  <div key={r.key} onClick={() => select(r)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? '#0B1A12' : '#43514D', background: on ? '#E7F0E8' : 'white', border: '1px solid rgba(20,8,31,0.06)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={r.key} onClick={() => select(r)} style={{ padding: '9px 12px', borderRadius: 9, fontSize: 13, fontWeight: on ? 700 : 500, cursor: 'pointer', color: on ? 'var(--ink)' : 'var(--body)', background: on ? 'var(--c-e7f0e8)' : 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.06)', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>{r.name}</span>
-                    {r.isSystem && <span style={{ fontSize: 8.5, color: '#7E9B93' }}>system</span>}
+                    {r.isSystem && <span style={{ fontSize: 8.5, color: 'var(--muted)' }}>system</span>}
                   </div>
                 );
               })}
@@ -264,32 +282,36 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
         {/* permission matrix for selected role */}
         <div style={{ flex: 1, minWidth: 280 }}>
           {!selected ? (
-            <div style={{ fontSize: 13, color: '#7E9B93', padding: '20px 0' }}>Select a role to edit its permissions.</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', padding: '20px 0' }}>Select a role to edit its permissions.</div>
           ) : (
-            <div style={{ background: 'white', border: '1px solid rgba(20,8,31,0.07)', borderRadius: 14, padding: 16 }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.07)', borderRadius: 'var(--r-14)', padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <input disabled={readOnly || selected.isSystem} value={selected.name} onChange={(e) => draft && setDraft({ ...draft, name: e.target.value })} style={{ ...inputStyle, width: '100%', fontWeight: 700, fontSize: 15 }} />
-                  <input disabled={readOnly} value={selected.description || ''} placeholder="Description" onChange={(e) => draft && setDraft({ ...draft, description: e.target.value })} style={{ ...inputStyle, width: '100%', marginTop: 6, color: '#5C6B65' }} />
+                  <input disabled={readOnly} value={selected.description || ''} placeholder="Description" onChange={(e) => draft && setDraft({ ...draft, description: e.target.value })} style={{ ...inputStyle, width: '100%', marginTop: 6, color: 'var(--c-5c6b65)' }} />
                 </div>
-                {pill(TIER_STYLE[selected.tier].bg, TIER_STYLE[selected.tier].color, TIER_STYLE[selected.tier].label)}
+                {readOnly || selected.isSystem
+                  ? pill(TIER_STYLE[selected.tier].bg, TIER_STYLE[selected.tier].color, TIER_STYLE[selected.tier].label)
+                  : <select value={selected.tier} aria-label="Role type" title="Its type can change while nobody has the role" onChange={(e) => draft && setDraft({ ...draft, tier: e.target.value as Tier })} style={{ ...inputStyle, width: 150 }}>
+                      {TIERS.map((t) => <option key={t} value={t}>{TIER_STYLE[t].label}</option>)}
+                    </select>}
               </div>
 
               {selected.key === 'admin' ? (
-                <div style={{ fontSize: 12.5, color: '#5C6B65', background: '#EEF3EE', borderRadius: 8, padding: '10px 12px' }}>The Administrator role always has full access to every module.</div>
+                <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', background: 'var(--mist)', borderRadius: 8, padding: '10px 12px' }}>The Administrator role always has full access to every module.</div>
               ) : (
-                <div style={{ border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: '#F6F1E6', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93' }}>
+                <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: '#F6F1E6', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>
                     <span style={{ flex: 1 }}>Module</span><span style={{ width: 56, textAlign: 'center' }}>View</span><span style={{ width: 66, textAlign: 'center' }}>Manage</span>
                   </div>
                   {Object.entries(grouped).map(([group, mods]) => (
                     <div key={group}>
-                      <div style={{ padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: '#173326', background: '#FBF8F2' }}>{group}</div>
+                      <div style={{ padding: '6px 12px', fontSize: 10.5, fontWeight: 700, color: 'var(--forest)', background: 'var(--panel)' }}>{group}</div>
                       {mods.map((m) => {
                         const p = selected.permissions?.[m.key] || { view: false, manage: false };
                         return (
-                          <div key={m.key} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.04)' }}>
-                            <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12' }}>{m.label}</span>
+                          <div key={m.key} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>
+                            <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)' }}>{m.label}</span>
                             <span style={{ width: 56, textAlign: 'center' }}><input type="checkbox" disabled={readOnly} checked={!!p.view} onChange={(e) => setPerm(m.key, 'view', e.target.checked)} /></span>
                             <span style={{ width: 66, textAlign: 'center' }}><input type="checkbox" disabled={readOnly} checked={!!p.manage} onChange={(e) => setPerm(m.key, 'manage', e.target.checked)} /></span>
                           </div>
@@ -301,19 +323,19 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
               )}
 
               {selected.key !== 'admin' && (
-                <div style={{ border: '1px solid rgba(20,8,31,0.06)', borderRadius: 10, overflow: 'hidden', marginTop: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: '#F6F1E6', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7E9B93' }}>
+                <div style={{ border: '1px solid rgba(var(--rgb-shade), 0.06)', borderRadius: 10, overflow: 'hidden', marginTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', background: '#F6F1E6', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)' }}>
                     <span style={{ flex: 1 }}>Financial actions</span><span style={{ width: 66, textAlign: 'center' }}>Allowed</span>
                   </div>
-                  <div style={{ padding: '6px 12px', fontSize: 11.5, color: '#7E9B93', background: '#FBF8F2' }}>
+                  <div style={{ padding: '6px 12px', fontSize: 11.5, color: 'var(--muted)', background: 'var(--panel)' }}>
                     Finer control inside Project Finance. Until one is set, it follows Financial → Project “Manage”.
                   </div>
                   {FIN_ACTIONS.map(([key, name, hint]) => {
                     const own = selected.permissions?.[key];
                     const on = own ? !!own.manage : !!selected.permissions?.fin_project?.manage;
                     return (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(20,8,31,0.04)' }}>
-                        <span style={{ flex: 1, fontSize: 12.5, color: '#0B1A12' }}>{name}<span style={{ color: '#7E9B93', fontSize: 11.5 }}> — {hint}{own ? '' : ' (inherited)'}</span></span>
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', padding: '7px 12px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>
+                        <span style={{ flex: 1, fontSize: 12.5, color: 'var(--ink)' }}>{name}<span style={{ color: 'var(--muted)', fontSize: 11.5 }}> — {hint}{own ? '' : ' (inherited)'}</span></span>
                         <span style={{ width: 66, textAlign: 'center' }}><input type="checkbox" disabled={readOnly} checked={on} onChange={(e) => setPerm(key, 'manage', e.target.checked)} /></span>
                       </div>
                     );
@@ -323,7 +345,7 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
 
               {!readOnly && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                  <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? '#9AB0A4' : '#173326', color: 'white' }}>{saving ? 'Saving…' : 'Save Role'}</div>
+                  <div onClick={saving ? undefined : save} style={{ padding: '10px 20px', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: saving ? 'default' : 'pointer', background: saving ? 'var(--c-9ab0a4)' : 'var(--forest)', color: 'white' }}>{saving ? 'Saving…' : 'Save Role'}</div>
                   {!selected.isSystem && <div onClick={() => delRole(selected)} style={{ padding: '10px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(142,46,10,0.25)', color: '#8E2E0A' }}>Delete role</div>}
                 </div>
               )}
@@ -335,24 +357,11 @@ function RolesEditor({ readOnly }: { readOnly: boolean }) {
   );
 }
 
-/** Granular finance permissions; stored in the role's permission map like modules (manage = allowed). */
-const FIN_ACTIONS: [string, string, string][] = [
-  ['finx_prepare_invoice', 'Prepare invoices', 'draft, edit and send for approval'],
-  ['finx_issue_invoice', 'Issue invoices', 'issue, void, credit notes and write-offs'],
-  ['finx_record_payment', 'Record payments', 'record and void client payments'],
-  ['finx_approve_progress', 'Approve progress', 'approve reported progress for billing'],
-  ['finx_approve_co', 'Approve change orders', 'internal approval and client sign-off'],
-  ['finx_approve_reimb', 'Approve reimbursables', 'approve or reject expenses'],
-  ['finx_release_retention', 'Release retention', 'approve retention releases'],
-  ['finx_manage_costs', 'Record job costs', 'cost budget, subcontracts / POs and bills'],
-  ['finx_approve_costs', 'Approve job costs', 'approve, close and pay subcontracts, POs and bills'],
-  ['finx_view_profitability', 'See profitability', 'job cost, margins, WIP and cost reports'],
-];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 600, color: '#7E9B93', marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginBottom: 3 }}>{label}</div>
       {children}
     </div>
   );

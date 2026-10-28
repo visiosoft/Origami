@@ -14,16 +14,28 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeopleService = void 0;
 const common_1 = require("@nestjs/common");
+const connections_1 = require("./connections");
+const contact_duplicates_1 = require("./contact-duplicates");
 const staff_directory_sync_1 = require("../manpower/staff-directory.sync");
 const contractor_directory_sync_1 = require("../manpower/contractor-directory.sync");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
+const contact_status_1 = require("./contact-status");
+const attachments_service_1 = require("../google/attachments.service");
+const google_service_1 = require("../google/google.service");
+const settings_service_1 = require("../settings/settings.service");
+const crypto_util_1 = require("../auth/crypto.util");
+const business_card_1 = require("./business-card");
+const CARD_TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 let PeopleService = class PeopleService {
-    constructor(repo, staff, subs) {
+    constructor(repo, staff, subs, attachments, google, settings) {
         this.repo = repo;
         this.staff = staff;
         this.subs = subs;
+        this.attachments = attachments;
+        this.google = google;
+        this.settings = settings;
     }
     async findAll(project) {
         const all = await this.repo.find({ order: { id: 'ASC' } });
@@ -69,22 +81,148 @@ let PeopleService = class PeopleService {
         const rows = await this.repo.find();
         return rows.reduce((m, p) => Math.max(m, Number(p.id) || 0), 0) + 1;
     }
+    async scanCard(files, actor) {
+        if (!this.attachments || !this.google || !this.settings)
+            throw new common_1.BadRequestException('Card scanning needs Google connected (Settings → Integrations).');
+        const sides = ['front', 'back'].filter((s) => files[s]);
+        const uploaded = await this.attachments.upload(sides.map((s) => files[s]), 'Business cards', actor);
+        const cards = {};
+        sides.forEach((s, i) => { cards[s] = uploaded[i]; });
+        const texts = [];
+        let readError = '';
+        for (const s of sides) {
+            try {
+                texts.push(await this.google.imageToText(files[s].buffer, files[s].mimetype, `card-${s}`));
+            }
+            catch (e) {
+                readError = e.message || 'Could not read the card';
+            }
+        }
+        const text = texts.join('\n').trim();
+        const cardToken = (0, crypto_util_1.signState)({ mode: 'business-card', cards }, await this.settings.jwtSecret());
+        return { cardToken, front: cards.front || null, back: cards.back || null, text, fields: (0, business_card_1.parseBusinessCard)(text), readError: text ? '' : readError };
+    }
+    async cardsFromToken(token) {
+        if (!token || !this.settings)
+            return null;
+        const st = (0, crypto_util_1.readState)(String(token), await this.settings.jwtSecret(), CARD_TOKEN_MAX_AGE_MS);
+        return st?.mode === 'business-card' && st.cards && typeof st.cards === 'object' ? st.cards : null;
+    }
+    async applyCardToken(dto, current) {
+        const cards = await this.cardsFromToken(dto.businessCardToken);
+        delete dto.businessCardToken;
+        delete dto.businessCards;
+        if (cards)
+            dto.businessCards = { ...(current?.businessCards || {}), ...cards };
+    }
+    async addCardPhotos(id, files, actor) {
+        if (!this.attachments)
+            throw new common_1.BadRequestException('Uploads need Google connected (Settings → Integrations).');
+        const person = await this.repo.findOneBy({ id: Number(id) });
+        if (!person)
+            throw new common_1.NotFoundException(`Person ${id} not found`);
+        const sides = ['front', 'back'].filter((s) => files[s]);
+        if (!sides.length)
+            throw new common_1.BadRequestException('Add a photo of the card.');
+        const uploaded = await this.attachments.upload(sides.map((s) => files[s]), 'Business cards', actor);
+        const cards = { ...(person.businessCards || {}) };
+        for (const [i, s] of sides.entries()) {
+            await this.attachments.discard(cards[s] || undefined);
+            cards[s] = uploaded[i];
+        }
+        await this.repo.update({ id: person.id }, { businessCards: cards });
+        return { ...person, businessCards: cards };
+    }
+    async removeCardPhoto(id, side) {
+        const person = await this.repo.findOneBy({ id: Number(id) });
+        if (!person)
+            throw new common_1.NotFoundException(`Person ${id} not found`);
+        const cards = { ...(person.businessCards || {}) };
+        await this.attachments?.discard(cards[side] || undefined);
+        cards[side] = null;
+        await this.repo.update({ id: person.id }, { businessCards: cards });
+        return { ...person, businessCards: cards };
+    }
+    async cardPhoto(id, side) {
+        const person = await this.repo.findOneBy({ id: Number(id) });
+        const att = person?.businessCards?.[side];
+        if (!att)
+            throw new common_1.NotFoundException('No card photo.');
+        return att;
+    }
     async create(dto) {
+        dto = { ...dto };
+        const sameAsId = Number(dto.sameAsId) || null;
+        delete dto.sameAsId;
+        if (dto.formerCompanies)
+            dto.formerCompanies = (0, connections_1.cleanFormer)(dto.formerCompanies);
+        await this.applyCardToken(dto);
         const id = Number(dto.id) || (await this.nextId());
-        const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id };
+        const now = new Date().toISOString();
+        const person = { projects: [], openTasks: 0, comply: null, since: 'Added today', last: 'Just added', ...dto, id, contactStatus: 'active', contactStatusAt: now, lastActivityAt: now };
         const saved = await this.repo.save(this.repo.create(person));
         if (saved.kind === 'Staff' && !saved.employeeId && this.staff)
             await this.staff.employeeForPerson(saved);
         if ((0, contractor_directory_sync_1.isSubCompany)(saved) && this.subs)
             await this.subs.contractorForPerson(saved);
+        if (sameAsId)
+            return (await this.link(String(saved.id), String(sameAsId))).person;
         return saved;
+    }
+    async duplicates(q) {
+        const rows = await this.repo.find({ select: { id: true, name: true, firstName: true, lastName: true, email: true, phone: true, company: true, kind: true, contactStatus: true, contactStatusReason: true, lastActivityAt: true } });
+        return (0, contact_duplicates_1.findDuplicates)(q, rows, q.exclude ? Number(q.exclude) : null).slice(0, 10);
+    }
+    async link(id, otherId) {
+        const [a, b] = await Promise.all([this.repo.findOneBy({ id: Number(id) }), this.repo.findOneBy({ id: Number(otherId) })]);
+        if (!a || !b)
+            throw new common_1.NotFoundException('Contact not found.');
+        if (a.id === b.id)
+            throw new common_1.BadRequestException('A contact can\'t be linked to itself.');
+        a.sameAsIds = (0, contact_duplicates_1.withLink)(a.sameAsIds, b.id, a.id);
+        b.sameAsIds = (0, contact_duplicates_1.withLink)(b.sameAsIds, a.id, b.id);
+        a.formerCompanies = (0, connections_1.formerFromExpired)(a, b);
+        b.formerCompanies = (0, connections_1.formerFromExpired)(b, a);
+        await this.repo.save([a, b]);
+        return { person: a, other: b };
+    }
+    async unlink(id, otherId) {
+        const [a, b] = await Promise.all([this.repo.findOneBy({ id: Number(id) }), this.repo.findOneBy({ id: Number(otherId) })]);
+        if (!a)
+            throw new common_1.NotFoundException('Contact not found.');
+        a.sameAsIds = (0, contact_duplicates_1.withoutLink)(a.sameAsIds, Number(otherId));
+        if (b)
+            b.sameAsIds = (0, contact_duplicates_1.withoutLink)(b.sameAsIds, a.id);
+        await this.repo.save(b ? [a, b] : [a]);
+        return a;
     }
     async update(id, dto) {
         const numId = Number(id);
         const person = await this.repo.findOneBy({ id: numId });
         if (!person)
             throw new common_1.NotFoundException(`Person ${id} not found`);
-        Object.assign(person, dto, { id: numId });
+        const now = new Date().toISOString();
+        const patch = { ...dto };
+        delete patch.lastActivityAt;
+        if ('formerCompanies' in patch)
+            patch.formerCompanies = (0, connections_1.cleanFormer)(patch.formerCompanies);
+        await this.applyCardToken(patch, person);
+        if ('contactStatus' in patch) {
+            const next = String(patch.contactStatus || 'active').toLowerCase();
+            if (!contact_status_1.CONTACT_STATUSES.includes(next))
+                throw new common_1.BadRequestException('Status is Active, Review or Expired.');
+            if (next === 'expired' && next !== person.contactStatus && !String(patch.contactStatusReason || '').trim())
+                throw new common_1.BadRequestException('Say why this contact is expired.');
+            if (next !== (person.contactStatus || 'active'))
+                Object.assign(patch, { contactStatus: next, contactStatusAt: now, contactStatusReason: String(patch.contactStatusReason || '').trim().slice(0, 300) || null });
+            else
+                delete patch.contactStatusReason;
+            if (next === 'active')
+                patch.lastActivityAt = now;
+        }
+        if (Object.keys(dto).some((k) => !k.startsWith('contactStatus')))
+            patch.lastActivityAt = now;
+        Object.assign(person, patch, { id: numId });
         const saved = await this.repo.save(person);
         await this.staff?.personChanged(saved, dto);
         await this.subs?.personChanged(saved, dto);
@@ -107,8 +245,14 @@ exports.PeopleService = PeopleService;
 exports.PeopleService = PeopleService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(entities_1.PersonEntity)),
+    __param(3, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Optional)()),
+    __param(5, (0, common_1.Optional)()),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         staff_directory_sync_1.StaffDirectorySync,
-        contractor_directory_sync_1.ContractorDirectorySync])
+        contractor_directory_sync_1.ContractorDirectorySync,
+        attachments_service_1.AttachmentsService,
+        google_service_1.GoogleService,
+        settings_service_1.SettingsService])
 ], PeopleService);
 //# sourceMappingURL=people.service.js.map

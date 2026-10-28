@@ -79,6 +79,21 @@ describe('one subcontractor, one record (People <-> Contractors)', () => {
     await sync.backfill();
     expect([people.length, contractors.length]).toEqual(counts);
   });
+
+  it('a restart never undoes edits made in People to an already-linked entry', async () => {
+    const { sync, people } = setup(
+      [{ id: 7, kind: 'Vendor', name: 'Ortiz Framing & Supply', company: 'Ortiz Framing & Supply', phone: '555-0177', email: 'office@ortiz.test', contractorId: 'CTR-1' }],
+      [{ id: 'CTR-1', companyName: 'Ortiz Framing', phone: '', email: 'old@ortiz.test', personId: 7 }],
+    );
+    await sync.backfill();
+    expect(people[0]).toMatchObject({ kind: 'Vendor', name: 'Ortiz Framing & Supply', phone: '555-0177', email: 'office@ortiz.test' });
+  });
+
+  it('a contractor edit never blanks a People field or changes its kind', async () => {
+    const { sync, people } = setup([{ id: 7, kind: 'Vendor', name: 'Ortiz', company: 'Ortiz', phone: '555-0177', contractorId: 'CTR-1' }]);
+    await sync.syncContractor({ id: 'CTR-1', companyName: 'Ortiz Framing', phone: '', email: '' } as any);
+    expect(people[0]).toMatchObject({ kind: 'Vendor', name: 'Ortiz Framing', phone: '555-0177' });
+  });
 });
 
 describe('licence and insurance are the same on both sides', () => {

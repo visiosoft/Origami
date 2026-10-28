@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
+import { NotificationMatrix } from '../components/NotificationMatrix';
 
-const BG = "'Bricolage Grotesque', serif";
+const BG = 'var(--font-display)';
 
 const card: React.CSSProperties = {
-  background: 'white', border: '1px solid rgba(20,8,31,0.08)', borderRadius: 12, padding: 18, marginBottom: 16,
+  background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 18, marginBottom: 16,
 };
 
 function Toggle({ on, onChange, busy }: { on: boolean; onChange: (v: boolean) => void; busy?: boolean }) {
@@ -14,13 +15,13 @@ function Toggle({ on, onChange, busy }: { on: boolean; onChange: (v: boolean) =>
       onClick={busy ? undefined : () => onChange(!on)}
       style={{
         width: 42, height: 24, borderRadius: 999, flexShrink: 0, position: 'relative',
-        background: on ? '#173326' : '#D6DAD6', cursor: busy ? 'default' : 'pointer',
+        background: on ? 'var(--forest)' : '#D6DAD6', cursor: busy ? 'default' : 'pointer',
         opacity: busy ? 0.6 : 1, transition: 'background 120ms',
       }}
     >
       <span style={{
         position: 'absolute', top: 3, left: on ? 21 : 3, width: 18, height: 18, borderRadius: 999,
-        background: 'white', transition: 'left 120ms',
+        background: 'var(--surface)', transition: 'left 120ms',
       }} />
     </div>
   );
@@ -29,96 +30,31 @@ function Toggle({ on, onChange, busy }: { on: boolean; onChange: (v: boolean) =>
 /**
  * Settings -> Notifications.
  *
- * Two levels: everyone controls their own email, and an administrator can also
- * switch assignment emails off for the whole workspace.
+ * Everyone sets their own matrix (event x text/email, now/daily/weekly); an
+ * administrator can also switch task emails off for the whole workspace.
  */
 export function NotificationSettings() {
   const { toast, currentRole } = useApp();
   const isAdmin = currentRole?.key === 'admin';
 
-  const [mine, setMine] = useState(true);
   const [workspace, setWorkspace] = useState(true);
   const [overstretchThreshold, setOverstretchThreshold] = useState('');
-  // The newer preferences. Overdue and milestone notices are opt-in (off
-  // unless chosen) since the daily digest already covers both by default --
-  // turning these on adds a second, separate email for people who want one.
-  // SMS is opt-in for the same reason it defaults off everywhere in this
-  // app: it costs money per message.
-  const [overdue, setOverdue] = useState(false);
-  const [milestone, setMilestone] = useState(false);
-  const [sms, setSms] = useState(false);
-  // The due-date reminder email: daily (the default), weekly on Mondays, or off.
-  const [digest, setDigest] = useState<'daily' | 'weekly' | 'off'>('daily');
-  // Admins see whether the workspace is actually sending them.
-  const [remindersOn, setRemindersOn] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([
-      api.auth.me().catch(() => null),
       isAdmin ? api.settings.get().catch(() => null) : Promise.resolve(null),
     ])
-      .then(([me, settings]: any[]) => {
-        // Null means never chosen, which reads as on for assignment (the
-        // long-standing default) and off for the newer opt-in preferences.
-        if (me) {
-          setMine(me.notifyOnAssignment !== false);
-          setOverdue(me.notifyOnOverdue === true);
-          setMilestone(me.notifyOnMilestone === true);
-          setSms(me.notifyBySms === true);
-          setDigest(me.digestFrequency === 'weekly' || me.digestFrequency === 'off' ? me.digestFrequency : 'daily');
-        }
+      .then(([settings]: any[]) => {
         if (settings) {
-          setRemindersOn(settings['reminders.enabled'] === 'true');
           setWorkspace(settings['notifications.assignmentEmail'] !== 'false');
           setOverstretchThreshold(settings['reminders.overstretchThreshold'] || '');
         }
       })
       .finally(() => setLoading(false));
   }, [isAdmin]);
-
-  const saveMine = (value: boolean) => {
-    const previous = mine;
-    setMine(value);
-    setSaving(true);
-    setError('');
-    api.auth.setNotificationPrefs(value)
-      .then(() => toast(value ? 'Assignment emails on' : 'Assignment emails off'))
-      .catch((e: Error) => { setMine(previous); setError(e.message); })
-      .finally(() => setSaving(false));
-  };
-
-  const saveExtra = (setter: (v: boolean) => void, key: 'notifyOnOverdue' | 'notifyOnMilestone' | 'notifyBySms') => (value: boolean) => {
-    const previous = { overdue, milestone, sms }[key === 'notifyOnOverdue' ? 'overdue' : key === 'notifyOnMilestone' ? 'milestone' : 'sms'];
-    setter(value);
-    setSaving(true);
-    setError('');
-    api.auth.setNotificationPrefsExtra({ [key]: value })
-      .then(() => toast(value ? 'Preference on' : 'Preference off'))
-      .catch((e: Error) => { setter(previous); setError(e.message); })
-      .finally(() => setSaving(false));
-  };
-
-  const saveDigest = (value: 'daily' | 'weekly' | 'off') => {
-    const previous = digest;
-    setDigest(value);
-    setSaving(true);
-    setError('');
-    api.auth.setNotificationPrefsExtra({ digestFrequency: value })
-      .then(() => toast(value === 'off' ? 'Reminder email off' : value === 'weekly' ? 'Reminder email on Mondays' : 'Reminder email every morning'))
-      .catch((e: Error) => { setDigest(previous); setError(e.message); })
-      .finally(() => setSaving(false));
-  };
-
-  const sendMine = () => {
-    setSaving(true);
-    api.reminders.mine()
-      .then((r) => toast(r.sent ? `Sent — ${r.overdue} overdue, ${r.today} due today, ${r.soon} coming up` : `Not sent — ${r.reason}`))
-      .catch((e: Error) => toast('⚠ ' + e.message))
-      .finally(() => setSaving(false));
-  };
 
   const saveWorkspace = (value: boolean) => {
     const previous = workspace;
@@ -139,13 +75,13 @@ export function NotificationSettings() {
       .finally(() => setSaving(false));
   };
 
-  if (loading) return <div style={{ fontSize: 13, color: '#7E9B93' }}>Loading…</div>;
+  if (loading) return <div style={{ fontSize: 13, color: 'var(--muted)' }}>Loading…</div>;
 
   const row = (title: string, hint: string, on: boolean, onChange: (v: boolean) => void) => (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>{title}</div>
-        <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, lineHeight: 1.55 }}>{hint}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', marginTop: 3, lineHeight: 1.55 }}>{hint}</div>
       </div>
       <Toggle on={on} onChange={onChange} busy={saving} />
     </div>
@@ -154,9 +90,9 @@ export function NotificationSettings() {
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
-        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: '#0B1A12' }}>Notifications</div>
-        <div style={{ fontSize: 12.5, color: '#5C6B65', marginTop: 4, maxWidth: 620, lineHeight: 1.6 }}>
-          When someone assigns you a task, we email you the details and a link straight to it.
+        <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Notifications</div>
+        <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, maxWidth: 620, lineHeight: 1.6 }}>
+          Choose how you hear about each thing: a text or an email as it happens, in a daily or weekly digest, or not at all.
         </div>
       </div>
 
@@ -166,65 +102,10 @@ export function NotificationSettings() {
         </div>
       )}
 
-      <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Due-date reminder email</div>
-            <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, lineHeight: 1.55 }}>
-              A morning email of your tasks that are overdue, due today or due in the next 3 days — yours and the ones you
-              collaborate on, each linking straight to the task. Nothing is sent on a day with nothing due.
-            </div>
-            {isAdmin && remindersOn === false && (
-              <div style={{ fontSize: 12, color: '#8E2E0A', fontWeight: 600, marginTop: 6 }}>
-                Reminders are switched off for the workspace — turn them on under Settings → Integrations → Task reminders.
-              </div>
-            )}
-          </div>
-          <select
-            value={digest} disabled={saving}
-            onChange={(e) => saveDigest(e.target.value as 'daily' | 'weekly' | 'off')}
-            style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit', background: 'white' }}
-          >
-            <option value="daily">Every morning</option>
-            <option value="weekly">Mondays only</option>
-            <option value="off">Off</option>
-          </select>
-        </div>
-        <div style={{ marginTop: 10 }}>
-          <span onClick={saving ? undefined : sendMine} style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}>
-            Email me my reminder now →
-          </span>
-        </div>
-      </div>
-
-      <div style={card}>
-        {row(
-          'Email me when I’m assigned a task',
-          'Covers the Task Board and the Request Log. You are never emailed for assigning something to yourself.',
-          mine, saveMine,
-        )}
-        <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {row(
-            'Standalone overdue notice',
-            'A separate email the moment the daily digest would otherwise be your only reminder — on top of it, not instead.',
-            overdue, saveExtra(setOverdue, 'notifyOnOverdue'),
-          )}
-          {row(
-            'Milestone look-ahead',
-            'Adds milestones due in the next 3 weeks to your daily digest.',
-            milestone, saveExtra(setMilestone, 'notifyOnMilestone'),
-          )}
-          {row(
-            'Text message (SMS)',
-            'Also send a short text for the notices above. Off by default — this has a real per-message cost.',
-            sms, saveExtra(setSms, 'notifyBySms'),
-          )}
-        </div>
-        <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14 }}>
-          <span onClick={saving ? undefined : sendTest} style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}>
-            Send me a sample →
-          </span>
-        </div>
+      <NotificationMatrix />
+      <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', margin: '10px 0 20px', lineHeight: 1.55 }}>
+        Daily digests go out each morning at the reminder hour (Settings → Integrations → Task reminders); weekly digests on Mondays.
+        {isAdmin && <> <span onClick={saving ? undefined : sendTest} style={{ fontWeight: 700, color: 'var(--forest)', cursor: saving ? 'default' : 'pointer' }}>Send me a sample task email →</span></>}
       </div>
 
       {isAdmin && (
@@ -234,9 +115,9 @@ export function NotificationSettings() {
             'Turning this off stops assignment emails for everyone, whatever their own preference says.',
             workspace, saveWorkspace,
           )}
-          <div style={{ borderTop: '1px solid rgba(20,8,31,0.07)', marginTop: 16, paddingTop: 14 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0B1A12' }}>Overstretch threshold</div>
-            <div style={{ fontSize: 12, color: '#5C6B65', marginTop: 3, marginBottom: 8, lineHeight: 1.55 }}>
+          <div style={{ borderTop: '1px solid rgba(var(--rgb-shade), 0.07)', marginTop: 16, paddingTop: 14 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Overstretch threshold</div>
+            <div style={{ fontSize: 12, color: 'var(--c-5c6b65)', marginTop: 3, marginBottom: 8, lineHeight: 1.55 }}>
               A daily notice when someone's open-task count goes over this number. Blank or zero disables it — pick a
               real number before this does anything.
             </div>
@@ -245,7 +126,7 @@ export function NotificationSettings() {
                 type="number" min={0} value={overstretchThreshold}
                 onChange={(e) => setOverstretchThreshold(e.target.value)}
                 placeholder="0 = disabled"
-                style={{ width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(20,8,31,0.14)', fontSize: 13, fontFamily: 'inherit' }}
+                style={{ width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', fontSize: 13, fontFamily: 'inherit' }}
               />
               <span
                 onClick={saving ? undefined : () => {
@@ -255,7 +136,7 @@ export function NotificationSettings() {
                     .catch((e: Error) => setError(e.message))
                     .finally(() => setSaving(false));
                 }}
-                style={{ fontSize: 12.5, fontWeight: 700, color: '#173326', cursor: saving ? 'default' : 'pointer' }}
+                style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--forest)', cursor: saving ? 'default' : 'pointer' }}
               >
                 Save
               </span>

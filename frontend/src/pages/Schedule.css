@@ -1,0 +1,50 @@
+/* Construction -> Schedule (all projects on one timeline). Works in both looks. */
+.sc-nav { display: inline-flex; gap: 6px; margin-left: auto; }
+.sc-card { padding: 6px 0 8px; overflow-x: auto; }
+.sc-grid { min-width: 860px; }
+.sc-head, .sc-row { display: grid; grid-template-columns: 260px minmax(0, 1fr); align-items: center; }
+.sc-head { position: sticky; top: 0; z-index: 2; background: var(--surface); height: 40px; border-bottom: 1px solid var(--border); }
+.sc-name-h { padding: 0 18px; font-size: 12px; color: var(--muted); }
+.sc-track { position: relative; height: 100%; min-height: 40px; margin-right: 18px; overflow: hidden; }
+.sc-month { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding-left: 6px; font-size: 11.5px; color: var(--muted); border-left: 1px solid var(--border); white-space: nowrap; overflow: hidden; }
+.sc-month.is-now { color: var(--ink); font-weight: 600; }
+.sc-group { padding: 14px 18px 6px; font-family: var(--font-display); font-size: 18px; letter-spacing: -0.02em; color: var(--ink); }
+.sc-group small { font-family: inherit; font-size: 12px; color: var(--muted); margin-left: 6px; }
+
+.sc-row { min-height: 54px; border-top: 1px solid var(--border); cursor: pointer; transition: background-color 0.2s; }
+.sc-row:hover, .sc-row.is-open { background: rgba(245, 196, 67, 0.08); }
+.sc-row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.sc-row.is-phase { min-height: 42px; cursor: default; background: rgba(29, 29, 27, 0.02); }
+.sc-row.is-link { cursor: pointer; }
+.sc-name { display: flex; align-items: center; gap: 10px; padding: 6px 18px; min-width: 0; }
+.sc-name > span:last-child, .sc-name { flex-direction: row; }
+.sc-name b { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-name small { display: block; margin-top: 2px; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-name > b + small { margin-top: 2px; }
+.sc-row:not(.is-phase) .sc-name { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; }
+.sc-row.is-phase .sc-name { padding-left: 32px; }
+.sc-row.is-phase .sc-name > span { min-width: 0; }
+.sc-dot { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
+
+.sc-grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.sc-today { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #C99614; z-index: 1; }
+.sc-bar {
+  position: absolute; top: 50%; height: 16px; transform: translateY(-50%); border-radius: 999px; overflow: hidden;
+  background: rgba(29, 29, 27, 0.14); z-index: 1; box-shadow: inset 0 0 0 1px rgba(29, 29, 27, 0.08);
+}
+.sc-bar.is-est { background: repeating-linear-gradient(-55deg, rgba(29, 29, 27, 0.06) 0 5px, rgba(29, 29, 27, 0.18) 5px 7px); }
+.sc-bar.is-open { -webkit-mask-image: linear-gradient(90deg, #000 40%, transparent); mask-image: linear-gradient(90deg, #000 40%, transparent); }
+.sc-seg { position: absolute; top: 0; bottom: 0; }
+.sc-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; }
+.sc-row.is-phase .sc-bar { height: 10px; background: rgba(29, 29, 27, 0.1); }
+
+.sc-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--muted); }
+.sc-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sc-key { display: inline-block; width: 22px; height: 8px; border-radius: 999px; background: linear-gradient(90deg, #F5C443 50%, #1D1D1B 50%); }
+.sc-key.is-est { background: repeating-linear-gradient(-55deg, rgba(29, 29, 27, 0.06) 0 4px, rgba(29, 29, 27, 0.2) 4px 6px); }
+.sc-key.is-today { width: 2px; height: 14px; border-radius: 0; background: #C99614; }
+
+@media (max-width: 720px) {
+  .sc-nav { margin-left: 0; }
+  .sc-head, .sc-row { grid-template-columns: 180px minmax(0, 1fr); }
+}

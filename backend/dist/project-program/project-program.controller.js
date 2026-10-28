@@ -20,6 +20,7 @@ const google_service_1 = require("../google/google.service");
 const settings_service_1 = require("../settings/settings.service");
 const letterhead_1 = require("../documents/letterhead");
 const program_document_1 = require("../documents/program-document");
+const placeholders_1 = require("../email-templates/placeholders");
 const actorFrom = (req) => ({ id: req.claims?.sub, name: req.claims?.name });
 let ProjectProgramController = class ProjectProgramController {
     constructor(service, google, settings) {
@@ -68,6 +69,7 @@ let ProjectProgramController = class ProjectProgramController {
         return res.end(pdf);
     }
     async send(body, req) {
+        (0, placeholders_1.assertFilled)(body?.subject, body?.html);
         const attachments = [];
         let filename = '';
         if (body.includeProgram !== false) {

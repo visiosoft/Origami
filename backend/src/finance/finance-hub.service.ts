@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
-  ChangeOrderEntity, ChangeOrderItemEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
-  ProjectInvoiceLineEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
+  ChangeOrderEntity, ChangeOrderItemEntity, CommitmentEntity, CommitmentLineEntity, CostEntryEntity, FinanceActivityEntity, PhaseFinancialEntity, ProjectEntity, ProjectFinancialEntity, ProjectInvoiceEntity,
+  ProjectInvoiceLineEntity, ProjectPaymentEntity, ProjectPhaseEntity, ProjectTaskEntity, ReimbursableEntity, RetentionReleaseEntity, TaskFinancialEntity,
 } from '../database/entities';
 import type { Actor } from '../manpower/manpower-access.service';
 import { computeSov, invoiceTotals, toDollars } from './finance.calc';
@@ -11,12 +11,23 @@ import { FinancialsService } from './financials.service';
 import { reimbursableBillC } from './invoices.service';
 import { CostsService } from './costs.service';
 import { fromCents, sumCents, toCents } from './money';
+import { billingMonths } from './billing-months';
 
 /** One thing waiting on someone's decision, wherever it lives. */
 export interface Pending {
-  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill';
+  type: 'change_order' | 'reimbursable' | 'retention_release' | 'invoice' | 'progress' | 'vendor_bill' | 'commitment';
   id: string; projectId: number; projectName: string; title: string; detail: string; amount: number | null; since: string; canAct: boolean;
   itemKind?: string;
+}
+
+/** Billable reimbursables approved for (or already on) an invoice, in cents, per project: the reimbursables part of a project's budget. */
+export function reimbursablesApprovedC(rows: { projectId: number; status: string; billable?: boolean | null; cost: number; markupPct: number }[]) {
+  const out = new Map<number, number>();
+  for (const r of rows) {
+    if (r.billable === false || (r.status !== 'approved' && r.status !== 'billed')) continue;
+    out.set(r.projectId, (out.get(r.projectId) || 0) + reimbursableBillC(r));
+  }
+  return out;
 }
 
 /**
@@ -42,6 +53,9 @@ export class FinanceHubService {
     @InjectRepository(ProjectInvoiceLineEntity) private readonly lines: Repository<ProjectInvoiceLineEntity>,
     private readonly costs?: CostsService,
     @InjectRepository(CostEntryEntity) private readonly costEntries?: Repository<CostEntryEntity>,
+    @InjectRepository(ProjectPaymentEntity) private readonly payments?: Repository<ProjectPaymentEntity>,
+    @InjectRepository(CommitmentEntity) private readonly commitments?: Repository<CommitmentEntity>,
+    @InjectRepository(CommitmentLineEntity) private readonly commitmentLines?: Repository<CommitmentLineEntity>,
   ) {}
 
   private async names() {
@@ -74,6 +88,21 @@ export class FinanceHubService {
         });
       }
     }
+    if ((r.manageCosts || r.approveCosts) && this.commitments) {
+      // Contracts with subcontractors and vendors, drafted and waiting to be approved.
+      const drafts = await this.commitments.find({ where: { status: 'draft' } });
+      const lines = drafts.length && this.commitmentLines ? await this.commitmentLines.find({ where: { commitmentId: In(drafts.map((c) => c.id)) } }) : [];
+      const KIND: Record<string, string> = { subcontract: 'Subcontract', purchase_order: 'Purchase order', service: 'Service agreement' };
+      for (const c of drafts) {
+        const mine = lines.filter((l) => l.commitmentId === c.id);
+        if (!mine.length) continue; // still being written up
+        out.push({
+          type: 'commitment', id: c.id, projectId: c.projectId, projectName: pn(c.projectId), title: `${c.number} ${c.title}`,
+          detail: `${KIND[c.type] || 'Contract'} with ${c.vendorName || '—'}${c.createdBy ? ` · drafted by ${c.createdBy}` : ''}`,
+          amount: fromCents(sumCents(mine.map((l) => toCents(l.amount)))), since: c.createdAt, canAct: r.approveCosts,
+        });
+      }
+    }
     if ((r.manageCosts || r.approveCosts) && this.costEntries) {
       // Invoices subcontractors sent through the portal, one row per invoice.
       const bills = await this.costEntries.find({ where: { source: 'portal', status: 'recorded' } });
@@ -95,14 +124,14 @@ export class FinanceHubService {
           detail: `${x.scope === 'project' ? 'Whole project' : x.scope} · requested by ${x.requestedBy || '—'}`, amount: x.amount, since: x.createdAt, canAct: r.releaseRetention,
         });
       }
-      const waiting = (await this.invoices.find({ where: { status: 'draft' } })).filter((i) => i.approvalRequestedAt);
+      const waiting = (await this.invoices.find({ where: { status: 'draft' } })).filter((i) => i.approvalRequestedAt && !i.approvedAt);
       const draftLines = waiting.length ? await this.lines.find({ where: { invoiceId: In(waiting.map((i) => i.id)) } }) : [];
       for (const x of waiting) {
         const total = invoiceTotals(draftLines.filter((l) => l.invoiceId === x.id).map((l) => ({ kind: l.kind, amountC: toCents(l.amount), retentionApplies: l.retentionApplies, retentionPct: l.retentionPct, taxable: l.taxable, taxPct: l.taxPct }))).totalC;
         out.push({
           type: 'invoice', id: x.id, projectId: x.projectId, projectName: pn(x.projectId),
           title: `Draft ${x.kind === 'credit' ? (x.creditType === 'write_off' ? 'write-off' : 'credit note') : x.kind === 'retention' ? 'retention invoice' : 'invoice'}${x.description ? ` — ${x.description}` : ''}`,
-          detail: `Sent for approval by ${x.approvalRequestedBy || '—'}`, amount: fromCents(total), since: x.approvalRequestedAt, canAct: r.issueInvoice,
+          detail: `Sent for approval by ${x.approvalRequestedBy || '—'}`, amount: fromCents(total), since: x.approvalRequestedAt, canAct: r.approveInvoice,
         });
       }
       // Progress reported above what's approved, on projects that bill approved progress only.
@@ -146,15 +175,53 @@ export class FinanceHubService {
     const ids = new Set(clientIds);
     if (showCosts) for (const id of await this.costs!.projectsWithCosts()) ids.add(id);
     const labor = showCosts ? await this.costs!.laborAll() : [];
+    const approvedReimbC = reimbursablesApprovedC(await this.reimbs.find());
     const rows = [];
     for (const id of ids) {
       const p = byId.get(id);
       if (!p) continue;
       const client = clientIds.has(id) ? toDollars(computeSov((await this.fin.context(id)).input).summary) : {};
       const pay = showCosts ? await this.costs!.payingSide(id, labor) : null;
-      rows.push({ projectId: p.id, name: p.name, stage: p.stage, hasClientContract: clientIds.has(id), ...client, ...(pay ? toDollars(pay) : {}) });
+      rows.push({
+        projectId: p.id, name: p.name, stage: p.stage, contractType: p.contractType || '', pricing: p.pricing || '', labor: p.labor || '',
+        hasClientContract: clientIds.has(id), ...client, reimbursablesApproved: fromCents(approvedReimbC.get(id) || 0), ...(pay ? toDollars(pay) : {}),
+      });
     }
     return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Money received per calendar month, across every project, for the last
+   * `months` months including this one (oldest first; empty months are 0).
+   * Voided payments don't count; foreign-currency payments are converted.
+   */
+  async collections(actor: Actor, months = 6) {
+    await this.fin.need(actor, 'view');
+    const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+    const now = new Date();
+    const keys: string[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      keys.push(d.toISOString().slice(0, 7));
+    }
+    const totals = new Map(keys.map((k) => [k, 0]));
+    const rows = this.payments ? await this.payments.find() : [];
+    for (const p of rows) {
+      if (p.voidedAt || !p.date) continue;
+      const k = String(p.date).slice(0, 7);
+      if (!totals.has(k)) continue;
+      totals.set(k, (totals.get(k) || 0) + toCents(Number(p.amount) * (Number(p.fxRate) || 1)));
+    }
+    return keys.map((month) => ({ month, amount: fromCents(totals.get(month) || 0) }));
+  }
+
+  /** Invoiced vs collected per month, with what's still open on each month's invoices (the dashboard chart). */
+  async billing(actor: Actor, months = 6) {
+    await this.fin.need(actor, 'view');
+    const n = Math.min(Math.max(Math.floor(Number(months)) || 6, 1), 24);
+    const [invoices, payments, projects] = await Promise.all([this.invoices.find(), this.payments ? this.payments.find() : Promise.resolve([]), this.projects.find()]);
+    const names = new Map(projects.map((p) => [p.id, p.name]));
+    return billingMonths(invoices as any, payments as any, { months: n, today: new Date().toISOString().slice(0, 10), projectName: (id) => names.get(id) || `Project ${id}` });
   }
 
   /** The finance audit trail across projects (or one), newest first. */

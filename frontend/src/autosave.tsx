@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SESSION_RESTORED_EVENT } from './api';
 
 /**
  * Save and autosave, the same way on every editor.
@@ -135,7 +136,9 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
         if (ep !== epoch.current) return false;
         // Unreachable or restarting (a deploy): not the person's fault -- keep trying by itself.
         const serverDown = !e?.status || e.status >= 500;
-        setError(serverDown ? 'the server is restarting, retrying…' : e?.message || 'Could not save');
+        // Signed out mid-edit: the changes stay here and go as soon as they sign back in.
+        const signedOut = e?.status === 401;
+        setError(serverDown ? 'the server is restarting, retrying…' : signedOut ? 'you were signed out; it saves as soon as you sign back in' : e?.message || 'Could not save');
         setState('error');
         if (serverDown && (latest.current.enabled ?? true)) {
           if (timer.current) window.clearTimeout(timer.current);
@@ -209,6 +212,13 @@ export function useAutosave<T extends Record<string, any>>(o: AutosaveOptions<T>
 
   useEffect(() => { committed.current = o; });
 
+  // Back in after the session ran out: send whatever couldn't be saved.
+  useEffect(() => {
+    const onRestored = () => { if (pending() && (latest.current.enabled ?? true)) void run(); };
+    window.addEventListener(SESSION_RESTORED_EVENT, onRestored);
+    return () => window.removeEventListener(SESSION_RESTORED_EVENT, onRestored);
+  }, [pending, run]);
+
   const dirty = state === 'dirty' || state === 'error' || !!pending();
   const saveNow = useCallback(() => run(), [run]);
   useRegister(o.label || 'changes', state, dirty, enabled || dirty);
@@ -244,9 +254,9 @@ export function AutosaveProvider({ children }: { children: ReactNode }) {
 }
 
 const tone = {
-  saving: { c: '#7E9B93', dot: '#C7A64A', text: 'Saving…' },
-  saved: { c: '#2F7D4A', dot: '#2F7D4A', text: 'All changes saved' },
-  dirty: { c: '#8A6D12', dot: '#E0B84A', text: 'Unsaved changes' },
+  saving: { c: 'var(--muted)', dot: '#C7A64A', text: 'Saving…' },
+  saved: { c: 'var(--success)', dot: 'var(--success)', text: 'All changes saved' },
+  dirty: { c: 'var(--c-8a6d12)', dot: 'var(--c-e0b84a)', text: 'Unsaved changes' },
   error: { c: '#8E2E0A', dot: '#8E2E0A', text: "Couldn't save" },
 };
 
@@ -276,7 +286,11 @@ const ago = (t: number | null) => {
  * Save status and the Save button. `blocked` explains why it can't save yet
  * (e.g. "Add a name to save").
  */
-export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: string; compact?: boolean }) {
+export function SaveBar({ auto, blocked, compact, onDone }: {
+  auto: Autosave; blocked?: string; compact?: boolean;
+  /** Given: the button is "Save & close" -- it saves now and then calls this (only once saved). */
+  onDone?: () => void;
+}) {
   const [, tick] = useState(0);
   const [flash, setFlash] = useState(false);
   useEffect(() => { const i = window.setInterval(() => tick((n) => n + 1), 15000); return () => window.clearInterval(i); }, []);
@@ -287,23 +301,33 @@ export function SaveBar({ auto, blocked, compact }: { auto: Autosave; blocked?: 
     : state === 'error' ? `Couldn't save — ${error}`
     : state === 'dirty' ? 'Unsaved · autosaves in a moment'
     : lastSavedAt ? `Saved ${ago(lastSavedAt)}` : 'All changes saved';
-  const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || blocked ? '#8A6D12' : '#7E9B93';
-  const canSave = dirty && state !== 'saving' && !blocked;
+  const color = state === 'error' ? '#8E2E0A' : state === 'dirty' || blocked ? 'var(--c-8a6d12)' : 'var(--muted)';
+  // Always pressable (a forced save), except while a save is running or something blocks it.
+  const canPress = state !== 'saving' && !blocked;
+  const strong = dirty || !!onDone;
+  const press = () => { void auto.saveNow().then((ok) => { if (!ok) return; setFlash(true); onDone?.(); }); };
+  const label = blocked ? 'Save'
+    : state === 'saving' ? 'Saving…'
+    : state === 'error' ? 'Retry save'
+    : onDone ? 'Save & close'
+    : dirty ? 'Save' : flash ? '✓ Saved' : 'Save';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end', minWidth: 0 }}>
       {!compact && <span style={{ fontSize: 11.5, color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{status}</span>}
       <button
         type="button"
-        disabled={!canSave}
-        onClick={() => { void auto.saveNow().then((ok) => { if (ok) setFlash(true); }); }}
-        title={compact ? status : undefined}
+        disabled={!canPress}
+        onClick={press}
+        title={compact ? status : onDone ? 'Save now and close' : 'Save now'}
         style={{
           padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
-          border: '1px solid ' + (canSave ? '#173326' : flash ? '#2F7D4A' : 'rgba(20,8,31,.14)'), background: canSave ? '#173326' : flash ? '#D2EAD3' : '#fff', color: canSave ? '#fff' : flash ? '#1E6B36' : '#7E9B93',
-          cursor: canSave ? 'pointer' : 'default',
+          border: '1px solid ' + (canPress && strong ? 'var(--forest)' : flash ? 'var(--success)' : 'rgba(var(--rgb-shade), .14)'),
+          background: canPress && strong ? 'var(--forest)' : flash ? 'var(--c-d2ead3)' : 'var(--surface)',
+          color: canPress && strong ? '#fff' : flash ? 'var(--c-1e6b36)' : 'var(--body)',
+          cursor: canPress ? 'pointer' : 'default', opacity: canPress ? 1 : 0.7,
         }}
       >
-        {blocked ? 'Save' : state === 'saving' ? 'Saving…' : state === 'error' ? 'Retry save' : dirty ? 'Save' : flash ? '✓ Saved' : 'Saved'}
+        {label}
       </button>
     </div>
   );

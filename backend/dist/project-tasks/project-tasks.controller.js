@@ -76,6 +76,10 @@ let ProjectTasksController = class ProjectTasksController {
         await this.mayTouch(id, claims ?? null);
         return this.service.update(id, dto, await this.auth.actor(auth));
     }
+    async notify(id, claims) {
+        await this.mayTouch(id, claims ?? null);
+        return this.service.flushNotices(id);
+    }
     remove(id) {
         return this.service.remove(id);
     }
@@ -147,9 +151,17 @@ __decorate([
     __param(2, (0, common_1.Headers)('authorization')),
     __param(3, (0, claims_decorator_1.Claims)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, String, Object]),
+    __metadata("design:paramtypes", [String, create_project_task_dto_1.UpdateProjectTaskDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], ProjectTasksController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)(':id/notify'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, claims_decorator_1.Claims)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ProjectTasksController.prototype, "notify", null);
 __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Delete)(':id'),

@@ -9,9 +9,10 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Readable } from 'stream';
 import { FileRoomService, MAX_FILE_BYTES, MAX_FILES_PER_UPLOAD } from './file-room.service';
-import { CreateFolderDto, UpdateFileDto, EmailFileDto } from './dto/file-room.dto';
+import { CreateFolderDto, UpdateFileDto, EmailFileDto, MoveFileDto, FileIdsDto, EmailFilesDto, MoveFilesDto } from './dto/file-room.dto';
 import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
+import { MarkupsService } from './markups.service';
 
 @Controller('file-room')
 export class FileRoomController {
@@ -19,7 +20,81 @@ export class FileRoomController {
     private readonly service: FileRoomService,
     private readonly auth: AuthService,
     private readonly access: ProjectAccessService,
+    private readonly markups: MarkupsService,
   ) {}
+
+  // ---------------------------------------------------------------- PDF markup
+
+  private async seeFile(fileId: string, claims: SessionClaims | null | undefined) {
+    const f = await this.markups.file(fileId);
+    await this.access.assert(claims ?? null, f.projectId);
+    return f;
+  }
+
+  /** The markups on a PDF: everyone's shared ones and your own private drafts. */
+  @Get('files/:id/markups')
+  async listMarkups(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.list(id, claims);
+  }
+
+  @Post('files/:id/markups')
+  async addMarkup(@Param('id') id: string, @Body() body: unknown, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.create(id, body, claims);
+  }
+
+  @Put('markups/:mid')
+  async editMarkup(@Param('mid') mid: string, @Body() body: unknown, @Claims() claims: SessionClaims | null) {
+    return this.markups.update(mid, body, claims);
+  }
+
+  /** Rename a layer on this drawing: { from: name | null, authorId?, to }. */
+  @Put('files/:id/layers')
+  async renameLayer(@Param('id') id: string, @Body() body: any, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.renameLayer(id, body, claims);
+  }
+
+  /** Photos pinned to a spot on the drawing. */
+  @Post('markups/:mid/photos')
+  @UseInterceptors(FilesInterceptor('files', MAX_FILES_PER_UPLOAD, { limits: { fileSize: MAX_FILE_BYTES } }))
+  async addPinPhotos(@Param('mid') mid: string, @UploadedFiles() files: any[], @Claims() claims: SessionClaims | null) {
+    const m = await this.markups.markup(mid);
+    await this.seeFile(m.fileId, claims);
+    return this.markups.addPhotos(mid, files, claims);
+  }
+
+  @Delete('markups/:mid/photos/:fileId')
+  async removePinPhoto(@Param('mid') mid: string, @Param('fileId') fileId: string, @Claims() claims: SessionClaims | null) {
+    const m = await this.markups.markup(mid);
+    await this.seeFile(m.fileId, claims);
+    return this.markups.removePhoto(mid, fileId, claims);
+  }
+
+  @Delete('markups/:mid')
+  async removeMarkup(@Param('mid') mid: string, @Claims() claims: SessionClaims | null) {
+    return this.markups.remove(mid, claims);
+  }
+
+  /** Download the PDF with markups drawn in (?layers=<keys> or ?authors=U-1,U-2 for just those layers). */
+  @Get('files/:id/markups/pdf')
+  async markedUpPdf(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null, @Query('authors') authors?: string, @Query('layers') layers?: string) {
+    await this.seeFile(id, claims);
+    const list = (v?: string) => (v ? v.split(',').filter(Boolean) : undefined);
+    const { file, pdf } = await this.markups.flatten(id, claims, list(authors), list(layers));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name.replace(/\.pdf$/i, '') + ' (marked up).pdf')}"`);
+    res.end(pdf);
+  }
+
+  /** Save a marked-up copy beside the drawing in the File Room. */
+  @Post('files/:id/markups/copy')
+  async markedUpCopy(@Param('id') id: string, @Body() body: { authors?: string[]; layers?: string[] }, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : undefined);
+    return this.markups.saveCopy(id, claims, list(body?.authors), list(body?.layers));
+  }
 
   /** Projects, categories, folders and files — everything the tree needs. */
   @Get()
@@ -55,6 +130,34 @@ export class FileRoomController {
     );
   }
 
+  /** Files emailed from the File Room: for a project (?projectId=) or one file (?fileId=). */
+  @Tiers('internal')
+  @Get('shares')
+  shareHistory(@Query('projectId') projectId?: string, @Query('fileId') fileId?: string) {
+    return this.service.shareHistory({ projectId: projectId ? Number(projectId) : undefined, fileId: fileId || undefined });
+  }
+
+  /** View links for several files. */
+  @Tiers('internal')
+  @Post('files/share')
+  shareMany(@Body() dto: FileIdsDto) {
+    return this.service.shareMany(dto.ids);
+  }
+
+  /** Several files in one email. */
+  @Tiers('internal')
+  @Post('files/email')
+  async emailMany(@Body() dto: EmailFilesDto, @Headers('authorization') auth?: string) {
+    return this.service.emailMany(dto.ids, dto.to, dto.note || '', await this.auth.actor(auth));
+  }
+
+  /** Move several files into one folder. */
+  @Tiers('internal')
+  @Put('files/move')
+  moveMany(@Body() dto: MoveFilesDto) {
+    return this.service.moveMany(dto.ids, dto.folderPath);
+  }
+
   /**
    * Stream a file. Scoped to its record, so a Drive id on its own is never
    * enough to pull something out of the workspace Drive.
@@ -66,8 +169,9 @@ export class FileRoomController {
     @Query('download') download: string,
     @Res() res: Response,
     @Claims() claims: SessionClaims | null,
+    @Query('size') size?: string,
   ) {
-    const { file, body, mimeType } = await this.service.content(id, thumb === '1');
+    const { file, body, mimeType } = await this.service.content(id, thumb === '1', Number(size) || undefined);
     if (!(await this.access.canSee(claims, (file as any).projectId))) {
       await (body as any)?.cancel?.().catch?.(() => {});
       res.status(403).json({ message: 'You don’t have access to this file.' });
@@ -78,6 +182,39 @@ export class FileRoomController {
     res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(file.name)}"`);
     res.setHeader('Cache-Control', 'private, max-age=300');
     Readable.fromWeb(body).pipe(res);
+  }
+
+  /**
+   * Show a file in the browser: images and PDFs as they are, Office and Google
+   * documents as a PDF. 415 when there's nothing to show (download it instead).
+   */
+  @Get('files/:id/preview')
+  async preview(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null) {
+    const { file, body, mimeType, pdf } = await this.service.preview(id);
+    if (!(await this.access.canSee(claims, (file as any).projectId))) {
+      await (body as any)?.cancel?.().catch?.(() => {});
+      res.status(403).json({ message: 'You don’t have access to this file.' });
+      return;
+    }
+    if (!body && !pdf) { res.status(415).json({ message: 'This kind of file can’t be previewed — download it instead.' }); return; }
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}${pdf ? '.pdf' : ''}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    if (pdf) { res.end(pdf); return; }
+    Readable.fromWeb(body).pipe(res);
+  }
+
+  /** Lay out the standard project folders (Settings -> File Room) for one project. */
+  @Tiers('internal')
+  @Post('template')
+  template(@Query('projectId') projectId: string) {
+    return this.service.applyTemplate(Number(projectId));
+  }
+
+  @Tiers('internal')
+  @Put('files/:id/move')
+  move(@Param('id') id: string, @Body() dto: MoveFileDto) {
+    return this.service.move(id, dto.folderPath);
   }
 
   @Tiers('internal')

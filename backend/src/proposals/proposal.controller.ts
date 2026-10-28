@@ -7,6 +7,7 @@ import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, buildLetterHtml, safeFilename } from '../documents/letterhead';
 import type { AuthedRequest } from '../auth/guards/session.guard';
+import { assertFilled } from '../email-templates/placeholders';
 
 @Controller('proposals')
 export class ProposalController {
@@ -17,6 +18,13 @@ export class ProposalController {
   ) {}
 
   // --- Staff side: preparing and sending the proposal ---
+
+  /** Sent to the client and not signed yet (Special Actions -> Approvals). */
+  @Tiers('internal')
+  @Get('awaiting')
+  awaiting() {
+    return this.service.awaitingSignature();
+  }
 
   @Tiers('internal')
   @Get()
@@ -52,6 +60,7 @@ export class ProposalController {
     @Req() req: AuthedRequest,
   ) {
     const doc = await this.service.get(body.dealId);
+    assertFilled(doc.subject, doc.html);
     const link = await this.service.signingLink(body.dealId);
     const { pdf, filename } = await this.renderPdf(doc.subject, doc.html, doc.amount, doc.dealName);
     const attachments = [{ filename, mimeType: 'application/pdf', content: pdf }];
@@ -96,8 +105,10 @@ export class ProposalController {
 
   @Public()
   @Get('public')
-  getByToken(@Query('token') token: string) {
-    return this.service.getByToken(token);
+  async getByToken(@Query('token') token: string) {
+    const doc = await this.service.getByToken(token);
+    void this.service.recordView(token).catch(() => undefined);
+    return doc;
   }
 
   /** The document as a real, scrollable PDF -- the client's own signature (once captured) rendered in place, not pasted into an email or a plain HTML block. */

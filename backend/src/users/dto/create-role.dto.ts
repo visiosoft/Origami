@@ -8,5 +8,5 @@ export class CreateRoleDto {
   @IsEnum(UserTier) tier: UserTier;
   @IsNumber() @IsOptional() order?: number;
   @IsBoolean() @IsOptional() isSystem?: boolean;
-  @IsObject() @IsOptional() permissions?: Record<string, { view: boolean; manage: boolean }>;
+  @IsObject() @IsOptional() permissions?: Record<string, { view: boolean; manage: boolean; level?: string; extent?: string; note?: string }>;
 }

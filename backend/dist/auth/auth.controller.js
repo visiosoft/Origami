@@ -41,6 +41,11 @@ let AuthController = class AuthController {
     forgot(dto) {
         return this.auth.forgotPassword(dto.email);
     }
+    async refresh(authorization, res) {
+        const session = await this.auth.refresh(authorization);
+        res.cookie(cookie_util_1.SESSION_COOKIE, session.token, (0, cookie_util_1.sessionCookieOptions)(session.expiresIn));
+        return session;
+    }
     me(authorization) {
         return this.auth.me(authorization);
     }
@@ -90,6 +95,15 @@ __decorate([
     __metadata("design:paramtypes", [auth_dto_1.ForgotPasswordDto]),
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "forgot", null);
+__decorate([
+    (0, roles_decorator_1.AnySignedIn)(),
+    (0, common_1.Post)('refresh'),
+    __param(0, (0, common_1.Headers)('authorization')),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "refresh", null);
 __decorate([
     (0, roles_decorator_1.AnySignedIn)(),
     (0, common_1.Get)('me'),

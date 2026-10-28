@@ -94,6 +94,14 @@ export declare class WeeklyTimesheetsController {
         createdAt: string;
         updatedAt: string;
     }[]>;
+    pendingNotices(a?: string): Promise<{
+        id: string;
+        employeeId: string;
+        employeeName: string;
+        weekStart: string;
+        totalHours: number;
+        submittedAt: string;
+    }[]>;
     submit(id: string, a?: string): Promise<import("../database/entities").TimesheetEntity>;
     approve(id: string, dto: TimesheetNoteDto, a?: string): Promise<import("../database/entities").TimesheetEntity>;
     reject(id: string, dto: TimesheetNoteDto, a?: string): Promise<import("../database/entities").TimesheetEntity>;

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Origami Design + Build — Project delivery platform</title>
+  <meta name="description" content="Origami is the private project delivery platform of Origami Design + Build, a design-build firm. Our staff, clients and consultants use it to manage leads, projects, tasks, schedules, files and project finances." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <script>
+    // Already signed in? Go straight to the app. (Everyone else -- and anything reading this page -- sees the page below.)
+    try { if (localStorage.getItem('origami.session')) location.replace('/dashboard'); } catch (e) {}
+  </script>
+  <style>
+    :root { --ink: #1D1D1B; --body: #3F3D38; --muted: #6E6A62; --line: rgba(29,29,27,.1); --bg: #F3EFE6; --card: #FDFCF9; --yellow: #F5C443; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: var(--ink); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+    header { padding: 22px 0; }
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { font-weight: 700; font-size: 18px; letter-spacing: -.01em; text-decoration: none; }
+    .brand small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+    .btn { display: inline-block; padding: 11px 22px; border-radius: 999px; background: var(--ink); color: #FDFCF9; text-decoration: none; font-weight: 600; font-size: 15px; }
+    .btn.ghost { background: transparent; color: var(--ink); border: 1px solid rgba(29,29,27,.25); }
+    .hero { padding: 48px 0 36px; }
+    h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; max-width: 760px; }
+    .lead { font-size: 18.5px; color: var(--body); max-width: 720px; margin: 0 0 26px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    section { padding: 26px 0; }
+    h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px 22px; }
+    .card h3 { margin: 0 0 6px; font-size: 17px; }
+    .card p { margin: 0; color: var(--body); font-size: 15px; }
+    .note { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--yellow); border-radius: 16px; padding: 18px 22px; }
+    .note p { margin: 0 0 10px; color: var(--body); }
+    .note p:last-child { margin: 0; }
+    ul { margin: 0 0 12px; padding-left: 22px; color: var(--body); }
+    li { margin-bottom: 6px; }
+    footer { margin-top: 30px; padding: 26px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+    footer nav { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap bar">
+      <a class="brand" href="/">Origami <small>Design + Build</small></a>
+      <a class="btn" href="/login">Sign in</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <h1>Origami — the project delivery platform of Origami Design + Build</h1>
+      <p class="lead">
+        Origami Design + Build is a design-build firm: we design and build homes, additions and remodels.
+        <strong>Origami</strong> (origamidb.com) is the private web application our team uses to run that work —
+        from a new lead's first call, through design and construction, to the final invoice. Our staff, and the clients,
+        consultants and subcontractors working on our projects, sign in to see and update the work that concerns them.
+      </p>
+      <div class="actions">
+        <a class="btn" href="/login">Sign in to Origami</a>
+        <a class="btn ghost" href="/privacy">Privacy policy</a>
+      </div>
+    </div>
+
+    <section>
+      <h2>What Origami is used for</h2>
+      <div class="grid">
+        <div class="card"><h3>Leads and clients</h3><p>Track enquiries and referrals from the first call to a signed contract: meetings, site visits, proposals and follow-ups.</p></div>
+        <div class="card"><h3>Projects and tasks</h3><p>Every project's phases, task boards, requests, RFIs, change orders and meeting actions, with who is responsible and when it is due.</p></div>
+        <div class="card"><h3>Schedules and calendars</h3><p>Project timelines, and meetings and site visits booked on the team's own Google Calendars.</p></div>
+        <div class="card"><h3>Files and documents</h3><p>Drawings, photos and documents for each project, kept in the company's Google Drive and attached to the work they belong to.</p></div>
+        <div class="card"><h3>Field and crew</h3><p>Superintendents' daily logs, crew deployment and weekly timesheets for our employees and subcontractors.</p></div>
+        <div class="card"><h3>Project finances</h3><p>Contracts, billing, payments, reimbursable expenses and job costs for each project and for the business as a whole.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Who can use it</h2>
+      <p>Origami is not a public or consumer service and has no open sign-up. An administrator at Origami Design + Build
+        creates each account for our staff and for the clients, consultants and subcontractors on our projects. Each person
+        sees only what their role allows.</p>
+    </section>
+
+    <section>
+      <h2>How Origami uses Google</h2>
+      <div class="note">
+        <p>You can sign in with your Google account. Origami then receives only your name, email address and profile picture,
+          and uses them to recognise your existing Origami account.</p>
+        <p>With your permission, Origami also connects to Google services to do specific jobs for you:
+          <strong>Gmail</strong> (to send invitations, reminders and project emails — it cannot read your mail),
+          <strong>Google Calendar</strong> (to show your meetings and to add meetings and site visits you book in Origami),
+          and <strong>Google Drive</strong> (to store and open the files attached to projects and tasks).</p>
+        <p>Google data is used only to provide these features. It is never sold, never used for advertising, and never used to
+          train AI models. The <a href="/privacy">privacy policy</a> explains exactly what is accessed, how it is stored and how to remove it.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Contact</h2>
+      <p>Origami Design + Build — <a href="mailto:Systems@origamidb.com">Systems@origamidb.com</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <nav><a href="/">Home</a><a href="/privacy">Privacy policy</a><a href="/terms">Terms of service</a><a href="/login">Sign in</a></nav>
+      © Origami Design + Build. Origami is the company's internal project delivery platform.
+    </div>
+  </footer>
+</body>
+</html>

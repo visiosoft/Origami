@@ -21,6 +21,7 @@ const typeorm_2 = require("typeorm");
 const entities_1 = require("../database/entities");
 const google_service_1 = require("../google/google.service");
 const settings_service_1 = require("../settings/settings.service");
+const daily_report_html_1 = require("./daily-report.html");
 const shell_1 = require("../email/shell");
 const STATUS = { start: 'Start', continued: 'Continued', completing: 'Completing' };
 const csvCell = (v) => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
@@ -39,6 +40,9 @@ function dailyLogRows(entries, employees, codes) {
     }).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }) || a.worker.localeCompare(b.worker));
 }
 function dailyLogCsv(meta, rows) {
+    const filled = (r) => Object.entries(r || {}).some(([k, v]) => k !== 'id' && v !== '' && v != null);
+    const del = meta.sections?.deliveries?.present === 'yes' ? (meta.sections.deliveries.rows || []).filter(filled) : [];
+    const eq = meta.sections?.equipment?.used === 'yes' ? (meta.sections.equipment.rows || []).filter(filled) : [];
     const lines = [
         ['Daily log', meta.project], ['Date', meta.date], ['Superintendent', meta.supervisor], ['Status', meta.status], [],
         ['Worker', 'Worker ID', 'Trade', 'Cost code', 'Division', 'Hours', 'Task', 'Team', 'What they worked on'],
@@ -46,6 +50,10 @@ function dailyLogCsv(meta, rows) {
         ['Total', '', '', '', '', rows.reduce((a, r) => a + r.hours, 0)],
         [], ['Site notes', meta.notes || ''],
     ];
+    if (del.length)
+        lines.push([], ['Transmittal (deliveries)'], ['Supplier', 'PO / ticket', 'Items', 'Qty', 'Received by', 'Condition', 'Notes'], ...del.map((r) => [r.supplier || '', r.poRef || '', r.items || '', r.qty ?? '', r.receivedBy || '', r.condition || '', r.notes || '']));
+    if (eq.length)
+        lines.push([], ['Equipment utilization'], ['Equipment', 'Owned / rented', 'Rented from', 'Operator', 'Hours used', 'Hours idle', 'Notes'], ...eq.map((r) => [r.equipment || '', r.ownership || '', r.supplier || '', r.operator || '', r.hoursUsed ?? '', r.hoursIdle ?? '', r.notes || '']), ['Total', '', '', '', eq.reduce((a, r) => a + (Number(r.hoursUsed) || 0), 0), eq.reduce((a, r) => a + (Number(r.hoursIdle) || 0), 0)]);
     return lines.map((l) => l.map(csvCell).join(',')).join('\r\n');
 }
 let DailyLogBackupService = class DailyLogBackupService {
@@ -115,6 +123,7 @@ let DailyLogBackupService = class DailyLogBackupService {
         <tr><td style="${cell}"><b>Total</b></td><td style="${cell}"></td><td style="${cell}"></td><td style="${cell}"></td><td style="${cell}"><b>${hours}</b></td><td style="${cell}" colspan="3"></td></tr>
       </table>
       ${meta.notes ? `<h2 style="font-size:12pt;margin:16px 0 4px;">Site notes</h2><div style="font-size:10.5pt;white-space:pre-wrap;">${(0, shell_1.escapeHtml)(meta.notes)}</div>` : ''}
+      ${(0, daily_report_html_1.reportSectionsHtml)(day.sections, { onBehalfOf: day.onBehalfOf, certifiedName: day.certifiedName, signatureDataUrl: day.signatureDataUrl, signedAt: day.signedAt, filer: day.supervisorName })}
     </body></html>`;
         const base = `Daily log ${fileDate(day.date)} - ${projectName}`.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120);
         const attachments = [];
@@ -124,7 +133,7 @@ let DailyLogBackupService = class DailyLogBackupService {
         catch (e) {
             this.log.warn(`PDF for ${day.id} skipped: ${e.message}`);
         }
-        const csv = dailyLogCsv(meta, rows);
+        const csv = dailyLogCsv({ ...meta, sections: day.sections }, rows);
         try {
             attachments.push({ filename: `${base}.xlsx`, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', content: await this.google.csvToXlsx(csv, base) });
         }

@@ -23,10 +23,13 @@ const project_tasks_module_1 = require("./project-tasks/project-tasks.module");
 const workflows_module_1 = require("./workflows/workflows.module");
 const support_module_1 = require("./support/support.module");
 const consultants_module_1 = require("./consultants/consultants.module");
+const meetings_module_1 = require("./meetings/meetings.module");
 const email_templates_module_1 = require("./email-templates/email-templates.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
 const seed_module_1 = require("./database/seed.module");
 const settings_module_1 = require("./settings/settings.module");
+const audit_module_1 = require("./audit/audit.module");
+const contracts_module_1 = require("./contracts/contracts.module");
 const google_module_1 = require("./google/google.module");
 const auth_module_1 = require("./auth/auth.module");
 const reminders_module_1 = require("./reminders/reminders.module");
@@ -40,6 +43,8 @@ const guest_access_module_1 = require("./guest-access/guest-access.module");
 const scheduling_module_1 = require("./scheduling/scheduling.module");
 const manpower_module_1 = require("./manpower/manpower.module");
 const finance_module_1 = require("./finance/finance.module");
+const views_module_1 = require("./views/views.module");
+const special_actions_module_1 = require("./special-actions/special-actions.module");
 const session_guard_1 = require("./auth/guards/session.guard");
 const roles_guard_1 = require("./auth/guards/roles.guard");
 let AppModule = class AppModule {
@@ -69,6 +74,8 @@ exports.AppModule = AppModule = __decorate([
             }),
             seed_module_1.SeedModule,
             settings_module_1.SettingsModule,
+            audit_module_1.AuditModule,
+            contracts_module_1.ContractsModule,
             google_module_1.GoogleModule,
             auth_module_1.AuthModule,
             reminders_module_1.RemindersModule,
@@ -89,12 +96,15 @@ exports.AppModule = AppModule = __decorate([
             workflows_module_1.WorkflowsModule,
             support_module_1.SupportModule,
             consultants_module_1.ConsultantsModule,
+            meetings_module_1.MeetingsModule,
             email_templates_module_1.EmailTemplatesModule,
             dashboard_module_1.DashboardModule,
             notifications_module_1.NotificationsModule,
             sms_module_1.SmsModule,
             manpower_module_1.ManpowerModule,
             finance_module_1.FinanceModule,
+            views_module_1.ViewsModule,
+            special_actions_module_1.SpecialActionsModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: session_guard_1.SessionGuard },

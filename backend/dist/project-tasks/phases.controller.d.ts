@@ -22,6 +22,31 @@ export declare class PhasesController {
         tasksEnriched: number;
         phasesNotInTemplate: string[];
     }>;
+    schedule(): Promise<{
+        projectId: number;
+        name: string;
+        stage: string;
+        contractType: string;
+        estStart: string;
+        duration: string;
+        holdSince: string;
+        holdUntil: string;
+        progress: number;
+        currentPhaseKey: string;
+        start: string | null;
+        end: string | null;
+        phases: {
+            id: string;
+            key: string;
+            name: string;
+            color: string;
+            progress: number;
+            complete: boolean;
+            total: number;
+            start: string | null;
+            end: string | null;
+        }[];
+    }[]>;
     overview(): Promise<{
         projectId: number;
         name: string;
@@ -40,6 +65,7 @@ export declare class PhasesController {
         templateCategory: import("../seed-data/programme-template").TemplateCategory;
         designPhase: string | null;
         holdSince: string;
+        highViz: boolean;
         holdUntil: string;
         holdReason: string;
         currentPhaseKey: string;
@@ -83,6 +109,16 @@ export declare class PhasesController {
             targetDays: number;
             targetDerived: boolean;
             id: string;
+            closedAt: string;
+            pendingNotices: import("../notifications/pending-notices").PendingNotice[] | null;
+            holdReason: string;
+            leadId: string;
+            leadName: string;
+            serial: string;
+            sourceType: string;
+            sourceId: string;
+            sourceLabel: string;
+            derivedRefs: import("../database/task.types").DerivedRef[] | null;
             projectId: number | null;
             sectionId: string;
             title: string;
@@ -114,6 +150,13 @@ export declare class PhasesController {
             endDate: string;
             durationDays: number;
             dependsOn: string[];
+            createdById: string;
+            createdByName: string;
+            requestedById: string;
+            requestedBy: string;
+            completionNote: string;
+            confirmedAt: string;
+            archivedAt: string;
         }[];
     }>;
     create(dto: CreatePhaseDto): Promise<import("../database/entities").ProjectPhaseEntity>;

@@ -18,10 +18,12 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const crypto_1 = require("crypto");
 const entities_1 = require("../database/entities");
-exports.SECRET_KEYS = ['google.clientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
+exports.SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
 exports.PUBLIC_KEYS = [
     'google.clientId',
     'google.clientSecret',
+    'google.workspaceClientId',
+    'google.workspaceClientSecret',
     'app.baseUrl',
     'app.notice',
     'app.noticeActive',
@@ -30,6 +32,7 @@ exports.PUBLIC_KEYS = [
     'google.allowSignup',
     'google.hostedDomain',
     'google.attachmentsFolder',
+    'fileRoom.folderTemplate',
     'reminders.enabled',
     'reminders.hour',
     'reminders.timezone',
@@ -54,6 +57,7 @@ exports.PUBLIC_KEYS = [
     'brand.phone',
     'brand.email',
     'brand.website',
+    'brand.license',
     'brand.footerNote',
     'brand.signatureName',
     'brand.signatureTitle',

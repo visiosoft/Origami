@@ -3,6 +3,7 @@ import { AuthService } from '../auth/auth.service';
 import { AttachmentsService } from '../google/attachments.service';
 import { AddLinkDto } from '../tasks/dto/update-task.dto';
 import { ContractorsService } from './contractors.service';
+import { ContractorBidsService } from './contractor-bids.service';
 export declare class ContractorDto {
     companyName?: string;
     personId?: number;
@@ -28,7 +29,8 @@ export declare class ContractorsController {
     private readonly service;
     private readonly auth;
     private readonly attachments;
-    constructor(service: ContractorsService, auth: AuthService, attachments: AttachmentsService);
+    private readonly bids;
+    constructor(service: ContractorsService, auth: AuthService, attachments: AttachmentsService, bids: ContractorBidsService);
     findAll(): Promise<{
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
@@ -36,6 +38,7 @@ export declare class ContractorsController {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: import("./contractor-bids").BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -66,6 +69,7 @@ export declare class ContractorsController {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: import("./contractor-bids").BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -96,6 +100,7 @@ export declare class ContractorsController {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: import("./contractor-bids").BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -123,6 +128,74 @@ export declare class ContractorsController {
         id: string;
         deleted: boolean;
     }>;
+    listBids(id: string): Promise<{
+        projectName: any;
+        id: string;
+        contractorId: string;
+        projectId: number | null;
+        tradeId: string;
+        scope: string;
+        dateReceived: string;
+        amount: number | null;
+        outcome: string;
+        dueDate: string | null;
+        outcomeDate: string;
+        notes: string;
+        createdByName: string;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
+    addBid(id: string, dto: any, auth?: string): Promise<{
+        projectName: any;
+        id: string;
+        contractorId: string;
+        projectId: number | null;
+        tradeId: string;
+        scope: string;
+        dateReceived: string;
+        amount: number | null;
+        outcome: string;
+        dueDate: string | null;
+        outcomeDate: string;
+        notes: string;
+        createdByName: string;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
+    updateBid(bidId: string, dto: any): Promise<{
+        projectName: any;
+        id: string;
+        contractorId: string;
+        projectId: number | null;
+        tradeId: string;
+        scope: string;
+        dateReceived: string;
+        amount: number | null;
+        outcome: string;
+        dueDate: string | null;
+        outcomeDate: string;
+        notes: string;
+        createdByName: string;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
+    removeBid(bidId: string): Promise<{
+        projectName: any;
+        id: string;
+        contractorId: string;
+        projectId: number | null;
+        tradeId: string;
+        scope: string;
+        dateReceived: string;
+        amount: number | null;
+        outcome: string;
+        dueDate: string | null;
+        outcomeDate: string;
+        notes: string;
+        createdByName: string;
+        createdAt: string;
+        updatedAt: string;
+    }[]>;
     upload(id: string, files: any[], auth?: string): Promise<{
         attachments: import("../database/task.types").TaskAttachment[];
         contractStatus: import("./employee-records.service").ExpiryStatus;
@@ -130,6 +203,7 @@ export declare class ContractorsController {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: import("./contractor-bids").BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -160,6 +234,7 @@ export declare class ContractorsController {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: import("./contractor-bids").BidStats;
         id: string;
         companyName: string;
         personId: number;
@@ -190,6 +265,7 @@ export declare class ContractorsController {
         licenseStatus: import("./employee-records.service").ExpiryStatus;
         tradeIds: string[];
         workerCount: number;
+        bidStats: import("./contractor-bids").BidStats;
         id: string;
         companyName: string;
         personId: number;

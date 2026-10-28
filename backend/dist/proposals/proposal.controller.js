@@ -20,11 +20,15 @@ const public_decorator_1 = require("../auth/guards/public.decorator");
 const google_service_1 = require("../google/google.service");
 const settings_service_1 = require("../settings/settings.service");
 const letterhead_1 = require("../documents/letterhead");
+const placeholders_1 = require("../email-templates/placeholders");
 let ProposalController = class ProposalController {
     constructor(service, google, settings) {
         this.service = service;
         this.google = google;
         this.settings = settings;
+    }
+    awaiting() {
+        return this.service.awaitingSignature();
     }
     get(dealId) {
         return this.service.get(dealId);
@@ -40,6 +44,7 @@ let ProposalController = class ProposalController {
     }
     async send(body, req) {
         const doc = await this.service.get(body.dealId);
+        (0, placeholders_1.assertFilled)(doc.subject, doc.html);
         const link = await this.service.signingLink(body.dealId);
         const { pdf, filename } = await this.renderPdf(doc.subject, doc.html, doc.amount, doc.dealName);
         const attachments = [{ filename, mimeType: 'application/pdf', content: pdf }];
@@ -115,6 +120,13 @@ let ProposalController = class ProposalController {
     }
 };
 exports.ProposalController = ProposalController;
+__decorate([
+    (0, roles_decorator_1.Tiers)('internal'),
+    (0, common_1.Get)('awaiting'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ProposalController.prototype, "awaiting", null);
 __decorate([
     (0, roles_decorator_1.Tiers)('internal'),
     (0, common_1.Get)(),

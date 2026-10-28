@@ -1,4 +1,7 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { readState, signState } from '../auth/crypto.util';
+import { brandingFrom } from '../documents/letterhead';
+import { TrackingService } from '../tracking/tracking.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -45,7 +48,34 @@ export class ChangeOrdersService {
     private readonly attachments?: AttachmentsService,
     private readonly google?: GoogleService,
     private readonly settings?: SettingsService,
+    @Optional() private readonly tracking?: TrackingService,
   ) {}
+
+  /**
+   * A "View the change order" link for the client's email (Oct 27 backlog item
+   * 12): tracked, so the drawer can say when they opened it, and forwarding to
+   * the PDF through a signed link that lasts 60 days. Null when it can't be made.
+   */
+  private async viewLink(co: ChangeOrderEntity, to: string) {
+    if (!this.tracking || !this.settings) return null;
+    const token = signState({ mode: 'co-view', coId: co.id }, await this.settings.jwtSecret());
+    const target = `${(await this.settings.baseUrl()) || ''}/api/change-order-view?token=${encodeURIComponent(token)}`;
+    return this.tracking.link({ kind: 'co', refId: co.id, target, recipient: to, projectId: co.projectId, label: `change order ${co.number}` });
+  }
+
+  /** The change order's PDF, for the client's link -- no account needed, the signed token is the key. */
+  async publicPdf(token: string) {
+    if (!this.settings || !this.google) throw new NotFoundException();
+    const st = readState(String(token || ''), await this.settings.jwtSecret(), 60 * 24 * 60 * 60_000);
+    if (!st || st.mode !== 'co-view' || !st.coId) throw new ForbiddenException('This link has expired. Ask your project contact to send it again.');
+    const co = await this.load(String(st.coId));
+    const project = await this.fin.project(co.projectId);
+    const doc = this.present(co, await this.items.find({ where: { changeOrderId: co.id } }));
+    const keys = ['companyName', 'tagline', 'logoDataUrl', 'accentColor', 'address', 'phone', 'email', 'website', 'footerNote'].map((k) => `brand.${k}`);
+    const brand = brandingFrom(await this.settings.getMany(keys));
+    const pdf = await this.google.htmlToPdf(changeOrderHtml(doc as any, brand as any, project.name), co.number);
+    return { pdf, filename: `${co.number}.pdf` };
+  }
 
   /**
    * Email the change order to the client for signature: the signed-off PDF
@@ -72,7 +102,7 @@ export class ChangeOrdersService {
     await this.google.sendMail({
       to, cc: cc.join(', ') || undefined,
       subject: `Change order ${co.number} for your signature — ${project.name}`,
-      html: emailShell({ brand: emailBrand as any, eyebrow: `Change order · ${co.number}`, title: first ? `Hi ${escapeHtml(first)},` : 'Hello,', body: changeOrderEmailBody(doc as any, project.name, note), footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
+      html: emailShell({ brand: emailBrand as any, eyebrow: `Change order · ${co.number}`, title: first ? `Hi ${escapeHtml(first)},` : 'Hello,', body: changeOrderEmailBody(doc as any, project.name, note) + viewButton(await this.viewLink(co, to).catch(() => null)), footer: `Sent by ${escapeHtml(actor.name)} at ${escapeHtml(emailBrand.companyName)}.` }),
       attachments: [{ filename: `${co.number}.pdf`, mimeType: 'application/pdf', content: pdf }],
     });
     await this.fin.approval(null, { projectId: co.projectId, entityType: 'change_order', entityId: co.id, decision: 'sent_to_client', comment: [`Emailed to ${to}${cc.length ? `, cc ${cc.join(', ')}` : ''}`, note].filter(Boolean).join(' · ') }, actor);
@@ -449,3 +479,9 @@ export class ChangeOrdersService {
   }
 }
 
+
+/** The tracked "View the change order" button, or nothing. */
+export function viewButton(url: string | null): string {
+  if (!url) return '';
+  return `<p style="margin:18px 0 0;"><a href="${escapeHtml(url)}" style="display:inline-block;padding:10px 20px;border-radius:999px;background:#173326;color:#ffffff;text-decoration:none;font-weight:700;">View the change order</a></p>`;
+}

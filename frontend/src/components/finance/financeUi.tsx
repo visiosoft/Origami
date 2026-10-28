@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Badge, input as INPUT } from '../manpowerUi';
+import type { ActionTrailFields } from '../../api';
 
 export interface Figures {
   value: number | null; ev: number; invoiced: number; retention: number; paid: number; billable: number; overBilled: number;
@@ -35,7 +36,7 @@ export interface Settings {
 }
 export interface Rights {
   view: boolean; manage: boolean; reportProgress: boolean; approveProgress: boolean;
-  prepareInvoice: boolean; issueInvoice: boolean; recordPayment: boolean; approveChangeOrders: boolean; approveReimbursables: boolean; releaseRetention: boolean;
+  prepareInvoice: boolean; issueInvoice: boolean; approveInvoice?: boolean; recordPayment: boolean; approveChangeOrders: boolean; approveReimbursables: boolean; releaseRetention: boolean;
   viewChangeOrders: boolean; editChangeOrders: boolean; viewReimbursables: boolean; submitReimbursables: boolean;
   manageCosts: boolean; approveCosts: boolean; viewProfitability: boolean;
 }
@@ -64,7 +65,7 @@ export interface Invoice {
   paymentStatus: 'draft' | 'void' | 'paid' | 'overdue' | 'partially_paid' | 'unpaid' | 'credit' | 'credit_balance'; overdue: boolean;
   creditForInvoiceId?: string; creditType?: 'credit' | 'write_off'; creditReason?: string; creditFor?: { id: string; issuedNumber: string } | null;
   credits?: { id: string; issuedNumber?: string; status: string; creditType?: string; total: number; invoiceDate: string }[];
-  approvalRequestedAt?: string; approvalRequestedBy?: string; approvals?: Approval[];
+  approvalRequestedAt?: string; approvalRequestedBy?: string; approvedAt?: string | null; approvedBy?: string | null; approvals?: Approval[];
   issuedAt?: string; issuedByName?: string; voidedAt?: string; voidedByName?: string; voidReason?: string; version: number;
   lines?: InvoiceLine[]; payments?: Payment[]; createdBy?: string;
 }
@@ -100,9 +101,9 @@ export const PAYMENT_METHODS: [string, string][] = [['ach', 'ACH / direct deposi
 /** A thin progress bar: billable progress solid, reported (if ahead) as a lighter band. */
 export function ProgressBar({ reported, billable }: { reported: number; billable: number }) {
   return (
-    <div style={{ height: 6, borderRadius: 99, background: '#EFEDE8', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0, width: `${Math.min(100, reported)}%`, background: '#CFE3D2' }} />
-      <div style={{ position: 'absolute', inset: 0, width: `${Math.min(100, billable)}%`, background: '#2F7D4A' }} />
+    <div style={{ height: 6, borderRadius: 99, background: 'var(--c-efede8)', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0, width: `${Math.min(100, reported)}%`, background: 'var(--c-cfe3d2)' }} />
+      <div style={{ position: 'absolute', inset: 0, width: `${Math.min(100, billable)}%`, background: 'var(--success)' }} />
     </div>
   );
 }
@@ -123,7 +124,7 @@ export interface ChangeOrderItem {
   id?: string; description: string; targetType: 'phase' | 'task' | 'new_phase' | 'new_task' | 'none'; phaseId?: string | null; taskId?: string | null;
   newName?: string; amount: number | string; cost?: number | string | null; quantity?: number | string | null; unit?: string; rate?: number | string | null; csiCodeId?: string;
 }
-export interface ChangeOrder {
+export interface ChangeOrder extends ActionTrailFields {
   id: string; projectId: number; projectName?: string; number: string; title: string; description?: string; reason: string; requestedBy?: string;
   status: 'draft' | 'internal_review' | 'submitted' | 'approved' | 'rejected' | 'cancelled'; scheduleImpactDays: number; amount: number | null;
   dateRequested?: string; notes?: string; attachments: any[]; items: ChangeOrderItem[]; total: number; cost: number; margin: number;
@@ -133,6 +134,8 @@ export interface ChangeOrder {
 }
 export interface Reimbursable {
   id: string; projectId: number; projectName?: string; number: string; date: string; description: string; category: string; vendor?: string;
+  /** The number printed on the receipt; `receiptDuplicates` are other expenses with the same one. */
+  receiptNumber?: string; receiptDuplicates?: { id: string; number: string; projectName: string; date: string; cost: number; vendor?: string | null }[];
   cost: number; markupPct: number; markup: number; billAmount: number; billable: boolean; taxable: boolean; phaseId?: string; csiCodeId?: string;
   status: 'submitted' | 'approved' | 'rejected' | 'billed'; submittedBy?: string; approvedAt?: string; approvedBy?: string; rejectedAt?: string; rejectedBy?: string;
   rejectedReason?: string; invoiceId?: string; notes?: string; attachments: any[]; approvals?: Approval[]; version: number;
@@ -180,13 +183,13 @@ export function ApprovalTrail({ items }: { items?: Approval[] }) {
   if (!items?.length) return null;
   return (
     <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Approval trail</div>
-      <div style={{ borderLeft: '2px solid #DCE7DE', paddingLeft: 12, display: 'grid', gap: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Approval trail</div>
+      <div style={{ borderLeft: '2px solid var(--mint)', paddingLeft: 12, display: 'grid', gap: 8 }}>
         {items.map((a) => (
           <div key={a.id} style={{ fontSize: 12.5, lineHeight: 1.5 }}>
             <b>{DECISION[a.decision] || a.decision}</b>{a.signer ? ` — signed by ${a.signer}` : ''}{a.amount != null ? ` · ${usd(a.amount)}` : ''}
-            <div style={{ color: '#7E9B93', fontSize: 11.5 }}>{a.byName} · {new Date(a.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
-            {a.comment && <div style={{ color: '#0B1A12' }}>“{a.comment}”</div>}
+            <div style={{ color: 'var(--muted)', fontSize: 11.5 }}>{a.byName} · {new Date(a.at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>
+            {a.comment && <div style={{ color: 'var(--ink)' }}>“{a.comment}”</div>}
           </div>
         ))}
       </div>
@@ -202,12 +205,12 @@ export function ReasonBox({ title, fields, confirm, tone, onCancel, onSubmit }: 
   const [v, setV] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((f) => [f.key, f.initial || ''])));
   const ok = fields.every((f) => !f.required || v[f.key]?.trim());
   return (
-    <div style={{ background: 'white', border: '1px solid ' + (tone === 'danger' ? '#E3C2B3' : '#173326'), borderRadius: 14, padding: '12px 14px', display: 'grid', gap: 10 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, color: tone === 'danger' ? '#8E2E0A' : '#0B1A12' }}>{title}</div>
+    <div style={{ background: 'var(--surface)', border: '1px solid ' + (tone === 'danger' ? '#E3C2B3' : 'var(--forest)'), borderRadius: 'var(--r-14)', padding: '12px 14px', display: 'grid', gap: 10 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: tone === 'danger' ? '#8E2E0A' : 'var(--ink)' }}>{title}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
         {fields.map((f) => (
           <div key={f.key} style={{ gridColumn: f.type === 'textarea' ? '1 / -1' : undefined }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#7E9B93', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{f.label}{f.required ? ' *' : ''}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>{f.label}{f.required ? ' *' : ''}</div>
             {f.options
               ? <select value={v[f.key]} onChange={(e) => setV({ ...v, [f.key]: e.target.value })} style={INPUT}><option value="">Choose…</option>{f.options.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               : f.type === 'textarea'
@@ -217,8 +220,8 @@ export function ReasonBox({ title, fields, confirm, tone, onCancel, onSubmit }: 
         ))}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <div onClick={ok ? () => onSubmit(v) : undefined} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: ok ? 'pointer' : 'default', background: ok ? (tone === 'danger' ? '#8E2E0A' : '#173326') : '#C9D3CE', color: 'white' }}>{confirm}</div>
-        <div onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,.12)' }}>Cancel</div>
+        <div onClick={ok ? () => onSubmit(v) : undefined} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: ok ? 'pointer' : 'default', background: ok ? (tone === 'danger' ? '#8E2E0A' : 'var(--forest)') : '#C9D3CE', color: 'white' }}>{confirm}</div>
+        <div onClick={onCancel} style={{ padding: '8px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), .12)' }}>Cancel</div>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ const google_service_1 = require("../google/google.service");
 const reminder_templates_1 = require("./reminder.templates");
 const shell_1 = require("../email/shell");
 const log_statuses_1 = require("../tasks/log-statuses");
+const tasks_service_1 = require("../tasks/tasks.service");
 const DAY = 86400000;
 const HOUR = 3600000;
 exports.DEFAULT_REMINDER_TIMEZONE = 'America/Los_Angeles';
@@ -67,6 +68,8 @@ function bucketTasks(tasks, today) {
 }
 function wantsDigest(user, today) {
     if (user.notifyByEmail === false)
+        return false;
+    if (user.notificationMatrix)
         return false;
     const freq = user.digestFrequency || 'daily';
     if (freq === 'off')
@@ -133,7 +136,7 @@ let RemindersService = class RemindersService {
         const following = (list) => Array.isArray(list) && list.some((c) => c?.id === user.id);
         const out = [];
         for (const t of data.boardTasks) {
-            if (t.completed || t.status === 'Done' || t.parentId || !t.dueDate)
+            if (t.completed || t.status === 'Done' || !t.dueDate)
                 continue;
             const mine = this.isMine(t.assigneeId, t.assignee, user);
             if (!mine && !following(t.collaborators))
@@ -152,7 +155,7 @@ let RemindersService = class RemindersService {
             if (!mine && !following(t.collaborators))
                 continue;
             out.push({
-                id: t.id, title: t.description?.slice(0, 90) || t.id, dueDate: t.dueDate,
+                id: t.id, title: (0, tasks_service_1.taskTitle)(t).slice(0, 90), dueDate: t.dueDate,
                 project: t.project || '', where: 'log', following: !mine,
                 url: `${base}/tasks?task=${encodeURIComponent(t.id)}&type=log`,
             });
@@ -264,7 +267,7 @@ let RemindersService = class RemindersService {
         const base = await this.settings.baseUrl();
         const brand = await (0, shell_1.loadEmailBrand)(this.settings);
         for (const user of data.users) {
-            if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false)
+            if (!user.email || user.status === 'suspended' || user.notifyOnOverdue !== true || user.notifyByEmail === false || user.notificationMatrix)
                 continue;
             const overdue = bucketTasks(this.tasksFor(user, data, base), today).overdue;
             if (!overdue.length)
