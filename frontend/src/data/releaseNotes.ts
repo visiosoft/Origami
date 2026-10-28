@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28c',
+    date: '2026-10-28',
+    title: 'Same task columns on every board',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'Task board columns are now the same on every project’s board and General. Adding, renaming (saved when you leave the name), moving or deleting a column changes it on every board; a deleted column’s tasks move to each board’s first column.', where: 'Task → Board' },
+      { area: 'Tasks', kind: 'new', text: '“Make every board match” lines every other board up with the one you’re on — once, after you confirm. No task is deleted. New project boards start with General’s columns.' },
+      { area: 'Access', kind: 'improved', text: 'Only administrators and principals can add, rename, move or delete columns.' },
+    ],
+  },
+  {
     id: '2026-10-28b',
     date: '2026-10-28',
     title: 'Dead leads: Cold / Loss and Cancelled / Passed',

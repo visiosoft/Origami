@@ -775,6 +775,12 @@ export const api = {
     create: (data: unknown) => request('/project-sections', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-sections/${id}`, { method: 'DELETE' }),
+    /** The same columns on every board (Oct 27 sync): each change applies to every project's board and General. */
+    addEverywhere: (name: string) => request<{ added: number }>('/project-sections/everywhere', { method: 'POST', body: JSON.stringify({ name }) }),
+    renameEverywhere: (id: string, name: string) => request<{ renamed: number }>(`/project-sections/${id}/everywhere`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    orderEverywhere: (names: string[]) => request('/project-sections/order-everywhere', { method: 'PUT', body: JSON.stringify({ names }) }),
+    removeEverywhere: (id: string) => request<{ removed: number }>(`/project-sections/${id}/everywhere`, { method: 'DELETE' }),
+    matchAll: (projectId: number | null) => request<{ boards: number }>(`/project-sections/match/${projectId ?? 'general'}`, { method: 'POST' }),
   },
   workflows: {
     list: (projectId?: number | 'none') => request(`/workflows${projectId !== undefined ? `?projectId=${projectId}` : ''}`),

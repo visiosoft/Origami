@@ -132,7 +132,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   // New cards belong to one project's board, not the all-projects view.
   const canAdd = canManage && !all;
   // The board's columns (their titles, adding, deleting and order) are set by an administrator.
-  const canShape = authUser?.roleKey === 'admin' && !all;
+  // Leadership only -- administrators and principals (Oct 27 sync: "locked to our i-2 internal team").
+  const canShape = ['admin', 'principal'].includes(authUser?.roleKey || '') && !all;
   // Each task's real column is kept, and its bucket column shown, on the all-projects view.
   const inBucket = (t: ProjectTask): ProjectTask => (all ? { ...t, homeSectionId: (t as any).homeSectionId ?? t.sectionId, sectionId: bucketCol(t) } as ProjectTask : t);
   const [projectNames, setProjectNames] = useState<Record<number, string>>({});
@@ -303,36 +304,47 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   };
 
   // ---- section mutations ----
+  // Columns are the same on every board (Oct 27 sync): each change here applies to every project's board and General.
   const addSection = () => {
-    api.projectSections.create({ projectId, name: 'New Section', order: sections.length })
-      .then((res: any) => { if (res) setSections((prev) => [...prev, res as ProjectSection]); })
-      .catch(() => toast('⚠ Failed to add section'));
+    api.projectSections.addEverywhere('New Section')
+      .then(() => { load(); toast('Column added to every board'); })
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Failed to add the column')));
   };
-  const renameSection = (id: string, name: string) => {
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
-    persist(() => api.projectSections.update(id, { name })).catch((e: Error) => toast('⚠ Section name not saved — ' + (e.message || 'try again')));
+  /** Typing changes this board; leaving the field renames the column on every board. */
+  const renameSection = (id: string, name: string) => setSections((prev) => prev.map((s) => (s.id === id ? { ...s, name } : s)));
+  const commitRename = (id: string, before: string) => {
+    const name = (sections.find((s) => s.id === id)?.name || '').trim();
+    if (!name || name === before) { if (!name) setSections((prev) => prev.map((s) => (s.id === id ? { ...s, name: before } : s))); return; }
+    persist(() => api.projectSections.renameEverywhere(id, name))
+      .then((r) => toast(`Renamed on ${r?.renamed ?? 'every'} board${r?.renamed === 1 ? '' : 's'}`))
+      .catch((e: Error) => toast('⚠ Column name not saved — ' + (e.message || 'try again')));
   };
-  /** Move a column one place left (-1) or right (+1). */
+  /** Move a column one place left (-1) or right (+1), on every board. */
   const moveSection = (id: string, dir: -1 | 1) => {
     const i = sections.findIndex((s) => s.id === id);
     const j = i + dir;
     if (i < 0 || j < 0 || j >= sections.length) return;
     const next = [...sections];
     [next[i], next[j]] = [next[j], next[i]];
-    const ordered = next.map((s, k) => ({ ...s, order: k }));
-    setSections(ordered);
-    persist(() => Promise.all([ordered[i], ordered[j]].map((s) => api.projectSections.update(s.id, { order: s.order }))))
+    setSections(next.map((s, k) => ({ ...s, order: k })));
+    persist(() => api.projectSections.orderEverywhere(next.map((s) => s.name)))
       .catch((e: Error) => toast('⚠ Column order not saved — ' + (e.message || 'try again')));
   };
   const deleteSection = (id: string) => {
     if (sections.length <= 1) { toast('Keep at least one section'); return; }
+    const sec = sections.find((s) => s.id === id);
     const rest = sections.filter((s) => s.id !== id);
-    const target = rest[0].id;
-    if (!confirm('Delete this section? Its tasks move to "' + rest[0].name + '".')) return;
-    // move tasks to the first remaining section, then delete the section
-    tasks.filter((t) => t.sectionId === id).forEach((t) => updateTask(t.id, { sectionId: target }));
-    setSections(rest);
-    persist(() => api.projectSections.remove(id)).catch((e: Error) => toast('⚠ Section not deleted — ' + (e.message || 'try again')));
+    if (!confirm(`Delete the “${sec?.name}” column from every board? Its tasks move to each board’s first column (here: “${rest[0].name}”).`)) return;
+    persist(() => api.projectSections.removeEverywhere(id))
+      .then(() => { load(); toast('Column removed from every board'); })
+      .catch((e: Error) => toast('⚠ Section not deleted — ' + (e.message || 'try again')));
+  };
+  /** One-off: line every other board up with this one (their extra columns' tasks move to their first column). */
+  const matchAllBoards = () => {
+    if (!confirm(`Make every board — each project’s and General — use these ${sections.length} columns, in this order?\n\n${sections.map((s) => s.name).join(' · ')}\n\nColumns a board has that aren’t here are removed and their tasks moved to that board’s first column. No task is deleted.`)) return;
+    persist(() => api.projectSections.matchAll(projectId === 'all' ? null : projectId ?? null))
+      .then((r) => toast(r?.boards ? `${r.boards} board${r.boards === 1 ? '' : 's'} updated` : 'Every board already matches'))
+      .catch((e: Error) => toast('⚠ ' + (e.message || 'Boards not updated')));
   };
 
   // ---- subtasks / attachments / comments (on selected task) ----
@@ -576,7 +588,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             }}>
             <div className="tb-col-head">
               <span className={'tb-col-dot is-' + (si % 4)} />
-              <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} aria-label="Section name" />
+              <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} onFocus={(e) => { e.currentTarget.dataset.before = sec.name; }} onBlur={(e) => commitRename(sec.id, e.currentTarget.dataset.before || sec.name)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} aria-label="Section name" />
               <span className="tb-col-count">{secTasks.length}</span>
               {canShape && <button type="button" className="tb-col-x" onClick={() => moveSection(sec.id, -1)} title="Move left" aria-label="Move column left">‹</button>}
               {canShape && <button type="button" className="tb-col-x" onClick={() => moveSection(sec.id, 1)} title="Move right" aria-label="Move column right">›</button>}
@@ -593,7 +605,12 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
           </div>
         );
       })}
-      {canShape && <button type="button" className="tb-add-section" onClick={addSection}>+ Add section</button>}
+      {canShape && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+          <button type="button" className="tb-add-section" onClick={addSection}>+ Add section</button>
+          <button type="button" className="tb-add-section" onClick={matchAllBoards} title="Line every other board up with these columns">Make every board match</button>
+        </div>
+      )}
     </div>
   );
   const boardView = isNew ? boardViewNew : (
@@ -617,7 +634,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             }}
             style={{ width: 270, flexShrink: 0, background: isOver ? 'var(--mist)' : 'var(--panel)', borderRadius: 'var(--r-12)', border: isOver ? '2px dashed var(--muted)' : '1px solid rgba(var(--rgb-shade), 0.05)', display: 'flex', flexDirection: 'column', maxHeight: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px' }}>
-              <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
+              <input value={sec.name} disabled={!canShape} onChange={(e) => renameSection(sec.id, e.target.value)} onFocus={(e) => { e.currentTarget.dataset.before = sec.name; }} onBlur={(e) => commitRename(sec.id, e.currentTarget.dataset.before || sec.name)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} aria-label="Section name" style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit' }} />
               <span style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--muted)', background: 'var(--sand)', padding: '1px 7px', borderRadius: 999 }}>{secTasks.length}</span>
               {canShape && <span onClick={() => moveSection(sec.id, -1)} title="Move left" aria-label="Move column left" style={{ fontSize: 14, color: 'var(--muted)', cursor: 'pointer' }}>‹</span>}
               {canShape && <span onClick={() => moveSection(sec.id, 1)} title="Move right" aria-label="Move column right" style={{ fontSize: 14, color: 'var(--muted)', cursor: 'pointer' }}>›</span>}
