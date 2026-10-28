@@ -49,8 +49,8 @@ export function GlobalSearch({ pages }: { pages: SearchPage[] }) {
       get<any>(can('pipeline', 'view'), () => api.pipeline.list()),
       get<any>(can('people', 'view'), () => api.people.list()),
       get<any>(can('manpower_con', 'view'), () => api.employees.list()),
-      get<any>(can('tasks', 'view'), () => api.projectTasks.list()),
-      get<any>(can('tasks', 'view'), () => api.tasks.list()),
+      get<any>(can('tasks', 'view'), () => api.projectTasks.list(undefined, { slim: true })),
+      get<any>(can('tasks', 'view'), () => api.tasks.list(undefined, undefined, { slim: true })),
     ]);
     setItems(buildIndex({ pages, projects, deals, people, employees, projectTasks, logTasks, headline: (t) => taskHeadline(t).title }));
     setLoading(false);

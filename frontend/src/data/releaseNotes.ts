@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28m',
+    date: '2026-10-28',
+    title: 'Task lists load in a moment',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The Dashboard, My Tasks, the Task board, Special Actions, Meetings and My Calendar now get their task lists straight from the server’s memory instead of the database each time — they open in a moment, and any change anyone saves shows on the next load.', where: 'Dashboard · Special Actions → Task · My Tasks' },
+    ],
+  },
+  {
     id: '2026-10-28l',
     date: '2026-10-28',
     title: 'Faster Task page and notifications',

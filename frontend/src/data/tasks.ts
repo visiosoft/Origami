@@ -8,6 +8,8 @@ export interface Task extends ActionTrailFields {
   id: string;
   /** How many comments (lists leave the comments themselves out). */
   commentCount?: number | null;
+  /** Who entered it (users.id). */
+  createdById?: string;
   /** People following the task without owning it ("Collaborative"). */
   collaborators?: { id: string; name: string }[];
   meetingType: 'Internal' | 'Owner' | 'Subcontractor';

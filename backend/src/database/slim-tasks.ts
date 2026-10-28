@@ -33,13 +33,14 @@ export async function backfillCommentCounts(repo: Repository<any>, log?: { log: 
  * column: read from the "created" event in its history (once, at start-up), so
  * the "From me" filter works on slim lists, which leave the history out.
  */
-export async function backfillCreatedBy(repo: Repository<any>, log?: { log: (m: string) => void }) {
+export async function backfillCreatedBy(repo: Repository<any>, log?: { log: (m: string) => void }, opts: { withName?: boolean } = {}) {
+  const withName = opts.withName !== false;
   const { IsNull } = await import('typeorm');
   const rows: { id: string; activity: unknown }[] = await repo.find({ where: { createdById: IsNull() }, select: { id: true, activity: true } });
   for (const r of rows) {
     const created = Array.isArray(r.activity) ? (r.activity as { type?: string; byId?: string; actorId?: string; by?: string }[]).find((e) => e?.type === 'created') : undefined;
     // '' marks "looked, nobody recorded" so the row isn't read again next start.
-    await repo.update({ id: r.id }, { createdById: created?.actorId || created?.byId || '', ...(created?.by ? { createdByName: created.by } : {}) });
+    await repo.update({ id: r.id }, { createdById: created?.actorId || created?.byId || '', ...(withName && created?.by ? { createdByName: created.by } : {}) });
   }
   if (rows.length) log?.log(`Recorded who created ${rows.length} tasks`);
 }

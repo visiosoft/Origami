@@ -200,6 +200,8 @@ export class TrackedLinkEntity {
 @Index('IX_tasks_meetingId', ['meetingId'])
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** Who entered it (users.id); '' when no one was recorded. */
+  @Column({ nullable: true }) createdById!: string;
   /** How many comments it has, so lists can show the count without loading them. */
   @Column({ type: 'int', nullable: true }) commentCount!: number | null;
   /** Closed with "Close task": complete and archived at once. */

@@ -28,8 +28,8 @@ export function MyTasks() {
   const [projects, setProjects] = useState<Record<number, string>>({});
 
   useEffect(() => {
-    api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoardTasks(r as ProjectTask[]); }).catch(() => { });
-    api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { });
+    api.projectTasks.list(undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setBoardTasks(r as ProjectTask[]); }).catch(() => { });
+    api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { });
     api.projects.list().then((r: any) => { if (Array.isArray(r)) { const m: Record<number, string> = {}; r.forEach((p: any) => { m[p.id] = p.name; }); setProjects(m); } }).catch(() => { });
   }, []);
 

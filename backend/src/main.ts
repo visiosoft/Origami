@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -13,6 +14,24 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.setGlobalPrefix('api');
+
+  // How long each API request took: a Server-Timing header (DevTools -> Network -> Timing shows it)
+  // and a log line for anything over 1.5 s, so a slow endpoint shows up in the log stream.
+  const slowLog = new Logger('Slow');
+  app.use((req: Request, res: Response, next: () => void) => {
+    const start = process.hrtime.bigint();
+    const ms = () => Number(process.hrtime.bigint() - start) / 1e6;
+    const writeHead = res.writeHead;
+    (res as any).writeHead = function (this: Response, ...args: any[]) {
+      if (!res.headersSent) res.setHeader('Server-Timing', `app;dur=${ms().toFixed(0)}`);
+      return (writeHead as any).apply(this, args);
+    };
+    res.on('finish', () => {
+      const took = ms();
+      if (took > 1500 && req.originalUrl.startsWith('/api')) slowLog.warn(`${req.method} ${req.originalUrl.split('?')[0]} took ${took.toFixed(0)} ms (${res.statusCode})`);
+    });
+    next();
+  });
 
   // Gzip responses: the app's JavaScript and the task lists are several MB as plain text.
   app.use(compression());

@@ -30,7 +30,7 @@ export function ConsultantDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.projects.list(), outside ? Promise.resolve([]) : api.people.list(), api.projectTasks.list()])
+    Promise.all([api.projects.list(), outside ? Promise.resolve([]) : api.people.list(), api.projectTasks.list(undefined, { slim: true })])
       .then(([p, pp, t]) => {
         if (Array.isArray(p)) setAllProjects(p as Project[]);
         if (Array.isArray(pp)) setPeople(pp as Person[]);

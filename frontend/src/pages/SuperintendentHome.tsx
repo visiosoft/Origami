@@ -42,8 +42,8 @@ function useSiteWork() {
   const [siteAccess, setSiteAccess] = useState<{ id: number; name: string; siteAccess: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
   const reload = useCallback(() => Promise.all([
-    api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoard(r); }).catch(() => { }),
-    api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLog(r); }).catch(() => { }),
+    api.projectTasks.list(undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setBoard(r); }).catch(() => { }),
+    api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setLog(r); }).catch(() => { }),
   ]).finally(() => setLoaded(true)), []);
   useEffect(() => {
     void reload();

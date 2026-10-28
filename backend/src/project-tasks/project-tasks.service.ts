@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFou
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
 import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
+import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
@@ -56,7 +57,12 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     return rows.length;
   }
 
+  /** Every task, slim (no comments or history), kept in memory and dropped on any write to the table. */
+  private readonly slimList = new ListCache(async () =>
+    (await this.repo.find({ order: { order: 'ASC' }, select: slimSelect(this.repo) })).map((t) => slimTask(this.hydrate(t), t.comments)));
+
   async onApplicationBootstrap() {
+    this.slimList.watch(this.repo);
     const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
     tick.unref?.();
     // Start dates that arrive start their tasks (checked at boot and every 30 minutes).
@@ -145,9 +151,14 @@ export class ProjectTasksService implements OnApplicationBootstrap {
    */
   async findAll(projectId?: number | null, opts: { slim?: boolean } = {}): Promise<any[]> {
     // One board's tasks are read from the database on their own, not picked out of every task.
+    if (opts.slim) {
+      // Served from memory; one board is picked out of the cached list.
+      const all = await this.slimList.get();
+      return projectId === undefined ? all : all.filter((t) => (projectId === null ? t.projectId == null : Number(t.projectId) === projectId));
+    }
     const where = projectId === undefined ? undefined : { projectId: projectId === null ? IsNull() : projectId };
-    const rows = await this.repo.find({ where, order: { order: 'ASC' }, ...(opts.slim ? { select: slimSelect(this.repo) } : {}) });
-    return rows.map((t) => (opts.slim ? slimTask(this.hydrate(t), t.comments) : this.hydrate(t)));
+    const rows = await this.repo.find({ where, order: { order: 'ASC' } });
+    return rows.map((t) => this.hydrate(t));
   }
 
   // { sections, tasks } for one project (or, projectId === null, the

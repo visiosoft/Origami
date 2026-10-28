@@ -52,7 +52,7 @@ export function DealTasksPanel({
 
   const load = () => {
     setLoading(true);
-    api.tasks.list(undefined, dealId)
+    api.tasks.list(undefined, dealId, { slim: true })
       .then((r: any) => setTasks(Array.isArray(r) ? r : []))
       .catch(() => { })
       .finally(() => setLoading(false));

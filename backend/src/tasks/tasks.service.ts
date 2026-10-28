@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
-import { backfillCommentCounts, slimSelect, slimTask } from '../database/slim-tasks';
+import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
+import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from './mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from './task-rules';
@@ -70,7 +71,12 @@ export class TasksService implements OnApplicationBootstrap {
     return clean;
   }
 
+  /** Every entry, slim (no comments or history), kept in memory and dropped on any write to the table. */
+  private readonly slimList = new ListCache(async () =>
+    (await this.repo.find({ select: slimSelect(this.repo) })).map((t) => slimTask(this.hydrate(t), t.comments)));
+
   async onApplicationBootstrap() {
+    this.slimList.watch(this.repo);
     const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
     tick.unref?.();
     // Start dates that arrive start their tasks (checked at boot and every 30 minutes).
@@ -78,6 +84,7 @@ export class TasksService implements OnApplicationBootstrap {
     starts.unref?.();
     this.startDueTasks().catch(() => undefined);
     backfillCommentCounts(this.repo, this.log).catch((e) => this.log.warn('Comment counts: ' + (e as Error).message));
+    backfillCreatedBy(this.repo, this.log, { withName: false }).catch((e) => this.log.warn('Entry creators: ' + (e as Error).message));
     try {
       await backfillAssignees(this.repo, this.users, 'assignedToId', 'assignedTo', this.log);
     } catch (err) {
@@ -267,9 +274,13 @@ export class TasksService implements OnApplicationBootstrap {
   async findAll(tab?: string, project?: string, opts: { slim?: boolean } = {}) {
     const where: Record<string, string> = {};
     if (tab) where.tab = tab;
+    if (opts.slim) {
+      // Served from memory; a tab or project is picked out of the cached list.
+      return (await this.slimList.get()).filter((t) => (!tab || t.tab === tab) && (!project || t.project === project || t.leadId === project));
+    }
     // A lead's id finds the entries linked to that lead.
-    const rows = await this.repo.find({ where: project ? [{ ...where, project }, { ...where, leadId: project }] : where, ...(opts.slim ? { select: slimSelect(this.repo) } : {}) });
-    return rows.map((t) => (opts.slim ? slimTask(this.hydrate(t), t.comments) : this.hydrate(t)));
+    const rows = await this.repo.find({ where: project ? [{ ...where, project }, { ...where, leadId: project }] : where });
+    return rows.map((t) => this.hydrate(t));
   }
 
   async findOne(id: string) {
@@ -338,6 +349,7 @@ export class TasksService implements OnApplicationBootstrap {
       id,
       // Who raised it: whoever created it, unless the form named someone else.
       originator: String(dto.originator || '').trim() || actor.name || '',
+      createdById: actor.id || '',
       assignedTo: assignee.name,
       assignedToId: assignee.id ?? undefined,
       attachments: [],
