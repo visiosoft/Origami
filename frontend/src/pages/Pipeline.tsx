@@ -8,8 +8,9 @@ import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage, LOSS_REASONS } from '../data/pipeline';
-import { askChoice } from '../components/CompletionNote';
+import { askDeadReason } from '../components/DeadReasonDialog';
+import { deadReasonLabels, type DeadKind, type DeadReason } from '../data/deadReasons';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -238,20 +239,15 @@ const ACTIVE_STAGES = STAGES.filter((s) => !s.isHold && !s.isClosed);
 /** The three ways a Project Fit Review rejection can go, each its own color so
  *  a "we said no" card reads differently from a "referred elsewhere" one. */
 const REJECTION_STYLE: Record<string, { bg: string; c: string; label: (d: Deal) => string }> = {
-  internal: { bg: '#F2DFD4', c: '#8E2E0A', label: () => 'We Declined' },
-  client: { bg: '#F6E0C4', c: '#93520F', label: (d) => `Client Passed${d.lossReason ? ` — ${d.lossReason}` : ''}` },
-  lost: { bg: '#DCE7EC', c: '#4A6C7A', label: (d) => `Lost — ${d.lossReason || 'no reason'}` },
+  internal: { bg: '#F2DFD4', c: '#8E2E0A', label: (d) => `We passed${d.lossReason ? ` — ${d.lossReason}` : ''}` },
+  client: { bg: '#F6E0C4', c: '#93520F', label: (d) => `Cancelled${d.lossReason ? ` — ${d.lossReason}` : ''}` },
+  lost: { bg: '#DCE7EC', c: '#4A6C7A', label: (d) => `${d.deadReason?.kind === 'cold' ? 'Cold' : 'Lost'} — ${d.lossReason || 'no reason'}` },
   referred: { bg: '#D8E2F0', c: '#3C5C8A', label: (d) => `Referred to ${d.referredToName || 'contact'}` },
 };
 
 /** The outcome badge a card carries: a rejection outcome, or a Cold / Lost reason. */
 const outcomeOf = (d: Deal) => d.rejectionType || (d.lossReason ? 'lost' : '');
 
-const LOSS_COPY = {
-  label: 'Why was it lost', heading: 'Why was this lead lost?', why: 'Pick the main reason. Loss reasons are tracked to improve marketing and training.',
-  placeholder: 'Anything to add, e.g. went with a cheaper builder', button: 'Save',
-};
-const askLoss = (name: string) => askChoice(LOSS_COPY, LOSS_REASONS, 'Other', name);
 
 /** Canonical index for a stage key, so no call site hardcodes a number. */
 const stageIndex = (key: string) => STAGES.findIndex((s) => s.key === key);
@@ -788,18 +784,27 @@ export function Pipeline() {
     if (createdNow) { setSelectedId(id); setDetailTab('overview'); }
   };
 
-  /** Moving a lead to Cold / Lost asks why first (Oct 27 sync); cancelling leaves it where it was. */
-  const applyOverride = (id: string, o: Override) => {
+  /**
+   * Moving a lead to Cold / Lost or Cancelled / Pass asks why first (Oct 26 review
+   * notes: Cold or Lost, Cancelled or Pass, the reasons and notes); cancelling the
+   * question leaves the lead where it was.
+   */
+  const applyOverride = (id: string, o: Override, kind?: DeadKind) => {
     const deal = data.find((d) => d.id === id);
-    if (o.stage !== 'cold' || !deal || deal.stage === 'cold') { applyOverrideNow(id, o); return; }
-    void askLoss(deal.name).then((loss) => {
-      if (!loss) return;
+    const dead = o.stage === 'cold' || o.stage === 'rejected' ? o.stage : null;
+    if (!dead || !deal || deal.stage === dead) { applyOverrideNow(id, o); return; }
+    void askDeadReason(deal.name, dead, kind).then((why) => {
+      if (!why) return;
       applyOverrideNow(id, o);
-      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, lossReason: loss.choice, rejectionReason: loss.note } : d)));
-      // After the move is saved, so the stage change doesn't clear it again.
-      void persist(() => api.pipeline.setLoss(id, { lossReason: loss.choice, note: loss.note }))
-        .catch((e: Error) => toast('⚠ Moved, but the reason was not saved — ' + (e.message || 'try again')));
+      saveDeadReason(id, why);
     });
+  };
+  const saveDeadReason = (id: string, why: DeadReason) => {
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, deadReason: why, lossReason: deadReasonLabels(why.kind, why.reasons).join(', '), rejectionReason: why.note || '' } : d)));
+    // After the move is saved, so the stage change doesn't clear it again.
+    void persist(() => api.pipeline.setDeadReason(id, why))
+      .then((saved: any) => { if (saved?.id) setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, deadReason: saved.deadReason, lossReason: saved.lossReason, timeline: saved.timeline ?? d.timeline } : d))); })
+      .catch((e: Error) => toast('⚠ Moved, but the reason was not saved — ' + (e.message || 'try again')));
   };
   const applyOverrideNow = (id: string, o: Override) => {
     setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
@@ -839,22 +844,23 @@ export function Pipeline() {
    * the audit trail records why -- not just "Moved to Cancelled / Rejected".
    */
   const confirmReject = async (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
-    // The client passing is a loss: say why (Oct 27 sync).
-    const loss = type === 'client' ? await askLoss(deal.name) : null;
-    if (type === 'client' && !loss) return;
+    // We pass, or it was cancelled: say why (Oct 26 review notes).
+    const why = type === 'referred' ? null : await askDeadReason(deal.name, 'rejected', type === 'internal' ? 'pass' : 'cancelled');
+    if (type !== 'referred' && !why) return;
     // A referral isn't a dead end -- it goes to its own stage so it doesn't
     // read as closed like a true rejection does.
     const stage = type === 'referred' ? 'referred_monitoring' : 'rejected';
-    applyOverride(deal.id, { stage, stageIdx: stageIndex(stage), daysInStage: 0 });
-    api.pipeline.setRejection(deal.id, {
+    applyOverrideNow(deal.id, { stage, stageIdx: stageIndex(stage), daysInStage: 0 });
+    // In order after the move: the outcome, then the full why.
+    persist(() => api.pipeline.setRejection(deal.id, {
       rejectionType: type,
-      ...(loss ? { lossReason: loss.choice, rejectionReason: loss.note } : {}),
       referredToName: referral?.name.trim(),
       referredToCompany: referral?.company.trim(),
       referredToContact: referral?.contact.trim(),
-    })
+    }))
       .then((saved: any) => setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...saved } : d))))
-      .catch(() => toast('⚠ Rejected, but the reason could not be saved'));
+      .catch(() => toast('⚠ Moved, but the outcome could not be saved'));
+    if (why) saveDeadReason(deal.id, why);
     setRejectChoice(null);
     setSelectedId(null);
   };
@@ -2283,8 +2289,8 @@ export function Pipeline() {
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>What happened to this lead?</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Rejected — Not a Fit</div>
-                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Client Passed</div>
+                    <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Pass — not referring it</div>
+                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Cancelled</div>
                     <div onClick={() => setRejectChoice({ name: '', company: '', contact: '' })} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#D8E2F0', color: '#3C5C8A' }}>Referred Out</div>
                     <div onClick={() => setRejectChoice(null)} style={{ padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
                   </div>

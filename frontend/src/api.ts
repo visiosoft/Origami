@@ -541,6 +541,8 @@ export const api = {
       request(`/pipeline/${id}/archived`, { method: 'PUT', body: JSON.stringify({ archived }) }),
     setRoles: (id: string, roles: Record<string, string>) =>
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
+    /** Why a lead died, in full (Cold / Lost / Cancelled / Pass, reasons, notes). */
+    setDeadReason: (id: string, body: import('./data/deadReasons').DeadReason) => request<any>(`/pipeline/${id}/dead-reason`, { method: 'PUT', body: JSON.stringify(body) }),
     setLoss: (id: string, data: { lossReason: string; note?: string }) => request(`/pipeline/${id}/loss`, { method: 'PUT', body: JSON.stringify(data) }),
     setRejection: (id: string, data: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; lossReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string }) =>
       request(`/pipeline/${id}/rejection`, { method: 'PUT', body: JSON.stringify(data) }),

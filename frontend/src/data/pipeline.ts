@@ -41,6 +41,8 @@ export interface Deal {
   rejectionReason?: string;
   /** Why a lost lead was lost (Oct 27 sync): one of LOSS_REASONS; the note is rejectionReason. */
   lossReason?: string;
+  /** Why it died, in full (Oct 26 review notes). */
+  deadReason?: import('./deadReasons').DeadReason | null;
   referredToName?: string;
   referredToCompany?: string;
   referredToContact?: string;

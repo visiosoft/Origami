@@ -1,4 +1,4 @@
-import { addBusinessDays, archiveDueAt, cleanLossReason, isDueForArchive } from './dead-leads';
+import { addBusinessDays, archiveDueAt, cleanDeadReason, cleanLossReason, deadReasonLabels, isDueForArchive } from './dead-leads';
 
 describe('dead leads', () => {
   it('counts business days, skipping weekends', () => {
@@ -62,5 +62,28 @@ describe('PipelineService dead-lead sweep and loss', () => {
     expect(saved.lossReason).toBe('Trust');
     expect(saved.timeline[0].action).toBe('Lost — Trust: Chose their cousin');
     await expect(svc.setLoss('A', { lossReason: 'Other' })).rejects.toThrow(/note/);
+  });
+
+  it('records why a lead died in full, and asks for a review follow-up on Reputation', async () => {
+    const rows = [{ id: 'A', name: 'Campus Burger', stage: 'cold', assignee: 'Edward', timeline: [] }];
+    const { svc } = make(rows);
+    const tasks = { create: jest.fn().mockResolvedValue({}) };
+    Object.assign(svc, { tasks, leadMoved: jest.fn() });
+    const saved: any = await svc.setDeadReason('A', { kind: 'lost', reasons: ['value', 'reputation', 'bogus'], note: 'Went cheaper', reviewWhere: 'Yelp' }, { name: 'Andrea' } as any);
+    expect(saved.deadReason).toMatchObject({ kind: 'lost', reasons: ['value', 'reputation'], reviewWhere: 'Yelp', by: 'Andrea' });
+    expect(saved.lossReason).toBe('Value, Reputation');
+    expect(saved.timeline[0].action).toBe('Lost — Value; Reputation: Went cheaper (review found: Yelp)');
+    expect(tasks.create).toHaveBeenCalledWith(expect.objectContaining({ leadId: 'A', priority: 'High', assignedTo: 'Edward', subject: expect.stringMatching(/bad review/) }), expect.anything());
+  });
+
+  it('checks each kind: cold needs one reason and the last conversation date; cancelled takes sub-reasons', () => {
+    expect(cleanDeadReason({ kind: 'cold', reasons: ['ours', 'theirs'], lastContactAt: '2026-10-01' })).toMatchObject({ ok: false, message: expect.stringMatching(/one reason/) });
+    expect(cleanDeadReason({ kind: 'cold', reasons: ['theirs'] })).toMatchObject({ ok: false, message: expect.stringMatching(/last known conversation/) });
+    expect(cleanDeadReason({ kind: 'cold', reasons: ['theirs'], lastContactAt: '2026-10-01T10:00' })).toMatchObject({ ok: true, value: { lastContactAt: '2026-10-01' } });
+    expect(cleanDeadReason({ kind: 'lost', reasons: ['reputation'] })).toMatchObject({ ok: false, message: expect.stringMatching(/review/) });
+    expect(cleanDeadReason({ kind: 'nope', reasons: ['x'] }).ok).toBe(false);
+    const c = cleanDeadReason({ kind: 'cancelled', reasons: ['funding.lender', 'legal.zoning'] });
+    expect(c.ok && deadReasonLabels('cancelled', c.value.reasons)).toEqual(['Funding and financial failure: Lender denied the loan', 'Legal roadblocks: Zoning']);
+    expect(cleanDeadReason({ kind: 'pass', reasons: [] })).toMatchObject({ ok: false, message: expect.stringMatching(/at least one/) });
   });
 });

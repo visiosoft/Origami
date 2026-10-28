@@ -364,6 +364,8 @@ export class DealEntity {
   @Column({ nullable: true }) rejectionReason!: string;
   /** Why a lost lead was lost (Oct 27 sync): one of LOSS_REASONS in pipeline/dead-leads.ts; the note is in rejectionReason. */
   @Column({ nullable: true }) lossReason!: string;
+  /** Why it died, in full (Oct 26 review notes): Cold / Lost / Cancelled / Pass, the reasons, notes (pipeline/dead-leads.ts DeadReason). */
+  @Column({ type: 'simple-json', nullable: true }) deadReason!: import('../pipeline/dead-leads').DeadReason | null;
   @Column({ nullable: true }) referredToName!: string;
   @Column({ nullable: true }) referredToCompany!: string;
   @Column({ nullable: true }) referredToContact!: string;

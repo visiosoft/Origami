@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28q',
+    date: '2026-10-28',
+    title: 'Dead leads: Cold / Lost and Cancelled / Pass, with the full reasons',
+    items: [
+      { area: 'CRM', kind: 'improved', text: 'The dead-lead columns are now Cold / Lost and Cancelled / Pass, and Holding & Refer Out groups them as “Dead leads”.', where: 'CRM & Leads; Holding & Refer Out' },
+      { area: 'CRM', kind: 'new', text: 'Moving a lead to Cold / Lost asks: Cold (ours or theirs, with the last conversation date) or Lost (unclear, value, experience, reputation, trust, quality, timeline — one or more). Moving to Cancelled / Pass asks: Cancelled (budget, funding, legal, site, market or other, each with its own sub-reasons) or Pass (score too low, bandwidth, cash flow, too small, too big, scope). Our own notes go with every one.', where: 'CRM & Leads → drag to a dead column, or Reject' },
+      { area: 'CRM', kind: 'new', text: 'Lost for Reputation asks where the review was found and makes a high-priority task for the lead’s owner to follow it up.', where: 'CRM & Leads' },
+    ],
+  },
+  {
     id: '2026-10-28p',
     date: '2026-10-28',
     title: 'You can always see when something is loading',

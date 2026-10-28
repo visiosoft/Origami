@@ -59,6 +59,12 @@ export class PipelineController {
     return this.pipelineService.setRoles(id, roles, await this.auth.actor(auth));
   }
 
+  /** Why a lead died, in full: { kind: cold | lost | cancelled | pass, reasons[], note, lastContactAt, reviewWhere, clientScore }. */
+  @Put(':id/dead-reason')
+  async setDeadReason(@Param('id') id: string, @Body() body: Record<string, unknown>, @Headers('authorization') auth?: string) {
+    return this.pipelineService.setDeadReason(id, body, await this.auth.actor(auth));
+  }
+
   /** Why a lead was lost (Cold / Lost, or the client passed). */
   @Put(':id/loss')
   async setLoss(

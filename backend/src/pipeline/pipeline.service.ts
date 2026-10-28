@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { NEEDS_INTAKE, missingIntake } from './lead-intake';
-import { cleanLossReason, DEAD_STAGES, isDueForArchive } from './dead-leads';
+import { cleanDeadReason, cleanLossReason, DEAD_STAGES, deadReasonLabels, deadReasonSummary, isDueForArchive, type DeadReason } from './dead-leads';
 import { leadStreetAddress } from '../leads/lead-address';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -288,6 +288,7 @@ export class PipelineService implements OnApplicationBootstrap {
     // badge on a lead that's back in play.
     // Back in play: a loss reason no longer applies either.
     if (!DEAD_STAGES.includes(stage) && deal.lossReason) deal.lossReason = '';
+    if (!DEAD_STAGES.includes(stage) && deal.deadReason) deal.deadReason = null;
     if (stage !== 'rejected' && stage !== 'referred_monitoring' && deal.rejectionType) {
       deal.rejectionType = '';
       deal.rejectionReason = '';
@@ -357,11 +358,13 @@ export class PipelineService implements OnApplicationBootstrap {
   }, actor?: DealActor) {
     const deal = await this.findOne(id);
     deal.rejectionType = rejection.rejectionType;
-    deal.rejectionReason = rejection.rejectionReason || '';
-    if (rejection.rejectionType === 'client') {
+    // The full why (Cancelled / Pass reasons and notes) now comes on its own (PUT :id/dead-reason);
+    // a note or one-word reason sent here is still kept.
+    if (rejection.rejectionReason !== undefined) deal.rejectionReason = rejection.rejectionReason || '';
+    if (rejection.rejectionType === 'client' && rejection.lossReason !== undefined) {
       const loss = cleanLossReason(rejection.lossReason);
       if (!loss) throw new BadRequestException('Say why the client passed: value proposition, experience, trust, quality, timeline or other.');
-      if (loss === 'Other' && !deal.rejectionReason.trim()) throw new BadRequestException('Add a note for "Other".');
+      if (loss === 'Other' && !String(deal.rejectionReason || '').trim()) throw new BadRequestException('Add a note for "Other".');
       deal.lossReason = loss;
     }
     deal.referredToName = rejection.referredToName || '';
@@ -371,8 +374,8 @@ export class PipelineService implements OnApplicationBootstrap {
     const detail = rejection.rejectionType === 'referred'
       ? `Referred to ${[rejection.referredToName, rejection.referredToCompany].filter(Boolean).join(', ') || 'an external contact'}${rejection.referredToContact ? ` (${rejection.referredToContact})` : ''}`
       : rejection.rejectionType === 'client'
-        ? `Client passed — ${deal.lossReason}${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
-        : `Rejected — not a fit for us${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
+        ? `Cancelled${rejection.lossReason ? ` — ${deal.lossReason}` : ''}${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`
+        : `We passed${rejection.rejectionReason ? `: ${rejection.rejectionReason}` : ''}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
     this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
     return this.repo.save(deal);
@@ -391,6 +394,35 @@ export class PipelineService implements OnApplicationBootstrap {
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
     this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
     return this.repo.save(deal);
+  }
+
+  /**
+   * Why a lead died, in full (Oct 26 review notes): Cold (ours / theirs, with the
+   * last conversation date), Lost, Cancelled or Pass, one or more reasons, notes.
+   * Lost for Reputation also makes a task to follow up the review, for the lead's owner.
+   */
+  async setDeadReason(id: string, body: unknown, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    const clean = cleanDeadReason(body);
+    if (!clean.ok) throw new BadRequestException(clean.message);
+    const r: DeadReason = { ...clean.value, at: new Date().toISOString(), by: actor?.name || '' };
+    deal.deadReason = r;
+    deal.lossReason = deadReasonLabels(r.kind, r.reasons).join(', ').slice(0, 250);
+    deal.rejectionReason = r.note || '';
+    const detail = deadReasonSummary(r) + (r.lastContactAt ? ` (last conversation ${r.lastContactAt})` : '') + (r.reviewWhere ? ` (review found: ${r.reviewWhere})` : '');
+    deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    this.leadMoved(id, (name) => `${name}: ${detail}`, actor);
+    const saved = await this.repo.save(deal);
+    if (r.reviewWhere && this.tasks) {
+      const name = await this.leadName(id, (deal as any).name);
+      await this.tasks.create({
+        topicType: 'Task', priority: 'High', leadId: id, tab: 'internal', status: 'To Do',
+        subject: `Follow up a bad review — ${name}`,
+        description: `${name} was lost on reputation. The review was found at: ${r.reviewWhere}. Find it, read it and decide how to respond.`,
+        assignedTo: (deal as any).assignee || actor?.name || '',
+      }, { name: actor?.name || 'System', id: actor?.id } as any).catch((e: Error) => this.log.warn(`Review follow-up task not made: ${e.message}`));
+    }
+    return saved;
   }
 
   /** Cold / Lost and Cancelled / Pass leads 7 business days on: archived (restorable), with a timeline line saying so. */

@@ -208,20 +208,22 @@ describe('PipelineService', () => {
             dealsRepo.findOneBy.mockResolvedValue(baseDeal());
             const saved = await service.setRejection('PL-1', { rejectionType: 'internal' });
             expect(saved.rejectionType).toBe('internal');
-            expect((saved.timeline as any[])[0].action).toBe('Rejected — not a fit for us');
+            expect((saved.timeline as any[])[0].action).toBe('We passed');
         });
 
-        it('records why the client passed (a loss reason, plus an optional note) in the timeline', async () => {
+        it('still records a one-word reason and note when one is sent (older screens)', async () => {
             dealsRepo.findOneBy.mockResolvedValue(baseDeal());
             const saved = await service.setRejection('PL-1', { rejectionType: 'client', lossReason: 'timeline', rejectionReason: 'Went with another firm' });
             expect(saved.rejectionType).toBe('client');
             expect(saved.lossReason).toBe('Timeline');
-            expect((saved.timeline as any[])[0].action).toBe('Client passed — Timeline: Went with another firm');
+            expect((saved.timeline as any[])[0].action).toBe('Cancelled — Timeline: Went with another firm');
         });
 
-        it('needs a loss reason when the client passed, and a note for Other', async () => {
-            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
-            await expect(service.setRejection('PL-1', { rejectionType: 'client' })).rejects.toThrow(/why the client passed/);
+        it('takes Cancelled on its own (the why comes separately) and keeps an earlier note; a bad one-word reason is still refused', async () => {
+            dealsRepo.findOneBy.mockResolvedValue({ ...baseDeal(), rejectionReason: 'Bank pulled out' } as any);
+            const saved = await service.setRejection('PL-1', { rejectionType: 'client' });
+            expect(saved.rejectionReason).toBe('Bank pulled out');
+            expect((saved.timeline as any[])[0].action).toBe('Cancelled');
             dealsRepo.findOneBy.mockResolvedValue(baseDeal());
             await expect(service.setRejection('PL-1', { rejectionType: 'client', lossReason: 'Other' })).rejects.toThrow(/note/);
         });
