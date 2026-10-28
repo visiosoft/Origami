@@ -3,7 +3,7 @@
  * (0-1 across the page as shown), so they hold at any zoom; widths and text
  * sizes are in PDF points. Mirrors backend/src/file-room/markups.ts.
  */
-export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link';
+export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link' | 'stamp';
 export type Pt = [number, number];
 
 export interface MarkupData {
@@ -19,6 +19,8 @@ export interface MarkupData {
   photos?: { fileId: string; name: string }[];
   /** link: where the box goes -- a page of this PDF, or another File Room file. */
   target?: LinkTarget;
+  /** stamp: which icon (data/stamps.ts), drawn in the box its two points make. */
+  icon?: string;
 }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
@@ -44,7 +46,7 @@ export interface Markup {
 
 export const KIND_LABEL: Record<MarkupKind, string> = {
   pen: 'Pen', highlight: 'Highlight', text: 'Text', line: 'Line', arrow: 'Arrow', rect: 'Box', ellipse: 'Ellipse', cloud: 'Cloud',
-  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link',
+  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link', stamp: 'Stamp',
 };
 
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */

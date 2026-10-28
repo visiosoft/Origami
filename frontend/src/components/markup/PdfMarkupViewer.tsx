@@ -8,6 +8,7 @@ import {
   linkLabel, overlayPixels, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
+import { STAMPS, stampStrokes } from '../../data/stamps';
 
 type Tool = 'select' | 'pan' | Exclude<MarkupKind, never>;
 type PdfDoc = { numPages: number; getPage: (n: number) => Promise<any> };
@@ -35,11 +36,14 @@ const TOOLS: { key: Tool; label: string; icon: string; group: 'nav' | 'draw' | '
   { key: 'rect', label: 'Box', icon: '▭', group: 'draw' },
   { key: 'ellipse', label: 'Ellipse', icon: '◯', group: 'draw' },
   { key: 'cloud', label: 'Revision cloud', icon: '☁', group: 'draw' },
+  { key: 'stamp', label: 'Stamp — click to drop an icon, or drag to size it', icon: '✓', group: 'draw' },
   { key: 'scale', label: 'Set scale (draw over a known dimension)', icon: '⇔', group: 'measure' },
   { key: 'measure_len', label: 'Measure length', icon: '📏', group: 'measure' },
   { key: 'measure_area', label: 'Measure area (click points, double-click to finish)', icon: '⬠', group: 'measure' },
 ];
 const TWO_POINT: MarkupKind[] = ['line', 'arrow', 'rect', 'ellipse', 'cloud', 'scale', 'measure_len', 'link'];
+/** A clicked (not dragged) stamp: this share of the page's width. */
+const STAMP_DEFAULT = 0.035;
 
 export interface LinkableFile { id: string; name: string; mimeType?: string; folderPath?: string[] }
 const isPdfFile = (f: { name: string; mimeType?: string }) => /\.pdf$/i.test(f.name) || f.mimeType === 'application/pdf';
@@ -104,6 +108,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [selectedId, setSelectedId] = useState<string | null>(focusMarkupId || null);
   const [ask, setAsk] = useState<Ask | null>(null);
   const [busy, setBusy] = useState(false);
+  const [stampIcon, setStampIcon] = useState<string>(() => { try { return localStorage.getItem('origami.markup.stamp') || 'check'; } catch { return 'check'; } });
+  const pickStamp = (k: string) => { setStampIcon(k); try { localStorage.setItem('origami.markup.stamp', k); } catch { /* private window */ } };
   const [textSize, setTextSize] = useState<number>(() => { try { return Number(localStorage.getItem('origami.markup.textSize')) || 12; } catch { return 12; } });
   const pickTextSize = (n: number) => { setTextSize(n); try { localStorage.setItem('origami.markup.textSize', String(n)); } catch { /* private window */ } };
   // Searching the drawing's own text (and the markups' notes).
@@ -410,6 +416,14 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     const pts = draft;
     setDraft(null);
     const kind = tool as MarkupKind;
+    if (kind === 'stamp') {
+      // A click drops it at a standard size (square on screen); a drag sets its box.
+      const dragged = Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) >= 8;
+      const half = STAMP_DEFAULT / 2, halfH = (STAMP_DEFAULT * size.w) / size.h / 2;
+      const box: Pt[] = dragged ? [pts[0], pts[1]] : [[pts[0][0] - half, pts[0][1] - halfH], [pts[0][0] + half, pts[0][1] + halfH]];
+      void save('stamp', { points: box, color, width: Math.max(1.5, width), icon: stampIcon });
+      return;
+    }
     if (TWO_POINT.includes(kind) && Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) < 4) return;
     if (kind === 'scale') { setAsk({ kind: 'scale', points: pts, value: '', unit: pageScale?.unit || 'ft' }); return; }
     if (kind === 'link') { setAsk({ kind: 'link', points: pts, to: 'page', page: String(Math.min(pageNo + 1, doc?.numPages || 1)), fileId: '', filePage: '', value: '' }); return; }
@@ -495,7 +509,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     setBusy(true);
     try {
       const f = await api.fileRoom.saveMarkedUpCopy(file.id, hidden.size ? visibleLayers : undefined);
-      toast(`Saved “${f.name}” beside the drawing`);
+      toast(`Saved “${f.name}” beside the drawing. The drawing itself is unchanged and your markups stay editable — delete the copy any time to go back.`);
       onSavedCopy?.();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
     finally { setBusy(false); }
@@ -686,7 +700,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         )}
         <span className="mk-spacer" />
         <button type="button" className="mk-btn is-text" disabled={busy || !marks.length} onClick={download} title="The PDF with the layers you’re showing drawn in">Download marked-up PDF</button>
-        {canDraw && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Keeps a marked-up copy beside the drawing; the drawing stays Current">Save marked-up copy</button>}
+        {canDraw && <button type="button" className="mk-btn is-text is-dark" disabled={busy || !marks.length} onClick={saveCopy} title="Saves a separate PDF with the markups drawn in, beside the drawing. The original drawing is never changed, and the markups stay editable here.">Save marked-up copy</button>}
         <button type="button" className="mk-btn" onClick={() => setPanel(!panel)} aria-label="Markup list" aria-pressed={panel}>☰</button>
       </header>
 
@@ -713,6 +727,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             <i className="mk-sep" />
             <button type="button" className="mk-tool" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={() => void step(true)}>↶</button>
             <button type="button" className="mk-tool" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" onClick={() => void step(false)}>↷</button>
+          </>}
+          {canDraw && tool === 'stamp' && <>
+            <i className="mk-sep" />
+            <select aria-label="Stamp" title="Which stamp" value={stampIcon} onChange={(e) => pickStamp(e.target.value)}>
+              {Object.entries(STAMPS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
           </>}
           {canDraw && tool === 'text' && <>
             <i className="mk-sep" />
@@ -1004,6 +1024,11 @@ function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h
     case 'arrow': {
       const [l, r] = arrowHead(pts[0], pts[1], Math.max(8, sw * 4));
       return <g {...common}><line x1={pts[0][0]} y1={pts[0][1]} x2={pts[1][0]} y2={pts[1][1]} /><polyline points={poly([l, pts[1], r])} /></g>;
+    }
+    case 'stamp': {
+      // Strokes laid into its box (page-relative), so it scales with the drawing.
+      const lines = stampStrokes(m.data.icon || 'check', m.data.points[0], m.data.points[1] || m.data.points[0]);
+      return <g {...common} strokeWidth={Math.max(1.5, sw)}>{lines.map((l, i) => <polyline key={i} points={poly(l.map(P))} />)}</g>;
     }
     case 'rect': return <rect x={Math.min(pts[0][0], pts[1][0])} y={Math.min(pts[0][1], pts[1][1])} width={Math.abs(pts[1][0] - pts[0][0])} height={Math.abs(pts[1][1] - pts[0][1])} {...common} />;
     case 'ellipse': return <ellipse cx={(pts[0][0] + pts[1][0]) / 2} cy={(pts[0][1] + pts[1][1]) / 2} rx={Math.abs(pts[1][0] - pts[0][0]) / 2} ry={Math.abs(pts[1][1] - pts[0][1]) / 2} {...common} />;

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28w',
+    date: '2026-10-28',
+    title: 'Drawings: stamps that scale with the sheet',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'The Stamp tool drops an icon on a drawing — check, X, warning, question, north arrow, section or detail bubble. Click for a standard size or drag to size it; it scales with the drawing and prints into the downloaded PDF.', where: 'File Room → open a PDF → Mark up → ✓ Stamp' },
+      { area: 'File Room', kind: 'improved', text: '“Save marked-up copy” now says what it does: a separate PDF beside the drawing — the original is never changed and the markups stay editable, so deleting the copy takes you back.', where: 'File Room → Mark up' },
+    ],
+  },
+  {
     id: '2026-10-28v',
     date: '2026-10-28',
     title: 'Meetings: turn the notes into FOR RECORD items and tasks',

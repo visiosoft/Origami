@@ -1,11 +1,12 @@
 import { PDFDocument, PDFName, PDFString, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { STAMP_KEYS, stampStrokes } from './stamps';
 
 /**
  * PDF markup (Oct 2026): what a markup is, who sees it, and how it's drawn into
  * a PDF. Points are page-relative (0-1) on the page as it's shown (after the
  * page's own rotation); widths and text sizes are in PDF points.
  */
-export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin', 'link'] as const;
+export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin', 'link', 'stamp'] as const;
 export type MarkupKind = (typeof MARKUP_KINDS)[number];
 export type Pt = [number, number];
 
@@ -23,6 +24,8 @@ export interface MarkupData {
   photos?: PinPhoto[];
   /** link: where the box goes -- a page of this PDF, or another File Room file. */
   target?: LinkTarget;
+  /** stamp: which icon (file-room/stamps.ts), drawn in the box its two points make. */
+  icon?: string;
 }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
@@ -99,6 +102,7 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
     data.unit = d.unit === 'm' ? 'm' : 'ft';
   }
   if (kind === 'pin') { const photos = cleanPhotos(d.photos); if (photos.length) data.photos = photos; }
+  if (kind === 'stamp') data.icon = STAMP_KEYS.includes(String(d.icon)) ? String(d.icon) : 'check';
   if (kind === 'link') {
     const target = cleanTarget(d.target);
     if (!target) throw new Error('Pick the page or file the link goes to.');
@@ -223,6 +227,9 @@ function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
     const [a, b] = [pts[0], pts[1]];
     page.drawSvgPath(poly([a, [b[0], a[1]], b, [a[0], b[1]]], true), { x: 0, y: h, borderColor: color, borderWidth: d.width, borderDashArray: [4, 3] });
     label(linkLabel(d.target).slice(0, 80), [Math.min(a[0], b[0]), Math.min(a[1], b[1]) - 3], 9);
+  } else if (kind === 'stamp') {
+    // Stroked into its box, each point placed like any other (so rotated pages are right).
+    for (const line of stampStrokes(d.icon || 'check', d.points[0], d.points[1])) path(poly(line.map((p) => toPage(p, w, h, rot))));
   } else if (kind === 'text') {
     const size = d.size || 12;
     (d.text || '').split('\n').forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * (i + 1)], size));
