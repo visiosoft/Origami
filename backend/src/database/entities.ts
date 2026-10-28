@@ -990,6 +990,8 @@ export class PdfMarkupEntity {
   @Column({ type: 'nvarchar', length: 200 }) authorName!: string;
   /** A private draft: only its author sees it. */
   @Column({ type: 'bit', default: false }) private!: boolean;
+  /** Its named layer; null = its author's own layer. */
+  @Column({ type: 'nvarchar', length: 60, nullable: true }) layer!: string | null;
   /** An RFI or task made from it. */
   @Column({ type: 'nvarchar', length: 20, nullable: true }) linkType!: string | null;
   @Column({ type: 'nvarchar', length: 80, nullable: true }) linkId!: string | null;

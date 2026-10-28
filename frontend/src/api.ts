@@ -736,12 +736,16 @@ export const api = {
     /** The PDF itself, for the markup viewer. */
     bytes: (id: string) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/content`),
     markups: (id: string) => request<Markup[]>(`/file-room/files/${encodeURIComponent(id)}/markups`),
-    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'>) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
-    editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
+    addMarkup: (id: string, m: Pick<Markup, 'kind' | 'page' | 'data' | 'private'> & { layer?: string | null }) => request<Markup>(`/file-room/files/${encodeURIComponent(id)}/markups`, { method: 'POST', body: JSON.stringify(m) }),
+    editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
     removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
-    /** The PDF with markups drawn in (just these people's layers, when given). */
-    markedUpPdf: (id: string, authors?: string[]) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/markups/pdf${authors?.length ? `?authors=${encodeURIComponent(authors.join(','))}` : ''}`),
-    saveMarkedUpCopy: (id: string, authors?: string[]) => request<{ id: string; name: string }>(`/file-room/files/${encodeURIComponent(id)}/markups/copy`, { method: 'POST', body: JSON.stringify({ authors }) }),
+    /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */
+    renameLayer: (id: string, from: string | null, to: string, authorId?: string | null) => request<{ layer: string; updated: number }>(`/file-room/files/${encodeURIComponent(id)}/layers`, { method: 'PUT', body: JSON.stringify({ from, to, authorId }) }),
+    addPinPhotos: (mid: string, files: File[] | FileList) => requestForm<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos`, filesForm(files)),
+    removePinPhoto: (mid: string, fileId: string) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}/photos/${encodeURIComponent(fileId)}`, { method: 'DELETE' }),
+    /** The PDF with markups drawn in (just these layers, by key, when given). */
+    markedUpPdf: (id: string, layers?: string[]) => requestBytes(`/file-room/files/${encodeURIComponent(id)}/markups/pdf${layers?.length ? `?layers=${encodeURIComponent(layers.join(','))}` : ''}`),
+    saveMarkedUpCopy: (id: string, layers?: string[]) => request<{ id: string; name: string }>(`/file-room/files/${encodeURIComponent(id)}/markups/copy`, { method: 'POST', body: JSON.stringify({ layers }) }),
     /** Relative on purpose: works through the vite proxy and same-origin in prod. */
     contentUrl: (id: string, opts?: { thumb?: boolean; download?: boolean }) => {
       const q = [opts?.thumb ? 'thumb=1' : '', opts?.download ? 'download=1' : ''].filter(Boolean).join('&');

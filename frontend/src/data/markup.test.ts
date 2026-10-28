@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
+import { layerKey, layersOf } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -29,5 +30,20 @@ describe('markup measuring', () => {
   it('a cloud is a closed path of scallops', () => {
     const d = cloudPath([0, 0], [100, 50], 10);
     expect(d.startsWith('M 0 0') && d.endsWith('Z')).toBe(true);
+  });
+});
+
+describe('named layers', () => {
+  it('groups markups by named layer (any case), else one layer per author; named first', () => {
+    const marks = [
+      { layer: 'Electrical walk', authorId: 'U-1', authorName: 'Edward' },
+      { layer: 'electrical WALK', authorId: 'U-2', authorName: 'Andrea' },
+      { layer: null, authorId: 'U-2', authorName: 'Andrea' },
+      { layer: null, authorId: 'U-1', authorName: 'Edward' },
+    ];
+    const ls = layersOf(marks, 'U-1');
+    expect(ls.map((l) => [l.name, l.count, l.named])).toEqual([['Electrical walk', 2, true], ['Andrea', 1, false], ['Edward (you)', 1, false]]);
+    expect(layerKey(marks[1])).toBe(ls[0].key);
+    expect(ls[1].authorId).toBe('U-2');
   });
 });

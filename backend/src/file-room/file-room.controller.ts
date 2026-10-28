@@ -49,16 +49,40 @@ export class FileRoomController {
     return this.markups.update(mid, body, claims);
   }
 
+  /** Rename a layer on this drawing: { from: name | null, authorId?, to }. */
+  @Put('files/:id/layers')
+  async renameLayer(@Param('id') id: string, @Body() body: any, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.renameLayer(id, body, claims);
+  }
+
+  /** Photos pinned to a spot on the drawing. */
+  @Post('markups/:mid/photos')
+  @UseInterceptors(FilesInterceptor('files', MAX_FILES_PER_UPLOAD, { limits: { fileSize: MAX_FILE_BYTES } }))
+  async addPinPhotos(@Param('mid') mid: string, @UploadedFiles() files: any[], @Claims() claims: SessionClaims | null) {
+    const m = await this.markups.markup(mid);
+    await this.seeFile(m.fileId, claims);
+    return this.markups.addPhotos(mid, files, claims);
+  }
+
+  @Delete('markups/:mid/photos/:fileId')
+  async removePinPhoto(@Param('mid') mid: string, @Param('fileId') fileId: string, @Claims() claims: SessionClaims | null) {
+    const m = await this.markups.markup(mid);
+    await this.seeFile(m.fileId, claims);
+    return this.markups.removePhoto(mid, fileId, claims);
+  }
+
   @Delete('markups/:mid')
   async removeMarkup(@Param('mid') mid: string, @Claims() claims: SessionClaims | null) {
     return this.markups.remove(mid, claims);
   }
 
-  /** Download the PDF with markups drawn in (?authors=U-1,U-2 for just those layers). */
+  /** Download the PDF with markups drawn in (?layers=<keys> or ?authors=U-1,U-2 for just those layers). */
   @Get('files/:id/markups/pdf')
-  async markedUpPdf(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null, @Query('authors') authors?: string) {
+  async markedUpPdf(@Param('id') id: string, @Res() res: Response, @Claims() claims: SessionClaims | null, @Query('authors') authors?: string, @Query('layers') layers?: string) {
     await this.seeFile(id, claims);
-    const { file, pdf } = await this.markups.flatten(id, claims, authors ? authors.split(',').filter(Boolean) : undefined);
+    const list = (v?: string) => (v ? v.split(',').filter(Boolean) : undefined);
+    const { file, pdf } = await this.markups.flatten(id, claims, list(authors), list(layers));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name.replace(/\.pdf$/i, '') + ' (marked up).pdf')}"`);
     res.end(pdf);
@@ -66,9 +90,10 @@ export class FileRoomController {
 
   /** Save a marked-up copy beside the drawing in the File Room. */
   @Post('files/:id/markups/copy')
-  async markedUpCopy(@Param('id') id: string, @Body() body: { authors?: string[] }, @Claims() claims: SessionClaims | null) {
+  async markedUpCopy(@Param('id') id: string, @Body() body: { authors?: string[]; layers?: string[] }, @Claims() claims: SessionClaims | null) {
     await this.seeFile(id, claims);
-    return this.markups.saveCopy(id, claims, Array.isArray(body?.authors) ? body.authors.map(String) : undefined);
+    const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : undefined);
+    return this.markups.saveCopy(id, claims, list(body?.authors), list(body?.layers));
   }
 
   /** Projects, categories, folders and files — everything the tree needs. */

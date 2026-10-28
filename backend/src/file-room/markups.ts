@@ -5,7 +5,7 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } 
  * a PDF. Points are page-relative (0-1) on the page as it's shown (after the
  * page's own rotation); widths and text sizes are in PDF points.
  */
-export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale'] as const;
+export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin'] as const;
 export type MarkupKind = (typeof MARKUP_KINDS)[number];
 export type Pt = [number, number];
 
@@ -19,6 +19,32 @@ export interface MarkupData {
   label?: string;
   real?: number;
   unit?: 'ft' | 'm';
+  /** pin: site photos pinned to the spot (File Room files). */
+  photos?: PinPhoto[];
+}
+
+export interface PinPhoto { fileId: string; name: string }
+export const MAX_PIN_PHOTOS = 30;
+
+/**
+ * Named layers (Oct 27 sync): a markup sits on a named layer ("Electrical
+ * walk", "Owner comments"), or -- unnamed -- on its author's own layer.
+ */
+export function cleanLayer(v: unknown): string | null {
+  // No commas: layers travel as a comma-separated list in download links.
+  const s = String(v ?? '').replace(/[\s,]+/g, ' ').trim().slice(0, 60);
+  return s || null;
+}
+
+/** The key a layer is shown, hidden and downloaded by. */
+export const layerKey = (m: { layer?: string | null; authorId?: string | null; authorName?: string | null }) =>
+  m.layer ? `L:${m.layer.toLowerCase()}` : `A:${m.authorId || m.authorName || ''}`;
+
+export function cleanPhotos(v: unknown): PinPhoto[] {
+  return (Array.isArray(v) ? v : [])
+    .filter((p: any) => p && typeof p.fileId === 'string' && p.fileId)
+    .slice(0, MAX_PIN_PHOTOS)
+    .map((p: any) => ({ fileId: String(p.fileId).slice(0, 80), name: String(p.name || 'Photo').slice(0, 200) }));
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -26,7 +52,7 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const MAX_POINTS = 5000;
 
 /** A markup as sent by the viewer, cleaned. Throws on anything unusable. */
-export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: MarkupData; private: boolean } {
+export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: MarkupData; private: boolean; layer: string | null } {
   const kind = String(raw?.kind || '') as MarkupKind;
   if (!MARKUP_KINDS.includes(kind)) throw new Error('Unknown markup type.');
   const page = Math.floor(Number(raw?.page));
@@ -35,7 +61,7 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   const points: Pt[] = (Array.isArray(d.points) ? d.points : []).slice(0, MAX_POINTS)
     .filter((p: any) => Array.isArray(p) && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
     .map((p: any) => [clamp01(Number(p[0])), clamp01(Number(p[1]))] as Pt);
-  const need = kind === 'text' ? 1 : kind === 'measure_area' ? 3 : 2;
+  const need = kind === 'text' || kind === 'pin' ? 1 : kind === 'measure_area' ? 3 : 2;
   if (points.length < need) throw new Error('The markup has no shape.');
   const data: MarkupData = {
     points,
@@ -52,7 +78,8 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
     data.real = real;
     data.unit = d.unit === 'm' ? 'm' : 'ft';
   }
-  return { kind, page, data, private: raw?.private === true };
+  if (kind === 'pin') { const photos = cleanPhotos(d.photos); if (photos.length) data.photos = photos; }
+  return { kind, page, data, private: raw?.private === true, layer: cleanLayer(raw?.layer) };
 }
 
 /** Everyone's shared markups, and the caller's own private drafts. */
@@ -160,6 +187,13 @@ function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
     path(poly(pts, true), { fill: true });
     const c: Pt = [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
     if (d.label) label(d.label, c);
+  } else if (kind === 'pin') {
+    // A filled dot with a white ring, and its note beside it.
+    const p = pts[0];
+    page.drawCircle({ x: p[0], y: h - p[1], size: 6, color, borderColor: rgb(1, 1, 1), borderWidth: 1.5 });
+    const note = (d.text || '').split('\n')[0];
+    const tag = [note, d.photos?.length ? `(${d.photos.length} photo${d.photos.length === 1 ? '' : 's'})` : ''].filter(Boolean).join(' ');
+    if (tag) label(tag.slice(0, 80), [p[0] + 9, p[1] + 4], 9);
   } else if (kind === 'text') {
     const size = d.size || 12;
     (d.text || '').split('\n').forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * (i + 1)], size));

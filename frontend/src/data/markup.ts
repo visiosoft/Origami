@@ -3,7 +3,7 @@
  * (0-1 across the page as shown), so they hold at any zoom; widths and text
  * sizes are in PDF points. Mirrors backend/src/file-room/markups.ts.
  */
-export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale';
+export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin';
 export type Pt = [number, number];
 
 export interface MarkupData {
@@ -15,6 +15,8 @@ export interface MarkupData {
   label?: string;
   real?: number;
   unit?: 'ft' | 'm';
+  /** pin: site photos pinned to the spot (File Room files). */
+  photos?: { fileId: string; name: string }[];
 }
 export interface Markup {
   id: string;
@@ -25,6 +27,8 @@ export interface Markup {
   authorId: string | null;
   authorName: string;
   private: boolean;
+  /** Its named layer; null = its author's own layer. */
+  layer?: string | null;
   linkType: 'rfi' | 'task' | null;
   linkId: string | null;
   createdAt: string;
@@ -33,8 +37,30 @@ export interface Markup {
 
 export const KIND_LABEL: Record<MarkupKind, string> = {
   pen: 'Pen', highlight: 'Highlight', text: 'Text', line: 'Line', arrow: 'Arrow', rect: 'Box', ellipse: 'Ellipse', cloud: 'Cloud',
-  measure_len: 'Length', measure_area: 'Area', scale: 'Scale',
+  measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin',
 };
+
+/** The key a layer is shown, hidden and downloaded by (same as the server's). */
+export const layerKey = (m: { layer?: string | null; authorId?: string | null; authorName?: string | null }) =>
+  m.layer ? `L:${m.layer.toLowerCase()}` : `A:${m.authorId || m.authorName || ''}`;
+
+export interface Layer { key: string; name: string; named: boolean; authorId: string | null; count: number }
+
+/** The drawing's layers: named ones by name, the rest one per author ("Edward (you)"). Named ones first. */
+export function layersOf(marks: Pick<Markup, 'layer' | 'authorId' | 'authorName'>[], me?: string): Layer[] {
+  const map = new Map<string, Layer>();
+  for (const m of marks) {
+    const key = layerKey(m);
+    const l = map.get(key) || {
+      key, named: !!m.layer, authorId: m.layer ? null : m.authorId,
+      name: m.layer || (m.authorId && m.authorId === me ? `${m.authorName} (you)` : m.authorName),
+      count: 0,
+    };
+    l.count++;
+    map.set(key, l);
+  }
+  return [...map.values()].sort((a, b) => Number(b.named) - Number(a.named) || a.name.localeCompare(b.name));
+}
 export const MARKUP_COLORS = ['#E0321B', '#1D4ED8', '#047857', '#B45309', '#7C3AED', '#111827', '#FACC15'];
 
 /** A revision cloud around the box a-b (same shape as the server draws). */
@@ -143,6 +169,7 @@ export function measureLabel(kind: 'measure_len' | 'measure_area', pts: Pt[], w:
 export function boundsOf(m: Pick<Markup, 'kind' | 'data'>, textW = 0.15, textH = 0.03) {
   const xs = m.data.points.map((p) => p[0]), ys = m.data.points.map((p) => p[1]);
   const box = { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+  if (m.kind === 'pin') { box.x0 -= textW / 12; box.x1 += textW / 12; box.y0 -= textH * 1.5; box.y1 += textH / 3; }
   if (m.kind === 'text') { box.x1 += textW; box.y1 += textH * Math.max(1, (m.data.text || '').split('\n').length); }
   return box;
 }

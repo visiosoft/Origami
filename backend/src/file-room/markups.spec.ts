@@ -1,6 +1,6 @@
 import { PDFDocument, degrees } from 'pdf-lib';
-import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, toPage, visibleTo } from './markups';
-import { MarkupsService } from './markups.service';
+import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, toPage, visibleTo } from './markups';
+import { MarkupsService, PIN_PHOTO_FOLDER } from './markups.service';
 
 const twoPages = async (rotate = 0) => {
   const doc = await PDFDocument.create();
@@ -11,7 +11,7 @@ const twoPages = async (rotate = 0) => {
 describe('PDF markup rules', () => {
   it('cleans a markup: clamps points, defaults colour and width, needs a shape', () => {
     const m = cleanMarkup({ kind: 'rect', page: 2, data: { points: [[-1, 0.2], [0.5, 9]], color: 'red', width: 900 } });
-    expect(m).toEqual({ kind: 'rect', page: 2, private: false, data: { points: [[0, 0.2], [0.5, 1]], color: '#E0321B', width: 40 } });
+    expect(m).toEqual({ kind: 'rect', page: 2, private: false, layer: null, data: { points: [[0, 0.2], [0.5, 1]], color: '#E0321B', width: 40 } });
     expect(() => cleanMarkup({ kind: 'line', page: 1, data: { points: [[0, 0]] } })).toThrow(/no shape/);
     expect(() => cleanMarkup({ kind: 'text', page: 1, data: { points: [[0, 0]], text: ' ' } })).toThrow(/Type some text/);
     expect(() => cleanMarkup({ kind: 'scale', page: 1, data: { points: [[0, 0], [1, 0]] } })).toThrow(/real length/);
@@ -56,6 +56,7 @@ describe('PDF markup rules', () => {
         { page: 1, kind: 'measure_area', data: { points: [[0.1, 0.1], [0.3, 0.1], [0.3, 0.3]], color: '#047857', width: 1, label: '120 sq ft' } },
         { page: 1, kind: 'ellipse', data: { points: [[0.6, 0.6], [0.8, 0.7]], color: '#047857', width: 1 } },
         { page: 1, kind: 'highlight', data: { points: [[0.1, 0.8], [0.5, 0.8]], color: '#FACC15', width: 12 } },
+        { page: 1, kind: 'pin', data: { points: [[0.4, 0.4]], color: '#E0321B', width: 1, text: 'Crack', photos: [{ fileId: 'F9', name: 'a.jpg' }] } },
         { page: 9, kind: 'line', data: { points: [[0, 0], [1, 1]], color: '#000000', width: 1 } },
       ] as any[];
       const out = await flattenPdf(src, marks);
@@ -113,5 +114,34 @@ describe('MarkupsService', () => {
     expect(uploads[0][0]).toBe(3);
     expect(uploads[0][1]).toEqual(['Drawings']);
     expect(uploads[0][2][0].originalname).toMatch(/^A-201 — markup \d{4}-\d{2}-\d{2}\.pdf$/);
+  });
+
+  it('a pin holds a note and site photos, kept in the project\'s Markup photos folder', async () => {
+    const { svc, uploads } = setup();
+    const pin = await svc.create('F1', { kind: 'pin', page: 1, data: { points: [[0.4, 0.5]], text: 'Crack at footing' } }, an);
+    expect(pin.data).toMatchObject({ text: 'Crack at footing' });
+    const img = { originalname: 'IMG_1.jpg', mimetype: 'image/jpeg', size: 3, buffer: Buffer.from('abc') };
+    await expect(svc.addPhotos(pin.id, [{ ...img, mimetype: 'application/pdf' }], an)).rejects.toThrow(/Pick a photo/);
+    const withPhoto = await svc.addPhotos(pin.id, [img], ed);
+    expect(uploads[0][1]).toEqual(PIN_PHOTO_FOLDER);
+    expect((withPhoto.data as any).photos).toEqual([{ fileId: 'F2', name: 'IMG_1.jpg' }]);
+    expect(((await svc.removePhoto(pin.id, 'F2', an)).data as any).photos).toEqual([]);
+    const box = await svc.create('F1', { kind: 'rect', page: 1, data: { points: [[0, 0], [1, 1]] } }, an);
+    await expect(svc.addPhotos(box.id, [img], an)).rejects.toThrow(/go on a pin/);
+  });
+
+  it('named layers: drawn on, renamed for everyone, downloaded on their own', async () => {
+    const { svc, rows } = setup();
+    await svc.create('F1', { kind: 'rect', page: 1, layer: '  Electrical  walk ', data: { points: [[0.1, 0.1], [0.3, 0.3]] } }, an);
+    await svc.create('F1', { kind: 'rect', page: 1, layer: 'electrical walk', data: { points: [[0.2, 0.2], [0.4, 0.4]] } }, ed);
+    await svc.create('F1', { kind: 'pen', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]] } }, an);
+    expect(rows.map((r) => r.layer)).toEqual(['Electrical walk', 'electrical walk', null]);
+    expect(await svc.renameLayer('F1', { from: 'Electrical walk', to: 'Electrical — level 1' }, an)).toEqual({ layer: 'Electrical — level 1', updated: 2 });
+    // Andrea's own unnamed layer is hers (or an admin's) to name.
+    await expect(svc.renameLayer('F1', { from: null, authorId: 'U-2', to: 'Mine' }, { ...ed, roleKey: 'staff' })).rejects.toThrow(/owner/);
+    expect((await svc.renameLayer('F1', { from: null, to: 'Andrea notes' }, an)).updated).toBe(1);
+    await expect(svc.renameLayer('F1', { from: 'Andrea notes', to: '  ' }, an)).rejects.toThrow(/name/);
+    expect((await svc.flatten('F1', an, undefined, [layerKey({ layer: 'Andrea notes' })])).count).toBe(1);
+    expect((await svc.flatten('F1', an)).count).toBe(3);
   });
 });

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28h',
+    date: '2026-10-28',
+    title: 'Drawing markup: pins with site photos, and named layers',
+    items: [
+      { area: 'Files', kind: 'new', text: 'Drop a pin (📌) on a drawing to mark a spot, with a note and site photos from your phone’s camera or files. Tap a photo to see it full size. From a pin you can make an RFI or a task, like any markup. Photos are kept in the project’s “Markup photos” folder.', where: 'All Files → a PDF → Mark up' },
+      { area: 'Files', kind: 'new', text: 'Named layers: pick “+ New layer…” under Layers (e.g. “Electrical walk”, “Owner comments”), and what you draw goes on it. Rename a layer with ✎ and it changes for everyone; move a markup to another layer from its details. Show or hide layers, and the download or saved copy includes only the ones you’re showing.', where: 'All Files → a PDF → Mark up → Layers' },
+    ],
+  },
+  {
     id: '2026-10-28g',
     date: '2026-10-28',
     title: 'See when a client opened what you sent',

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
-  KIND_LABEL, MARKUP_COLORS, arrowHead, boundsOf, cloudPath, measureLabel, parseLength, scaleFrom,
+  KIND_LABEL, MARKUP_COLORS, arrowHead, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
   type Markup, type MarkupData, type MarkupKind, type Pt,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
@@ -28,6 +28,7 @@ const TOOLS: { key: Tool; label: string; icon: string; group: 'nav' | 'draw' | '
   { key: 'pen', label: 'Pen', icon: '✎', group: 'draw' },
   { key: 'highlight', label: 'Highlighter', icon: '▮', group: 'draw' },
   { key: 'text', label: 'Text', icon: 'T', group: 'draw' },
+  { key: 'pin', label: 'Pin — a note and site photos on a spot', icon: '📌', group: 'draw' },
   { key: 'line', label: 'Line', icon: '╱', group: 'draw' },
   { key: 'arrow', label: 'Arrow', icon: '↗', group: 'draw' },
   { key: 'rect', label: 'Box', icon: '▭', group: 'draw' },
@@ -41,6 +42,7 @@ const TWO_POINT: MarkupKind[] = ['line', 'arrow', 'rect', 'ellipse', 'cloud', 's
 
 type Ask =
   | { kind: 'text'; at: Pt; value: string }
+  | { kind: 'pin'; at: Pt; value: string }
   | { kind: 'scale'; points: Pt[]; value: string; unit: 'ft' | 'm' }
   | { kind: 'rfi' | 'task'; markup: Markup; value: string };
 
@@ -77,6 +79,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
   const [color, setColor] = useState(MARKUP_COLORS[0]);
   const [width, setWidth] = useState(2);
   const [privateDraft, setPrivateDraft] = useState(false);
+  /** The named layer new markups go on ('' = your own layer). */
+  const [layer, setLayer] = useState('');
+  const [photoView, setPhotoView] = useState<{ url: string; name: string } | null>(null);
   const [draft, setDraft] = useState<Pt[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(focusMarkupId || null);
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -142,17 +147,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
   }, [doc, pageNo, zoom]);
 
   // ---------------------------------------------------------------- helpers
-  const authors = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; count: number }>();
-    for (const m of marks) {
-      const id = m.authorId || m.authorName;
-      const a = map.get(id) || { id, name: m.authorName, count: 0 };
-      a.count++;
-      map.set(id, a);
-    }
-    return [...map.values()];
-  }, [marks]);
-  const shownMarks = marks.filter((m) => !hidden.has(m.authorId || m.authorName));
+  const layers = useMemo(() => layersOf(marks, me), [marks, me]);
+  const namedLayers = layers.filter((l) => l.named).map((l) => l.name);
+  const shownMarks = marks.filter((m) => !hidden.has(layerKey(m)));
   const onPage = shownMarks.filter((m) => m.page === pageNo);
   const pageScale = useMemo(() => {
     const s = marks.filter((m) => m.page === pageNo && m.kind === 'scale').pop();
@@ -169,16 +166,16 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
 
   const save = useCallback(async (kind: MarkupKind, data: MarkupData, page = pageNo) => {
     try {
-      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft });
+      const m = await api.fileRoom.addMarkup(file.id, { kind, page, data, private: privateDraft, layer: layer || null });
       setMarks((prev) => [...prev, m]);
       undo.current.push({ type: 'add', after: m });
       redo.current = [];
       return m;
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Markup not saved')); return null; }
-  }, [file.id, pageNo, privateDraft, toast]);
+  }, [file.id, pageNo, privateDraft, layer, toast]);
 
   const replace = (m: Markup) => setMarks((prev) => prev.map((x) => (x.id === m.id ? m : x)));
-  const editMarkup = async (m: Markup, patch: Partial<Pick<Markup, 'data' | 'private'>>, record = true) => {
+  const editMarkup = async (m: Markup, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer'>>, record = true) => {
     try {
       const saved = await api.fileRoom.editMarkup(m.id, patch);
       replace(saved);
@@ -207,7 +204,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
       to.push(a);
     } else if (a.type === 'add' || a.type === 'remove') {
       const m = (a.after || a.before)!;
-      const again = await api.fileRoom.addMarkup(file.id, { kind: m.kind, page: m.page, data: m.data, private: m.private }).catch(() => null);
+      const again = await api.fileRoom.addMarkup(file.id, { kind: m.kind, page: m.page, data: m.data, private: m.private, layer: m.layer ?? null }).catch(() => null);
       if (again) { setMarks((prev) => [...prev, again]); to.push(a.type === 'add' ? { type: 'add', after: again } : { type: 'remove', before: again }); }
     } else {
       const target = back ? a.before! : a.after!;
@@ -223,7 +220,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
       const typing = (e.target as HTMLElement)?.closest?.('input, textarea, select');
       if (typing) return;
       if (e.key === ' ') { setSpaceDown(true); e.preventDefault(); }
-      if (e.key === 'Escape') { if (draft) setDraft(null); else if (ask) setAsk(null); else onClose(); }
+      if (e.key === 'Escape') { if (photoView) setPhotoView(null); else if (draft) setDraft(null); else if (ask) setAsk(null); else onClose(); }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected && mine(selected)) { e.preventDefault(); void removeMarkup(selected); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); void step(!e.shiftKey); }
       if (e.key === 'Enter' && draft && tool === 'measure_area') finishArea();
@@ -270,7 +267,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
       return;
     }
     if (!canDraw) return;
-    if (tool === 'text') { setAsk({ kind: 'text', at: p, value: '' }); return; }
+    if (tool === 'text' || tool === 'pin') { setAsk(tool === 'pin' ? { kind: 'pin', at: p, value: '' } : { kind: 'text', at: p, value: '' }); return; }
     if (tool === 'measure_area') { setDraft((d) => [...(d || []), p]); return; }
     if ((tool === 'measure_len') && !pageScale) { toast('Set the scale on this page first (⇔): draw over a dimension you know.'); return; }
     setDraft([p, p]);
@@ -324,6 +321,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
     if (!ask || !size) return;
     if (ask.kind === 'text') {
       if (ask.value.trim()) await save('text', { points: [ask.at], color, width: 1, text: ask.value.trim(), size: 12 });
+    } else if (ask.kind === 'pin') {
+      // Selected straight away, so photos can go on it.
+      const m = await save('pin', { points: [ask.at], color, width: 1, ...(ask.value.trim() ? { text: ask.value.trim() } : {}) });
+      if (m) { setSelectedId(m.id); setPanel(true); }
     } else if (ask.kind === 'scale') {
       const real = parseLength(ask.value, ask.unit);
       if (!real) { toast(ask.unit === 'ft' ? 'Type a length like 12\'-6" or 12.5' : 'Type a length like 3.81'); return; }
@@ -362,11 +363,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
   };
 
   // ---------------------------------------------------------------- exports
-  const visibleAuthorIds = authors.filter((a) => !hidden.has(a.id)).map((a) => a.id);
+  const visibleLayers = layers.filter((l) => !hidden.has(l.key)).map((l) => l.key);
   const download = async () => {
     setBusy(true);
     try {
-      const bytes = await api.fileRoom.markedUpPdf(file.id, hidden.size ? visibleAuthorIds : undefined);
+      const bytes = await api.fileRoom.markedUpPdf(file.id, hidden.size ? visibleLayers : undefined);
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url; a.download = file.name.replace(/\.pdf$/i, '') + ' (marked up).pdf';
@@ -378,11 +379,40 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
   const saveCopy = async () => {
     setBusy(true);
     try {
-      const f = await api.fileRoom.saveMarkedUpCopy(file.id, hidden.size ? visibleAuthorIds : undefined);
+      const f = await api.fileRoom.saveMarkedUpCopy(file.id, hidden.size ? visibleLayers : undefined);
       toast(`Saved “${f.name}” beside the drawing`);
       onSavedCopy?.();
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
     finally { setBusy(false); }
+  };
+
+  // ---------------------------------------------------------------- layers and pins
+  const canRename = (l: { named: boolean; authorId: string | null }) => canDraw && (l.named || isAdmin || (!!me && l.authorId === me));
+  const renameLayer = async (l: { key: string; name: string; named: boolean; authorId: string | null }) => {
+    const to = window.prompt(l.named ? 'Rename the layer' : 'Name this layer (e.g. “Electrical walk”)', l.named ? l.name : '');
+    if (to === null || !to.trim() || to.trim() === l.name) return;
+    try {
+      const r = await api.fileRoom.renameLayer(file.id, l.named ? l.name : null, to.trim(), l.authorId);
+      setMarks((prev) => prev.map((m) => (layerKey(m) === l.key ? { ...m, layer: r.layer } : m)));
+      if (l.named && layer.toLowerCase() === l.name.toLowerCase()) setLayer(r.layer);
+      if (hidden.has(l.key)) { const n = new Set(hidden); n.delete(l.key); n.add(layerKey({ layer: r.layer })); setHidden(n); }
+      toast(`Layer renamed “${r.layer}”`);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not renamed')); }
+  };
+  const pickLayer = (v: string) => {
+    if (v !== '__new') { setLayer(v); return; }
+    const name = window.prompt('New layer name (e.g. “Electrical walk”, “Owner comments”)', '');
+    if (name && name.trim()) { setLayer(name.trim().replace(/[\s,]+/g, ' ').slice(0, 60)); toast('New markups go on “' + name.trim() + '”'); }
+  };
+  const addPhotos = async (m: Markup, files: FileList | null) => {
+    if (!files?.length) return;
+    setBusy(true);
+    try { replace(await api.fileRoom.addPinPhotos(m.id, files)); toast(files.length === 1 ? 'Photo pinned' : `${files.length} photos pinned`); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Photo not added')); }
+    finally { setBusy(false); }
+  };
+  const removePhoto = async (m: Markup, fileId: string) => {
+    try { replace(await api.fileRoom.removePinPhoto(m.id, fileId)); } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not removed')); }
   };
 
   // ---------------------------------------------------------------- drawing a markup
@@ -417,6 +447,17 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
         const c: Pt = [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
         return <g><polygon points={poly(pts)} {...common} fill={stroke} fillOpacity={0.12} />{m.data.label && tag(m.data.label, c)}</g>;
       }
+      case 'pin': {
+        // A map pin whose tip is the spot; it keeps its size on screen at any zoom.
+        const [x, y] = pts[0];
+        const k = 1 / scale;
+        const n = m.data.photos?.length || 0;
+        return <g transform={`translate(${x} ${y}) scale(${k})`}>
+          <path d="M0 0 L-7 -12 A9 9 0 1 1 7 -12 Z" fill={stroke} stroke="#fff" strokeWidth={1.5} opacity={ghost ? 0.7 : 1} />
+          <circle cx={0} cy={-18} r={3.5} fill="#fff" />
+          {n > 0 && <g transform="translate(9 -28)"><circle r={7} fill="#111827" stroke="#fff" strokeWidth={1.2} /><text y={3.5} textAnchor="middle" fontSize={9} fontWeight={700} fill="#fff" fontFamily="Helvetica, Arial, sans-serif">{n}</text></g>}
+        </g>;
+      }
       case 'text': {
         const fs = m.data.size || 12;
         return <text x={pts[0][0]} y={pts[0][1] + fs} fontSize={fs} fill={stroke} fontFamily="Helvetica, Arial, sans-serif" style={{ whiteSpace: 'pre' }}>
@@ -436,7 +477,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
   })() : null;
 
   const selBox = selected && selected.page === pageNo && size ? boundsOf(selected, 120 / size.w, 16 / size.h) : null;
-  const cursor = tool === 'pan' || spaceDown ? (pan.current ? 'grabbing' : 'grab') : tool === 'select' ? 'default' : tool === 'text' ? 'text' : 'crosshair';
+  const cursor = tool === 'pan' || spaceDown ? (pan.current ? 'grabbing' : 'grab') : tool === 'select' ? 'default' : tool === 'text' ? 'text' : tool === 'pin' ? 'copy' : 'crosshair';
   const pages = doc?.numPages || 0;
   const listed = (listAll ? shownMarks : onPage).slice().sort((a, b) => a.page - b.page || a.createdAt.localeCompare(b.createdAt));
 
@@ -480,6 +521,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
             <label className="mk-private" title="Only you see markups drawn while this is on, until you share them">
               <input type="checkbox" checked={privateDraft} onChange={(e) => setPrivateDraft(e.target.checked)} /> Private
             </label>
+
             <i className="mk-sep" />
             <button type="button" className="mk-tool" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={() => void step(true)}>↶</button>
             <button type="button" className="mk-tool" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" onClick={() => void step(false)}>↷</button>
@@ -510,12 +552,25 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
             <button type="button" className="mk-btn mk-side-close" onClick={() => setPanel(false)} aria-label="Close the list">✕</button>
             <section>
               <h4>Layers</h4>
-              {!authors.length && <p className="mk-muted">No markups yet{canDraw ? ' — pick a tool and draw.' : '.'}</p>}
-              {authors.map((a) => (
-                <label key={a.id} className="mk-layer">
-                  <input type="checkbox" checked={!hidden.has(a.id)} onChange={() => { const n = new Set(hidden); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); setHidden(n); }} />
-                  <span>{a.id === me ? `${a.name} (you)` : a.name}</span><small>{a.count}</small>
+              {canDraw && (
+                <label className="mk-move">Draw on
+                  <select aria-label="Draw on layer" title="The layer new markups go on" value={layer} onChange={(e) => pickLayer(e.target.value)}>
+                    <option value="">My own layer</option>
+                    {[...new Set([...namedLayers, ...(layer ? [layer] : [])])].map((n) => <option key={n} value={n}>{n}</option>)}
+                    <option value="__new">+ New layer…</option>
+                  </select>
                 </label>
+              )}
+              {!layers.length && <p className="mk-muted">No markups yet{canDraw ? ' — pick a tool and draw.' : '.'}</p>}
+              {layers.map((l) => (
+                <div key={l.key} className="mk-layer">
+                  <label>
+                    <input type="checkbox" checked={!hidden.has(l.key)} onChange={() => { const n = new Set(hidden); if (n.has(l.key)) n.delete(l.key); else n.add(l.key); setHidden(n); }} />
+                    <span>{l.named ? l.name : <>{l.name} <em>own layer</em></>}</span>
+                  </label>
+                  <small>{l.count}</small>
+                  {canRename(l) && <button type="button" className="mk-layer-edit" onClick={() => void renameLayer(l)} aria-label={`Rename ${l.name}`} title={l.named ? 'Rename for everyone' : 'Name this layer'}>✎</button>}
+                </div>
               ))}
             </section>
 
@@ -524,6 +579,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
                 <h4>{KIND_LABEL[selected.kind]} · p. {selected.page}</h4>
                 <p className="mk-muted">{selected.authorName} · {new Date(selected.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{selected.private ? ' · private draft' : ''}</p>
                 {selected.data.text && <p className="mk-quote">{selected.data.text}</p>}
+                {selected.kind === 'pin' && <PinPhotos markup={selected} canAdd={canDraw} busy={busy} onAdd={(f) => void addPhotos(selected, f)} onRemove={mine(selected) ? (id) => void removePhoto(selected, id) : undefined} onOpen={setPhotoView} />}
+                {mine(selected) && (
+                  <label className="mk-move">Layer
+                    <select value={selected.layer || ''} onChange={(e) => void editMarkup(selected, { layer: e.target.value || null })}>
+                      <option value="">{selected.authorName}’s own</option>
+                      {[...new Set([...namedLayers, ...(layer ? [layer] : [])])].map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </label>
+                )}
                 {selected.data.label && <p className="mk-quote">{selected.data.label}</p>}
                 {selected.linkType && <p><a href={selected.linkType === 'rfi' ? `/rfis?rfi=${encodeURIComponent(selected.linkId || '')}` : `/tasks?task=${encodeURIComponent(selected.linkId || '')}&type=log`}>Open the {selected.linkType === 'rfi' ? 'RFI' : 'task'} made from it →</a></p>}
                 <div className="mk-actions">
@@ -533,6 +597,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
                   </>}
                   {mine(selected) && <>
                     {selected.kind === 'text' && <button type="button" className="mk-btn is-text" onClick={() => { const t = window.prompt('Edit the text', selected.data.text || ''); if (t !== null && t.trim()) void editMarkup(selected, { data: { ...selected.data, text: t.trim() } }); }}>Edit text</button>}
+                    {selected.kind === 'pin' && <button type="button" className="mk-btn is-text" onClick={() => { const t = window.prompt('The pin’s note', selected.data.text || ''); if (t !== null) { const data: MarkupData = { ...selected.data, text: t.trim() }; if (!data.text) delete data.text; void editMarkup(selected, { data }); } }}>{selected.data.text ? 'Edit note' : 'Add note'}</button>}
                     <button type="button" className="mk-btn is-text" onClick={() => void editMarkup(selected, { private: !selected.private })}>{selected.private ? 'Share with the team' : 'Make private'}</button>
                     <button type="button" className="mk-btn is-text is-danger" onClick={() => void removeMarkup(selected)}>Delete</button>
                   </>}
@@ -562,11 +627,22 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
         )}
       </div>
 
+      {photoView && (
+        <div className="mk-photo-bg" onClick={() => setPhotoView(null)} role="dialog" aria-label={photoView.name}>
+          <img src={photoView.url} alt={photoView.name} />
+          <button type="button" className="mk-btn" onClick={() => setPhotoView(null)} aria-label="Close the photo">✕</button>
+        </div>
+      )}
+
       {ask && (
         <div className="mk-ask-bg" onClick={() => setAsk(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void answer(); }}>
-            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : 'Create a task from this markup'}</h4>
+            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : 'Create a task from this markup'}</h4>
             {ask.kind === 'text' && <textarea autoFocus rows={3} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="e.g. Verify beam size with structural" />}
+            {ask.kind === 'pin' && <>
+              <textarea autoFocus rows={2} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="A note (optional) — e.g. Crack at the footing, NE corner" aria-label="Pin note" />
+              <p className="mk-muted">Next, add site photos to the pin, or make an RFI or task from it.</p>
+            </>}
             {ask.kind === 'scale' && <>
               <p className="mk-muted">Draw over a dimension you know (a dimension string or a scale bar), then type its real length. Every length and area on this page measures from it.</p>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -580,12 +656,58 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
             </>}
             <div className="mk-ask-row">
               <button type="button" className="mk-btn is-text" onClick={() => setAsk(null)}>Cancel</button>
-              <button type="submit" className="mk-btn is-text is-dark" disabled={busy}>{ask.kind === 'text' ? 'Add' : ask.kind === 'scale' ? 'Set scale' : 'Create'}</button>
+              <button type="submit" className="mk-btn is-text is-dark" disabled={busy}>{ask.kind === 'text' ? 'Add' : ask.kind === 'pin' ? 'Drop pin' : ask.kind === 'scale' ? 'Set scale' : 'Create'}</button>
             </div>
           </form>
         </div>
       )}
     </div>,
     document.body,
+  );
+}
+
+/** A pin's photos: thumbnails (loaded signed in), add from the camera or files, open full size. */
+function PinPhotos({ markup, canAdd, busy, onAdd, onRemove, onOpen }: {
+  markup: Markup; canAdd: boolean; busy: boolean;
+  onAdd: (files: FileList | null) => void; onRemove?: (fileId: string) => void; onOpen: (p: { url: string; name: string }) => void;
+}) {
+  const photos = markup.data.photos || [];
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const ids = photos.map((p) => p.fileId).join(',');
+  useEffect(() => {
+    let live = true;
+    const made: string[] = [];
+    for (const p of photos) {
+      api.fileRoom.bytes(p.fileId).then((b) => {
+        const u = URL.createObjectURL(new Blob([b]));
+        made.push(u);
+        if (live) setUrls((prev) => ({ ...prev, [p.fileId]: u })); else URL.revokeObjectURL(u);
+      }).catch(() => undefined);
+    }
+    return () => { live = false; made.forEach((u) => URL.revokeObjectURL(u)); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
+  return (
+    <div className="mk-photos">
+      {photos.length > 0 && (
+        <div className="mk-photo-grid">
+          {photos.map((p) => (
+            <figure key={p.fileId}>
+              <button type="button" onClick={() => urls[p.fileId] && onOpen({ url: urls[p.fileId], name: p.name })} title={p.name} aria-label={`Open ${p.name}`}>
+                {urls[p.fileId] ? <img src={urls[p.fileId]} alt={p.name} /> : <span>…</span>}
+              </button>
+              {onRemove && <button type="button" className="mk-photo-x" onClick={() => onRemove(p.fileId)} aria-label={`Take ${p.name} off the pin`}>✕</button>}
+            </figure>
+          ))}
+        </div>
+      )}
+      {canAdd && (
+        <label className={'mk-btn is-text mk-photo-add' + (busy ? ' is-busy' : '')}>
+          {busy ? 'Adding…' : photos.length ? '+ More photos' : '+ Add site photos'}
+          <input type="file" accept="image/*" multiple disabled={busy} onChange={(e) => { onAdd(e.target.files); e.target.value = ''; }} hidden />
+        </label>
+      )}
+      {!photos.length && !canAdd && <p className="mk-muted">No photos on this pin.</p>}
+    </div>
   );
 }
