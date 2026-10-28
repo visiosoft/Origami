@@ -57,8 +57,10 @@ export function isMine(
 }
 
 /** Whether this person raised the task (the "created" entry in its activity). */
-export function raisedBy(task: { activity?: { type: string; byId?: string }[] }, userId?: string): boolean {
+export function raisedBy(task: { createdById?: string; activity?: { type: string; byId?: string }[] }, userId?: string): boolean {
   if (!userId) return false;
+  // Lists carry who created it; the history (with the "created" event) comes only with a task opened in full.
+  if (task.createdById) return task.createdById === userId;
   const created = (task.activity || []).find((a) => a.type === 'created');
   return !!created && created.byId === userId;
 }

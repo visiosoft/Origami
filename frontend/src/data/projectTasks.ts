@@ -108,6 +108,8 @@ export interface ProjectTask extends ActionTrailFields {
   parentId?: string | null;
   attachments?: Attachment[];
   comments?: TaskComment[];
+  /** How many comments (lists leave the comments themselves out). */
+  commentCount?: number | null;
   createdAt: string;
   /** users.id — `assignee` is kept alongside as the display name. */
   assigneeId?: string;

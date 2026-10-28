@@ -63,6 +63,9 @@ import { RolesGuard } from './auth/guards/roles.guard';
         retryAttempts: 5,
         retryDelay: 3000,
         extra: { connectTimeout: 30000 },
+        // Any query over a second is written to the log stream (with its SQL), to find what's slow.
+        maxQueryExecutionTime: 1000,
+        logging: ['error', 'warn'],
       }),
     }),
     SeedModule,

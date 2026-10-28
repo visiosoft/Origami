@@ -110,8 +110,8 @@ export function Dashboard() {
 
   useEffect(() => {
     if (isClient) return;
-    api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionBoardTasks(r); }).catch(() => { });
-    api.tasks.list().then((r: any) => { if (Array.isArray(r)) setAttentionLogTasks(r); }).catch(() => { });
+    api.projectTasks.list(undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setAttentionBoardTasks(r); }).catch(() => { });
+    api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setAttentionLogTasks(r); }).catch(() => { });
     api.finance.portfolio().then((r: any) => setPortfolio(Array.isArray(r) ? r : null)).catch(() => setPortfolio(null));
     api.finance.collections(6).then((r: any) => setCollections(Array.isArray(r) ? r : null)).catch(() => setCollections(null));
     api.finance.billing(6).then((r) => setBilling(Array.isArray(r) ? r : null)).catch(() => setBilling(null));

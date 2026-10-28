@@ -53,7 +53,7 @@ export function SpecialActions({ phase }: { phase: Phase }) {
       .catch(() => setProjects([]));
     // Each list is optional: a role without RFIs or finance still sees the rest.
     api.rfis.list().then((r) => setRfis(Array.isArray(r) ? r : [])).catch(() => setRfis([])).finally(done);
-    api.tasks.list().then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([])).finally(done);
+    api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => setTasks([])).finally(done);
     api.finance.allChangeOrders().then((r: any) => setCos(Array.isArray(r) ? r : [])).catch(() => setCos([])).finally(done);
     api.meetings.list().then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([])).finally(done);
   }, [phase]);

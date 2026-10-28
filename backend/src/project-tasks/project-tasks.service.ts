@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
+import { backfillCommentCounts, backfillCreatedBy, slimSelect, slimTask } from '../database/slim-tasks';
+import { ListCache } from '../database/list-cache';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
@@ -55,13 +57,20 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     return rows.length;
   }
 
+  /** Every task, slim (no comments or history), kept in memory and dropped on any write to the table. */
+  private readonly slimList = new ListCache(async () =>
+    (await this.repo.find({ order: { order: 'ASC' }, select: slimSelect(this.repo) })).map((t) => slimTask(this.hydrate(t), t.comments)));
+
   async onApplicationBootstrap() {
+    this.slimList.watch(this.repo);
     const tick = setInterval(() => { this.flushOverdue().catch((e) => this.log.warn('Held task emails: ' + (e as Error).message)); }, 60_000);
     tick.unref?.();
     // Start dates that arrive start their tasks (checked at boot and every 30 minutes).
     const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + (e as Error).message)); }, 30 * 60_000);
     starts.unref?.();
     this.startDueTasks().catch(() => undefined);
+    backfillCommentCounts(this.repo, this.log).catch((e) => this.log.warn('Comment counts: ' + (e as Error).message));
+    backfillCreatedBy(this.repo, this.log).catch((e) => this.log.warn('Task creators: ' + (e as Error).message));
     try {
       if ((await this.repo.count()) === 0) {
         await this.repo.save(DEFAULT_TASKS as unknown as ProjectTaskEntity[]);
@@ -124,15 +133,14 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     } as ProjectTaskEntity;
   }
 
-  /** Confirmed tasks are archived 7 days later -- worked out whenever tasks are read. */
-  private async archiveConfirmed(rows: ProjectTaskEntity[]) {
+  /** Confirmed tasks are archived 7 days later -- checked by the half-hourly timer, not on every read. */
+  async archiveConfirmed() {
     const cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 86400000;
+    const rows = await this.repo.find({ where: { status: 'Confirmed', archivedAt: IsNull() }, select: { id: true, status: true, archivedAt: true, confirmedAt: true, updatedAt: true } });
     // A week after it's confirmed -- unless it was moved or changed since.
-    const due = rows.filter((t) => t.status === 'Confirmed' && !t.archivedAt && t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff && (!t.updatedAt || Date.parse(t.updatedAt) <= cutoff));
-    if (!due.length) return;
-    const at = new Date().toISOString();
-    for (const t of due) t.archivedAt = at;
-    await this.repo.save(due).catch((e) => this.log.warn('Archiving confirmed tasks failed: ' + (e as Error).message));
+    const due = rows.filter((t) => t.confirmedAt && Date.parse(t.confirmedAt) <= cutoff && (!t.updatedAt || Date.parse(t.updatedAt) <= cutoff));
+    if (due.length) await this.repo.update({ id: In(due.map((t) => t.id)) }, { archivedAt: new Date().toISOString() });
+    return due.length;
   }
 
   /**
@@ -141,25 +149,34 @@ export class ProjectTasksService implements OnApplicationBootstrap {
    * genuinely want everything). `null` = only the General Tasks board (not
    * tied to any client project). A number = that project only.
    */
-  async findAll(projectId?: number | null): Promise<any[]> {
+  async findAll(projectId?: number | null, opts: { slim?: boolean } = {}): Promise<any[]> {
     // One board's tasks are read from the database on their own, not picked out of every task.
+    if (opts.slim) {
+      // Served from memory; one board is picked out of the cached list.
+      const all = await this.slimList.get();
+      return projectId === undefined ? all : all.filter((t) => (projectId === null ? t.projectId == null : Number(t.projectId) === projectId));
+    }
     const where = projectId === undefined ? undefined : { projectId: projectId === null ? IsNull() : projectId };
     const rows = await this.repo.find({ where, order: { order: 'ASC' } });
-    await this.archiveConfirmed(rows);
     return rows.map((t) => this.hydrate(t));
   }
 
   // { sections, tasks } for one project (or, projectId === null, the
   // General Tasks board) — the board payload.
-  async board(projectId: number | null) {
+  async board(projectId: number | null, opts: { slim?: boolean } = {}) {
     const sections = await this.sections.forProject(projectId);
-    const tasks = await this.findAll(projectId);
+    const tasks = await this.findAll(projectId, opts);
     return { sections, tasks };
   }
 
   /** One task, for access checks. */
   async get(id: string) {
     return this.load(id);
+  }
+
+  /** One task in full (comments, history), for its drawer. */
+  async findOne(id: string) {
+    return this.hydrate(await this.load(id));
   }
 
   private async load(id: string) {
@@ -316,7 +333,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     if (board && (status === 'Not started' || status === 'Assigned') && startDue(dto.startDate, !!assignee.name)) status = 'In progress';
     if (board && status === 'In progress' && !assignee.name) throw new BadRequestException(NO_ASSIGNEE_IN_PROGRESS);
     const task = {
-      order: 0, parentId: null, attachments: [], comments: [],
+      order: 0, parentId: null, attachments: [], comments: [], commentCount: 0,
       createdAt: new Date().toISOString().slice(0, 10),
       ...dto,
       assignee: assignee.name,
@@ -516,8 +533,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
     return { sent };
   }
 
-  /** Assigned board tasks whose start date has arrived go In Progress. Returns how many moved. */
+  /** Assigned board tasks whose start date has arrived go In Progress (and week-old Confirmed ones are archived). Returns how many moved. */
   async startDueTasks() {
+    await this.archiveConfirmed().catch((e) => this.log.warn('Archiving confirmed tasks: ' + (e as Error).message));
     const rows = (await this.repo.find()).filter((t) => !t.phaseId && !t.archivedAt && (!t.status || t.status === 'Not started' || t.status === 'Assigned')
       && startDue(t.startDate, !!(t.assigneeId || (t.assignee || '').trim())));
     for (const t of rows) {
@@ -628,6 +646,7 @@ export class ProjectTasksService implements OnApplicationBootstrap {
       date: new Date().toISOString(),
     };
     task.comments = [...normalizeList<TaskComment>(task.comments), comment];
+    task.commentCount = task.comments.length;
     task.activity = [...normalizeList<ActivityEvent>(task.activity), event('comment', actor, { text: comment.text })];
     const saved = await this.repo.save(task);
     // Everyone following the task hears about a comment (the assignee too), except its author.

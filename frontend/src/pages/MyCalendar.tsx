@@ -110,7 +110,7 @@ export function MyCalendar() {
   }, []);
 
   const reloadTasks = () => {
-    api.tasks.list()
+    api.tasks.list(undefined, undefined, { slim: true })
       .then((res: any) => {
         const rows: Task[] = Array.isArray(res) ? res : [];
         const mine = rows

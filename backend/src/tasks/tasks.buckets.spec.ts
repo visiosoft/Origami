@@ -39,7 +39,10 @@ describe('Request Log task buckets', () => {
 
   it('archives confirmed tasks after a week, and moves old statuses onto the buckets once', async () => {
     const { svc, rows, settings } = setup();
+    // The half-hourly timer archives them now; reading the list no longer writes.
     await svc.findAll();
+    expect(rows[1].archivedAt).toBeFalsy();
+    expect(await svc.archiveConfirmed()).toBe(1);
     expect(rows[1].archivedAt).toBeTruthy();
     settings.store['requestLog.statuses'] = JSON.stringify([{ name: 'Open' }, { name: 'Closed', closed: true }]);
     expect(await svc.moveToBuckets()).toBe(1);

@@ -17,7 +17,7 @@ function useWorkCounts(projectId: number, rfis: boolean) {
   useEffect(() => {
     let live = true;
     Promise.all([
-      api.projectTasks.list(projectId).catch(() => []),
+      api.projectTasks.list(projectId, { slim: true }).catch(() => []),
       rfis ? api.rfis.list(projectId).catch(() => []) : Promise.resolve([]),
     ]).then(([tasks, list]: any[]) => {
       if (!live) return;

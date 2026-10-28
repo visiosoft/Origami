@@ -61,7 +61,7 @@ export function Meetings() {
 
   useEffect(() => {
     api.meetings.list().then((r) => setMeetings(Array.isArray(r) ? r : [])).catch(() => setMeetings([]));
-    api.tasks.list().then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => { });
+    api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => setTasks(Array.isArray(r) ? r : [])).catch(() => { });
     api.projects.list().then((r: any) => setProjects((Array.isArray(r) ? r : []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => { });
     api.rfis.list().then((r) => setRfis(Array.isArray(r) ? r : [])).catch(() => { });
     api.finance.allChangeOrders().then((r: any) => setCos(Array.isArray(r) ? r : [])).catch(() => { });

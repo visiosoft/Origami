@@ -1,3 +1,4 @@
+import { MyTasksService } from './my-tasks.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { NotificationItemEntity, PersonEntity, ProjectEntity, ProjectTaskEntity, RoleEntity, TaskEntity, UserEntity } from '../database/entities';
@@ -11,7 +12,7 @@ import { NotifyHub } from './notify-hub.service';
 @Module({
   imports: [TypeOrmModule.forFeature([UserEntity, ProjectEntity, RoleEntity, PersonEntity, NotificationItemEntity, ProjectTaskEntity, TaskEntity]), SettingsModule, GoogleModule, SmsModule],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotifyHub],
+  providers: [NotificationsService, NotifyHub, MyTasksService],
   exports: [NotificationsService, NotifyHub],
 })
 export class NotificationsModule {}

@@ -16,6 +16,23 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28m',
+    date: '2026-10-28',
+    title: 'Task lists load in a moment',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The Dashboard, My Tasks, the Task board, Special Actions, Meetings and My Calendar now get their task lists straight from the server’s memory instead of the database each time — they open in a moment, and any change anyone saves shows on the next load.', where: 'Dashboard · Special Actions → Task · My Tasks' },
+    ],
+  },
+  {
+    id: '2026-10-28l',
+    date: '2026-10-28',
+    title: 'Faster Task page and notifications',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The Task board and the Special Actions Log open much faster: the list no longer carries every task’s full comment thread and history — a task’s comments and history load when you open it.', where: 'Special Actions → Task' },
+      { area: 'General', kind: 'improved', text: 'The notifications bell now checks only your own open tasks, instead of downloading every task every two minutes in each open tab — the whole site is lighter as a result.', where: 'The bell, top right' },
+    ],
+  },
+  {
     id: '2026-10-28k',
     date: '2026-10-28',
     title: 'Drawing markup: compare two revisions',
