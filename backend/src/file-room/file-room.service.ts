@@ -1,3 +1,4 @@
+import { pageArgs, pageOf } from '../common/paging';
 import { TrackingService, type OpenSummary } from '../tracking/tracking.service';
 import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -140,6 +141,65 @@ export class FileRoomService {
       folders: (projectId ? rawFolders.filter((f) => Number(f.projectId) === projectId) : rawFolders)
         .map((f) => ({ ...f, path: Array.isArray(f.path) ? f.path : [] })),
     };
+  }
+
+  /**
+   * The tree without the files: projects, categories, folders, how many files
+   * each folder holds directly (counts[projectId][folder path joined by '>']),
+   * and the totals. The files themselves come a page at a time (filesPage).
+   */
+  async tree(ok: (projectId: unknown) => boolean = () => true) {
+    const [rows, rawFolders, projects] = await Promise.all([
+      this.files.find({ select: { id: true, projectId: true, folderPath: true, size: true, updatedAt: true } }),
+      this.folders.find(),
+      this.projects.find({ select: { id: true, name: true, fileRoomSyncedAt: true } }),
+    ]);
+    const counts: Record<string, Record<string, number>> = {};
+    const week = Date.now() - 7 * 864e5;
+    let total = 0, recent = 0, bytes = 0;
+    for (const f of rows) {
+      if (!ok(f.projectId)) continue;
+      const key = (Array.isArray(f.folderPath) ? f.folderPath : []).join('>');
+      const byFolder = (counts[String(f.projectId)] ||= {});
+      byFolder[key] = (byFolder[key] || 0) + 1;
+      total++;
+      bytes += Number(f.size) || 0;
+      if (Date.parse(f.updatedAt || '') > week) recent++;
+    }
+    return {
+      projects: projects.filter((p) => ok(p.id)).map((p) => ({ id: p.id, name: p.name, syncedAt: p.fileRoomSyncedAt || null })),
+      categories: DEFAULT_CATEGORIES,
+      folders: rawFolders.filter((f) => ok(f.projectId)).map((f) => ({ ...f, path: Array.isArray(f.path) ? f.path : [] })),
+      counts,
+      totals: { total, recent, bytes },
+    };
+  }
+
+  /**
+   * One page of files: a folder's (projectId + path), or every project's
+   * (no projectId -- "All Files"), with the name search, latest-only and sort.
+   */
+  async filesPage(q: Record<string, string>, ok: (projectId: unknown) => boolean = () => true) {
+    const pid = Number(q.projectId);
+    const rows = await this.files.find({ where: Number.isFinite(pid) && pid > 0 ? { projectId: pid } : {} });
+    const folder = q.path === undefined ? null : String(q.path);
+    const text = String(q.q || '').trim().toLowerCase();
+    const list = rows
+      .filter((f) => ok(f.projectId))
+      .map((f) => this.hydrate(f))
+      .filter((f) => folder === null || (f.folderPath || []).join('>') === folder)
+      .filter((f) => q.latest !== '1' || f.isLatest !== false)
+      .filter((f) => !text || f.name.toLowerCase().includes(text))
+      .sort((a, b) => (q.dir === 'desc' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name)));
+    return pageOf(list, pageArgs(q.page, q.size));
+  }
+
+  /** One file, with every revision of it -- for its details panel or a link to it. */
+  async fileWithVersions(id: string) {
+    const f = await this.files.findOneBy({ id });
+    if (!f) throw new NotFoundException('File not found');
+    const versions = f.groupId ? await this.files.find({ where: { groupId: f.groupId } }) : [f];
+    return { file: this.hydrate(f), versions: versions.map((v) => this.hydrate(v)) };
   }
 
   private async projectName(projectId: number): Promise<string> {

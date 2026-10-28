@@ -801,6 +801,25 @@ export const api = {
   },
   fileRoom: {
     list: (projectId?: number) => request(`/file-room${projectId ? `?projectId=${projectId}` : ''}`),
+    /** The tree without the files: projects, folders, file counts per folder (counts[projectId][path joined by '>']) and totals. */
+    tree: () => request<{
+      projects: { id: number; name: string; syncedAt?: string | null }[]; categories: string[]; folders: any[];
+      counts: Record<string, Record<string, number>>; totals: { total: number; recent: number; bytes: number };
+    }>('/file-room/tree'),
+    /** One page of files: a folder's (projectId + path) or every file's; q, latest, dir. */
+    filesPage: (o: { projectId?: number; path?: string[]; q?: string; latest?: boolean; dir?: string; page?: number; size?: number }) => {
+      const params = new URLSearchParams();
+      if (o.projectId) params.set('projectId', String(o.projectId));
+      if (o.path) params.set('path', o.path.join('>'));
+      if (o.q) params.set('q', o.q);
+      if (o.latest) params.set('latest', '1');
+      if (o.dir) params.set('dir', o.dir);
+      params.set('page', String(o.page || 1));
+      params.set('size', String(o.size || 50));
+      return request<{ rows: import('./data/fileRoom').FileRoomFile[]; total: number; page: number; size: number; pages: number }>(`/file-room/files/page?${params}`);
+    },
+    /** One file and all its revisions (fresh: it's the file being looked at). */
+    meta: (id: string) => request<{ file: import('./data/fileRoom').FileRoomFile; versions: import('./data/fileRoom').FileRoomFile[] }>(`/file-room/files/${encodeURIComponent(id)}/meta`, { cache: 'no-store' }),
     upload: (projectId: number, path: string[], files: File[] | FileList) => {
       const form = new FormData();
       form.append('projectId', String(projectId));

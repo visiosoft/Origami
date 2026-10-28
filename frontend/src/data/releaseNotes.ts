@@ -22,6 +22,7 @@ export const RELEASES: Release[] = [
     items: [
       { area: 'General', kind: 'improved', text: 'The app loads much less up front: each page’s code is fetched the first time you open it.', where: 'Everywhere' },
       { area: 'General', kind: 'improved', text: 'Going back to a page you just visited is instant: lists you opened in the last minute come from memory. Anything you open to edit is always fresh, and your own saves show straight away.', where: 'Everywhere' },
+      { area: 'File Room', kind: 'improved', text: 'The File Room opens straight away: folders and counts load first, then files 50 a page with page numbers. Search covers every file.', where: 'File Room' },
       { area: 'Tasks', kind: 'improved', text: 'The Special Actions Log shows 50 entries a page, with page numbers and a page-size picker; search, filters and sorting cover every entry.', where: 'Special Actions → Task → Special Actions Log' },
       { area: 'Tasks', kind: 'improved', text: 'Long board columns show their first 25 cards with “Show more”.', where: 'Special Actions → Task' },
       { area: 'Dashboard', kind: 'improved', text: 'The Dashboard’s task cards and My Tasks load just the figures they show.', where: 'Dashboard' },
