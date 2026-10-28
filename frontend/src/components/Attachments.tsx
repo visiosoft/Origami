@@ -60,7 +60,7 @@ export interface AttachmentsProps {
 }
 
 /**
- * The attachments block, shared by the Request Log and the project board.
+ * The attachments block, shared by the Special Actions Log and the project board.
  *
  * Files are uploaded to the connected Google Drive account and streamed back
  * through the API, so thumbnails render for any signed-in Origami user without

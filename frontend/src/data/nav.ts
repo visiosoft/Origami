@@ -44,7 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { label: 'Meetings', route: 'meetings', icon: 'cal', desc: 'Manage, track and create meetings; generate the actions below from them' },
     { label: 'FOR RECORD', route: 'observations', icon: 'q', desc: 'Observations, FYIs and decisions on record; link them to tasks and change orders' },
     { label: 'RFI', route: 'rfis', icon: 'q', desc: 'Manage, track and create RFIs' },
-    { label: 'Task', route: 'tasks', icon: 'check', desc: 'The task board and the Request Log: manage, track and create tasks' },
+    { label: 'Task', route: 'tasks', icon: 'check', desc: 'The task board and the Special Actions Log: manage, track and create tasks' },
     { label: 'Change Orders', route: 'changeorders', icon: 'swap', desc: 'Manage, track and create change orders' },
     // Seen by whoever sees change orders (same permission).
     { label: 'Contracts', route: 'contracts', perm: 'changeorders', icon: 'clip', desc: 'GC, owner, sub and consultant contracts and change orders, signed in ODIN' },
@@ -115,7 +115,7 @@ export const MODULES: ModuleRef[] = NAV_GROUPS.flatMap((g) =>
 /** Route -> permission key, for the route guard. */
 export const PERM_BY_ROUTE: Record<string, string> = {
   ...Object.fromEntries(NAV_GROUPS.flatMap((g) => g.items.map((it) => [it.route, permOf(it)]))),
-  // Pages without their own menu entry: the Request Log opens inside Tasks; the phase lists of special actions.
+  // Pages without their own menu entry: the Special Actions Log opens inside Tasks; the phase lists of special actions.
   requests: 'tasks',
   actions_design: 'design',
   actions_con: 'pm',

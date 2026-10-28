@@ -193,7 +193,7 @@ export function SuperintendentDashboard() {
           <TaskList rows={openTasks} limit={8} empty={w.loaded ? 'Nothing assigned to you right now.' : 'Loading…'} />
         </Section>
         <Section title="Requests I raised" count={openRaised.length} action={<span onClick={() => setShowNew(true)} style={{ fontSize: 12, fontWeight: 700, color: ACCENT, cursor: 'pointer' }}>+ New request</span>}>
-          <TaskList rows={openRaised} limit={8} empty="Need something from the office or another team member? Raise a request — it goes on the Request Log and they’re emailed." />
+          <TaskList rows={openRaised} limit={8} empty="Need something from the office or another team member? Raise a request — it goes on the Special Actions Log and they’re emailed." />
         </Section>
 
         <MyWorkforceRequests projectNames={w.projects} />

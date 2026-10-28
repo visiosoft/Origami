@@ -576,7 +576,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, o
             </>}
             {(ask.kind === 'rfi' || ask.kind === 'task') && <>
               <input autoFocus value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder={ask.kind === 'rfi' ? 'RFI subject' : 'Task subject'} aria-label="Subject" />
-              <p className="mk-muted">{ask.kind === 'rfi' ? 'A draft RFI is made with this drawing and page linked; finish it in the RFI log.' : 'A Request Log task is made with a link back to this spot on the drawing.'}</p>
+              <p className="mk-muted">{ask.kind === 'rfi' ? 'A draft RFI is made with this drawing and page linked; finish it in the RFI log.' : 'A Special Actions Log task is made with a link back to this spot on the drawing.'}</p>
             </>}
             <div className="mk-ask-row">
               <button type="button" className="mk-btn is-text" onClick={() => setAsk(null)}>Cancel</button>

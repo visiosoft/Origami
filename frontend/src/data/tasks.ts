@@ -11,7 +11,7 @@ export interface Task extends ActionTrailFields {
   meetingType: 'Internal' | 'Owner' | 'Subcontractor';
   meetingDate: string;
   assignedTo: string;
-  /** One of the Request Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
+  /** One of the Special Actions Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
   status: string;
   /** Urgent / High / Medium / Low, or empty for none. */
   priority?: string;
@@ -52,12 +52,12 @@ export interface Task extends ActionTrailFields {
   checklist?: ChecklistItem[];
   labels?: string[];
   updatedAt?: string;
-  /** FOR RECORD links: the Request Log tasks this entry drove or is attached to (kept on both), and change orders. */
+  /** FOR RECORD links: the Special Actions Log tasks this entry drove or is attached to (kept on both), and change orders. */
   linkedTaskIds?: string[];
   changeOrderIds?: string[];
 }
 
-/** FOR RECORD: Request Log entries kept on record rather than worked -- observations, FYIs and decisions. */
+/** FOR RECORD: Special Actions Log entries kept on record rather than worked -- observations, FYIs and decisions. */
 export const FOR_RECORD_TOPICS = ['Observation', 'FYI', 'Decision'] as const;
 export const isForRecord = (t: Pick<Task, 'topicType'>) => (FOR_RECORD_TOPICS as readonly string[]).includes(t.topicType);
 
@@ -105,7 +105,7 @@ export const ALL_TASKS: Record<TaskTab, Task[]> = {
 };
 
 /**
- * A Request Log task has one text field. Its first line reads as the title and
+ * A Special Actions Log task has one text field. Its first line reads as the title and
  * the rest as details, so a long note pasted from an email doesn't turn into
  * one wall of bold text wherever the task is listed.
  */
@@ -149,7 +149,7 @@ const toDay = (v?: string | null) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? new Da
 const shortDate = (v?: string | null) => { const d = toDay(v); return d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; };
 
 /**
- * Lead time, open days and the due-date history of a Request Log task. Open
+ * Lead time, open days and the due-date history of a Special Actions Log task. Open
  * days run from the meeting date to today (or the day it closed); the history
  * is the task's own recorded due-date changes (Oct 2026: it used to show
  * made-up approvals).
@@ -194,7 +194,7 @@ export const NEW_TASK_FIELDS = [
   { label: 'Link to File', value: 'Attach or paste link', valColor: 'var(--muted)', span: '1 / -1', required: false },
 ];
 
-/** A Request Log task's name: its subject, or (older tasks) the first line of its description. */
+/** A Special Actions Log task's name: its subject, or (older tasks) the first line of its description. */
 export function logTaskTitle(t: { subject?: string; description?: string; id?: string }): string {
   return (t.subject || '').trim() || taskHeadline(t.description).title || t.id || '';
 }

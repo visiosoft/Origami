@@ -2,7 +2,7 @@ import { tint } from '../theme';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
-/** A Request Log status. `closed` ones end the task (close date stamped, out of reminders and "open" counts). */
+/** A Special Actions Log status. `closed` ones end the task (close date stamped, out of reminders and "open" counts). */
 export interface LogStatus { name: string; closed?: boolean; color?: string }
 
 /** The task buckets, the same as the task board's. Complete and Confirmed close a task. */
@@ -42,7 +42,7 @@ export function loadLogStatuses(force = false): Promise<LogStatus[]> {
 /** After Settings saves a new list. */
 export const setLogStatuses = (l: LogStatus[]) => { pending = Promise.resolve(l); publish(l); };
 
-/** The Request Log's statuses, as set in Settings (the defaults until they load). */
+/** The Special Actions Log's statuses, as set in Settings (the defaults until they load). */
 export function useLogStatuses() {
   const [list, setList] = useState<LogStatus[]>(current);
   useEffect(() => {
@@ -53,7 +53,7 @@ export function useLogStatuses() {
   return list;
 }
 
-/** A Request Log task is done when its status is one marked closed (Complete, Confirmed, and the old "Closed"). */
+/** A Special Actions Log task is done when its status is one marked closed (Complete, Confirmed, and the old "Closed"). */
 export const isLogClosed = (status?: string | null) => status === 'Closed' || status === 'Complete' || status === 'Confirmed' || current.some((s) => s.closed && s.name === status);
 
 /** Badge colours for a status: the built-in ones, an admin's chosen colour, or neutral. */

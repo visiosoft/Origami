@@ -9,7 +9,7 @@ const input: React.CSSProperties = { boxSizing: 'border-box', padding: '8px 10px
 const COLORS = ['#8E2E0A', '#93520F', '#2F6F68', '#1C5230', '#3C5C8A', '#6B3FA0', '#5C6B65'];
 
 /**
- * Settings -> Request Log statuses. The office's own list for the Request
+ * Settings -> Special Actions Log statuses. The office's own list for the Request
  * Log: the six task buckets (shared with the task board) plus any the office adds /
  * Done). "Counts as closed" statuses end a task: the close date is stamped
  * and it drops out of open counts and reminders. "Open" (where new tasks
@@ -35,16 +35,16 @@ export function RequestLogStatusSettings() {
     if (new Set(names).size !== names.length) { setError('Two statuses have the same name.'); return; }
     setSaving(true); setError('');
     api.tasks.saveStatuses(list)
-      .then((saved) => { setLogStatuses(saved as LogStatus[]); setList((saved as LogStatus[]).map((s) => ({ ...s }))); toast('Request Log statuses saved'); })
+      .then((saved) => { setLogStatuses(saved as LogStatus[]); setList((saved as LogStatus[]).map((s) => ({ ...s }))); toast('Special Actions Log statuses saved'); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSaving(false));
   };
 
   return (
     <div style={{ maxWidth: 680 }}>
-      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Request Log statuses</div>
+      <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>Special Actions Log statuses</div>
       <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, marginBottom: 16, lineHeight: 1.6 }}>
-        The Request Log uses the same task buckets as the task board — To Do, Assigned, In Progress, On hold, Complete, Confirmed.
+        The Special Actions Log uses the same task buckets as the task board — To Do, Assigned, In Progress, On hold, Complete, Confirmed.
         You can recolour them and add statuses of your own; ones marked <b>counts as closed</b> finish a task — its close date is
         stamped and it stops showing as open or in reminders.
       </div>

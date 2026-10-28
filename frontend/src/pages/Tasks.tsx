@@ -20,7 +20,7 @@ const TABS: TaskTab[] = ['internal', 'owner', 'subcontractor'];
 /** The board project is remembered so coming back lands on the same one. */
 const TAB_LABELS: Record<TaskTab, string> = { internal: 'Internal', owner: 'Owner', subcontractor: 'Subcontractor' };
 
-/** initialMode 'log' opens on the Request Log (Special Actions → Task). */
+/** initialMode 'log' opens on the Special Actions Log (Special Actions → Task). */
 /** The board picker: a project, General, everything, or a lead's tasks ('lead:<id>'). */
 type BoardSel = number | 'general' | 'all' | `lead:${string}`;
 const LEAD_PF = 'Lead · ';
@@ -52,7 +52,7 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
 
   // Deep link from an assignment email or the notification bell:
   //   /tasks?task=<id>&project=<id>   board
-  //   /tasks?task=<id>&type=log       request log
+  //   /tasks?task=<id>&type=log       Special Actions Log
   const [params, setParams] = useSearchParams();
   const linkedTaskId = params.get('task');
   const linkedIsLog = params.get('type') === 'log';
@@ -142,10 +142,10 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>
-      {/* Mode toggle: Asana-style board vs the request log */}
+      {/* Mode toggle: Asana-style board vs the Special Actions Log */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
-          {([['board', 'Task Board'], ['log', 'Request Log']] as [typeof mode, string][]).map((m) => (
+          {([['board', 'Task Board'], ['log', 'Special Actions Log']] as [typeof mode, string][]).map((m) => (
             <div key={m[0]} onClick={() => setMode(m[0])} style={{ padding: '7px 16px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', background: mode === m[0] ? 'var(--seg-on)' : 'transparent', color: mode === m[0] ? 'var(--ink)' : 'var(--muted)', boxShadow: mode === m[0] ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{m[1]}</div>
           ))}
         </div>

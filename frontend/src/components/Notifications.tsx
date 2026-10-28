@@ -83,7 +83,7 @@ export function Notifications() {
         .map((t) => ({
           id: 'l' + t.id,
           title: clip(logTaskTitle(t), 70),
-          context: t.project || 'Request Log',
+          context: t.project || 'Special Actions Log',
           at: t.updatedAt,
           to: `/tasks?task=${encodeURIComponent(t.id)}&type=log`,
         })),

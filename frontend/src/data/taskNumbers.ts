@@ -29,7 +29,7 @@ export function loadProjectCodes(force = false): Promise<Codes> {
   return pending;
 }
 
-/** The number to show for a task: by its project id (board) or project name (Request Log). */
+/** The number to show for a task: by its project id (board) or project name (Special Actions Log). */
 export function useTaskNumber() {
   const [codes, setCodes] = useState<Codes>(current);
   useEffect(() => {

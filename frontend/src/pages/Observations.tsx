@@ -30,7 +30,7 @@ export const raisedOn = (t: Task) => {
 };
 
 /**
- * Special Actions -> FOR RECORD: the Request Log entries kept on record --
+ * Special Actions -> FOR RECORD: the Special Actions Log entries kept on record --
  * observations, FYIs and decisions, raised on their own or from a meeting.
  * Each one can drive or be attached to tasks and change orders: open it to
  * link an existing one, or create a task / change-order draft from it.
@@ -216,7 +216,7 @@ function RecordPanel({ item, tasks, cos, projects, canEdit, onClose, onTask, onC
         <OriginatorLine by={item.originator || (item.activity || []).find((e) => e.type === 'created')?.by} at={(item.activity || []).find((e) => e.type === 'created')?.at || raisedOn(item)} number={numberOf(item) || '#' + item.id} />
         <ActionTrail sourceType={item.sourceType} sourceId={item.sourceId} sourceLabel={item.sourceLabel} derived={item.derivedRefs} />
         <div className="mt-row">
-          <button type="button" className="ak-btn" onClick={() => navigate(`/tasks?task=${encodeURIComponent(item.id)}&type=log`)}>Open in the Request Log</button>
+          <button type="button" className="ak-btn" onClick={() => navigate(`/tasks?task=${encodeURIComponent(item.id)}&type=log`)}>Open in the Special Actions Log</button>
           {item.meetingId && <button type="button" className="ak-btn" onClick={() => navigate(`/meetings?open=${encodeURIComponent(item.meetingId!)}`)}>Open the meeting</button>}
         </div>
 

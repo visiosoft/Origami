@@ -37,10 +37,10 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  * Special Actions -> Meetings: plan a meeting (who, when, how, where, agenda),
  * keep its notes, recording and transcript, then review it -- pull out the
  * special actions (tasks, RFIs, change orders) and FOR RECORD items
- * (observations, FYIs, decisions). Request Log entries are linked to the
+ * (observations, FYIs, decisions). Special Actions Log entries are linked to the
  * meeting; RFIs and change orders are listed on it. A reviewed meeting turns
  * Complete by itself once everything raised in it is done. Past meetings
- * recorded only in the Request Log (its meeting type and date) are listed too.
+ * recorded only in the Special Actions Log (its meeting type and date) are listed too.
  */
 export function Meetings() {
   const { can } = useApp();
@@ -73,7 +73,7 @@ export function Meetings() {
       key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m,
       actions: tasks.filter((t) => t.meetingId === m.id),
     }));
-    // Meetings that exist only as Request Log entries (meeting type + date), grouped.
+    // Meetings that exist only as Special Actions Log entries (meeting type + date), grouped.
     const groups = new Map<string, Task[]>();
     for (const t of tasks) {
       if (t.meetingId || !String(t.meetingDate || '').trim()) continue;
@@ -169,7 +169,7 @@ export function Meetings() {
               right={<>
                 {(acts.length > 0 || rec > 0) && <span className="ak-hide-sm" style={{ fontSize: 12.5, color: 'var(--muted)' }}>{[acts.length && `${acts.length} ${acts.length === 1 ? 'action' : 'actions'}${open ? ` · ${open} open` : ''}`, rec && `${rec} on record`].filter(Boolean).join(' · ')}</span>}
                 {lt && <span className="ak-hide-sm"><AkPill tone="outline" title={lt.label}>{lt.short}</AkPill></span>}
-                {i.kind === 'legacy' ? <AkPill tone="soft">From Request Log</AkPill>
+                {i.kind === 'legacy' ? <AkPill tone="soft">From Special Actions Log</AkPill>
                   : late ? <AkPill tone="warn" title="Its date has passed — mark it occurred, rescheduled or cancelled">Not marked occurred</AkPill>
                     : <AkPill tone={meetingStatusInfo(i.status).tone} title={meetingStatusInfo(i.status).hint}>{meetingStatusInfo(i.status).label}</AkPill>}
               </>}
@@ -316,7 +316,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
       .catch((e: Error) => toast('⚠ ' + (e.message || 'Connect your Google Calendar in Settings → My account')));
   };
   const remove = () => {
-    if (!confirm(`Delete “${draft.title}”? Actions raised in it stay in the Request Log.`)) return;
+    if (!confirm(`Delete “${draft.title}”? Actions raised in it stay in the Special Actions Log.`)) return;
     api.meetings.remove(draft.id).then(() => { toast('Meeting deleted'); onDeleted(draft.id); }).catch((e: Error) => toast('⚠ ' + e.message));
   };
   const st = meetingStatus(draft.status);
@@ -398,7 +398,7 @@ function MeetingPanel({ item, projects, rfis, cos, canEdit, onClose, onSaved, on
             <textarea className="mt-text" disabled={!editable} rows={4} value={draft.transcript || ''} onChange={(e) => set({ transcript: e.target.value })} placeholder="…or paste the transcript here" />
           </>
         ) : (
-          <p className="mt-muted" style={{ margin: '0 0 6px' }}>Recorded in the Request Log as a {item.type.toLowerCase()} meeting{item.project ? ` on ${item.project}` : ''} — these are the entries raised in it.</p>
+          <p className="mt-muted" style={{ margin: '0 0 6px' }}>Recorded in the Special Actions Log as a {item.type.toLowerCase()} meeting{item.project ? ` on ${item.project}` : ''} — these are the entries raised in it.</p>
         )}
 
         {saved && <div style={{ margin: '4px 0 10px' }}><ActionTrail sourceType={saved.sourceType} sourceId={saved.sourceId} sourceLabel={saved.sourceLabel} derived={saved.derivedRefs} /></div>}

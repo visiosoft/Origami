@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { downloadCsv } from '../components/finance/financeUi';
-import { auditCsvRows, changeText, headline, typesIn, type AuditRow } from '../data/audit';
+import { auditCsvRows, changeText, headline, typeLabel, typesIn, type AuditRow } from '../data/audit';
 
 const input: React.CSSProperties = {
   boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)',
@@ -54,7 +54,7 @@ export function AuditLogSettings() {
         <input value={f.user} onChange={set('user')} placeholder="Person" aria-label="Person" style={{ ...input, width: 150 }} />
         <select value={f.type} onChange={set('type')} aria-label="Record type" style={{ ...input, width: 170 }}>
           <option value="">All records</option>
-          {types.map((t) => <option key={t} value={t}>{t}</option>)}
+          {types.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
         </select>
         <select value={f.projectId} onChange={set('projectId')} aria-label="Project" style={{ ...input, width: 190 }}>
           <option value="">All projects</option>

@@ -31,7 +31,7 @@ export function PrioritySettings() {
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div style={{ fontSize: 13, color: 'var(--body)', lineHeight: 1.55 }}>
-        What each priority means. Everyone sees this under the priority picker on tasks, Request Log items and RFIs. Picking a priority fills in the due date from its window.
+        What each priority means. Everyone sees this under the priority picker on tasks, Special Actions Log items and RFIs. Picking a priority fills in the due date from its window.
       </div>
       {draft.map((d, i) => (
         <label key={d.priority} style={{ display: 'grid', gap: 6 }}>

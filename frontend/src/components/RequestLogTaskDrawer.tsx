@@ -31,7 +31,7 @@ const BG = 'var(--font-display)';
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '10px 12px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 
 /**
- * A Request Log task, opened over whatever page you're on -- the Tasks page,
+ * A Special Actions Log task, opened over whatever page you're on -- the Tasks page,
  * or a lead's Tasks tab in the CRM -- so opening a task never takes you away
  * from where you were. It owns its saving and tells the host what changed.
  */
@@ -147,7 +147,7 @@ export function RequestLogTaskDrawer({ task, allLabels = [], onClose, onChanged,
             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}><OriginatorLine label="Assigner" project={t.project || (t.leadName ? leadLabel(t.leadName) : 'General (no project)')} source={t.originator} by={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.by : '') || t.originator} at={(Array.isArray(task.activity) ? task.activity.find((e) => e.type === 'created')?.at : '') || t.meetingDate} number={numberOf(task) || '#' + t.id} /></div>
               {canManage && (task.archivedAt
-                ? <button type="button" onClick={reopen} title="Bring it back into the Request Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
+                ? <button type="button" onClick={reopen} title="Bring it back into the Special Actions Log" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer', whiteSpace: 'nowrap' }}>Reopen</button>
                 : <button type="button" onClick={closeTask} title="Mark it complete and move it to the archive now" style={{ padding: '5px 12px', borderRadius: 999, border: 0, background: 'var(--ink)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>✓ Close task</button>)}
             </div>
             <div style={{ marginTop: 8 }}><ActionTrail sourceType={t.sourceType} sourceId={t.sourceId} sourceLabel={t.sourceLabel} derived={t.derivedRefs} /></div>

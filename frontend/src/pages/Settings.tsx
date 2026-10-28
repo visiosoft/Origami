@@ -54,7 +54,7 @@ const SECTIONS: { group: string; items: { key: string; label: string }[] }[] = [
   { group: 'Workspace', items: [
     { key: 'notice', label: 'System notice' },
     { key: 'daily-log-backup', label: 'Daily log backup' },
-    { key: 'request-log-statuses', label: 'Request Log statuses' },
+    { key: 'request-log-statuses', label: 'Special Actions Log statuses' },
     { key: 'checklists', label: 'Checklist templates' },
     { key: 'priorities', label: 'Task priorities' },
     { key: 'contract-templates', label: 'Contract templates' },
@@ -87,7 +87,7 @@ export function Settings() {
       { key: 'cost-codes', tab: 'workspace', label: 'Cost codes (CSI)', hint: 'Codes used on budgets and costs', render: () => <CostCodesSettings canManage={canCodes} /> },
       { key: 'sla', tab: 'workspace', label: 'CRM response times', hint: 'How fast each lead stage should move', render: () => <PipelineSlaSettings /> },
       { key: 'scheduling', tab: 'workspace', label: 'Calendars', hint: 'Whose calendars booking checks', render: () => <SchedulingSettings /> },
-      { key: 'request-log-statuses', tab: 'workspace', label: 'Request Log statuses', hint: 'The statuses a request can have', render: () => <RequestLogStatusSettings /> },
+      { key: 'request-log-statuses', tab: 'workspace', label: 'Special Actions Log statuses', hint: 'The statuses a request can have', render: () => <RequestLogStatusSettings /> },
       { key: 'checklists', tab: 'workspace', label: 'Checklist templates', hint: 'Checklists to add to tasks', render: () => <ChecklistTemplateSettings /> },
       { key: 'notice', tab: 'workspace', label: 'System notice', hint: 'A banner shown to everyone', render: () => <SystemNoticeSettings /> },
       { key: 'daily-log-backup', tab: 'workspace', label: 'Daily log backup', hint: 'Copies of daily logs to Drive', render: () => <DailyLogBackupSettings /> },

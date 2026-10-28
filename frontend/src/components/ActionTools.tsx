@@ -14,9 +14,9 @@ export function actionHref(kind: ActionKind | string, id: string, o: { projectId
   return `/changeorders?co=${e}`;
 }
 
-/** What each kind can become. A Request Log entry can switch between a task and a FOR RECORD item. */
+/** What each kind can become. A Special Actions Log entry can switch between a task and a FOR RECORD item. */
 const TARGETS: { to: ActionKind; topicType?: string; label: string; from: ActionKind[] }[] = [
-  { to: 'log', topicType: 'Task', label: 'Task (Request Log)', from: ['log', 'board', 'meeting', 'rfi', 'co'] },
+  { to: 'log', topicType: 'Task', label: 'Task (Special Actions Log)', from: ['log', 'board', 'meeting', 'rfi', 'co'] },
   { to: 'log', topicType: 'Observation', label: 'FOR RECORD: Observation', from: ['log', 'board', 'meeting', 'rfi'] },
   { to: 'log', topicType: 'FYI', label: 'FOR RECORD: FYI', from: ['log', 'board', 'meeting', 'rfi'] },
   { to: 'log', topicType: 'Decision', label: 'FOR RECORD: Decision', from: ['log', 'board', 'meeting', 'rfi'] },
@@ -36,7 +36,7 @@ const pillBtn: CSSProperties = {
  */
 export function ActionMenu({ kind, id, topicType, projectId, projectName, onMade, disabled }: {
   kind: ActionKind; id: string; topicType?: string; projectId?: number | null;
-  /** Request Log entries know their project by name only. */
+  /** Special Actions Log entries know their project by name only. */
   projectName?: string;
   /** After a conversion or duplicate: refresh the record (its history now says so). */
   onMade?: (made: MadeAction[]) => void;

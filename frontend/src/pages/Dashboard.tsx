@@ -313,7 +313,7 @@ export function Dashboard() {
   type MyTask = { key: string; title: string; project: string; due?: string; open: boolean; touched: string; to: string };
   const myTasks: MyTask[] = [
     ...attentionBoardTasks.filter(mineBoard).map((t) => ({ key: 'b' + t.id, title: t.title, project: projName(t.projectId), due: t.dueDate, open: boardOpen(t), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId ?? 'null'}` })),
-    ...attentionLogTasks.filter(mineLog).map((t) => ({ key: 'l' + t.id, title: logTaskTitle(t), project: t.project || 'Request Log', due: t.dueDate, open: !isLogClosed(t.status), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&type=log` })),
+    ...attentionLogTasks.filter(mineLog).map((t) => ({ key: 'l' + t.id, title: logTaskTitle(t), project: t.project || 'Special Actions Log', due: t.dueDate, open: !isLogClosed(t.status), touched: lastTouched(t as any), to: `/tasks?task=${encodeURIComponent(t.id)}&type=log` })),
   ];
   const myOpen = myTasks.filter((t) => t.open);
   const myOverdue = myOpen.filter((t) => t.due && t.due < todayStr);

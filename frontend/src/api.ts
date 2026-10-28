@@ -9,7 +9,7 @@ import type { Contract, ContractSigningView, ContractTemplate, ContractTypeInfo 
 import type { PriorityDef } from './data/priority';
 const API_BASE = '/api';
 
-/** Special actions that can be duplicated or converted: Request Log entry, board task, meeting, RFI, change order. */
+/** Special actions that can be duplicated or converted: Special Actions Log entry, board task, meeting, RFI, change order. */
 export type ActionKind = 'log' | 'board' | 'meeting' | 'rfi' | 'co';
 /** A record made by duplicating or converting. */
 export interface MadeAction { kind: ActionKind; id: string; label: string; projectId: number | null; projectName: string }
@@ -377,7 +377,7 @@ export const api = {
     update: (id: string, d: unknown) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(d) }),
     remove: (id: string) => request(`/meetings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     get: (id: string) => request<import('./data/meetings').Meeting>(`/meetings/${encodeURIComponent(id)}`),
-    /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Request Log entry linked to it. */
+    /** Raise a task, or a FOR RECORD item (FYI, observation, decision), from the meeting: a Special Actions Log entry linked to it. */
     addAction: (id: string, d: { topicType: string; subject: string; description?: string; assignedTo?: string; assignedToId?: string; dueDate?: string }) =>
       request<any>(`/meetings/${encodeURIComponent(id)}/actions`, { method: 'POST', body: JSON.stringify(d) }),
   },
@@ -386,7 +386,7 @@ export const api = {
     notify: (id: string) => request<{ sent: number }>(`/tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** Projects and open leads a task can be linked to. */
     linkTargets: () => request<import('./data/linkTargets').LinkTargets>('/tasks/link-targets'),
-    /** The Request Log's statuses (Settings -> Request Log statuses). */
+    /** The Special Actions Log's statuses (Settings -> Special Actions Log statuses). */
     statuses: () => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses'),
     /** What each priority means (Settings -> Task priorities). */
     priorities: () => request<PriorityDef[]>('/tasks/priorities'),

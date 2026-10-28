@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28a',
+    date: '2026-10-28',
+    title: 'Request Log is now the Special Actions Log',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The Request Log is renamed the Special Actions Log everywhere — the Task page toggle, Settings, Meetings, notifications and the audit log. Nothing in it changed.', where: 'Special Actions → Task → Special Actions Log' },
+    ],
+  },
+  {
     id: '2026-10-27p',
     date: '2026-10-27',
     title: 'No more “Hi {client_name}” emails',
