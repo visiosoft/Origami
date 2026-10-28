@@ -324,6 +324,8 @@ export const api = {
   },
   /** Duplicate a special action (to several projects at once) or convert it into another kind. */
   specialActions: {
+    /** One project's special actions: open counts, and when each kind last changed (for the blinking buttons). */
+    projectSummary: (projectId: number) => request<{ latest: Record<'tasks' | 'rfis' | 'meetings' | 'forRecord' | 'changeOrders', string | null>; counts: { meetingsUpcoming: number; meetings: number; forRecord: number; changeOrdersOpen: number; changeOrders: number; rfisOpen: number } }>(`/special-actions/project/${projectId}`, { cache: 'no-store' }),
     duplicate: (d: { kind: ActionKind; id: string; projectIds: (number | null)[] }) =>
       request<{ created: MadeAction[]; failed: { projectId: number | null; projectName: string; reason: string }[] }>('/special-actions/duplicate', { method: 'POST', body: JSON.stringify(d) }),
     convert: (d: { from: { kind: ActionKind; id: string }; to: ActionKind; topicType?: string; projectId?: number | null; title?: string; body?: string }) =>

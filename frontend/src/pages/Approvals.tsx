@@ -18,6 +18,8 @@ interface Waiting {
   to: string;
   /** The caller can decide it (not just see it). */
   canAct: boolean;
+  /** The project it's for, when it has one. */
+  project?: string;
 }
 type Kind = 'change_order' | 'contract' | 'client_contract' | 'reimbursable' | 'finance' | 'daily_report' | 'timesheet' | 'workforce';
 const KIND: Record<Kind, string> = {
@@ -34,7 +36,8 @@ const usd = (n: number) => n.toLocaleString('en-US', { style: 'currency', curren
  * workforce requests. Each row opens the place where it's approved; nothing is
  * decided here. Only what the signed-in person may see is fetched.
  */
-export function Approvals() {
+/** `projectName`: shown inside a project (its Special Actions tab) -- that project's items only. */
+export function Approvals({ projectName }: { projectName?: string } = {}) {
   const navigate = useNavigate();
   const { can } = useApp();
   const [rows, setRows] = useState<Waiting[] | null>(null);
@@ -62,7 +65,7 @@ export function Approvals() {
       for (const p of Array.isArray(finance) ? finance : []) {
         const k: Kind = p.type === 'change_order' ? 'change_order' : p.type === 'commitment' ? 'contract' : p.type === 'reimbursable' ? 'reimbursable' : 'finance';
         out.push({
-          key: 'f' + p.type + p.id, kind: k, title: p.title, sub: [p.projectName, p.detail].filter(Boolean).join(' · '), since: p.since, amount: p.amount, canAct: !!p.canAct,
+          key: 'f' + p.type + p.id, kind: k, title: p.title, sub: [p.projectName, p.detail].filter(Boolean).join(' · '), since: p.since, amount: p.amount, canAct: !!p.canAct, project: p.projectName,
           to: k === 'change_order' ? `/changeorders?co=${encodeURIComponent(p.id)}` : k === 'reimbursable' ? '/reimbursement' : '/fin_project',
         });
       }
@@ -75,14 +78,14 @@ export function Approvals() {
         });
       }
       for (const l of Array.isArray(logs) ? logs : []) {
-        out.push({ key: 'd' + l.id, kind: 'daily_report', title: `${pn(l.projectId)} — daily report`, sub: [l.supervisorName && 'by ' + l.supervisorName, l.totalHours != null && `${l.totalHours} h`].filter(Boolean).join(' · '), since: l.submittedAt || l.date, canAct: canManpower, to: '/manpower_con?tab=approvals' });
+        out.push({ key: 'd' + l.id, kind: 'daily_report', project: pn(l.projectId), title: `${pn(l.projectId)} — daily report`, sub: [l.supervisorName && 'by ' + l.supervisorName, l.totalHours != null && `${l.totalHours} h`].filter(Boolean).join(' · '), since: l.submittedAt || l.date, canAct: canManpower, to: '/manpower_con?tab=approvals' });
       }
       for (const t of Array.isArray(sheets) ? sheets : []) {
         out.push({ key: 't' + t.id, kind: 'timesheet', title: `${t.employeeName} — week of ${new Date(t.weekStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, sub: `${t.totalHours} h`, since: t.submittedAt, canAct: true, to: '/manpower_con?tab=approvals' });
       }
       for (const r of (Array.isArray(requests) ? requests : []).filter((x: any) => x.status === 'submitted')) {
         const people = (r.lines || []).reduce((a: number, ln: any) => a + (Number(ln.quantity) || 0), 0);
-        out.push({ key: 'w' + r.id, kind: 'workforce', title: `${pn(r.projectId)} — ${r.workArea || 'workforce request'}`, sub: [r.requestedByName && 'by ' + r.requestedByName, people ? `${people} people` : '', r.requiredDate && 'needed ' + new Date(r.requiredDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })].filter(Boolean).join(' · '), since: r.submittedAt, canAct: canManpower, to: '/manpower_con?tab=requests' });
+        out.push({ key: 'w' + r.id, kind: 'workforce', project: pn(r.projectId), title: `${pn(r.projectId)} — ${r.workArea || 'workforce request'}`, sub: [r.requestedByName && 'by ' + r.requestedByName, people ? `${people} people` : '', r.requiredDate && 'needed ' + new Date(r.requiredDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })].filter(Boolean).join(' · '), since: r.submittedAt, canAct: canManpower, to: '/manpower_con?tab=requests' });
       }
       out.sort((a, b) => String(a.since || '').localeCompare(String(b.since || '')));
       if (live) setRows(out);
@@ -90,7 +93,7 @@ export function Approvals() {
     return () => { live = false; };
   }, [can]);
 
-  const all = rows || [];
+  const all = (rows || []).filter((r) => !projectName || r.project === projectName);
   const inGroup = all.filter((r) => (group === 'main' ? MAIN.includes(r.kind) : !MAIN.includes(r.kind)));
   const scoped = inGroup.filter((r) => !mine || r.canAct);
   const shown = scoped.filter((r) => kind === 'all' || r.kind === kind);

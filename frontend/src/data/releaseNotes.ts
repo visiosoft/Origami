@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28t',
+    date: '2026-10-28',
+    title: 'Projects: every special action on the project, and a blink when something changes',
+    items: [
+      { area: 'Projects', kind: 'new', text: 'The project tab “Tasks & RFIs” is now “Special Actions”: Tasks, RFIs, Meetings, FOR RECORD, Change Orders and Approvals for that project, each one button away. A button blinks when something in it changed since you last opened it.', where: 'Projects → open a project → Special Actions' },
+      { area: 'Projects', kind: 'improved', text: 'The Overview’s special actions summary adds Meetings, FOR RECORD, open change orders and Approvals; each tile opens that list.', where: 'Projects → open a project → Overview' },
+    ],
+  },
+  {
     id: '2026-10-28s',
     date: '2026-10-28',
     title: 'Lead panel: clearer tabs, and Full Details shows what changed',

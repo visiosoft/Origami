@@ -12,7 +12,7 @@ import { AllFiles } from '../components/AllFiles';
 import { ProjectSubcontractors } from '../components/ProjectSubcontractors';
 import { ProjectPeople } from '../components/ProjectPeople';
 import { ProjectAuditTrail } from '../components/ProjectAuditTrail';
-import { MoneyGlance, TasksAndRfis, WorkGlance } from '../components/ProjectGlance';
+import { MoneyGlance, TasksAndRfis, WorkGlance, type ActionView } from '../components/ProjectGlance';
 import { HoldBadge, ProjectHoldPanel, isOnHold } from '../components/ProjectHold';
 import { MapLink } from '../components/ContactLinks';
 import { CollaboratorPicker } from '../components/CollaboratorPicker';
@@ -80,8 +80,8 @@ export function Projects() {
   useEffect(() => { api.finance.access().then((r: any) => setFinView(!!r?.view)).catch(() => setFinView(false)); }, []);
   const [rfiView, setRfiView] = useState(false);
   // Inside the "Tasks & RFIs" tab: which of the two is showing.
-  const [workView, setWorkView] = useState<'tasks' | 'rfis'>('tasks');
-  const openWork = (v: 'tasks' | 'rfis') => { setWorkView(v); setTab('tasks'); };
+  const [workView, setWorkView] = useState<ActionView>('tasks');
+  const openWork = (v: ActionView) => { setWorkView(v); setTab('tasks'); };
   useEffect(() => { api.rfis.access().then((r) => setRfiView(!!r?.view)).catch(() => setRfiView(false)); }, []);
   // The Phase Board reads either as columns or as a grouped list.
   const [phaseView, setPhaseView] = useState<'board' | 'list'>('board');
@@ -720,7 +720,7 @@ export function Projects() {
               <div onClick={() => openWork(workView)} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'tasks' ? 'var(--forest)' : 'transparent'), color: tab === 'tasks' ? 'var(--ink)' : 'var(--muted)' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" /></svg>
-                  {rfiView ? 'Tasks & RFIs' : 'Tasks'}
+                  Special Actions
                 </span>
               </div>
               <div onClick={() => setTab('phases')} style={{ padding: '11px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderBottom: '2px solid ' + (tab === 'phases' ? 'var(--forest)' : 'transparent'), color: tab === 'phases' ? 'var(--ink)' : 'var(--muted)' }}>
@@ -759,7 +759,7 @@ export function Projects() {
 
             {tab === 'overview' ? (
               <div>
-                <WorkGlance projectId={sel.id} showRfis={rfiView} onTasks={() => openWork('tasks')} onRfis={() => openWork('rfis')} />
+                <WorkGlance projectId={sel.id} showRfis={rfiView} showChanges={finView} onOpen={openWork} />
                 <div style={{ padding: '24px 28px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                   <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 14 }}>Project Details</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -822,7 +822,7 @@ export function Projects() {
               </div>
             ) : tab === 'tasks' || tab === 'rfis' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
-                <TasksAndRfis projectId={sel.id} projectName={sel.name} showRfis={rfiView} view={tab === 'rfis' ? 'rfis' : workView} onView={openWork} />
+                <TasksAndRfis projectId={sel.id} projectName={sel.name} showRfis={rfiView} showChanges={finView} view={tab === 'rfis' ? 'rfis' : workView} onView={openWork} />
               </div>
             ) : tab === 'files' ? (
               <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>

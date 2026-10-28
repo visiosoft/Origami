@@ -285,3 +285,8 @@ button {
   .sk-bar { animation: none; }
   .top-progress::after { animation-duration: 2.4s; }
 }
+
+/* A special action that changed since you last looked (project Special Actions). */
+@keyframes saBlink { 0%, 100% { box-shadow: 0 0 0 0 rgba(224, 138, 46, 0); } 50% { box-shadow: 0 0 0 4px rgba(224, 138, 46, 0.35); } }
+.sa-blink { animation: saBlink 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .sa-blink { animation: none; box-shadow: 0 0 0 2px rgba(224, 138, 46, 0.5); } }

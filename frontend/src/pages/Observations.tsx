@@ -37,7 +37,8 @@ export const raisedOn = (t: Task) => {
  * link an existing one, or create a task / change-order draft from it.
  * ?item=<task id> opens one.
  */
-export function Observations() {
+/** `projectName`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
+export function Observations({ projectName }: { projectName?: string } = {}) {
   const { can } = useApp();
   const numberOf = useTaskNumber();
   const [params] = useSearchParams();
@@ -46,7 +47,8 @@ export function Observations() {
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [kind, setKind] = useState<Kind>('all');
   const [state, setState] = useState<'open' | 'closed' | 'all'>('open');
-  const [project, setProject] = useState('');
+  const [project, setProjectRaw] = useState(projectName || '');
+  const setProject = (v: string) => { if (!projectName) setProjectRaw(v); };
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(params.get('item'));
@@ -58,7 +60,7 @@ export function Observations() {
     api.projects.list().then((r: any) => setProjects((Array.isArray(r) ? r : []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => { });
   }, []);
 
-  const rows = useMemo(() => (tasks ? tasks.filter(isForRecord) : null), [tasks]);
+  const rows = useMemo(() => (tasks ? tasks.filter((t) => isForRecord(t) && (!projectName || t.project === projectName)) : null), [tasks, projectName]);
   const all = useMemo(() => rows || [], [rows]);
   const projectNames = useMemo(() => [...new Set(all.map((t) => t.project).filter(Boolean))].sort(), [all]);
   const needle = q.trim().toLowerCase();
@@ -98,10 +100,10 @@ export function Observations() {
       <div className="ak-tools">
         <AkSeg<Kind> value={kind} onChange={setKind} options={[['all', 'All', all.length], ['Observation', 'Observations'], ['FYI', 'FYI'], ['Decision', 'Decisions']]} />
         <AkSeg value={state} onChange={setState} options={[['open', 'Open'], ['closed', 'Closed'], ['all', 'All']]} />
-        <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
+        {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+        </select>}
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" />
         <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
           { key: 'default', dir: 'asc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' }, { key: 'title', dir: 'asc', label: 'A–Z' },

@@ -43,7 +43,8 @@ const linkOk = (u?: string) => !!u && /^https?:\/\//i.test(u.trim());
  * Complete by itself once everything raised in it is done. Past meetings
  * recorded only in the Special Actions Log (its meeting type and date) are listed too.
  */
-export function Meetings() {
+/** `projectName`: shown inside a project (its Special Actions tab) -- that project's only, no project picker. */
+export function Meetings({ projectName }: { projectName?: string } = {}) {
   const { can } = useApp();
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -53,7 +54,8 @@ export function Meetings() {
   const [view, setView] = useState<View>('upcoming');
   const [status, setStatus] = useState<StatusFilter>('all');
   const [where, setWhere] = useState<WhereFilter>('all');
-  const [project, setProject] = useState('');
+  const [project, setProjectRaw] = useState(projectName || '');
+  const setProject = (v: string) => { if (!projectName) setProjectRaw(v); };
   const [q, setQ] = useState('');
   // ?open=<meeting id> opens that meeting (links from Special Actions).
   const [params] = useSearchParams();
@@ -70,7 +72,7 @@ export function Meetings() {
 
   const today = akToday();
   const items = useMemo<Item[]>(() => {
-    const out: Item[] = (meetings || []).map((m) => ({
+    const out: Item[] = (meetings || []).filter((m) => !projectName || m.project === projectName).map((m) => ({
       key: m.id, kind: 'meeting', date: m.date, time: m.time, title: m.title, type: m.type, project: m.project, status: meetingStatus(m.status), meeting: m,
       actions: tasks.filter((t) => t.meetingId === m.id),
     }));
@@ -86,7 +88,7 @@ export function Meetings() {
       out.push({ key: 'legacy:' + k, kind: 'legacy', date: isoDay(md) || raisedOn(list[0]) || '', title: `${type} meeting${isoDay(md) ? '' : ' · ' + md}`, type, project: proj, status: 'legacy', actions: list });
     }
     return out;
-  }, [meetings, tasks]);
+  }, [meetings, tasks, projectName]);
 
   const real = items.filter((i) => i.kind === 'meeting');
   const isUpcoming = (i: Item) => i.kind === 'meeting' && isPlanned(i.status) && i.date >= today;
@@ -129,10 +131,10 @@ export function Meetings() {
 
       <div className="ak-tools">
         <AkSeg<View> value={view} onChange={setView} options={[['upcoming', 'Coming up', upcoming.length], ['past', 'Past'], ['all', 'All']]} />
-        <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
+        {!projectName && <select className="ak-select" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">All projects</option>
           {projectNames.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+        </select>}
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, project, attendee…" />
         <SortSelect className="ak-select" value={sort} onChange={setSort} options={[
           { key: 'default', dir: 'asc', label: view === 'upcoming' ? 'Soonest first' : 'Newest first' }, { key: 'date', dir: 'desc', label: 'Newest first' }, { key: 'date', dir: 'asc', label: 'Oldest first' },
