@@ -52,18 +52,18 @@ export function HoldingReferOut() {
 
   return (
     <AkPage
-      lead="Leads that aren’t active: on hold until a date, referred out to someone else, or gone cold. Click one to open it on the CRM board."
+      lead="Leads that aren’t active: on hold until a date, referred out to someone else, or dead (Cold / Lost, Cancelled / Pass). Click one to open it on the CRM board."
       action={<button type="button" className="ak-btn" onClick={() => navigate('/pipeline')}>Open CRM board</button>}
     >
       <AkStats items={[
         { key: 'due', label: 'Due to pick back up', value: deals ? dueBack.length : '—', sub: soon.length ? `${soon.length} more in the next 2 weeks` : 'on or past their date', tone: dueBack.length ? 'yellow' : undefined, onClick: () => setView('hold') },
         { key: 'hold', label: 'On hold', value: deals ? hold.length : '—', sub: '1, 3, 6 and 12-month holds', onClick: () => setView('hold'), on: view === 'hold' },
         { key: 'ref', label: 'Referred out', value: deals ? referred.length : '—', sub: 'handed to a partner', onClick: () => setView('referred'), on: view === 'referred' },
-        { key: 'closed', label: 'Cold or cancelled', value: deals ? closed.length : '—', sub: 'not referred', onClick: () => setView('closed'), on: view === 'closed' },
+        { key: 'closed', label: 'Dead leads', value: deals ? closed.length : '—', sub: 'Cold / Lost, Cancelled / Pass', onClick: () => setView('closed'), on: view === 'closed' },
       ]} />
 
       <div className="ak-tools">
-        <AkSeg<View> value={view} onChange={setView} options={[['hold', 'On hold', hold.length], ['referred', 'Referred out', referred.length], ['closed', 'Cold & cancelled', closed.length]]} />
+        <AkSeg<View> value={view} onChange={setView} options={[['hold', 'On hold', hold.length], ['referred', 'Referred out', referred.length], ['closed', 'Dead leads', closed.length]]} />
         <input className="ak-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search lead, client, partner…" />
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
           <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Include archived

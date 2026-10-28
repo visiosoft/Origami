@@ -6,7 +6,7 @@ describe('dead leads', () => {
     expect(addBusinessDays(new Date('2026-10-30T10:00:00Z'), 7).toISOString().slice(0, 10)).toBe('2026-11-10');
   });
 
-  it('archives Cold / Loss and Cancelled / Passed 7 business days after they got there', () => {
+  it('archives Cold / Lost and Cancelled / Pass 7 business days after they got there', () => {
     const deal = { stage: 'cold', stageEnteredAt: '2026-11-02T09:00:00Z' }; // Mon
     expect(archiveDueAt(deal)!.toISOString().slice(0, 10)).toBe('2026-11-11');
     expect(isDueForArchive(deal, new Date('2026-11-10T23:00:00Z'))).toBe(false);
@@ -54,7 +54,7 @@ describe('PipelineService dead-lead sweep and loss', () => {
     expect((rows[1] as any).archived).toBeUndefined();
     expect(repo.save).toHaveBeenCalledTimes(1);
   });
-  it('records a Cold / Loss reason', async () => {
+  it('records a Cold / Lost reason', async () => {
     const rows = [{ id: 'A', stage: 'cold', timeline: [] }];
     const { svc } = make(rows);
     (svc as any).leadMoved = jest.fn();

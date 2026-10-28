@@ -1,5 +1,5 @@
 /**
- * Dead leads (Oct 27 sync): Cold / Loss and Cancelled / Passed leads leave the
+ * Dead leads (Oct 27 sync): Cold / Lost and Cancelled / Pass leads leave the
  * board on their own 7 business days after landing there, and a lost lead says
  * why -- the reasons feed marketing and training later. Leads on hold stay put.
  */

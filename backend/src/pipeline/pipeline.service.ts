@@ -378,7 +378,7 @@ export class PipelineService implements OnApplicationBootstrap {
     return this.repo.save(deal);
   }
 
-  /** Why a lead went Cold / Loss (or was lost on Cancelled / Passed): a reason, and a note for "Other". */
+  /** Why a lead went Cold / Lost (or was lost on Cancelled / Pass): a reason, and a note for "Other". */
   async setLoss(id: string, body: { lossReason?: string; note?: string }, actor?: DealActor) {
     const deal = await this.findOne(id);
     const loss = cleanLossReason(body?.lossReason);
@@ -393,7 +393,7 @@ export class PipelineService implements OnApplicationBootstrap {
     return this.repo.save(deal);
   }
 
-  /** Cold / Loss and Cancelled / Passed leads 7 business days on: archived (restorable), with a timeline line saying so. */
+  /** Cold / Lost and Cancelled / Pass leads 7 business days on: archived (restorable), with a timeline line saying so. */
   async archiveDeadLeads(now: Date = new Date()): Promise<number> {
     try {
       const dead = await this.repo.find({ where: { stage: In(DEAD_STAGES) } });

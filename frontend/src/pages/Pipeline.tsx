@@ -244,7 +244,7 @@ const REJECTION_STYLE: Record<string, { bg: string; c: string; label: (d: Deal) 
   referred: { bg: '#D8E2F0', c: '#3C5C8A', label: (d) => `Referred to ${d.referredToName || 'contact'}` },
 };
 
-/** The outcome badge a card carries: a rejection outcome, or a Cold / Loss reason. */
+/** The outcome badge a card carries: a rejection outcome, or a Cold / Lost reason. */
 const outcomeOf = (d: Deal) => d.rejectionType || (d.lossReason ? 'lost' : '');
 
 const LOSS_COPY = {
@@ -788,7 +788,7 @@ export function Pipeline() {
     if (createdNow) { setSelectedId(id); setDetailTab('overview'); }
   };
 
-  /** Moving a lead to Cold / Loss asks why first (Oct 27 sync); cancelling leaves it where it was. */
+  /** Moving a lead to Cold / Lost asks why first (Oct 27 sync); cancelling leaves it where it was. */
   const applyOverride = (id: string, o: Override) => {
     const deal = data.find((d) => d.id === id);
     if (o.stage !== 'cold' || !deal || deal.stage === 'cold') { applyOverrideNow(id, o); return; }

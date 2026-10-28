@@ -59,7 +59,7 @@ export class PipelineController {
     return this.pipelineService.setRoles(id, roles, await this.auth.actor(auth));
   }
 
-  /** Why a lead was lost (Cold / Loss, or the client passed). */
+  /** Why a lead was lost (Cold / Lost, or the client passed). */
   @Put(':id/loss')
   async setLoss(
     @Param('id') id: string,
