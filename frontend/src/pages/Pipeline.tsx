@@ -9,6 +9,7 @@ import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { askDeadReason } from '../components/DeadReasonDialog';
+import { askPerson } from '../components/AskPerson';
 import { deadReasonLabels, type DeadKind, type DeadReason } from '../data/deadReasons';
 import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
@@ -792,12 +793,29 @@ export function Pipeline() {
   const applyOverride = (id: string, o: Override, kind?: DeadKind) => {
     const deal = data.find((d) => d.id === id);
     const dead = o.stage === 'cold' || o.stage === 'rejected' ? o.stage : null;
-    if (!dead || !deal || deal.stage === dead) { applyOverrideNow(id, o); return; }
+    if (!dead || !deal || deal.stage === dead) {
+      applyOverrideNow(id, o);
+      // On hold: who picks it back up when the date comes (Oct 26 review notes).
+      const target = STAGES.find((st) => st.key === o.stage);
+      if (deal && target?.isHold && deal.stage !== o.stage) void askWatcher(deal, 'follow_up');
+      return;
+    }
     void askDeadReason(deal.name, dead, kind).then((why) => {
       if (!why) return;
       applyOverrideNow(id, o);
       saveDeadReason(id, why);
     });
+  };
+  /** Who follows up a held lead, or monitors a referral; "Later" leaves it for the Holding page. */
+  const askWatcher = async (deal: Deal, role: 'follow_up' | 'monitor') => {
+    const who = await askPerson(role === 'follow_up'
+      ? { heading: 'Who picks it back up?', why: `“${deal.name}” is on hold. Pick who gets back in touch when the date comes — they get a task due that day.`, users, current: deal.followUpById || deal.assignee || currentUser?.id }
+      : { heading: 'Who monitors it?', why: `“${deal.name}” was referred out. Pick who keeps an eye on it and adds updates.`, users, current: deal.monitorId || currentUser?.id });
+    if (!who) return;
+    setDeals((prev) => prev.map((d) => (d.id === deal.id ? (role === 'follow_up' ? { ...d, followUpById: who.id, followUpByName: who.name } : { ...d, monitorId: who.id, monitorName: who.name }) : d)));
+    persist(() => api.pipeline.setWatcher(deal.id, { role, ...who }))
+      .then((saved: any) => { if (saved?.id) setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...saved } : d))); })
+      .catch((e: Error) => toast('⚠ Not saved — ' + (e.message || 'try again')));
   };
   const saveDeadReason = (id: string, why: DeadReason) => {
     setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, deadReason: why, lossReason: deadReasonLabels(why.kind, why.reasons).join(', '), rejectionReason: why.note || '' } : d)));
@@ -861,6 +879,7 @@ export function Pipeline() {
       .then((saved: any) => setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, ...saved } : d))))
       .catch(() => toast('⚠ Moved, but the outcome could not be saved'));
     if (why) saveDeadReason(deal.id, why);
+    if (type === 'referred') void askWatcher(deal, 'monitor');
     setRejectChoice(null);
     setSelectedId(null);
   };

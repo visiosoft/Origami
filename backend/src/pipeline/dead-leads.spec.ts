@@ -86,4 +86,23 @@ describe('PipelineService dead-lead sweep and loss', () => {
     expect(c.ok && deadReasonLabels('cancelled', c.value.reasons)).toEqual(['Funding and financial failure: Lender denied the loan', 'Legal roadblocks: Zoning']);
     expect(cleanDeadReason({ kind: 'pass', reasons: [] })).toMatchObject({ ok: false, message: expect.stringMatching(/at least one/) });
   });
+
+  it('a held lead gets a follow-up person with a task due on the hold date; a referral gets a monitor', async () => {
+    const rows: any[] = [{ id: 'H', name: 'Qamaria Coffee', stage: 'hold_3m', holdUntil: '2027-01-10', timeline: [] }, { id: 'R', name: 'Ref', stage: 'referred_monitoring', timeline: [] }];
+    const { svc } = make(rows);
+    const tasks = { create: jest.fn().mockResolvedValue({ id: 'T-9' }), update: jest.fn().mockResolvedValue({ id: 'T-9' }) };
+    Object.assign(svc, { tasks });
+    const h: any = await svc.setWatcher('H', { role: 'follow_up', id: 'U-2', name: 'Andrea' });
+    expect(h).toMatchObject({ followUpById: 'U-2', followUpByName: 'Andrea', followUpTaskId: 'T-9' });
+    expect(tasks.create).toHaveBeenCalledWith(expect.objectContaining({ leadId: 'H', assignedTo: 'Andrea', dueDate: '2027-01-10', subject: expect.stringMatching(/Pick back up/) }), expect.anything());
+    rows[0].followUpTaskId = h.followUpTaskId; // the fake repo doesn't keep saves
+    await svc.setWatcher('H', { role: 'follow_up', id: 'U-3', name: 'Kai' });
+    expect(tasks.update).toHaveBeenCalledWith('T-9', expect.objectContaining({ assignedTo: 'Kai', dueDate: '2027-01-10' }), expect.anything());
+    expect(tasks.create).toHaveBeenCalledTimes(1);
+    const r: any = await svc.setWatcher('R', { role: 'monitor', id: 'U-4', name: 'Langston' });
+    expect(r).toMatchObject({ monitorId: 'U-4', monitorName: 'Langston' });
+    expect(r.timeline.at(-1).action).toBe('Langston monitors the referral');
+    await expect(svc.setWatcher('R', { role: 'follow_up', name: 'X' })).rejects.toThrow(/on hold/);
+    await expect(svc.setWatcher('H', { role: 'monitor', name: 'X' })).rejects.toThrow(/referred/);
+  });
 });

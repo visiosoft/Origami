@@ -297,6 +297,9 @@ export class PipelineService implements OnApplicationBootstrap {
       deal.referredToContact = '';
     }
 
+    // The follow-up person belongs to a hold, the monitor to a referral: leaving clears them.
+    if (!target?.isHold) { deal.followUpById = ''; deal.followUpByName = ''; deal.followUpTaskId = ''; }
+    if (stage !== 'referred_monitoring') { deal.monitorId = ''; deal.monitorName = ''; }
     const detail = deal.holdUntil ? `Moved to ${stageName} — follow up ${deal.holdUntil}` : `Moved to ${stageName}`;
     deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
     const saved = await this.repo.save(deal);
@@ -423,6 +426,47 @@ export class PipelineService implements OnApplicationBootstrap {
       }, { name: actor?.name || 'System', id: actor?.id } as any).catch((e: Error) => this.log.warn(`Review follow-up task not made: ${e.message}`));
     }
     return saved;
+  }
+
+  /**
+   * Who looks after a parked lead (Oct 26 review notes): on hold, the person who
+   * picks it back up -- they get a task due on the hold date; referred out, the
+   * Monitor who keeps an eye on it and adds updates.
+   */
+  async setWatcher(id: string, body: { role?: string; id?: string; name?: string }, actor?: DealActor) {
+    const deal = await this.findOne(id);
+    const role = body?.role === 'monitor' ? 'monitor' : body?.role === 'follow_up' ? 'follow_up' : '';
+    const name = String(body?.name || '').trim().slice(0, 200);
+    const personId = String(body?.id || '').trim().slice(0, 100);
+    if (!role) throw new BadRequestException('Say whether this is the follow-up person or the monitor.');
+    if (!name) throw new BadRequestException('Pick a person.');
+    const leadName = await this.leadName(id, (deal as any).name);
+    if (role === 'follow_up') {
+      if (!deal.holdUntil) throw new BadRequestException('Only a lead on hold has someone to follow up.');
+      deal.followUpById = personId;
+      deal.followUpByName = name;
+      if (this.tasks) {
+        const task: any = deal.followUpTaskId
+          ? await this.tasks.update(deal.followUpTaskId, { assignedTo: name, assignedToId: personId, dueDate: deal.holdUntil } as any, { name: actor?.name || 'System', id: actor?.id } as any).catch(() => null)
+          : null;
+        if (!task) {
+          const made: any = await this.tasks.create({
+            topicType: 'Task', priority: 'Medium', leadId: id, tab: 'internal', status: 'To Do',
+            subject: `Pick back up — ${leadName}`,
+            description: `${leadName} was put on hold until ${deal.holdUntil}. Get back in touch and move it back into the pipeline, or on.`,
+            assignedTo: name, assignedToId: personId, dueDate: deal.holdUntil,
+          }, { name: actor?.name || 'System', id: actor?.id } as any).catch((e: Error) => { this.log.warn(`Follow-up task not made: ${e.message}`); return null; });
+          if (made?.id) deal.followUpTaskId = made.id;
+        }
+      }
+    } else {
+      if (deal.stage !== 'referred_monitoring') throw new BadRequestException('Only a referred lead has a monitor.');
+      deal.monitorId = personId;
+      deal.monitorName = name;
+    }
+    const detail = role === 'follow_up' ? `${name} follows up on ${deal.holdUntil}` : `${name} monitors the referral`;
+    deal.timeline = [...((deal.timeline as unknown[]) || []), this.event(detail, actor)];
+    return this.repo.save(deal);
   }
 
   /** Cold / Lost and Cancelled / Pass leads 7 business days on: archived (restorable), with a timeline line saying so. */

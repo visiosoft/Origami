@@ -43,6 +43,11 @@ export interface Deal {
   lossReason?: string;
   /** Why it died, in full (Oct 26 review notes). */
   deadReason?: import('./deadReasons').DeadReason | null;
+  /** On hold: who picks it back up. Referred: who monitors it. */
+  followUpById?: string;
+  followUpByName?: string;
+  monitorId?: string;
+  monitorName?: string;
   referredToName?: string;
   referredToCompany?: string;
   referredToContact?: string;

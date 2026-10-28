@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28r',
+    date: '2026-10-28',
+    title: 'CRM: move a lead anywhere; someone owns every hold and referral',
+    items: [
+      { area: 'CRM', kind: 'new', text: '“Move to” in the lead panel sends a lead straight to any stage — e.g. Project Programming → Hold - 3 Months — with the same checks as dragging.', where: 'CRM & Leads → open a lead → Move to' },
+      { area: 'CRM', kind: 'new', text: 'Putting a lead on hold asks who picks it back up; they get a task due on the hold date. Referring a lead out asks who monitors it. Both show (and can be changed) on Holding & Refer Out.', where: 'CRM & Leads; Holding & Refer Out' },
+    ],
+  },
+  {
     id: '2026-10-28q',
     date: '2026-10-28',
     title: 'Dead leads: Cold / Lost and Cancelled / Pass, with the full reasons',

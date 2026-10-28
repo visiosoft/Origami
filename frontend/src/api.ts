@@ -542,6 +542,8 @@ export const api = {
     setRoles: (id: string, roles: Record<string, string>) =>
       request(`/pipeline/${id}/roles`, { method: 'PUT', body: JSON.stringify(roles) }),
     /** Why a lead died, in full (Cold / Lost / Cancelled / Pass, reasons, notes). */
+    /** Who picks a held lead back up (follow_up) or monitors a referral (monitor). */
+    setWatcher: (id: string, body: { role: 'follow_up' | 'monitor'; id: string; name: string }) => request<any>(`/pipeline/${id}/watcher`, { method: 'PUT', body: JSON.stringify(body) }),
     setDeadReason: (id: string, body: import('./data/deadReasons').DeadReason) => request<any>(`/pipeline/${id}/dead-reason`, { method: 'PUT', body: JSON.stringify(body) }),
     setLoss: (id: string, data: { lossReason: string; note?: string }) => request(`/pipeline/${id}/loss`, { method: 'PUT', body: JSON.stringify(data) }),
     setRejection: (id: string, data: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; lossReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string }) =>

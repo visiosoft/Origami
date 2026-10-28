@@ -366,6 +366,13 @@ export class DealEntity {
   @Column({ nullable: true }) lossReason!: string;
   /** Why it died, in full (Oct 26 review notes): Cold / Lost / Cancelled / Pass, the reasons, notes (pipeline/dead-leads.ts DeadReason). */
   @Column({ type: 'simple-json', nullable: true }) deadReason!: import('../pipeline/dead-leads').DeadReason | null;
+  /** On hold: who picks it back up when the date comes (Oct 26 review notes), and the reminder task made for them. */
+  @Column({ nullable: true }) followUpById!: string;
+  @Column({ nullable: true }) followUpByName!: string;
+  @Column({ nullable: true }) followUpTaskId!: string;
+  /** Referred out: who keeps an eye on it and adds updates (the "Monitor"). */
+  @Column({ nullable: true }) monitorId!: string;
+  @Column({ nullable: true }) monitorName!: string;
   @Column({ nullable: true }) referredToName!: string;
   @Column({ nullable: true }) referredToCompany!: string;
   @Column({ nullable: true }) referredToContact!: string;
