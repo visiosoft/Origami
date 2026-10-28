@@ -7,6 +7,12 @@ import { AuditService } from './audit.service';
 export class AuditController {
   constructor(private readonly audit: AuditService) {}
 
+  /** One page of the audit log (page, size + the same filters), with the total and record types. */
+  @Get('page')
+  page(@Query() q: Record<string, string>) {
+    return this.audit.page(q);
+  }
+
   /** The audit log, newest first. Filters: from, to (YYYY-MM-DD), type, user, projectId, q, limit. */
   @Get()
   list(@Query() q: Record<string, string>) {

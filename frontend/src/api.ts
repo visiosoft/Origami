@@ -937,6 +937,8 @@ export const api = {
   },
   audit: {
     list: (q: Record<string, string> = {}) => request<AuditRow[]>(`/audit?${new URLSearchParams(q).toString()}`),
+    /** One page of the audit log, with the total and every record type to filter by. */
+    page: (q: Record<string, string> = {}) => request<{ rows: AuditRow[]; total: number; page: number; size: number; pages: number; types: string[]; capped: boolean }>(`/audit/page?${new URLSearchParams(q).toString()}`),
     /** One project's trail (internal staff; no finance entries). */
     project: (projectId: number) => request<AuditRow[]>(`/audit-project/${projectId}`),
   },
