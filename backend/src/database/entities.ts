@@ -195,8 +195,13 @@ export class TrackedLinkEntity {
 }
 
 @Entity('tasks')
+@Index('IX_tasks_assignedToId', ['assignedToId'])
+@Index('IX_tasks_project', ['project'])
+@Index('IX_tasks_meetingId', ['meetingId'])
 export class TaskEntity {
   @PrimaryColumn() id!: string;
+  /** How many comments it has, so lists can show the count without loading them. */
+  @Column({ type: 'int', nullable: true }) commentCount!: number | null;
   /** Closed with "Close task": complete and archived at once. */
   @Column({ nullable: true }) closedAt!: string;
   /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
@@ -703,6 +708,7 @@ export class WorkflowItemEntity {
 }
 
 @Entity('project_sections')
+@Index('IX_project_sections_project', ['projectId'])
 export class ProjectSectionEntity {
   @PrimaryColumn() id!: string;
   // Null = the "General Tasks" board's sections -- work not tied to any
@@ -713,8 +719,14 @@ export class ProjectSectionEntity {
 }
 
 @Entity('project_tasks')
+@Index('IX_project_tasks_project', ['projectId'])
+@Index('IX_project_tasks_section', ['sectionId'])
+@Index('IX_project_tasks_parent', ['parentId'])
+@Index('IX_project_tasks_assignee', ['assigneeId'])
 export class ProjectTaskEntity {
   @PrimaryColumn() id!: string;
+  /** How many comments it has, so lists can show the count without loading them. */
+  @Column({ type: 'int', nullable: true }) commentCount!: number | null;
   /** Closed with "Close task": complete and archived at once. */
   @Column({ nullable: true }) closedAt!: string;
   /** Assignment / collaborator / done emails waiting for Save (see notifications/pending-notices.ts). */
@@ -964,6 +976,7 @@ export class ChecklistTemplateEntity {
 
 /** A person's own saved filter set on a list page ("My overdue RFIs"). Only its owner sees it. */
 @Entity('user_views')
+@Index('IX_user_views_user_page', ['userId', 'page'])
 export class UserViewEntity {
   @PrimaryColumn() id!: string;
   @Column() userId!: string;

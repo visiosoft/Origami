@@ -48,22 +48,32 @@ export class ProjectTasksController {
   }
 
   @Get()
-  async findAll(@Query('projectId') projectId?: string, @Headers('authorization') auth?: string) {
+  async findAll(@Query('projectId') projectId?: string, @Query('slim') slim?: string, @Headers('authorization') auth?: string) {
     const claims = await this.auth.verify(auth);
     const pid = this.parseProjectId(projectId);
     if (pid) await this.access.assert(claims, pid);
-    const rows = await this.service.findAll(pid);
+    // ?slim=1: without each task's comments and history (the board loads those when a task is opened).
+    const rows = await this.service.findAll(pid, { slim: slim === '1' });
     return scopeTasks(await this.access.filter(claims, rows, (t: any) => t.projectId), claims);
   }
 
   @Get('board')
-  async board(@Query('projectId') projectId?: string, @Headers('authorization') auth?: string) {
+  async board(@Query('projectId') projectId?: string, @Query('slim') slim?: string, @Headers('authorization') auth?: string) {
     const pid = this.parseProjectId(projectId) ?? null;
     const claims = await this.auth.verify(auth);
     if (pid) await this.access.assert(claims, pid);
     else if (!this.access.isStaff(claims)) return { sections: [], tasks: [] }; // the General Tasks board is internal
-    const { sections, tasks } = await this.service.board(pid);
+    const { sections, tasks } = await this.service.board(pid, { slim: slim === '1' });
     return { sections, tasks: scopeTasks(tasks, claims) };
+  }
+
+  /** One task in full -- its comments and history -- for the drawer. */
+  @Get(':id')
+  async findOne(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
+    await this.mayTouch(id, claims);
+    const task = await this.service.findOne(id);
+    if (!this.access.isStaff(claims) && !task.projectId) throw new ForbiddenException('That task isn’t on one of your projects.');
+    return task;
   }
 
   /**

@@ -72,11 +72,14 @@ describe('task bucket rules', () => {
   it('archives a Confirmed task 7 days after it was confirmed', async () => {
     const old = new Date(Date.now() - 8 * 86400000).toISOString();
     const rows = [{ id: 'T1', status: 'Confirmed', confirmedAt: old }, { id: 'T2', status: 'Confirmed', confirmedAt: new Date().toISOString() }];
-    const repo = { find: jest.fn(async () => rows), save: jest.fn(async (x: any) => x) };
+    const repo = { find: jest.fn(async () => rows), save: jest.fn(async (x: any) => x), update: jest.fn(async () => undefined) };
     const svc = new ProjectTasksService(repo as any, {} as any, {} as any, {} as any, {} as any);
-    const all = await svc.findAll();
-    expect(all.find((t) => t.id === 'T1').archivedAt).toBeTruthy();
-    expect(all.find((t) => t.id === 'T2').archivedAt).toBeFalsy();
+    // Reading the board never writes; the half-hourly timer does the archiving.
+    await svc.findAll();
+    expect(repo.update).not.toHaveBeenCalled();
+    expect(await svc.archiveConfirmed()).toBe(1);
+    expect((repo.update.mock.calls[0] as any[])[0].id._value).toEqual(['T1']);
+    expect((repo.update.mock.calls[0] as any[])[1].archivedAt).toBeTruthy();
   });
 
   it('a start date that has arrived moves an assigned task to In Progress; a future one waits', async () => {

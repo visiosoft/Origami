@@ -62,7 +62,8 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
 
   const selectBoardProject = (id: BoardSel) => setBoardProjectId(id);
 
-  const reloadLog = () => { api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
+  // Slim: each entry's comments and history come with it when it's opened (below).
+  const reloadLog = () => { api.tasks.list(undefined, undefined, { slim: true }).then((r: any) => { if (Array.isArray(r)) setLogTasks(r as Task[]); }).catch(() => { }); };
   useEffect(() => {
     api.projects.list().then((r: any) => {
       // A lead gets a placeholder row the moment it exists so it has a place
@@ -145,6 +146,16 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
   const viewValue = { tab, pf, query, scope, person, sort: sortToString(sort) };
 
   const sel = selectedId ? logTasks.find((x) => x.id === selectedId) || null : null;
+  const fetchingFull = useRef<string | null>(null);
+  useEffect(() => {
+    if (!sel || sel.comments !== undefined || fetchingFull.current === sel.id) return;
+    const id = sel.id;
+    fetchingFull.current = id;
+    api.tasks.get(id)
+      .then((full: any) => setLogTasks((cur) => cur.map((t) => (t.id === id ? { ...t, ...full } : t))))
+      .catch(() => { })
+      .finally(() => { if (fetchingFull.current === id) fetchingFull.current = null; });
+  }, [sel]);
 
   return (
     <div style={{ animation: 'fadeIn 0.3s ease' }}>

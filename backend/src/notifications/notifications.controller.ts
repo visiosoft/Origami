@@ -1,13 +1,14 @@
 import { Body, Controller, Get, Post, Put, Query, UnauthorizedException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { NotifyHub } from './notify-hub.service';
+import { MyTasksService } from './my-tasks.service';
 import { Roles } from '../auth/guards/roles.decorator';
 import { Claims } from '../auth/guards/claims.decorator';
 import type { SessionClaims } from '../auth/crypto.util';
 
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService, private readonly hub: NotifyHub) {}
+  constructor(private readonly notifications: NotificationsService, private readonly hub: NotifyHub, private readonly myTasks: MyTasksService) {}
 
   /** My notification settings: each event's channels, my phone number, and anything missing. */
   @Get('prefs')
@@ -20,6 +21,13 @@ export class NotificationsController {
   async setPrefs(@Claims() claims: SessionClaims | null, @Body() body: { matrix?: unknown; phone?: unknown }) {
     if (!claims) throw new UnauthorizedException('Sign in first.');
     return this.hub.setPrefs(claims.sub, body || {});
+  }
+
+  /** My open board tasks and log entries, for the bell (a few fields each). */
+  @Get('my-tasks')
+  async mine(@Claims() claims: SessionClaims | null) {
+    if (!claims) throw new UnauthorizedException('Sign in first.');
+    return this.myTasks.list(claims);
   }
 
   /** My notifications, newest first (?digest=daily|weekly for what a digest holds). */

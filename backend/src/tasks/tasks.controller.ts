@@ -24,9 +24,11 @@ export class TasksController {
   async findAll(
     @Query('tab') tab?: string,
     @Query('project') project?: string,
+    @Query('slim') slim?: string,
     @Headers('authorization') auth?: string,
   ) {
-    const rows = await this.tasksService.findAll(tab, project);
+    // ?slim=1: without each entry's comments and history (the drawer loads those when it opens).
+    const rows = await this.tasksService.findAll(tab, project, { slim: slim === '1' });
     return scopeTasks(rows, await this.auth.verify(auth));
   }
 

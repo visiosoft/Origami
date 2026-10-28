@@ -269,6 +269,11 @@ export const api = {
   },
 
   notifications: {
+    /** My open board tasks and log entries, a few fields each (the bell). */
+    myTasks: () => request<{
+      board: { id: string; title: string; projectId: number | null; projectName: string | null; status?: string; updatedAt?: string; createdAt?: string }[];
+      log: { id: string; subject?: string; description?: string; project?: string; status?: string; updatedAt?: string }[];
+    }>('/notifications/my-tasks'),
     /** Sends the caller a sample assignment email, for checking the template. */
     test: () => request<{ sent: boolean; reason?: string }>('/notifications/test', { method: 'POST' }),
     /** My notification settings: each event's channels, my phone, and what's missing. */
@@ -397,10 +402,11 @@ export const api = {
     priorities: () => request<PriorityDef[]>('/tasks/priorities'),
     savePriorities: (definitions: PriorityDef[]) => request<PriorityDef[]>('/tasks/priorities', { method: 'PUT', body: JSON.stringify({ definitions }) }),
     saveStatuses: (statuses: unknown) => request<{ name: string; closed?: boolean; color?: string }[]>('/tasks/statuses', { method: 'PUT', body: JSON.stringify({ statuses }) }),
-    list: (tab?: string, project?: string) => {
+    list: (tab?: string, project?: string, opts?: { slim?: boolean }) => {
       const params = new URLSearchParams();
       if (tab) params.set('tab', tab);
       if (project) params.set('project', project);
+      if (opts?.slim) params.set('slim', '1');
       const qs = params.toString();
       return request(`/tasks${qs ? `?${qs}` : ''}`);
     },
@@ -533,8 +539,17 @@ export const api = {
     notify: (id: string) => request<{ sent: number }>(`/project-tasks/${encodeURIComponent(id)}/notify`, { method: 'POST' }),
     /** projectId: a number scopes to that project; null scopes to the
      *  General Tasks board; omitted (list only) returns everything. */
-    board: (projectId: number | null) => request(`/project-tasks/board?projectId=${projectId === null ? 'null' : projectId}`),
-    list: (projectId?: number | null) => request(`/project-tasks${projectId === undefined ? '' : `?projectId=${projectId === null ? 'null' : projectId}`}`),
+    board: (projectId: number | null, opts?: { slim?: boolean }) => request(`/project-tasks/board?projectId=${projectId === null ? 'null' : projectId}${opts?.slim ? '&slim=1' : ''}`),
+    /** opts.slim: without each task's comments and history (they come with `get` when a task is opened). */
+    list: (projectId?: number | null, opts?: { slim?: boolean }) => {
+      const params = new URLSearchParams();
+      if (projectId !== undefined) params.set('projectId', projectId === null ? 'null' : String(projectId));
+      if (opts?.slim) params.set('slim', '1');
+      const qs = params.toString();
+      return request(`/project-tasks${qs ? `?${qs}` : ''}`);
+    },
+    /** One task in full, comments and history included. */
+    get: (id: string) => request<import('./data/projectTasks').ProjectTask>(`/project-tasks/${encodeURIComponent(id)}`),
     create: (data: unknown) => request('/project-tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request(`/project-tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id: string) => request(`/project-tasks/${id}`, { method: 'DELETE' }),

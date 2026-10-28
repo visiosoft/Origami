@@ -155,6 +155,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     return { subsByParent: subs, taskById: byId };
   }, [tasks]);
   const subsOf = (id: string) => subsByParent.get(id) || [];
+  const commentsOf = (t: ProjectTask) => t.comments?.length ?? t.commentCount ?? 0;
   const [loading, setLoading] = useState(true);
   // Dashboard first (Oct 16); the last view picked is remembered.
   const [view, setViewState] = useState<'board' | 'list' | 'timeline' | 'dashboard'>(() => {
@@ -195,7 +196,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const openedLink = useRef(false);
 
   const load = () => {
-    (all ? (api.projectTasks.list() as Promise<any>).then((rows: any) => ({ sections: ALL_BUCKETS, tasks: Array.isArray(rows) ? rows : [] })) : api.projectTasks.board(projectId))
+    // Slim lists: each task's comments and history come with it when it's opened (below).
+    (all ? (api.projectTasks.list(undefined, { slim: true }) as Promise<any>).then((rows: any) => ({ sections: ALL_BUCKETS, tasks: Array.isArray(rows) ? rows : [] })) : api.projectTasks.board(projectId, { slim: true }))
       .then((res: any) => {
         if (!res) return;
         setSections(res.sections || []);
@@ -229,6 +231,18 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const mineCount = inScopeOfBoard.filter((t) => !t.parentId && isMine(t, currentUser)).length;
   const allCount = inScopeOfBoard.filter((t) => !t.parentId).length;
   const selected = tasks.find((t) => t.id === selectedId) || null;
+  // The open task in full -- its comments and history -- since the list leaves them out.
+  const fetchingFull = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selected || selected.comments !== undefined || fetchingFull.current === selected.id) return;
+    const id = selected.id;
+    fetchingFull.current = id;
+    api.projectTasks.get(id)
+      .then((full) => setTasks((cur) => cur.map((t) => (t.id === id ? inBucket({ ...t, ...full }) : t))))
+      .catch(() => { })
+      .finally(() => { if (fetchingFull.current === id) fetchingFull.current = null; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
   // Labels already in use on this board, offered as suggestions.
   const allLabels = Array.from(new Set(tasks.flatMap((t) => t.labels ?? []))).sort();
 
@@ -444,7 +458,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       const overdue = !t.completed && !!t.dueDate && t.dueDate < todayIso;
       const counts: [string, string, string][] = [
         ...(check.total ? [['check', `${check.done}/${check.total}`, 'Checklist'] as [string, string, string]] : []),
-        ...(t.comments?.length ? [['comment', String(t.comments.length), 'Comments'] as [string, string, string]] : []),
+        ...(commentsOf(t) ? [['comment', String(commentsOf(t)), 'Comments'] as [string, string, string]] : []),
         ...(t.attachments?.length ? [['clip', String(t.attachments.length), 'Attachments'] as [string, string, string]] : []),
       ];
       const ICON: Record<string, string> = {
@@ -568,7 +582,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
               {t.dueDate && <span style={{ fontSize: 10, color: 'var(--muted)' }}>📅 {t.dueDate}</span>}
               {linkBadge(t)}
               {check.total > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>✓ {check.done}/{check.total}</span>}
-              {(t.comments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>💬 {t.comments!.length}</span>}
+              {commentsOf(t) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>💬 {commentsOf(t)}</span>}
               {(t.attachments?.length || 0) > 0 && <span style={{ fontSize: 10, color: 'var(--muted)' }}>📎 {t.attachments!.length}</span>}
               {canManage && sections.length > 1 && (
                 <select className="tb-move" value={t.sectionId} aria-label="Move to another column" title="Move to…"

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
+import { backfillCommentCounts, slimSelect, slimTask } from '../database/slim-tasks';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from './mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from './task-rules';
@@ -76,6 +77,7 @@ export class TasksService implements OnApplicationBootstrap {
     const starts = setInterval(() => { this.startDueTasks().catch((e) => this.log.warn('Task start dates: ' + (e as Error).message)); }, 30 * 60_000);
     starts.unref?.();
     this.startDueTasks().catch(() => undefined);
+    backfillCommentCounts(this.repo, this.log).catch((e) => this.log.warn('Comment counts: ' + (e as Error).message));
     try {
       await backfillAssignees(this.repo, this.users, 'assignedToId', 'assignedTo', this.log);
     } catch (err) {
@@ -232,18 +234,20 @@ export class TasksService implements OnApplicationBootstrap {
     }
   }
 
-  /** Confirmed a week ago or more: archived (out of the list unless asked for). */
-  private async archiveConfirmed(rows: TaskEntity[]) {
+  /** Confirmed a week ago or more: archived (out of the list unless asked for). Checked by the half-hourly timer, not on every read. */
+  async archiveConfirmed() {
     const cutoff = new Date(Date.now() - LOG_ARCHIVE_DAYS * 86400000).toISOString();
     const now = new Date().toISOString();
+    const rows = await this.repo.find({ where: { status: 'Confirmed', archivedAt: IsNull() }, select: { id: true, confirmedAt: true, updatedAt: true } });
+    let n = 0;
     for (const t of rows) {
       // A week after it's confirmed -- unless it was moved or changed since.
-      if (t.status === 'Confirmed' && t.confirmedAt && !t.archivedAt && t.confirmedAt <= cutoff && (!t.updatedAt || t.updatedAt <= cutoff)) {
-        t.archivedAt = now;
+      if (t.confirmedAt && t.confirmedAt <= cutoff && (!t.updatedAt || t.updatedAt <= cutoff)) {
         await this.repo.update({ id: t.id }, { archivedAt: now });
+        n++;
       }
     }
-    return rows;
+    return n;
   }
 
   /** Fill in the json columns so the client never has to null-check them. */
@@ -260,12 +264,12 @@ export class TasksService implements OnApplicationBootstrap {
     } as TaskEntity;
   }
 
-  async findAll(tab?: string, project?: string) {
+  async findAll(tab?: string, project?: string, opts: { slim?: boolean } = {}) {
     const where: Record<string, string> = {};
     if (tab) where.tab = tab;
     // A lead's id finds the entries linked to that lead.
-    const rows = await this.archiveConfirmed(await this.repo.find({ where: project ? [{ ...where, project }, { ...where, leadId: project }] : where }));
-    return rows.map((t) => this.hydrate(t));
+    const rows = await this.repo.find({ where: project ? [{ ...where, project }, { ...where, leadId: project }] : where, ...(opts.slim ? { select: slimSelect(this.repo) } : {}) });
+    return rows.map((t) => (opts.slim ? slimTask(this.hydrate(t), t.comments) : this.hydrate(t)));
   }
 
   async findOne(id: string) {
@@ -338,6 +342,7 @@ export class TasksService implements OnApplicationBootstrap {
       assignedToId: assignee.id ?? undefined,
       attachments: [],
       comments: [],
+      commentCount: 0,
       checklist,
       labels: normalizeList<string>(dto.labels),
       priority: cleanPriority(dto.priority),
@@ -503,8 +508,9 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   /** Emails held more than 15 minutes (the page was closed without Save) go out anyway. */
-  /** Assigned entries whose start date has arrived go In Progress. Returns how many moved. */
+  /** Assigned entries whose start date has arrived go In Progress (and week-old Confirmed ones are archived). Returns how many moved. */
   async startDueTasks() {
+    await this.archiveConfirmed().catch((e) => this.log.warn('Archiving confirmed entries: ' + (e as Error).message));
     const rows = (await this.repo.find()).filter((t) => !t.archivedAt && (t.status === 'To Do' || t.status === 'Assigned')
       && startDue(t.startDate, !!(t.assignedToId || String(t.assignedTo || '').trim())));
     for (const t of rows) {
@@ -658,6 +664,7 @@ export class TasksService implements OnApplicationBootstrap {
       date: new Date().toISOString(),
     };
     task.comments = [...normalizeList<TaskComment>(task.comments), comment];
+    task.commentCount = task.comments.length;
     task.activity = [...normalizeList<ActivityEvent>(task.activity), event('comment', actor, { text: comment.text })];
     const saved = await this.repo.save(task);
     // Everyone following the task hears about a comment (the assignee too), except its author.

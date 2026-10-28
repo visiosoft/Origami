@@ -5,10 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { Icon } from '../icons';
-import { isMine } from './TaskScope';
 import { relativeTime } from './ActivityFeed';
-import type { ProjectTask } from '../data/projectTasks';
-import type { Task } from '../data/tasks';
+type MyTasks = Awaited<ReturnType<typeof api.notifications.myTasks>>;
 
 /** Ids already shown to this person, so the dot means "new since you looked". */
 const SEEN_KEY = 'origami.seenAssignments';
@@ -35,21 +33,17 @@ export function Notifications() {
   const navigate = useNavigate();
   const { currentUser } = useApp();
   const [open, setOpen] = useState(false);
-  const [boardTasks, setBoardTasks] = useState<ProjectTask[]>([]);
-  const [logTasks, setLogTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Record<number, string>>({});
+  // Only my own open tasks, a few fields each -- the server picks them out.
+  const [boardTasks, setBoardTasks] = useState<MyTasks['board']>([]);
+  const [logTasks, setLogTasks] = useState<MyTasks['log']>([]);
   const [sheets, setSheets] = useState<{ id: string; employeeName: string; weekStart: string; totalHours: number; submittedAt?: string }[]>([]);
   const [seen, setSeen] = useState<string[]>(readSeen);
   const box = useRef<HTMLDivElement | null>(null);
 
   const load = () => {
-    api.projectTasks.list().then((r: any) => { if (Array.isArray(r)) setBoardTasks(r); }).catch(() => { });
-    api.tasks.list().then((r: any) => { if (Array.isArray(r)) setLogTasks(r); }).catch(() => { });
+    api.notifications.myTasks().then((r) => { setBoardTasks(r?.board || []); setLogTasks(r?.log || []); }).catch(() => { });
     // Submitted timesheets for whoever reviews them (admins, HR, project coordinators, supervisors).
     api.timesheets.pendingNotices().then((r) => setSheets(Array.isArray(r) ? r : [])).catch(() => setSheets([]));
-    api.projects.list().then((r: any) => {
-      if (Array.isArray(r)) setProjects(Object.fromEntries(r.map((p: any) => [p.id, p.name])));
-    }).catch(() => { });
   };
 
   // Poll gently so an assignment made elsewhere turns up without a reload.
@@ -70,16 +64,15 @@ export function Notifications() {
     if (!currentUser) return [];
     const out: Row[] = [
       ...boardTasks
-        .filter((t) => !t.completed && t.status !== 'Done' && isMine(t, currentUser))
         .map((t) => ({
           id: 'b' + t.id,
           title: t.title,
-          context: projects[Number(t.projectId)] || `Project ${t.projectId}`,
+          context: t.projectName || (t.projectId != null ? `Project ${t.projectId}` : 'General Tasks'),
           at: t.updatedAt || t.createdAt,
           to: `/tasks?task=${encodeURIComponent(t.id)}&project=${t.projectId}`,
         })),
       ...logTasks
-        .filter((t) => !isLogClosed(t.status) && isMine(t, currentUser))
+        .filter((t) => !isLogClosed(t.status))
         .map((t) => ({
           id: 'l' + t.id,
           title: clip(logTaskTitle(t), 70),
@@ -97,7 +90,7 @@ export function Notifications() {
       })),
     ];
     return out.sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))).slice(0, 12);
-  }, [boardTasks, logTasks, projects, sheets, currentUser]);
+  }, [boardTasks, logTasks, sheets, currentUser]);
 
   const unseen = rows.filter((r) => !seen.includes(r.id));
 

@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28l',
+    date: '2026-10-28',
+    title: 'Faster Task page and notifications',
+    items: [
+      { area: 'Tasks', kind: 'improved', text: 'The Task board and the Special Actions Log open much faster: the list no longer carries every task’s full comment thread and history — a task’s comments and history load when you open it.', where: 'Special Actions → Task' },
+      { area: 'General', kind: 'improved', text: 'The notifications bell now checks only your own open tasks, instead of downloading every task every two minutes in each open tab — the whole site is lighter as a result.', where: 'The bell, top right' },
+    ],
+  },
+  {
     id: '2026-10-28k',
     date: '2026-10-28',
     title: 'Drawing markup: compare two revisions',
