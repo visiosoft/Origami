@@ -39,7 +39,7 @@ export function SystemNoticeSettings() {
       <div>
         <div style={{ fontFamily: BG, fontSize: 17, fontWeight: 700 }}>System notice</div>
         <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, lineHeight: 1.55 }}>
-          A banner across the top of every page for everyone signed in. Turn it on before updating the system, so nobody is in the middle of typing when it restarts.
+          A banner across the top of every page for everyone signed in, and on the login page. Turn it on before updating the system, so nobody is in the middle of typing when it restarts.
           The app also shows “Updating the system…” by itself whenever the server is restarting, and “A new version was installed” afterwards.
         </div>
       </div>

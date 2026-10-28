@@ -18,9 +18,10 @@ export const RELEASES: Release[] = [
   {
     id: '2026-10-28a',
     date: '2026-10-28',
-    title: 'Request Log is now the Special Actions Log',
+    title: 'Special Actions Log; update notice on the login page',
     items: [
       { area: 'Tasks', kind: 'improved', text: 'The Request Log is renamed the Special Actions Log everywhere — the Task page toggle, Settings, Meetings, notifications and the audit log. Nothing in it changed.', where: 'Special Actions → Task → Special Actions Log' },
+      { area: 'System', kind: 'improved', text: 'The system notice now shows on the login page too, and the login page says when the server is restarting for an update — so an update isn’t mistaken for an outage. Post one before each update instead of emailing everyone.', where: 'Settings → System notice' },
     ],
   },
   {

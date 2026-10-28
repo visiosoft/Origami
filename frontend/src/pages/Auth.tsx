@@ -6,6 +6,7 @@ import { api, session } from '../api';
 import { useApp } from '../AppContext';
 import { takeReturnTo } from '../returnTo';
 import { AuthLayout, authInput, label as fieldLabel } from './AuthLayout';
+import { LoginNotice } from '../components/ServerStatusBanner';
 
 export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   const navigate = useNavigate();
@@ -105,6 +106,7 @@ export function Auth({ mode }: { mode: 'login' | 'signup' }) {
   return (
     <AuthLayout showBrand={width > 760} title="Welcome back" subtitle="Sign in to pick up where the team left off.">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <LoginNotice />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={fieldLabel}>Work email</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@origamidb.com" style={authInput} />
