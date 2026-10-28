@@ -1,5 +1,5 @@
 import { CloseButton } from './CloseButton';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
 import { createPortal } from 'react-dom';
@@ -15,7 +15,7 @@ import { api, persist } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
 import {
-  PRIORITY_STYLE, TASK_STATUSES, STATUS_STYLE, STATUS_HINT, statusLabel, topLevelBySection, subtasksOf,
+  PRIORITY_STYLE, TASK_STATUSES, STATUS_STYLE, STATUS_HINT, statusLabel, topLevelBySection,
   checklistProgress,
   type ProjectSection, type ProjectTask, type Priority, type TaskStatus,
   type Attachment as TaskAttachment, type ChecklistItem,
@@ -142,6 +142,19 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
 
   const [sections, setSections] = useState<ProjectSection[]>([]);
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  // Subtasks by parent and tasks by id, built once per change to the list -- each
+  // card looks these up, and scanning the whole list per card got slow as tasks grew.
+  const { subsByParent, taskById } = useMemo(() => {
+    const subs = new Map<string, ProjectTask[]>();
+    const byId = new Map<string, ProjectTask>();
+    for (const t of tasks) {
+      byId.set(t.id, t);
+      if (t.parentId) subs.set(t.parentId, [...(subs.get(t.parentId) || []), t]);
+    }
+    for (const list of subs.values()) list.sort((a, b) => a.order - b.order);
+    return { subsByParent: subs, taskById: byId };
+  }, [tasks]);
+  const subsOf = (id: string) => subsByParent.get(id) || [];
   const [loading, setLoading] = useState(true);
   // Dashboard first (Oct 16); the last view picked is remembered.
   const [view, setViewState] = useState<'board' | 'list' | 'timeline' | 'dashboard'>(() => {
@@ -245,7 +258,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const updateTask = async (id: string, raw: Partial<ProjectTask>) => {
     const before = tasks.find((x) => x.id === id);
     const finishing = raw.completed === true || raw.status === 'Done' || raw.status === 'Confirmed';
-    const openSubs = finishing && before && !before.parentId ? subtasksOf(tasks, id).filter((s) => !s.completed).length : 0;
+    const openSubs = finishing && before && !before.parentId ? subsOf(id).filter((s) => !s.completed).length : 0;
     if (openSubs) { toast(`Finish its ${openSubs} open subtask${openSubs === 1 ? '' : 's'} first`); return; }
     const patch = await withCompletionNote(before, raw);
     if (!patch) return;
@@ -284,7 +297,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   const closeTask = (id: string) => {
     const t = tasks.find((x) => x.id === id);
     if (!t) return;
-    const open = subtasksOf(tasks, id).filter((s) => !isFinished(s)).length;
+    const open = subsOf(id).filter((s) => !isFinished(s)).length;
     if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
     if (!window.confirm(`Close “${t.title}” and move it to the archive? You can reopen it from Archived.`)) return;
     api.projectTasks.update(id, { close: true } as any)
@@ -416,16 +429,16 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   /** P / C marker for a task, if it has subtasks or is one. */
   const linkBadge = (t: ProjectTask) => {
     if (t.parentId) {
-      const parent = tasks.find((x) => x.id === t.parentId);
+      const parent = taskById.get(t.parentId);
       return <TaskLinkBadge kind="C" title={parent ? `Subtask of “${parent.title}”` : 'Subtask'} onClick={parent ? () => setSelectedId(parent.id) : undefined} />;
     }
-    const subs = subtasksOf(tasks, t.id);
+    const subs = subsOf(t.id);
     if (!subs.length) return null;
     const done = subs.filter((s) => s.completed).length;
     return <TaskLinkBadge kind="P" text={`${done}/${subs.length}`} title={`Parent task: ${done} of ${subs.length} subtasks done`} />;
   };
   const renderCard = (t: ProjectTask, index = 0) => {
-    const subs = subtasksOf(tasks, t.id);
+    const subs = subsOf(t.id);
     const check = checklistProgress(t.checklist);
     if (isNew) {
       const overdue = !t.completed && !!t.dueDate && t.dueDate < todayIso;
@@ -573,7 +586,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   };
 
   // ---- board view ----
-  const boardViewNew = (
+  // Each view is built only when it's the one showing.
+  const boardViewNew = () => (
     <div className="tb-board">
       {sections.map((sec, si) => {
         const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
@@ -614,7 +628,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       )}
     </div>
   );
-  const boardView = isNew ? boardViewNew : (
+  const boardView = () => isNew ? boardViewNew() : (
     <div className="tb-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', alignItems: 'flex-start', paddingBottom: 8, minWidth: 0 }}>
       {sections.map((sec) => {
         const secTasks = sortRows(topLevelBySection(visibleTasks, sec.id), LIST_BY, listSort);
@@ -662,7 +676,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
    * row indented, so the two cannot drift apart in look or behaviour.
    */
   const listRow = (t: ProjectTask, depth: number) => {
-    const kids = depth === 0 ? subtasksOf(tasks, t.id) : [];
+    const kids = depth === 0 ? subsOf(t.id) : [];
     const isOpen = !!openTasks[t.id];
     const doneKids = kids.filter((k) => k.completed).length;
     return (
@@ -724,7 +738,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
     );
   };
 
-  const listView = (
+  const listView = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--c-9aa39d)' }}>
         <span style={{ width: 12, flexShrink: 0 }} />
@@ -765,7 +779,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   // undated task stays listed (so nothing goes missing) but doesn't get
   // dumped onto "today", which just clutters the chart with a meaningless
   // pileup for a board where most tasks predate the Start Date field. ----
-  const timelineView = (() => {
+  const timelineView = () => (() => {
     const dayMs = 86400000;
     const dayWidth = 28;
     const parseDate = (s?: string) => (s ? new Date(s + 'T00:00:00') : null);
@@ -882,7 +896,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
 
   // ---- Dashboard view: a handful of stat tiles + two bar charts, following
   // this app's existing div-based chart technique (no charting library). ----
-  const dashboardView = (() => {
+  const dashboardView = () => (() => {
     const topLevel = visibleTasks.filter((t) => !t.parentId);
     const total = topLevel.length;
     const completed = topLevel.filter((t) => t.completed).length;
@@ -1000,7 +1014,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
       )}
       </div>
 
-      {view === 'board' ? boardView : view === 'list' ? listView : view === 'timeline' ? timelineView : dashboardView}
+      {view === 'board' ? boardView() : view === 'list' ? listView() : view === 'timeline' ? timelineView() : dashboardView()}
 
       {/* Task detail panel */}
       {/* Edits collect in a draft and save 3 seconds after typing stops, or at once
@@ -1013,7 +1027,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         {({ draft: d, set: setDraft, auto }) => {
         // A parent stays open while any subtask is open -- say so instead of saving a refusal.
         const set = (patch: Partial<ProjectTask>) => {
-          const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subtasksOf(tasks, selected.id).filter((s) => !s.completed).length : 0;
+          const open = (patch.completed === true || patch.status === 'Done' || patch.status === 'Confirmed') ? subsOf(selected.id).filter((s) => !s.completed).length : 0;
           if (open) { toast(`Finish its ${open} open subtask${open === 1 ? '' : 's'} first`); return; }
           // Finishing it asks what was done; the note saves with the status.
           if (!needsNote(d, patch) && !needsHoldReason(d, patch)) { setDraft(patch); return; }
@@ -1141,7 +1155,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             <div style={{ padding: '16px 22px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
               <FieldLabel>Subtasks</FieldLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {subtasksOf(tasks, selected.id).map((s) => editingSub === s.id ? (
+                {subsOf(selected.id).map((s) => editingSub === s.id ? (
                   <div key={s.id} style={{ padding: 8, background: 'var(--panel)', borderRadius: 8 }}>
                     <SubtaskForm compact autoFocus submitLabel="Save subtask" initial={{ title: s.title, assigneeId: s.assigneeId, assignee: s.assignee || '', dueDate: s.dueDate || '', description: s.description || '' }}
                       onCancel={() => setEditingSub(null)}

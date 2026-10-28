@@ -81,8 +81,14 @@ export function Tasks({ initialMode = 'board' }: { initialMode?: 'board' | 'log'
         return real.some((p: any) => p.id === cur) ? cur : 'all';
       });
     }).catch(() => { });
-    reloadLog();
   }, []);
+  // The Special Actions Log's own list is fetched only once that tab is open; the board doesn't use it.
+  const logLoaded = useRef(false);
+  useEffect(() => {
+    if (mode !== 'log' || logLoaded.current) return;
+    logLoaded.current = true;
+    reloadLog();
+  }, [mode]);
 
   /**
    * Apply a deep link once. The task id is cleared from the URL afterwards so

@@ -78,15 +78,17 @@ describe('ProjectTasksService', () => {
         });
 
         it('returns only General Tasks board items when projectId is explicitly null', async () => {
-            repo.find.mockResolvedValue(rows());
+            repo.find.mockImplementation(async (q: any) => rows().filter((r: any) => (q.where.projectId?._type === 'isNull' ? r.projectId == null : r.projectId === q.where.projectId)));
             const general = await service.findAll(null);
+            expect((repo.find.mock.calls.at(-1) as any[])[0].where.projectId._type).toBe('isNull');
             expect(general).toHaveLength(1);
             expect(general[0].id).toBe('T-2');
         });
 
         it("returns only that project's tasks when a projectId number is given", async () => {
-            repo.find.mockResolvedValue(rows());
+            repo.find.mockImplementation(async (q: any) => rows().filter((r: any) => r.projectId === q.where.projectId));
             const scoped = await service.findAll(7);
+            expect((repo.find.mock.calls.at(-1) as any[])[0].where).toEqual({ projectId: 7 });
             expect(scoped).toHaveLength(1);
             expect(scoped[0].id).toBe('T-1');
         });

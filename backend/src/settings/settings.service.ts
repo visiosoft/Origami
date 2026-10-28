@@ -91,9 +91,24 @@ export class SettingsService {
     @InjectRepository(AppSettingEntity) private readonly repo: Repository<AppSettingEntity>,
   ) {}
 
+  /**
+   * Settings are read on nearly every request (the session's signing secret,
+   * the base URL, integration switches), so they're kept in memory for a short
+   * while. A change made through this service is seen at once; one made by
+   * another server instance within CACHE_MS.
+   */
+  private readonly cache = new Map<string, { value: string | null; at: number }>();
+  private static readonly CACHE_MS = 30_000;
+
   async get(key: string): Promise<string | null> {
+    // Run-once markers ("…LastRunDate") are always read fresh, so two server instances never both run a daily job.
+    const cacheable = !/run/i.test(key);
+    const hit = cacheable ? this.cache.get(key) : undefined;
+    if (hit && Date.now() - hit.at < SettingsService.CACHE_MS) return hit.value;
     const row = await this.repo.findOneBy({ key });
-    return row?.value ?? null;
+    const value = row?.value ?? null;
+    this.cache.set(key, { value, at: Date.now() });
+    return value;
   }
 
   async getMany(keys: string[]): Promise<Record<string, string>> {
@@ -111,6 +126,7 @@ export class SettingsService {
     row.value = value ?? '';
     row.updatedAt = new Date().toISOString();
     await this.repo.save(row);
+    this.cache.set(key, { value: row.value, at: Date.now() });
   }
 
   async setMany(patch: Record<string, unknown>): Promise<void> {

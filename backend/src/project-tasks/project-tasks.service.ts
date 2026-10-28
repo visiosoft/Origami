@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, OnApplicationBootstrap, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from '../tasks/mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from '../tasks/task-rules';
@@ -142,14 +142,11 @@ export class ProjectTasksService implements OnApplicationBootstrap {
    * tied to any client project). A number = that project only.
    */
   async findAll(projectId?: number | null): Promise<any[]> {
-    const rows = await this.repo.find({ order: { order: 'ASC' } });
+    // One board's tasks are read from the database on their own, not picked out of every task.
+    const where = projectId === undefined ? undefined : { projectId: projectId === null ? IsNull() : projectId };
+    const rows = await this.repo.find({ where, order: { order: 'ASC' } });
     await this.archiveConfirmed(rows);
-    const scoped = projectId === undefined
-      ? rows
-      : projectId === null
-        ? rows.filter((t) => t.projectId == null)
-        : rows.filter((t) => Number(t.projectId) === projectId);
-    return scoped.map((t) => this.hydrate(t));
+    return rows.map((t) => this.hydrate(t));
   }
 
   // { sections, tasks } for one project (or, projectId === null, the
@@ -532,7 +529,9 @@ export class ProjectTasksService implements OnApplicationBootstrap {
 
   /** Emails held more than 15 minutes (the page was closed without Save) go out anyway. */
   async flushOverdue() {
-    for (const t of (await this.repo.find()).filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id, false);
+    // Only the tasks holding emails, and only the column that says so -- this runs every minute.
+    const held = await this.repo.find({ where: { pendingNotices: Not(IsNull()) }, select: { id: true, pendingNotices: true } });
+    for (const t of held.filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id, false);
   }
 
   /** Persist a manual card order within one section (drag-to-reorder). */

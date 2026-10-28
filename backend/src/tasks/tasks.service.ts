@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { NotifyHub } from '../notifications/notify-hub.service';
 import { mentionedIds } from './mentions';
 import { cleanCompletionNote, startDue, NEEDS_COMPLETION_NOTE, NEEDS_HOLD_REASON, NO_ASSIGNEE_IN_PROGRESS, holdReasonMissing } from './task-rules';
@@ -515,7 +515,9 @@ export class TasksService implements OnApplicationBootstrap {
   }
 
   async flushOverdue() {
-    for (const t of (await this.repo.find()).filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id);
+    // Only the tasks holding emails, and only the column that says so -- this runs every minute.
+    const held = await this.repo.find({ where: { pendingNotices: Not(IsNull()) }, select: { id: true, pendingNotices: true } });
+    for (const t of held.filter((x) => overdue(x.pendingNotices))) await this.flushNotices(t.id);
   }
 
   async remove(id: string) {
