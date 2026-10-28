@@ -1,3 +1,4 @@
+import { queryRfis } from './rfi-query';
 import {
   Body, Controller, Delete, ForbiddenException, Get, Headers, Param, Post, Put, Query, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
@@ -35,6 +36,15 @@ export class RfisController {
   async list(@Query('projectId') projectId: string | undefined, @Headers('authorization') a?: string) {
     const id = Number(projectId);
     return this.rfis.list(await this.actor(a), Number.isFinite(id) && id > 0 ? id : undefined);
+  }
+
+  /** One page of the RFI log -- filtered, searched and sorted here -- with the counts and stat cards. */
+  @Get('page')
+  async page(@Query() q: Record<string, string>, @Headers('authorization') a?: string) {
+    const id = Number(q.projectId);
+    const rows = await this.rfis.list(await this.actor(a), Number.isFinite(id) && id > 0 ? id : undefined);
+    const today = /^\d{4}-\d{2}-\d{2}$/.test(q.today || '') ? q.today : new Date().toISOString().slice(0, 10);
+    return queryRfis(rows, { status: q.status, q: q.q, sort: q.sort, dir: q.dir === 'desc' ? 'desc' : 'asc', page: q.page, size: q.size, today });
   }
 
   @Get(':id')

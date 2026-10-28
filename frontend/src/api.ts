@@ -569,6 +569,13 @@ export const api = {
   rfis: {
     access: () => request<{ view: boolean; manage: boolean }>('/rfis/access'),
     list: (projectId?: number) => request<any[]>(`/rfis${projectId ? `?projectId=${projectId}` : ''}`),
+    /** One page of the RFI log, filtered and sorted on the server, with its counts and stat cards. */
+    page: (o: { projectId?: number; status?: string; q?: string; sort?: string; dir?: string; page?: number; size?: number; today?: string }) => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '') params.set(k, String(v));
+      return request<{ rows: any[]; total: number; page: number; size: number; pages: number; any: boolean;
+        counts: { open: number; overdue: number; answered: number }; stats: { draft: number; avg: number | null; cost: number; closed: number } }>(`/rfis/page?${params}`);
+    },
     get: (id: string) => request<any>(`/rfis/${encodeURIComponent(id)}`),
     create: (data: unknown) => request<any>('/rfis', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) => request<any>(`/rfis/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) }),

@@ -786,7 +786,8 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             </div>
             <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)', overflow: 'hidden' }}>
               {secTasks.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--c-9aa39d)', fontStyle: 'italic' }}>No tasks</div>}
-              {sortRows(secTasks, LIST_BY, listSort).map((t) => listRow(t, 0))}
+              {sortRows(secTasks, LIST_BY, listSort).slice(0, limitOf(sec.id)).map((t) => listRow(t, 0))}
+              {secTasks.length > limitOf(sec.id) && <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }}>{moreButton(sec.id, secTasks.length)}</div>}
               {canAdd && (addingIn === sec.id ? (
                 <QuickAddTask onAdd={(q) => addTask(sec.id, q.title, null, quickTaskFields(q))} onCancel={() => setAddingIn(null)} style={{ padding: '10px 14px', borderTop: '1px solid rgba(var(--rgb-shade), 0.04)' }} />
               ) : (

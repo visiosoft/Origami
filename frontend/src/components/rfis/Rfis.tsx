@@ -8,7 +8,8 @@ import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
 import { PrioritySelect } from '../PrioritySelect';
 import { linkPriorityDue } from '../../data/priority';
 import type { Priority } from '../../data/projectTasks';
-import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
+import { SortHeader, sortFromString, sortToString, type SortState } from '../SortHeader';
+import { Pager } from '../Pager';
 import { useApp } from '../../AppContext';
 import { SaveBar, useAutosave } from '../../autosave';
 import { AssigneePicker } from '../AssigneePicker';
@@ -82,7 +83,16 @@ function StatusPill({ r }: { r: Rfi }) {
 export function RfiLog({ projectId, projectName, openId, compact }: { projectId?: number; projectName?: string; openId?: string | null; compact?: boolean }) {
   const { toast } = useApp();
   const [rights, setRights] = useState<{ view: boolean; manage: boolean } | null>(null);
-  const [rows, setRows] = useState<Rfi[]>([]);
+  // One page at a time, filtered and sorted on the server (with the counts for every RFI).
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.rfis.page>> | null>(null);
+  const rows = (data?.rows || []) as Rfi[];
+  const setRows = (fn: (prev: Rfi[]) => Rfi[]) => setData((d) => (d ? { ...d, rows: fn(d.rows as Rfi[]) } : d));
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(50);
+  const [sort, setSort] = useState<SortState | null>(null);
+  const FIRST_DIR: Record<string, 'asc' | 'desc'> = { sent: 'desc', due: 'asc', days: 'desc' };
+  const toggle = (key: string) => setSort((cur) => (cur?.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: FIRST_DIR[key] || 'asc' }));
+  const [openFull, setOpenFull] = useState<Rfi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'active' | 'all' | Rfi['status']>('active');
@@ -93,48 +103,40 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
   const [newProject, setNewProject] = useState<number | ''>(projectId ?? '');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
 
-  const load = () => api.rfis.list(projectId)
-    .then((r) => { setRows(Array.isArray(r) ? r : []); setError(''); })
-    .catch((e: Error) => setError(e.message))
-    .finally(() => setLoading(false));
+  // Typing searches after a short pause; a changed filter goes back to page 1.
+  const [qd, setQd] = useState('');
+  useEffect(() => { const t = window.setTimeout(() => setQd(q), 300); return () => window.clearTimeout(t); }, [q]);
+  const filterKey = [projectId, status, qd, sort?.key, sort?.dir, size].join('|');
+  const lastKey = useRef(filterKey);
+  const [tick, setTick] = useState(0);
+  const load = () => setTick((n) => n + 1);
+  useEffect(() => {
+    const changed = lastKey.current !== filterKey;
+    lastKey.current = filterKey;
+    if (changed && page !== 1) { setPage(1); return; }
+    let live = true;
+    api.rfis.page({ projectId, status, q: qd, sort: sort?.key, dir: sort?.dir, page, size, today: todayIso() })
+      .then((r) => { if (live) { setData(r); setError(''); } })
+      .catch((e: Error) => { if (live) setError(e.message); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, page, tick]);
   useEffect(() => {
     api.rfis.access().then(setRights).catch(() => setRights({ view: false, manage: false }));
-    load();
     if (!projectId) api.projects.list().then((p: any) => setProjects(Array.isArray(p) ? p.map((x: any) => ({ id: x.id, name: x.name })) : [])).catch(() => { });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
   useEffect(() => { if (openId) setOpenRfi(openId); }, [openId]);
 
-  const shown = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return rows
-      .filter((r) => status === 'all' ? true : status === 'active' ? r.status !== 'closed' && r.status !== 'void' : r.status === status)
-      .filter((r) => !t || [r.number, r.subject, r.to?.name, r.to?.company, r.projectName, r.drawingRef, r.discipline].some((x) => (x || '').toLowerCase().includes(t)));
-  }, [rows, status, q]);
-  const { sorted, sort, setSort, toggle } = useSort(shown, {
-    number: (r) => r.number, subject: (r) => r.subject, project: (r) => r.projectName, to: (r) => r.to?.name, status: (r) => RFI_STATUS[r.status]?.label || r.status,
-    sent: (r) => r.dateSent, due: (r) => r.dateDue, days: (r) => daysOpen(r), ball: (r) => r.ballInCourt,
-  }, null, { sent: 'desc', due: 'asc', days: 'desc' });
+  const shown = rows;
+  const sorted = rows;
   const viewValue = { status, q, sort: sortToString(sort) };
   const applyView = (v: typeof viewValue) => {
     setStatus(v.status as typeof status); setQ(v.q || ''); setSort(sortFromString(v.sort));
   };
   // The RFI dashboard (Oct 16): the numbers at a glance; each card filters the list.
-  const stats = useMemo(() => {
-    const live = rows.filter((r) => r.status !== 'void');
-    const days = live.map(daysOpen).filter((d): d is number => d != null);
-    return {
-      draft: live.filter((r) => r.status === 'draft').length,
-      avg: days.length ? Math.round(days.reduce((a, d) => a + d, 0) / days.length) : null,
-      cost: live.filter((r) => r.costImpact === 'yes' && r.status !== 'closed').length,
-      closed: live.filter((r) => r.status === 'closed').length,
-    };
-  }, [rows]);
-  const counts = useMemo(() => ({
-    open: rows.filter((r) => r.status === 'open').length,
-    overdue: rows.filter(isOverdue).length,
-    answered: rows.filter((r) => r.status === 'answered').length,
-  }), [rows]);
+  const stats = data?.stats || { draft: 0, avg: null, cost: 0, closed: 0 };
+  const counts = data?.counts || { open: 0, overdue: 0, answered: 0 };
 
   const create = () => {
     const subject = newSubject.trim();
@@ -142,15 +144,21 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
     const pid = projectId ?? (newProject || undefined);
     if (!pid) { toast('Pick the project'); return; }
     api.rfis.create({ projectId: pid, subject })
-      .then((r) => { setRows((prev) => [r, ...prev]); setCreating(false); setNewSubject(''); setOpenRfi(r.id); })
+      .then((r) => { setOpenFull(r); setCreating(false); setNewSubject(''); setOpenRfi(r.id); load(); })
       .catch((e: Error) => toast('⚠ ' + e.message));
   };
 
+  // The open RFI: from the page if it's on it, else fetched (a link to one on another page).
+  useEffect(() => {
+    if (!openRfi || rows.some((r) => r.id === openRfi) || openFull?.id === openRfi) return;
+    api.rfis.get(openRfi).then((r) => setOpenFull(r)).catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRfi, data]);
   if (rights && !rights.view) {
     return <div style={{ padding: 20, fontSize: 13, color: MUTED }}>Your role doesn't include RFIs. An administrator can add it under Admin → Roles.</div>;
   }
 
-  const open = rows.find((r) => r.id === openRfi) || null;
+  const open = rows.find((r) => r.id === openRfi) || (openFull?.id === openRfi ? openFull : null);
 
   return (
     <div>
@@ -176,7 +184,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
         </select>
         {rights?.manage && <button type="button" onClick={() => setCreating(true)} style={btn(true)}>+ New RFI</button>}
       </div>
-      {!compact && !loading && rows.length > 0 && (
+      {!compact && !loading && !!data?.any && (
         <div style={{ marginBottom: 14 }}><AkStats items={[
           { key: 'open', label: 'Awaiting an answer', value: counts.open, sub: 'sent, not answered', onClick: () => setStatus('open'), on: status === 'open' },
           { key: 'late', label: 'Overdue', value: counts.overdue, sub: 'past the answer date', tone: counts.overdue ? 'dark' : undefined },
@@ -208,7 +216,7 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
       {loading ? <div style={{ fontSize: 13, color: MUTED, padding: 12 }}>Loading RFIs…</div>
         : !shown.length ? (
           <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 13, color: MUTED, background: 'var(--panel)', borderRadius: 'var(--r-12)' }}>
-            {rows.length ? 'No RFIs match.' : 'No RFIs yet. When something on the drawings needs an answer from the architect, engineer or owner, start one here — or use “Convert to RFI” on a task.'}
+            {data?.any ? 'No RFIs match.' : 'No RFIs yet. When something on the drawings needs an answer from the architect, engineer or owner, start one here — or use “Convert to RFI” on a task.'}
           </div>
         ) : (
           <div style={{ overflowX: 'auto', background: 'var(--surface)', borderRadius: 'var(--r-12)', border: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
@@ -251,13 +259,15 @@ export function RfiLog({ projectId, projectName, openId, compact }: { projectId?
           </div>
         )}
 
+      {data && <Pager page={data.page} pages={data.pages} total={data.total} size={data.size} onPage={setPage} onSize={setSize} />}
+
       {open && (
         <RfiDrawer
           rfi={open}
           canManage={!!rights?.manage}
           onClose={() => setOpenRfi(null)}
-          onChanged={(r) => setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...r } : x)))}
-          onDeleted={(id) => { setRows((prev) => prev.filter((x) => x.id !== id)); setOpenRfi(null); }}
+          onChanged={(r) => { setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...r } : x))); setOpenFull((cur) => (cur?.id === r.id ? { ...cur, ...r } : cur)); }}
+          onDeleted={() => { setOpenRfi(null); load(); }}
         />
       )}
     </div>
