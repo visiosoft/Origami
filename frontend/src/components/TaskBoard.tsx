@@ -950,12 +950,17 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
+      {/* Fixed rows (Oct 27 sync: "keep it stacked") -- views, then filters, then saved views --
+          each wrapping on its own, so nothing jumps between rows when the view changes. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999, maxWidth: '100%', overflowX: 'auto', scrollbarWidth: 'none' }}>
           {(['dashboard', 'board', 'timeline', 'list'] as const).map((v) => (
             <div key={v} onClick={() => setView(v)} style={{ padding: '6px 15px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: view === v ? 'var(--seg-on)' : 'transparent', color: view === v ? 'var(--ink)' : 'var(--muted)', boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.08)' : 'none' }}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : v === 'timeline' ? 'Timeline' : 'Dashboard'}</div>
           ))}
         </div>
+        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--muted)' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <TaskScopeToggle
           scope={scope}
           setScope={setScope}
@@ -966,7 +971,10 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
         />
         <PersonFilter person={person} setPerson={setPerson} users={allUsers} scope={scope} visible={!restricted && (scope === 'assigned' || scope === 'from')} />
         <TaskSearch value={query} onChange={setQuery} />
-        {view !== 'dashboard' && <TaskSort sort={listSort} onChange={setListSort} />}
+        {/* Always here, so the row doesn't shift between views; the dashboard ignores it. */}
+        <TaskSort sort={listSort} onChange={setListSort} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         {(archivedCount > 0 || showArchived) && (
           <div onClick={() => setShowArchived((v) => !v)} title="Confirmed tasks move to the archive 7 days after they're confirmed"
             style={{ padding: '6px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.14)', background: showArchived ? 'var(--ink)' : 'var(--surface)', color: showArchived ? '#FDFCF9' : 'var(--muted)' }}>
@@ -982,15 +990,14 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
             {showPhaseTasks ? 'Hide' : 'Show'} phase tasks ({phaseTaskCount})
           </div>
         )}
-        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{visibleTasks.filter((t) => !t.parentId).length} tasks · {visibleTasks.filter((t) => !t.parentId && t.completed).length} done</span>
-      </div>
-      {!restricted && (
-        <div style={{ marginBottom: 14 }}>
+        {!restricted && (
+        <div style={{ flex: '1 1 auto' }}>
           <SavedViews page="tasks.board" value={{ query, scope, person, showArchived, showPhaseTasks, sort: sortToString(listSort), ...(board ? { board: board.value } : {}) }}
             defaults={{ query: '', scope: 'all', person: '', showArchived: false, showPhaseTasks: false, sort: '', ...(board ? { board: 'all' } : {}) }}
             onApply={(v) => { setQuery(String(v.query || '')); setScope(v.scope as TaskScopeKind); setPerson(String(v.person || '')); setShowArchived(!!v.showArchived); setShowPhaseTasks(!!v.showPhaseTasks); setListSort(sortFromString(v.sort)); if (board && v.board != null) board.set(String(v.board)); }} />
         </div>
       )}
+      </div>
 
       {view === 'board' ? boardView : view === 'list' ? listView : view === 'timeline' ? timelineView : dashboardView}
 

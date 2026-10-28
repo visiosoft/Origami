@@ -266,7 +266,7 @@ export function TaskScopeToggle({ scope, setScope, restricted, mineCount, allCou
     </div>
   );
   return (
-    <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999 }}>
+    <div style={{ display: 'flex', gap: 3, background: 'var(--c-efede8)', padding: 3, borderRadius: 999, maxWidth: '100%', overflowX: 'auto', scrollbarWidth: 'none', flexShrink: 1 }}>
       {opt('all', 'Everyone', counts?.all ?? allCount)}
       {opt('mine', 'My tasks', counts?.mine ?? mineCount)}
       {scope === 'mine' && <MinePartsChips />}
