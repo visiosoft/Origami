@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28e',
+    date: '2026-10-28',
+    title: 'Tasks first on the Dashboard',
+    items: [
+      { area: 'Dashboard', kind: 'improved', text: 'Needs attention / My latest tasks and This week now come first on the Dashboard, ahead of the project and money cards — on a phone they’re the first thing you see.', where: 'Dashboard' },
+    ],
+  },
+  {
     id: '2026-10-28d',
     date: '2026-10-28',
     title: 'Save & close everywhere; Project People; audit trail on the Overview',
