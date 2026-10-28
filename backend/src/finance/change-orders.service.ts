@@ -1,3 +1,4 @@
+import { queryChangeOrders } from './co-query';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { readState, signState } from '../auth/crypto.util';
 import { brandingFrom } from '../documents/letterhead';
@@ -139,6 +140,32 @@ export class ChangeOrdersService {
     const name = new Map(projects.map((p) => [p.id, p.name]));
     return cos.map((c) => ({ ...this.present(c, items), projectName: name.get(c.projectId) || `Project ${c.projectId}` }))
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }
+
+  /**
+   * One page of the change order log (a project's, or every project's): only
+   * what the list shows -- no line items, which come with the change order when
+   * it's opened -- filtered, searched and sorted here, with the summary cards
+   * for every change order.
+   */
+  async page(projectId: number | undefined, actor: Actor, q: Record<string, string>) {
+    await this.fin.need(actor, 'viewChangeOrders');
+    const where = projectId ? { projectId } : {};
+    // Only the columns the totals need, not whole line items.
+    const [cos, items, projects] = await Promise.all([
+      this.cos.find({ where }),
+      this.items.find({ where, select: { id: true, changeOrderId: true, amount: true, cost: true, lineOrder: true } }),
+      projectId ? Promise.resolve([] as ProjectEntity[]) : this.projects.find({ select: { id: true, name: true } }),
+    ]);
+    const name = new Map(projects.map((p) => [p.id, p.name]));
+    // Lines grouped once, rather than every change order scanning every line.
+    const byCo = new Map<string, ChangeOrderItemEntity[]>();
+    for (const i of items as ChangeOrderItemEntity[]) byCo.set(i.changeOrderId, [...(byCo.get(i.changeOrderId) || []), i]);
+    const rows = cos.map((c) => {
+      const { items: _lines, ...row } = this.present(c, byCo.get(c.id) || []);
+      return { ...row, lineCount: _lines.length, ...(projectId ? {} : { projectName: name.get(c.projectId) || `Project ${c.projectId}` }) };
+    }).sort((a, b) => (projectId ? b.number.localeCompare(a.number) : (b.createdAt || '').localeCompare(a.createdAt || '')));
+    return queryChangeOrders(rows, q);
   }
 
   async get(id: string, actor: Actor) {

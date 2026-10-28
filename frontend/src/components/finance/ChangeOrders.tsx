@@ -6,7 +6,8 @@ import { Attachments } from '../Attachments';
 import { SaveBar, useAutosave } from '../../autosave';
 import { SavedViews } from '../SavedViews';
 import { ActionMenu, ActionTrail, OriginatorLine } from '../ActionTools';
-import { SortHeader, sortFromString, sortToString, useSort } from '../SortHeader';
+import { SortHeader, sortFromString, sortToString, type SortState } from '../SortHeader';
+import { Pager } from '../Pager';
 import { ACCENT, BG, DANGER, INK, LINE, MUTED, Drawer, Label, btn, card, fmtDate, headRow, input } from '../manpowerUi';
 import {
   ApprovalTrail, CO_REASONS, CoBadge, ReasonBox, failed, label, usd, usd0,
@@ -46,25 +47,42 @@ async function loadTargets(projectId: number): Promise<Targets> {
  */
 export function ChangeOrderList({ projectId, overview, rights, onChanged, openId }: { projectId?: number; overview?: Overview; rights: Rights; onChanged?: () => void; openId?: string | null }) {
   const { toast } = useApp();
-  const [rows, setRows] = useState<ChangeOrder[] | null>(null);
+  // One page at a time, filtered and sorted on the server (summary cards cover every change order).
+  const [data, setData] = useState<Awaited<ReturnType<typeof api.finance.changeOrderPage>> | null>(null);
+  const rows = data ? (data.rows as ChangeOrder[]) : null;
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(50);
+  const [sort, setSort] = useState<SortState | null>(null);
+  const FIRST_DIR: Record<string, 'asc' | 'desc'> = { amount: 'desc', requested: 'desc', days: 'desc' };
+  const toggle = (key: string) => setSort((cur) => (cur?.key === key ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: FIRST_DIR[key] || 'asc' }));
+  const [tick, setTick] = useState(0);
   const [open, setOpen] = useState<string | null>(openId || null);
   const [adding, setAdding] = useState(false);
   const [status, setStatus] = useState('all');
   const [q, setQ] = useState('');
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
-  const load = () => (projectId ? api.finance.changeOrders(projectId) : api.finance.allChangeOrders())
-    .then((r: any) => setRows(Array.isArray(r) ? r : [])).catch((e: any) => { setRows([]); toast('⚠ ' + (e.message || 'Could not load change orders')); });
-  useEffect(() => { load(); }, [projectId]);
+  const [qd, setQd] = useState('');
+  useEffect(() => { const t = window.setTimeout(() => setQd(q), 300); return () => window.clearTimeout(t); }, [q]);
+  const filterKey = [projectId, status, qd, sort?.key, sort?.dir, size].join('|');
+  const lastKey = useRef(filterKey);
+  const load = async () => setTick((n) => n + 1);
+  useEffect(() => {
+    const changed = lastKey.current !== filterKey;
+    lastKey.current = filterKey;
+    if (changed && page !== 1) { setPage(1); return; }
+    let live = true;
+    api.finance.changeOrderPage({ projectId, status, q: qd, sort: sort?.key, dir: sort?.dir, page, size })
+      .then((r) => { if (live) setData(r); })
+      .catch((e: any) => { if (live) { setData({ rows: [], total: 0, page: 1, size, pages: 1, any: false, summary: { pending: { total: 0, count: 0 }, submitted: { total: 0, count: 0 }, approved: { total: 0, count: 0 }, closed: { total: 0, count: 0 } } }); toast('⚠ ' + (e.message || 'Could not load change orders')); } });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKey, page, tick]);
   useEffect(() => { if (!projectId) api.projects.list().then((r: any) => setProjects(Array.isArray(r) ? r.map((p: any) => ({ id: p.id, name: p.name })) : [])).catch(() => {}); }, [projectId]);
 
-  const shown = (rows || []).filter((c) => (status === 'all' || (status === 'pending' ? ['draft', 'internal_review'].includes(c.status) : c.status === status))
-    && (!q || `${c.number} ${c.title} ${c.projectName || ''}`.toLowerCase().includes(q.toLowerCase())));
-  const { sorted, sort, setSort, toggle } = useSort(shown, {
-    number: (c) => c.number, project: (c) => c.projectName, title: (c) => c.title, reason: (c) => label(CO_REASONS, c.reason), amount: (c) => c.total,
-    requested: (c) => c.dateRequested, days: (c) => c.scheduleImpactDays, status: (c) => c.status,
-  }, null, { amount: 'desc', requested: 'desc', days: 'desc' });
+  const shown = rows || [];
+  const sorted = shown;
   const viewValue = { status, q, sort: sortToString(sort) };
-  const sum = (pred: (c: ChangeOrder) => boolean) => (rows || []).filter(pred).reduce((a, c) => a + (c.total || 0), 0);
+  const sm = data?.summary;
   const cols = projectId ? '90px minmax(200px,2fr) 150px 120px 120px 90px 130px' : '90px minmax(160px,1.4fr) minmax(200px,2fr) 150px 120px 120px 90px 130px';
 
   const create = async (v: Record<string, string>) => {
@@ -80,10 +98,10 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
     <div style={{ display: 'grid', gap: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
         {[
-          ['Pending', usd0(sum((c) => c.status === 'draft' || c.status === 'internal_review')), `${(rows || []).filter((c) => c.status === 'draft' || c.status === 'internal_review').length} being costed and scoped`],
-          ['Under client review', usd0(sum((c) => c.status === 'submitted')), `${(rows || []).filter((c) => c.status === 'submitted').length} with the client`],
-          ['Approved', usd0(sum((c) => c.status === 'approved')), `${(rows || []).filter((c) => c.status === 'approved').length} change orders`],
-          ['Rejected / cancelled', String((rows || []).filter((c) => c.status === 'rejected' || c.status === 'cancelled').length), ''],
+          ['Pending', usd0(sm?.pending.total || 0), `${sm?.pending.count || 0} being costed and scoped`],
+          ['Under client review', usd0(sm?.submitted.total || 0), `${sm?.submitted.count || 0} with the client`],
+          ['Approved', usd0(sm?.approved.total || 0), `${sm?.approved.count || 0} change orders`],
+          ['Rejected / cancelled', String(sm?.closed.count || 0), ''],
         ].map(([l, v, sub]) => (
           <div key={l} style={{ ...card, padding: '10px 14px' }}>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '.05em' }}>{l}</div>
@@ -135,8 +153,9 @@ export function ChangeOrderList({ projectId, overview, rights, onChanged, openId
                 <span><CoBadge s={c.status} /></span>
               </div>
             ))}
-            {rows && !shown.length && <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>{rows.length ? 'Nothing matches.' : 'No change orders yet.'}</div>}
+            {rows && !shown.length && <div style={{ padding: '22px 16px', textAlign: 'center', fontSize: 12.5, color: MUTED }}>{data?.any ? 'Nothing matches.' : 'No change orders yet.'}</div>}
           </div>
+          {data && <Pager page={data.page} pages={data.pages} total={data.total} size={data.size} onPage={setPage} onSize={setSize} />}
         </div>
       </div>
       {open && <ChangeOrderDrawer id={open} overview={overview} rights={rights} onClose={() => { setOpen(null); load(); }} onChanged={() => { load(); onChanged?.(); }} />}

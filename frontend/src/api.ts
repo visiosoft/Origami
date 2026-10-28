@@ -978,6 +978,13 @@ export const api = {
     returnDraft: (id: string, d: unknown) => request(`/finance/invoices/${id}/return`, { method: 'POST', body: JSON.stringify(d) }),
     createCredit: (invoiceId: string, d: unknown) => request(`/finance/invoices/${invoiceId}/credit`, { method: 'POST', body: JSON.stringify(d) }),
     allChangeOrders: () => request('/finance/change-orders'),
+    /** One page of the change order log (a project's with projectId), with its summary cards; rows carry no line items. */
+    changeOrderPage: (o: { projectId?: number; status?: string; q?: string; sort?: string; dir?: string; page?: number; size?: number }) => {
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== '') params.set(k, String(v));
+      type Sum = { total: number; count: number };
+      return request<{ rows: any[]; total: number; page: number; size: number; pages: number; any: boolean; summary: { pending: Sum; submitted: Sum; approved: Sum; closed: Sum } }>(`/finance/change-orders/page?${params}`);
+    },
     changeOrders: (projectId: number) => request(`/finance/projects/${projectId}/change-orders`),
     createChangeOrder: (projectId: number, d: unknown) => request(`/finance/projects/${projectId}/change-orders`, { method: 'POST', body: JSON.stringify(d) }),
     changeOrder: (id: string) => request(`/finance/change-orders/${id}`),
