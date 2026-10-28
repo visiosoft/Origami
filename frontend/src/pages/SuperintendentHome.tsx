@@ -18,7 +18,8 @@ import { ACCENT, BG, INK, LINE, MUTED, card, fmtDate, todayISO } from '../compon
  * they've raised for others, their timesheets and their daily log history --
  * and nothing about the company's projects or money.
  */
-export const isSiteSuper = (roleKey?: string) => roleKey === 'site_super';
+import { isSiteSuper } from '../data/siteSuper';
+export { isSiteSuper };
 
 interface Row { key: string; title: string; context: string; dueDate?: string; status?: string; priority?: string; who?: string; open: () => void }
 interface Log { id: string; projectId: number; date: string; status: string; supervisorId?: string; rejectionNote?: string; submittedAt?: string }
