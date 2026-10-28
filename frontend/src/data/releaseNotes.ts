@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28v',
+    date: '2026-10-28',
+    title: 'Meetings: turn the notes into FOR RECORD items and tasks',
+    items: [
+      { area: 'Meetings', kind: 'new', text: 'Paste the Google Meet notes into a meeting and press “Turn notes into items”: each summary bullet becomes a FOR RECORD item titled with its heading, and each “Next steps” line a task — [Name] is the assignee, the text before the colon the title, and a date like “Monday” or “Tuesday the 27th” the due date (no date: High priority). Check, change or untick each one before adding.', where: 'Meetings → open a meeting → Review → Turn notes into items' },
+      { area: 'Meetings', kind: 'improved', text: 'Everything raised from a meeting says where it came from, e.g. “Hom Cafe Weekly Sync - 2026/10/24 12:45”.', where: 'Special Actions Log, FOR RECORD' },
+    ],
+  },
+  {
     id: '2026-10-28u',
     date: '2026-10-28',
     title: 'Change orders: what drives them, their category, and who raised and approves them',

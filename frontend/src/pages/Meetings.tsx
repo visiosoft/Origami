@@ -17,6 +17,7 @@ import { ActionMenu, ActionTrail, OriginatorLine } from '../components/ActionToo
 import { SortSelect, sortFromString, sortToString, useSort } from '../components/SortHeader';
 import './Meetings.css';
 import { Skeleton } from '../components/Skeleton';
+import { MeetingNotesImport } from '../components/MeetingNotesImport';
 
 type View = 'upcoming' | 'past' | 'all';
 type StatusFilter = 'all' | 'review' | MeetingStatus;
@@ -565,6 +566,7 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
   const [src, setSrc] = useState<'minutes' | 'transcript'>(draft.transcript?.trim() ? 'transcript' : 'minutes');
   const [sel, setSel] = useState('');
   const [seed, setSeed] = useState<{ text: string; n: number }>({ text: '', n: 0 });
+  const [importing, setImporting] = useState(false);
   const st = meetingStatus(draft.status);
   const pickSel = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
     const el = e.currentTarget;
@@ -598,6 +600,12 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
               <span className="mt-muted">{sel ? `${sel.length} characters selected` : 'Select a passage to raise it as an item.'}</span>
               <button type="button" className="ak-btn is-dark" disabled={!sel} onClick={() => setSeed((s) => ({ text: sel, n: s.n + 1 }))}>Use selection →</button>
             </div>
+            {src === 'minutes' && (
+              <div className="mt-row" style={{ alignItems: 'center' }}>
+                <span className="mt-muted">Pasted Google Meet notes? Each summary bullet becomes a FOR RECORD item and each next step a task — you check them first.</span>
+                <button type="button" className="ak-btn" disabled={!text.trim()} onClick={() => setImporting(true)}>Turn notes into items</button>
+              </div>
+            )}
           </section>
           <section className="mt-review-out">
             <ActionForm ctx={ctx} seed={seed} />
@@ -609,6 +617,10 @@ function ReviewPanel({ item, draft, set, auto, ctx, rfis, cos, onClose }: {
           <button type="button" className="ak-btn" onClick={onClose}>Close</button>
           {st !== 'reviewed' && st !== 'complete' && <button type="button" className="ak-btn is-dark" onClick={() => { set({ status: 'reviewed' }); onClose(); }}>Mark reviewed</button>}
         </div>
+        {importing && (
+          <MeetingNotesImport meeting={{ id: draft.id, title: draft.title, date: draft.date }} text={text} onClose={() => setImporting(false)}
+            onAdded={(made) => { made.forEach((t) => ctx.onAction(t)); api.meetings.get(draft.id).then(ctx.applyServer).catch(() => { }); }} />
+        )}
       </aside>
     </div>
   );

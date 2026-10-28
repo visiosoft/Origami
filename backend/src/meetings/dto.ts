@@ -42,4 +42,6 @@ export class MeetingActionDto {
   @IsString() @IsOptional() assignedTo?: string;
   @IsString() @IsOptional() assignedToId?: string;
   @IsString() @IsOptional() dueDate?: string;
+  /** Urgent / High / Medium / Low; a next step with no date comes in High until changed (Oct 26 review notes). */
+  @IsString() @IsOptional() priority?: string;
 }
