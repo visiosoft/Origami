@@ -256,9 +256,12 @@ export const api = {
     save: (data: Record<string, unknown>) => request<Record<string, string>>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   },
   sms: {
-    status: () => request<{ configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
-    send: (to: string, body: string) =>
-      request<{ sent: boolean; to: string; segments: number }>('/sms/send', { method: 'POST', body: JSON.stringify({ to, body }) }),
+    status: () => request<{ provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }>('/sms/status'),
+    /** With entityType/entityId the text is recorded on that lead, contact or project. */
+    send: (to: string, body: string, link?: { entityType: 'lead' | 'person' | 'project'; entityId: string; templateKey?: string }) =>
+      request<{ sent: boolean; to: string; segments: number }>('/sms/send', { method: 'POST', body: JSON.stringify({ to, body, ...link }) }),
+    messages: (entityType: 'lead' | 'person' | 'project', entityId: string) =>
+      request<import('./data/sms').SmsMessage[]>(`/sms/messages?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`),
     test: (to: string) =>
       request<{ sent: boolean; to: string }>('/sms/test', { method: 'POST', body: JSON.stringify({ to }) }),
   },

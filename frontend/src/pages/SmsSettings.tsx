@@ -15,16 +15,21 @@ const card: React.CSSProperties = {
   background: 'var(--surface)', border: '1px solid rgba(var(--rgb-shade), 0.08)', borderRadius: 'var(--r-12)', padding: 18, marginBottom: 16,
 };
 
-type Form = { 'sms.accountSid': string; 'sms.authToken': string; 'sms.fromNumber': string; 'sms.enabled': string };
-const EMPTY: Form = { 'sms.accountSid': '', 'sms.authToken': '', 'sms.fromNumber': '', 'sms.enabled': 'true' };
+type Form = {
+  'sms.accountSid': string; 'sms.authToken': string; 'sms.fromNumber': string; 'sms.enabled': string;
+  'sms.provider': string; 'sms.quoApiKey': string; 'sms.quoFrom': string;
+};
+const EMPTY: Form = { 'sms.accountSid': '', 'sms.authToken': '', 'sms.fromNumber': '', 'sms.enabled': 'true', 'sms.provider': 'twilio', 'sms.quoApiKey': '', 'sms.quoFrom': '' };
+const QUO_LINE = '+16507614661';
 
-interface Status { configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }
+interface Status { provider?: 'twilio' | 'quo'; configured: boolean; enabled: boolean; fromNumber: string; accountSid: string }
 
 /**
  * Settings → SMS.
  *
- * Twilio credentials and the sending number. The auth token is stored masked
- * like the other secrets, so posting the mask back leaves it unchanged.
+ * Texts go out through Quo -- the office line, so replies land in Quo (Oct 27
+ * sync) -- or Twilio. Keys and tokens are stored masked like the other
+ * secrets, so posting the mask back leaves them unchanged.
  */
 export function SmsSettings() {
   const { toast } = useApp();
@@ -78,8 +83,8 @@ export function SmsSettings() {
       <div style={{ marginBottom: 18 }}>
         <div style={{ fontFamily: BG, fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>SMS</div>
         <div style={{ fontSize: 12.5, color: 'var(--c-5c6b65)', marginTop: 4, maxWidth: 640, lineHeight: 1.6 }}>
-          Texting clients from the system, using the same templates as email. Sent through Twilio — the credentials
-          come from your Twilio console, and the sending number must be one you own there.
+          Texting clients from the system (“Text client” on a lead, contact or project), using the SMS templates.
+          Sent through Quo from the office line, so replies come back to Quo — or through Twilio.
         </div>
       </div>
 
@@ -96,12 +101,48 @@ export function SmsSettings() {
             {status?.configured ? (status.enabled ? 'Ready to send' : 'Configured, but switched off') : 'Not configured'}
           </div>
           <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
-            {status?.configured ? `Sending as ${status.fromNumber} · account ${status.accountSid}` : 'Add the account SID, auth token and sending number below.'}
+            {status?.configured
+              ? `Sending through ${status.provider === 'quo' ? 'Quo' : 'Twilio'} as ${status.fromNumber}${status.provider === 'quo' ? '' : ` · account ${status.accountSid}`}`
+              : form['sms.provider'] === 'quo' ? 'Add the Quo API key below.' : 'Add the account SID, auth token and sending number below.'}
           </div>
         </div>
       </div>
 
       <div style={card}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 10 }}>Send through</div>
+        <div role="radiogroup" aria-label="SMS provider" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {([['quo', 'Quo — the office line'], ['twilio', 'Twilio']] as const).map(([k, label]) => (
+            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 14px', borderRadius: 999, border: '1px solid ' + (form['sms.provider'] === k ? 'var(--forest)' : 'rgba(var(--rgb-shade), 0.14)'), fontSize: 12.5, fontWeight: 700, cursor: 'pointer', color: 'var(--ink)' }}>
+              <input type="radio" name="sms-provider" checked={(form['sms.provider'] || 'twilio') === k} onChange={() => set('sms.provider', k)} /> {label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {form['sms.provider'] === 'quo' && (
+        <div style={card}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 14 }}>Quo</div>
+          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>API key</label>
+              <input style={inputStyle} type="password" value={form['sms.quoApiKey']} onChange={(e) => set('sms.quoApiKey', e.target.value)} placeholder={MASK} aria-label="Quo API key" />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Create one in Quo → Settings → API. Stored masked; leave as {MASK} to keep the saved key.</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--body)' }}>Send from</label>
+              <input style={inputStyle} value={form['sms.quoFrom']} onChange={(e) => set('sms.quoFrom', e.target.value)} placeholder={QUO_LINE} aria-label="Quo number" />
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>The Quo number texts come from. Blank = the office line, (650) 761-4661.</span>
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 12.5, color: 'var(--ink)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={enabled} onChange={(e) => set('sms.enabled', e.target.checked ? 'true' : 'false')} />
+            Sending is on
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>— untick to stop every outgoing text without clearing the key.</span>
+          </label>
+        </div>
+      )}
+
+      <div style={{ ...card, display: form['sms.provider'] === 'quo' ? 'none' : undefined }}>
         <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: 14 }}>Twilio Account</div>
         <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

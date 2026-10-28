@@ -1,3 +1,4 @@
+import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { tint, useTheme } from '../theme';
 import { loadProjectCodes, useTaskNumber } from '../data/taskNumbers';
@@ -785,6 +786,7 @@ export function Projects() {
                 {finView && <MoneyGlance projectId={sel.id} onOpen={() => setTab('financial')} />}
                 <ProjectAuditTrail key={'audit-' + sel.id} projectId={sel.id} />
                 <div style={{ padding: '20px 28px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {introLead && <TextClient entityType="project" entityId={String(sel.id)} phone={introLead.phone} clientName={introLead.leadName} projectTitle={sel.name} />}
                   {canManage && <div onClick={() => openEdit(sel)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'var(--forest)', color: 'white', boxShadow: '0 4px 14px rgba(210,130,46,0.3)' }}>Edit</div>}
                   <div onClick={() => setTab('phases')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', background: 'var(--surface)' }}>Open Phase Board</div>
                   <div onClick={() => navigate(`/planroom?project=${sel.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(20,8,31,0.1)', background: 'var(--surface)' }}><svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>Project files</div>

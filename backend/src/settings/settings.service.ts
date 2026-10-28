@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import { AppSettingEntity } from '../database/entities';
 
 /** Keys that hold secrets — masked whenever settings are read by the UI. */
-export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken'];
+export const SECRET_KEYS = ['google.clientSecret', 'google.workspaceClientSecret', 'google.refreshToken', 'auth.jwtSecret', 'reminders.triggerToken', 'sms.authToken', 'sms.quoApiKey'];
 
 /** Settings the Settings UI may read/write. Anything else is rejected. */
 export const PUBLIC_KEYS = [
@@ -56,6 +56,10 @@ export const PUBLIC_KEYS = [
   'sms.accountSid',
   'sms.authToken',
   'sms.fromNumber',
+  // Texting through Quo, from the office line (Oct 27 sync): 'twilio' (default) or 'quo'.
+  'sms.provider',
+  'sms.quoApiKey',
+  'sms.quoFrom',
   // --- Branding: letterhead, footer and signature used on generated documents ---
   'brand.companyName',
   'brand.tagline',

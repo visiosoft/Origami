@@ -1,3 +1,4 @@
+import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { PeopleImport } from '../components/PeopleImport';
@@ -670,6 +671,11 @@ export function People() {
               </div>
               {contactStatusOf(sel) !== 'active' && <div style={{ fontSize: 12, color: 'var(--body)' }}>{sel.contactStatusReason || CONTACT_STATUS_HINT[contactStatusOf(sel)]}{sel.contactStatusAt ? ` · since ${new Date(sel.contactStatusAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</div>}
             </div>
+            {sel.phone && sel.phone !== '—' && (
+              <div style={{ padding: '12px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
+                <TextClient entityType="person" entityId={String(sel.id)} phone={sel.phone} clientName={sel.contact || sel.name} label="Text" />
+              </div>
+            )}
             {!!(sel.businessCards?.front || sel.businessCards?.back) && (
               <div style={{ padding: '14px 24px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>Business card</div>

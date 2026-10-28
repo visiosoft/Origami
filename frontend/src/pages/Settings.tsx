@@ -17,6 +17,7 @@ import { DailyLogBackupSettings } from './DailyLogBackupSettings';
 import { RequestLogStatusSettings } from './RequestLogStatusSettings';
 import { ChecklistTemplateSettings } from './ChecklistTemplateSettings';
 import { mergeTokens } from '../data/clientPersonality';
+import { smsSegments } from '../data/sms';
 import { hasUnfilled, KNOWN_TOKENS, unknownTokens } from '../data/placeholders';
 import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
 import { RichTextEditor } from '../components/RichTextEditor';
@@ -248,17 +249,6 @@ export function ScoringTemplateEditor() {
       )}
     </div>
   );
-}
-
-/** Mirrors segmentsFor in backend/src/sms/sms.service.ts. */
-function smsSegments(body: string) {
-  // eslint-disable-next-line no-control-regex -- "anything outside ASCII" is the point
-  const unicode = /[^\x00-\x7F]/.test(body);
-  const single = unicode ? 70 : 160;
-  const multi = unicode ? 67 : 153;
-  const length = body.length;
-  if (length === 0) return { length, unicode, segments: 0 };
-  return { length, unicode, segments: length <= single ? 1 : Math.ceil(length / multi) };
 }
 
 interface EmailTemplate { id: string; key?: string; name: string; subject?: string; body: string; kind?: string; category?: string; updatedAt?: string; }

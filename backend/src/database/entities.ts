@@ -145,6 +145,31 @@ export class ContactInteractionEntity {
   @Column({ type: 'nvarchar', length: 40 }) createdAt!: string;
 }
 
+/**
+ * A text sent to a client from a lead, contact or project (Oct 27 backlog item
+ * 11), sent or failed -- the record's "Texts" list and an audit of what went out.
+ */
+@Entity('sms_messages')
+@Index('IX_sms_messages_entity', ['entityType', 'entityId'])
+export class SmsMessageEntity {
+  @PrimaryColumn({ type: 'nvarchar', length: 64 }) id!: string;
+  @Column({ type: 'nvarchar', length: 40 }) at!: string;
+  @Column({ type: 'nvarchar', length: 32 }) to!: string;
+  @Column({ type: 'nvarchar', length: 2000 }) body!: string;
+  /** twilio | quo */
+  @Column({ type: 'nvarchar', length: 10 }) provider!: string;
+  /** sent | failed */
+  @Column({ type: 'nvarchar', length: 10 }) status!: string;
+  @Column({ type: 'nvarchar', length: 500, nullable: true }) error!: string | null;
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) providerId!: string | null;
+  /** lead | person | project */
+  @Column({ type: 'nvarchar', length: 20, nullable: true }) entityType!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) entityId!: string | null;
+  @Column({ type: 'nvarchar', length: 100, nullable: true }) templateKey!: string | null;
+  @Column({ type: 'nvarchar', length: 64, nullable: true }) byId!: string | null;
+  @Column({ type: 'nvarchar', length: 200, nullable: true }) byName!: string | null;
+}
+
 @Entity('tasks')
 export class TaskEntity {
   @PrimaryColumn() id!: string;

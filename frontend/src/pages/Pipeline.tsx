@@ -33,6 +33,7 @@ import { ProposalPanel } from '../components/ProposalPanel';
 import { DealTasksPanel } from '../components/DealTasksPanel';
 import { NewTaskDrawer } from '../components/NewTaskDrawer';
 import { SiteVisitGuests } from '../components/SiteVisitGuests';
+import { TextClient } from '../components/TextClient';
 import { inviteGuests, siteVisitDescription, zoningSections, type Guest } from '../data/siteVisitInvite';
 
 const BG = 'var(--font-display)';
@@ -2325,6 +2326,10 @@ export function Pipeline() {
                   Converted — open project #{selected.convertedProjectId}
                 </div>
               )}
+              <div style={{ flex: '1 1 100%', display: 'flex', justifyContent: 'center' }}>
+                <TextClient entityType="lead" entityId={selected.id} phone={leadDetails[selected.id]?.phone || selected.phone}
+                  clientName={leadDetails[selected.id]?.goByName || leadDetails[selected.id]?.firstName || selected.client} projectTitle={selected.name} />
+              </div>
               <div onClick={() => openEdit(selected)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: 'var(--success)' }}>Edit Lead</div>
               <div onClick={() => deleteLead(selected.id)} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center', padding: '9px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(var(--rgb-shade), 0.1)', color: '#8E2E0A' }}>Delete</div>
               {(selectedStage.isHold || selectedStage.isClosed) && (

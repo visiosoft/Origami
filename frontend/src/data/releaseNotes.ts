@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28f',
+    date: '2026-10-28',
+    title: 'Text a client from a template, through Quo',
+    items: [
+      { area: 'CRM', kind: 'new', text: '“Text client” on a lead, a contact and a project: pick an SMS template and it fills in the client’s name, the project and your name; edit and send. Every text — sent or not — is listed under it.', where: 'CRM & Leads → a lead · People → a contact · Projects → Overview' },
+      { area: 'Settings', kind: 'new', text: 'Texts can go out through Quo from the office line (650) 761-4661, so replies come back to Quo. An administrator switches SMS to Quo and adds the Quo API key; Twilio still works as before.', where: 'Settings → SMS' },
+    ],
+  },
+  {
     id: '2026-10-28e',
     date: '2026-10-28',
     title: 'Tasks first on the Dashboard',
