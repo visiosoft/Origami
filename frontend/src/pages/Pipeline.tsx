@@ -8,7 +8,8 @@ import { ClampText } from '../components/ClampText';
 import { SaveBar, mergeSaved, useAutosave } from '../autosave';
 import { ClientBackgroundPanel, type ClientBackground } from '../components/ClientBackgroundPanel';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage } from '../data/pipeline';
+import { STAGES, STAGE_KEYS, STATUS_STYLES, type Deal, stageBlockedFor, deliveryCode, DEFAULT_SLA_DAYS, slaState, slaExempt, previousStage, LOSS_REASONS } from '../data/pipeline';
+import { askChoice } from '../components/CompletionNote';
 import { PROJECT_TYPES, PROJECT_TYPE_GROUPS, projectTypeLabel, projectTypePatch, findProjectType, appendScope, CONTRACT_TYPES, contractTypeLabel, findContractType } from '../data/projectTypes';
 import { RoleAssignments } from '../components/RoleAssignments';
 import { ConvertLeadDialog } from '../components/ConvertLeadDialog';
@@ -236,9 +237,19 @@ const ACTIVE_STAGES = STAGES.filter((s) => !s.isHold && !s.isClosed);
  *  a "we said no" card reads differently from a "referred elsewhere" one. */
 const REJECTION_STYLE: Record<string, { bg: string; c: string; label: (d: Deal) => string }> = {
   internal: { bg: '#F2DFD4', c: '#8E2E0A', label: () => 'We Declined' },
-  client: { bg: '#F6E0C4', c: '#93520F', label: () => 'Client Declined' },
+  client: { bg: '#F6E0C4', c: '#93520F', label: (d) => `Client Passed${d.lossReason ? ` — ${d.lossReason}` : ''}` },
+  lost: { bg: '#DCE7EC', c: '#4A6C7A', label: (d) => `Lost — ${d.lossReason || 'no reason'}` },
   referred: { bg: '#D8E2F0', c: '#3C5C8A', label: (d) => `Referred to ${d.referredToName || 'contact'}` },
 };
+
+/** The outcome badge a card carries: a rejection outcome, or a Cold / Loss reason. */
+const outcomeOf = (d: Deal) => d.rejectionType || (d.lossReason ? 'lost' : '');
+
+const LOSS_COPY = {
+  label: 'Why was it lost', heading: 'Why was this lead lost?', why: 'Pick the main reason. Loss reasons are tracked to improve marketing and training.',
+  placeholder: 'Anything to add, e.g. went with a cheaper builder', button: 'Save',
+};
+const askLoss = (name: string) => askChoice(LOSS_COPY, LOSS_REASONS, 'Other', name);
 
 /** Canonical index for a stage key, so no call site hardcodes a number. */
 const stageIndex = (key: string) => STAGES.findIndex((s) => s.key === key);
@@ -773,7 +784,20 @@ export function Pipeline() {
     if (createdNow) { setSelectedId(id); setDetailTab('overview'); }
   };
 
+  /** Moving a lead to Cold / Loss asks why first (Oct 27 sync); cancelling leaves it where it was. */
   const applyOverride = (id: string, o: Override) => {
+    const deal = data.find((d) => d.id === id);
+    if (o.stage !== 'cold' || !deal || deal.stage === 'cold') { applyOverrideNow(id, o); return; }
+    void askLoss(deal.name).then((loss) => {
+      if (!loss) return;
+      applyOverrideNow(id, o);
+      setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, lossReason: loss.choice, rejectionReason: loss.note } : d)));
+      // After the move is saved, so the stage change doesn't clear it again.
+      void persist(() => api.pipeline.setLoss(id, { lossReason: loss.choice, note: loss.note }))
+        .catch((e: Error) => toast('⚠ Moved, but the reason was not saved — ' + (e.message || 'try again')));
+    });
+  };
+  const applyOverrideNow = (id: string, o: Override) => {
     setOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...o } }));
     // Persist stage moves (drag-drop, Advance, Approve/Reject) so the board
     // shows each lead in its correct stage after a refresh, and record the move
@@ -794,8 +818,9 @@ export function Pipeline() {
       // on a lead that's back in the active pipeline.
       const clearRejection = (o.stage !== 'rejected' && o.stage !== 'referred_monitoring')
         ? { rejectionType: undefined, rejectionReason: undefined, referredToName: undefined, referredToCompany: undefined, referredToContact: undefined } : {};
+      const clearLoss = o.stage !== 'cold' && o.stage !== 'rejected' ? { lossReason: undefined } : {};
       setDeals((prev) => prev.map((d) => d.id === id
-        ? { ...d, holdUntil, ...clearRejection, timeline: [...(d.timeline || []), { date: when, at: new Date().toISOString(), action, role: who, type: 'auto' as const }] }
+        ? { ...d, holdUntil, ...clearRejection, ...clearLoss, timeline: [...(d.timeline || []), { date: when, at: new Date().toISOString(), action, role: who, type: 'auto' as const }] }
         : d));
       persist(() => api.pipeline.updateStage(id, o.stage!)).catch((e: Error) => {
         toast(`⚠ The move to ${stageName} was not saved — ${e.message || 'please try again'}`);
@@ -809,13 +834,17 @@ export function Pipeline() {
    * details so the card can show which of the three it was, distinctly, and
    * the audit trail records why -- not just "Moved to Cancelled / Rejected".
    */
-  const confirmReject = (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
+  const confirmReject = async (deal: Deal, type: 'internal' | 'client' | 'referred', referral?: { name: string; company: string; contact: string }) => {
+    // The client passing is a loss: say why (Oct 27 sync).
+    const loss = type === 'client' ? await askLoss(deal.name) : null;
+    if (type === 'client' && !loss) return;
     // A referral isn't a dead end -- it goes to its own stage so it doesn't
     // read as closed like a true rejection does.
     const stage = type === 'referred' ? 'referred_monitoring' : 'rejected';
     applyOverride(deal.id, { stage, stageIdx: stageIndex(stage), daysInStage: 0 });
     api.pipeline.setRejection(deal.id, {
       rejectionType: type,
+      ...(loss ? { lossReason: loss.choice, rejectionReason: loss.note } : {}),
       referredToName: referral?.name.trim(),
       referredToCompany: referral?.company.trim(),
       referredToContact: referral?.contact.trim(),
@@ -1276,12 +1305,12 @@ export function Pipeline() {
                       // board says at a glance where a lead is likely to go next.
                       const delivery = findContractType(leadDetails[d.id]?.contractType);
                       return (
-                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? 'var(--mist)' : 'var(--surface)', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? 'var(--muted)' : 'rgba(var(--rgb-shade), 0.05)'), borderLeft: d.rejectionType ? `3px solid ${REJECTION_STYLE[d.rejectionType]?.c || 'rgba(var(--rgb-shade), 0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(var(--rgb-shade), 0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
+                        <div key={d.id} className={d.status === 'accepted' ? 'deal-accepted' : sla?.overdue ? 'sla-overdue' : undefined} draggable onDragStart={(e) => onDragStart(e, d.id)} onDragEnd={() => { setDragging(null); setDragOver(null); }} onClick={() => { setSelectedId(d.id); setDetailTab('overview'); setNoteDraft(''); setEditingNoteId(null); setMeetWhen(meetByDeal[d.id]?.when || ''); setVisitWhen(visitByDeal[d.id]?.when || ''); setMeetingType((leadDetails[d.id]?.meetingType as 'video' | 'phone') || 'video'); setMeetingAgenda(leadDetails[d.id]?.meetingAgenda || DEFAULT_MEETING_AGENDA); setRejectChoice(null); }} style={{ background: isSelected ? 'var(--mist)' : 'var(--surface)', borderRadius: 8, padding: 10, border: '1px solid ' + (isSelected ? 'var(--muted)' : 'rgba(var(--rgb-shade), 0.05)'), borderLeft: outcomeOf(d) ? `3px solid ${REJECTION_STYLE[outcomeOf(d)]?.c || 'rgba(var(--rgb-shade), 0.05)'}` : undefined, cursor: 'grab', boxShadow: isSelected ? '0 0 0 2px rgba(210,130,46,0.15)' : '0 1px 3px rgba(var(--rgb-shade), 0.04)', opacity: isDraggingCard ? 0.4 : 1, transition: 'opacity 0.15s' }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.3, marginBottom: 6 }}>{d.name}</div>
                           <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 6 }}>{[leadDetails[d.id]?.firstName, leadDetails[d.id]?.lastName].filter(Boolean).join(' ') || d.client}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
-                            {d.rejectionType && REJECTION_STYLE[d.rejectionType] && (
-                              <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: REJECTION_STYLE[d.rejectionType].bg, color: REJECTION_STYLE[d.rejectionType].c }}>{REJECTION_STYLE[d.rejectionType].label(d)}</span>
+                            {outcomeOf(d) && REJECTION_STYLE[outcomeOf(d)] && (
+                              <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: REJECTION_STYLE[outcomeOf(d)].bg, color: REJECTION_STYLE[outcomeOf(d)].c }}>{REJECTION_STYLE[outcomeOf(d)].label(d)}</span>
                             )}
                             <span style={{ padding: '1px 6px', borderRadius: 999, fontSize: 9, fontWeight: 600, background: ss.bg, color: ss.color }}>{ss.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--forest)' }}>{d.value}</span>
@@ -1390,8 +1419,8 @@ export function Pipeline() {
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).bg, color: (STATUS_STYLES[selected.status] || { bg: '#E8E8E8', color: '#555' }).color }}>{(STATUS_STYLES[selected.status] || { label: selected.status || 'Active' }).label}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: selectedStage.colorBg, color: selectedStage.color }}>{selectedStage.owner}: {selectedStage.name}</span>
               <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: 'var(--sand)', color: 'var(--ink)' }}>{selected.value}</span>
-              {selected.rejectionType && REJECTION_STYLE[selected.rejectionType] && (
-                <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: REJECTION_STYLE[selected.rejectionType].bg, color: REJECTION_STYLE[selected.rejectionType].c }}>{REJECTION_STYLE[selected.rejectionType].label(selected)}</span>
+              {outcomeOf(selected) && REJECTION_STYLE[outcomeOf(selected)] && (
+                <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: REJECTION_STYLE[outcomeOf(selected)].bg, color: REJECTION_STYLE[outcomeOf(selected)].c }}>{REJECTION_STYLE[outcomeOf(selected)].label(selected)}</span>
               )}
               {selected.holdUntil && (
                 <span title="When to pick this lead back up" style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: holdDue(selected.holdUntil) ? '#F2DFD4' : 'var(--amber-light)', color: holdDue(selected.holdUntil) ? '#8E2E0A' : '#93520F' }}>
@@ -1953,8 +1982,8 @@ export function Pipeline() {
               )}
 
               {/* Who a referred lead was handed to, or how a rejection went */}
-              {selected.rejectionType && (() => {
-                const st = REJECTION_STYLE[selected.rejectionType];
+              {outcomeOf(selected) && (() => {
+                const st = REJECTION_STYLE[outcomeOf(selected)];
                 const contact = (selected.referredToContact || '').trim();
                 const href = /@/.test(contact) ? `mailto:${contact}` : /\d{3}/.test(contact) ? `tel:${contact.replace(/[^\d+]/g, '')}` : '';
                 const rows: [string, ReactNode][] = selected.rejectionType === 'referred'
@@ -1964,7 +1993,8 @@ export function Pipeline() {
                       ['Phone or email', contact ? (href ? <a href={href} style={{ color: st.c, fontWeight: 600 }}>{contact}</a> : contact) : '—'],
                     ]
                   : [];
-                if (selected.rejectionReason) rows.push(['Reason', selected.rejectionReason]);
+                if (selected.lossReason) rows.push(['Why it was lost', selected.lossReason]);
+                if (selected.rejectionReason) rows.push([selected.lossReason ? 'Note' : 'Reason', selected.rejectionReason]);
                 return (
                   <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(var(--rgb-shade), 0.06)' }}>
                     <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 8 }}>
@@ -2250,7 +2280,7 @@ export function Pipeline() {
                   <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>What happened to this lead?</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <div onClick={() => confirmReject(selected, 'internal')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F2DFD4', color: '#8E2E0A' }}>We Rejected — Not a Fit</div>
-                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Client Rejected</div>
+                    <div onClick={() => confirmReject(selected, 'client')} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#F6E0C4', color: '#93520F' }}>Client Passed</div>
                     <div onClick={() => setRejectChoice({ name: '', company: '', contact: '' })} style={{ padding: 9, borderRadius: 999, fontSize: 12, fontWeight: 600, textAlign: 'center', cursor: 'pointer', background: '#D8E2F0', color: '#3C5C8A' }}>Referred Out</div>
                     <div onClick={() => setRejectChoice(null)} style={{ padding: 7, borderRadius: 999, fontSize: 11.5, fontWeight: 600, textAlign: 'center', cursor: 'pointer', color: 'var(--muted)' }}>Cancel</div>
                   </div>

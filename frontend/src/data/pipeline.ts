@@ -39,6 +39,8 @@ export interface Deal {
    *  referral) who the lead was handed off to. */
   rejectionType?: 'internal' | 'client' | 'referred';
   rejectionReason?: string;
+  /** Why a lost lead was lost (Oct 27 sync): one of LOSS_REASONS; the note is rejectionReason. */
+  lossReason?: string;
   referredToName?: string;
   referredToCompany?: string;
   referredToContact?: string;
@@ -79,8 +81,8 @@ export const STAGES: Stage[] = [
   { key: 'hold_3m', name: 'Hold - 3 Months', idx: 11, owner: 'PC', ownerColor: '#93520F', ownerBg: 'var(--amber-light)', isHold: true, holdMonths: 3, color: '#A96A12', colorBg: '#F9E4C0' },
   { key: 'hold_6m', name: 'Hold - 6 Months', idx: 12, owner: 'PC', ownerColor: '#93520F', ownerBg: 'var(--amber-light)', isHold: true, holdMonths: 6, color: '#A25A14', colorBg: '#F7DCBC' },
   { key: 'hold_12m', name: 'Hold - 12 Months+', idx: 13, owner: 'PC', ownerColor: '#93520F', ownerBg: 'var(--amber-light)', isHold: true, holdMonths: 12, color: '#9B4A16', colorBg: '#F5D4B8' },
-  { key: 'cold', name: 'Cold Lead', idx: 14, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true, color: '#4A6C7A', colorBg: '#DCE7EC' },
-  { key: 'rejected', name: 'Cancelled / Rejected', idx: 15, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
+  { key: 'cold', name: 'Cold / Loss', idx: 14, owner: 'PC', ownerColor: '#2F6F68', ownerBg: '#D6E8E5', isClosed: true, color: '#4A6C7A', colorBg: '#DCE7EC' },
+  { key: 'rejected', name: 'Cancelled / Passed', idx: 15, owner: 'PM', ownerColor: '#8E2E0A', ownerBg: '#F2DFD4', isLost: true, isClosed: true, color: '#8E2E0A', colorBg: '#F2DFD4' },
   // Referred to an external partner, but not a dead lead -- kept off the
   // active funnel like a hold, without a due date attached, until someone
   // closes it out. See REJECTION_STYLE for the matching card badge.
@@ -286,3 +288,6 @@ export function slaState(
 
   return { days, hoursLeft, overdue, dueSoon: !overdue && hoursLeft <= days * 24 * 0.25, label };
 }
+
+/** Why a lead was lost -- asked on Cold / Loss and when the client passes; feeds marketing and training. Mirrors backend pipeline/dead-leads.ts. */
+export const LOSS_REASONS = ['Value proposition', 'Experience', 'Trust', 'Quality', 'Timeline', 'Other'] as const;

@@ -306,6 +306,8 @@ export class DealEntity {
   // deal is actually rejected, and this table already has rows.
   @Column({ nullable: true }) rejectionType!: string; // 'internal' | 'client' | 'referred'
   @Column({ nullable: true }) rejectionReason!: string;
+  /** Why a lost lead was lost (Oct 27 sync): one of LOSS_REASONS in pipeline/dead-leads.ts; the note is in rejectionReason. */
+  @Column({ nullable: true }) lossReason!: string;
   @Column({ nullable: true }) referredToName!: string;
   @Column({ nullable: true }) referredToCompany!: string;
   @Column({ nullable: true }) referredToContact!: string;

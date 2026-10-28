@@ -211,11 +211,19 @@ describe('PipelineService', () => {
             expect((saved.timeline as any[])[0].action).toBe('Rejected — not a fit for us');
         });
 
-        it('records a client rejection with an optional reason folded into the timeline text', async () => {
+        it('records why the client passed (a loss reason, plus an optional note) in the timeline', async () => {
             dealsRepo.findOneBy.mockResolvedValue(baseDeal());
-            const saved = await service.setRejection('PL-1', { rejectionType: 'client', rejectionReason: 'Went with another firm' });
+            const saved = await service.setRejection('PL-1', { rejectionType: 'client', lossReason: 'timeline', rejectionReason: 'Went with another firm' });
             expect(saved.rejectionType).toBe('client');
-            expect((saved.timeline as any[])[0].action).toBe('Rejected — client declined: Went with another firm');
+            expect(saved.lossReason).toBe('Timeline');
+            expect((saved.timeline as any[])[0].action).toBe('Client passed — Timeline: Went with another firm');
+        });
+
+        it('needs a loss reason when the client passed, and a note for Other', async () => {
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            await expect(service.setRejection('PL-1', { rejectionType: 'client' })).rejects.toThrow(/why the client passed/);
+            dealsRepo.findOneBy.mockResolvedValue(baseDeal());
+            await expect(service.setRejection('PL-1', { rejectionType: 'client', lossReason: 'Other' })).rejects.toThrow(/note/);
         });
 
         it('records a referral with the referred-to contact fields and a matching timeline entry', async () => {

@@ -16,6 +16,16 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-28b',
+    date: '2026-10-28',
+    title: 'Dead leads: Cold / Loss and Cancelled / Passed',
+    items: [
+      { area: 'CRM', kind: 'improved', text: '“Cold Lead” is now Cold / Loss and “Cancelled / Rejected” is now Cancelled / Passed.' },
+      { area: 'CRM', kind: 'new', text: 'Moving a lead to Cold / Loss, or marking that the client passed, asks why: value proposition, experience, trust, quality, timeline or other. The reason shows on the card and is kept for marketing and training.' },
+      { area: 'CRM', kind: 'new', text: 'Cold / Loss and Cancelled / Passed leads leave the board on their own 7 business days later (restore them from Archived). Leads on hold stay put. Leads already there get the full 7 business days from today.' },
+    ],
+  },
+  {
     id: '2026-10-28a',
     date: '2026-10-28',
     title: 'Special Actions Log; update notice on the login page',

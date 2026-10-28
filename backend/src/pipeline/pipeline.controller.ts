@@ -59,10 +59,20 @@ export class PipelineController {
     return this.pipelineService.setRoles(id, roles, await this.auth.actor(auth));
   }
 
+  /** Why a lead was lost (Cold / Loss, or the client passed). */
+  @Put(':id/loss')
+  async setLoss(
+    @Param('id') id: string,
+    @Body() body: { lossReason?: string; note?: string },
+    @Headers('authorization') auth?: string,
+  ) {
+    return this.pipelineService.setLoss(id, body, await this.auth.actor(auth));
+  }
+
   @Put(':id/rejection')
   async setRejection(
     @Param('id') id: string,
-    @Body() rejection: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string },
+    @Body() rejection: { rejectionType: 'internal' | 'client' | 'referred'; rejectionReason?: string; lossReason?: string; referredToName?: string; referredToCompany?: string; referredToContact?: string },
     @Headers('authorization') auth?: string,
   ) {
     return this.pipelineService.setRejection(id, rejection, await this.auth.actor(auth));
