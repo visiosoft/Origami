@@ -1196,6 +1196,28 @@ export function Pipeline() {
     if (reason.trim()) logEvent(deal.id, `Moved back to ${to.name}: ${reason.trim()}`);
   };
 
+  /**
+   * "Move to…" in the lead panel (Oct 26 review notes): straight to any stage, e.g.
+   * Project Programming → Hold - 3 Months, with the same rules as dragging (a dead
+   * stage asks why; a referral asks who it went to).
+   */
+  const moveTo = (deal: Deal, stageKey: string) => {
+    const target = STAGES.find((st) => st.key === stageKey);
+    if (!target || stageKey === deal.stage) return;
+    if (blockedFor(deal.id, stageKey)) {
+      toast(`⚠ ${target.name} doesn't apply to a ${deliveryCode(leadDetails[deal.id]?.contractType)} lead`);
+      return;
+    }
+    if (stageKey === 'referred_monitoring') {
+      const who = window.prompt(`Who was “${deal.name}” referred to? (name, company)`, '');
+      if (who === null) return;
+      const [name, ...company] = who.split(',');
+      void confirmReject(deal, 'referred', { name: name || '', company: company.join(',').trim(), contact: '' });
+      return;
+    }
+    applyOverride(deal.id, { stage: stageKey, stageIdx: stageIndex(stageKey), daysInStage: 0, status: 'in_progress' });
+  };
+
   const onDrop = (e: React.DragEvent, stageKey: string, stageIdx: number) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
@@ -2271,6 +2293,23 @@ export function Pipeline() {
           </div>
           {/* End scrollable content region */}
 
+          {/* Move to any stage without dragging (Oct 26 review notes) */}
+          <div style={{ padding: '10px 20px 0', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0, background: 'var(--surface)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label htmlFor="lead-move-to" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', whiteSpace: 'nowrap' }}>Move to</label>
+            <select id="lead-move-to" value="" onChange={(e) => { moveTo(selected, e.target.value); e.target.value = ''; }}
+              style={{ flex: 1, minWidth: 0, height: 32, borderRadius: 8, border: '1px solid rgba(var(--rgb-shade), 0.14)', background: 'var(--surface)', color: 'var(--body)', fontFamily: 'inherit', fontSize: 12.5, padding: '0 8px' }}>
+              <option value="">{selectedStage.name} — pick a stage…</option>
+              <optgroup label="Active">
+                {STAGES.filter((st) => !st.isHold && !st.isClosed && st.key !== 'referred_monitoring').map((st) => <option key={st.key} value={st.key} disabled={st.key === selected.stage || blockedFor(selected.id, st.key)}>{st.name}</option>)}
+              </optgroup>
+              <optgroup label="On hold">
+                {STAGES.filter((st) => st.isHold).map((st) => <option key={st.key} value={st.key} disabled={st.key === selected.stage}>{st.name}</option>)}
+              </optgroup>
+              <optgroup label="Dead or referred">
+                {STAGES.filter((st) => (st.isClosed && !st.isHold) || st.key === 'referred_monitoring').map((st) => <option key={st.key} value={st.key} disabled={st.key === selected.stage}>{st.name}</option>)}
+              </optgroup>
+            </select>
+          </div>
           {/* Actions */}
           {selectedStage.isDecision ? (
             <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(var(--rgb-shade), 0.06)', flexShrink: 0, background: 'var(--surface)' }}>
