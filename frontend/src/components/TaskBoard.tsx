@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from './PriorityHelp';
 import { createPortal } from 'react-dom';
-import { useTheme } from '../theme';
+import { useTheme, isNewLook } from '../theme';
 import './TaskBoard.css';
 import { createdByOf, PRIORITY_ORDER } from '../data/projectTasks';
 import { SavedViews } from './SavedViews';
@@ -170,7 +170,7 @@ export function TaskBoard({ projectId, leadId, initialTaskId, board }: {
   // Which of priority / due date was filled in automatically, per task -- so a hand-typed one is never overwritten.
   const autoPD = useRef<Record<string, 'priority' | 'due' | null>>({});
   const [theme] = useTheme();
-  const isNew = theme === 'coterie';
+  const isNew = isNewLook(theme);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [addingIn, setAddingIn] = useState<string | null>(null);
   // The subtask being edited in the task drawer.

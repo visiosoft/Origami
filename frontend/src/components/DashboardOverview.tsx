@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { CountUp } from './CountUp';
+import { Arrow } from './DashboardArrow';
+import { DashboardWeek, type WeekItem } from './DashboardWeek';
 import './DashboardOverview.css';
 
 export interface OverviewProps {
@@ -19,7 +21,7 @@ export interface OverviewProps {
   team: { name: string; role: string; tasks: number; done: number; av: string }[];
   teamLabel?: string;
   /** This week: the user's Google Calendar meetings and their tasks due. */
-  week: { id: string; kind: 'meeting' | 'task'; title: string; date: string; project: string; done: boolean; time?: string; sort?: string; link?: string; to?: string }[];
+  week: WeekItem[];
   /** null while unknown; false shows a prompt to connect Google Calendar. */
   calendarConnected?: boolean | null;
   go: (to: string) => void;
@@ -33,11 +35,6 @@ const ICON: Record<OverviewProps['numbers'][number]['icon'], string> = {
   projects: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
   leads: 'M3 3v18h18M7 15l4-4 3 3 5-6',
 };
-const Arrow = ({ onClick, label }: { onClick: () => void; label: string }) => (
-  <button type="button" className="do-arrow" onClick={onClick} aria-label={label} title={label}>
-    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'currentColor' }}><path d="M7 17 17 7M8 7h9v9" /></svg>
-  </button>
-);
 
 /**
  * The top of the dashboard in the New look: greeting, headline bars and
@@ -51,14 +48,6 @@ export function DashboardOverview(p: OverviewProps) {
   const avgCol = cols.length ? cols.reduce((a, c) => a + c.value, 0) / cols.length : 0;
   const last = cols[cols.length - 1];
   const monthName = (m: string) => new Date(m + '-15T12:00:00').toLocaleDateString('en-US', { month: 'short' });
-
-  // This week, Monday first.
-  const now = new Date();
-  const monday = new Date(now); monday.setHours(12, 0, 0, 0); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
-  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const todayIso = iso(now);
-  const range = `${days[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${days[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
   const R = 74, C = 2 * Math.PI * R;
   const ringPct = Math.max(0, Math.min(100, p.ring?.pct || 0));
@@ -205,36 +194,7 @@ export function DashboardOverview(p: OverviewProps) {
         </div>
 
         {/* This week */}
-        <div className="do-card do-week">
-          <div className="do-week-head">
-            <h3>This week</h3>
-            <span className="do-week-range">{range}</span>
-            {p.calendarConnected === false && <button type="button" className="do-week-connect" onClick={() => p.go('/my-calendar')}>Connect Google Calendar</button>}
-            <Arrow label="Open My Calendar" onClick={() => p.go('/my-calendar')} />
-          </div>
-          <div className="do-week-grid">
-            {days.map((d) => {
-              const di = iso(d);
-              const items = p.week.filter((w) => w.date === di).sort((a, b) => ((a.sort || '') < (b.sort || '') ? -1 : (a.sort || '') > (b.sort || '') ? 1 : 0));
-              return (
-                <div key={di} className={'do-day' + (di === todayIso ? ' is-today' : '')}>
-                  <div className="do-day-head"><span>{d.toLocaleDateString('en-US', { weekday: 'short' })}</span><b>{d.getDate()}</b></div>
-                  <div className="do-day-items">
-                    {items.slice(0, 4).map((w) => w.kind === 'meeting' ? (
-                      <button type="button" key={w.id} className={'do-event is-meeting' + (di < todayIso ? ' is-past' : '')} title={`${w.time} · ${w.title}`}
-                        onClick={() => (w.link ? window.open(w.link, '_blank', 'noopener') : p.go('/my-calendar'))}>
-                        <span className="do-event-time">{w.time}</span><span className="do-event-title">{w.title}</span>
-                      </button>
-                    ) : (
-                      <button type="button" key={w.id} className={'do-event' + (w.done ? ' is-done' : di < todayIso ? ' is-late' : '')} title={`${w.title} · ${w.project}`} onClick={() => p.go(w.to || '/tasks')}>{w.title}</button>
-                    ))}
-                    {items.length > 4 && <button type="button" className="do-more" onClick={() => p.go('/my-calendar')}>+{items.length - 4} more</button>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <DashboardWeek week={p.week} calendarConnected={p.calendarConnected} go={p.go} className="do-card do-week" />
       </div>
     </div>
   );

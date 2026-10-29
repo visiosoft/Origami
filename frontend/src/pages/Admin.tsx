@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
-import { useTheme } from '../theme';
+import { useTheme, isNewLook } from '../theme';
 import { AccessBoard } from '../components/AccessBoard';
 import {
   MODULES, TIERS, TIER_STYLE, STATUS_STYLE, FIN_ACTIONS,
@@ -43,7 +43,7 @@ export function Admin() {
     </div>
   );
 
-  if (theme === 'coterie') return <AccessBoard readOnly={readOnly} />;
+  if (isNewLook(theme)) return <AccessBoard readOnly={readOnly} />;
 
   return (
     <div style={{ padding: '4px 4px 40px', animation: 'fadeIn 0.3s ease' }}>

@@ -11,7 +11,7 @@ import { ReimbursableDrawer, ReimbursableList } from '../components/finance/Reim
 import { usd, usd0, type Rights } from '../components/finance/financeUi';
 import { FinanceReports } from '../components/finance/Reports';
 import { ReimbursementBoard } from '../components/finance/ReimbursementBoard';
-import { useTheme } from '../theme';
+import { useTheme, isNewLook } from '../theme';
 import { Skeleton } from '../components/Skeleton';
 import { ChangeOrderWorkspace } from '../components/finance/ChangeEvents';
 
@@ -69,7 +69,7 @@ export function FinanceHome({ initial = 'approvals' }: { initial?: Tab }) {
           {tab === 'portfolio' && <Portfolio onProject={setProject} />}
           {tab === 'reports' && <FinanceReports rights={rights} onProject={setProject} />}
           {tab === 'changes' && <ChangeOrderWorkspace rights={rights} openId={params.get('co')} />}
-          {tab === 'reimbursables' && (theme === 'coterie' ? <ReimbursementBoard rights={rights} /> : <ReimbursableList rights={rights} />)}
+          {tab === 'reimbursables' && (isNewLook(theme) ? <ReimbursementBoard rights={rights} /> : <ReimbursableList rights={rights} />)}
           {tab === 'audit' && <Audit />}
         </>
       )}

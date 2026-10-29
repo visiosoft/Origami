@@ -5,7 +5,7 @@ import { Pager } from '../components/Pager';
 import { PeopleImport } from '../components/PeopleImport';
 import { PeopleTable } from '../components/PeopleTable';
 import { SortHeader, useSort } from '../components/SortHeader';
-import { getTheme, useTheme } from '../theme';
+import { getTheme, useTheme, isNewLook } from '../theme';
 import { toCsv } from '../data/csv';
 import { SubContractorSummary } from '../components/Contractors';
 import { LoginCard } from '../components/StaffAccessCards';
@@ -134,9 +134,9 @@ export function People() {
   const [kf, setKf] = useState('All');
   const [pf, setPf] = useState('All projects');
   const [theme] = useTheme();
-  const isNew = theme === 'coterie';
+  const isNew = isNewLook(theme);
   // The New look opens on the list; Classic keeps its cards.
-  const [view, setView] = useState<'cards' | 'table' | 'company'>(() => (getTheme() === 'coterie' ? 'table' : 'cards'));
+  const [view, setView] = useState<'cards' | 'table' | 'company'>(() => (isNewLook(getTheme()) ? 'table' : 'cards'));
   const [q, setQ] = useState('');
   const [onlyAlerts, setOnlyAlerts] = useState(false);
   // Contact status: Active / Review / Expired ('' = everyone).

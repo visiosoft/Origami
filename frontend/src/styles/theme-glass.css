@@ -1,0 +1,172 @@
+/*
+ * The "Glass" look (Oct 29): pale blue-white canvas, frosted white cards,
+ * navy ink and one blue accent. It sits on top of the New layout
+ * (<html data-theme="coterie" data-skin="glass">), so it only changes colours,
+ * type and the shell's finish; every New-look screen works unchanged.
+ * Selectors carry both attributes so they win over the Cream rules.
+ */
+:root[data-theme="coterie"][data-skin="glass"] {
+  --accent: #2F6BF2;
+  --accent-deep: #1D4ED8;
+  --accent-soft: #E6EEFF;
+  --sidebar-deep: #FFFFFF;
+  --canvas: #EEF3FC;
+  --surface: #FFFFFF;
+  --panel: #F6F8FD;
+  --track: #E7ECF6;
+  /* "yellow" is the New look's one highlight colour; here it is a light blue that dark text still reads on. */
+  --yellow: #A9C6FF;
+  --yellow-soft: #E6EEFF;
+  --yellow-ink: #1D4ED8;
+  --gold: #2F6BF2;
+  --mint: #E6EEFF;
+  --c-e0b84a: #2F6BF2;
+  --c-b9cdbd: #A9C6FF;
+  --amber-light: #FFEBD2;
+  --c-fbf0cc: #FFF1DC;
+  --border: rgba(30, 50, 100, 0.07);
+  --border-strong: rgba(30, 50, 100, 0.13);
+  --shadow-card: 0 1px 2px rgba(30, 50, 100, 0.04), 0 14px 34px -20px rgba(30, 60, 140, 0.22);
+  --shadow-pop: 0 20px 44px -16px rgba(30, 60, 140, 0.3);
+  --radius-card: 18px;
+  --r-14: 14px;
+  --r-12: 12px;
+  --seg-on: #2F6BF2;
+  --ink: #111A2E;
+  --sidebar: #FFFFFF;
+  --forest: #111A2E;
+  --body: #3E4A63;
+  --muted: #7C879E;
+  --mist: #F1F4FA;
+  --sand: #EBEFF7;
+  --c-3a423e: #39445B;
+  --c-5c6b65: #5D6880;
+  --c-9aa39d: #9AA3B5;
+  --c-9ab0a4: #A3ACBD;
+  --c-b5bdb8: #B7BECC;
+  --c-c9cdc9: #CDD3DE;
+  --c-c9d4cc: #D3D9E4;
+  --c-d6ded8: #DDE2EC;
+  --c-d6e0d7: #DDE2EC;
+  --c-e4efe5: #EBEFF6;
+  --c-e7f0e8: #EEF1F7;
+  --c-edefec: #EEF1F6;
+  --c-edf4ec: #F0F3F9;
+  --c-efede8: #EDF0F6;
+  --c-f0eee9: #EEF1F6;
+  --c-f3f8f3: #F4F6FB;
+  --c-f4f1e8: #F2F4F9;
+  --c-f4f9f4: #F5F7FB;
+  --c-f7f3ea: #F4F6FA;
+  --c-f7f9f7: #F7F9FC;
+  --success: #16A34A;
+  --success-deep: #15803D;
+  --c-145c33: #15803D;
+  --c-16a34a: #16A34A;
+  --c-1e6b36: #15803D;
+  --c-245c3a: #1E7A45;
+  --c-cfe3d2: #D3F0DD;
+  --c-d2ead3: #DCF5E5;
+  --rgb-shade: 30, 50, 100;
+  --rgb-ink: 17, 26, 46;
+  --rgb-forest: 17, 26, 46;
+  --rgb-ink2: 17, 26, 46;
+  --rgb-ink3: 17, 26, 46;
+  --rgb-success: 22, 163, 74;
+  --rgb-success-deep: 21, 128, 61;
+  --rgb-success2: 22, 163, 74;
+  --rgb-gold: 47, 107, 242;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+:root[data-theme="coterie"][data-skin="glass"] body {
+  background:
+    radial-gradient(1100px 640px at 100% -10%, rgba(196, 214, 255, 0.75), transparent 62%),
+    radial-gradient(900px 560px at -10% 110%, rgba(214, 230, 255, 0.7), transparent 60%),
+    var(--canvas);
+  background-attachment: fixed;
+}
+:root[data-theme="coterie"][data-skin="glass"] ::selection { background: #C9DAFF; color: var(--ink); }
+:root[data-theme="coterie"][data-skin="glass"] input:focus-visible,
+:root[data-theme="coterie"][data-skin="glass"] textarea:focus-visible,
+:root[data-theme="coterie"][data-skin="glass"] select:focus-visible {
+  box-shadow: 0 0 0 3px rgba(47, 107, 242, 0.28);
+  border-color: rgba(47, 107, 242, 0.55) !important;
+}
+:root[data-theme="coterie"][data-skin="glass"] button:focus-visible { box-shadow: 0 0 0 3px rgba(47, 107, 242, 0.35); }
+
+/* ---------- Sidebar: a frosted white card ---------- */
+:root[data-theme="coterie"][data-skin="glass"] .sidebar {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 20px 50px -28px rgba(30, 60, 140, 0.35);
+}
+:root[data-theme="coterie"][data-skin="glass"] .brand { padding: 22px 20px 12px; }
+:root[data-theme="coterie"][data-skin="glass"] .nav-search { background: rgba(241, 244, 250, 0.9); border-color: transparent; }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item { border-radius: 12px; padding: 10px 13px; font-size: 13.5px; }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item:hover { background: rgba(47, 107, 242, 0.06); color: var(--ink); }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item.active {
+  background: linear-gradient(180deg, #F2F6FF 0%, #E6EEFF 100%);
+  color: var(--accent-deep);
+  font-weight: 600;
+  box-shadow: 0 8px 20px -12px rgba(47, 107, 242, 0.45), inset 0 0 0 1px rgba(47, 107, 242, 0.12);
+}
+:root[data-theme="coterie"][data-skin="glass"] .nav-item.active svg { stroke: var(--accent); }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item-badge { background: var(--accent); color: #FFFFFF; }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item-note { background: var(--accent-soft); color: var(--accent-deep); }
+/* The ready-to-test marker stays green; the active item is blue. */
+:root[data-theme="coterie"][data-skin="glass"] .nav-item.ready .nav-item-label { color: #15803D; }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item.ready svg { stroke: #15803D; }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item.ready.active .nav-item-label { color: var(--accent-deep); }
+:root[data-theme="coterie"][data-skin="glass"] .nav-item.ready.active svg { stroke: var(--accent); color: var(--accent); }
+/* The profile at the foot of the sidebar, as a card. */
+:root[data-theme="coterie"][data-skin="glass"] .user-chip {
+  margin: 8px 12px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 24px -18px rgba(30, 60, 140, 0.4);
+}
+:root[data-theme="coterie"][data-skin="glass"] .user-avatar { background: linear-gradient(135deg, #5B8CFF, #2F6BF2); color: #FFFFFF; }
+
+/* ---------- Top bar ---------- */
+:root[data-theme="coterie"][data-skin="glass"] .topbar-back,
+:root[data-theme="coterie"][data-skin="glass"] .topbar-bell,
+:root[data-theme="coterie"][data-skin="glass"] .theme-toggle {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 20px -14px rgba(30, 60, 140, 0.35);
+}
+:root[data-theme="coterie"][data-skin="glass"] .topbar-bell-dot { background: #EF4444; }
+:root[data-theme="coterie"][data-skin="glass"] .search-box {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  box-shadow: 0 8px 22px -16px rgba(30, 60, 140, 0.35);
+}
+:root[data-theme="coterie"][data-skin="glass"] .page-title { font-weight: 600; font-size: 24px; letter-spacing: -0.02em; }
+:root[data-theme="coterie"][data-skin="glass"] .page-badge { background: var(--accent-soft); color: var(--accent-deep); }
+:root[data-theme="coterie"][data-skin="glass"] .view-switch-track { background: rgba(255, 255, 255, 0.85); border-radius: 14px; }
+:root[data-theme="coterie"][data-skin="glass"] .view-switch-pill { border-radius: 10px; }
+:root[data-theme="coterie"][data-skin="glass"] .view-switch-pill.active {
+  background: linear-gradient(180deg, #4C82FF, #2F6BF2);
+  color: #FFFFFF;
+  box-shadow: 0 8px 18px -10px rgba(47, 107, 242, 0.7);
+}
+
+/* ---------- Toast ---------- */
+:root[data-theme="coterie"][data-skin="glass"] .success-toast { background: #111A2E; }
+:root[data-theme="coterie"][data-skin="glass"] .success-toast-check { background: var(--accent); color: #FFFFFF; }
+
+/* ---------- Shared New-look pieces that hard-code the cream colours ---------- */
+:root[data-theme="coterie"][data-skin="glass"] .dashboard-primary-action,
+:root[data-theme="coterie"][data-skin="glass"] .ak-btn.is-dark {
+  background: linear-gradient(180deg, #4C82FF, #2F6BF2);
+  color: #FFFFFF;
+  box-shadow: 0 12px 24px -14px rgba(47, 107, 242, 0.75);
+}

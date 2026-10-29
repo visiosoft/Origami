@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-29b',
+    date: '2026-10-29',
+    title: 'A new look: Glass, and a new Dashboard',
+    items: [
+      { area: 'Look', kind: 'new', text: 'A new “Glass” look is now the default: a pale blue background, frosted white sidebar and cards, and blue highlights. The round button in the top bar steps through Glass, Cream (the previous New look) and Classic; your choice is remembered in this browser.', where: 'Top bar → the round look button next to the bell' },
+      { area: 'Dashboard', kind: 'new', text: 'The Dashboard is laid out afresh in the Glass look: a welcome line; tiles for active projects, my open tasks, live leads, and this month’s invoiced and collected (with last month’s change and a six-month line); a billing & collections chart (6 or 12 months, hover for the figures); my tasks; projects with how much is invoiced; recent activity; the lead pipeline by stage; and this week.', where: 'Dashboard' },
+    ],
+  },
+  {
     id: '2026-10-29a',
     date: '2026-10-29',
     title: 'Drawings: change orders and FOR RECORD from a markup; revert to the original',

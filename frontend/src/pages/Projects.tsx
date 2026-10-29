@@ -1,6 +1,6 @@
 import { TextClient } from '../components/TextClient';
 import { CloseButton } from '../components/CloseButton';
-import { tint, useTheme } from '../theme';
+import { tint, useTheme, isNewLook } from '../theme';
 import { loadProjectCodes, useTaskNumber } from '../data/taskNumbers';
 import { PriorityHelp } from '../components/PriorityHelp';
 import { SubtaskForm, type NewSubtask } from '../components/SubtaskForm';
@@ -95,7 +95,7 @@ export function Projects() {
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [theme] = useTheme();
-  const isNew = theme === 'coterie';
+  const isNew = isNewLook(theme);
   const [selPt, setSelPt] = useState<{ pt: any; phaseName: string; phaseColor: string } | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);

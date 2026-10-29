@@ -1,6 +1,9 @@
 import { CountUp } from '../components/CountUp';
 import { DashboardOverview } from '../components/DashboardOverview';
-import { useTheme } from '../theme';
+import { DashboardHome, type Hue, type HomeKpi, type HomeProps } from '../components/DashboardHome';
+import { toneOf, trend } from '../data/dashboardHome';
+import type { NotifyFeedItem } from '../data/notifications';
+import { useTheme, isNewLook } from '../theme';
 import { DashboardCharts } from '../components/DashboardCharts';
 import { projectBars, type BillingMonth } from '../data/dashboardCharts';
 import { tint } from '../theme';
@@ -67,7 +70,7 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { viewMode, currentUser } = useApp();
   const [theme] = useTheme();
-  const isNew = theme === 'coterie';
+  const isNew = isNewLook(theme);
   const vm = viewMode;
   const isClient = vm === 'client';
   const isCons = vm === 'consultant';
@@ -96,6 +99,9 @@ export function Dashboard() {
   const [collections, setCollections] = useState<{ month: string; amount: number }[] | null>(null);
   const [liveDeals, setLiveDeals] = useState<any[]>([]);
   const [billing, setBilling] = useState<BillingMonth[] | null>(null);
+  // The Glass dashboard: the chart's months, and the person's recent notifications.
+  const [billingRange, setBillingRange] = useState(6);
+  const [feed, setFeed] = useState<NotifyFeedItem[] | null>(null);
 
   const narrow = winW < 620;
   const swallowDoc = useRef(false);
@@ -111,7 +117,7 @@ export function Dashboard() {
     { const d = new Date(); api.dashboard.tasksSummary(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`).then(setSummary).catch(() => { }).finally(() => setSummaryDone(true)); }
     api.finance.portfolio().then((r: any) => setPortfolio(Array.isArray(r) ? r : null)).catch(() => setPortfolio(null));
     api.finance.collections(6).then((r: any) => setCollections(Array.isArray(r) ? r : null)).catch(() => setCollections(null));
-    api.finance.billing(6).then((r) => setBilling(Array.isArray(r) ? r : null)).catch(() => setBilling(null));
+    api.notifications.feed().then((r) => setFeed(Array.isArray(r) ? r : [])).catch(() => setFeed([]));
     api.pipeline.list().then((r: any) => setLiveDeals(Array.isArray(r) ? r : [])).catch(() => { });
     api.projects.list().then((r: any) => {
       if (!Array.isArray(r)) return;
@@ -128,6 +134,11 @@ export function Dashboard() {
         .catch(() => { });
     }).catch(() => setCalConnected(false));
   }, [isClient]);
+
+  useEffect(() => {
+    if (isClient) return;
+    api.finance.billing(billingRange).then((r) => setBilling(Array.isArray(r) ? r : null)).catch(() => setBilling(null));
+  }, [isClient, billingRange]);
 
   useEffect(() => {
     const onDoc = () => {
@@ -377,13 +388,82 @@ export function Dashboard() {
     go: (to: string) => navigate(to),
   };
 
+  // ── Glass dashboard: the same live figures, laid out like the reference ──
+  const HUES: Hue[] = ['blue', 'green', 'purple', 'orange', 'teal'];
+  const nDesign = activeProjects.filter((p) => p.stage === 'Design').length;
+  const nBuild = activeProjects.length - nDesign;
+  const billed = (billing || []).map((b) => b.invoiced);
+  const colSeries = (collections || []).map((c) => c.amount);
+  const stagesWithLeads = funnelReal.filter((f) => f.count > 0);
+  const homeKpis: HomeKpi[] = [
+    { key: 'projects', label: 'Active projects', value: String(activeProjects.length), icon: 'projects', hue: 'blue', to: '/projects',
+      sub: `${nDesign} in design · ${nBuild} in construction`, split: [{ label: 'Design', n: nDesign, hue: 'blue' }, { label: 'Construction', n: nBuild, hue: 'teal' }] },
+    { key: 'tasks', label: 'My open tasks', value: String(myOpenN), icon: 'tasks', hue: 'purple', to: '/tasks',
+      sub: `${myOverdueN} overdue · ${myTodayN} due today`,
+      split: [{ label: 'Overdue', n: myOverdueN, hue: 'red' }, { label: 'Due today', n: myTodayN, hue: 'orange' }, { label: 'Later', n: Math.max(0, myOpenN - myOverdueN - myTodayN), hue: 'purple' }] },
+    { key: 'leads', label: 'Live leads', value: String(liveLeads.length), icon: 'leads', hue: 'teal', to: '/pipeline',
+      sub: `across ${stagesWithLeads.length} stage${stagesWithLeads.length === 1 ? '' : 's'}`,
+      split: stagesWithLeads.map((f, i) => ({ label: f.label, n: f.count, hue: HUES[i % HUES.length] })) },
+    ...(billing && billing.length ? [{ key: 'invoiced', label: 'Invoiced this month', value: money(billed[billed.length - 1] || 0), icon: 'invoiced' as const, hue: 'orange' as const, to: '/fin_project',
+      trend: trend(billed), sub: trend(billed) ? 'vs last month' : `${money(sumP('arOutstanding'))} outstanding`, series: billed }] : []),
+    ...(collections && collections.length ? [{ key: 'collected', label: 'Collected this month', value: money(colSeries[colSeries.length - 1] || 0), icon: 'collected' as const, hue: 'green' as const, to: '/fin_project',
+      trend: trend(colSeries), sub: trend(colSeries) ? 'vs last month' : `${collections.length}-month view`, series: colSeries }] : []),
+  ];
+  const localPath = (u?: string | null) => {
+    if (!u) return undefined;
+    try { const url = new URL(u, window.location.origin); return url.origin === window.location.origin ? url.pathname + url.search : undefined; } catch { return undefined; }
+  };
+  const finRows = (portfolio || []).filter((r) => r.hasClientContract && Number(r.revisedContract) > 0)
+    .sort((a, b) => Number(b.revisedContract) - Number(a.revisedContract)).slice(0, 5);
+  const home: HomeProps = {
+    name: overview.name,
+    subtitle: 'Here’s what’s happening across your projects today.',
+    kpis: homeKpis,
+    chart: billing && billing.length ? {
+      title: 'Billing & collections',
+      months: billing.map((b) => b.month),
+      series: [
+        { key: 'inv', label: 'Invoiced', hue: 'blue', values: billing.map((b) => b.invoiced), area: true },
+        { key: 'col', label: 'Collected', hue: 'green', values: billing.map((b) => b.collected) },
+        { key: 'due', label: 'Past due', hue: 'red', values: billing.map((b) => b.pastDue) },
+      ],
+    } : null,
+    range: billingRange, ranges: [6, 12], onRange: setBillingRange,
+    tasksTitle: 'My tasks', tasksCount: myOpenN,
+    tasks: myLatest.map((t, i) => {
+      const today = t.due === 'Due today';
+      return { key: t.task + i, title: t.task, sub: [t.project, t.due].filter(Boolean).join(' · '), hue: t.past ? 'red' : today ? 'orange' : 'blue', icon: t.past ? 'alert' : today ? 'clock' : 'tasks', to: t.to };
+    }),
+    projects: finRows.length ? finRows.map((r, i) => {
+      const pr = allProjects.find((x) => x.id === r.projectId);
+      return { key: 'p' + r.projectId, title: (pr?.name || r.projectName || `Project ${r.projectId}`).replace(/\s*\(.*\)\s*$/, ''), sub: pr ? stageLabel(pr.stage) : '', hue: HUES[i % HUES.length], icon: 'projects',
+        right: `${Math.round(pct(Number(r.invoiceTotals) || 0, Number(r.revisedContract)))}% invoiced`, rightSub: money(Number(r.revisedContract)), to: `/projects?open=${r.projectId}` };
+    }) : activeProjects.slice(0, 5).map((pr, i) => ({ key: 'p' + pr.id, title: pr.name, sub: pr.client || '', hue: HUES[i % HUES.length], icon: 'projects', right: stageLabel(pr.stage), to: `/projects?open=${pr.id}` })),
+    projectCols: ['Project', finRows.length ? 'Invoiced · contract' : 'Stage'],
+    activity: feed === null ? null : feed.slice(0, 5).map((f) => ({ key: f.id, title: f.title, sub: f.body ? String(f.body).split('\n')[0] : f.label, at: f.at, tone: toneOf(f.event, f.title), to: localPath(f.url) })),
+    donut: (() => {
+      const sorted = [...stagesWithLeads].sort((a, b) => b.count - a.count);
+      const top = sorted.slice(0, 4);
+      const rest = sorted.slice(4).reduce((a, f) => a + f.count, 0);
+      return {
+        title: 'Lead pipeline', total: liveLeads.length, label: 'Live leads', action: 'Open CRM & Leads', to: '/pipeline',
+        parts: [...top.map((f, i) => ({ label: f.label, n: f.count, hue: HUES[i] })), ...(rest ? [{ label: 'Other stages', n: rest, hue: HUES[4] }] : [])],
+      };
+    })(),
+    week: overview.week,
+    calendarConnected: calConnected,
+    go: overview.go,
+  };
+
   const im = invoiceMonth;
   const drawerItems: EnrichedInvoice[] = im ? (im === 'all' ? invLedger.filter((x) => x.unpaid > 0) : invLedger.filter((x) => x.month === im && x.unpaid > 0)) : [];
   const drawerTot = drawerItems.reduce((t, x) => t + x.unpaid, 0);
 
   return (
     <div className="dashboard-page" style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {isNew ? <>
+      {theme === 'glass' && !isClient ? (
+        summaryDone ? <DashboardHome {...home} /> : <PageSkeleton label="Loading your dashboard…" />
+      ) : isNew ? <>
         {summaryDone || isClient ? <DashboardOverview {...overview} /> : <PageSkeleton label="Loading your dashboard…" />}
         {/* The Classic look's money charts, on live figures (finance is role-gated: hidden without access). */}
         {!isClient && !isCons && <DashboardCharts billing={billing} bars={portfolio ? projectBars(portfolio, allProjects) : null} go={(to) => navigate(to)} />}

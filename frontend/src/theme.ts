@@ -1,33 +1,40 @@
 import { useEffect, useState } from 'react';
 
 /**
- * The app's look. "coterie" is the warm cream/yellow design; "classic" is the
- * original green Origami look. The choice is per browser and is applied as
- * <html data-theme="...">; every colour, radius and font reads from the CSS
- * variables in styles/global.css, which each theme sets.
+ * The app's look. "glass" is the pale-blue frosted design (Oct 29); "coterie"
+ * is the warm cream/yellow design; "classic" is the original green Origami
+ * look. The choice is per browser and is applied as <html data-theme="...">
+ * (Glass is the New layout with <html data-skin="glass"> on top, so every
+ * New-look screen works in it); every colour, radius and font reads from the
+ * CSS variables in styles/global.css and styles/theme-glass.css.
  */
-export type Theme = 'coterie' | 'classic';
+export type Theme = 'glass' | 'coterie' | 'classic';
 export const THEMES: { key: Theme; label: string }[] = [
-  { key: 'coterie', label: 'New' },
+  { key: 'glass', label: 'Glass' },
+  { key: 'coterie', label: 'Cream' },
   { key: 'classic', label: 'Classic' },
 ];
+/** Glass and Cream share the New layout; only Classic has the original one. */
+export const isNewLook = (t: Theme) => t !== 'classic';
 
 const KEY = 'origami.theme';
-const DEFAULT: Theme = 'coterie';
+const DEFAULT: Theme = 'glass';
 const EVENT = 'origami-theme';
 
 export function getTheme(): Theme {
   try {
     const t = localStorage.getItem(KEY);
-    if (t === 'coterie' || t === 'classic') return t;
+    if (t === 'glass' || t === 'coterie' || t === 'classic') return t;
   } catch { /* storage blocked */ }
   return DEFAULT;
 }
 
 export function applyTheme(t: Theme = getTheme()) {
-  document.documentElement.dataset.theme = t;
+  document.documentElement.dataset.theme = t === 'classic' ? 'classic' : 'coterie';
+  if (t === 'glass') document.documentElement.dataset.skin = 'glass';
+  else delete document.documentElement.dataset.skin;
   // Plain colours only: the browser's theme-color meta can't read CSS variables.
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'coterie' ? '#F3EFE6' : '#0F2417');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'glass' ? '#EEF3FC' : t === 'coterie' ? '#F3EFE6' : '#0F2417');
 }
 
 export function setTheme(t: Theme) {
