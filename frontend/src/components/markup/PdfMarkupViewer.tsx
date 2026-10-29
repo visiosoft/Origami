@@ -5,10 +5,11 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  linkLabel, overlayPixels, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  MARKUP_LINKS, linkLabel, markupLink, overlayPixels, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
+import { FOR_RECORD_TOPICS } from '../../data/tasks';
 
 type Tool = 'select' | 'pan' | Exclude<MarkupKind, never>;
 type PdfDoc = { numPages: number; getPage: (n: number) => Promise<any> };
@@ -55,7 +56,7 @@ type Ask =
   | { kind: 'pin'; at: Pt; value: string }
   | { kind: 'link'; points: Pt[]; to: 'page' | 'file'; page: string; fileId: string; filePage: string; value: string }
   | { kind: 'scale'; points: Pt[]; value: string; unit: 'ft' | 'm' }
-  | { kind: 'rfi' | 'task'; markup: Markup; value: string };
+  | { kind: 'rfi' | 'task' | 'co' | 'record'; markup: Markup; value: string; topic?: string };
 
 /**
  * Mark up a PDF in the File Room (Oct 2026). The drawing never changes: each
@@ -463,6 +464,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       const m = ask.markup;
       const subject = ask.value.trim() || `${KIND_LABEL[m.kind]} on ${file.name}, p. ${m.page}`;
       const link = `/planroom?file=${encodeURIComponent(file.id)}&markup=${encodeURIComponent(m.id)}`;
+      const from = `${m.data.text ? m.data.text + '\n\n' : ''}From a markup on ${file.name}, page ${m.page}: ${window.location.origin}${link}`;
       setBusy(true);
       try {
         if (ask.kind === 'rfi') {
@@ -475,14 +477,21 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           replace(await api.fileRoom.editMarkup(m.id, { linkType: 'rfi', linkId: rfi.id }));
           toast(`RFI ${rfi.number ? '#' + rfi.number + ' ' : ''}drafted — opening it`);
           navigate(`/rfis?rfi=${encodeURIComponent(rfi.id)}`);
+        } else if (ask.kind === 'co') {
+          if (!projectId) throw new Error('This file isn’t in a project.');
+          const co: any = await api.finance.createChangeOrder(projectId, { title: subject, reason: 'unforeseen', description: from });
+          replace(await api.fileRoom.editMarkup(m.id, { linkType: 'co', linkId: co.id }));
+          toast(`Change order ${co.number || ''} drafted — opening it`);
+          navigate(MARKUP_LINKS.co.href(co.id));
         } else {
+          const record = ask.kind === 'record';
           const t: any = await api.tasks.create({
-            subject, project: projectName || '',
-            description: `${m.data.text ? m.data.text + '\n\n' : ''}From a markup on ${file.name}, page ${m.page}: ${window.location.origin}${link}`,
+            subject, project: projectName || '', description: from,
+            ...(record ? { topicType: ask.topic || 'Observation' } : {}),
           });
-          replace(await api.fileRoom.editMarkup(m.id, { linkType: 'task', linkId: t.id }));
-          toast('Task created — opening it');
-          navigate(`/tasks?task=${encodeURIComponent(t.id)}&type=log`);
+          replace(await api.fileRoom.editMarkup(m.id, { linkType: record ? 'record' : 'task', linkId: t.id }));
+          toast(record ? `${ask.topic || 'Observation'} added to FOR RECORD — opening it` : 'Task created — opening it');
+          navigate(MARKUP_LINKS[record ? 'record' : 'task'].href(t.id));
         }
         onClose();
       } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not created')); }
@@ -852,11 +861,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 )}
                 {selected.data.label && <p className="mk-quote">{selected.data.label}</p>}
                 {selected.kind === 'link' && selected.data.target && <p><button type="button" className="mk-btn is-text is-dark" onClick={() => follow(selected)}>{selected.data.target.type === 'page' ? `Go to page ${selected.data.target.page}` : `Open ${selected.data.target.name}${selected.data.target.page ? `, p. ${selected.data.target.page}` : ''}`}</button></p>}
-                {selected.linkType && <p><a href={selected.linkType === 'rfi' ? `/rfis?rfi=${encodeURIComponent(selected.linkId || '')}` : `/tasks?task=${encodeURIComponent(selected.linkId || '')}&type=log`}>Open the {selected.linkType === 'rfi' ? 'RFI' : 'task'} made from it →</a></p>}
+                {(() => { const l = markupLink(selected.linkType, selected.linkId); return l && <p><a href={l.href}>Open the {l.label} made from it →</a></p>; })()}
                 <div className="mk-actions">
                   {canDraw && !selected.linkType && selected.kind !== 'scale' && <>
                     <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? '' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'rfi', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create RFI</button>
                     <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'task', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create task</button>
+                    <button type="button" className="mk-btn is-text" disabled={busy || !projectId} title={projectId ? 'A draft change order with a link back to this spot' : 'Only for files in a project'} onClick={() => setAsk({ kind: 'co', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Create change order</button>
+                    <button type="button" className="mk-btn is-text" disabled={busy} onClick={() => setAsk({ kind: 'record', topic: 'Observation', markup: selected, value: selected.data.text ? selected.data.text.split('\n')[0].slice(0, 120) : '' })}>Add to FOR RECORD</button>
                   </>}
                   {mine(selected) && <>
                     {selected.kind === 'text' && <button type="button" className="mk-btn is-text" onClick={() => { const t = window.prompt('Edit the text', selected.data.text || ''); if (t !== null && t.trim()) void editMarkup(selected, { data: { ...selected.data, text: t.trim() } }); }}>Edit text</button>}
@@ -886,7 +897,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 {listed.map((m) => (
                   <li key={m.id} className={m.id === selectedId ? 'is-on' : ''} onClick={() => { setSelectedId(m.id); setPageNo(m.page); setTool('select'); }}>
                     <i style={{ background: m.data.color }} />
-                    <span><b>{KIND_LABEL[m.kind]}</b>{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target)}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{m.linkType ? ` · ${m.linkType === 'rfi' ? 'RFI' : 'task'}` : ''}</small></span>
+                    <span><b>{KIND_LABEL[m.kind]}</b>{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target)}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{markupLink(m.linkType, m.linkId) ? ` · ${markupLink(m.linkType, m.linkId)!.label}` : ''}</small></span>
                   </li>
                 ))}
               </ul>
@@ -905,7 +916,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       {ask && (
         <div className="mk-ask-bg" onClick={() => setAsk(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void answer(); }}>
-            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : 'Create a task from this markup'}</h4>
+            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : ask.kind === 'co' ? 'Create a change order from this markup' : ask.kind === 'record' ? 'Add this markup to FOR RECORD' : 'Create a task from this markup'}</h4>
             {ask.kind === 'text' && <textarea autoFocus rows={3} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="e.g. Verify beam size with structural" />}
             {ask.kind === 'pin' && <>
               <textarea autoFocus rows={2} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="A note (optional) — e.g. Crack at the footing, NE corner" aria-label="Pin note" />
@@ -944,9 +955,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 )}
               </>}
             </>}
-            {(ask.kind === 'rfi' || ask.kind === 'task') && <>
-              <input autoFocus value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder={ask.kind === 'rfi' ? 'RFI subject' : 'Task subject'} aria-label="Subject" />
-              <p className="mk-muted">{ask.kind === 'rfi' ? 'A draft RFI is made with this drawing and page linked; finish it in the RFI log.' : 'A Special Actions Log task is made with a link back to this spot on the drawing.'}</p>
+            {(ask.kind === 'rfi' || ask.kind === 'task' || ask.kind === 'co' || ask.kind === 'record') && <>
+              {ask.kind === 'record' && (
+                <select value={ask.topic} onChange={(e) => setAsk({ ...ask, topic: e.target.value })} aria-label="Kind of record">
+                  {FOR_RECORD_TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              )}
+              <input autoFocus value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder={{ rfi: 'RFI subject', task: 'Task subject', co: 'Change order title', record: 'What to keep on record' }[ask.kind]} aria-label="Subject" />
+              <p className="mk-muted">{{
+                rfi: 'A draft RFI is made with this drawing and page linked; finish it in the RFI log.',
+                task: 'A Special Actions Log task is made with a link back to this spot on the drawing.',
+                co: 'A draft change order is made with a link back to this spot; price it and send it from Change Orders. The project’s financials need setting up first.',
+                record: 'A FOR RECORD item is made with a link back to this spot on the drawing.',
+              }[ask.kind]}</p>
             </>}
             <div className="mk-ask-row">
               <button type="button" className="mk-btn is-text" onClick={() => setAsk(null)}>Cancel</button>

@@ -38,7 +38,7 @@ export interface Markup {
   private: boolean;
   /** Its named layer; null = its author's own layer. */
   layer?: string | null;
-  linkType: 'rfi' | 'task' | null;
+  linkType: MarkupLinkType | null;
   linkId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -269,3 +269,17 @@ export function pickCompareDefault(currentId: string, revisions: Revision[]): Re
   if (i < 0) return list.filter((r) => r.id !== currentId).pop() || null;
   return list[i - 1] || list[i + 1] || null;
 }
+
+/** What a markup can be turned into (Oct 26 review notes, A6): an RFI, a task, a change order or a FOR RECORD item. */
+export type MarkupLinkType = 'rfi' | 'task' | 'co' | 'record';
+export const MARKUP_LINKS: Record<MarkupLinkType, { label: string; href: (id: string) => string }> = {
+  rfi: { label: 'RFI', href: (id) => `/rfis?rfi=${encodeURIComponent(id)}` },
+  task: { label: 'task', href: (id) => `/tasks?task=${encodeURIComponent(id)}&type=log` },
+  co: { label: 'change order', href: (id) => `/changeorders?co=${encodeURIComponent(id)}` },
+  record: { label: 'FOR RECORD item', href: (id) => `/observations?item=${encodeURIComponent(id)}` },
+};
+/** The link for whatever was made from a markup; null for an unknown kind (an older or bad row). */
+export const markupLink = (type?: string | null, id?: string | null) => {
+  const l = type ? MARKUP_LINKS[type as MarkupLinkType] : undefined;
+  return l && id ? { label: l.label, href: l.href(id) } : null;
+};

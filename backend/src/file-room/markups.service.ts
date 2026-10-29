@@ -92,7 +92,8 @@ export class MarkupsService {
       m.private = clean.private;
     }
     if (raw?.layer !== undefined) m.layer = cleanLayer(raw.layer);
-    if (raw?.linkType !== undefined) m.linkType = raw.linkType === 'rfi' || raw.linkType === 'task' ? raw.linkType : null;
+    // What the markup was turned into: an RFI, a task, a change order or a FOR RECORD item.
+    if (raw?.linkType !== undefined) m.linkType = ['rfi', 'task', 'co', 'record'].includes(String(raw.linkType)) ? raw.linkType : null;
     if (raw?.linkId !== undefined) m.linkId = raw.linkId ? String(raw.linkId).slice(0, 80) : null;
     m.updatedAt = new Date().toISOString();
     return this.repo.save(m);

@@ -751,8 +751,24 @@ export function FileRoom() {
                       v{versions.length - i} · {shortDate(v.updatedAt)} · {v.uploadedBy || '—'}
                     </span>
                     {v.isLatest !== false && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'var(--c-d2ead3)', color: 'var(--success-deep)' }}>Current</span>}
+                    {canManage && v.isLatest === false && (
+                      <button type="button" onClick={(e) => { e.stopPropagation(); void act(api.fileRoom.markLatest(v.id), `v${versions.length - i} is the current version again`); }}
+                        style={{ border: 0, background: 'none', padding: 0, fontFamily: 'inherit', fontSize: 10.5, fontWeight: 700, color: 'var(--forest)', cursor: 'pointer' }}>Make current</button>
+                    )}
                   </div>
                 ))}
+                {canManage && (() => {
+                  // Revert to original (Oct 26 review notes, A6): the first upload becomes current again; later revisions stay in the history.
+                  const original = versions[versions.length - 1];
+                  if (!original || original.isLatest !== false) return null;
+                  return (
+                    <button type="button"
+                      onClick={() => { if (confirm(`Make v1 from ${shortDate(original.updatedAt)} the current drawing again? Later versions stay in the history — nothing is deleted.`)) void act(api.fileRoom.markLatest(original.id), 'Reverted to the original (v1)'); }}
+                      style={{ marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--surface)', fontFamily: 'inherit', color: 'var(--forest)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                      Revert to original (v1)
+                    </button>
+                  );
+                })()}
               </div>
             )}
 

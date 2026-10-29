@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
-import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, nextSize, overlayPixels, pickCompareDefault, textMatches } from './markup';
+import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
 describe('markup measuring', () => {
   it('reads lengths as people type them', () => {
@@ -99,5 +99,16 @@ describe('comparing revisions', () => {
     expect(pickCompareDefault('c', revs)?.id).toBe('b');
     expect(pickCompareDefault('a', revs)?.id).toBe('b');
     expect(pickCompareDefault('x', [revs[0]])?.id).toBe('a');
+  });
+});
+
+describe('markupLink', () => {
+  it('links each kind made from a markup to its page', () => {
+    expect(markupLink('co', 'CO 1')).toEqual({ label: 'change order', href: '/changeorders?co=CO%201' });
+    expect(markupLink('record', 'T-3')).toEqual({ label: 'FOR RECORD item', href: '/observations?item=T-3' });
+    expect(markupLink('rfi', 'R1')?.href).toBe('/rfis?rfi=R1');
+    expect(markupLink('task', 'T1')?.href).toBe('/tasks?task=T1&type=log');
+    expect(markupLink('invoice', 'X')).toBeNull();
+    expect(markupLink('co', null)).toBeNull();
   });
 });

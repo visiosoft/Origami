@@ -107,6 +107,14 @@ describe('MarkupsService', () => {
     expect((await svc.update(m.id, { linkType: 'rfi', linkId: 'RFI-7' }, { ...ed, roleKey: 'staff' })).linkId).toBe('RFI-7');
   });
 
+  it('records a change order or FOR RECORD item made from a markup, and nothing else', async () => {
+    const { svc } = setup();
+    const m = await svc.create('F1', { kind: 'pin', page: 1, data: { points: [[0.4, 0.4]], text: 'Crack at footing' } }, an);
+    expect((await svc.update(m.id, { linkType: 'co', linkId: 'CO-9' }, an)).linkType).toBe('co');
+    expect((await svc.update(m.id, { linkType: 'record', linkId: 'T-3' }, an)).linkType).toBe('record');
+    expect((await svc.update(m.id, { linkType: 'invoice', linkId: 'X' } as any, an)).linkType).toBeNull();
+  });
+
   it('saves a marked-up copy beside the drawing, named so the drawing stays Current', async () => {
     const { svc, uploads } = setup();
     await svc.create('F1', { kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.3, 0.3]] } }, an);

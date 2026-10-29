@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-29a',
+    date: '2026-10-29',
+    title: 'Drawings: change orders and FOR RECORD from a markup; revert to the original',
+    items: [
+      { area: 'File Room', kind: 'new', text: 'Select a markup or pin and make a draft change order from it, or add it to FOR RECORD as an Observation, FYI or Decision — each links back to that spot on the drawing, next to Create RFI and Create task.', where: 'File Room → a drawing → Mark up → select a markup' },
+      { area: 'File Room', kind: 'new', text: '“Revert to original (v1)” makes the first upload of a revised drawing current again, and “Make current” does the same for any older version. Later versions stay in the history; nothing is deleted.', where: 'File Room → a revised drawing → Version history' },
+    ],
+  },
+  {
     id: '2026-10-28zc',
     date: '2026-10-28',
     title: 'Outside meetings',
