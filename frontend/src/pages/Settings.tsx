@@ -25,7 +25,7 @@ import type { ScoringCriterion } from '../data/scoring';
 import { totalPossible } from '../data/scoring';
 import { useApp } from '../AppContext';
 import { useWindowWidth } from '../useWindowWidth';
-import { useTheme, isNewLook } from '../theme';
+import { useTheme } from '../theme';
 import { SettingsBoard, type SettingsSection, type SettingsTab } from '../components/SettingsBoard';
 import { Skeleton } from '../components/Skeleton';
 
@@ -80,7 +80,7 @@ export function Settings() {
     tabParam === 'google' || tabParam === 'my-calendar' || tabParam === 'cost-codes' || tabParam === 'audit-log' || tabParam === 'priorities' || tabParam === 'contract-templates' ? tabParam : 'notifications',
   );
   const [theme] = useTheme();
-  if (isNewLook(theme)) {
+  if (theme === 'coterie') {
     const canCodes = can('settings', 'manage') || can('manpower_con', 'manage');
     const sections: SettingsSection[] = [
       { key: 'notifications', tab: 'account', label: 'Notifications', hint: 'What we email or text you', render: () => <NotificationSettings /> },

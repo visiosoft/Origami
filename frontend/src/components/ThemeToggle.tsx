@@ -1,10 +1,9 @@
 import { THEMES, useTheme, type Theme } from '../theme';
 
-/** Top-bar button that steps through the looks: Glass → Cream → Classic. */
+/** Top-bar button that switches between the New and Classic looks. */
 export function ThemeToggle() {
   const [theme, setTheme] = useTheme();
-  const order: Theme[] = THEMES.map((t) => t.key);
-  const next = order[(order.indexOf(theme) + 1) % order.length];
+  const next: Theme = theme === 'coterie' ? 'classic' : 'coterie';
   const nextLabel = THEMES.find((t) => t.key === next)!.label;
 
   const flip = () => {
@@ -23,13 +22,8 @@ export function ThemeToggle() {
       aria-label={`Switch to the ${nextLabel} look`}
       style={{ position: 'relative', width: 36, height: 36, borderRadius: 10, display: 'grid', placeItems: 'center', flexShrink: 0 }}
     >
-      {theme === 'glass' ? (
-        // droplet: the Glass look
-        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{ stroke: 'var(--body)' }}>
-          <path d="M12 2.7s6 6.4 6 11.1a6 6 0 0 1-12 0C6 9.1 12 2.7 12 2.7Z" />
-        </svg>
-      ) : theme === 'coterie' ? (
-        // sun: the Cream look
+      {theme === 'coterie' ? (
+        // sun: the New look
         <svg width={18} height={18} viewBox="0 0 24 24" fill="none" strokeWidth={1.8} strokeLinecap="round" style={{ stroke: 'var(--body)' }}>
           <circle cx={12} cy={12} r={4} />
           <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
