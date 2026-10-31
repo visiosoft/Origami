@@ -4,7 +4,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -123,6 +123,14 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const setFill = (v: boolean) => { setFillState(v); try { localStorage.setItem('origami.markup.fill', v ? '1' : '0'); } catch { /* private window */ } };
   /** Where the pointer is while clicking out a polyline / path / polyshape (the rubber band). */
   const [hoverPt, setHoverPt] = useState<Pt | null>(null);
+  /** Sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
+  const [sheets, setSheets] = useState<Record<string, string>>({});
+  const [sheetsLoaded, setSheetsLoaded] = useState(false);
+  const sheet = (n: number): string | undefined => sheets[String(n)];
+  const pageName = (n: number) => sheet(n) || `p. ${n}`;
+  /** Fingers on the drawing (touch), for two-finger pinch-zoom and pan (Oct 31). */
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d0: number; s0: number; cx: number; cy: number } | null>(null);
   /** Dragging a text box's edge to resize it. */
   const resizing = useRef<{ id: string; x0: number; orig: number } | null>(null);
   // Searching the drawing's own text (and the markups' notes).
@@ -148,6 +156,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   useEffect(() => {
     let live = true;
     let loading: { destroy: () => Promise<void> } | null = null;
+    setSheetsLoaded(false);
+    api.fileRoom.sheets(file.id).then((n) => { if (live) { setSheets(n || {}); setSheetsLoaded(true); } }).catch(() => { if (live) { setSheets({}); setSheetsLoaded(true); } });
     Promise.all([loadPdfjs(), api.fileRoom.bytes(file.id), api.fileRoom.markups(file.id)])
       .then(async ([lib, bytes, list]) => {
         const task = lib.getDocument({ data: new Uint8Array(bytes) });
@@ -164,6 +174,30 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     return () => { live = false; void loading?.destroy().catch(() => undefined); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, focusMarkupId]);
+
+  // A drawing without sheet names yet: read them from each page's title block, once, and keep them.
+  useEffect(() => {
+    if (!doc || !sheetsLoaded || Object.keys(sheets).length || !canDraw) return;
+    let live = true;
+    (async () => {
+      const found: Record<string, string> = {};
+      for (let n = 1; n <= doc.numPages && live; n++) {
+        const name = sheetNameFrom(await runsOf(n).catch(() => []));
+        if (name) found[String(n)] = name;
+      }
+      if (!live || !Object.keys(found).length) return;
+      setSheets(found);
+      api.fileRoom.setSheets(file.id, found, true).catch(() => undefined);
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, sheetsLoaded]);
+  const renameSheet = async (n: number) => {
+    const to = window.prompt(`Name page ${n} (its sheet number, e.g. A100) — leave empty for “p. ${n}”`, sheet(n) || '');
+    if (to === null) return;
+    try { setSheets(await api.fileRoom.setSheets(file.id, { [String(n)]: to.trim() })); }
+    catch (e) { toast('⚠ ' + ((e as Error).message || 'Not saved')); }
+  };
 
   // ---------------------------------------------------------------- comparing revisions
   type Compare = { rev: Revision; doc: PdfDoc | null; show: CompareShow; dx: number; dy: number; error?: string };
@@ -404,7 +438,35 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     return { x0: x, y0: y, x1: x + m.data.boxW, y1: y + (lines.length * fs * 1.2 + fs * 0.3) / size.h };
   };
 
+  /** Two fingers: pinch to zoom, move to pan (the point between them stays under the fingers). */
+  const startPinch = () => {
+    const [a, b] = [...touches.current.values()];
+    const box = scroller.current!.getBoundingClientRect();
+    const mx = (a.x + b.x) / 2 - box.left, my = (a.y + b.y) / 2 - box.top;
+    // Where that point sits on the unscaled drawing.
+    pinch.current = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: scale, cx: (scroller.current!.scrollLeft + mx) / scale, cy: (scroller.current!.scrollTop + my) / scale };
+    // A second finger means a gesture, not a drawing: drop whatever the first finger started.
+    setDraft(null); setHoverPt(null);
+    if (drag.current) { const d = drag.current; setMarks((prev) => prev.map((m) => (m.id === d.id ? { ...m, data: { ...m.data, points: d.orig } } : m))); drag.current = null; }
+    resizing.current = null; pan.current = null;
+  };
+  const movePinch = () => {
+    const pz = pinch.current, st = scroller.current;
+    if (!pz || !st || touches.current.size < 2) return;
+    const [a, b] = [...touches.current.values()];
+    const box = st.getBoundingClientRect();
+    const next = Math.min(8, Math.max(0.1, pz.s0 * (Math.hypot(a.x - b.x, a.y - b.y) / pz.d0)));
+    const mx = (a.x + b.x) / 2 - box.left, my = (a.y + b.y) / 2 - box.top;
+    setZoom(next);
+    requestAnimationFrame(() => { st.scrollLeft = pz.cx * next - mx; st.scrollTop = pz.cy * next - my; });
+  };
+
   const onDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.current.size === 2) { startPinch(); return; }
+      if (touches.current.size > 2 || pinch.current) return;
+    }
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     const p = at(e);
     if (tool === 'pan' || spaceDown) {
@@ -443,6 +505,10 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   };
 
   const onMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) {
+      touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch.current) { movePinch(); return; }
+    }
     if (pan.current) {
       const s = scroller.current!;
       s.scrollLeft = pan.current.sl - (e.clientX - pan.current.x);
@@ -470,7 +536,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     } else setDraft([draft[0], p]);
   };
 
-  const onUp = () => {
+  const onUp = (e?: React.PointerEvent) => {
+    if (e?.pointerType === 'touch') {
+      touches.current.delete(e.pointerId);
+      if (pinch.current) { if (touches.current.size < 2) pinch.current = null; return; }
+    }
     if (pan.current) { pan.current = null; return; }
     if (resizing.current) {
       const r = resizing.current;
@@ -770,7 +840,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
         {canDraw && marks.length > 0 && <span className="mk-saved" title="Each markup is saved as soon as it’s drawn">✓ Saved</span>}
         <div className="mk-pages">
           <button type="button" className="mk-btn" disabled={pageNo <= 1} onClick={() => setPageNo(pageNo - 1)} aria-label="Previous page">‹</button>
-          <span>Page <input aria-label="Page" value={pageNo} onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= pages) setPageNo(n); }} /> of {pages || '…'}</span>
+          {Object.keys(sheets).length > 0 && pages > 0 ? (
+            <select className="mk-sheet" aria-label="Sheet" value={pageNo} onChange={(e) => setPageNo(Number(e.target.value))}>
+              {Array.from({ length: pages }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{sheet(n) ? `${sheet(n)} · p. ${n}` : `p. ${n}`}</option>)}
+            </select>
+          ) : <span>Page <input aria-label="Page" value={pageNo} onChange={(e) => { const n = Number(e.target.value); if (n >= 1 && n <= pages) setPageNo(n); }} /> of {pages || '…'}</span>}
+          {canDraw && pages > 0 && <button type="button" className="mk-btn" onClick={() => void renameSheet(pageNo)} aria-label="Name this sheet" title="Name this page by its sheet number (A100, E103…)">✎</button>}
           <button type="button" className="mk-btn" disabled={pageNo >= pages} onClick={() => setPageNo(pageNo + 1)} aria-label="Next page">›</button>
         </div>
         <div className="mk-zoom">
@@ -859,7 +934,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               {search.hits.length > 1 && (
                 <ul className="mk-search-list">
                   {search.hits.slice(0, 50).map((h, i) => (
-                    <li key={i} className={i === search.at ? 'is-on' : ''} onClick={() => { setSearch({ ...search, at: i }); goToHit(h); }}><b>p. {h.page}</b> {h.context}</li>
+                    <li key={i} className={i === search.at ? 'is-on' : ''} onClick={() => { setSearch({ ...search, at: i }); goToHit(h); }}><b>{pageName(h.page)}</b> {h.context}</li>
                   ))}
                 </ul>
               )}
@@ -889,7 +964,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
           )}
           {(pageTrail.length > 0 || back) && (
             <div className="mk-back">
-              {pageTrail.length > 0 && <button type="button" className="mk-btn is-text" onClick={goBack}>← Back to p. {pageTrail[pageTrail.length - 1]}</button>}
+              {pageTrail.length > 0 && <button type="button" className="mk-btn is-text" onClick={goBack}>← Back to {pageName(pageTrail[pageTrail.length - 1])}</button>}
               {!pageTrail.length && back && <button type="button" className="mk-btn is-text" onClick={back.go}>← Back to {back.label}</button>}
             </div>
           )}
@@ -901,7 +976,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
                 onDoubleClick={(e) => { if (MULTI_POINT.includes(tool as MarkupKind)) { finishMulti(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
-                {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} /></g>)}
+                {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} sheets={sheets} /></g>)}
                 {draftShape}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
                 {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
@@ -940,7 +1015,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
             {selected && (
               <section className="mk-selected">
-                <h4>{KIND_LABEL[selected.kind]} · p. {selected.page}</h4>
+                <h4>{KIND_LABEL[selected.kind]} · {pageName(selected.page)}</h4>
                 <p className="mk-muted">{selected.authorName} · {new Date(selected.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{selected.private ? ' · private draft' : ''}</p>
                 {selected.data.text && <p className="mk-quote">{selected.data.text}</p>}
                 {selected.kind === 'pin' && <PinPhotos markup={selected} canAdd={canDraw} busy={busy} onAdd={(f) => void addPhotos(selected, f)} onRemove={mine(selected) ? (id) => void removePhoto(selected, id) : undefined} onOpen={setPhotoView} />}
@@ -966,7 +1041,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                       onClick={() => { if (selected.data.color.toUpperCase() !== c) void editMarkup(selected, { data: { ...selected.data, color: c } }); }} />)}
                   </div>
                 )}
-                {selected.kind === 'link' && selected.data.target && <p><button type="button" className="mk-btn is-text is-dark" onClick={() => follow(selected)}>{selected.data.target.type === 'page' ? `Go to page ${selected.data.target.page}` : `Open ${selected.data.target.name}${selected.data.target.page ? `, p. ${selected.data.target.page}` : ''}`}</button></p>}
+                {selected.kind === 'link' && selected.data.target && <p><button type="button" className="mk-btn is-text is-dark" onClick={() => follow(selected)}>{selected.data.target.type === 'page' ? `Go to ${pageName(selected.data.target.page)}` : `Open ${selected.data.target.name}${selected.data.target.page ? `, p. ${selected.data.target.page}` : ''}`}</button></p>}
                 {(() => { const l = markupLink(selected.linkType, selected.linkId); return l && <p><a href={l.href}>Open the {l.label} made from it →</a></p>; })()}
                 <div className="mk-actions">
                   {canDraw && selected.kind !== 'scale' && <>
@@ -1009,7 +1084,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                 {listed.map((m) => (
                   <li key={m.id} className={m.id === selectedId ? 'is-on' : ''} onClick={() => { setSelectedId(m.id); setPageNo(m.page); setTool('select'); }}>
                     <i style={{ background: m.data.color }} />
-                    <span><b>{m.data.note || KIND_LABEL[m.kind]}</b>{m.data.note ? ` · ${KIND_LABEL[m.kind]}` : ''}{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target)}` : ''}<small>{m.authorName}{listAll ? ` · p. ${m.page}` : ''}{m.private ? ' · private' : ''}{markupLink(m.linkType, m.linkId) ? ` · ${markupLink(m.linkType, m.linkId)!.label}` : ''}</small></span>
+                    <span><b>{m.data.note || KIND_LABEL[m.kind]}</b>{m.data.note ? ` · ${KIND_LABEL[m.kind]}` : ''}{m.data.text ? ` — ${m.data.text.split('\n')[0]}` : m.data.label ? ` — ${m.data.label}` : m.kind === 'link' ? ` ${linkLabel(m.data.target, sheet)}` : ''}<small>{m.authorName}{listAll ? ` · ${pageName(m.page)}` : ''}{m.private ? ' · private' : ''}{markupLink(m.linkType, m.linkId) ? ` · ${markupLink(m.linkType, m.linkId)!.label}` : ''}</small></span>
                   </li>
                 ))}
               </ul>
@@ -1048,8 +1123,9 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               </div>
               {ask.to === 'page' ? (
                 <label className="mk-move">Page
-                  <input autoFocus type="number" min={1} max={pages || 1} value={ask.page} onChange={(e) => setAsk({ ...ask, page: e.target.value })} aria-label="Page to link to" style={{ width: 90 }} />
-                  <span className="mk-muted">of {pages || 1}</span>
+                  <select autoFocus value={ask.page} onChange={(e) => setAsk({ ...ask, page: e.target.value })} aria-label="Page to link to">
+                    {Array.from({ length: pages || 1 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{sheet(n) ? `${sheet(n)} · p. ${n}` : `Page ${n}`}</option>)}
+                  </select>
                 </label>
               ) : <>
                 <select value={ask.fileId} onChange={(e) => setAsk({ ...ask, fileId: e.target.value, filePage: '' })} aria-label="File to link to">
@@ -1151,8 +1227,8 @@ function textWidth(fs: number) {
 }
 
 /** How one markup looks, in page points (size = the page as shown, in points). */
-function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false) {
-  const shape = bareShape(m, size, scale, ghost);
+function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>) {
+  const shape = bareShape(m, size, scale, ghost, sheets);
   if (!m.data.note) return shape;
   // A note sits just above the markup's top-left corner, the same size on screen at any zoom.
   const xs = m.data.points.map((p) => p[0] * size.w), ys = m.data.points.map((p) => p[1] * size.h);
@@ -1161,7 +1237,7 @@ function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h
   return <g>{shape}<text x={x} y={y} fontSize={11 / scale} fontWeight={700} fill={ink} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{m.data.note}</text></g>;
 }
 
-function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false) {
+function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>) {
   const P = (p: Pt): Pt => [p[0] * size.w, p[1] * size.h];
   const pts = m.data.points.map(P);
   const stroke = m.data.color;
@@ -1220,7 +1296,7 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
       const x = Math.min(a[0], b[0]), y = Math.min(a[1], b[1]);
       return <g className="mk-link-shape">
         <rect x={x} y={y} width={Math.abs(b[0] - a[0])} height={Math.abs(b[1] - a[1])} fill={stroke} fillOpacity={0.06} stroke={stroke} strokeWidth={sw} strokeDasharray="5 3" />
-        <text x={x} y={y - 4} fontSize={10 / scale} fill={stroke} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif" fontWeight={700}>{linkLabel(m.data.target)}</text>
+        <text x={x} y={y - 4} fontSize={10 / scale} fill={stroke} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif" fontWeight={700}>{linkLabel(m.data.target, (n) => sheets?.[String(n)])}</text>
       </g>;
     }
     case 'text': {
@@ -1236,6 +1312,6 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
 }
 
 /** One markup on the page; redrawn only when it (or the zoom) changes. */
-const MarkupShape = memo(function MarkupShape({ m, w, h, scale }: { m: Markup; w: number; h: number; scale: number }) {
-  return shapeOf(m, { w, h }, scale);
+const MarkupShape = memo(function MarkupShape({ m, w, h, scale, sheets }: { m: Markup; w: number; h: number; scale: number; sheets?: Record<string, string> }) {
+  return shapeOf(m, { w, h }, scale, false, sheets);
 });

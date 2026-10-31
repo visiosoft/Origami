@@ -32,8 +32,23 @@ export interface MarkupData {
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
 
-/** What a link box says: "→ p. 5" or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
-export const linkLabel = (t?: LinkTarget | null) => !t ? 'Link' : t.type === 'page' ? `→ p. ${t.page}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+/** What a link box says: "→ A501" (the sheet, when named), "→ p. 5", or "→ Inspection card 3.pdf, p. 2" (same as the server draws). */
+export const linkLabel = (t?: LinkTarget | null, sheet?: (page: number) => string | undefined) =>
+  !t ? 'Link' : t.type === 'page' ? `→ ${sheet?.(t.page) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+
+/** A sheet number as drawings write it: A100, E103, A-201, S2.1, M001A. */
+const SHEET_RE = /^[A-Z]{1,3}[-.]?\s?\d{1,4}(?:\.\d{1,3})?[A-Z]?$/;
+
+/**
+ * A page's sheet number, read from its text (Oct 31): the biggest sheet-number-
+ * looking text in the title block (bottom-right), else along the right edge
+ * (a vertical title block). Null when there's none -- the page keeps "p. 3".
+ */
+export function sheetNameFrom(runs: { str: string; x0: number; y0: number; x1: number; y1: number }[]): string | null {
+  const hits = runs.map((r) => ({ ...r, s: r.str.trim() })).filter((r) => SHEET_RE.test(r.s));
+  const pick = (list: typeof hits) => list.sort((a, b) => (b.y1 - b.y0) - (a.y1 - a.y0))[0]?.s || null;
+  return pick(hits.filter((r) => r.x0 > 0.55 && r.y0 > 0.55)) || pick(hits.filter((r) => r.x0 > 0.8));
+}
 export interface Markup {
   id: string;
   fileId: string;

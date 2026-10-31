@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FILLABLE, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
+import { FILLABLE, sheetNameFrom, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -139,5 +139,18 @@ describe('new shapes and wrapping (Oct 31)', () => {
     expect(wrapLines('the quick brown fox', 10, m)).toEqual(['the quick', 'brown fox']);
     expect(wrapLines('one\ntwo three', 7, m)).toEqual(['one', 'two', 'three']);
     expect(wrapLines('abcdefghij kl', 4, m)).toEqual(['abcd', 'efgh', 'ij', 'kl']);
+  });
+});
+
+describe('sheetNameFrom', () => {
+  const run = (str: string, x0: number, y0: number, hgt = 0.01) => ({ str, x0, y0, x1: x0 + 0.05, y1: y0 + hgt });
+  it('reads the biggest sheet number in the title block', () => {
+    expect(sheetNameFrom([run('A100', 0.1, 0.1, 0.03), run('A-201', 0.9, 0.92, 0.03), run('A201', 0.85, 0.8, 0.01), run('SHEET', 0.9, 0.88)])).toBe('A-201');
+    expect(sheetNameFrom([run('E103', 0.92, 0.2, 0.02)])).toBe('E103');
+    expect(sheetNameFrom([run('S2.1', 0.7, 0.7)])).toBe('S2.1');
+  });
+  it('finds nothing in a page without one', () => {
+    expect(sheetNameFrom([run('FLOOR PLAN', 0.8, 0.9), run('1/4" = 1\'-0"', 0.8, 0.95), run('2026', 0.9, 0.9)])).toBeNull();
+    expect(sheetNameFrom([])).toBeNull();
   });
 });

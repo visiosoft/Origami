@@ -1,5 +1,5 @@
 import { PDFDocument, PDFName, degrees } from 'pdf-lib';
-import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, linkLabel, toPage, trianglePts, visibleTo, wrapLines } from './markups';
+import { canEditMarkup, cleanMarkup, cleanSheetNames, cloudPath, flattenPdf, layerKey, linkLabel, toPage, trianglePts, visibleTo, wrapLines } from './markups';
 import { MarkupsService, PIN_PHOTO_FOLDER } from './markups.service';
 
 const twoPages = async (rotate = 0) => {
@@ -81,7 +81,8 @@ describe('MarkupsService', () => {
       save: jest.fn(async (x: any) => { const i = rows.findIndex((r) => r.id === x.id); if (i >= 0) rows[i] = x; else rows.push(x); return x; }),
       delete: jest.fn(async (w: any) => { const i = rows.findIndex((r) => r.id === w.id); if (i >= 0) rows.splice(i, 1); }),
     };
-    const files = { findOneBy: async () => ({ id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }) };
+    const fileRow: any = { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'], sheetNames: null };
+    const files = { findOneBy: async () => fileRow, update: async (_w: any, patch: any) => Object.assign(fileRow, patch) };
     const uploads: any[] = [];
     const fileRoom = {
       content: async () => ({ file: { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }, body: new Blob([await twoPages()]).stream() }),
@@ -212,5 +213,16 @@ describe('MarkupsService', () => {
       { page: 1, kind: 'text', data: { points: [[0.1, 0.8]], color: '#111827', width: 1, size: 12, boxW: 0.2, text: 'A long note that has to wrap inside its box on the drawing' } },
     ]);
     expect(out.byteLength).toBeGreaterThan(1000);
+  });
+
+  it('keeps sheet names by page (Oct 31): merged, cleared, cleaned; links show them', async () => {
+    expect(cleanSheetNames({ 1: ' A100 ', 2: '', x: 'E1', 0: 'Z', 3: 'A-201 Floor plan level two extra long name' })).toEqual({ 1: 'A100', 3: 'A-201 Floor plan level two ext' });
+    expect(linkLabel({ type: 'page', page: 2 }, (n) => (n === 2 ? 'A501' : undefined))).toBe('→ A501');
+    expect(linkLabel({ type: 'page', page: 3 }, () => undefined)).toBe('→ p. 3');
+    const { svc } = setup();
+    await expect(svc.setSheetNames('F1', { names: { 1: 'A100' } }, client)).rejects.toThrow(/team and consultants/);
+    expect(await svc.setSheetNames('F1', { names: { 1: 'A100', 2: 'A101' } }, an)).toEqual({ 1: 'A100', 2: 'A101' });
+    expect(await svc.setSheetNames('F1', { names: { 2: 'A102', 1: '' } }, an)).toEqual({ 2: 'A102' });
+    expect(await svc.sheetNames('F1')).toEqual({ 2: 'A102' });
   });
 });

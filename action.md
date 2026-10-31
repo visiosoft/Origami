@@ -132,9 +132,9 @@ Status: ✅ done · 🟡 partly built · ⬜ new · ❓ needs an answer first.
 | F7 | Shapes: triangle, square, circle, polyshape, each outline or with a see-through fill | Box, ellipse, cloud — outline only | Add triangle and polyshape; a Fill toggle (25% of the colour) for box, ellipse, triangle, polyshape | ✅ |
 | F8 | Markup labels | Each markup shows its kind (e.g. "Cloud — Andrea") | A short note on any markup, shown as a small tag beside it, in the list and in the PDF; searchable | ✅ |
 | F9 | Upload symbols to drop like a pin, with a hover label | 7 built-in stamp icons | A symbol library (PNG/SVG) per company; Symbol tool drops one; its name shows on hover and in the list | ⬜ answer: admins add them to one shared library |
-| F10 | Name pages by sheet title (A100, E103) | "Page 1, 2, 3" | Read the sheet number from the page text (title block, bottom-right), let it be corrected; used in the page picker, links, search, list | ⬜ |
+| F10 | Name pages by sheet title (A100, E103) | "Page 1, 2, 3" | Read the sheet number from the page text (title block, bottom-right), let it be corrected; used in the page picker, links, search, list | ✅ |
 | F11 | Make special actions without leaving the drawing | Creating an RFI/task/CO/record closes the drawing and opens its page | Create it in place; a toast offers "Open it"; the drawing stays open | ✅ |
-| F12 | Touch: two-finger pinch to zoom, two-finger drag to pan, one finger / stylus draws | Mouse-wheel zoom; touch draws only | Pinch and two-finger pan on the drawing; one finger or a pen draws | ⬜ |
+| F12 | Touch: two-finger pinch to zoom, two-finger drag to pan, one finger / stylus draws | Mouse-wheel zoom; touch draws only | Pinch and two-finger pan on the drawing; one finger or a pen draws | ✅ |
 | F13 | Mark up photos | Markup works on PDFs only | Open JPG/PNG files (and pin photos) in the same viewer, with the same tools | ⬜ |
 | F14 | i-1 and i-2 see all markups | Private markups show only to their author | Those roles see every markup, private ones too | ✅ |
 

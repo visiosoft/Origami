@@ -56,6 +56,19 @@ export class FileRoomController {
     return this.markups.renameLayer(id, body, claims);
   }
 
+  /** A drawing's sheet names by page ("1": "A100"). */
+  @Get('files/:id/sheets')
+  async sheets(@Param('id') id: string, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.sheetNames(id);
+  }
+
+  @Put('files/:id/sheets')
+  async setSheets(@Param('id') id: string, @Body() body: any, @Claims() claims: SessionClaims | null) {
+    await this.seeFile(id, claims);
+    return this.markups.setSheetNames(id, body, claims);
+  }
+
   /** Photos pinned to a spot on the drawing. */
   @Post('markups/:mid/photos')
   @UseInterceptors(FilesInterceptor('files', MAX_FILES_PER_UPLOAD, { limits: { fileSize: MAX_FILE_BYTES } }))

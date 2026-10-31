@@ -121,3 +121,4 @@
   .mk-top .mk-btn.is-text { font-size: 11.5px; padding: 0 8px; }
 }
 .mk-resize { fill: #2563EB; stroke: #fff; stroke-width: 1; cursor: ew-resize; }
+.mk-sheet { font: inherit; font-size: 12.5px; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); max-width: 170px; }

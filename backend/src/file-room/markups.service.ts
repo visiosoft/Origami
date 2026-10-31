@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { FileRoomFileEntity, PdfMarkupEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
-import { MAX_PIN_PHOTOS, canEditMarkup, leadsMarkups, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
+import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, leadsMarkups, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
 export const PIN_PHOTO_FOLDER = ['Markup photos'];
@@ -170,8 +170,25 @@ export class MarkupsService {
     const base = (await this.settings?.baseUrl().catch(() => '')) || '';
     const pdf = await flattenPdf(buf, marks.map((m) => ({ page: m.page, kind: m.kind, data: m.data as unknown as MarkupData })), {
       fileUrl: base ? (id) => `${base}/planroom?file=${encodeURIComponent(id)}` : undefined,
+      sheetNames: (await this.file(fileId)).sheetNames,
     });
     return { file, pdf: Buffer.from(pdf), count: marks.length };
+  }
+
+  /** A drawing's sheet names by page (Oct 31): read from its title blocks by the viewer, correctable by the team. */
+  async sheetNames(fileId: string) {
+    return cleanSheetNames((await this.file(fileId)).sheetNames);
+  }
+
+  /** Save sheet names: `names` merges page by page (an empty name clears that page); `replace` swaps the whole set. */
+  async setSheetNames(fileId: string, body: { names?: unknown; replace?: boolean }, claims: SessionClaims | null) {
+    this.assertCanDraw(claims);
+    const f = await this.file(fileId);
+    const incoming = (body?.names && typeof body.names === 'object' ? body.names : {}) as Record<string, unknown>;
+    const merged: Record<string, unknown> = body?.replace ? { ...incoming } : { ...(f.sheetNames || {}), ...incoming };
+    const names = cleanSheetNames(merged);
+    await this.files.update({ id: fileId }, { sheetNames: names });
+    return names;
   }
 
   /** Keep a marked-up copy next to the drawing ("<name> — markup <date>.pdf"); the drawing stays Current. */

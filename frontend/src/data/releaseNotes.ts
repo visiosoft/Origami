@@ -16,6 +16,15 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31d',
+    date: '2026-10-31',
+    title: 'Drawings: sheet names and touch gestures',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Pages are named by their sheet number (A100, E103…), read from each page’s title block the first time a drawing is opened. Pick a sheet from the list at the top; ✎ names or corrects one. Links, the markup list and search show the sheet names, and so do links in the downloaded PDF.', where: 'File Room → Mark up → the sheet list at the top' },
+      { area: 'Drawings', kind: 'new', text: 'On a tablet or phone: pinch with two fingers to zoom, move two fingers to pan; one finger or a stylus draws.' },
+    ],
+  },
+  {
     id: '2026-10-31c',
     date: '2026-10-31',
     title: 'Drawings: polylines, path lengths, more shapes, wrapping text',

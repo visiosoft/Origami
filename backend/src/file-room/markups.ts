@@ -52,8 +52,21 @@ export function cleanTarget(v: any): LinkTarget | null {
   return null;
 }
 
-/** What a link box says: "→ p. 5" or "→ Inspection card 3.pdf, p. 2". */
-export const linkLabel = (t?: LinkTarget | null) => !t ? 'Link' : t.type === 'page' ? `→ p. ${t.page}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+/** What a link box says: "→ A501" (the sheet, when named), "→ p. 5", or "→ Inspection card 3.pdf, p. 2". */
+export const linkLabel = (t?: LinkTarget | null, sheet?: (page: number) => string | undefined) =>
+  !t ? 'Link' : t.type === 'page' ? `→ ${sheet?.(t.page) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
+
+/** Sheet names as stored: page number → a short name (A100, E103.1), anything else dropped. */
+export function cleanSheetNames(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const page = Math.floor(Number(k));
+    const name = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 30);
+    if (page >= 1 && page <= 10000 && name) out[String(page)] = name;
+  }
+  return out;
+}
 
 export interface PinPhoto { fileId: string; name: string }
 export const MAX_PIN_PHOTOS = 30;
@@ -226,8 +239,8 @@ export function toPage(p: Pt, w: number, h: number, rotation: number): Pt {
 }
 
 /** Draw one markup onto a pdf-lib page. */
-function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
-  drawShape(page, font, kind, d);
+function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sheet?: (page: number) => string | undefined) {
+  drawShape(page, font, kind, d, sheet);
   if (d.note) {
     // The note sits just above the markup's top-left corner.
     const { width: w, height: h } = page.getSize();
@@ -238,7 +251,7 @@ function drawMarkup(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
   }
 }
 
-function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
+function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sheet?: (page: number) => string | undefined) {
   const { width: w, height: h } = page.getSize();
   const rot = page.getRotation().angle;
   const pts = d.points.map((p) => toPage(p, w, h, rot));
@@ -293,7 +306,7 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
   } else if (kind === 'link') {
     const [a, b] = [pts[0], pts[1]];
     page.drawSvgPath(poly([a, [b[0], a[1]], b, [a[0], b[1]]], true), { x: 0, y: h, borderColor: color, borderWidth: d.width, borderDashArray: [4, 3] });
-    label(linkLabel(d.target).slice(0, 80), [Math.min(a[0], b[0]), Math.min(a[1], b[1]) - 3], 9);
+    label(linkLabel(d.target, sheet).slice(0, 80), [Math.min(a[0], b[0]), Math.min(a[1], b[1]) - 3], 9);
   } else if (kind === 'stamp') {
     // Stroked into its box, each point placed like any other (so rotated pages are right).
     for (const line of stampStrokes(d.icon || 'check', d.points[0], d.points[1])) path(poly(line.map((p) => toPage(p, w, h, rot))));
@@ -314,7 +327,7 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
 export async function flattenPdf(
   pdf: Buffer | Uint8Array,
   markups: { page: number; kind: string; data: MarkupData }[],
-  opts: { fileUrl?: (fileId: string) => string } = {},
+  opts: { fileUrl?: (fileId: string) => string; sheetNames?: Record<string, string> | null } = {},
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.load(pdf, { ignoreEncryption: true });
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -322,7 +335,7 @@ export async function flattenPdf(
   for (const m of markups) {
     const page = pages[m.page - 1];
     if (!page) continue;
-    drawMarkup(page, font, m.kind, m.data);
+    drawMarkup(page, font, m.kind, m.data, (n) => opts.sheetNames?.[String(n)]);
     if (m.kind === 'link' && m.data.target) addLinkAnnotation(doc, page, pages, m.data, opts.fileUrl);
   }
   return doc.save();
