@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FILLABLE, dedupePoints, pathLengthPts, trianglePts, wrapLines } from './markup';
 import { areaPts, cloudPath, feetInches, lengthPts, measureLabel, parseLength, scaleFrom } from './markup';
 import { MAX_RENDER_PIXELS, capRenderScale, layerKey, layersOf, linkLabel, markupLink, nextSize, pasteCopy, overlayPixels, pickCompareDefault, textMatches } from './markup';
 
@@ -120,5 +121,23 @@ describe('pasteCopy', () => {
     expect(pasteCopy(m, 3).points).toEqual([[0.5, 0.995]]);
     expect(pasteCopy(m, 2).photos).toBeUndefined();
     expect(pasteCopy(m, 2).note).toBe('Crack');
+  });
+});
+
+describe('new shapes and wrapping (Oct 31)', () => {
+  it('adds up a path and labels it with the scale', () => {
+    expect(pathLengthPts([[0, 0], [0.5, 0], [0.5, 0.5]], 100, 100)).toBe(100);
+    expect(measureLabel('measure_path', [[0, 0], [0.5, 0], [0.5, 0.5]], 100, 100, { perPt: 0.1, unit: 'ft' })).toBe(measureLabel('measure_len', [[0, 0], [1, 0]], 100, 100, { perPt: 0.1, unit: 'ft' }));
+  });
+  it('puts a triangle in its box and drops double-click duplicates', () => {
+    expect(trianglePts([0.4, 0.2], [0.2, 0.6])).toEqual([[0.30000000000000004, 0.2], [0.4, 0.6], [0.2, 0.6]]);
+    expect(dedupePoints([[0, 0], [0.5, 0.5], [0.5001, 0.5], [0.5, 0.5]])).toEqual([[0, 0], [0.5, 0.5]]);
+    expect(FILLABLE).toContain('polygon');
+  });
+  it('wraps words to the width, and breaks a word too long for a line', () => {
+    const m = (s: string) => s.length; // one unit a letter
+    expect(wrapLines('the quick brown fox', 10, m)).toEqual(['the quick', 'brown fox']);
+    expect(wrapLines('one\ntwo three', 7, m)).toEqual(['one', 'two', 'three']);
+    expect(wrapLines('abcdefghij kl', 4, m)).toEqual(['abcd', 'efgh', 'ij', 'kl']);
   });
 });

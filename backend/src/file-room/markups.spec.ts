@@ -1,5 +1,5 @@
 import { PDFDocument, PDFName, degrees } from 'pdf-lib';
-import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, linkLabel, toPage, visibleTo } from './markups';
+import { canEditMarkup, cleanMarkup, cloudPath, flattenPdf, layerKey, linkLabel, toPage, trianglePts, visibleTo, wrapLines } from './markups';
 import { MarkupsService, PIN_PHOTO_FOLDER } from './markups.service';
 
 const twoPages = async (rotate = 0) => {
@@ -192,5 +192,25 @@ describe('MarkupsService', () => {
     expect(m.data.note).toBe('Patch drywall here');
     expect(m.data.color).toBe('#FFFFFF');
     expect(cleanMarkup({ kind: 'rect', page: 1, data: { points: [[0.1, 0.1], [0.2, 0.2]], note: '   ' } }).data.note).toBeUndefined();
+  });
+
+  it('takes the new shapes (Oct 31): polyline, path length, triangle, polyshape, fills and wrapping text', async () => {
+    expect(() => cleanMarkup({ kind: 'polygon', page: 1, data: { points: [[0, 0], [1, 1]] } })).toThrow(/no shape/);
+    const poly = cleanMarkup({ kind: 'polygon', page: 1, data: { points: [[0, 0], [1, 0], [1, 1]], fill: true } });
+    expect(poly.data.fill).toBe(true);
+    expect(cleanMarkup({ kind: 'line', page: 1, data: { points: [[0, 0], [1, 1]], fill: true } }).data.fill).toBeUndefined();
+    expect(cleanMarkup({ kind: 'text', page: 1, data: { points: [[0.1, 0.1]], text: 'Hi', boxW: 5 } }).data.boxW).toBe(1);
+    expect(trianglePts([0.4, 0.2], [0.2, 0.6])[1]).toEqual([0.4, 0.6]);
+    expect(wrapLines('the quick brown fox', 10, (s) => s.length)).toEqual(['the quick', 'brown fox']);
+    const { PDFDocument } = await import('pdf-lib');
+    const doc = await PDFDocument.create(); doc.addPage([600, 400]);
+    const out = await flattenPdf(await doc.save(), [
+      { page: 1, kind: 'polyline', data: { points: [[0.1, 0.1], [0.2, 0.3], [0.4, 0.2]], color: '#1D4ED8', width: 2 } },
+      { page: 1, kind: 'measure_path', data: { points: [[0.1, 0.5], [0.3, 0.5], [0.3, 0.7]], color: '#1D4ED8', width: 2, label: `20'-0"` } },
+      { page: 1, kind: 'triangle', data: { points: [[0.5, 0.1], [0.7, 0.3]], color: '#047857', width: 2, fill: true } },
+      { page: 1, kind: 'polygon', data: { points: [[0.6, 0.5], [0.8, 0.5], [0.7, 0.8]], color: '#7C3AED', width: 2, fill: true } },
+      { page: 1, kind: 'text', data: { points: [[0.1, 0.8]], color: '#111827', width: 1, size: 12, boxW: 0.2, text: 'A long note that has to wrap inside its box on the drawing' } },
+    ]);
+    expect(out.byteLength).toBeGreaterThan(1000);
   });
 });

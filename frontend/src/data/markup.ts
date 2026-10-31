@@ -3,7 +3,8 @@
  * (0-1 across the page as shown), so they hold at any zoom; widths and text
  * sizes are in PDF points. Mirrors backend/src/file-room/markups.ts.
  */
-export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link' | 'stamp';
+export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link' | 'stamp'
+  | 'polyline' | 'measure_path' | 'triangle' | 'polygon';
 export type Pt = [number, number];
 
 export interface MarkupData {
@@ -23,6 +24,10 @@ export interface MarkupData {
   icon?: string;
   /** A short note on any markup (Oct 31), shown as a small tag beside it. */
   note?: string;
+  /** Box, ellipse, triangle, polyshape: a see-through fill of its colour. */
+  fill?: boolean;
+  /** text: the box's width (share of the page's width); the text wraps inside it. Older text has none and runs on. */
+  boxW?: number;
 }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
@@ -49,7 +54,53 @@ export interface Markup {
 export const KIND_LABEL: Record<MarkupKind, string> = {
   pen: 'Pen', highlight: 'Highlight', text: 'Text', line: 'Line', arrow: 'Arrow', rect: 'Box', ellipse: 'Ellipse', cloud: 'Cloud',
   measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link', stamp: 'Stamp',
+  polyline: 'Polyline', measure_path: 'Path length', triangle: 'Triangle', polygon: 'Polyshape',
 };
+
+/** Shapes that can be filled (a see-through fill of their colour). */
+export const FILLABLE: MarkupKind[] = ['rect', 'ellipse', 'triangle', 'polygon'];
+/** Drawn by clicking points and double-clicking (or Enter) to finish. */
+export const MULTI_POINT: MarkupKind[] = ['measure_area', 'measure_path', 'polyline', 'polygon'];
+/** The fewest points each click-to-draw kind needs. */
+export const MIN_POINTS: Partial<Record<MarkupKind, number>> = { measure_area: 3, polygon: 3, measure_path: 2, polyline: 2 };
+
+/** A triangle in the box a-b: apex top-centre, base along the bottom. */
+export function trianglePts(a: Pt, b: Pt): Pt[] {
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  return [[(x0 + x1) / 2, y0], [x1, y1], [x0, y1]];
+}
+
+/** Clicked points without the near-duplicates a double-click leaves (within `eps`, page share). */
+export function dedupePoints(pts: Pt[], eps = 0.002): Pt[] {
+  return pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > eps);
+}
+
+/**
+ * Text wrapped to a width: each paragraph broken at spaces, a word longer than
+ * the line broken by letters. `measure` gives a string's width (same unit as maxW).
+ * Mirrors the server, which wraps the same way when drawing the PDF.
+ */
+export function wrapLines(text: string, maxW: number, measure: (s: string) => number): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    const words = para.split(/ +/);
+    let line = '';
+    for (let w of words) {
+      while (measure(w) > maxW && w.length > 1) {
+        // A long word: as many letters as fit, the rest on the next line.
+        if (line) { out.push(line); line = ''; }
+        let n = w.length - 1;
+        while (n > 1 && measure(w.slice(0, n)) > maxW) n--;
+        out.push(w.slice(0, n));
+        w = w.slice(n);
+      }
+      const next = line ? `${line} ${w}` : w;
+      if (line && measure(next) > maxW) { out.push(line); line = w; } else line = next;
+    }
+    out.push(line);
+  }
+  return out;
+}
 
 /** The key a layer is shown, hidden and downloaded by (same as the server's). */
 export const layerKey = (m: { layer?: string | null; authorId?: string | null; authorName?: string | null }) =>
@@ -126,6 +177,13 @@ export function arrowHead(a: Pt, b: Pt, size: number): [Pt, Pt] {
 /** A line's length in PDF points on a page of w x h points (as shown). */
 export const lengthPts = (a: Pt, b: Pt, w: number, h: number) => Math.hypot((b[0] - a[0]) * w, (b[1] - a[1]) * h);
 
+/** A path's total length in PDF points (each segment added up). */
+export function pathLengthPts(pts: Pt[], w: number, h: number) {
+  let s = 0;
+  for (let i = 1; i < pts.length; i++) s += lengthPts(pts[i - 1], pts[i], w, h);
+  return s;
+}
+
 /** A polygon's area in square PDF points. */
 export function areaPts(pts: Pt[], w: number, h: number) {
   let s = 0;
@@ -183,10 +241,10 @@ export function parseLength(raw: string, unit: 'ft' | 'm'): number | null {
 }
 
 /** The measured value's label for a length or area markup on a page with this scale. */
-export function measureLabel(kind: 'measure_len' | 'measure_area', pts: Pt[], w: number, h: number, scale: { perPt: number; unit: 'ft' | 'm' }) {
-  return kind === 'measure_len'
-    ? formatLength(lengthPts(pts[0], pts[1], w, h) * scale.perPt, scale.unit)
-    : formatArea(areaPts(pts, w, h) * scale.perPt * scale.perPt, scale.unit);
+export function measureLabel(kind: 'measure_len' | 'measure_area' | 'measure_path', pts: Pt[], w: number, h: number, scale: { perPt: number; unit: 'ft' | 'm' }) {
+  if (kind === 'measure_len') return formatLength(lengthPts(pts[0], pts[1], w, h) * scale.perPt, scale.unit);
+  if (kind === 'measure_path') return formatLength(pathLengthPts(pts, w, h) * scale.perPt, scale.unit);
+  return formatArea(areaPts(pts, w, h) * scale.perPt * scale.perPt, scale.unit);
 }
 
 /** Where a markup sits, as a box (0-1), for selection and hit-testing. */

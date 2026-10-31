@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31c',
+    date: '2026-10-31',
+    title: 'Drawings: polylines, path lengths, more shapes, wrapping text',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Measure a path: click each point and double-click to finish — the segments are added up into one length (set the page’s scale first).', where: 'File Room → Mark up → 〽' },
+      { area: 'Drawings', kind: 'new', text: 'Polyline: straight lines from point to point; double-click (or Enter) to finish.' },
+      { area: 'Drawings', kind: 'new', text: 'Triangle and polyshape join the box and circle. Tick Fill for a see-through fill of the colour, or select a shape and choose Fill it / Outline only.' },
+      { area: 'Drawings', kind: 'improved', text: 'Text wraps in a box. Select it and drag the blue handle on its right edge to make it wider or narrower; older text can be wrapped with “Wrap in a box”. The downloaded PDF wraps it the same way.' },
+    ],
+  },
+  {
     id: '2026-10-31b',
     date: '2026-10-31',
     title: 'Drawings: recolour, white, copy and paste, notes',

@@ -4,7 +4,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  MARKUP_LEADS, linkLabel, markupLink, overlayPixels, pasteCopy, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -32,16 +32,22 @@ const TOOLS: { key: Tool; label: string; icon: string; group: 'nav' | 'draw' | '
   { key: 'pin', label: 'Pin — a note and site photos on a spot', icon: '📌', group: 'draw' },
   { key: 'link', label: 'Link — a box that goes to another page or file', icon: '🔗', group: 'draw' },
   { key: 'line', label: 'Line', icon: '╱', group: 'draw' },
+  { key: 'polyline', label: 'Polyline — click each corner, double-click (or Enter) to finish', icon: '⌇', group: 'draw' },
   { key: 'arrow', label: 'Arrow', icon: '↗', group: 'draw' },
   { key: 'rect', label: 'Box', icon: '▭', group: 'draw' },
-  { key: 'ellipse', label: 'Ellipse', icon: '◯', group: 'draw' },
+  { key: 'ellipse', label: 'Circle / ellipse', icon: '◯', group: 'draw' },
+  { key: 'triangle', label: 'Triangle', icon: '△', group: 'draw' },
+  { key: 'polygon', label: 'Polyshape — click each corner, double-click (or Enter) to close it', icon: '⬡', group: 'draw' },
   { key: 'cloud', label: 'Revision cloud', icon: '☁', group: 'draw' },
   { key: 'stamp', label: 'Stamp — click to drop an icon, or drag to size it', icon: '✓', group: 'draw' },
   { key: 'scale', label: 'Set scale (draw over a known dimension)', icon: '⇔', group: 'measure' },
   { key: 'measure_len', label: 'Measure length', icon: '📏', group: 'measure' },
+  { key: 'measure_path', label: 'Measure a path — click each point, double-click to finish; the segments are added up', icon: '〽', group: 'measure' },
   { key: 'measure_area', label: 'Measure area (click points, double-click to finish)', icon: '⬠', group: 'measure' },
 ];
-const TWO_POINT: MarkupKind[] = ['line', 'arrow', 'rect', 'ellipse', 'cloud', 'scale', 'measure_len', 'link'];
+const TWO_POINT: MarkupKind[] = ['line', 'arrow', 'rect', 'ellipse', 'triangle', 'cloud', 'scale', 'measure_len', 'link'];
+/** New text boxes start this wide (share of the page); drag the box's edge to resize. */
+const TEXT_BOX_W = 0.25;
 /** A clicked (not dragged) stamp: this share of the page's width. */
 const STAMP_DEFAULT = 0.035;
 
@@ -112,6 +118,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const pickStamp = (k: string) => { setStampIcon(k); try { localStorage.setItem('origami.markup.stamp', k); } catch { /* private window */ } };
   const [textSize, setTextSize] = useState<number>(() => { try { return Number(localStorage.getItem('origami.markup.textSize')) || 12; } catch { return 12; } });
   const pickTextSize = (n: number) => { setTextSize(n); try { localStorage.setItem('origami.markup.textSize', String(n)); } catch { /* private window */ } };
+  /** Shapes drawn see-through filled (remembered per browser). */
+  const [fill, setFillState] = useState<boolean>(() => { try { return localStorage.getItem('origami.markup.fill') === '1'; } catch { return false; } });
+  const setFill = (v: boolean) => { setFillState(v); try { localStorage.setItem('origami.markup.fill', v ? '1' : '0'); } catch { /* private window */ } };
+  /** Where the pointer is while clicking out a polyline / path / polyshape (the rubber band). */
+  const [hoverPt, setHoverPt] = useState<Pt | null>(null);
+  /** Dragging a text box's edge to resize it. */
+  const resizing = useRef<{ id: string; x0: number; orig: number } | null>(null);
   // Searching the drawing's own text (and the markups' notes).
   const [search, setSearch] = useState<{ q: string; hits: Hit[]; at: number; busy: boolean; noText: boolean } | null>(null);
   const pageText = useRef(new Map<number, TextRun[]>());
@@ -345,7 +358,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'c' && selected) { e.preventDefault(); copyMarkup(selected); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'v' && clip.current && canDraw) { e.preventDefault(); void pasteMarkup(); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && selected && canDraw) { e.preventDefault(); copyMarkup(selected, true); void pasteMarkup(); }
-      if (e.key === 'Enter' && draft && tool === 'measure_area') finishArea();
+      if (e.key === 'Enter' && draft && MULTI_POINT.includes(tool as MarkupKind)) finishMulti();
       if (e.key === 'PageDown' || e.key === 'ArrowRight') setPageNo((p) => Math.min(doc?.numPages || 1, p + 1));
       if (e.key === 'PageUp' || e.key === 'ArrowLeft') setPageNo((p) => Math.max(1, p - 1));
     };
@@ -360,17 +373,35 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     if (!size) return null;
     const tol = 8 / (size.w * scale);
     for (const m of [...onPage].reverse()) {
-      const b = boundsOf(m, 120 / size.w, 16 / size.h);
+      const b = boxOf(m);
       if (p[0] >= b.x0 - tol && p[0] <= b.x1 + tol && p[1] >= b.y0 - tol && p[1] <= b.y1 + tol) return m;
     }
     return null;
   };
 
-  const finishArea = () => {
-    if (!draft || draft.length < 3 || !size) { setDraft(null); return; }
-    if (!pageScale) { toast('Set the scale on this page first (⇔), then measure.'); setDraft(null); return; }
-    void save('measure_area', { points: draft, color, width, label: measureLabel('measure_area', draft, size.w, size.h, pageScale) });
-    setDraft(null);
+  /** Finish a click-to-draw markup: area, path length, polyline or polyshape. */
+  const finishMulti = () => {
+    const kind = tool as MarkupKind;
+    const pts = draft ? dedupePoints(draft) : [];
+    setDraft(null); setHoverPt(null);
+    if (!size || pts.length < (MIN_POINTS[kind] || 2)) return;
+    const data: MarkupData = { points: pts, color, width };
+    if (kind === 'measure_area' || kind === 'measure_path') {
+      if (!pageScale) { toast('Set the scale on this page first (⇔), then measure.'); return; }
+      data.label = measureLabel(kind, pts, size.w, size.h, pageScale);
+    }
+    if (kind === 'polygon' && fill) data.fill = true;
+    void save(kind, data);
+  };
+
+  /** A text markup's box (0-1): wrapped to its width when it has one. */
+  const boxOf = (m: Markup) => {
+    if (!size) return boundsOf(m);
+    if (m.kind !== 'text' || !m.data.boxW) return boundsOf(m, 120 / size.w, 16 / size.h);
+    const fs = m.data.size || 12;
+    const lines = wrapLines(m.data.text || '', m.data.boxW * size.w, textWidth(fs));
+    const [x, y] = m.data.points[0];
+    return { x0: x, y0: y, x1: x + m.data.boxW, y1: y + (lines.length * fs * 1.2 + fs * 0.3) / size.h };
   };
 
   const onDown = (e: React.PointerEvent) => {
@@ -383,6 +414,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     if (tool === 'select') {
+      // The text box's right edge, when it's selected: drag it to resize.
+      if (selected?.kind === 'text' && selected.data.boxW && mine(selected) && selected.page === pageNo && size) {
+        const b = boxOf(selected);
+        if (Math.abs(p[0] - b.x1) < 8 / (size.w * scale) && p[1] >= b.y0 && p[1] <= b.y1) {
+          resizing.current = { id: selected.id, x0: b.x0, orig: selected.data.boxW };
+          (e.target as Element).setPointerCapture?.(e.pointerId);
+          return;
+        }
+      }
       const m = hit(p);
       // Someone else's link (or any link, for a viewer) goes where it points; your own is picked up to move.
       if (m?.kind === 'link' && !mine(m)) { follow(m); return; }
@@ -392,7 +432,11 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     }
     if (!canDraw) return;
     if (tool === 'text' || tool === 'pin') { setAsk(tool === 'pin' ? { kind: 'pin', at: p, value: '' } : { kind: 'text', at: p, value: '' }); return; }
-    if (tool === 'measure_area') { setDraft((d) => [...(d || []), p]); return; }
+    if (MULTI_POINT.includes(tool as MarkupKind)) {
+      if (tool === 'measure_path' && !pageScale) { toast('Set the scale on this page first (⇔): draw over a dimension you know.'); return; }
+      setDraft((d) => [...(d || []), p]);
+      return;
+    }
     if ((tool === 'measure_len') && !pageScale) { toast('Set the scale on this page first (⇔): draw over a dimension you know.'); return; }
     setDraft([p, p]);
     (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -406,13 +450,20 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       return;
     }
     const p = at(e);
+    if (resizing.current) {
+      const r = resizing.current;
+      const w = Math.max(0.03, Math.min(1 - r.x0, p[0] - r.x0));
+      setMarks((prev) => prev.map((m) => (m.id === r.id ? { ...m, data: { ...m.data, boxW: w } } : m)));
+      return;
+    }
     if (drag.current) {
       const d = drag.current;
       const dx = p[0] - d.from[0], dy = p[1] - d.from[1];
       setMarks((prev) => prev.map((m) => (m.id === d.id ? { ...m, data: { ...m.data, points: d.orig.map(([x, y]) => [x + dx, y + dy] as Pt) } } : m)));
       return;
     }
-    if (!draft || tool === 'measure_area') return;
+    if (MULTI_POINT.includes(tool as MarkupKind)) { if (draft) setHoverPt(p); return; }
+    if (!draft) return;
     if (tool === 'pen' || tool === 'highlight') {
       const last = draft[draft.length - 1];
       if (Math.hypot(p[0] - last[0], p[1] - last[1]) > 0.0015) setDraft([...draft, p]);
@@ -421,6 +472,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 
   const onUp = () => {
     if (pan.current) { pan.current = null; return; }
+    if (resizing.current) {
+      const r = resizing.current;
+      resizing.current = null;
+      const m = marks.find((x) => x.id === r.id);
+      if (m && m.data.boxW !== r.orig) void editMarkup({ ...m, data: { ...m.data, boxW: r.orig } }, { data: m.data });
+      return;
+    }
     if (drag.current) {
       const d = drag.current;
       drag.current = null;
@@ -429,7 +487,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (m && before && m.data.points.some((pt, i) => pt[0] !== d.orig[i][0] || pt[1] !== d.orig[i][1])) void editMarkup(before, { data: m.data });
       return;
     }
-    if (!draft || tool === 'measure_area' || !size) return;
+    if (!draft || MULTI_POINT.includes(tool as MarkupKind) || !size) return;
     const pts = draft;
     setDraft(null);
     const kind = tool as MarkupKind;
@@ -446,6 +504,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     if (kind === 'link') { setAsk({ kind: 'link', points: pts, to: 'page', page: String(Math.min(pageNo + 1, doc?.numPages || 1)), fileId: '', filePage: '', value: '' }); return; }
     const data: MarkupData = { points: pts, color: kind === 'highlight' && color === MARKUP_COLORS[0] ? '#FACC15' : color, width: kind === 'highlight' ? Math.max(8, width * 5) : width };
     if (kind === 'measure_len' && pageScale) data.label = measureLabel('measure_len', pts, size.w, size.h, pageScale);
+    if (FILLABLE.includes(kind) && fill) data.fill = true;
     void save(kind, data);
   };
 
@@ -453,7 +512,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const answer = async () => {
     if (!ask || !size) return;
     if (ask.kind === 'text') {
-      if (ask.value.trim()) await save('text', { points: [ask.at], color, width: 1, text: ask.value.trim(), size: textSize });
+      // New text wraps in a box (Oct 31); it can be dragged wider or narrower.
+      if (ask.value.trim()) await save('text', { points: [ask.at], color, width: 1, text: ask.value.trim(), size: textSize, boxW: Math.min(TEXT_BOX_W, 1 - ask.at[0]) });
     } else if (ask.kind === 'link') {
       let target: LinkTarget | null = null;
       if (ask.to === 'page') {
@@ -578,7 +638,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   // ---------------------------------------------------------------- closing
   /** Markups save as they're drawn; only a half-drawn area or a typed-in dialog would be lost. */
   const close = () => {
-    const unfinished = (draft && tool === 'measure_area' && draft.length > 0) || (ask && 'value' in ask && ask.value.trim());
+    const unfinished = (draft && MULTI_POINT.includes(tool as MarkupKind) && draft.length > 0) || (ask && 'value' in ask && ask.value.trim());
     if (unfinished && !window.confirm('Discard what you’re drawing?')) return;
     onClose();
   };
@@ -679,14 +739,25 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const render = (m: { kind: MarkupKind; data: MarkupData }, ghost = false) => (size ? shapeOf(m, size, scale, ghost) : null);
 
   const draftShape = draft && size ? (() => {
-    if (tool === 'measure_area') return <polyline points={draft.map((p) => [p[0] * size.w, p[1] * size.h].join(',')).join(' ')} fill="none" stroke={color} strokeWidth={width} strokeDasharray="5 4" />;
     const kind = tool as MarkupKind;
+    if (MULTI_POINT.includes(kind)) {
+      const pts = hoverPt ? [...draft, hoverPt] : draft;
+      const live = (kind === 'measure_path' || kind === 'measure_area') && pageScale && pts.length >= (MIN_POINTS[kind] || 2) ? measureLabel(kind, pts, size.w, size.h, pageScale) : '';
+      const last = pts[pts.length - 1];
+      return <g>
+        <polyline points={pts.map((p) => [p[0] * size.w, p[1] * size.h].join(',')).join(' ')} fill="none" stroke={color} strokeWidth={width} strokeDasharray={kind === 'polyline' || kind === 'polygon' ? undefined : '5 4'} opacity={0.8} />
+        {pts.map((p, i) => <circle key={i} cx={p[0] * size.w} cy={p[1] * size.h} r={2.5 / scale} fill={color} />)}
+        {live && <text x={last[0] * size.w + 6 / scale} y={last[1] * size.h - 6 / scale} fontSize={11 / scale} fill={color} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{live}</text>}
+      </g>;
+    }
     const data: MarkupData = { points: draft, color: kind === 'highlight' && color === MARKUP_COLORS[0] ? '#FACC15' : color, width: kind === 'highlight' ? Math.max(8, width * 5) : width };
     if (kind === 'measure_len' && pageScale) data.label = measureLabel('measure_len', draft, size.w, size.h, pageScale);
+    if (FILLABLE.includes(kind) && fill) data.fill = true;
     return render({ kind, data }, true);
   })() : null;
 
-  const selBox = selected && selected.page === pageNo && size ? boundsOf(selected, 120 / size.w, 16 / size.h) : null;
+  const selBox = selected && selected.page === pageNo && size ? boxOf(selected) : null;
+  const resizeHandle = selected && selBox && size && selected.kind === 'text' && selected.data.boxW && mine(selected) && tool === 'select';
   const cursor = tool === 'pan' || spaceDown ? (pan.current ? 'grabbing' : 'grab') : tool === 'select' ? 'default' : tool === 'text' ? 'text' : tool === 'pin' ? 'copy' : 'crosshair';
   const pages = doc?.numPages || 0;
   const listed = (listAll ? shownMarks : onPage).slice().sort((a, b) => a.page - b.page || a.createdAt.localeCompare(b.createdAt));
@@ -758,6 +829,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               {Object.entries(STAMPS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </>}
+          {canDraw && FILLABLE.includes(tool as MarkupKind) && <>
+            <i className="mk-sep" />
+            <label className="mk-private" title="See-through fill of the colour">
+              <input type="checkbox" checked={fill} onChange={(e) => setFill(e.target.checked)} /> Fill
+            </label>
+          </>}
           {canDraw && tool === 'text' && <>
             <i className="mk-sep" />
             <select aria-label="Text size (points)" title="Text size (points)" value={textSize} onChange={(e) => pickTextSize(Number(e.target.value))}>
@@ -823,11 +900,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             {size && (
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                onDoubleClick={(e) => { if (tool === 'measure_area') { finishArea(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
+                onDoubleClick={(e) => { if (MULTI_POINT.includes(tool as MarkupKind)) { finishMulti(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
                 {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} /></g>)}
                 {draftShape}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
                 {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
+                {resizeHandle && <rect className="mk-resize" x={selBox.x1 * size.w - 4 / scale} y={((selBox.y0 + selBox.y1) / 2) * size.h - 10 / scale} width={8 / scale} height={20 / scale} rx={2 / scale}><title>Drag to make the text box wider or narrower</title></rect>}
               </svg>
             )}
           </div>
@@ -908,6 +986,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
                       <span>{selected.data.size || 12} pt</span>
                       <button type="button" className="mk-btn" aria-label="Larger text" title="Larger" disabled={(selected.data.size || 12) >= TEXT_SIZES[TEXT_SIZES.length - 1]} onClick={() => void editMarkup(selected, { data: { ...selected.data, size: nextSize(selected.data.size || 12, 1) } })}>A+</button>
                     </span>}
+                    {FILLABLE.includes(selected.kind) && <button type="button" className="mk-btn is-text" onClick={() => { const data: MarkupData = { ...selected.data, fill: !selected.data.fill }; if (!data.fill) delete data.fill; void editMarkup(selected, { data }); }}>{selected.data.fill ? 'Outline only' : 'Fill it'}</button>}
+                    {selected.kind === 'text' && !selected.data.boxW && <button type="button" className="mk-btn is-text" title="Wrap the text in a box you can resize" onClick={() => void editMarkup(selected, { data: { ...selected.data, boxW: Math.min(TEXT_BOX_W, 1 - selected.data.points[0][0]) } })}>Wrap in a box</button>}
                     {selected.kind === 'pin' && <button type="button" className="mk-btn is-text" onClick={() => { const t = window.prompt('The pin’s note', selected.data.text || ''); if (t !== null) { const data: MarkupData = { ...selected.data, text: t.trim() }; if (!data.text) delete data.text; void editMarkup(selected, { data }); } }}>{selected.data.text ? 'Edit note' : 'Add note'}</button>}
                     <button type="button" className="mk-btn is-text" onClick={() => void editMarkup(selected, { private: !selected.private })}>{selected.private ? 'Share with the team' : 'Make private'}</button>
                     <button type="button" className="mk-btn is-text is-danger" onClick={() => void removeMarkup(selected)}>Delete</button>
@@ -1059,6 +1139,17 @@ function PinPhotos({ markup, canAdd, busy, onAdd, onRemove, onOpen }: {
   );
 }
 
+/** A string's width in page points at a font size, measured like the PDF's Helvetica (near enough for wrapping). */
+let measureCtx: CanvasRenderingContext2D | null = null;
+function textWidth(fs: number) {
+  measureCtx ??= document.createElement('canvas').getContext('2d');
+  return (s: string) => {
+    if (!measureCtx) return s.length * fs * 0.5;
+    measureCtx.font = `${fs}px Helvetica, Arial, sans-serif`;
+    return measureCtx.measureText(s).width;
+  };
+}
+
 /** How one markup looks, in page points (size = the page as shown, in points). */
 function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false) {
   const shape = bareShape(m, size, scale, ghost);
@@ -1077,11 +1168,19 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
   const sw = m.data.width;
   const common = { fill: 'none', stroke, strokeWidth: sw, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, opacity: ghost ? 0.7 : 1 };
   const poly = (list: Pt[]) => list.map((p) => p.join(',')).join(' ');
+  const filled = m.data.fill ? { fill: stroke, fillOpacity: 0.25 } : {};
   const tag = (text: string, p: Pt, color = stroke) => (
     <text x={p[0] + 4} y={p[1] - 4} fontSize={11} fill={color} stroke="#fff" strokeWidth={3} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{text}</text>
   );
   switch (m.kind) {
-    case 'pen': return <polyline points={poly(pts)} {...common} />;
+    case 'pen': case 'polyline': return <polyline points={poly(pts)} {...common} />;
+    case 'measure_path': {
+      const n = pts.length - 1;
+      const mid: Pt = [(pts[n - 1][0] + pts[n][0]) / 2, (pts[n - 1][1] + pts[n][1]) / 2];
+      return <g><polyline points={poly(pts)} {...common} />{pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={2.5} fill={stroke} />)}{m.data.label && tag(m.data.label, mid)}</g>;
+    }
+    case 'triangle': return <polygon points={poly(trianglePts(m.data.points[0], m.data.points[1] || m.data.points[0]).map(P))} {...common} {...filled} />;
+    case 'polygon': return <polygon points={poly(pts)} {...common} {...filled} />;
     case 'highlight': return <polyline points={poly(pts)} {...common} opacity={0.35} strokeLinecap="butt" />;
     case 'line': return <line x1={pts[0][0]} y1={pts[0][1]} x2={pts[1][0]} y2={pts[1][1]} {...common} />;
     case 'arrow': {
@@ -1093,8 +1192,8 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
       const lines = stampStrokes(m.data.icon || 'check', m.data.points[0], m.data.points[1] || m.data.points[0]);
       return <g {...common} strokeWidth={Math.max(1.5, sw)}>{lines.map((l, i) => <polyline key={i} points={poly(l.map(P))} />)}</g>;
     }
-    case 'rect': return <rect x={Math.min(pts[0][0], pts[1][0])} y={Math.min(pts[0][1], pts[1][1])} width={Math.abs(pts[1][0] - pts[0][0])} height={Math.abs(pts[1][1] - pts[0][1])} {...common} />;
-    case 'ellipse': return <ellipse cx={(pts[0][0] + pts[1][0]) / 2} cy={(pts[0][1] + pts[1][1]) / 2} rx={Math.abs(pts[1][0] - pts[0][0]) / 2} ry={Math.abs(pts[1][1] - pts[0][1]) / 2} {...common} />;
+    case 'rect': return <rect x={Math.min(pts[0][0], pts[1][0])} y={Math.min(pts[0][1], pts[1][1])} width={Math.abs(pts[1][0] - pts[0][0])} height={Math.abs(pts[1][1] - pts[0][1])} {...common} {...filled} />;
+    case 'ellipse': return <ellipse cx={(pts[0][0] + pts[1][0]) / 2} cy={(pts[0][1] + pts[1][1]) / 2} rx={Math.abs(pts[1][0] - pts[0][0]) / 2} ry={Math.abs(pts[1][1] - pts[0][1]) / 2} {...common} {...filled} />;
     case 'cloud': return <path d={cloudPath(pts[0], pts[1], Math.max(10, Math.min(size.w, size.h) / 60))} {...common} />;
     case 'scale': case 'measure_len': {
       const mid: Pt = [(pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2];
@@ -1126,8 +1225,10 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
     }
     case 'text': {
       const fs = m.data.size || 12;
+      // A sized box wraps its text (Oct 31), the same way the downloaded PDF does.
+      const lines = m.data.boxW ? wrapLines(m.data.text || '', m.data.boxW * size.w, textWidth(fs)) : (m.data.text || '').split('\n');
       return <text x={pts[0][0]} y={pts[0][1] + fs} fontSize={fs} fill={stroke} fontFamily="Helvetica, Arial, sans-serif" style={{ whiteSpace: 'pre' }}>
-        {(m.data.text || '').split('\n').map((line, i) => <tspan key={i} x={pts[0][0]} dy={i ? fs * 1.2 : 0}>{line}</tspan>)}
+        {lines.map((line, i) => <tspan key={i} x={pts[0][0]} dy={i ? fs * 1.2 : 0}>{line}</tspan>)}
       </text>;
     }
   }

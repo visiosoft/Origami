@@ -6,7 +6,10 @@ import { STAMP_KEYS, stampStrokes } from './stamps';
  * a PDF. Points are page-relative (0-1) on the page as it's shown (after the
  * page's own rotation); widths and text sizes are in PDF points.
  */
-export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin', 'link', 'stamp'] as const;
+export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin', 'link', 'stamp',
+  'polyline', 'measure_path', 'triangle', 'polygon'] as const;
+/** Shapes that can carry a see-through fill (Oct 31). */
+export const FILLABLE = ['rect', 'ellipse', 'triangle', 'polygon'];
 export type MarkupKind = (typeof MARKUP_KINDS)[number];
 export type Pt = [number, number];
 
@@ -28,6 +31,10 @@ export interface MarkupData {
   icon?: string;
   /** A short note on any markup (Oct 31), shown as a small tag beside it. */
   note?: string;
+  /** Box, ellipse, triangle, polyshape: a see-through fill of its colour. */
+  fill?: boolean;
+  /** text: the box's width (share of the page's width); the text wraps inside it. */
+  boxW?: number;
 }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
@@ -86,7 +93,7 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   const points: Pt[] = (Array.isArray(d.points) ? d.points : []).slice(0, MAX_POINTS)
     .filter((p: any) => Array.isArray(p) && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
     .map((p: any) => [clamp01(Number(p[0])), clamp01(Number(p[1]))] as Pt);
-  const need = kind === 'text' || kind === 'pin' ? 1 : kind === 'measure_area' ? 3 : 2;
+  const need = kind === 'text' || kind === 'pin' ? 1 : kind === 'measure_area' || kind === 'polygon' ? 3 : 2;
   if (points.length < need) throw new Error('The markup has no shape.');
   const data: MarkupData = {
     points,
@@ -97,6 +104,8 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
   if (kind === 'text' && !data.text?.trim()) throw new Error('Type some text.');
   if (d.size !== undefined) data.size = Math.min(72, Math.max(6, Number(d.size) || 12));
   if (typeof d.label === 'string') data.label = d.label.slice(0, 60);
+  if (FILLABLE.includes(kind) && d.fill === true) data.fill = true;
+  if (kind === 'text' && Number(d.boxW) > 0) data.boxW = Math.min(1, Math.max(0.02, Number(d.boxW)));
   if (typeof d.note === 'string' && d.note.trim()) data.note = d.note.replace(/\s+/g, ' ').trim().slice(0, 120);
   if (kind === 'scale') {
     const real = Number(d.real);
@@ -156,6 +165,34 @@ export function cloudPath(a: Pt, b: Pt, scallop: number): string {
   return d + ' Z';
 }
 
+/** A triangle in the box a-b: apex top-centre, base along the bottom (same as the viewer). */
+export function trianglePts(a: Pt, b: Pt): Pt[] {
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  return [[(x0 + x1) / 2, y0], [x1, y1], [x0, y1]];
+}
+
+/** Text wrapped to a width, word by word (a too-long word by letters). Mirrors frontend data/markup.ts. */
+export function wrapLines(text: string, maxW: number, measure: (s: string) => number): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    const words = para.split(/ +/);
+    let line = '';
+    for (let w of words) {
+      while (measure(w) > maxW && w.length > 1) {
+        if (line) { out.push(line); line = ''; }
+        let n = w.length - 1;
+        while (n > 1 && measure(w.slice(0, n)) > maxW) n--;
+        out.push(w.slice(0, n));
+        w = w.slice(n);
+      }
+      const next = line ? `${line} ${w}` : w;
+      if (line && measure(next) > maxW) { out.push(line); line = w; } else line = next;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 /** Two short strokes at the tip of an arrow from a to b. */
 export function arrowHead(a: Pt, b: Pt, size: number): [Pt, Pt] {
   const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
@@ -206,9 +243,9 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
   const rot = page.getRotation().angle;
   const pts = d.points.map((p) => toPage(p, w, h, rot));
   const color = colorOf(d.color);
-  const path = (dStr: string, opts: { fill?: boolean; opacity?: number } = {}) => page.drawSvgPath(dStr, {
+  const path = (dStr: string, opts: { fill?: boolean; opacity?: number; fillOpacity?: number } = {}) => page.drawSvgPath(dStr, {
     x: 0, y: h, borderColor: color, borderWidth: d.width, borderOpacity: opts.opacity ?? 1,
-    ...(opts.fill ? { color, opacity: opts.opacity ?? 0.15 } : {}),
+    ...(opts.fill ? { color, opacity: opts.fillOpacity ?? opts.opacity ?? 0.15 } : {}),
   });
   const poly = (list: Pt[], close = false) => 'M ' + list.map((p) => `${p[0]} ${p[1]}`).join(' L ') + (close ? ' Z' : '');
   const label = (text: string, at: Pt, size = d.size || 11) => {
@@ -216,7 +253,17 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
     page.drawText(latin1(text), { x: at[0], y: h - at[1], size, font, color, rotate: degrees(rot) });
   };
 
-  if (kind === 'pen') path(poly(pts));
+  const fillIt = d.fill === true;
+  if (kind === 'pen' || kind === 'polyline') path(poly(pts));
+  else if (kind === 'measure_path') {
+    path(poly(pts));
+    const last = pts.length - 1;
+    if (d.label) label(d.label, [(pts[last - 1][0] + pts[last][0]) / 2 + 4, (pts[last - 1][1] + pts[last][1]) / 2 - 4]);
+  } else if (kind === 'triangle') {
+    path(poly(trianglePts(d.points[0], d.points[1]).map((p) => toPage(p, w, h, rot)), true), { fill: fillIt, fillOpacity: 0.25 });
+  } else if (kind === 'polygon') {
+    path(poly(pts, true), { fill: fillIt, fillOpacity: 0.25 });
+  }
   else if (kind === 'highlight') path(poly(pts), { opacity: 0.35 });
   else if (kind === 'line' || kind === 'measure_len' || kind === 'scale') {
     path(poly(pts.slice(0, 2)));
@@ -226,10 +273,10 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
     const [l, r] = arrowHead(a, b, Math.max(8, d.width * 4));
     path(`${poly([a, b])} M ${l[0]} ${l[1]} L ${b[0]} ${b[1]} L ${r[0]} ${r[1]}`);
   } else if (kind === 'rect') {
-    path(poly([pts[0], [pts[1][0], pts[0][1]], pts[1], [pts[0][0], pts[1][1]]], true));
+    path(poly([pts[0], [pts[1][0], pts[0][1]], pts[1], [pts[0][0], pts[1][1]]], true), { fill: fillIt, fillOpacity: 0.25 });
   } else if (kind === 'ellipse') {
     const [a, b] = [pts[0], pts[1]];
-    page.drawEllipse({ x: (a[0] + b[0]) / 2, y: h - (a[1] + b[1]) / 2, xScale: Math.abs(b[0] - a[0]) / 2, yScale: Math.abs(b[1] - a[1]) / 2, borderColor: color, borderWidth: d.width });
+    page.drawEllipse({ x: (a[0] + b[0]) / 2, y: h - (a[1] + b[1]) / 2, xScale: Math.abs(b[0] - a[0]) / 2, yScale: Math.abs(b[1] - a[1]) / 2, borderColor: color, borderWidth: d.width, ...(fillIt ? { color, opacity: 0.25 } : {}) });
   } else if (kind === 'cloud') {
     path(cloudPath(pts[0], pts[1], Math.max(10, Math.min(w, h) / 60)));
   } else if (kind === 'measure_area') {
@@ -252,7 +299,10 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData) {
     for (const line of stampStrokes(d.icon || 'check', d.points[0], d.points[1])) path(poly(line.map((p) => toPage(p, w, h, rot))));
   } else if (kind === 'text') {
     const size = d.size || 12;
-    (d.text || '').split('\n').forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * (i + 1)], size));
+    // A sized box wraps its text (Oct 31); older text runs on, line by line as typed.
+    const pageW = rot % 180 ? h : w;
+    const lines = d.boxW ? wrapLines(latin1(d.text || ''), d.boxW * pageW, (s) => font.widthOfTextAtSize(s, size)) : (d.text || '').split('\n');
+    lines.forEach((line, i) => label(line, [pts[0][0], pts[0][1] + size * 1.2 * i + size], size));
   }
 }
 

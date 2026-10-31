@@ -125,11 +125,11 @@ Status: ✅ done · 🟡 partly built · ⬜ new · ❓ needs an answer first.
 |---|---|---|---|---|
 | F1 | Change a markup's colour after it's drawn | Colour is picked before drawing only | Colour swatches in the selected markup's panel (author or admin) | ✅ |
 | F2 | White, to cover black lines | 7 colours, no white | Add white to the palette (shows with a grey outline so it's visible) | ✅ |
-| F3 | Text box that can be resized, text wraps | Text is one line that runs across the page | Text gets a width: drag the box's side handle to resize, the text wraps; saved and drawn the same in the PDF | ⬜ |
+| F3 | Text box that can be resized, text wraps | Text is one line that runs across the page | Text gets a width: drag the box's side handle to resize, the text wraps; saved and drawn the same in the PDF | ✅ |
 | F4 | Copy / paste to duplicate with the select tool | None | Ctrl/⌘+C / V (and a Duplicate button) on the selected markup; pasted slightly offset, then drag it | ✅ |
-| F5 | Polyline measure: segments totalled in one measurement | Length is one segment; area is a polygon | "Measure path": click points, double-click to finish, one total (each segment shown on hover) | ⬜ |
-| F6 | Multi-line with straight segments (not measuring) | Pen is freehand; line is one segment | "Polyline" tool: click points, double-click to finish | ⬜ |
-| F7 | Shapes: triangle, square, circle, polyshape, each outline or with a see-through fill | Box, ellipse, cloud — outline only | Add triangle and polyshape; a Fill toggle (25% of the colour) for box, ellipse, triangle, polyshape | ⬜ |
+| F5 | Polyline measure: segments totalled in one measurement | Length is one segment; area is a polygon | "Measure path": click points, double-click to finish, one total (each segment shown on hover) | ✅ |
+| F6 | Multi-line with straight segments (not measuring) | Pen is freehand; line is one segment | "Polyline" tool: click points, double-click to finish | ✅ |
+| F7 | Shapes: triangle, square, circle, polyshape, each outline or with a see-through fill | Box, ellipse, cloud — outline only | Add triangle and polyshape; a Fill toggle (25% of the colour) for box, ellipse, triangle, polyshape | ✅ |
 | F8 | Markup labels | Each markup shows its kind (e.g. "Cloud — Andrea") | A short note on any markup, shown as a small tag beside it, in the list and in the PDF; searchable | ✅ |
 | F9 | Upload symbols to drop like a pin, with a hover label | 7 built-in stamp icons | A symbol library (PNG/SVG) per company; Symbol tool drops one; its name shows on hover and in the list | ⬜ answer: admins add them to one shared library |
 | F10 | Name pages by sheet title (A100, E103) | "Page 1, 2, 3" | Read the sheet number from the page text (title block, bottom-right), let it be corrected; used in the page picker, links, search, list | ⬜ |
