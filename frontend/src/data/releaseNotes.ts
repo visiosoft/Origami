@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31e',
+    date: '2026-10-31',
+    title: 'Mark up photos',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'Photos (JPG, PNG) can be marked up with the same tools as drawings — open a photo in the File Room and choose ✎ Mark up, or open a pin’s photo and choose “Mark up this photo”. Download marked-up PDF gives the photo with its markups.', where: 'File Room → a photo → ✎ Mark up' },
+    ],
+  },
+  {
     id: '2026-10-31d',
     date: '2026-10-31',
     title: 'Drawings: sheet names and touch gestures',

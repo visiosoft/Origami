@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { FileRoomFileEntity, PdfMarkupEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
-import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, leadsMarkups, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
+import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
 export const PIN_PHOTO_FOLDER = ['Markup photos'];
@@ -54,7 +54,7 @@ export class MarkupsService {
   async create(fileId: string, raw: unknown, claims: SessionClaims | null) {
     this.assertCanDraw(claims);
     const f = await this.file(fileId);
-    if (!/\.pdf$/i.test(f.name) && f.mimeType !== 'application/pdf') throw new BadRequestException('Only PDFs can be marked up.');
+    if (!isMarkable(f)) throw new BadRequestException('Only PDFs and photos (JPG, PNG) can be marked up.');
     let clean;
     try { clean = cleanMarkup(raw); } catch (e) { throw new BadRequestException((e as Error).message); }
     await this.assertLinkTarget(f, clean.data);
@@ -166,7 +166,11 @@ export class MarkupsService {
   async flatten(fileId: string, claims: SessionClaims | null, authors?: string[], layers?: string[]) {
     const marks = this.pick(await this.list(fileId, claims), authors, layers);
     const { file, body } = await this.fileRoom.content(fileId);
-    const buf = Buffer.from(await new Response(body as any).arrayBuffer());
+    let buf: Uint8Array = Buffer.from(await new Response(body as any).arrayBuffer());
+    // A photo becomes a one-page PDF first, so its markups draw in the same way.
+    if (isPhotoName(file)) {
+      try { buf = await photoToPdf(buf, file.name); } catch (e) { throw new BadRequestException((e as Error).message); }
+    }
     const base = (await this.settings?.baseUrl().catch(() => '')) || '';
     const pdf = await flattenPdf(buf, marks.map((m) => ({ page: m.page, kind: m.kind, data: m.data as unknown as MarkupData })), {
       fileUrl: base ? (id) => `${base}/planroom?file=${encodeURIComponent(id)}` : undefined,
@@ -196,7 +200,7 @@ export class MarkupsService {
     this.assertCanDraw(claims);
     const { file, pdf, count } = await this.flatten(fileId, claims, authors, layers);
     if (!count) throw new BadRequestException('There are no markups to save.');
-    const base = file.name.replace(/\.pdf$/i, '');
+    const base = file.name.replace(/\.(pdf|jpe?g|png|webp|gif)$/i, '');
     const name = `${base} — markup ${new Date().toISOString().slice(0, 10)}.pdf`;
     const [saved] = await this.fileRoom.upload(Number(file.projectId), file.folderPath || [], [{ originalname: name, mimetype: 'application/pdf', size: pdf.length, buffer: pdf }], { name: claims!.name, id: claims!.sub });
     return saved;

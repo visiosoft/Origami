@@ -1,5 +1,5 @@
 import { PDFDocument, PDFName, degrees } from 'pdf-lib';
-import { canEditMarkup, cleanMarkup, cleanSheetNames, cloudPath, flattenPdf, layerKey, linkLabel, toPage, trianglePts, visibleTo, wrapLines } from './markups';
+import { canEditMarkup, cleanMarkup, cleanSheetNames, isMarkable, photoPageSize, photoToPdf, cloudPath, flattenPdf, layerKey, linkLabel, toPage, trianglePts, visibleTo, wrapLines } from './markups';
 import { MarkupsService, PIN_PHOTO_FOLDER } from './markups.service';
 
 const twoPages = async (rotate = 0) => {
@@ -224,5 +224,17 @@ describe('MarkupsService', () => {
     expect(await svc.setSheetNames('F1', { names: { 1: 'A100', 2: 'A101' } }, an)).toEqual({ 1: 'A100', 2: 'A101' });
     expect(await svc.setSheetNames('F1', { names: { 2: 'A102', 1: '' } }, an)).toEqual({ 2: 'A102' });
     expect(await svc.sheetNames('F1')).toEqual({ 2: 'A102' });
+  });
+
+  it('marks up photos too (Oct 31): JPG and PNG become a one-page PDF sized like the viewer', async () => {
+    expect(isMarkable({ name: 'site.JPG' })).toBe(true);
+    expect(isMarkable({ name: 'x.docx' })).toBe(false);
+    expect(photoPageSize(4000, 3000)).toEqual([1200, 900]);
+    const { PDFDocument } = await import('pdf-lib');
+    // A 1x1 PNG.
+    const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
+    const pdf = await PDFDocument.load(await photoToPdf(png, 'a.png'));
+    expect(pdf.getPage(0).getSize()).toEqual({ width: 1200, height: 1200 });
+    await expect(photoToPdf(new Uint8Array([1, 2, 3]), 'b.gif')).rejects.toThrow(/JPG and PNG/);
   });
 });

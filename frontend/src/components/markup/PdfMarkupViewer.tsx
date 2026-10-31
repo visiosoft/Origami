@@ -4,7 +4,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -53,6 +53,28 @@ const STAMP_DEFAULT = 0.035;
 
 export interface LinkableFile { id: string; name: string; mimeType?: string; folderPath?: string[] }
 const isPdfFile = (f: { name: string; mimeType?: string }) => /\.pdf$/i.test(f.name) || f.mimeType === 'application/pdf';
+/** What opens in the viewer: a PDF or a photo. */
+const isMarkableFile = (f: { name: string; mimeType?: string }) => isPdfFile(f) || isPhotoFile(f);
+
+/**
+ * A photo as a one-page "document" with the bits of pdf.js the viewer uses
+ * (Oct 31): its long side is PHOTO_LONG_SIDE points, it draws itself scaled,
+ * and it has no text.
+ */
+async function photoDoc(bytes: ArrayBuffer): Promise<PdfDoc & { destroy: () => Promise<void> }> {
+  const bmp = await createImageBitmap(new Blob([bytes]));
+  const k = PHOTO_LONG_SIDE / Math.max(bmp.width, bmp.height, 1);
+  const W = bmp.width * k, H = bmp.height * k;
+  const page = {
+    getViewport: ({ scale }: { scale: number }) => ({ width: W * scale, height: H * scale, convertToViewportPoint: (x: number, y: number) => [x * scale, (H - y) * scale] }),
+    render: ({ canvasContext, viewport }: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => {
+      canvasContext.drawImage(bmp, 0, 0, viewport.width, viewport.height);
+      return { promise: Promise.resolve(), cancel: () => undefined };
+    },
+    getTextContent: async () => ({ items: [] }),
+  };
+  return { numPages: 1, getPage: async () => page, destroy: async () => bmp.close() };
+}
 
 type Hit = { page: number; box: { x0: number; y0: number; x1: number; y1: number }; context: string; markupId?: string };
 
@@ -109,7 +131,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const [privateDraft, setPrivateDraft] = useState(false);
   /** The named layer new markups go on ('' = your own layer). */
   const [layer, setLayer] = useState('');
-  const [photoView, setPhotoView] = useState<{ url: string; name: string } | null>(null);
+  const [photoView, setPhotoView] = useState<{ url: string; name: string; fileId?: string } | null>(null);
   const [draft, setDraft] = useState<Pt[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(focusMarkupId || null);
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -160,9 +182,13 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     api.fileRoom.sheets(file.id).then((n) => { if (live) { setSheets(n || {}); setSheetsLoaded(true); } }).catch(() => { if (live) { setSheets({}); setSheetsLoaded(true); } });
     Promise.all([loadPdfjs(), api.fileRoom.bytes(file.id), api.fileRoom.markups(file.id)])
       .then(async ([lib, bytes, list]) => {
-        const task = lib.getDocument({ data: new Uint8Array(bytes) });
-        loading = task;
-        const d = await task.promise;
+        let d: PdfDoc;
+        if (isPhotoFile(file)) { const ph = await photoDoc(bytes); loading = ph; d = ph; }
+        else {
+          const task = lib.getDocument({ data: new Uint8Array(bytes) });
+          loading = task;
+          d = await task.promise;
+        }
         if (!live) return;
         setDoc(d);
         setMarks(list);
@@ -685,7 +711,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     }
     const f = (projectFiles || []).find((x) => x.id === t.fileId);
     if (projectFiles && !f) { toast('That file is no longer in the File Room.'); return; }
-    if (isPdfFile(f || { name: t.name }) && onOpenFile) onOpenFile(t.fileId, t.page, pageNo);
+    if (isMarkableFile(f || { name: t.name }) && onOpenFile) onOpenFile(t.fileId, t.page, pageNo);
     else window.open(api.fileRoom.previewUrl(t.fileId), '_blank', 'noopener');
   };
   const goBack = () => { const tr = [...pageTrail]; const p = tr.pop(); setPageTrail(tr); if (p) setPageNo(p); };
@@ -1096,6 +1122,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       {photoView && (
         <div className="mk-photo-bg" onClick={() => setPhotoView(null)} role="dialog" aria-label={photoView.name}>
           <img src={photoView.url} alt={photoView.name} />
+          {photoView.fileId && onOpenFile && canDraw && <button type="button" className="mk-btn is-text is-dark mk-photo-markup" onClick={(e) => { e.stopPropagation(); const id = photoView.fileId!; setPhotoView(null); onOpenFile(id, 1, pageNo); }}>✎ Mark up this photo</button>}
           <button type="button" className="mk-btn" onClick={() => setPhotoView(null)} aria-label="Close the photo">✕</button>
         </div>
       )}
@@ -1172,7 +1199,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
 /** A pin's photos: thumbnails (loaded signed in), add from the camera or files, open full size. */
 function PinPhotos({ markup, canAdd, busy, onAdd, onRemove, onOpen }: {
   markup: Markup; canAdd: boolean; busy: boolean;
-  onAdd: (files: FileList | null) => void; onRemove?: (fileId: string) => void; onOpen: (p: { url: string; name: string }) => void;
+  onAdd: (files: FileList | null) => void; onRemove?: (fileId: string) => void; onOpen: (p: { url: string; name: string; fileId?: string }) => void;
 }) {
   const photos = markup.data.photos || [];
   const [urls, setUrls] = useState<Record<string, string>>({});
@@ -1196,7 +1223,7 @@ function PinPhotos({ markup, canAdd, busy, onAdd, onRemove, onOpen }: {
         <div className="mk-photo-grid">
           {photos.map((p) => (
             <figure key={p.fileId}>
-              <button type="button" onClick={() => urls[p.fileId] && onOpen({ url: urls[p.fileId], name: p.name })} title={p.name} aria-label={`Open ${p.name}`}>
+              <button type="button" onClick={() => urls[p.fileId] && onOpen({ url: urls[p.fileId], name: p.name, fileId: p.fileId })} title={p.name} aria-label={`Open ${p.name}`}>
                 {urls[p.fileId] ? <img src={urls[p.fileId]} alt={p.name} /> : <span>…</span>}
               </button>
               {onRemove && <button type="button" className="mk-photo-x" onClick={() => onRemove(p.fileId)} aria-label={`Take ${p.name} off the pin`}>✕</button>}

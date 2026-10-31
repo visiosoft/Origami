@@ -319,6 +319,30 @@ function drawShape(page: PDFPage, font: PDFFont, kind: string, d: MarkupData, sh
   }
 }
 
+/** What can be marked up (Oct 31): PDFs, and photos (JPG / PNG, plus WebP / GIF on screen). */
+export const isPdfName = (f: { name?: string; mimeType?: string | null }) => /\.pdf$/i.test(f.name || '') || f.mimeType === 'application/pdf';
+export const isPhotoName = (f: { name?: string; mimeType?: string | null }) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || '') || /^image\/(jpeg|png|webp|gif)$/.test(f.mimeType || '');
+export const isMarkable = (f: { name?: string; mimeType?: string | null }) => isPdfName(f) || isPhotoName(f);
+
+/** A photo's page size: its long side is this many points, so text and line widths read the same as on a drawing (the viewer does the same). */
+export const PHOTO_LONG_SIDE = 1200;
+export function photoPageSize(wPx: number, hPx: number): [number, number] {
+  const k = PHOTO_LONG_SIDE / Math.max(wPx, hPx, 1);
+  return [wPx * k, hPx * k];
+}
+
+/** A one-page PDF of a JPG or PNG photo, sized like the viewer shows it, for drawing markups into. */
+export async function photoToPdf(bytes: Uint8Array, name: string): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const isPng = bytes[0] === 0x89 && bytes[1] === 0x50;
+  const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8;
+  if (!isPng && !isJpg) throw new Error(`Downloading a marked-up photo works for JPG and PNG photos; ${name} is another kind.`);
+  const img = isPng ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+  const [w, h] = photoPageSize(img.width, img.height);
+  doc.addPage([w, h]).drawImage(img, { x: 0, y: 0, width: w, height: h });
+  return doc.save();
+}
+
 /**
  * The PDF with these markups drawn in (each on its own page). Link boxes
  * also become clickable: a page link jumps within the PDF, a file link opens

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { PdfMarkupViewer } from '../components/markup/PdfMarkupViewer';
 import { api } from '../api';
+import { isPhotoFile } from '../data/markup';
 import { RecipientPicker } from '../components/RecipientPicker';
 import { ShareHistory } from '../components/ShareHistory';
 import { Pager } from '../components/Pager';
@@ -20,7 +21,7 @@ const PREVIEWABLE = new Set(['pdf', 'doc', 'docx', 'rtf', 'odt', 'xls', 'xlsx', 
 const canPreview = (f: { ext?: string; mimeType?: string }) =>
   PREVIEWABLE.has((f.ext || '').toLowerCase().replace(/^\./, '')) || /^application\/vnd\.google-apps\.(document|spreadsheet|presentation)$/.test(f.mimeType || '');
 
-/** PDFs can be marked up (drawings, specs, submittals). */
+/** PDFs can be marked up (drawings, specs, submittals), and photos too (Oct 31). */
 const isPdf = (f: { ext?: string; mimeType?: string; name?: string }) =>
   (f.ext || '').toLowerCase().replace(/^\./, '') === 'pdf' || f.mimeType === 'application/pdf' || /\.pdf$/i.test(f.name || '');
 
@@ -708,6 +709,10 @@ export function FileRoom() {
               <div style={{ padding: '16px 22px 0' }}>
                 <img src={api.fileRoom.contentUrl(selected.id)} alt={selected.name}
                      style={{ width: '100%', borderRadius: 10, border: '1px solid rgba(var(--rgb-shade), 0.08)' }} />
+                {isPhotoFile(selected) && (
+                  <button type="button" onClick={() => setMarkingUp({ id: selected.id })}
+                    style={{ marginTop: 6, padding: '7px 14px', borderRadius: 999, border: 0, background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>✎ Mark up</button>
+                )}
               </div>
             )}
             {canPreview(selected) && (

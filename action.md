@@ -135,7 +135,7 @@ Status: ✅ done · 🟡 partly built · ⬜ new · ❓ needs an answer first.
 | F10 | Name pages by sheet title (A100, E103) | "Page 1, 2, 3" | Read the sheet number from the page text (title block, bottom-right), let it be corrected; used in the page picker, links, search, list | ✅ |
 | F11 | Make special actions without leaving the drawing | Creating an RFI/task/CO/record closes the drawing and opens its page | Create it in place; a toast offers "Open it"; the drawing stays open | ✅ |
 | F12 | Touch: two-finger pinch to zoom, two-finger drag to pan, one finger / stylus draws | Mouse-wheel zoom; touch draws only | Pinch and two-finger pan on the drawing; one finger or a pen draws | ✅ |
-| F13 | Mark up photos | Markup works on PDFs only | Open JPG/PNG files (and pin photos) in the same viewer, with the same tools | ⬜ |
+| F13 | Mark up photos | Markup works on PDFs only | Open JPG/PNG files (and pin photos) in the same viewer, with the same tools | ✅ |
 | F14 | i-1 and i-2 see all markups | Private markups show only to their author | Those roles see every markup, private ones too | ✅ |
 
 ## G. Priorities (six levels)

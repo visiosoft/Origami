@@ -36,6 +36,11 @@ export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId
 export const linkLabel = (t?: LinkTarget | null, sheet?: (page: number) => string | undefined) =>
   !t ? 'Link' : t.type === 'page' ? `→ ${sheet?.(t.page) || `p. ${t.page}`}` : `→ ${t.name}${t.page ? `, p. ${t.page}` : ''}`;
 
+/** Photos can be marked up too (Oct 31). */
+export const isPhotoFile = (f: { name?: string; mimeType?: string | null }) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || '') || /^image\/(jpeg|png|webp|gif)$/.test(f.mimeType || '');
+/** A photo's page: its long side is this many points (the server sizes the downloaded PDF the same way). */
+export const PHOTO_LONG_SIDE = 1200;
+
 /** A sheet number as drawings write it: A100, E103, A-201, S2.1, M001A. */
 const SHEET_RE = /^[A-Z]{1,3}[-.]?\s?\d{1,4}(?:\.\d{1,3})?[A-Z]?$/;
 
