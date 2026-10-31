@@ -13,6 +13,9 @@ export const PLACEHOLDER_RE = /\{\{\s*([A-Za-z][\w.]*)\s*\}\}|\{([A-Za-z][A-Za-z
 export const KNOWN_TOKENS = [
   'clientName', 'clientEmail', 'clientPhone', 'projectTitle', 'projectScope',
   'date', 'senderName', 'senderEmail', 'invoiceNumber', 'documentName',
+  // Oct 31: more fields to build templates with.
+  'clientFirstName', 'projectAddress', 'projectNumber', 'projectType', 'senderPhone',
+  'companyName', 'companyPhone', 'companyEmail', 'companyAddress', 'companyWebsite',
 ] as const;
 
 /** Filled in when the document is signed, so they're meant to be there until then. */
@@ -22,6 +25,9 @@ const LABELS: Record<string, string> = {
   clientName: 'client name', clientEmail: 'client email', clientPhone: 'client phone', projectTitle: 'project title',
   projectScope: 'project scope', date: 'date', senderName: 'your name', senderEmail: 'your email',
   invoiceNumber: 'invoice number', documentName: 'document name',
+  clientFirstName: 'client first name', projectAddress: 'project address', projectNumber: 'project number', projectType: 'type of work',
+  senderPhone: 'your phone', companyName: 'company name', companyPhone: 'company phone', companyEmail: 'company email',
+  companyAddress: 'company address', companyWebsite: 'company website',
 };
 
 /** `client_name`, `Client-Name`, `ClientName` -> `clientName`; a known field matches whatever its case. */

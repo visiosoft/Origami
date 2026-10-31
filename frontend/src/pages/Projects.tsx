@@ -39,6 +39,8 @@ import { LABOR_TYPES, PRICING_TYPES } from '../data/projectTypes';
 import { useApp } from '../AppContext';
 import { STAGE_CONFIG, stageLabel, PR_COLORS, computeWorkflow, TEAM_COLORS, TEAM_BGS, WF_ST_COLORS, type Project, type BoardPhase, type BoardTask } from '../data/projects';
 import { mergeTokens } from '../data/clientPersonality';
+import { asHtml } from '../data/templateHtml';
+import { useCompanyTokens } from '../data/companyTokens';
 import { hasUnfilled } from '../data/placeholders';
 import { UnfilledPlaceholders } from '../components/UnfilledPlaceholders';
 import { Skeleton } from '../components/Skeleton';
@@ -271,6 +273,7 @@ export function Projects() {
 
   // ---- Introduction Letter email compose (on its Phase Board task) ----
   const introLead = sel?.leadId ? leads.find((l) => String(l.id) === String(sel.leadId)) : null;
+  const companyTokens = useCompanyTokens();
   const mergeIntro = (text: string) => {
     const map: Record<string, string> = {
       clientName: introLead?.leadName || '',
@@ -281,6 +284,11 @@ export function Projects() {
       date: new Date().toLocaleDateString(),
       senderName: currentUser?.name || '',
       senderEmail: currentUser?.email || '',
+      ...companyTokens,
+      clientFirstName: (introLead?.leadName || '').split(/\s+/)[0] || '',
+      projectAddress: sel?.location || '',
+      projectNumber: (sel as any)?.code || '',
+      projectType: sel?.typeOfWork || '',
     };
     return mergeTokens(text, map);
   };
@@ -288,7 +296,7 @@ export function Projects() {
     const t = templates.find((x) => x.id === id);
     setTplId(id);
     setEmailSubject(mergeIntro(t?.subject || ''));
-    setEmailBody(mergeIntro(t?.body || ''));
+    setEmailBody(mergeIntro(asHtml(t?.body || '')));
   };
   // Populate the compose fields once when the Introduction Letter task opens for
   // a project -- from the saved draft if there is one, otherwise from the template.
@@ -305,7 +313,7 @@ export function Projects() {
           if (t) setTplId(t.id);
         } else {
           const t = templates.find((x) => x.key === 'introduction_letter') || templates[0];
-          if (t) { setTplId(t.id); setEmailSubject(mergeIntro(t.subject || '')); setEmailBody(mergeIntro(t.body || '')); }
+          if (t) { setTplId(t.id); setEmailSubject(mergeIntro(t.subject || '')); setEmailBody(mergeIntro(asHtml(t.body || ''))); }
         }
       }
     } else if (!selPt) {

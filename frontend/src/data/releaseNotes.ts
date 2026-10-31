@@ -16,6 +16,17 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31g',
+    date: '2026-10-31',
+    title: 'Templates: formatting, preview, more merge fields',
+    items: [
+      { area: 'Templates', kind: 'new', text: 'Every template but SMS now has the formatting toolbar — bold, headings, lists, links, images, tables. Older plain-text templates open as paragraphs.', where: 'Library → Email, SMS & Documents (and Settings) → a template' },
+      { area: 'Templates', kind: 'new', text: 'Preview a template before using it: it’s filled with a sample client and your company’s details and shown as the exact PDF that’s sent (SMS shows as a text bubble).', where: 'A template → Preview' },
+      { area: 'Templates', kind: 'new', text: 'More merge fields — client first name, project address / number / type of work, your phone, and the company’s name, phone, email, address and website (from Settings → Branding) — picked from “+ Insert field” in the editor.' },
+      { area: 'Projects', kind: 'improved', text: 'The Project Program’s cover message has the formatting toolbar and the same merge fields.' },
+    ],
+  },
+  {
     id: '2026-10-31f',
     date: '2026-10-31',
     title: 'Drawings: your own symbols',
