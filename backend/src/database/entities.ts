@@ -229,7 +229,7 @@ export class TaskEntity {
   @Column({ nullable: true }) assignedTo!: string;
   @Column() status!: string;
   @Column({ nullable: true }) originator!: string;
-  /** Urgent / High / Medium / Low, or empty for none -- the same scale as every special action. */
+  /** Emergency / Urgent / High / Medium / Low / Very Low, or empty for none -- the same scale as every special action. */
   @Column({ nullable: true }) priority!: string;
   @Column() topicType!: string;
   /** The task's name. Older tasks have none: their first description line serves as the name. */
@@ -668,7 +668,7 @@ export class TicketEntity {
   @PrimaryColumn() id!: string;
   @Column() subject!: string;
   @Column({ nullable: true }) category!: string;
-  @Column({ nullable: true }) priority!: string; // Low | Medium | High | Urgent
+  @Column({ nullable: true }) priority!: string; // Emergency | Urgent | High | Medium | Low | Very Low
   @Column(TEXT) message!: string;
   @Column({ nullable: true }) requesterName!: string;
   @Column({ nullable: true }) requesterEmail!: string;
@@ -786,7 +786,7 @@ export class ProjectTaskEntity {
   @Column({ ...TEXT, nullable: true }) description!: string;
   @Column({ nullable: true }) assignee!: string;
   @Column({ nullable: true }) dueDate!: string;
-  @Column({ nullable: true }) priority!: string; // Low | Medium | High | Urgent
+  @Column({ nullable: true }) priority!: string; // Emergency | Urgent | High | Medium | Low | Very Low
   @Column('int') order!: number;
   @Column({ default: false }) completed!: boolean;
   @Column({ nullable: true }) parentId!: string; // subtask -> parent task id

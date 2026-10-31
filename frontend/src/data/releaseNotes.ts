@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31a',
+    date: '2026-10-31',
+    title: 'Six priority levels',
+    items: [
+      { area: 'Special Actions', kind: 'new', text: 'Priorities now run Emergency (1 to 3 hours), Urgent (24 hours), High (5 business days), Medium (2 weeks), Low (a month) and Very Low (past a month). Picking one fills in the due date — Emergency is today — and a due date fills in the priority. Tasks already set keep their priority.', where: 'Any priority picker; Settings → Task priorities' },
+    ],
+  },
+  {
     id: '2026-10-29a',
     date: '2026-10-29',
     title: 'Drawings: change orders and FOR RECORD from a markup; revert to the original',

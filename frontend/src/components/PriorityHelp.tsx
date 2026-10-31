@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { usePriorityDefs } from '../data/priorityDefs';
 
-const TONE: Record<string, string> = { Urgent: '#B42318', High: '#B45309', Medium: 'var(--body)', Low: 'var(--muted)' };
+const TONE: Record<string, string> = { Emergency: '#912018', Urgent: '#B42318', High: '#B45309', Medium: 'var(--body)', Low: 'var(--muted)', 'Very Low': 'var(--c-9aa39d)' };
 
 /**
- * "What do priorities mean?" under a priority picker: the four definitions
+ * "What do priorities mean?" under a priority picker: the six definitions
  * (the office's wording, Settings -> Task priorities) and their due windows.
  */
 export function PriorityHelp({ value }: { value?: string | null }) {

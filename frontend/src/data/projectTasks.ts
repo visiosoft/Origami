@@ -1,9 +1,9 @@
 import type { ActionTrailFields } from '../api';
 // Types + style maps for the Asana-style per-project task board.
 
-export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
+export type Priority = 'Very Low' | 'Low' | 'Medium' | 'High' | 'Urgent' | 'Emergency';
 /** In order of urgency; '' is None. */
-export const PRIORITY_ORDER: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
+export const PRIORITY_ORDER: Priority[] = ['Emergency', 'Urgent', 'High', 'Medium', 'Low', 'Very Low'];
 
 /**
  * A file on a task: either a real upload stored in Google Drive (`kind: 'drive'`)
@@ -148,13 +148,15 @@ export interface ProjectPhase {
   endDate?: string;
 }
 
-export const PRIORITIES: Priority[] = ['Low', 'Medium', 'High', 'Urgent'];
+export const PRIORITIES: Priority[] = ['Very Low', 'Low', 'Medium', 'High', 'Urgent', 'Emergency'];
 
 export const PRIORITY_STYLE: Record<Priority, { bg: string; c: string }> = {
+  'Very Low': { bg: 'var(--c-f4f1e8)', c: 'var(--c-9aa39d)' },
   Low: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
   Medium: { bg: '#D6E8E5', c: '#2F6F68' },
   High: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
   Urgent: { bg: '#F2DFD4', c: '#8E2E0A' },
+  Emergency: { bg: '#B42318', c: '#FFFFFF' },
 };
 
 // Top-level tasks (exclude subtasks) grouped by section id.

@@ -112,3 +112,52 @@ For a meeting someone else set up — the city on Teams, a consultant's Zoom, a 
 3. **During**: take notes in *Notes / minutes*. If they record it, ask for the recording or transcript.
 4. **Afterwards**: paste their notes, the transcript or the recording link (or ours), set the status to *Occurred*, then *Review notes & transcript for special actions* — tasks, FOR RECORD items, RFIs and change orders, the same as our own meetings.
 5. **Done**: the meeting turns *Complete* by itself once everything raised from it is done.
+
+---
+
+# Oct 31 requests
+
+Status: ✅ done · 🟡 partly built · ⬜ new · ❓ needs an answer first.
+
+## F. Drawings (PDF markup)
+
+| # | Request | Today | Plan | Status |
+|---|---|---|---|---|
+| F1 | Change a markup's colour after it's drawn | Colour is picked before drawing only | Colour swatches in the selected markup's panel (author or admin) | ⬜ |
+| F2 | White, to cover black lines | 7 colours, no white | Add white to the palette (shows with a grey outline so it's visible) | ⬜ |
+| F3 | Text box that can be resized, text wraps | Text is one line that runs across the page | Text gets a width: drag the box's side handle to resize, the text wraps; saved and drawn the same in the PDF | ⬜ |
+| F4 | Copy / paste to duplicate with the select tool | None | Ctrl/⌘+C / V (and a Duplicate button) on the selected markup; pasted slightly offset, then drag it | ⬜ |
+| F5 | Polyline measure: segments totalled in one measurement | Length is one segment; area is a polygon | "Measure path": click points, double-click to finish, one total (each segment shown on hover) | ⬜ |
+| F6 | Multi-line with straight segments (not measuring) | Pen is freehand; line is one segment | "Polyline" tool: click points, double-click to finish | ⬜ |
+| F7 | Shapes: triangle, square, circle, polyshape, each outline or with a see-through fill | Box, ellipse, cloud — outline only | Add triangle and polyshape; a Fill toggle (25% of the colour) for box, ellipse, triangle, polyshape | ⬜ |
+| F8 | Markup labels | Each markup shows its kind (e.g. "Cloud — Andrea") | A short note on any markup, shown as a small tag beside it, in the list and in the PDF; searchable | ⬜ answer: a short note only (no CSI code) |
+| F9 | Upload symbols to drop like a pin, with a hover label | 7 built-in stamp icons | A symbol library (PNG/SVG) per company; Symbol tool drops one; its name shows on hover and in the list | ⬜ answer: admins add them to one shared library |
+| F10 | Name pages by sheet title (A100, E103) | "Page 1, 2, 3" | Read the sheet number from the page text (title block, bottom-right), let it be corrected; used in the page picker, links, search, list | ⬜ |
+| F11 | Make special actions without leaving the drawing | Creating an RFI/task/CO/record closes the drawing and opens its page | Create it in place; a toast offers "Open it"; the drawing stays open | ⬜ |
+| F12 | Touch: two-finger pinch to zoom, two-finger drag to pan, one finger / stylus draws | Mouse-wheel zoom; touch draws only | Pinch and two-finger pan on the drawing; one finger or a pen draws | ⬜ |
+| F13 | Mark up photos | Markup works on PDFs only | Open JPG/PNG files (and pin photos) in the same viewer, with the same tools | ⬜ |
+| F14 | i-1 and i-2 see all markups | Private markups show only to their author | Those roles see every markup, private ones too | ⬜ answer: i-1 = admin, i-2 = principal |
+
+## G. Priorities (six levels)
+
+| Priority | Due |
+|---|---|
+| Emergency | 1–3 hours |
+| Urgent | within 24 hours |
+| High | within 5 business days |
+| Medium | within 2 weeks |
+| Low | within a month |
+| Very Low | past one month |
+
+Today: Urgent / High / Medium (a month) / Low (past a month). Plan: add Emergency and Very Low everywhere a priority is picked, filtered, sorted or checked; new default due dates (Emergency = today, Medium = 2 weeks, Low = 1 month, Very Low = 2 months); Settings → Task priorities shows the six. Existing tasks keep their priority (no data is rewritten). ✅
+
+## H. Templates
+
+| # | Request | Today | Plan | Status |
+|---|---|---|---|---|
+| H1 | How to add formatting | Agreement and Introduction templates have the formatting toolbar; Email, Document and Proposal templates are plain text | Formatting toolbar for Email, Document and Proposal templates too (emails send as HTML with a plain-text copy); SMS stays plain | ⬜ |
+| H2 | Preview a template (Settings and the Library) | None | "Preview" beside the editor: the template filled with sample (or a picked project's) data, as the email or PDF will look | ⬜ |
+| H3 | More merge fields ("tag options") | 10 fixed fields | Add more (client address, project address, project number, PM name/phone/email, company name/phone/address, today's date in words, proposal total…); a "+ Insert field" picker in the editor | ❓ which fields you need |
+| H4 | The Project Program PDF doesn't look good | — | Redesign the PDF: cover/header with logo, clear phase table, spacing and type | ⬜ (a sample of the current PDF and of what "good" looks like would help) |
+
+Order agreed (Oct 31): G priorities → F drawings → H templates.

@@ -17,7 +17,7 @@ export interface Task extends ActionTrailFields {
   assignedTo: string;
   /** One of the Special Actions Log statuses set in Settings (default Open / In Progress / On hold / Closed). */
   status: string;
-  /** Urgent / High / Medium / Low, or empty for none. */
+  /** Emergency / Urgent / High / Medium / Low / Very Low, or empty for none. */
   priority?: string;
   /** Confirmed by whoever raised it; archived 7 days later. */
   confirmedAt?: string | null;

@@ -12,7 +12,7 @@ import { Attachments, filesFromClipboard, nameClipboardFile } from './Attachment
 import { ActivityFeed } from './ActivityFeed';
 import { Checklist } from './Checklist';
 import { LabelPicker } from './LabelPicker';
-import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
+import { PRIORITY_ORDER, TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { SubtaskForm, type NewSubtask } from './SubtaskForm';
 import { OriginatorLine } from './ActionTools';
@@ -24,7 +24,7 @@ const input: React.CSSProperties = {
   border: '1px solid rgba(var(--rgb-shade), 0.13)', background: 'var(--surface)', fontFamily: 'inherit',
   fontSize: 13, color: 'var(--ink)', outline: 'none',
 };
-const PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
+const PRIORITIES: Priority[] = PRIORITY_ORDER;
 /** Fields edited in the panel: they autosave together. Subtasks, files and comments act at once. */
 const FIELDS = ['title', 'description', 'assigneeId', 'assignee', 'collaborators', 'status', 'completed', 'dueDate', 'priority', 'team', 'checklist', 'labels', 'holdReason'];
 

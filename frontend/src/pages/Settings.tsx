@@ -94,7 +94,7 @@ export function Settings() {
       { key: 'notice', tab: 'workspace', label: 'System notice', hint: 'A banner shown to everyone', render: () => <SystemNoticeSettings /> },
       { key: 'daily-log-backup', tab: 'workspace', label: 'Daily log backup', hint: 'Copies of daily logs to Drive', render: () => <DailyLogBackupSettings /> },
       ...(isAdmin ? [{ key: 'contract-templates', tab: 'workspace' as SettingsTab, label: 'Contract templates', hint: 'Wording for each kind of contract', render: () => <ContractTemplateSettings /> }] : []),
-      ...(isAdmin ? [{ key: 'priorities', tab: 'workspace' as SettingsTab, label: 'Task priorities', hint: 'What Urgent, High, Medium and Low mean', render: () => <PrioritySettings /> }] : []),
+      ...(isAdmin ? [{ key: 'priorities', tab: 'workspace' as SettingsTab, label: 'Task priorities', hint: 'What Emergency, Urgent, High, Medium, Low and Very Low mean', render: () => <PrioritySettings /> }] : []),
       ...(isAdmin ? [{ key: 'audit-log', tab: 'workspace' as SettingsTab, label: 'Audit log', hint: 'Who changed what, across the app', render: () => <AuditLogSettings /> }] : []),
       { key: 'google', tab: 'integrations', label: 'Google Workspace', hint: 'Email, Drive and sign-in', render: () => <GoogleSettings /> },
       { key: 'sms', tab: 'integrations', label: 'SMS', hint: 'Text messages through Twilio', render: () => <SmsSettings /> },

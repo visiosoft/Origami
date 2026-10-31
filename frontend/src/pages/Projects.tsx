@@ -30,7 +30,7 @@ import { ActivityFeed } from '../components/ActivityFeed';
 import { Checklist } from '../components/Checklist';
 import { LabelPicker } from '../components/LabelPicker';
 import { RichTextEditor } from '../components/RichTextEditor';
-import { TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
+import { PRIORITY_ORDER, TASK_STATUSES, statusLabel, STATUS_HINT, isTaskDone, subtasksOf, createdByOf, type ChecklistItem, type Priority, type TaskStatus } from '../data/projectTasks';
 import { linkPriorityDue, PRIORITY_HINT } from '../data/priority';
 import { api, persist } from '../api';
 import { OriginatorLine } from '../components/ActionTools';
@@ -47,7 +47,7 @@ const BG = 'var(--font-display)';
 const initials = (n: string) => (n ? n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() : '');
 const inputStyle: React.CSSProperties = { boxSizing: 'border-box', width: '100%', padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(var(--rgb-shade), 0.12)', background: 'var(--panel)', fontSize: 13, fontFamily: 'inherit', color: 'var(--ink)', outline: 'none' };
 const PRIORITIES = ['High', 'Medium', 'Low'];
-const TASK_PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
+const TASK_PRIORITIES: Priority[] = PRIORITY_ORDER;
 const STAGES = ['Kickoff', 'Design', 'Construction', 'Closeout'];
 /** "LS — Lump sum", or — when unset. */
 const codeLabel = (list: readonly { code: string; label: string }[], v?: string | null) => (v ? `${v} — ${list.find((o) => o.code === v)?.label || v}` : '—');

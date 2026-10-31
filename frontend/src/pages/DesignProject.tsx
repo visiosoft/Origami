@@ -8,7 +8,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ProjectFinancials } from '../components/finance/ProjectFinancials';
 import { api } from '../api';
 import { useApp } from '../AppContext';
-import { isTaskDone, statusLabel, subtasksOf, type ProjectTask } from '../data/projectTasks';
+import { PRIORITY_ORDER, PRIORITY_STYLE, isTaskDone, statusLabel, subtasksOf, type ProjectTask } from '../data/projectTasks';
 import { TaskLinkBadge } from '../components/TaskLinkBadge';
 import { PhaseTaskPanel } from '../components/PhaseTaskPanel';
 import { TEAM_COLORS } from '../data/projects';
@@ -212,7 +212,7 @@ export function DesignProject() {
 
   const personOptions = ['All people', ...Array.from(new Set(filtered.map((r) => r.task.assignee).filter(Boolean))).sort() as string[]];
   const listRows = filtered.filter((r) => personFilter === 'All people' || r.task.assignee === personFilter);
-  const SORT_ORDER: Record<string, number> = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+  const SORT_ORDER: Record<string, number> = Object.fromEntries(PRIORITY_ORDER.map((p, i) => [p, i]));
   const sortRows = (rows: typeof listRows) => [...rows].sort((a, b) => {
     if (sortBy === 'due') return (a.task.dueDate || '9999-99-99').localeCompare(b.task.dueDate || '9999-99-99');
     if (sortBy === 'priority') return (SORT_ORDER[a.task.priority || ''] ?? 4) - (SORT_ORDER[b.task.priority || ''] ?? 4);
@@ -221,7 +221,7 @@ export function DesignProject() {
   });
   const listGroups: { key: string; label: string; dot: string; rows: typeof listRows }[] = (() => {
     if (groupBy === 'priority') {
-      return ['Urgent', 'High', 'Medium', 'Low', 'No priority'].map((p) => ({
+      return [...PRIORITY_ORDER, 'No priority'].map((p) => ({
         key: p, label: p, dot: p === 'No priority' ? '#C9BFA8' : PRIORITY_DOT[p]?.c || '#9c96a4',
         rows: sortRows(listRows.filter((r) => (r.task.priority || 'No priority') === p)),
       })).filter((g) => g.rows.length);
@@ -686,12 +686,7 @@ export function DesignProject() {
 
 const initials = (n: string) => n.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
-const PRIORITY_DOT: Record<string, { bg: string; c: string }> = {
-  Low: { bg: 'var(--c-efede8)', c: 'var(--c-5c6b65)' },
-  Medium: { bg: '#D6E8E5', c: '#2F6F68' },
-  High: { bg: 'var(--amber-light)', c: 'var(--c-8a6d12)' },
-  Urgent: { bg: '#F2DFD4', c: '#8E2E0A' },
-};
+const PRIORITY_DOT: Record<string, { bg: string; c: string }> = PRIORITY_STYLE;
 
 const LIST_GROUPS = [
   { key: 'open', label: 'Not started', dot: '#C9BFA8', match: (t: ProjectTask) => !isTaskDone(t) && t.status !== 'In progress' },

@@ -1,9 +1,9 @@
 import type { CSSProperties } from 'react';
 import { PRIORITY_HINT } from '../data/priority';
-import type { Priority } from '../data/projectTasks';
+import { PRIORITY_ORDER, type Priority } from '../data/projectTasks';
 
-/** The one priority scale for every special action: None, Urgent, High, Medium, Low -- each with its due-date window. */
-export const PRIORITY_LEVELS: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
+/** The one priority scale for every special action: None, then Emergency to Very Low -- each with its due-date window. */
+export const PRIORITY_LEVELS: Priority[] = PRIORITY_ORDER;
 
 export function PrioritySelect({ value, onChange, disabled, style }: {
   value?: string | null; onChange: (p: Priority | '') => void; disabled?: boolean; style?: CSSProperties;
