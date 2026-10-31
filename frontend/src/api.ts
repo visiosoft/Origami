@@ -898,6 +898,11 @@ export const api = {
     editMarkup: (mid: string, patch: Partial<Pick<Markup, 'data' | 'private' | 'layer' | 'linkType' | 'linkId'>>) => request<Markup>(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'PUT', body: JSON.stringify(patch) }),
     removeMarkup: (mid: string) => request(`/file-room/markups/${encodeURIComponent(mid)}`, { method: 'DELETE' }),
     /** Rename a layer on a drawing (from: its name, or null for someone's own unnamed layer). */
+    /** The shared drawing-symbol library (admins add, rename, delete). */
+    symbols: () => request<{ id: string; name: string; image: string }[]>('/file-room/symbols'),
+    addSymbol: (name: string, image: string) => request<{ id: string; name: string; image: string }>('/file-room/symbols', { method: 'POST', body: JSON.stringify({ name, image }) }),
+    renameSymbol: (id: string, name: string) => request<{ id: string; name: string; image: string }>(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+    removeSymbol: (id: string) => request(`/file-room/symbols/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     /** A drawing's sheet names by page ("1": "A100"); saving merges page by page unless `replace`. */
     sheets: (id: string) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { cache: 'no-store' } as any),
     setSheets: (id: string, names: Record<string, string>, replace = false) => request<Record<string, string>>(`/file-room/files/${encodeURIComponent(id)}/sheets`, { method: 'PUT', body: JSON.stringify({ names, replace }) }),

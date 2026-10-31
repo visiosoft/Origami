@@ -4,7 +4,7 @@ import { api } from '../../api';
 import { useApp } from '../../AppContext';
 import {
   KIND_LABEL, MARKUP_COLORS, TEXT_SIZES, arrowHead, capRenderScale, nextSize, textMatches, boundsOf, cloudPath, layerKey, layersOf, measureLabel, parseLength, scaleFrom,
-  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type Pt, type TextRun,
+  FILLABLE, MARKUP_LEADS, MIN_POINTS, MULTI_POINT, dedupePoints, linkLabel, markupLink, overlayPixels, pasteCopy, PHOTO_LONG_SIDE, isPhotoFile, sheetNameFrom, trianglePts, wrapLines, pickCompareDefault, type CompareShow, type LinkTarget, type Revision, type Markup, type MarkupData, type MarkupKind, type MarkupSymbol, type Pt, type TextRun,
 } from '../../data/markup';
 import './PdfMarkupViewer.css';
 import { STAMPS, stampStrokes } from '../../data/stamps';
@@ -39,6 +39,7 @@ const TOOLS: { key: Tool; label: string; icon: string; group: 'nav' | 'draw' | '
   { key: 'triangle', label: 'Triangle', icon: '△', group: 'draw' },
   { key: 'polygon', label: 'Polyshape — click each corner, double-click (or Enter) to close it', icon: '⬡', group: 'draw' },
   { key: 'cloud', label: 'Revision cloud', icon: '☁', group: 'draw' },
+  { key: 'symbol', label: 'Symbol — pick one, click to drop it (or drag to size it)', icon: '◆', group: 'draw' },
   { key: 'stamp', label: 'Stamp — click to drop an icon, or drag to size it', icon: '✓', group: 'draw' },
   { key: 'scale', label: 'Set scale (draw over a known dimension)', icon: '⇔', group: 'measure' },
   { key: 'measure_len', label: 'Measure length', icon: '📏', group: 'measure' },
@@ -83,7 +84,8 @@ type Ask =
   | { kind: 'pin'; at: Pt; value: string }
   | { kind: 'link'; points: Pt[]; to: 'page' | 'file'; page: string; fileId: string; filePage: string; value: string }
   | { kind: 'scale'; points: Pt[]; value: string; unit: 'ft' | 'm' }
-  | { kind: 'rfi' | 'task' | 'co' | 'record'; markup: Markup; value: string; topic?: string };
+  | { kind: 'rfi' | 'task' | 'co' | 'record'; markup: Markup; value: string; topic?: string }
+  | { kind: 'symbols' };
 
 /**
  * Mark up a PDF in the File Room (Oct 2026). The drawing never changes: each
@@ -145,6 +147,12 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
   const setFill = (v: boolean) => { setFillState(v); try { localStorage.setItem('origami.markup.fill', v ? '1' : '0'); } catch { /* private window */ } };
   /** Where the pointer is while clicking out a polyline / path / polyshape (the rubber band). */
   const [hoverPt, setHoverPt] = useState<Pt | null>(null);
+  /** The shared symbol library, and the one the Symbol tool drops (remembered per browser). */
+  const [symbols, setSymbols] = useState<MarkupSymbol[]>([]);
+  const symbolMap = useMemo(() => Object.fromEntries(symbols.map((x) => [x.id, x])), [symbols]);
+  const [symbolId, setSymbolIdState] = useState<string>(() => { try { return localStorage.getItem('origami.markup.symbol') || ''; } catch { return ''; } });
+  const pickSymbol = (id: string) => { setSymbolIdState(id); try { localStorage.setItem('origami.markup.symbol', id); } catch { /* private window */ } };
+  const canKeepSymbols = authUser?.roleKey === 'admin';
   /** Sheet numbers by page ("1": "A100"), read from the title blocks and correctable (Oct 31). */
   const [sheets, setSheets] = useState<Record<string, string>>({});
   const [sheetsLoaded, setSheetsLoaded] = useState(false);
@@ -179,6 +187,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     let live = true;
     let loading: { destroy: () => Promise<void> } | null = null;
     setSheetsLoaded(false);
+    api.fileRoom.symbols().then((list) => { if (live) setSymbols(Array.isArray(list) ? list : []); }).catch(() => undefined);
     api.fileRoom.sheets(file.id).then((n) => { if (live) { setSheets(n || {}); setSheetsLoaded(true); } }).catch(() => { if (live) { setSheets({}); setSheetsLoaded(true); } });
     Promise.all([loadPdfjs(), api.fileRoom.bytes(file.id), api.fileRoom.markups(file.id)])
       .then(async ([lib, bytes, list]) => {
@@ -366,6 +375,27 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (selectedId === m.id) setSelectedId(null);
       if (record) { undo.current.push({ type: 'remove', before: m }); redo.current = []; }
     } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); }
+  };
+
+  /** Add a symbol to the library (admins): shrunk to 256 px and kept as a PNG. */
+  const addSymbol = async (f?: File) => {
+    if (!f) return;
+    const name = window.prompt('Name the symbol — it shows when someone points at it', f.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' '));
+    if (name === null || !name.trim()) return;
+    try {
+      const url = URL.createObjectURL(f);
+      const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('Couldn’t read that image.')); i.src = url; });
+      const k = 256 / Math.max(img.naturalWidth || 256, img.naturalHeight || 256, 1);
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round((img.naturalWidth || 256) * Math.min(1, k)));
+      c.height = Math.max(1, Math.round((img.naturalHeight || 256) * Math.min(1, k)));
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const made = await api.fileRoom.addSymbol(name.trim(), c.toDataURL('image/png'));
+      setSymbols((cur) => [...cur, made]);
+      pickSymbol(made.id);
+      toast(`“${made.name}” added to the symbols`);
+    } catch (e) { toast('⚠ ' + ((e as Error).message || 'Symbol not added')); }
   };
 
   /** Copy and paste (Oct 31): Ctrl/⌘+C, then Ctrl/⌘+V on this page or another; Duplicate does both. */
@@ -587,6 +617,15 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
     const pts = draft;
     setDraft(null);
     const kind = tool as MarkupKind;
+    if (kind === 'symbol') {
+      const sym = symbolMap[symbolId] || symbols[0];
+      if (!sym) { toast(canKeepSymbols ? 'Add a symbol to the library first (+ Add symbol).' : 'There are no symbols yet — an admin adds them.'); return; }
+      const dragged = Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) >= 8;
+      const half = STAMP_DEFAULT / 2, halfH = (STAMP_DEFAULT * size.w) / size.h / 2;
+      const box: Pt[] = dragged ? [pts[0], pts[1]] : [[pts[0][0] - half, pts[0][1] - halfH], [pts[0][0] + half, pts[0][1] + halfH]];
+      void save('symbol', { points: box, color, width: 1, symbolId: sym.id, label: sym.name });
+      return;
+    }
     if (kind === 'stamp') {
       // A click drops it at a standard size (square on screen); a drag sets its box.
       const dragged = Math.hypot((pts[1][0] - pts[0][0]) * size.w, (pts[1][1] - pts[0][1]) * size.h) >= 8;
@@ -632,7 +671,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       if (!real) { toast(ask.unit === 'ft' ? 'Type a length like 12\'-6" or 12.5' : 'Type a length like 3.81'); return; }
       await save('scale', { points: ask.points, color: '#7C3AED', width: 1.5, real, unit: ask.unit });
       toast('Scale set for this page — measure away');
-    } else {
+    } else if (ask.kind !== 'symbols') {
       const m = ask.markup;
       const subject = ask.value.trim() || `${KIND_LABEL[m.kind]} on ${file.name}, p. ${m.page}`;
       const link = `/planroom?file=${encodeURIComponent(file.id)}&markup=${encodeURIComponent(m.id)}`;
@@ -924,6 +963,18 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
             <button type="button" className="mk-tool" title="Undo (Ctrl+Z)" aria-label="Undo" onClick={() => void step(true)}>↶</button>
             <button type="button" className="mk-tool" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" onClick={() => void step(false)}>↷</button>
           </>}
+          {canDraw && tool === 'symbol' && <>
+            <i className="mk-sep" />
+            <select aria-label="Symbol" title={symbolMap[symbolId]?.name || 'Which symbol'} value={symbolMap[symbolId] ? symbolId : (symbols[0]?.id || '')} onChange={(e) => pickSymbol(e.target.value)}>
+              {!symbols.length && <option value="">None yet</option>}
+              {symbols.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+            {(symbolMap[symbolId] || symbols[0]) && <img className="mk-symbol-preview" src={(symbolMap[symbolId] || symbols[0]).image} alt="" title={(symbolMap[symbolId] || symbols[0]).name} />}
+            {canKeepSymbols && <>
+              <label className="mk-tool mk-symbol-add" title="Add a symbol (PNG, JPG or SVG)" aria-label="Add a symbol">＋<input type="file" accept="image/png,image/jpeg,image/svg+xml" hidden onChange={(e) => { void addSymbol(e.target.files?.[0]); e.target.value = ''; }} /></label>
+              {symbols.length > 0 && <button type="button" className="mk-tool" title="Rename or delete symbols" aria-label="Manage symbols" onClick={() => setAsk({ kind: 'symbols' })}>⚙</button>}
+            </>}
+          </>}
           {canDraw && tool === 'stamp' && <>
             <i className="mk-sep" />
             <select aria-label="Stamp" title="Which stamp" value={stampIcon} onChange={(e) => pickStamp(e.target.value)}>
@@ -1002,7 +1053,7 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               <svg ref={svg} viewBox={`0 0 ${size.w} ${size.h}`} style={{ cursor, touchAction: 'none' }} aria-label="Markup layer"
                 onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
                 onDoubleClick={(e) => { if (MULTI_POINT.includes(tool as MarkupKind)) { finishMulti(); return; } if (tool === 'select') { const m = hit(at(e)); if (m?.kind === 'link') follow(m); } }}>
-                {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} sheets={sheets} /></g>)}
+                {onPage.map((m) => <g key={m.id} data-markup={m.id} opacity={m.private ? 0.75 : 1}><MarkupShape m={m} w={size.w} h={size.h} scale={scale} sheets={sheets} symbol={m.kind === 'symbol' ? symbolMap[m.data.symbolId || ''] : undefined} /></g>)}
                 {draftShape}
                 {search?.hits[search.at]?.page === pageNo && (() => { const b = search.hits[search.at].box; return <rect className="mk-hit" x={b.x0 * size.w - 2} y={b.y0 * size.h - 2} width={(b.x1 - b.x0) * size.w + 4} height={(b.y1 - b.y0) * size.h + 4} />; })()}
                 {selBox && <rect x={selBox.x0 * size.w - 4} y={selBox.y0 * size.h - 4} width={(selBox.x1 - selBox.x0) * size.w + 8} height={(selBox.y1 - selBox.y0) * size.h + 8} fill="none" stroke="#2563EB" strokeWidth={1} strokeDasharray="4 3" />}
@@ -1130,7 +1181,19 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
       {ask && (
         <div className="mk-ask-bg" onClick={() => setAsk(null)}>
           <form className="mk-ask" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void answer(); }}>
-            <h4>{ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : ask.kind === 'co' ? 'Create a change order from this markup' : ask.kind === 'record' ? 'Add this markup to FOR RECORD' : 'Create a task from this markup'}</h4>
+            <h4>{ask.kind === 'symbols' ? 'Symbols' : ask.kind === 'text' ? 'Add text' : ask.kind === 'pin' ? 'Drop a pin' : ask.kind === 'link' ? 'Link to…' : ask.kind === 'scale' ? 'How long is the line you drew?' : ask.kind === 'rfi' ? 'Create an RFI from this markup' : ask.kind === 'co' ? 'Create a change order from this markup' : ask.kind === 'record' ? 'Add this markup to FOR RECORD' : 'Create a task from this markup'}</h4>
+            {ask.kind === 'symbols' && (
+              <ul className="mk-symbol-list">
+                {symbols.map((x) => (
+                  <li key={x.id}>
+                    <img src={x.image} alt="" />
+                    <span>{x.name}</span>
+                    <button type="button" className="mk-btn is-text" onClick={async () => { const to = window.prompt('Rename the symbol', x.name); if (!to?.trim()) return; try { const r = await api.fileRoom.renameSymbol(x.id, to.trim()); setSymbols((cur) => cur.map((y) => (y.id === x.id ? r : y))); } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not renamed')); } }}>Rename</button>
+                    <button type="button" className="mk-btn is-text is-danger" onClick={async () => { if (!window.confirm(`Delete “${x.name}”? Ones already placed stay as a labelled box.`)) return; try { await api.fileRoom.removeSymbol(x.id); setSymbols((cur) => cur.filter((y) => y.id !== x.id)); } catch (e) { toast('⚠ ' + ((e as Error).message || 'Not deleted')); } }}>Delete</button>
+                  </li>
+                ))}
+              </ul>
+            )}
             {ask.kind === 'text' && <textarea autoFocus rows={3} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="e.g. Verify beam size with structural" />}
             {ask.kind === 'pin' && <>
               <textarea autoFocus rows={2} value={ask.value} onChange={(e) => setAsk({ ...ask, value: e.target.value })} placeholder="A note (optional) — e.g. Crack at the footing, NE corner" aria-label="Pin note" />
@@ -1185,8 +1248,8 @@ export function PdfMarkupViewer({ file, projectId, projectName, focusMarkupId, i
               }[ask.kind]}</p>
             </>}
             <div className="mk-ask-row">
-              <button type="button" className="mk-btn is-text" onClick={() => setAsk(null)}>Cancel</button>
-              <button type="submit" className="mk-btn is-text is-dark" disabled={busy}>{ask.kind === 'text' ? 'Add' : ask.kind === 'pin' ? 'Drop pin' : ask.kind === 'link' ? 'Make link' : ask.kind === 'scale' ? 'Set scale' : 'Create'}</button>
+              <button type="button" className="mk-btn is-text" onClick={() => setAsk(null)}>{ask.kind === 'symbols' ? 'Done' : 'Cancel'}</button>
+              {ask.kind !== 'symbols' && <button type="submit" className="mk-btn is-text is-dark" disabled={busy}>{ask.kind === 'text' ? 'Add' : ask.kind === 'pin' ? 'Drop pin' : ask.kind === 'link' ? 'Make link' : ask.kind === 'scale' ? 'Set scale' : 'Create'}</button>}
             </div>
           </form>
         </div>
@@ -1254,8 +1317,8 @@ function textWidth(fs: number) {
 }
 
 /** How one markup looks, in page points (size = the page as shown, in points). */
-function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>) {
-  const shape = bareShape(m, size, scale, ghost, sheets);
+function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>, symbol?: MarkupSymbol) {
+  const shape = bareShape(m, size, scale, ghost, sheets, symbol);
   if (!m.data.note) return shape;
   // A note sits just above the markup's top-left corner, the same size on screen at any zoom.
   const xs = m.data.points.map((p) => p[0] * size.w), ys = m.data.points.map((p) => p[1] * size.h);
@@ -1264,7 +1327,7 @@ function shapeOf(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h
   return <g>{shape}<text x={x} y={y} fontSize={11 / scale} fontWeight={700} fill={ink} stroke="#fff" strokeWidth={3 / scale} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{m.data.note}</text></g>;
 }
 
-function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>) {
+function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number; h: number }, scale: number, ghost = false, sheets?: Record<string, string>, symbol?: MarkupSymbol) {
   const P = (p: Pt): Pt => [p[0] * size.w, p[1] * size.h];
   const pts = m.data.points.map(P);
   const stroke = m.data.color;
@@ -1276,6 +1339,16 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
     <text x={p[0] + 4} y={p[1] - 4} fontSize={11} fill={color} stroke="#fff" strokeWidth={3} paintOrder="stroke" fontFamily="Helvetica, Arial, sans-serif">{text}</text>
   );
   switch (m.kind) {
+    case 'symbol': {
+      // A library symbol in its box; pointing at it shows its name (Oct 31).
+      const [a, b] = [pts[0], pts[1] || pts[0]];
+      const x = Math.min(a[0], b[0]), y = Math.min(a[1], b[1]), w = Math.abs(b[0] - a[0]), h = Math.abs(b[1] - a[1]);
+      const name = symbol?.name || m.data.label || 'Symbol';
+      return <g className="mk-symbol"><title>{name}</title>{symbol
+        ? <image href={symbol.image} x={x} y={y} width={w} height={h} preserveAspectRatio="xMidYMid meet" opacity={ghost ? 0.7 : 1} />
+        : <><rect x={x} y={y} width={w} height={h} fill="none" stroke="#6B7280" strokeDasharray="3 2" /><text x={x + 2} y={y + 9} fontSize={8} fill="#4B5563" fontFamily="Helvetica, Arial, sans-serif">{name}</text></>}
+        <rect x={x} y={y} width={w} height={h} fill="transparent" /></g>;
+    }
     case 'pen': case 'polyline': return <polyline points={poly(pts)} {...common} />;
     case 'measure_path': {
       const n = pts.length - 1;
@@ -1339,6 +1412,6 @@ function bareShape(m: { kind: MarkupKind; data: MarkupData }, size: { w: number;
 }
 
 /** One markup on the page; redrawn only when it (or the zoom) changes. */
-const MarkupShape = memo(function MarkupShape({ m, w, h, scale, sheets }: { m: Markup; w: number; h: number; scale: number; sheets?: Record<string, string> }) {
-  return shapeOf(m, { w, h }, scale, false, sheets);
+const MarkupShape = memo(function MarkupShape({ m, w, h, scale, sheets, symbol }: { m: Markup; w: number; h: number; scale: number; sheets?: Record<string, string>; symbol?: MarkupSymbol }) {
+  return shapeOf(m, { w, h }, scale, false, sheets, symbol);
 });

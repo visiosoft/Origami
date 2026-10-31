@@ -4,7 +4,7 @@
  * sizes are in PDF points. Mirrors backend/src/file-room/markups.ts.
  */
 export type MarkupKind = 'pen' | 'highlight' | 'text' | 'line' | 'arrow' | 'rect' | 'ellipse' | 'cloud' | 'measure_len' | 'measure_area' | 'scale' | 'pin' | 'link' | 'stamp'
-  | 'polyline' | 'measure_path' | 'triangle' | 'polygon';
+  | 'polyline' | 'measure_path' | 'triangle' | 'polygon' | 'symbol';
 export type Pt = [number, number];
 
 export interface MarkupData {
@@ -28,7 +28,11 @@ export interface MarkupData {
   fill?: boolean;
   /** text: the box's width (share of the page's width); the text wraps inside it. Older text has none and runs on. */
   boxW?: number;
+  /** symbol: which library symbol, drawn in its box; `label` keeps its name for the hover and the list. */
+  symbolId?: string;
 }
+/** A symbol from the shared library: its name and a small PNG/JPEG data URL. */
+export interface MarkupSymbol { id: string; name: string; image: string }
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
 
@@ -74,7 +78,7 @@ export interface Markup {
 export const KIND_LABEL: Record<MarkupKind, string> = {
   pen: 'Pen', highlight: 'Highlight', text: 'Text', line: 'Line', arrow: 'Arrow', rect: 'Box', ellipse: 'Ellipse', cloud: 'Cloud',
   measure_len: 'Length', measure_area: 'Area', scale: 'Scale', pin: 'Pin', link: 'Link', stamp: 'Stamp',
-  polyline: 'Polyline', measure_path: 'Path length', triangle: 'Triangle', polygon: 'Polyshape',
+  polyline: 'Polyline', measure_path: 'Path length', triangle: 'Triangle', polygon: 'Polyshape', symbol: 'Symbol',
 };
 
 /** Shapes that can be filled (a see-through fill of their colour). */

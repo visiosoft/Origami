@@ -56,6 +56,19 @@ export class FileRoomController {
     return this.markups.renameLayer(id, body, claims);
   }
 
+  /** The shared drawing-symbol library (admins add, rename and delete). */
+  @Get('symbols')
+  symbols() { return this.markups.symbols(); }
+
+  @Post('symbols')
+  addSymbol(@Body() body: any, @Claims() claims: SessionClaims | null) { return this.markups.addSymbol(body, claims); }
+
+  @Put('symbols/:sid')
+  renameSymbol(@Param('sid') sid: string, @Body() body: any, @Claims() claims: SessionClaims | null) { return this.markups.renameSymbol(sid, body, claims); }
+
+  @Delete('symbols/:sid')
+  removeSymbol(@Param('sid') sid: string, @Claims() claims: SessionClaims | null) { return this.markups.removeSymbol(sid, claims); }
+
   /** A drawing's sheet names by page ("1": "A100"). */
   @Get('files/:id/sheets')
   async sheets(@Param('id') id: string, @Claims() claims: SessionClaims | null) {

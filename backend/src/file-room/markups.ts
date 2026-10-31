@@ -7,7 +7,7 @@ import { STAMP_KEYS, stampStrokes } from './stamps';
  * page's own rotation); widths and text sizes are in PDF points.
  */
 export const MARKUP_KINDS = ['pen', 'highlight', 'text', 'line', 'arrow', 'rect', 'ellipse', 'cloud', 'measure_len', 'measure_area', 'scale', 'pin', 'link', 'stamp',
-  'polyline', 'measure_path', 'triangle', 'polygon'] as const;
+  'polyline', 'measure_path', 'triangle', 'polygon', 'symbol'] as const;
 /** Shapes that can carry a see-through fill (Oct 31). */
 export const FILLABLE = ['rect', 'ellipse', 'triangle', 'polygon'];
 export type MarkupKind = (typeof MARKUP_KINDS)[number];
@@ -35,7 +35,23 @@ export interface MarkupData {
   fill?: boolean;
   /** text: the box's width (share of the page's width); the text wraps inside it. */
   boxW?: number;
+  /** symbol: which library symbol, drawn in the box its two points make; `label` keeps its name. */
+  symbolId?: string;
 }
+
+/** A symbol image as stored: a PNG or JPEG data URL of at most ~300 KB. Throws otherwise. */
+export function cleanSymbolImage(v: unknown): string {
+  const s = String(v || '');
+  const m = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/.exec(s);
+  if (!m) throw new Error('Upload a PNG, JPG or SVG image.');
+  if ((m[2].length * 3) / 4 > 300 * 1024) throw new Error('That image is too big for a symbol (300 KB at most).');
+  return s;
+}
+export const cleanSymbolName = (v: unknown) => {
+  const s = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!s) throw new Error('Give the symbol a name — it shows when someone points at it.');
+  return s;
+};
 
 export type LinkTarget = { type: 'page'; page: number } | { type: 'file'; fileId: string; name: string; page?: number };
 
@@ -127,6 +143,10 @@ export function cleanMarkup(raw: any): { kind: MarkupKind; page: number; data: M
     data.unit = d.unit === 'm' ? 'm' : 'ft';
   }
   if (kind === 'pin') { const photos = cleanPhotos(d.photos); if (photos.length) data.photos = photos; }
+  if (kind === 'symbol') {
+    if (typeof d.symbolId !== 'string' || !d.symbolId.trim()) throw new Error('Pick a symbol.');
+    data.symbolId = d.symbolId.trim().slice(0, 80);
+  }
   if (kind === 'stamp') data.icon = STAMP_KEYS.includes(String(d.icon)) ? String(d.icon) : 'check';
   if (kind === 'link') {
     const target = cleanTarget(d.target);
@@ -351,18 +371,44 @@ export async function photoToPdf(bytes: Uint8Array, name: string): Promise<Uint8
 export async function flattenPdf(
   pdf: Buffer | Uint8Array,
   markups: { page: number; kind: string; data: MarkupData }[],
-  opts: { fileUrl?: (fileId: string) => string; sheetNames?: Record<string, string> | null } = {},
+  opts: { fileUrl?: (fileId: string) => string; sheetNames?: Record<string, string> | null; symbols?: Record<string, { name: string; image: string }> } = {},
 ): Promise<Uint8Array> {
   const doc = await PDFDocument.load(pdf, { ignoreEncryption: true });
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
+  const embedded = new Map<string, Awaited<ReturnType<PDFDocument['embedPng']>> | null>();
   for (const m of markups) {
     const page = pages[m.page - 1];
     if (!page) continue;
+    if (m.kind === 'symbol') { await drawSymbol(doc, page, font, m.data, opts.symbols, embedded); continue; }
     drawMarkup(page, font, m.kind, m.data, (n) => opts.sheetNames?.[String(n)]);
     if (m.kind === 'link' && m.data.target) addLinkAnnotation(doc, page, pages, m.data, opts.fileUrl);
   }
   return doc.save();
+}
+
+/** A library symbol, its image laid into the markup's box; a labelled box when the symbol was since deleted. */
+async function drawSymbol(doc: PDFDocument, page: PDFPage, font: PDFFont, d: MarkupData, symbols: Record<string, { name: string; image: string }> | undefined, cache: Map<string, any>) {
+  const { width: w, height: h } = page.getSize();
+  const rot = page.getRotation().angle;
+  const [a, b] = [d.points[0], d.points[1] || d.points[0]].map((p) => toPage(p, w, h, rot));
+  const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+  const sym = d.symbolId ? symbols?.[d.symbolId] : undefined;
+  if (sym && !cache.has(d.symbolId!)) {
+    const m = /^data:image\/(png|jpeg);base64,(.+)$/.exec(sym.image);
+    const bytes = m ? Buffer.from(m[2], 'base64') : null;
+    cache.set(d.symbolId!, bytes ? await (m![1] === 'png' ? doc.embedPng(bytes) : doc.embedJpg(bytes)).catch(() => null) : null);
+  }
+  const img = sym ? cache.get(d.symbolId!) : null;
+  if (img) {
+    // Fit inside the box, keeping its shape.
+    const k = Math.min((x1 - x0) / img.width, (y1 - y0) / img.height);
+    const iw = img.width * k, ih = img.height * k;
+    page.drawImage(img, { x: x0 + (x1 - x0 - iw) / 2, y: h - y0 - (y1 - y0 + ih) / 2, width: iw, height: ih });
+  } else {
+    page.drawRectangle({ x: x0, y: h - y1, width: x1 - x0, height: y1 - y0, borderColor: rgb(0.4, 0.4, 0.4), borderWidth: 1 });
+    page.drawText(latin1((d.label || 'Symbol').slice(0, 40)), { x: x0 + 2, y: h - y0 - 10, size: 8, font, color: rgb(0.3, 0.3, 0.3) });
+  }
 }
 
 function addLinkAnnotation(doc: PDFDocument, page: PDFPage, pages: PDFPage[], d: MarkupData, fileUrl?: (id: string) => string) {

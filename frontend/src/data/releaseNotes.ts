@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31f',
+    date: '2026-10-31',
+    title: 'Drawings: your own symbols',
+    items: [
+      { area: 'Drawings', kind: 'new', text: 'A shared symbol library: admins add symbols (PNG, JPG or SVG) with a name; anyone marking up picks one with the ◆ tool and clicks to drop it (or drags to size it). Pointing at a placed symbol shows its name, and it prints in the downloaded PDF.', where: 'File Room → Mark up → ◆ Symbol (＋ to add, ⚙ to rename or delete — admins)' },
+    ],
+  },
+  {
     id: '2026-10-31e',
     date: '2026-10-31',
     title: 'Mark up photos',

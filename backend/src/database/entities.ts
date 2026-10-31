@@ -1027,6 +1027,21 @@ export class UserViewEntity {
  * the drawing, which itself never changes. Points are page-relative (0-1) as
  * the page is shown, so they hold at any zoom; sizes are in PDF points.
  */
+/**
+ * A drawing symbol (Oct 31): a small image admins add to one shared library;
+ * anyone marking up drops it on a drawing like a pin. Kept as a PNG/JPEG data
+ * URL (the browser shrinks it to 256 px first), so it's small.
+ */
+@Entity('markup_symbols')
+export class MarkupSymbolEntity {
+  @PrimaryColumn() id!: string;
+  @Column({ type: 'nvarchar', length: 80 }) name!: string;
+  @Column({ type: 'nvarchar', length: 'MAX' }) image!: string;
+  @Column({ type: 'int', nullable: true }) sortOrder!: number | null;
+  @Column({ nullable: true }) createdBy!: string;
+  @Column() createdAt!: string;
+}
+
 @Entity('pdf_markups')
 export class PdfMarkupEntity {
   @PrimaryColumn() id!: string;

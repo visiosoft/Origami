@@ -88,7 +88,13 @@ describe('MarkupsService', () => {
       content: async () => ({ file: { id: 'F1', name: 'A-201.pdf', projectId: 3, folderPath: ['Drawings'] }, body: new Blob([await twoPages()]).stream() }),
       upload: async (...a: any[]) => { uploads.push(a); return [{ id: 'F2', name: a[2][0].originalname }]; },
     };
-    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any), rows, uploads };
+    const symRows: any[] = [];
+    const symbolRepo = {
+      find: async () => symRows, findOneBy: async (w: any) => symRows.find((r) => r.id === w.id) || null, create: (x: any) => x,
+      save: async (x: any) => { const i = symRows.findIndex((r) => r.id === x.id); if (i >= 0) symRows[i] = x; else symRows.push(x); return x; },
+      delete: async (w: any) => { const i = symRows.findIndex((r) => r.id === w.id); if (i >= 0) symRows.splice(i, 1); },
+    };
+    return { svc: new MarkupsService(repo as any, files as any, fileRoom as any, undefined, symbolRepo as any), rows, uploads, symRows };
   };
   const ed = { sub: 'U-1', name: 'Edward', roleKey: 'admin', tier: 'internal' } as any;
   const an = { sub: 'U-2', name: 'Andrea', roleKey: 'staff', tier: 'internal' } as any;
@@ -236,5 +242,26 @@ describe('MarkupsService', () => {
     const pdf = await PDFDocument.load(await photoToPdf(png, 'a.png'));
     expect(pdf.getPage(0).getSize()).toEqual({ width: 1200, height: 1200 });
     await expect(photoToPdf(new Uint8Array([1, 2, 3]), 'b.gif')).rejects.toThrow(/JPG and PNG/);
+  });
+
+  it('keeps a symbol library admins look after, and places symbols like pins (Oct 31)', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    const { svc } = setup();
+    await expect(svc.addSymbol({ name: 'Fire extinguisher', image: png }, an)).rejects.toThrow(/Only admins/);
+    await expect(svc.addSymbol({ name: '', image: png }, ed)).rejects.toThrow(/name/);
+    await expect(svc.addSymbol({ name: 'X', image: 'data:image/gif;base64,AAAA' }, ed)).rejects.toThrow(/PNG, JPG or SVG/);
+    const s = await svc.addSymbol({ name: '  Fire   extinguisher ', image: png }, ed);
+    expect(s.name).toBe('Fire extinguisher');
+    expect((await svc.renameSymbol(s.id, { name: 'FE' }, ed)).name).toBe('FE');
+    expect((await svc.symbols()).map((x) => x.name)).toEqual(['FE']);
+    await expect(svc.create('F1', { kind: 'symbol', page: 1, data: { points: [[0.1, 0.1], [0.15, 0.15]] } }, an)).rejects.toThrow(/Pick a symbol/);
+    const m = await svc.create('F1', { kind: 'symbol', page: 1, data: { points: [[0.1, 0.1], [0.15, 0.15]], symbolId: s.id, label: 'FE' } }, an);
+    expect(m.data).toMatchObject({ symbolId: s.id, label: 'FE' });
+    const { pdf } = await svc.flatten('F1', an);
+    expect(pdf.length).toBeGreaterThan(1000);
+    await svc.removeSymbol(s.id, ed);
+    expect(await svc.symbols()).toEqual([]);
+    // A deleted symbol still draws, as a labelled box.
+    expect((await svc.flatten('F1', an)).pdf.length).toBeGreaterThan(1000);
   });
 });

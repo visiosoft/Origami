@@ -3,10 +3,10 @@ import { SettingsService } from '../settings/settings.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
-import { FileRoomFileEntity, PdfMarkupEntity } from '../database/entities';
+import { FileRoomFileEntity, MarkupSymbolEntity, PdfMarkupEntity } from '../database/entities';
 import type { SessionClaims } from '../auth/crypto.util';
 import { FileRoomService } from './file-room.service';
-import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
+import { MAX_PIN_PHOTOS, canEditMarkup, cleanSheetNames, cleanSymbolImage, cleanSymbolName, isMarkable, isPhotoName, leadsMarkups, photoToPdf, cleanLayer, cleanMarkup, cleanPhotos, flattenPdf, layerKey, visibleTo, type MarkupData } from './markups';
 
 /** Where photos pinned to a drawing are kept in the project's File Room. */
 export const PIN_PHOTO_FOLDER = ['Markup photos'];
@@ -19,7 +19,41 @@ export class MarkupsService {
     @InjectRepository(FileRoomFileEntity) private readonly files: Repository<FileRoomFileEntity>,
     private readonly fileRoom: FileRoomService,
     @Optional() private readonly settings?: SettingsService,
+    @Optional() @InjectRepository(MarkupSymbolEntity) private readonly symbolRepo?: Repository<MarkupSymbolEntity>,
   ) {}
+
+  // ---------------------------------------------------------------- symbols (Oct 31)
+  /** The shared symbol library, in order. */
+  async symbols() {
+    const rows = (await this.symbolRepo?.find()) || [];
+    return rows.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)).map(({ id, name, image }) => ({ id, name, image }));
+  }
+  /** Admins keep the library: add, rename, delete. */
+  private assertSymbolAdmin(claims: SessionClaims | null) {
+    if (claims?.roleKey !== 'admin') throw new ForbiddenException('Only admins add or change symbols.');
+  }
+  async addSymbol(body: any, claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    let name: string, image: string;
+    try { name = cleanSymbolName(body?.name); image = cleanSymbolImage(body?.image); } catch (e) { throw new BadRequestException((e as Error).message); }
+    const n = (await this.symbolRepo!.find()).length;
+    const row = await this.symbolRepo!.save(this.symbolRepo!.create({ id: 'SYM-' + randomUUID(), name, image, sortOrder: n, createdBy: claims!.name, createdAt: new Date().toISOString() }));
+    return { id: row.id, name: row.name, image: row.image };
+  }
+  async renameSymbol(id: string, body: any, claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    const row = await this.symbolRepo!.findOneBy({ id });
+    if (!row) throw new NotFoundException('Symbol not found');
+    try { row.name = cleanSymbolName(body?.name); } catch (e) { throw new BadRequestException((e as Error).message); }
+    await this.symbolRepo!.save(row);
+    return { id: row.id, name: row.name, image: row.image };
+  }
+  /** Deleting a symbol leaves the ones already placed as a labelled box. */
+  async removeSymbol(id: string, claims: SessionClaims | null) {
+    this.assertSymbolAdmin(claims);
+    await this.symbolRepo!.delete({ id });
+    return { id, deleted: true };
+  }
 
   /** A link may only point at a file in the drawing's own project. */
   private async assertLinkTarget(drawing: { projectId?: unknown }, data: MarkupData) {
@@ -175,6 +209,7 @@ export class MarkupsService {
     const pdf = await flattenPdf(buf, marks.map((m) => ({ page: m.page, kind: m.kind, data: m.data as unknown as MarkupData })), {
       fileUrl: base ? (id) => `${base}/planroom?file=${encodeURIComponent(id)}` : undefined,
       sheetNames: (await this.file(fileId)).sheetNames,
+      symbols: Object.fromEntries((await this.symbols()).map((s) => [s.id, s])),
     });
     return { file, pdf: Buffer.from(pdf), count: marks.length };
   }
