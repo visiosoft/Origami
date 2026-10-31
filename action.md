@@ -158,6 +158,6 @@ Today: Urgent / High / Medium (a month) / Low (past a month). Plan: add Emergenc
 | H1 | How to add formatting | Agreement and Introduction templates have the formatting toolbar; Email, Document and Proposal templates are plain text | Formatting toolbar for Email, Document and Proposal templates too (emails send as HTML with a plain-text copy); SMS stays plain | ✅ |
 | H2 | Preview a template (Settings and the Library) | None | "Preview" beside the editor: the template filled with sample (or a picked project's) data, as the email or PDF will look | ✅ |
 | H3 | More merge fields ("tag options") | 10 fixed fields | Add more (client address, project address, project number, PM name/phone/email, company name/phone/address, today's date in words, proposal total…); a "+ Insert field" picker in the editor | ✅ (client first name, project address/number/type, your phone, company name/phone/email/address/website) |
-| H4 | The Project Program PDF doesn't look good | — | Redesign the PDF: cover/header with logo, clear phase table, spacing and type | ⬜ (a sample of the current PDF and of what "good" looks like would help) |
+| H4 | The Project Program PDF doesn't look good | — | Redesign the PDF: cover/header with logo, clear phase table, spacing and type | ✅ (laid out by the app, no Google Docs conversion) |
 
 Order agreed (Oct 31): G priorities → F drawings → H templates.

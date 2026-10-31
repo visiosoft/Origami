@@ -5,7 +5,8 @@ import { Tiers } from '../auth/guards/roles.decorator';
 import { GoogleService } from '../google/google.service';
 import { SettingsService } from '../settings/settings.service';
 import { BRAND_KEYS, brandingFrom, safeFilename } from '../documents/letterhead';
-import { buildProgramHtml, type DocStep } from '../documents/program-document';
+import type { DocStep } from '../documents/program-document';
+import { buildProgramPdf } from '../documents/program-pdf';
 import type { AuthedRequest } from '../auth/guards/session.guard';
 import { assertFilled } from '../email-templates/placeholders';
 
@@ -139,7 +140,8 @@ export class ProjectProgramController {
   private async render(body: DocumentInput) {
     const brand = brandingFrom(await this.settings.getMany(BRAND_KEYS));
     const projectName = body.projectName || (body.leadId ? `Lead ${body.leadId}` : `Project ${body.projectId}`);
-    const html = buildProgramHtml({
+    // Laid out here (Oct 31), not converted by Google Docs, which dropped most of the styling.
+    const pdf = await buildProgramPdf({
       brand,
       projectName,
       subtitle: body.subtitle,
@@ -147,14 +149,6 @@ export class ProjectProgramController {
       steps: Array.isArray(body.steps) ? body.steps : [],
     });
     const name = safeFilename(`${projectName} - Project Program`);
-    // The running head repeats on every printed page; the section bands in the
-    // HTML repeat per section. Both, so a page that overflows still says whose
-    // document it is.
-    const header = [brand.companyName, projectName, 'Project Program'].filter(Boolean).join('  ·  ');
-    const footer = [brand.address, brand.phone, brand.email, brand.website].filter(Boolean).join('  ·  ');
-    // Landscape for this document only -- the plain letterhead path in
-    // google.controller.ts doesn't pass this and stays portrait.
-    const pdf = await this.google.htmlToPdf(html, name, { header, footer }, true);
     return { pdf, filename: `${name}.pdf` };
   }
 }

@@ -16,6 +16,14 @@ export interface Release { id: string; date: string; title: string; items: Relea
 
 export const RELEASES: Release[] = [
   {
+    id: '2026-10-31h',
+    date: '2026-10-31',
+    title: 'A cleaner Project Program PDF',
+    items: [
+      { area: 'Projects', kind: 'improved', text: 'The Project Program PDF is laid out afresh: a cover with your logo, the project and the date; an at-a-glance page listing every section with its budget and actual; About Us; then the sections, each with a clear heading band and tables that carry their headings onto the next page. Every page has your logo, the project and page numbers. It no longer goes through Google Docs, which dropped most of the styling.', where: 'A project → Project Program → Download / Send' },
+    ],
+  },
+  {
     id: '2026-10-31g',
     date: '2026-10-31',
     title: 'Templates: formatting, preview, more merge fields',
